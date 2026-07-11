@@ -1,0 +1,136 @@
+<!--
+Copyright (c) 2026 DDP Engineering
+This software is licensed under the PolyForm Noncommercial License 1.0.0.
+Commercial use requires a separate commercial license.
+See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+-->
+
+# AGENTS.md - Agentic Engineering Governance & Integrity System
+
+## Scope
+
+These instructions apply to the repository rooted at:
+`2026_Agentic_Engineering_Governance_Integrity_System/`
+
+A deeper `AGENTS.md` overrides this file for its subtree.
+
+## Repository Rules
+
+- Treat this repository as independent.
+- Keep the runnable AEGIS implementation under
+  `05_Software/aegis/`.
+- Treat everything under `05_Software/aegis/template/` as
+  template material copied verbatim into downstream projects. Keep it generic
+  and free of this repository's own development history, version records, or
+  project-specific facts. In particular, `template/CHANGELOG.md` is a downstream
+  starter and must stay empty (no release entries).
+- Keep folder boundaries clear across planning, documentation, tools,
+  hardware, hardware documentation, software, software documentation, delivery,
+  and support material.
+- Do not add subtree-level `AGENTS.md` files unless explicitly requested.
+- Keep the project offline-first unless an online dependency is explicitly
+  required and approved.
+- Preserve the existing Python package name and import paths unless a rename is
+  explicitly requested.
+
+## Working Rules
+
+- Prefer simple, maintainable changes that match the existing package style.
+- Avoid unnecessary abstraction and speculative architecture.
+- Make changes incrementally.
+- Update documentation in the same change when behavior, commands, folder
+  layout, or workflow contracts change.
+- Preserve public CLI behavior unless change is explicitly requested.
+- Keep repository instructions in `AGENTS.md` and deeper implementation notes in
+  `06_SoftwareDocu/`.
+
+## Style Rules
+
+Code style and Python documentation style are defined in:
+`01_Documentation/Code_Style.md`
+
+Follow that file for implementation and documentation conventions.
+
+When changing the implementation of a function, method, or documented nested
+helper, update that callable's local `@version` tag in its documentation block
+in the same change.
+
+When adding or removing a function, method, class, or documented nested helper
+from a Python file, update the file-level `@version` tag in that file's module
+documentation header in the same change.
+
+## Requirements Traceability Rules
+
+- Put future project planning and requirements material under `00_Planning/`.
+- Keep reusable workflow requirement examples inside the software template only
+  when they are part of the template package itself.
+- When behavior changes, update relevant tests or document an explicit manual
+  verification method.
+- When adding or changing tests, mention relevant requirement IDs in test
+  docstrings when practical.
+
+## Validation Rules
+
+For Python changes inside
+`05_Software/aegis/`, run at minimum:
+
+```powershell
+python -m py_compile <changed_file.py>
+python -m pytest -q tests
+```
+
+For CLI changes, also verify:
+
+```powershell
+python -m aegis --help
+```
+
+When behavior changes:
+
+- add or update targeted tests
+- prefer focused tests before broad runs
+- state what was validated and what remains unverified
+
+## Versioning and Changelog Rules
+
+- The repository-root `CHANGELOG.md` is the canonical record of all template
+  project updates. Accrue changes under `## [Unreleased]` using Keep a Changelog
+  sections (Added, Changed, Fixed, Removed).
+- When the user gives a command such as "assign a version to the changelog", in
+  the same change:
+  1. roll `## [Unreleased]` into a new dated `## [x.y.z] - YYYY-MM-DD` section in
+     the root `CHANGELOG.md`;
+  2. bump the project/template version to that same `x.y.z` in every version
+     declaration under `template/` (currently
+     `template/.agentic/cli/pyproject.toml` and `template/.pi/package.json`;
+     if a future versioned `template/.opencode/package.json` is added, keep it
+     in sync too), keeping them in sync;
+  3. leave the downstream starter `template/CHANGELOG.md` empty.
+- Use Semantic Versioning: MAJOR for breaking workflow-contract, CLI, hook
+  protocol, or `.agentic/` layout changes; MINOR for backward-compatible
+  capabilities; PATCH for fixes with no contract change.
+
+## Documentation Rules
+
+- Update the root `README.md` when repository scope, folder layout, legal
+  summary, or the runnable package location changes.
+- Update `05_Software/aegis/README.md` when package
+  setup, CLI usage, or template behavior changes.
+- Update copied template adapters under `.codex/`, `.claude/`, `.pi/`, and
+  `.opencode/` when workflow contract, skills, hooks, or agent-facing prompts
+  change.
+- Update `06_SoftwareDocu/` when implementation behavior or workflow contracts
+  need deeper explanation.
+- Keep README files scoped to their folder.
+
+## Completion Rules
+
+Do not consider work complete until all applicable items below are satisfied:
+
+- implementation changes are finished
+- relevant documentation is updated in the same change
+- relevant tests are added or updated for behavior changes
+- validation commands have been run or the final summary explains why they were
+  not run
+- the final summary states what changed, what was validated, and what remains
+  unverified

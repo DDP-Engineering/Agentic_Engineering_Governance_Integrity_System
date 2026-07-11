@@ -1,0 +1,235 @@
+﻿<!--
+Copyright (c) 2026 DDP Engineering
+This software is licensed under the PolyForm Noncommercial License 1.0.0.
+Commercial use requires a separate commercial license.
+See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+-->
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2645" viewBox="0 0 1800 2645" role="img" aria-labelledby="title desc">
+  <title id="title">Agentic Flow Artifact Map</title>
+  <desc id="desc">Execution-stage map showing which commands, hooks, and skills create or update .agentic workflow and adoption artifacts.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f7f4; }
+      .ink { fill: #18212b; }
+      .muted { fill: #596575; }
+      .small { font: 20px Arial, sans-serif; fill: #596575; }
+      .tiny { font: 17px Arial, sans-serif; fill: #667283; }
+      .mono { font: 18px Consolas, "Courier New", monospace; fill: #223142; }
+      .h1 { font: 800 50px Arial, sans-serif; fill: #18212b; }
+      .h2 { font: 700 28px Arial, sans-serif; fill: #18212b; }
+      .h3 { font: 700 22px Arial, sans-serif; fill: #18212b; }
+      .body { font: 21px Arial, sans-serif; fill: #2f3d4e; }
+      .label { font: 700 17px Arial, sans-serif; fill: #ffffff; }
+      .stage { fill: #ffffff; stroke-width: 3; }
+      .lane { fill: #ffffff; stroke: #d6dce3; stroke-width: 2; }
+      .artifact { fill: #f2f5f7; stroke: #c8d1da; stroke-width: 1.5; }
+      .script { fill: #f8f0df; stroke: #d9bc79; stroke-width: 1.5; }
+      .skill { fill: #eef5ef; stroke: #9fc29f; stroke-width: 1.5; }
+      .hook { fill: #f5eef6; stroke: #c7a5ca; stroke-width: 1.5; }
+      .arrow { stroke: #6e7b88; stroke-width: 4; fill: none; marker-end: url(#arrowhead); }
+      .thin-arrow { stroke: #7f8a95; stroke-width: 2.5; fill: none; marker-end: url(#smallarrow); }
+      .blue { stroke: #2f6f9f; }
+      .green { stroke: #2d7d59; }
+      .amber { stroke: #b47b22; }
+      .red { stroke: #b84b4b; }
+      .purple { stroke: #6d5ca7; }
+      .teal { stroke: #217a83; }
+      .chip-blue { fill: #2f6f9f; }
+      .chip-green { fill: #2d7d59; }
+      .chip-amber { fill: #b47b22; }
+      .chip-red { fill: #b84b4b; }
+      .chip-purple { fill: #6d5ca7; }
+      .chip-teal { fill: #217a83; }
+      .chip-gray { fill: #667283; }
+      .divider { stroke: #d6dce3; stroke-width: 2; }
+    </style>
+    <marker id="arrowhead" markerWidth="14" markerHeight="10" refX="12" refY="5" orient="auto">
+      <path d="M0,0 L14,5 L0,10 Z" fill="#6e7b88" />
+    </marker>
+    <marker id="smallarrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#7f8a95" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1800" height="2400" />
+
+  <text x="80" y="95" class="h1">Agentic Flow: cine scrie in .agentic si cand</text>
+  <text x="80" y="135" class="body">Harta operationala pentru template: etape, adoption mode, comenzi, hook-uri, skill-uri si fisierele create sau modificate.</text>
+  <text x="80" y="168" class="small">Sursa inspectata: pachetul aegis, hook-urile template-ului, .agentic/workflow.toml si .agentic/components.toml.</text>
+
+  <rect x="80" y="210" width="1640" height="170" rx="8" class="lane" />
+  <text x="110" y="255" class="h2">Legenda rapida</text>
+  <rect x="110" y="285" width="180" height="46" rx="6" class="script" />
+  <text x="130" y="314" class="mono">CLI / script</text>
+  <rect x="330" y="285" width="170" height="46" rx="6" class="hook" />
+  <text x="350" y="314" class="mono">hook</text>
+  <rect x="540" y="285" width="180" height="46" rx="6" class="skill" />
+  <text x="560" y="314" class="mono">skill</text>
+  <rect x="760" y="285" width="220" height="46" rx="6" class="artifact" />
+  <text x="780" y="314" class="mono">fisier .agentic</text>
+  <text x="1030" y="300" class="small">Fiecare rand de etapa arata cine actioneaza, cu ce comanda sau script, si ce artefact persista.</text>
+  <text x="1030" y="330" class="small">Adoption mode adauga component map, scope local, baseline review si knowledge sub .agentic.</text>
+
+  <!-- Stage spine -->
+  <line x1="160" y1="500" x2="160" y2="2005" class="arrow" />
+
+  <!-- Intake -->
+  <rect x="230" y="450" width="1420" height="190" rx="8" class="stage blue" />
+  <rect x="260" y="480" width="115" height="34" rx="17" class="chip-blue" />
+  <text x="281" y="503" class="label">01 Intake</text>
+  <text x="395" y="505" class="h2">Porneste run-ul si intentia</text>
+  <rect x="260" y="535" width="420" height="65" rx="6" class="script" />
+  <text x="280" y="563" class="mono">aegis start --kind feature|adoption</text>
+  <text x="280" y="590" class="tiny">src/aegis/cli.py -> store.init_graph()</text>
+  <line x1="705" y1="568" x2="805" y2="568" class="thin-arrow" />
+  <rect x="830" y="520" width="745" height="96" rx="6" class="artifact" />
+  <text x="850" y="548" class="mono">.agentic/current_run</text>
+  <text x="850" y="575" class="mono">.agentic/runs/&lt;run_id&gt;/graph.json</text>
+  <text x="850" y="602" class="mono">.agentic/runs/&lt;run_id&gt;/journal.jsonl</text>
+
+
+  <!-- Alignment -->
+  <rect x="230" y="680" width="1420" height="225" rx="8" class="stage green" />
+  <rect x="260" y="710" width="172" height="34" rx="17" class="chip-green" />
+  <text x="280" y="733" class="label">02 Alignment</text>
+  <text x="452" y="735" class="h2">Aliniaza intentia cu implementarea curenta</text>
+  <rect x="260" y="765" width="435" height="92" rx="6" class="script" />
+  <text x="280" y="793" class="mono">aegis alignment</text>
+  <text x="280" y="820" class="mono">config: [alignment].enabled</text>
+  <text x="280" y="847" class="tiny">cli.py -> record_alignment()</text>
+  <line x1="720" y1="810" x2="820" y2="810" class="thin-arrow" />
+  <rect x="845" y="750" width="730" height="125" rx="6" class="artifact" />
+  <text x="865" y="778" class="mono">graph.json alignment</text>
+  <text x="865" y="805" class="mono">journal.jsonl: alignment.recorded</text>
+  <text x="865" y="832" class="mono">intrebari deschise + raspunsuri implicite</text>
+  <text x="865" y="859" class="mono">risc, decizie si planned paths</text>
+
+  <!-- Requirement -->
+  <rect x="230" y="925" width="1420" height="225" rx="8" class="stage green" />
+  <rect x="260" y="955" width="160" height="34" rx="17" class="chip-green" />
+  <text x="280" y="978" class="label">03 Requirement</text>
+  <text x="440" y="980" class="h2">Transforma intentia aliniata in specificatii, cerinte sau adoption scope</text>
+  <rect x="260" y="1010" width="435" height="92" rx="6" class="script" />
+  <text x="280" y="1038" class="mono">add-spec / add-check</text>
+  <text x="280" y="1065" class="mono">requirement activate / adoption baseline</text>
+  <text x="280" y="1092" class="tiny">requirements.py + components.py</text>
+  <line x1="720" y1="1055" x2="820" y2="1055" class="thin-arrow" />
+  <rect x="845" y="995" width="730" height="125" rx="6" class="artifact" />
+  <text x="865" y="1023" class="mono">.agentic/runs/&lt;run_id&gt;/graph.json</text>
+  <text x="865" y="1050" class="mono">.agentic/runs/&lt;run_id&gt;/journal.jsonl</text>
+  <text x="865" y="1077" class="mono">graph.json spec_items</text>
+  <text x="865" y="1104" class="mono">.agentic/requirements/*.md | components.toml</text>
+
+  <!-- Check -->
+  <rect x="230" y="1190" width="1420" height="210" rx="8" class="stage amber" />
+  <rect x="260" y="1220" width="112" height="34" rx="17" class="chip-amber" />
+  <text x="283" y="1243" class="label">04 Check</text>
+  <text x="392" y="1245" class="h2">Leaga testele, verifica scope-ul local si sincronizeaza cache-ul</text>
+  <rect x="260" y="1275" width="435" height="82" rx="6" class="script" />
+  <text x="280" y="1303" class="mono">registry sync / audit / impact</text>
+  <text x="280" y="1330" class="tiny">requirements.py + adoption scope-check</text>
+  <line x1="720" y1="1315" x2="820" y2="1315" class="thin-arrow" />
+  <rect x="845" y="1257" width="730" height="112" rx="6" class="artifact" />
+  <text x="865" y="1285" class="mono">.agentic/registry/requirements.json</text>
+  <text x="865" y="1312" class="mono">.agentic/registry/checks.json</text>
+  <text x="865" y="1339" class="mono">.agentic/registry/features.json</text>
+
+  <!-- Implementation -->
+  <rect x="230" y="1440" width="1420" height="225" rx="8" class="stage red" />
+  <rect x="260" y="1470" width="180" height="34" rx="17" class="chip-red" />
+  <text x="279" y="1493" class="label">05 Implementation</text>
+  <text x="460" y="1495" class="h2">Editeaza doar artefactele permise de etapa si scope</text>
+  <rect x="260" y="1525" width="365" height="90" rx="6" class="hook" />
+  <text x="280" y="1553" class="mono">guard_write_zone.py</text>
+  <text x="280" y="1580" class="tiny">PreToolUse: citeste stage + access_mode</text>
+  <text x="280" y="1607" class="tiny">blocheaza editarile in afara zonei</text>
+  <rect x="655" y="1525" width="310" height="90" rx="6" class="skill" />
+  <text x="675" y="1553" class="mono">agent skill / Codex</text>
+  <text x="675" y="1580" class="tiny">scrie cod, teste sau knowledge</text>
+  <text x="675" y="1607" class="tiny">conform write_zones</text>
+  <line x1="990" y1="1570" x2="1090" y2="1570" class="thin-arrow" />
+  <rect x="1115" y="1510" width="460" height="125" rx="6" class="artifact" />
+  <text x="1135" y="1538" class="mono">.agentic/workflow.toml</text>
+  <text x="1135" y="1565" class="tiny">sursa zonelor permise</text>
+  <text x="1135" y="1592" class="mono">.agentic/knowledge/components/*.md</text>
+  <text x="1135" y="1619" class="tiny">knowledge local; fara schimbari de comportament in adoption</text>
+
+  <!-- Validation -->
+  <rect x="230" y="1705" width="1420" height="230" rx="8" class="stage purple" />
+  <rect x="260" y="1735" width="145" height="34" rx="17" class="chip-purple" />
+  <text x="281" y="1758" class="label">06 Validation</text>
+  <text x="425" y="1760" class="h2">Ruleaza gate-uri, audituri si inregistreaza dovezi</text>
+  <rect x="260" y="1790" width="420" height="92" rx="6" class="script" />
+  <text x="280" y="1818" class="mono">gates run / record-evidence</text>
+  <text x="280" y="1845" class="tiny">gates.py -> add_evidence()</text>
+  <text x="280" y="1872" class="tiny">cli.py -> record-evidence</text>
+  <rect x="710" y="1790" width="355" height="92" rx="6" class="hook" />
+  <text x="730" y="1818" class="mono">post_tool_evidence.py</text>
+  <text x="730" y="1845" class="tiny">PostToolUse: noteaza tool-ul</text>
+  <text x="730" y="1872" class="tiny">doar in journal.jsonl</text>
+  <line x1="1090" y1="1835" x2="1190" y2="1835" class="thin-arrow" />
+  <rect x="1215" y="1775" width="360" height="125" rx="6" class="artifact" />
+  <text x="1235" y="1803" class="mono">graph.json</text>
+  <text x="1235" y="1830" class="tiny">evidence, check state</text>
+  <text x="1235" y="1857" class="mono">journal.jsonl</text>
+  <text x="1235" y="1884" class="tiny">gate.output, agentic.tool</text>
+
+  <!-- Delivery -->
+  <rect x="230" y="1975" width="1420" height="245" rx="8" class="stage teal" />
+  <rect x="260" y="2005" width="130" height="34" rx="17" class="chip-teal" />
+  <text x="281" y="2028" class="label">07 Delivery</text>
+  <text x="410" y="2030" class="h2">Pregateste raportul, baseline-ul si preflight-ul pentru aprobare umana</text>
+  <rect x="260" y="2060" width="410" height="105" rx="6" class="script" />
+  <text x="280" y="2088" class="mono">report</text>
+  <text x="280" y="2115" class="mono">delivery-preflight</text>
+  <text x="280" y="2142" class="tiny">report.py -> write_report()</text>
+  <rect x="700" y="2060" width="370" height="105" rx="6" class="script" />
+  <text x="720" y="2088" class="mono">invariants / audit</text>
+  <text x="720" y="2115" class="tiny">invariants.py + requirements.py</text>
+  <text x="720" y="2142" class="tiny">citeste registries, requirements, graph</text>
+  <line x1="1095" y1="2112" x2="1195" y2="2112" class="thin-arrow" />
+  <rect x="1220" y="2045" width="355" height="140" rx="6" class="artifact" />
+  <text x="1240" y="2073" class="mono">report.md</text>
+  <text x="1240" y="2100" class="tiny">sub runs/&lt;run_id&gt;</text>
+  <text x="1240" y="2127" class="mono">reports/adoption/*.md</text>
+  <text x="1240" y="2154" class="tiny">baseline, component status, dovezi finale</text>
+
+  <!-- Cross-cutting map -->
+  <rect x="80" y="2290" width="1640" height="255" rx="8" class="lane" />
+  <text x="110" y="2335" class="h2">Artefacte .agentic pe categorii</text>
+  <line x1="110" y1="2360" x2="1690" y2="2360" class="divider" />
+
+  <rect x="110" y="2385" width="300" height="120" rx="6" class="artifact" />
+  <text x="130" y="2413" class="h3">Run operational</text>
+  <text x="130" y="2443" class="mono">current_run</text>
+  <text x="130" y="2470" class="mono">runs/&lt;run_id&gt;/graph.json</text>
+  <text x="130" y="2497" class="mono">runs/&lt;run_id&gt;/journal.jsonl</text>
+
+  <rect x="430" y="2385" width="300" height="120" rx="6" class="artifact" />
+  <text x="450" y="2413" class="h3">Contract configurabil</text>
+  <text x="450" y="2443" class="mono">workflow.toml</text>
+  <text x="450" y="2470" class="mono">hooks/*.py</text>
+  <text x="450" y="2497" class="mono">coverage_waivers.txt</text>
+
+  <rect x="750" y="2385" width="300" height="120" rx="6" class="artifact" />
+  <text x="770" y="2413" class="h3">Adoption existenta</text>
+  <text x="770" y="2443" class="mono">components.toml</text>
+  <text x="770" y="2470" class="mono">knowledge/components/*.md</text>
+  <text x="770" y="2497" class="mono">reports/adoption/*.md</text>
+
+  <rect x="1070" y="2385" width="300" height="120" rx="6" class="artifact" />
+  <text x="1090" y="2413" class="h3">Trasabilitate durabila</text>
+  <text x="1090" y="2443" class="mono">requirements/*.md</text>
+  <text x="1090" y="2470" class="mono">runs/&lt;run_id&gt;/graph.json</text>
+  <text x="1090" y="2497" class="mono">registry/*.json</text>
+
+  <rect x="1390" y="2385" width="300" height="120" rx="6" class="artifact" />
+  <text x="1410" y="2413" class="h3">Puncte de intrare</text>
+  <text x="1410" y="2443" class="mono">tools/run.ps1 | run.sh</text>
+  <text x="1410" y="2470" class="mono">tools/run_aegis.py</text>
+  <text x="1410" y="2497" class="mono">cli/src/aegis/**</text>
+
+  <text x="80" y="2595" class="tiny">Nota: skill-urile nu scriu automat singure; ele ghideaza agentul sau ruleaza scripturi. Persistenta efectiva apare prin CLI, hook-uri, scripturi si editari explicite.</text>
+</svg>
+

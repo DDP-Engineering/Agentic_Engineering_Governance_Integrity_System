@@ -1,0 +1,196 @@
+<!--
+Copyright (c) 2026 DDP Engineering
+This software is licensed under the PolyForm Noncommercial License 1.0.0.
+Commercial use requires a separate commercial license.
+See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+-->
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1500" viewBox="0 0 1800 1500" role="img" aria-labelledby="title desc">
+  <title id="title">AEGIS Artifact Flow</title>
+  <desc id="desc">Execution-stage map showing which command, skill, script, or hook creates or modifies .agentic workflow artifacts.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8f7f2; }
+      .ink { fill: #17202a; }
+      .muted { fill: #52616f; }
+      .small { font: 18px Arial, sans-serif; fill: #52616f; }
+      .tiny { font: 16px Arial, sans-serif; fill: #52616f; }
+      .h1 { font: 800 48px Arial, sans-serif; fill: #17202a; }
+      .h2 { font: 700 25px Arial, sans-serif; fill: #17202a; }
+      .h3 { font: 700 20px Arial, sans-serif; fill: #17202a; }
+      .body { font: 19px Arial, sans-serif; fill: #263746; }
+      .mono { font: 16px Consolas, "Courier New", monospace; fill: #17202a; }
+      .label { font: 700 15px Arial, sans-serif; fill: #ffffff; }
+      .panel { fill: #ffffff; stroke: #d2d7dc; stroke-width: 2; rx: 8; }
+      .stage { fill: #ffffff; stroke-width: 3; rx: 8; }
+      .lane { fill: #eef4f8; stroke: #c4d5df; stroke-width: 2; rx: 8; }
+      .static { fill: #fff9eb; stroke: #d8bd78; stroke-width: 2; rx: 8; }
+      .runtime { fill: #eef8f1; stroke: #9bc7a4; stroke-width: 2; rx: 8; }
+      .guard { fill: #f4f0fa; stroke: #b7a7d6; stroke-width: 2; rx: 8; }
+      .artifact { fill: #f3f5f7; stroke: #d2d7dc; stroke-width: 1.5; rx: 6; }
+      .arrow { stroke: #66717c; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .dashed { stroke-dasharray: 8 7; }
+      .blue { stroke: #2f6f9f; }
+      .green { stroke: #2d7d59; }
+      .amber { stroke: #b7791f; }
+      .purple { stroke: #6b5aa6; }
+      .teal { stroke: #257981; }
+      .red { stroke: #b84b4b; }
+      .chip-blue { fill: #2f6f9f; }
+      .chip-green { fill: #2d7d59; }
+      .chip-amber { fill: #b7791f; }
+      .chip-purple { fill: #6b5aa6; }
+      .chip-teal { fill: #257981; }
+      .chip-red { fill: #b84b4b; }
+      .chip-gray { fill: #52616f; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="9" refX="10" refY="4.5" orient="auto">
+      <path d="M 0 0 L 12 4.5 L 0 9 z" fill="#66717c" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1500"/>
+
+  <text class="h1" x="70" y="85">AEGIS Artifact Flow</text>
+  <text class="body" x="72" y="124">Who creates or modifies copied .agentic information, including existing-project adoption artifacts.</text>
+  <text class="small" x="72" y="154">Source of truth: template/.agentic, template AGENTS.md, and the bundled aegis CLI modules.</text>
+
+  <rect class="static" x="70" y="190" width="795" height="180"/>
+  <text class="h2" x="100" y="232">Bootstrap / scaffold time</text>
+  <text class="body" x="100" y="270">Producer: AEGIS copy/scaffold operation</text>
+  <text class="mono" x="100" y="300">Source: 05_Software/aegis/template/.agentic/**</text>
+  <text class="mono" x="100" y="326">Writes: workflow.toml, components.toml, cli/, tools/, hooks/, requirements/</text>
+  <text class="mono" x="100" y="352">Also: registry/, skills/, documents/, knowledge/, reports/</text>
+
+  <rect class="guard" x="935" y="190" width="795" height="180"/>
+  <text class="h2" x="965" y="232">Always-on write guard</text>
+  <text class="body" x="965" y="270">Hook: .agentic/hooks/guard_write_zone.py</text>
+  <text class="mono" x="965" y="300">Reads: .agentic/current_run, .agentic/runs/&lt;run-id&gt;/graph.json, .agentic/workflow.toml</text>
+  <text class="mono" x="965" y="326">Effect: permits or denies edits by stage; does not write workflow artifacts</text>
+
+  <rect class="lane" x="70" y="390" width="1660" height="150"/>
+  <text class="h2" x="100" y="432">Runtime command path</text>
+  <text class="body" x="100" y="470">Human or agent invokes the local wrapper, then the bundled CLI module writes durable state.</text>
+  <text class="mono" x="100" y="505">.agentic/tools/run.ps1 or run.sh -&gt; .agentic/tools/run_aegis.py -&gt; .agentic/cli/src/aegis/cli.py</text>
+  <path class="arrow" d="M 1310 502 L 1585 502"/>
+  <rect class="artifact" x="1595" y="474" width="105" height="50"/>
+  <text class="mono" x="1612" y="505">CLI</text>
+
+  <g transform="translate(70 590)">
+    <rect class="stage blue" x="0" y="0" width="230" height="345"/>
+    <rect class="chip-blue" x="22" y="22" width="80" height="28" rx="14"/>
+    <text class="label" x="49" y="42">1</text>
+    <text class="h2" x="22" y="85">Intake</text>
+    <text class="body" x="22" y="124">Creator/modifier</text>
+    <text class="mono" x="22" y="152">skill: development/adoption</text>
+    <text class="mono" x="22" y="178">cmd: start --kind ...</text>
+    <text class="mono" x="22" y="204">script: store.py:init_graph</text>
+    <text class="body" x="22" y="243">Writes</text>
+    <text class="mono" x="22" y="271">.agentic/current_run</text>
+    <text class="mono" x="22" y="297">.agentic/runs/&lt;id&gt;/graph.json</text>
+    <text class="mono" x="22" y="323">.agentic/runs/&lt;id&gt;/journal.jsonl</text>
+  </g>
+  <path class="arrow" d="M 300 762 L 335 762"/>
+
+  <g transform="translate(345 590)">
+    <rect class="stage green" x="0" y="0" width="230" height="345"/>
+    <rect class="chip-green" x="22" y="22" width="80" height="28" rx="14"/>
+    <text class="label" x="49" y="42">2</text>
+    <text class="h2" x="22" y="85">Alignment</text>
+    <text class="body" x="22" y="124">Creator/modifier</text>
+    <text class="mono" x="22" y="152">skill: development/adoption</text>
+    <text class="mono" x="22" y="178">cmd: alignment</text>
+    <text class="mono" x="22" y="204">config: [alignment]</text>
+    <text class="body" x="22" y="243">Writes</text>
+    <text class="mono" x="22" y="271">graph.json alignment</text>
+    <text class="mono" x="22" y="297">journal: alignment.recorded</text>
+    <text class="mono" x="22" y="323">questions + defaults</text>
+  </g>
+  <path class="arrow" d="M 575 762 L 610 762"/>
+
+  <g transform="translate(620 590)">
+    <rect class="stage green" x="0" y="0" width="230" height="345"/>
+    <rect class="chip-green" x="22" y="22" width="80" height="28" rx="14"/>
+    <text class="label" x="49" y="42">3</text>
+    <text class="h2" x="22" y="85">Requirement</text>
+    <text class="body" x="22" y="124">Creator/modifier</text>
+    <text class="mono" x="22" y="152">skill: agentic-development</text>
+    <text class="mono" x="22" y="178">cmd: add-spec</text>
+    <text class="mono" x="22" y="204">cmd: requirement activate</text>
+    <text class="body" x="22" y="243">Writes</text>
+    <text class="mono" x="22" y="271">graph.json spec_items</text>
+    <text class="mono" x="22" y="297">.agentic/requirements/*.md</text>
+    <text class="mono" x="22" y="323">journal: requirement.activated</text>
+  </g>
+  <path class="arrow" d="M 850 762 L 885 762"/>
+
+  <g transform="translate(895 590)">
+    <rect class="stage amber" x="0" y="0" width="230" height="345"/>
+    <rect class="chip-amber" x="22" y="22" width="80" height="28" rx="14"/>
+    <text class="label" x="49" y="42">4</text>
+    <text class="h2" x="22" y="85">Check</text>
+    <text class="body" x="22" y="124">Creator/modifier</text>
+    <text class="mono" x="22" y="152">skill: agentic-development</text>
+    <text class="mono" x="22" y="178">cmd: add-check</text>
+    <text class="mono" x="22" y="204">cmd: record-evidence</text>
+    <text class="body" x="22" y="243">Writes</text>
+    <text class="mono" x="22" y="271">graph.json checks</text>
+    <text class="mono" x="22" y="297">graph.json evidence</text>
+    <text class="mono" x="22" y="323">journal: evidence.recorded</text>
+  </g>
+  <path class="arrow" d="M 1125 762 L 1160 762"/>
+
+  <g transform="translate(1170 590)">
+    <rect class="stage purple" x="0" y="0" width="230" height="345"/>
+    <rect class="chip-purple" x="22" y="22" width="80" height="28" rx="14"/>
+    <text class="label" x="49" y="42">5</text>
+    <text class="h2" x="22" y="85">Implementation</text>
+    <text class="body" x="22" y="124">Creator/modifier</text>
+    <text class="mono" x="22" y="152">skill: agentic-development</text>
+    <text class="mono" x="22" y="178">skill: write-component-doc</text>
+    <text class="mono" x="22" y="204">cmd: record-change/evidence</text>
+    <text class="body" x="22" y="243">Writes</text>
+    <text class="mono" x="22" y="271">graph.json change_units</text>
+    <text class="mono" x="22" y="297">graph.json evidence</text>
+    <text class="mono" x="22" y="323">.agentic/knowledge/**</text>
+  </g>
+  <path class="arrow" d="M 1400 762 L 1435 762"/>
+
+  <g transform="translate(1445 590)">
+    <rect class="stage teal" x="0" y="0" width="230" height="345"/>
+    <rect class="chip-teal" x="22" y="22" width="80" height="28" rx="14"/>
+    <text class="label" x="49" y="42">6</text>
+    <text class="h2" x="22" y="85">Validation</text>
+    <text class="body" x="22" y="124">Creator/modifier</text>
+    <text class="mono" x="22" y="152">skill: regression-traceability</text>
+    <text class="mono" x="22" y="178">skill: documentation-audit</text>
+    <text class="mono" x="22" y="204">cmd: gates/audit/impact</text>
+    <text class="body" x="22" y="243">Mostly reads</text>
+    <text class="mono" x="22" y="271">workflow.toml</text>
+    <text class="mono" x="22" y="297">requirements/*.md</text>
+    <text class="mono" x="22" y="323">graph.json</text>
+  </g>
+
+  <path class="arrow" d="M 1560 950 C 1560 1015, 900 1015, 900 1075"/>
+
+  <g transform="translate(70 1080)">
+    <rect class="stage red" x="0" y="0" width="1660" height="235"/>
+    <rect class="chip-red" x="28" y="28" width="94" height="30" rx="15"/>
+    <text class="label" x="59" y="49">7</text>
+    <text class="h2" x="28" y="92">Delivery</text>
+    <text class="body" x="28" y="132">Creator/modifier: skill agentic-delivery, command registry sync/audit, delivery-preflight, report.</text>
+    <text class="mono" x="28" y="166">requirements.py:sync_registry writes .agentic/registry/requirements.json, checks.json, features.json</text>
+    <text class="mono" x="28" y="196">report.py:write_report writes .agentic/runs/&lt;run-id&gt;/report.md</text>
+    <text class="mono" x="28" y="226">cli.py:set-stage / next / set-access-mode can update graph.json decisions, stage, and access_mode at any gate</text>
+  </g>
+
+  <rect class="runtime" x="70" y="1355" width="800" height="95"/>
+  <text class="h3" x="100" y="1390">Automatic evidence append</text>
+  <text class="mono" x="100" y="1420">.agentic/hooks/post_tool_evidence.py -&gt; .agentic/runs/&lt;run-id&gt;/journal.jsonl</text>
+  <text class="tiny" x="100" y="1445">Triggered after agent tool use when an active run exists.</text>
+
+  <rect class="panel" x="930" y="1355" width="800" height="95"/>
+  <text class="h3" x="960" y="1390">Durable vs run-local</text>
+  <text class="mono" x="960" y="1420">Durable: workflow.toml, components.toml, requirements/*.md, knowledge/**</text>
+  <text class="mono" x="960" y="1445">Run-local: current_run, runs/&lt;id&gt;/graph.json, journal.jsonl, report.md</text>
+</svg>

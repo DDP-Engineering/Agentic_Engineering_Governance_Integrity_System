@@ -1,0 +1,157 @@
+<!--
+Copyright (c) 2026 DDP Engineering
+This software is licensed under the PolyForm Noncommercial License 1.0.0.
+Commercial use requires a separate commercial license.
+See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+-->
+
+# Agentic Engineering Governance & Integrity System
+
+This repository is the standalone home for **AEGIS** (Agentic Engineering
+Governance & Integrity System), a generic, copyable governance layer for
+agentic development. It keeps planning, documentation, tooling, implementation
+code, implementation notes, delivery material, and support files in separate
+top-level folders.
+
+The runnable Python package and reusable template assets live in:
+
+`05_Software/aegis/`
+
+## Workflow Shape
+
+The delivered workflow has two guided paths:
+
+- Standard development:
+  `intake -> alignment -> requirement -> check -> implementation -> validation -> delivery`
+- Existing-project adoption:
+  `adoption-intake -> adoption-alignment -> repo-discovery -> component-map -> component-adoption -> baseline-review -> adoption-delivery`
+
+Intent Alignment is the independent stage after intake. It records what the
+agent understood from the user request in relation to the current software,
+including scope, assumptions, open questions with recommended default
+responses, risk, decision, reason, and planned paths. It can be skipped through
+the delivered `[alignment].enabled` workflow configuration.
+
+## Repository Layout
+
+- `00_Planning/` - future workflow architecture notes, requirements, and design
+  planning.
+- `01_Documentation/` - project-level documentation for the standalone
+  AEGIS repository.
+- `02_Tools/` - repository-level helper scripts and utilities.
+- `03_Hardware/` - reserved for project hardware design files, specifications,
+  bills of materials, drawings, interface definitions, and prototype assets.
+- `04_HardwareDocu/` - reserved for hardware documentation, assembly and
+  operating procedures, interface descriptions, and verification records.
+- `05_Software/` - source packages and runnable implementation code.
+- `06_SoftwareDocu/` - implementation documentation and deeper technical notes.
+- `07_Delivery/` - release notes, packaging notes, and delivery metadata.
+- `09_Others/` - miscellaneous support material and local reference files.
+- `.codex/` - optional Codex-specific local support files.
+
+## Where To Start
+
+- `05_Software/aegis/README.md` describes the
+  AEGIS package.
+- `05_Software/aegis/template/` contains files copied
+  into target repositories that adopt the workflow.
+- `05_Software/aegis/template/CHANGELOG.md` is the starter
+  changelog delivered with each generated project.
+- `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md`
+  documents the delivered workflow CLI commands, examples, stages, hooks, and
+  written `.agentic` artifacts.
+- `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`
+  contains human operator prompt examples delivered with each generated project.
+- `05_Software/aegis/template/.agentic/documents/WORKFLOW_CHEATSHEET.svg`
+  provides a visual one-page workflow reference.
+- `00_Planning/PROMPT_CHEATSHEET.md` is the planning reference copy of the same
+  human prompt set.
+- `00_Planning/Agentic_Development_Architecture_Examples/` contains worked
+  architecture examples for feature work, bug fixes, and existing-repository
+  adoption.
+- The CLI command API reference is kept as a single canonical document at
+  `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md`;
+  no separate delivery copy is maintained.
+- Copied target repositories receive `.agentic/cli/` with the bundled Python
+  CLI, `.agentic/tools/` with Windows and Bash launch/install scripts,
+  `.agentic/hooks/` guardrails, `.agentic/skills/` with the shared,
+  platform-neutral skill procedures, the `.codex/`, `.claude/`, `.pi/`,
+  `.opencode/`, and `.qwen/` adapters that bind those shared skills and hooks to
+  each agent, plus the OpenCode default workflow agent, `CLAUDE.md`, `QWEN.md`,
+  and `opencode.json` for agent-specific discovery.
+- Copied target repositories also receive adoption and component-knowledge
+  assets: `.agentic/components.toml`, `.agentic/knowledge/components/`, and
+  `.agentic/reports/adoption/`.
+- Existing projects can use the delivered `agentic-adoption` skill and
+  adoption CLI commands to map components, establish local baseline scope, and
+  keep adoption runs free of application behavior changes.
+- Both development and adoption runs use Intent Alignment before requirement or
+  discovery work unless `[alignment].enabled = false` in the copied
+  `.agentic/workflow.toml`.
+
+## Creating Or Adopting A Project
+
+To create a new project from the bundled template:
+
+```powershell
+python 02_Tools\create_project_from_template.py D:\Path\To\NewProject
+```
+
+To adopt an existing repository, preview the copy first:
+
+```powershell
+python 02_Tools\create_project_from_template.py D:\Path\To\ExistingRepo --existing-repo --dry-run
+```
+
+Then run the same command without `--dry-run`. Existing files are not
+overwritten unless `--force` is supplied.
+
+## Quick Validation
+
+From `05_Software/aegis/`:
+
+```powershell
+uv sync --group dev
+uv run --group dev python -m pytest -q tests
+uv run --group dev python -m aegis --help
+```
+
+For editable development installs:
+
+```powershell
+uv sync --group dev
+uv run --group dev aegis --help
+```
+
+## Deploying The Template CLI
+
+The copied template is self-contained. A target project receives the workflow
+CLI under `.agentic/cli/` and can run it immediately through the local wrappers:
+
+```powershell
+.\.agentic\tools\run.ps1 --help
+```
+
+```bash
+bash .agentic/tools/run.sh --help
+```
+
+For a project-local virtual environment:
+
+```powershell
+.\.agentic\tools\install.ps1
+```
+
+```bash
+bash .agentic/tools/install.sh
+```
+
+The install scripts use `uv` when available, otherwise they use Python's
+standard `venv` and `pip`. Python 3.11 or newer is the only required runtime
+dependency; the current CLI has no third-party runtime dependencies.
+
+## License
+
+This project is licensed under the PolyForm Noncommercial License 1.0.0.
+Commercial use requires a separate commercial license.
+See `LICENSE.txt` for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
