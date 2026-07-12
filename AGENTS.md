@@ -17,8 +17,10 @@ A deeper `AGENTS.md` overrides this file for its subtree.
 ## Repository Rules
 
 - Treat this repository as independent.
-- Keep the runnable AEGIS implementation under
-  `05_Software/aegis/`.
+- Keep the runnable AEGIS implementation under `05_Software/aegis/` and the
+  runnable WAEGIS guided wizard under `05_Software/waegis/`. WAEGIS is a
+  separate, stdlib-only package that configures and deploys the AEGIS payload;
+  it is never copied into `05_Software/aegis/template/`.
 - Treat everything under `05_Software/aegis/template/` as
   template material copied verbatim into downstream projects. Keep it generic
   and free of this repository's own development history, version records, or
@@ -83,6 +85,14 @@ For CLI changes, also verify:
 
 ```powershell
 python -m aegis --help
+```
+
+For Python changes inside `05_Software/waegis/`, run at minimum:
+
+```powershell
+python -m py_compile <changed_file.py>
+uv run --group dev python -m pytest -q tests
+python -m waegis --help
 ```
 
 When behavior changes:

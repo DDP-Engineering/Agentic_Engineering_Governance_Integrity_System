@@ -13,6 +13,18 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Scaffold the WAEGIS guided wizard as a new stdlib-only package under
+  `05_Software/waegis/` (task T0.1): `pyproject.toml` (name `waegis`, version
+  0.1.0, no runtime deps, `waegis` script, pytest config), the §12 module
+  skeleton with compliant headers, `version.py` carrying the wizard version and
+  the compatible AEGIS payload range `>=0.4.0,<1.0` (AD-11), a `waegis` CLI
+  whose planned subcommands (`new`, `adopt`, `analyze`, `doctor`, `upgrade`,
+  `version`, `self-update`, `gui`) are stubs that exit 2 "not implemented", a
+  README stub, and smoke/version tests. WAEGIS is never copied into the AEGIS
+  payload.
+- Amend the root `AGENTS.md` repository and validation rules to name both the
+  `05_Software/aegis/` and `05_Software/waegis/` packages, and update the root
+  `README.md` layout and pointers to mention WAEGIS.
 - Add `00_Planning/WAEGIS_Wizard_Implementation_Plan.md`, the task-by-task
   implementation plan for the WAEGIS guided configuration and deployment
   wizard (new-project and existing-project journeys, install manifest,

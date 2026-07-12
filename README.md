@@ -17,6 +17,11 @@ The runnable Python package and reusable template assets live in:
 
 `05_Software/aegis/`
 
+The guided configuration and deployment wizard for AEGIS, **WAEGIS**, is a
+separate stdlib-only package (never copied into the AEGIS payload) at:
+
+`05_Software/waegis/`
+
 ## Workflow Shape
 
 The delivered workflow has two guided paths:
@@ -43,7 +48,8 @@ the delivered `[alignment].enabled` workflow configuration.
   bills of materials, drawings, interface definitions, and prototype assets.
 - `04_HardwareDocu/` - reserved for hardware documentation, assembly and
   operating procedures, interface descriptions, and verification records.
-- `05_Software/` - source packages and runnable implementation code.
+- `05_Software/` - source packages and runnable implementation code
+  (`aegis/` platform payload and CLI, `waegis/` guided deployment wizard).
 - `06_SoftwareDocu/` - implementation documentation and deeper technical notes.
 - `07_Delivery/` - release notes, packaging notes, and delivery metadata.
 - `09_Others/` - miscellaneous support material and local reference files.
@@ -53,6 +59,8 @@ the delivered `[alignment].enabled` workflow configuration.
 
 - `05_Software/aegis/README.md` describes the
   AEGIS package.
+- `05_Software/waegis/README.md` describes the WAEGIS guided wizard that
+  deploys the AEGIS payload into new or existing repositories.
 - `05_Software/aegis/template/` contains files copied
   into target repositories that adopt the workflow.
 - `05_Software/aegis/template/CHANGELOG.md` is the starter
