@@ -23,4 +23,5 @@ Contents:
 The hook configuration calls the generic scripts under `.agentic/hooks/`.
 Hook execution depends on the target machine having a compatible `python`
 command on `PATH`. If that is not true, adjust `.claude/settings.json` locally
-or install Python 3.11+.
+or run a packaged WAEGIS command to register its runtime; a system Python is
+only the final fallback.

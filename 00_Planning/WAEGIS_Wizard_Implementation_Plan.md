@@ -7,7 +7,8 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # WAEGIS Implementation Plan — Guided Configuration & Deployment Wizard for AEGIS
 
-> Status: **approved plan, not yet implemented.**
+> Status: **core lifecycle and packaging implemented; stabilization complete,
+> live release verification still open.**
 > Date: 2026-07-11.
 > Inputs: `2026_AgenticDeliveryOrchestrator/00_Planning/Onboarding_Wizards_Analysis_And_Proposal.md`
 > (the WAEGIS/WADORE analysis), `2026_AgenticDeliveryOrchestrator/00_Planning/TODO.md`,
@@ -21,6 +22,32 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 ---
 
+## 0. Implementation amendment (2026-07-16)
+
+- Implemented commands: `new`, `adopt`, `analyze`, `configure`, `doctor`,
+  `repair`, `upgrade`, and `version`.
+- The common JSON envelope, strict path confinement, payload compatibility,
+  fingerprinted re-detection, persistent rollback transactions, current
+  manifest/configuration metadata, and payload-bundled packaging are in place.
+- Manifest and journal remain version `1` because WAEGIS is unreleased. Their
+  current fields are mandatory; earlier partial layouts are rejected. There is
+  no migration, restamp, or compatibility reader.
+- M4 remains open only for Ubuntu 22.04/remote-clone verification. The Windows
+  lifecycle journey is recorded in
+  `06_SoftwareDocu/WAEGIS_Lifecycle_Live_Verification.md`; M6 remains open for
+  Ubuntu and clean-machine repetition. T7.1/T7.2 are implemented and locally
+  archive-verified on Windows, while clean-machine Windows/Ubuntu execution is
+  still required; see
+  `06_SoftwareDocu/WAEGIS_Packaged_Distribution_Verification.md`.
+- T7.3 network self-update is deferred until authenticated release signatures
+  are designed. Archives are distributed side-by-side manually. M8 GUI and M9
+  AI remain deferred and are not exposed in CLI help.
+- In all later sections, this amendment supersedes references to blind journal
+  skipping, manifestless upgrade/restamping, stubs, and checksum-only
+  self-update.
+
+---
+
 ## 1. Scope
 
 ### 1.1 In scope (this repository)
@@ -31,7 +58,8 @@ a person with **no repo-setup knowledge** can follow.
 
 - Two journeys: **`waegis new`** (new project) and **`waegis adopt`**
   (existing project).
-- Lifecycle commands: **`waegis analyze`**, **`waegis doctor`**,
+- Lifecycle commands: **`waegis analyze`**, **`waegis configure`**,
+  **`waegis doctor`**, **`waegis repair`**, **`waegis version`**, and
   **`waegis upgrade`** — the "support updates" requirement.
 - Self-contained distribution: zero third-party Python dependencies from day
   one; embedded-CPython app directory as the final packaging stage (no Python,
@@ -169,22 +197,22 @@ Engine behaviors (all are hard requirements, all get dedicated tests):
 ## 5. Product surface (CLI contract)
 
 ```text
-waegis new    TARGET [--answers F] [--dry-run] [--non-interactive] [--json] [--payload PATH]
-waegis adopt  TARGET [--answers F] [--dry-run] [--non-interactive] [--json] [--payload PATH]
+waegis new TARGET [--answers F] [--dry-run] [--non-interactive] [--yes] [--json] [--payload PATH]
+waegis adopt TARGET [--answers F] [--dry-run] [--non-interactive] [--yes] [--json] [--payload PATH]
 waegis analyze --repo PATH [--json]
-waegis doctor  --repo PATH [--json]        # exit 0 healthy / 1 warnings / 2 failures
-waegis upgrade --repo PATH [--dry-run] [--json] [--payload PATH]
-waegis version                              # wizard version + bundled payload version
-waegis self-update [--source URL|PATH] [--check-only]   # M7 only, opt-in
-waegis gui     [--port N]                   # M8 only: local-web frontend
+waegis configure --repo PATH [--answers F] [--dry-run] [--non-interactive] [--yes] [--json] [--payload PATH]
+waegis doctor --repo PATH [--json]
+waegis repair --repo PATH [--answers F] [--dry-run] [--non-interactive] [--yes] [--json] [--payload PATH]
+waegis upgrade --repo PATH [--answers F] [--dry-run] [--non-interactive] [--yes] [--json] [--payload PATH]
+waegis version [--json]
 ```
 
 - `--payload PATH` overrides payload resolution (default: bundled snapshot in
   a packaged install; `05_Software/aegis/template/` when running from the
   repo checkout).
-- All human output also has a `--json` twin (machine-readable step results) —
-  the WADORE seam.
-- Exit codes are part of the public contract from 0.1.0 onward.
+- `--json` is non-interactive and emits exactly one common envelope.
+- Exit codes: 0 success, 1 warning/approval or decisions required, 2 validation
+  or verification failure, 3 operational/internal failure.
 
 ---
 
@@ -205,7 +233,15 @@ Written to `TARGET/.agentic/install-manifest.json` by every wizard copy:
     "AGENTS.md": { "sha256": "…", "size": 2345 }
   },
   "generated": [ ".agentic/workflow.toml" ],
-  "skipped": [ "CLAUDE.md" ]
+  "skipped": [ "CLAUDE.md" ],
+  "payload_digest": "<sha256 of the payload inventory>",
+  "configuration": {
+    "answers": { "language": "python" },
+    "generator_version": "0.1.0",
+    "generated_files": {
+      ".agentic/workflow.toml": { "sha256": "<generated file hash>" }
+    }
+  }
 }
 ```
 
@@ -220,9 +256,12 @@ Semantics:
   instead.
 - `skipped` — payload files the operator chose to keep local during adoption
   conflicts. Upgrade re-offers them.
-- Absence of a manifest = "pre-manifest install": `analyze` reports version
-  unknown; `upgrade` offers a conservative re-stamp path that treats every
-  current file as locally modified (nothing is silently replaced).
+- Absence, corruption, or an earlier partial layout remains visible to
+  `analyze`, but `configure`, `repair`, and `upgrade` reject it. There is no
+  compatibility migration or conservative restamp path.
+- Every managed path is canonical and repository-relative. Traversal,
+  absolute/drive/UNC paths, normalization/case collisions, and source/target
+  symlink or reparse-point escapes are rejected.
 - The manifest lists itself under neither key and is excluded from hashing.
 - Line endings: hash the byte stream exactly as shipped; the copier must copy
   bytes verbatim (no newline translation) so hashes are stable across
@@ -380,22 +419,28 @@ Rules: `generated` files are never touched (doctor re-validates them against
 the new payload's template instead); plan preview + `--dry-run` first;
 journal every decision; run `verify.cli-smoke` + `verify.workflow-smoke`
 after applying; only then rewrite the manifest with the new
-`payload_version` and new original hashes. A repo without a manifest gets the
-conservative path (everything treated as locally modified; nothing replaced
-without a per-file decision).
+`payload_version` and new original hashes. Upgrade requires the single current
+manifest layout; absent, incomplete, or unknown layouts are rejected and must
+be handled as a fresh `adopt` after explicit operator review.
 
 ---
 
 ## 11. Packaging and self-update
 
-### Stage A (from M0): run from checkout + zipapp
+### Stage A (implemented): run from checkout + payload-bundled zipapp
 
 - `uv run waegis …` / `python -m waegis` from `05_Software/waegis/`.
-- `02_Tools/package_waegis.py` builds `07_Delivery/waegis-x.y.z.pyz`
-  (stdlib `zipapp`) **bundling a snapshot of the template payload** and a
-  `payload-version` marker. Interim distribution; needs host Python 3.11+.
+- `05_Software/waegis/packaging/build_release.py --zipapp-only` builds a
+  stdlib `zipapp` that bundles a snapshot of the template payload. The zipapp
+  remains the host-Python distribution.
 
-### Stage B (M7): self-contained app directory
+### Stage B (implemented; clean-machine release verification open)
+
+> Current implementation: `packaging/build_release.py` emits
+> `waegis-X.Y.Z-windows-x64.zip`, `waegis-X.Y.Z-linux-x64.tar.gz`, and the
+> zipapp, with a pinned runtime lock, internal archive manifests, an external
+> release manifest, and `SHA256SUMS`. The original layout sketch below is kept
+> as design provenance; its filenames and tool locations are superseded.
 
 - Layout: `waegis-x.y.z/ {bin launcher (waegis.cmd / waegis sh), runtime/
   (embedded CPython from python-build-standalone; Linux build targeting
@@ -410,7 +455,11 @@ without a per-file decision).
 - Runtime downloads happen at **build machine** packaging time only, never on
   the operator machine.
 
-### Self-update (M7, opt-in, off by default)
+### Self-update (deferred)
+
+> The design bullets below are retained only as future design history. There
+> is no `self-update` command in the released CLI; application archives are
+> distributed side-by-side manually until authenticated signatures exist.
 
 - `waegis self-update --check-only` reads a small release manifest (versions +
   sha256; signature field reserved, see risk D4') from a configured URL or
@@ -508,9 +557,10 @@ end interactively and via answers file; abort mid-run + re-run resumes.
 | **T2.1 CommandRunner + machine/tool probes** | Injectable `CommandRunner` (mirrors the proven doctor design: run, capture, timeout, not-found handling). `probes/machine.py`: OS + version vs support matrix, arch, free disk at path. `probes/tools.py`: python (try `py -3`, `python3`, `python`; parse version; ≥ 3.11 verdict), git (≥ 2.30), uv (optional, informational). Each probe returns `ProbeResult{status, found_version, required, guidance}` with OS-keyed guidance text (winget/apt commands). Offline tests via fake runner for every OS/outcome combination. | Sonnet 5 / medium / L |
 | **T2.2 Network/corporate probes** | `probes/network.py`: proxy detection (env vars + Windows registry/`gsettings` best effort), direct-vs-proxy HTTPS connect test to an operator-supplied host (only run when a remote operation is requested — offline-first default), TLS-interception heuristic (presented issuer vs known public CA list for the probe host), each producing the §12 blocking-point report. All socket use behind an injectable transport; tests use fakes only. | Sonnet 5 / medium / M |
 
-*Milestone acceptance:* `waegis doctor --repo` (machine group only, interim)
-prints the environment report on a real Win 11 machine; unit suite green
-offline.
+*Milestone acceptance:* the machine/tool/network probes render a real
+environment report (human + `--json`) when exercised directly on a real Win
+11 machine (`waegis doctor` itself does not exist until T6.1/M6 — this
+milestone proves the probe layer standalone); unit suite green offline.
 
 ### M3 — Install manifest + payload engine + analyze
 
@@ -542,17 +592,21 @@ dir to committed, smoke-verified AEGIS repo with zero manual file editing.
 |---|---|---|
 | **T5.1 Repo analysis heuristics** | `repo/analyze.py` implementing §9 with ranked, provenance-tagged proposals; `analysis.json` schema; human summary. Fixture-based tests: mini repos for python-src, node-monorepo, java-maven, go-colocated-tests, repo-with-existing-CLAUDE.md, repo-with-partial-.agentic. | **Opus 4.8 / high / L** |
 | **T5.2 Wizard E catalog + command** | `commands/adopt.py`: §8.2 catalog; prior-install routing (none / current / older / manifestless); adoption-copy conflict flow (per-file decisions journaled); workflow.toml + gates seeded from analysis; adoption branch + commit. End-to-end tests on the M5.1 fixtures. | **Opus 4.8 / high / L** |
-| **T5.3 Hand-off + docs** | `handoff.adoption` step content: exact operator prompt for `adoption-intake` (sourced from the shipped PROMPT_CHEATSHEET so it cannot drift), agent-adapter chooser (informational). Update `05_Software/waegis/README.md` with both journeys; changelog. | Sonnet 5 / low / S |
+| **T5.3 Hand-off + docs** — **absorbed into T5.2, no separate work needed.** T5.2's `commands/adopt.py` already sources the `handoff.adoption` prompt from the copied `PROMPT_CHEATSHEET.md` (`_adoption_operator_prompt`, regex-extracted from the target repo so it cannot drift), includes an informational agent-adapter chooser (`ADAPTER_DIR_NAMES`), and `05_Software/waegis/README.md` already documents both journeys. | Sonnet 5 / low / S |
 
 ### M6 — doctor + upgrade
 
 | Task | Content | Model / Reasoning / Size |
 |---|---|---|
-| **T6.1 `waegis doctor`** | `commands/doctor.py`: §10.1 catalog (machine, manifest, drift, workflow.toml invariants re-using T4.1's validator, runnability, journal), fix-it text per check, exit codes 0/1/2, `--json`. Tests per check, healthy and broken fixtures. | Sonnet 5 / medium / M–L |
-| **T6.2 `waegis upgrade`** | `commands/upgrade.py`: §10.2 three-way algorithm, plan preview, per-file conflict decisions, `generated`-file protection, removed-upstream handling, post-apply smoke re-verify, manifest rewrite last, manifestless conservative path. Exhaustive matrix tests over all table rows + abort-mid-upgrade resume. | **Opus 4.8 / high / L** |
+| **T6.1 `waegis doctor` - implemented** | Read-only catalog with typed repair/configure/upgrade actions and common JSON envelope. | Sonnet 5 / medium / M-L |
+| **T6.2 lifecycle - implemented** | Adds transactional `configure`, `repair`, and `upgrade`: all decisions before approval, clean-Git policy, persistent backup/recovery, smoke verification, and manifest write last. A current valid manifest is mandatory. | **Opus 4.8 / high / L** |
 | **T6.3 Live verification — update path** | Take a repo installed from payload 0.4.0, locally edit two payload files and workflow.toml, bump the template (scratch 0.4.1 with edits touching modified + unmodified files), run doctor → upgrade → doctor. Record report in `06_SoftwareDocu/`. | Sonnet 5 / medium / M |
 
-### M7 — Self-contained packaging + self-update
+### M7 - Self-contained packaging + self-update
+
+> Current status: T7.1 and T7.2 are implemented in
+> `05_Software/waegis/packaging/`; clean-machine verification remains. T7.3 is
+> deferred and side-by-side manual distribution is the release policy.
 
 | Task | Content | Model / Reasoning / Size |
 |---|---|---|
@@ -560,7 +614,9 @@ dir to committed, smoke-verified AEGIS repo with zero manual file editing.
 | **T7.2 Embedded-runtime app dir** | Stage-B layout (§11): fetch/pin python-build-standalone builds at package time (Windows x64; Linux x64 glibc ≤ 2.35), launchers, RELEASE-MANIFEST.json, `02_Tools/package_waegis.ps1|.sh`. Must verify on clean Win 11 and clean Ubuntu 22.04 (risk D10'). No secrets, no project config in package. | **Opus 4.8 / high / L** |
 | **T7.3 self-update** | `commands/self_update.py`: `--check-only` against URL/file-share release manifest; staged side-by-side download → self-test → junction/symlink swap → rollback retention; opt-in config in WAEGIS home. Transport injectable; offline tests with fake transport + real-swap test on tmp dirs. | Opus 4.8 / high / M–L |
 
-### M8 — Local-web GUI (optional, after M4–M6 are proven)
+### M8 - Local-web GUI (optional, after M4-M6 are proven)
+
+> Deferred and not exposed in CLI help.
 
 | Task | Content | Model / Reasoning / Size |
 |---|---|---|
@@ -568,7 +624,9 @@ dir to committed, smoke-verified AEGIS repo with zero manual file editing.
 | **T8.2 Single-page UI** | One self-contained HTML file (inline CSS/JS, zero external assets): step list with ✓/✗/current, `why` panels, copyable commands, answer forms mirroring FieldSpec validation, plan-preview approval. Shows the exact console command each step runs (teach, don't hide). | Sonnet 5 / medium / L |
 | **T8.3 GUI parity tests + hardening** | Drive the API with stdlib http client in tests: full Wizard N journey headless; localhost-only + session-token tests; graceful port fallback. | Sonnet 5 / medium / M |
 
-### M9 — AI advisor (optional, strictly last)
+### M9 - AI advisor (optional, strictly last)
+
+> Deferred and not exposed in CLI help.
 
 | Task | Content | Model / Reasoning / Size |
 |---|---|---|

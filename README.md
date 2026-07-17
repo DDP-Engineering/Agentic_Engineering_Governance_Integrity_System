@@ -155,8 +155,10 @@ bash .agentic/tools/install.sh
 ```
 
 The install scripts use `uv` when available, otherwise they use Python's
-standard `venv` and `pip`. Python 3.11 or newer is the only required runtime
-dependency; the current CLI has no third-party runtime dependencies.
+standard `venv` and `pip`. A packaged WAEGIS distribution supplies and
+registers Python 3.11+ for the deployed AEGIS CLI and hooks, so a system Python
+is not required in that flow. Git remains an external prerequisite; the AEGIS
+CLI itself has no third-party runtime dependencies.
 
 ## License
 

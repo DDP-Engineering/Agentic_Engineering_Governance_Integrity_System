@@ -55,9 +55,9 @@ translates Pi tool events into the existing hook payloads and reuses the Python
 
 ## Prerequisites and trust
 
-- **Python on PATH.** The hooks are stdlib-only and run on any Python 3.11+.
-  Set `AEGIS_PYTHON` to pin a specific interpreter; otherwise the
-  bridge uses `py -3` on Windows and `python3` elsewhere. If Python cannot be
+- **Python runtime.** Set `AEGIS_PYTHON` to pin an interpreter. Otherwise the
+  bridge uses the runtime registered by packaged WAEGIS, then a supported
+  system Python. If no interpreter can be
   run, the guard fails open (allows) — the same "needs Python on PATH" caveat as
   the Codex/Claude adapters.
 - **Project trust.** Project-local extensions and skills load only after the

@@ -11,14 +11,15 @@
 @brief Workflow support module for test_scaffold.
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.3.0
+@date 2026-07-12
+@version 0.4.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import importlib.util
@@ -95,6 +96,7 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     assert (target / ".agentic" / "tools" / "run_aegis.py").exists()
     assert (target / ".agentic" / "tools" / "run.ps1").exists()
     assert (target / ".agentic" / "tools" / "run.sh").exists()
+    assert (target / ".agentic" / "tools" / "run_hook.mjs").exists()
     assert (target / ".agentic" / "tools" / "install.ps1").exists()
     assert (target / ".agentic" / "tools" / "install.sh").exists()
     assert (target / ".agentic" / "hooks" / "guard_write_zone.py").exists()
@@ -195,6 +197,56 @@ def test_scaffold_dry_run_does_not_write_files(tmp_path: Path) -> None:
     assert copied
     assert target.exists()
     assert not (target / ".agentic").exists()
+    assert list(target.iterdir()) == []
+
+
+def test_scaffold_writes_install_manifest(tmp_path: Path) -> None:
+    """
+    @brief      Since T3.2 a real (non-dry-run) copy also writes the WAEGIS
+                install manifest at <target>/.agentic/install-manifest.json.
+    @param[in]  tmp_path Input value used by the workflow helper.
+    @return     Result produced by the workflow helper.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-12
+    @version    0.1.0
+    """
+    module = load_scaffold_module()
+    target = tmp_path / "new-project"
+
+    copied = module.copy_template(target)
+
+    manifest_file = target / ".agentic" / "install-manifest.json"
+    assert manifest_file.exists()
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    assert manifest["manifest_version"] == 1
+    assert manifest["product"] == "aegis"
+    assert manifest["mode"] == "new"
+    # Every copied payload file is recorded; the manifest never lists itself.
+    assert len(manifest["files"]) == len(copied)
+    assert ".agentic/install-manifest.json" not in manifest["files"]
+    assert manifest_file not in copied
+
+
+def test_scaffold_dry_run_writes_no_manifest(tmp_path: Path) -> None:
+    """
+    @brief      A dry-run preview writes nothing, including no install
+                manifest.
+    @param[in]  tmp_path Input value used by the workflow helper.
+    @return     Result produced by the workflow helper.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-12
+    @version    0.1.0
+    """
+    module = load_scaffold_module()
+    target = tmp_path / "existing-repo"
+    target.mkdir()
+
+    copied = module.copy_template(target, dry_run=True, require_existing_target=True)
+
+    assert copied
+    assert not (target / ".agentic" / "install-manifest.json").exists()
     assert list(target.iterdir()) == []
 
 

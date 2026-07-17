@@ -46,7 +46,8 @@ guard accepts that name alongside the Codex `apply_patch` and Claude
 
 ## Prerequisites and trust
 
-- **Python on PATH.** The hooks are stdlib-only and run on any Python 3.11+. If
+- **Python runtime.** Hooks use `AEGIS_PYTHON`, the packaged-WAEGIS registered
+  runtime, then a supported system Python. If
   `python` cannot be run, the guard fails open (allows) - the same "needs Python on
   PATH" caveat as the Codex and Claude Code adapters. Adjust the `command` entries
   in `settings.json` locally if your interpreter is named differently.

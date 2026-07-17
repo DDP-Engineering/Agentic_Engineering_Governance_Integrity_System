@@ -52,7 +52,7 @@ tool, some guardrail "hooks", and instructions the agent reads automatically.
 
 | You need | Why | How to check |
 |---|---|---|
-| **Python 3.11+** on your PATH | Runs the workflow tool and the guardrail hooks | `python --version` |
+| **Python 3.11+ runtime** | Runs the workflow tool and guardrail hooks; packaged WAEGIS registers one automatically | Run `.agentic/tools/run.ps1 --help` or `.agentic/tools/run.sh --help` |
 | **Git** | The tool uses git to scan changes, find secrets, and gate delivery | `git --version` |
 | An AI agent | Codex, Claude Code, **or** Pi (the template supports all three) | — |
 
@@ -269,7 +269,7 @@ every gate.
 ```text
 [ ] Copy template/ into the new project root
 [ ] git init (if needed)
-[ ] Python 3.11+ and git available
+[ ] A registered/system Python 3.11+ runtime and git available
 [ ] run.ps1 --help works
 [ ] Edit .agentic/workflow.toml:
       [ ] [source] roots        -> your code folders
@@ -312,7 +312,7 @@ The example above is Python. For other setups:
 | "Edit outside write zone" when the agent tries to edit your code | `write_zones.implementation` does not include your source folder | Align it with `[source] roots` |
 | `gates run` does nothing | `[gates] test` / `lint` are still empty | Add your real commands |
 | Delivery preflight always fails | Not inside a git repo, or git not installed | `git init`; install git |
-| Hooks do nothing / not enforced | `python` not on PATH for the agent | Install Python 3.11+, or fix PATH |
+| Hooks do nothing / not enforced | No explicit, WAEGIS-registered, or system Python runtime is available | Run packaged WAEGIS once, set `AEGIS_PYTHON`, or install Python 3.11+ |
 | Coverage audit complains about a file | A new code file has no linked requirement | Add a requirement row, or waive legacy files in `.agentic/requirements/coverage_waivers.txt` |
 
 ---

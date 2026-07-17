@@ -54,7 +54,8 @@ is available in the current repository.
 
 ## Runtime Requirements
 
-- Python 3.11 or newer. The CLI has no third-party runtime dependencies.
+- Python 3.11 or newer, supplied by `AEGIS_PYTHON`, the packaged-WAEGIS
+  registered runtime, or the system. The CLI has no third-party dependencies.
 - `git` on `PATH`. The secret scan (`INV-7`), `working-tree audit`, `impact`,
   and `delivery-preflight` shell out to `git`.
 
@@ -880,7 +881,7 @@ When it runs: before publish-like shell commands such as `git push`,
 What it calls:
 
 ```powershell
-python .agentic/tools/run_aegis.py delivery-preflight
+node .agentic/tools/run_hook.mjs .agentic/tools/run_aegis.py delivery-preflight
 ```
 
 What it does: denies the publish-like command when delivery preflight fails.
