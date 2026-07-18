@@ -31,6 +31,42 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- AEGIS `invariants._clean_secrets` (INV-7) only scanned the unstaged
+  `git diff`, so a secret in a newly created or already-`git add`-ed file
+  never appeared in the scan. Now scans `git diff HEAD` (staged + unstaged
+  against the last commit) plus the content of untracked, non-ignored files
+  (`05_Software/aegis/template/.agentic/cli/src/aegis/invariants.py`).
+- AEGIS `gates._argv_for_simple_command` used
+  `shlex.split(command, posix=os.name != "nt")`, whose non-POSIX mode on
+  Windows only treats a quote as significant when it starts a token — a
+  quoted argument containing a space (e.g. `pytest -k "test name with
+  space"`) silently split into two malformed tokens, letting a gate command
+  run a different (narrower/no-op) command than configured. Replaced with a
+  `shlex.shlex` lexer in POSIX quoting mode with `escape` cleared, which
+  groups quoted spans correctly on every platform while still preserving
+  literal Windows backslashes
+  (`05_Software/aegis/template/.agentic/cli/src/aegis/gates.py`).
+- AEGIS `working_tree._git_status` never undid Git's default C-style
+  quoting/octal-escaping of non-ASCII filenames, so a protected, blocked, or
+  secret-bearing file with a non-ASCII name (e.g. `café.txt`) could dodge
+  every path-pattern check in delivery preflight. Added
+  `-c core.quotepath=false` to the `git status` call plus a defense-in-depth
+  unquoting helper for the remaining quoted-character cases
+  (`05_Software/aegis/template/.agentic/cli/src/aegis/working_tree.py`).
+- Claude Code adapter: `.claude/settings.json` hook commands were plain
+  project-root-relative strings instead of the documented
+  `${CLAUDE_PROJECT_DIR}`-anchored form, which can resolve incorrectly in
+  worktree/subagent sessions where `cwd` diverges from the project root. Now
+  anchored per Claude Code's hook-reliability guidance.
+- Qwen Code adapter: the hook `matcher` in `.qwen/settings.json` included
+  tool-name aliases (`MultiEdit`, `write_file`, `replace`, `apply_patch`) that
+  are not documented Qwen Code tool names (likely copied from the
+  Claude/Codex adapters). Reduced to the two confirmed real names
+  (`Edit|WriteFile`).
+- Pi adapter: a doc comment in `.pi/extensions/agentic-guard/hook-bridge.ts`
+  and `.pi/README.md` incorrectly stated `pi.exec()`'s `ExecOptions` include a
+  `cwd` field; current Pi docs show only `{ signal, timeout }`. Corrected in
+  both places.
 - Confine every managed payload/manifest path to its repository: reject
   traversal, absolute/drive/UNC paths, ambiguous separators,
   normalization/case collisions, and source/target symlink or reparse escapes.

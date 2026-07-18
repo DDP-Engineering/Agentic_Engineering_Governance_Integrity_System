@@ -106,4 +106,46 @@ def test_repo_relative_executable_path_is_resolved_for_simple_gate_command(tmp_p
     assert argv[0] == str(executable)
 
 
+def test_quoted_argument_with_space_stays_one_token(tmp_path: Path) -> None:
+    """
+    @brief      A quoted argument containing a space parses as one argv token.
+    @param[in]  tmp_path Input value used by the workflow helper.
+    @return     Result produced by the workflow helper.
+    @details    Regression test (code-review follow-up, 2026-07-18):
+                `shlex.split(command, posix=os.name != "nt")` on Windows only
+                treats a quote as significant when it starts a token, so
+                `pytest -k "test name with space"` used to split into
+                `['pytest', '-k', '"test', 'name', 'with', 'space"']` instead
+                of one `-k` value, silently running a different (narrower or
+                invalid) command than configured.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    argv = _argv_for_simple_command(tmp_path, 'pytest -k "test name with space"')
+
+    assert argv == ["pytest", "-k", "test name with space"]
+
+
+def test_windows_backslash_path_is_preserved_unquoted(tmp_path: Path) -> None:
+    """
+    @brief      An unquoted Windows-style path keeps its literal backslashes.
+    @param[in]  tmp_path Input value used by the workflow helper.
+    @return     Result produced by the workflow helper.
+    @details    Regression test (code-review follow-up, 2026-07-18): plain
+                POSIX-mode `shlex.split` treats backslash as its own escape
+                character and would strip it from an unquoted Windows path
+                (e.g. turning `C:\\Users\\x` into `C:Usersx`); the argv
+                splitter must preserve it literally regardless of platform.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    argv = _argv_for_simple_command(tmp_path, r"C:\Users\demo\run.exe --path C:\Users\demo\data")
+
+    assert argv == [r"C:\Users\demo\run.exe", "--path", r"C:\Users\demo\data"]
+
+
 # END OF FILE
