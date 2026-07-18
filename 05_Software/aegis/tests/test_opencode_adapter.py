@@ -26,6 +26,7 @@ import importlib.util
 import json
 from pathlib import Path
 
+# CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PACKAGE_ROOT.parents[1]
@@ -52,6 +53,9 @@ COMMAND_NAMES = (
 WORKFLOW_AGENT = "aegis"
 
 
+# LOCAL HELPERS
+
+
 def load_scaffold_module():
     """
     @brief      Load the scaffolder module from the tools script by file path.
@@ -67,6 +71,9 @@ def load_scaffold_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+# TESTS
 
 
 def test_opencode_adapter_files_exist() -> None:
@@ -233,3 +240,6 @@ def test_scaffold_copies_opencode_adapter(tmp_path: Path) -> None:
     assert (target / ".opencode" / "commands" / "workflow-status.md").exists()
     assert (target / ".opencode" / "skills" / "agentic-development" / "SKILL.md").exists()
     assert not (target / ".opencode" / "node_modules").exists()
+
+
+# END OF FILE

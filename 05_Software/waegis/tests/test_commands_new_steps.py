@@ -18,9 +18,12 @@
          the gates-recording contract, the pending repo-local git identity,
          the nested-work-tree confirmation, hooks/adapter presence, and the
          manifest ``generated`` amendment.
+@details Gate tests updated for the 0.2.0 ``deploy.gates`` behavior (added a
+         leading top-level "proceed?" confirm ahead of the per-gate prompts;
+         see ``test_gates_top_level_decline_defers_everything_without_further_prompts``).
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.1.0
+@date 2026-07-18
+@version 0.2.0
 """
 
 # IMPORTS
@@ -437,20 +440,23 @@ def test_gates_failing_command_must_be_explicitly_accepted(tmp_path) -> None:  #
     @return     None
     @exception  AssertionError If acceptance recording misbehaves.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     _write_workflow_toml(tmp_path, test_cmds='[["false-cmd"]]')
     responses = {("false-cmd",): failing_result(exit_code=1, stderr="boom")}
     spec = _CATALOG.get("deploy.gates")
 
-    # confirms: run gate? yes; accept failing? yes; accept empty lint? yes.
-    accepted = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, True])
+    # confirms: proceed with gates? yes; run gate? yes; accept failing? yes;
+    # accept empty lint? yes.
+    accepted = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, True, True])
     spec.act(accepted)
     assert accepted.shared[SHARED_GATE_OUTCOMES]["false-cmd"] == "accepted-failing"
     assert spec.verify(accepted) is True
 
-    # confirms: run gate? yes; accept failing? NO -> the step fails.
-    rejected = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, False])
+    # confirms: proceed with gates? yes; run gate? yes; accept failing? NO ->
+    # the step fails.
+    rejected = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, False])
     with pytest.raises(RuntimeError):
         spec.act(rejected)
 
@@ -463,17 +469,49 @@ def test_gates_deferred_execution_is_recorded(tmp_path) -> None:  # type: ignore
     @return     None
     @exception  AssertionError If deferral is not recorded or a command ran.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     _write_workflow_toml(tmp_path, test_cmds='[["echo", "hi"]]')
     runner = FakeCommandRunner({})
-    # confirms: run test gate? NO; accept empty lint? yes.
-    ctx = _ctx(tmp_path, runner, confirms=[False, True])
+    # confirms: proceed with gates? yes; run test gate now? NO; accept empty
+    # lint? yes.
+    ctx = _ctx(tmp_path, runner, confirms=[True, False, True])
     spec = _CATALOG.get("deploy.gates")
 
     spec.act(ctx)
 
     assert ctx.shared[SHARED_GATE_OUTCOMES]["echo hi"] == "deferred"
+    assert runner.calls == []
+    assert spec.verify(ctx) is True
+
+
+def test_gates_top_level_decline_defers_everything_without_further_prompts(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """
+    @brief      Declining the step's own top-level "proceed?" confirmation
+                defers every configured gate command (and marks an empty gate
+                accepted-empty) in one shot, with no further prompts and no
+                command invoked — this is the AUTO-automation fix that lets
+                the run finish instead of halting when gates are declined
+                (unlike the old ASSISTED generic gate, which stopped the
+                whole run on a decline).
+    @param[in]  tmp_path Pytest tmp fixture (TARGET).
+    @return     None
+    @exception  AssertionError If deferral is not recorded, a command ran, or
+                more confirms than the single top-level one were consumed.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    _write_workflow_toml(tmp_path, test_cmds='[["echo", "hi"]]')
+    runner = FakeCommandRunner({})
+    # A single False must be enough: no per-gate follow-up prompt occurs.
+    ctx = _ctx(tmp_path, runner, confirms=[False])
+    spec = _CATALOG.get("deploy.gates")
+
+    spec.act(ctx)
+
+    assert ctx.shared[SHARED_GATE_OUTCOMES] == {"echo hi": "deferred", "lint (empty)": "accepted-empty"}
     assert runner.calls == []
     assert spec.verify(ctx) is True
 

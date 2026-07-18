@@ -16,9 +16,11 @@
          catalog runs to completion both interactively (``ScriptedAsker`` +
          console renderer) and via an answers file, and a second run against
          the same journal detects-and-skips every step. Strictly offline.
+@details Live-renderer assertions padded for the 0.2.0 marker-alignment
+         change in ``io/console.py`` (``LiveStatusRenderer``).
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.1.1
 """
 
 # IMPORTS
@@ -69,7 +71,8 @@ def test_toy_catalog_runs_to_completion_interactively_via_console_renderer(tmp_p
     @exception  AssertionError If the run does not complete green or the
                 renderer/journal output is malformed.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     catalog = build_toy_catalog()
     ctx = make_ctx()
@@ -96,9 +99,9 @@ def test_toy_catalog_runs_to_completion_interactively_via_console_renderer(tmp_p
         "toy.c": StepStatus.DONE,
     }
     rendered = live_stream.getvalue()
-    assert "[OK] Toy A: done" in rendered
-    assert "[OK] Toy B: done" in rendered
-    assert "[OK] Toy C: done" in rendered
+    assert "[OK]   Toy A: done" in rendered
+    assert "[OK]   Toy B: done" in rendered
+    assert "[OK]   Toy C: done" in rendered
     assert set(journal.green_step_ids()) == {"toy.a", "toy.b", "toy.c"}
 
 

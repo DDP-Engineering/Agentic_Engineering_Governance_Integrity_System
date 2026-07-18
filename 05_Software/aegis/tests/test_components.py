@@ -26,6 +26,9 @@ from aegis.components import audit_components, component_for_path, has_usable_ba
 from aegis.config import load_config
 
 
+# LOCAL HELPERS
+
+
 def write_manifest(repo_root: Path, body: str) -> None:
     """
     @brief      Write a component manifest for a temporary repository.
@@ -40,6 +43,9 @@ def write_manifest(repo_root: Path, body: str) -> None:
     agentic = repo_root / ".agentic"
     agentic.mkdir()
     (agentic / "components.toml").write_text(body, encoding="utf-8")
+
+
+# TESTS
 
 
 def test_no_manifest_returns_empty_components_and_bundles(tmp_path: Path) -> None:
@@ -405,3 +411,6 @@ adoption_root = ".agentic/custom-reports/adoption"
     assert cfg.adoption_behavior_changes_allowed
     assert cfg.knowledge_roots == [".agentic/custom-knowledge", "docs/architecture"]
     assert cfg.adoption_report_root == ".agentic/custom-reports/adoption"
+
+
+# END OF FILE

@@ -14,9 +14,11 @@
          live step-status render (ASCII default, forced glyph set, event
          order), and the Windows-console-safety encoding fallback (a
          restrictive-encoding stream must never raise ``UnicodeEncodeError``).
+@details Assertions padded/adjusted for the 0.2.0 marker-alignment and
+         phase-banner changes in ``LiveStatusRenderer``.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.1.1
 """
 
 # IMPORTS
@@ -41,6 +43,8 @@ from waegis.io.console import (
     ASCII_MARKERS,
     GLYPH_MARKERS,
     LiveStatusRenderer,
+    _ASCII_MARKER_WIDTH,
+    _GLYPH_MARKER_WIDTH,
     plan_preview_json,
     render_plan_preview,
     run_summary_json,
@@ -130,11 +134,13 @@ def test_plan_preview_json_round_trips_with_documented_keys() -> None:
 def test_live_status_renderer_uses_ascii_markers_by_default() -> None:
     """
     @brief      Each ``StepStarted``/``StepFinished`` event renders exactly one
-                line, in order, using the plain-ASCII marker set by default.
+                line, in order, using the plain-ASCII marker set by default;
+                a phase banner precedes the first step of a new phase.
     @return     None
     @exception  AssertionError If a marker/line is wrong or events are dropped.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     stream = io.StringIO()
     renderer = LiveStatusRenderer(stream)
@@ -142,13 +148,18 @@ def test_live_status_renderer_uses_ascii_markers_by_default() -> None:
     run(build_toy_catalog(), ctx)
     lines = [line for line in stream.getvalue().splitlines() if line]
 
+    # One phase banner (every toy step shares Phase.P0_MACHINE), then
     # StepStarted + StepFinished per step, in step order.
-    assert len(lines) == 6
-    assert lines[0] == f"{ASCII_MARKERS['running']} Toy A"
-    assert lines[1] == f"{ASCII_MARKERS['done']} Toy A: done"
-    assert lines[2] == f"{ASCII_MARKERS['running']} Toy B"
-    assert lines[3] == f"{ASCII_MARKERS['done']} Toy B: done"
-    for line in lines:
+    assert len(lines) == 7
+    assert "P0-machine" in lines[0]
+    step_lines = lines[1:]
+    running = ASCII_MARKERS["running"].ljust(_ASCII_MARKER_WIDTH)
+    done = ASCII_MARKERS["done"].ljust(_ASCII_MARKER_WIDTH)
+    assert step_lines[0] == f"{running} Toy A"
+    assert step_lines[1] == f"{done} Toy A: done"
+    assert step_lines[2] == f"{running} Toy B"
+    assert step_lines[3] == f"{done} Toy B: done"
+    for line in step_lines:
         assert "[" in line  # plain-ASCII markers only, never a glyph.
 
 
@@ -161,7 +172,8 @@ def test_forced_glyph_flag_switches_markers_not_data() -> None:
     @exception  AssertionError If the glyph marker is not used, or a status is
                 different from the ASCII-rendered run.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     ascii_stream = io.StringIO()
     glyph_stream = io.StringIO()
@@ -170,14 +182,15 @@ def test_forced_glyph_flag_switches_markers_not_data() -> None:
     run(build_toy_catalog(), make_ctx(sink=ascii_renderer))
     run(build_toy_catalog(), make_ctx(sink=glyph_renderer))
 
+    # index 0 is the phase banner on both streams; step lines start at 1.
     ascii_lines = [line for line in ascii_stream.getvalue().splitlines() if line]
     glyph_lines = [line for line in glyph_stream.getvalue().splitlines() if line]
 
-    assert ascii_lines[1] == f"{ASCII_MARKERS['done']} Toy A: done"
-    assert glyph_lines[1] == f"{GLYPH_MARKERS['done']} Toy A: done"
+    assert ascii_lines[2] == f"{ASCII_MARKERS['done'].ljust(_ASCII_MARKER_WIDTH)} Toy A: done"
+    assert glyph_lines[2] == f"{GLYPH_MARKERS['done'].ljust(_GLYPH_MARKER_WIDTH)} Toy A: done"
     # Same step/status data underneath, only the marker glyph differs.
-    ascii_status = ascii_lines[1].split(": ")[-1]
-    glyph_status = glyph_lines[1].split(": ")[-1]
+    ascii_status = ascii_lines[2].split(": ")[-1]
+    glyph_status = glyph_lines[2].split(": ")[-1]
     assert ascii_status == glyph_status == "done"
 
 

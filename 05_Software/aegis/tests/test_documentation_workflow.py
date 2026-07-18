@@ -26,6 +26,7 @@ from aegis.config import load_config
 from aegis.invariants import evaluate
 from aegis.models import ChangeUnit, Graph, Intent
 
+# CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,6 +34,9 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 #        artifacts (the .pi/ vitest toolchain). Template-hygiene walks skip these
 #        because they are not part of the shipped template deliverable.
 _DEPENDENCY_DIRS = {"node_modules", ".vitest", ".git", ".opencode-cache"}
+
+
+# TESTS
 
 
 def test_default_documentation_config(tmp_path: Path) -> None:
@@ -493,3 +497,6 @@ def test_template_text_files_have_legal_header() -> None:
             missing.append(path.relative_to(template_root).as_posix())
 
     assert missing == []
+
+
+# END OF FILE

@@ -24,10 +24,14 @@ from pathlib import Path
 
 import importlib.util
 
+# CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PACKAGE_ROOT.parents[1]
 SCRIPT_PATH = REPO_ROOT / "02_Tools" / "create_project_from_template.py"
+
+
+# LOCAL HELPERS
 
 
 def load_scaffold_module():
@@ -45,6 +49,9 @@ def load_scaffold_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+# TESTS
 
 
 def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
@@ -281,3 +288,6 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     assert (target / "src" / "app.py").exists()
     assert not (target / "pkg" / "__pycache__").exists()
     assert not (target / ".pytest_cache").exists()
+
+
+# END OF FILE

@@ -35,16 +35,23 @@
          duplicated logic. Files are copied with :func:`shutil.copy2`
          (binary, byte-verbatim, no newline translation) so the copied file's
          hash always equals the source hash.
+@details **Execute-bit backstop (added 0.3.0, architecture-review
+         follow-up).** :func:`ensure_executable` grants the POSIX execute bit
+         on every copied file whose suffix is in :data:`EXECUTABLE_SUFFIXES`
+         (currently ``.sh``), called right after every ``shutil.copy2`` in
+         :func:`copy_payload`. A no-op on Windows.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.2.0
+@date 2026-07-18
+@version 0.3.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+import os
 import shutil
+import stat
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from enum import Enum
@@ -86,6 +93,12 @@ UNKNOWN_PAYLOAD_VERSION = "unknown"
 # @brief Suffix appended to a conflicting payload file's name for the
 #        write-payload-beside-it decision.
 SIDECAR_SUFFIX = ".new"
+
+# @brief File suffixes granted the POSIX execute bit after copying (added
+#        0.3.0, architecture-review follow-up): shell scripts meant to be run
+#        directly (``./run.sh``), not only via ``bash run.sh``. No-op on
+#        Windows. See :func:`ensure_executable`.
+EXECUTABLE_SUFFIXES = frozenset({".sh"})
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -284,6 +297,40 @@ def _force_take_payload(conflict: PayloadConflict) -> ConflictDecision:
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
+def ensure_executable(destination: Path) -> None:
+    """
+    @brief      Grant the POSIX owner/group/other execute bits on a just-copied
+                file whose suffix is in :data:`EXECUTABLE_SUFFIXES`.
+    @details    ``shutil.copy2`` already preserves the source file's own mode,
+                which is normally sufficient once the payload's own git mode
+                is correct. This is a defensive backstop for a payload that
+                arrives with the bit already lost in transit (e.g. a payload
+                cache populated from a checkout with ``core.filemode``
+                disabled, or a zip/tarball extraction that dropped it) — a
+                target on Ubuntu should never end up with a non-executable
+                ``run.sh`` regardless of how the payload got there. A no-op
+                on Windows (``os.name == "nt"``): there is no POSIX execute
+                bit to set, and ``Path.chmod`` there only toggles the
+                read-only attribute, which is not what this is for. Public
+                (not copier-internal) since :mod:`waegis.commands.repair` and
+                :mod:`waegis.commands.upgrade` copy payload files through
+                their own code paths and need the same backstop.
+    @param[in]  destination The just-written file path.
+    @return     None
+    @exception  OSError If ``stat``/``chmod`` fails for a reason other than
+                the file not existing (propagated, not swallowed, since a
+                silent failure here would ship a non-executable script with
+                no signal).
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    if os.name == "nt" or destination.suffix not in EXECUTABLE_SUFFIXES:
+        return
+    mode = destination.stat().st_mode
+    destination.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
 def should_exclude(path: PurePath) -> bool:
     """
     @brief      Return whether a payload-relative path is generated or
@@ -436,9 +483,13 @@ def copy_payload(
                 already applied remain — disk-level failures are outside the
                 no-partial-write guarantee, which covers refusals and hook
                 errors).
+    @details    Every write (``copied`` and sidecar) now also runs through
+                :func:`ensure_executable` (0.3.0), so a shell script payload
+                file always lands executable on a POSIX target regardless of
+                the source's own mode.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     if force and on_conflict is not None:
         raise ValueError("force=True and on_conflict are mutually exclusive: force is the constant take-payload hook")
@@ -550,10 +601,12 @@ def copy_payload(
         destination = resolve_managed_path(target, relative.as_posix())
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(resolve_managed_path(payload_root, relative.as_posix()), destination)
+        ensure_executable(destination)
     for relative, sidecar in sidecar_writes:
         sidecar_destination = resolve_managed_path(target, sidecar.as_posix())
         sidecar_destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(resolve_managed_path(payload_root, relative.as_posix()), sidecar_destination)
+        ensure_executable(sidecar_destination)
 
     if payload_version is None:
         payload_version = read_payload_version(payload_root) or UNKNOWN_PAYLOAD_VERSION

@@ -124,7 +124,7 @@ from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, w
 from ..io.prompts import ConsoleAsker, FieldSpec
 from ..lifecycle import find_resume_journal, stable_fingerprint
 from ..io.reports import ProbeFindingRecord
-from ..payload.copier import CopierError, SIDECAR_SUFFIX, ConflictDecision, inspect_payload
+from ..payload.copier import CopierError, SIDECAR_SUFFIX, ConflictDecision, ensure_executable, inspect_payload
 from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
 from ..payload.manifest import (
     MANIFEST_RELATIVE_PATH,
@@ -562,17 +562,22 @@ def _copy_file(source: Path, destination: Path) -> None:
     @brief      Byte-verbatim copy one file, creating parent directories.
     @details    Uses :func:`shutil.copy2` (binary, no newline translation) —
                 the same primitive the copier uses, so the copied file's hash
-                equals the source hash.
+                equals the source hash. Also runs the copy through
+                :func:`waegis.payload.copier.ensure_executable` (0.2.0), the
+                same POSIX execute-bit backstop ``copy_payload``/``repair``
+                apply, so an upgraded ``run.sh`` never regresses to
+                non-executable.
     @param[in]  source File to copy from.
     @param[in]  destination File to copy to.
     @return     None
     @exception  OSError If the copy fails.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
+    ensure_executable(destination)
 
 
 def _sidecar_path(repo: Path, relative_path: str) -> Path:
@@ -652,11 +657,15 @@ def make_console_hook(asker: ConsoleAsker) -> UpgradeConflictHook:
     def hook(conflict: UpgradeConflict) -> ConflictDecision:
         """
         @brief      Interactively resolve one conflict.
+        @details    Renders `keep-local`/`take-payload`/`write-new` as a
+                    numbered menu via `FieldSpec.choices` (0.1.1) instead of
+                    requiring the operator to type the full word.
         @param[in]  conflict The conflict to resolve.
         @return     The chosen :class:`ConflictDecision`.
         @exception  waegis.io.prompts.PromptsError On a missing/invalid answer.
         @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
+        @date       2026-07-18
+        @version    0.1.1
         """
         local_desc = (
             f"local {conflict.local.size} bytes / {conflict.local.sha256[:12]}"

@@ -28,6 +28,8 @@ from .config import load_config
 from .models import Evidence
 from .store import add_evidence, append_journal, load_graph, save_graph
 
+# PUBLIC API
+
 
 def run_gates(repo_root: Path, names: list[str] | None = None, timeout: int = 300) -> int:
     """
@@ -78,6 +80,9 @@ def run_gates(repo_root: Path, names: list[str] | None = None, timeout: int = 30
                 exit_code = result.returncode
     save_graph(repo_root, graph)
     return exit_code
+
+
+# HELPER FUNCTIONS
 
 
 def _run_command(repo_root: Path, command: str, timeout: int) -> subprocess.CompletedProcess[str]:
@@ -158,3 +163,6 @@ def _strip_quotes(value: str) -> str:
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         return value[1:-1]
     return value
+
+
+# END OF FILE

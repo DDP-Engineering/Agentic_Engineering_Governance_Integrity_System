@@ -33,7 +33,7 @@ from typing import IO, Any, Mapping
 from ..io.answers import AnswersFileError, load_answers_file
 from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OK, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
 from ..io.prompts import ConsoleAsker, FieldSpec
-from ..payload.copier import CopierError, SIDECAR_SUFFIX, inspect_payload
+from ..payload.copier import CopierError, SIDECAR_SUFFIX, ensure_executable, inspect_payload
 from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
 from ..payload.manifest import (
     MANIFEST_RELATIVE_PATH,
@@ -137,11 +137,18 @@ def run_repair(
 ) -> int:
     """
     @brief      Repair one installed repository with rollback guarantees.
+    @details    The interactive conflict-decision prompt (`keep-local`/
+                `take-payload`/`write-new`) now renders as a numbered menu via
+                `FieldSpec.choices` (0.1.1) instead of requiring the operator
+                to type the full word.
+    @details    Every restored/rewritten file now also runs through
+                `ensure_executable` (0.1.2), the same POSIX execute-bit
+                backstop `copy_payload` applies.
     @return     Standardized exit code 0/1/2/3.
     @exception  None All errors are rendered.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.2
     """
     repo_path = Path(repo).resolve()
     if as_json:
@@ -347,11 +354,14 @@ def run_repair(
             destination = resolve_managed_path(repo_path, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(resolve_managed_path(payload_root, relative), destination)
+            ensure_executable(destination)
         skipped = set(manifest.skipped)
         files = dict(manifest.files)
         for relative, decision in decisions.items():
             if decision == "take-payload":
-                shutil.copy2(resolve_managed_path(payload_root, relative), resolve_managed_path(repo_path, relative))
+                take_payload_destination = resolve_managed_path(repo_path, relative)
+                shutil.copy2(resolve_managed_path(payload_root, relative), take_payload_destination)
+                ensure_executable(take_payload_destination)
                 skipped.discard(relative)
             else:
                 files.pop(relative, None)
@@ -360,6 +370,7 @@ def run_repair(
                     sidecar = resolve_managed_path(repo_path, _sidecar(relative))
                     sidecar.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(resolve_managed_path(payload_root, relative), sidecar)
+                    ensure_executable(sidecar)
         configuration = dict(manifest.configuration)
         if regenerate:
             workflow = resolve_managed_path(repo_path, WORKFLOW_TOML_RELATIVE_PATH)

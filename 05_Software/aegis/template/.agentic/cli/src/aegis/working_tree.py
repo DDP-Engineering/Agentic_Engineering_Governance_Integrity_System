@@ -27,6 +27,7 @@ from typing import Any
 from .config import WorkflowConfig, load_config
 from .paths import matches_pattern
 
+# CONSTANTS
 
 PROTECTED_PATH_PATTERNS = [
     ".git/**",
@@ -46,6 +47,8 @@ PROTECTED_PATH_PATTERNS = [
 ]
 
 MAX_SECRET_SCAN_BYTES = 1_000_000
+
+# PUBLIC API
 
 
 def audit_working_tree(
@@ -95,6 +98,9 @@ def audit_working_tree(
         "untracked": [entry for entry in entries if entry["status"] == "??"],
         "blocking_findings": findings,
     }
+
+
+# HELPER FUNCTIONS
 
 
 def _git_status(repo_root: Path) -> list[dict[str, str]]:
@@ -236,3 +242,6 @@ def _path_is_under_root(path: str, root: str) -> bool:
     """
     normalized_root = root.replace("\\", "/").strip("/")
     return path == normalized_root or path.startswith(f"{normalized_root}/")
+
+
+# END OF FILE

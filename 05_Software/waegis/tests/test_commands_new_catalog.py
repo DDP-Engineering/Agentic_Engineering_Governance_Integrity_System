@@ -15,9 +15,14 @@
          automation kinds), chains preconditions linearly in table order, and
          ``applies()``-filters ``net.proxy`` exactly when no clone URL was
          answered.
+@details ``deploy.gates`` deliberately deviates from plan §8.1 as of 0.1.1:
+         ``AUTO`` rather than ``ASSISTED``, so a decline defers instead of
+         halting the run (see ``_EXPECTED_AUTOMATION``'s inline comment).
+@details ``prereq.node`` (0.1.2) is not in plan §8.1 at all — an
+         architecture-review follow-up step, also ``AUTO``/warn-not-block.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.1.0
+@date 2026-07-18
+@version 0.1.2
 """
 
 # IMPORTS
@@ -38,13 +43,21 @@ _EXPECTED_AUTOMATION: dict[str, Automation] = {
     "machine.disk": Automation.AUTO,
     "prereq.python": Automation.ASSISTED,
     "prereq.git": Automation.ASSISTED,
+    # Not in plan §8.1 (architecture-review follow-up, 0.1.1): warn-not-block,
+    # like machine.os, not ASSISTED like prereq.python/prereq.git.
+    "prereq.node": Automation.AUTO,
     "prereq.git-identity": Automation.MANUAL,
     "net.proxy": Automation.AUTO,
     "repo.target-path": Automation.ASSISTED,
     "repo.init-or-clone": Automation.ASSISTED,
     "deploy.payload-copy": Automation.ASSISTED,
     "deploy.workflow-toml": Automation.ASSISTED,
-    "deploy.gates": Automation.ASSISTED,
+    # Deliberately AUTO, not plan §8.1's ASSISTED: declining the generic
+    # ASSISTED gate halts the whole run, but gate commands can be slow and an
+    # operator should be able to defer them cleanly instead. _act_gates asks
+    # its own "proceed?" confirmation and records a "deferred" outcome on
+    # decline, so verify still passes.
+    "deploy.gates": Automation.AUTO,
     "verify.cli-smoke": Automation.AUTO,
     "verify.workflow-smoke": Automation.AUTO,
     "verify.hooks-present": Automation.AUTO,
@@ -79,21 +92,25 @@ def test_catalog_registers_and_matches_plan_order() -> None:
     @return     None
     @exception  AssertionError If the ordered ids differ from plan §8.1.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     catalog = build_new_catalog()
 
     assert [spec.id for spec in catalog.ordered()] == list(NEW_STEP_IDS)
-    assert len(catalog) == 17
+    assert len(catalog) == 18
 
 
 def test_catalog_matches_plan_automation_kinds() -> None:
     """
-    @brief      Every step's automation kind matches the plan §8.1 column.
+    @brief      Every step's automation kind matches the plan §8.1 column
+                (with the deliberate ``deploy.gates`` deviation, see
+                ``_EXPECTED_AUTOMATION``).
     @return     None
     @exception  AssertionError On any automation mismatch.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.2
     """
     catalog = build_new_catalog()
 

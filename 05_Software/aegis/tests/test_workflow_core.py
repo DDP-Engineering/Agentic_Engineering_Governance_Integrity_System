@@ -30,6 +30,9 @@ from aegis.models import Graph
 from aegis.store import load_graph
 
 
+# LOCAL HELPERS
+
+
 def run_cli(tmp_path: Path, *args: str) -> None:
     """
     @brief      Run CLI workflow behavior.
@@ -49,6 +52,9 @@ def run_cli(tmp_path: Path, *args: str) -> None:
         main(list(args))
     finally:
         os.chdir(cwd)
+
+
+# TESTS
 
 
 def test_feature_flow_reaches_green_invariants(tmp_path: Path) -> None:
@@ -880,3 +886,6 @@ def test_superseded_late_failure_no_longer_blocks_no_regression(tmp_path: Path) 
     assert failures == []
     assert graph.evidence[0].status == "superseded"
     assert graph.evidence[0].superseded_by == "E-0002"
+
+
+# END OF FILE

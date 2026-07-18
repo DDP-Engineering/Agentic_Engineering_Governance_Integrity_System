@@ -41,9 +41,24 @@
          (interactive per-file keep-local/take-payload/write-new) or from a
          pre-supplied ``adoption_conflicts`` table (``--answers``/non-interactive),
          journaling every decision, and verifies each was applied as chosen.
+@details **``repo.adoption-commit`` is optional (added 0.2.0).** Its
+         ``automation`` changed from ``ASSISTED`` to ``AUTO``: the generic
+         per-step "Proceed with '<title>'?" gate a decline of which halts the
+         whole run does not apply here. Instead ``_act_adoption_commit`` asks
+         its own confirmation; declining sets the cross-step
+         :data:`SHARED_ADOPTION_COMMIT_SKIPPED` flag, which
+         ``_verify_adoption_commit`` treats as a valid verified outcome and
+         ``_act_handoff_adoption`` reflects in its notes — the payload is
+         already fully on disk regardless of whether the operator commits it
+         themselves or lets this step do it.
+@details **``prereq.node`` (added 0.3.0, architecture-review follow-up).**
+         Reused verbatim from Wizard N via the (now 8-step)
+         :data:`waegis.commands.new.COMMON_PREFIX_STEPS`, so ``ADOPT_STEP_IDS``
+         gains it automatically between ``prereq.git`` and
+         ``prereq.git-identity`` with no new code here.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
+@date 2026-07-18
+@version 0.3.0
 """
 
 # IMPORTS
@@ -155,6 +170,12 @@ SHARED_PRIOR_INSTALL_ROUTE = "prior_install_route"
 SHARED_CONFLICT_DECISIONS = "adoption_conflicts"
 SHARED_ADOPTION_COPY_RESULT = "adoption_copy_result"
 
+# @brief Cross-step flag set when the operator chooses to skip the adoption
+#        commit (repo.adoption-commit act) so its own verify can pass without
+#        re-checking git state (plan §8.2: the commit is a courtesy, not a
+#        requirement — the payload is already on disk either way).
+SHARED_ADOPTION_COMMIT_SKIPPED = "adoption_commit_skipped"
+
 # @brief Repo-relative directory whose presence marks a prior/legacy install.
 AGENTIC_DIR_NAME = ".agentic"
 
@@ -184,6 +205,7 @@ ADOPT_STEP_IDS: tuple[str, ...] = (
     "machine.disk",
     "prereq.python",
     "prereq.git",
+    "prereq.node",
     "prereq.git-identity",
     "net.proxy",
     "repo.validate-existing",
@@ -841,8 +863,8 @@ def _prompt_conflict(ctx: EngineContext, conflict: PayloadConflict) -> ConflictD
     @return     The chosen :class:`ConflictDecision`.
     @exception  waegis.io.prompts.PromptsError On a missing/invalid scripted answer.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     ctx.note(
         f"conflict on {conflict.relative_path}: local {conflict.target_entry.size} bytes / "
@@ -1095,15 +1117,34 @@ def _detect_adoption_commit(ctx: EngineContext) -> bool:
 
 def _act_adoption_commit(ctx: EngineContext) -> None:
     """
-    @brief      repo.adoption-commit act: create the adoption branch (if needed),
-                stage everything, and commit with the templated message.
+    @brief      repo.adoption-commit act: ask whether to commit now, then (if
+                so) create the adoption branch (if needed), stage everything,
+                and commit with the templated message.
+    @details    This step is deliberately optional (plan §8.2 D-note): the
+                payload is already fully on disk by the time this step runs,
+                so declining just means the operator will commit it
+                themselves, on their own branch/message, whenever they choose
+                — it does not undo or block anything already deployed. The
+                confirmation therefore lives inside this ``AUTO``-automation
+                step's own ``act`` (rather than the generic per-step
+                "Proceed with '<title>'?" ``ASSISTED`` gate a decline of which
+                halts the whole run) so a "no" here can complete the run
+                cleanly through to ``handoff.adoption`` instead of stopping
+                it.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If branching, staging, or committing fails.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
+    ctx.shared.pop(SHARED_ADOPTION_COMMIT_SKIPPED, None)
+    if not ctx.asker.confirm(
+        "Commit the adoption now on a new branch? (choose 'n' to commit it yourself later)", default=True
+    ):
+        ctx.shared[SHARED_ADOPTION_COMMIT_SKIPPED] = True
+        ctx.note("operator chose to commit the adoption manually later; nothing was committed")
+        return
     runner = _runner(ctx)
     target = _target(ctx)
     branch = _adoption_branch(ctx)
@@ -1127,14 +1168,18 @@ def _act_adoption_commit(ctx: EngineContext) -> None:
 def _verify_adoption_commit(ctx: EngineContext) -> bool:
     """
     @brief      repo.adoption-commit verify: clean tree, a HEAD commit, on the
-                adoption branch.
+                adoption branch — or the operator's explicit skip from this
+                same act (plan §8.2 D-note: skipping is a valid, verified
+                outcome, not a failure).
     @param[in]  ctx Active engine context.
-    @return     ``True`` when all three re-checks pass.
+    @return     ``True`` when skipped, or when all three re-checks pass.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
+    if ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED):
+        return True
     runner = _runner(ctx)
     target = _target(ctx)
     if current_branch(runner, target) != _adoption_branch(ctx):
@@ -1173,12 +1218,16 @@ def _act_handoff_adoption(ctx: EngineContext) -> None:
                 it cannot drift from the payload. WAEGIS's job ends here: the
                 in-repo ``agentic-adoption`` workflow (adoption-intake ->
                 adoption-alignment -> ...) is driven by the operator's agent tool.
+    @details    The committed-vs-uncommitted note and the closing summary
+                sentence both branch on :data:`SHARED_ADOPTION_COMMIT_SKIPPED`
+                (0.2.0), so the handoff text never claims a commit exists when
+                the operator declined ``repo.adoption-commit``.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     target = _target(ctx)
     load = load_manifest(target)
@@ -1186,7 +1235,10 @@ def _act_handoff_adoption(ctx: EngineContext) -> None:
         load.manifest.payload_version if load.state is ManifestState.VALID and load.manifest else "unknown"
     )
     ctx.note(f"AEGIS payload {payload_version} adopted into {target} by WAEGIS {WIZARD_VERSION}.")
-    ctx.note(f"Changes are committed on branch '{_adoption_branch(ctx)}'.")
+    if ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED):
+        ctx.note("Changes are on disk but NOT committed - commit them yourself when ready.")
+    else:
+        ctx.note(f"Changes are committed on branch '{_adoption_branch(ctx)}'.")
     adapters = [name for name in ADAPTER_DIR_NAMES if (target / name).is_dir()]
     if adapters:
         ctx.note("Agent adapters present (use the one your team runs): " + ", ".join(adapters))
@@ -1202,9 +1254,13 @@ def _act_handoff_adoption(ctx: EngineContext) -> None:
             "See '## Adopt An Existing Project' in .agentic/documents/PROMPT_CHEATSHEET.md for the "
             "adoption-intake prompt."
         )
+    branch_state = (
+        "a verified adoption, left uncommitted for you to commit yourself"
+        if ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED)
+        else "a verified, committed adoption branch"
+    )
     ctx.note(
-        "That prompt starts the agentic-adoption skill at adoption-intake; WAEGIS's job ends here "
-        "with a verified, committed adoption branch."
+        f"That prompt starts the agentic-adoption skill at adoption-intake; WAEGIS's job ends here with {branch_state}."
     )
     ctx.record_answer("payload_version", payload_version)
 
@@ -1310,15 +1366,19 @@ def _build_adopt_steps() -> list[StepSpec]:
             title="Commit the adoption on a branch",
             why="Records the installed payload and generated configuration as a commit on a dedicated "
             "adoption branch (default 'chore/aegis-adoption'), so the change is isolated and easy to "
-            "review before merging.",
+            "review before merging. Optional: the payload is already on disk regardless, so declining "
+            "just leaves the commit for the operator to make themselves.",
             phase=Phase.P4_DEPLOY,
-            automation=Automation.ASSISTED,
+            automation=Automation.AUTO,
             preconditions=("verify.hooks-present",),
             detect=_detect_adoption_commit,
             act=_act_adoption_commit,
             verify=_verify_adoption_commit,
             on_fail=_on_fail_adoption_commit,
-            change_summary=lambda ctx: f"git checkout -b {_adoption_branch(ctx)} && git add -A && git commit",
+            change_summary=lambda ctx: (
+                f"git checkout -b {_adoption_branch(ctx)} && git add -A && git commit (optional; "
+                "asks first, skipping leaves it for you to commit yourself)"
+            ),
         ),
         StepSpec(
             id="handoff.adoption",

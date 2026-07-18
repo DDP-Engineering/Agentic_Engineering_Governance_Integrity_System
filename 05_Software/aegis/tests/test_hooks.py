@@ -10,9 +10,11 @@
 @file test_hooks.py
 @brief Workflow support module for test_hooks.
 @details Covers expected workflow behavior through focused pytest checks.
+@details OS-aware case sensitivity of `guard_write_zone.matches` covered as
+         of 0.3.0 (architecture-review follow-up).
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.2.0
+@date 2026-07-18
+@version 0.3.0
 """
 
 # IMPORTS
@@ -28,6 +30,8 @@ from types import ModuleType
 
 from aegis.cli import main as cli_main
 
+
+# LOCAL HELPERS
 
 # @brief Standalone hook scripts are the single runtime source of truth; tests
 #        load them directly from the template so the executed code is covered.
@@ -53,7 +57,8 @@ def load_hook(module_name: str) -> ModuleType:
     return module
 
 
-guard_main = load_hook("guard_write_zone").main
+guard_module = load_hook("guard_write_zone")
+guard_main = guard_module.main
 secret_main = load_hook("secret_scan").main
 delivery_main = load_hook("delivery_preflight").main
 
@@ -163,6 +168,43 @@ def advance_to_implementation(tmp_path: Path) -> None:
     run_cli(tmp_path, "next")
     run_cli(tmp_path, "next")
     run_cli(tmp_path, "next")
+
+
+# --- matches() OS-aware case sensitivity (architecture-review follow-up) -------
+
+
+def test_matches_is_case_insensitive_on_windows(monkeypatch) -> None:
+    """
+    @brief      On Windows, `guard_write_zone.matches` is case-insensitive,
+                matching that OS's own case-insensitive filesystem.
+    @param[in]  monkeypatch Input value used by the workflow helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(guard_module.os, "name", "nt")
+    assert guard_module.matches("Src/App.py", "src/**")
+    assert guard_module.matches("src/app.py", "SRC/**")
+
+
+def test_matches_is_case_sensitive_on_non_windows(monkeypatch) -> None:
+    """
+    @brief      On a non-Windows host (0.2.0), `guard_write_zone.matches` is
+                case-sensitive, matching the real, case-sensitive filesystem
+                on Ubuntu/Linux, mirroring `aegis.paths.matches_pattern`.
+    @param[in]  monkeypatch Input value used by the workflow helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(guard_module.os, "name", "posix")
+    assert not guard_module.matches("Src/App.py", "src/**")
+    assert not guard_module.matches("src/app.py", "SRC/**")
+    assert guard_module.matches("src/app.py", "src/**")
 
 
 # --- Codex apply_patch payloads -------------------------------------------------
@@ -479,3 +521,6 @@ def test_delivery_preflight_denies_push_without_launcher(tmp_path: Path, monkeyp
     output = run_hook(delivery_main, payload, monkeypatch)
     assert "permissionDecision" in output
     assert "deny" in output
+
+
+# END OF FILE

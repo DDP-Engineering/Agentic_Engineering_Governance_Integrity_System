@@ -27,6 +27,9 @@ from aegis.gates import _argv_for_simple_command
 from aegis.store import load_graph
 
 
+# LOCAL HELPERS
+
+
 def run_cli(tmp_path: Path, *args: str) -> None:
     """
     @brief      Run CLI workflow behavior.
@@ -46,6 +49,9 @@ def run_cli(tmp_path: Path, *args: str) -> None:
         main(list(args))
     finally:
         os.chdir(cwd)
+
+
+# TESTS
 
 
 def test_simple_gate_command_runs_without_shell(tmp_path: Path) -> None:
@@ -98,3 +104,6 @@ def test_repo_relative_executable_path_is_resolved_for_simple_gate_command(tmp_p
 
     assert argv is not None
     assert argv[0] == str(executable)
+
+
+# END OF FILE

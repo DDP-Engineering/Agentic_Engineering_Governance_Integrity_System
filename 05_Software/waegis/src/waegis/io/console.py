@@ -39,9 +39,16 @@
 
          These field names are a public, frozen integration contract (the
          WADORE seam); changing them is a wizard MAJOR version bump.
+@details **Layout (added 0.2.0).** Markers are left-padded to their set's
+         widest entry (``_ASCII_MARKER_WIDTH``/``_GLYPH_MARKER_WIDTH``) so
+         step titles line up in one column regardless of status, and
+         ``LiveStatusRenderer`` prints a centered ``=== <phase> ===`` banner
+         whenever the run enters a new :class:`~waegis.engine.step.Phase`, so
+         the live log reads as grouped sections rather than one
+         undifferentiated stream of lines.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.2.0
 """
 
 # IMPORTS
@@ -53,7 +60,7 @@ from typing import IO, Any
 
 from ..engine.plan import Plan
 from ..engine.runner import RunSummary
-from ..engine.step import EngineEvent, StepFinished, StepResult, StepStarted, StepStatus
+from ..engine.step import EngineEvent, Phase, StepFinished, StepResult, StepStarted, StepStatus
 
 # CONSTANTS
 
@@ -78,6 +85,14 @@ GLYPH_MARKERS: dict[str, str] = {
     "skip": "⏭",  # ⏭
     "fail": "✗",  # ✗
 }
+
+# @brief Column width every marker is left-padded to so step titles line up
+#        under one another regardless of which marker (``[..]``/``[OK]``/
+#        ``[SKIP]``/``[FAIL]``) is printed. Computed per marker set, since the
+#        glyph set's entries are all one display column wide and padding them
+#        to the ASCII width would misalign rather than help.
+_ASCII_MARKER_WIDTH = max(len(marker) for marker in ASCII_MARKERS.values())
+_GLYPH_MARKER_WIDTH = max(len(marker) for marker in GLYPH_MARKERS.values())
 
 # @brief Map an engine ``StepStatus`` to a marker key above.
 _STATUS_MARKER_KEY: dict[StepStatus, str] = {
@@ -189,8 +204,8 @@ def render_plan_preview(plan: Plan, stream: IO[str]) -> None:
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     stream.write(f"WAEGIS plan preview - mode={plan.mode} dry_run={plan.dry_run}\n")
     rows = [
@@ -204,7 +219,7 @@ def render_plan_preview(plan: Plan, stream: IO[str]) -> None:
         for step in plan.steps
     ]
     _write_table(stream, _PLAN_COLUMNS, rows)
-    stream.write(f"{len(plan.steps)} step(s) planned.\n")
+    stream.write(f"{len(plan.steps)} step(s) planned.\n\n")
 
 
 def plan_preview_json(plan: Plan) -> str:
@@ -281,9 +296,15 @@ class LiveStatusRenderer:
              per-write encoding check falls back to the ASCII glyph for that
              call if the target stream cannot encode it, so this renderer never
              raises ``UnicodeEncodeError``.
+    @details Tracks the active :class:`~waegis.engine.step.Phase` and prints a
+             ``_phase_banner`` line ahead of the first ``StepStarted`` of each
+             new phase (added 0.2.0), so the output reads as grouped sections.
+             No leading blank line is added before a banner: this renderer's
+             only current caller (``_ConsoleRunSink``) already writes one
+             after every finished step's messages.
     @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
+    @date 2026-07-18
+    @version 0.2.0
     """
 
     def __init__(self, stream: IO[str], *, use_glyphs: bool = False) -> None:
@@ -295,44 +316,75 @@ class LiveStatusRenderer:
         @return     None
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
+        @date       2026-07-18
+        @version    0.2.0
         """
         self._stream = stream
         self._use_glyphs = use_glyphs
         self._titles: dict[str, str] = {}
+        self._current_phase: Phase | None = None
 
     def _marker(self, key: str) -> str:
         """
-        @brief      Resolve the marker text for one transition key.
+        @brief      Resolve the padded marker text for one transition key.
         @details    Uses the glyph set only when ``use_glyphs`` is set and the
                     target stream's encoding can represent it; otherwise (or on
-                    an unencodable glyph) falls back to the ASCII marker.
+                    an unencodable glyph) falls back to the ASCII marker. Either
+                    way the result is left-padded to that set's widest marker,
+                    so the step title starting after it lines up in the same
+                    column on every printed line.
         @param[in]  key One of ``pending, running, done, skip, fail``.
-        @return     The marker text to print.
+        @return     The padded marker text to print.
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
+        @date       2026-07-18
+        @version    0.2.0
         """
         if self._use_glyphs:
             glyph = GLYPH_MARKERS[key]
             if _encodable(glyph, _stream_encoding(self._stream)):
-                return glyph
-        return ASCII_MARKERS[key]
+                return glyph.ljust(_GLYPH_MARKER_WIDTH)
+        return ASCII_MARKERS[key].ljust(_ASCII_MARKER_WIDTH)
+
+    def _phase_banner(self, phase: Phase) -> str:
+        """
+        @brief      Build the section banner printed when the run enters a new
+                    phase, so the step log reads as grouped sections rather
+                    than one undifferentiated wall of lines.
+        @param[in]  phase The phase the run just entered.
+        @return     The centered ``=== <phase> ===``-style banner line
+                    (newline-terminated, no leading blank line — the caller
+                    is responsible for spacing before it, if any).
+        @exception  None
+        @author     Eng. Dan Dumitru Pasare
+        @date       2026-07-18
+        @version    0.1.0
+        """
+        label = f" {phase.value} "
+        return f"{label:=^60}\n"
 
     def emit(self, event: EngineEvent) -> None:
         """
         @brief      Render one engine event, if it carries a step transition.
+        @details    On ``StepStarted``, additionally prints a phase banner
+                    first if the event's phase differs from the last one
+                    rendered (see :meth:`_phase_banner`).
         @param[in]  event The emitted :class:`~waegis.engine.step.EngineEvent`.
         @return     None
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
+        @date       2026-07-18
+        @version    0.2.0
         """
         if isinstance(event, StepStarted):
             self._titles[event.step_id] = event.title
+            if event.phase != self._current_phase:
+                # No leading blank line here: this renderer's only current
+                # caller (``_ConsoleRunSink``) already writes one after every
+                # finished step's messages, so adding another would double
+                # the gap before each new phase banner.
+                self._stream.write(self._phase_banner(event.phase))
+                self._current_phase = event.phase
             self._stream.write(f"{self._marker('running')} {event.title}\n")
             return
         if isinstance(event, StepFinished):

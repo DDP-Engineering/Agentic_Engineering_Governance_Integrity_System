@@ -9,6 +9,10 @@
 """
 @file test_runtime_resolution.py
 @brief Clean-machine-style tests for the registered WAEGIS runtime pointer.
+@details Runs the Node hook launcher and the platform CLI wrapper with an
+         empty ``PATH`` and no ``AEGIS_PYTHON`` override, so the only way
+         either can find a Python interpreter is through the
+         ``WAEGIS_HOME/runtime-python`` pointer file.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
 @version 0.1.0
@@ -37,7 +41,17 @@ TEMPLATE_ROOT = PACKAGE_ROOT / "template"
 
 
 def _runtime_environment(tmp_path: Path) -> dict[str, str]:
-    """@brief Build an environment with no system PATH and one runtime pointer."""
+    """
+    @brief      Build an environment with no system PATH and one runtime pointer.
+    @param[in]  tmp_path Pytest-provided temporary directory for the fake
+                ``WAEGIS_HOME``.
+    @return     An environment mapping with ``WAEGIS_HOME`` set, ``PATH``
+                cleared, and any ``AEGIS_PYTHON`` override removed.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-16
+    @version    0.1.0
+    """
     home = tmp_path / "waegis-home"
     home.mkdir()
     (home / "runtime-python").write_text(str(Path(sys.executable).resolve()) + "\n", encoding="utf-8")
@@ -53,7 +67,15 @@ def _runtime_environment(tmp_path: Path) -> dict[str, str]:
 
 
 def test_hook_launcher_uses_registered_runtime_without_system_python(tmp_path: Path) -> None:
-    """@brief Node hook transport runs a guard with PATH deliberately empty."""
+    """
+    @brief      Node hook transport runs a guard with PATH deliberately empty.
+    @param[in]  tmp_path Pytest-provided temporary directory.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-16
+    @version    0.1.0
+    """
     node = shutil.which("node")
     if node is None:
         pytest.skip("Node is not installed in this test environment")
@@ -81,7 +103,15 @@ def test_hook_launcher_uses_registered_runtime_without_system_python(tmp_path: P
 
 
 def test_cli_wrapper_uses_registered_runtime_without_system_python(tmp_path: Path) -> None:
-    """@brief The platform wrapper runs AEGIS help with PATH deliberately empty."""
+    """
+    @brief      The platform wrapper runs AEGIS help with PATH deliberately empty.
+    @param[in]  tmp_path Pytest-provided temporary directory.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-16
+    @version    0.1.0
+    """
     environment = _runtime_environment(tmp_path)
     if os.name == "nt":
         shell = shutil.which("powershell.exe") or shutil.which("pwsh.exe")

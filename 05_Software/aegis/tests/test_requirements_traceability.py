@@ -38,10 +38,14 @@ from aegis.config import load_config
 from aegis.invariants import blocking_failures, evaluate
 from aegis.store import load_graph
 
+# CONSTANTS
 
 HEADER = """| ID | Status | Priority | Requirement | Rationale | Related Components | Verification Method | Linked Tests | Created On | Last Updated |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 """
+
+
+# LOCAL HELPERS
 
 
 def run_cli(tmp_path: Path, *args: str) -> None:
@@ -143,6 +147,9 @@ def write_register(
         encoding="utf-8",
     )
     (tmp_path / ".agentic" / "requirements" / "coverage_waivers.txt").write_text("", encoding="utf-8")
+
+
+# TESTS
 
 
 def test_parse_register_and_resolve_python_test(tmp_path: Path) -> None:
@@ -527,3 +534,6 @@ def test_green_requirement_linked_check_requires_active_requirement(tmp_path: Pa
     graph = load_graph(tmp_path)
 
     assert blocking_failures(evaluate(tmp_path, graph)) == []
+
+
+# END OF FILE

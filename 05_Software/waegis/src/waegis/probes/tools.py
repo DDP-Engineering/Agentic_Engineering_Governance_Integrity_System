@@ -8,7 +8,8 @@
 # -----------------------------------------------------------------------------
 """
 @file tools.py
-@brief Tool probes: python (>=3.11), git (>=2.30), uv (informational) (T2.1).
+@brief Tool probes: python (>=3.11), git (>=2.30), node (warn-not-block), uv
+       (informational) (T2.1).
 @details Implements the ``prereq.python`` and ``prereq.git`` probes from plan
          §8.1, plus an optional ``prereq.uv`` probe. Every probe runs commands
          only through the injectable
@@ -25,9 +26,19 @@
          failing the whole probe. Version text is read from both stdout and
          stderr (``CommandResult.combined_output``) since older interpreters
          and some launcher variants report ``--version`` on stderr.
+@details **``prereq.node`` (added 0.2.0, architecture-review follow-up).**
+         Every AEGIS hook is dispatched through
+         ``node .agentic/tools/run_hook.mjs ...`` (see ``.claude/settings.json``
+         / ``.codex/hooks.json`` in the payload), but until this probe existed
+         Node was never checked by the wizard — a missing Node silently broke
+         every hook with no warning at install time. Deliberately
+         warn-not-block (mirrors ``machine.os``): :func:`probe_node` never
+         returns ``"fail"``, only ``"ok"``/``"warn"``, so a machine without
+         Node can still complete adoption/setup; the operator just sees a
+         loud, actionable note that hooks will not run until it is installed.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.2.0
 """
 
 # IMPORTS
@@ -52,6 +63,7 @@ _MIN_GIT: tuple[int, int] = (2, 30)
 _PYTHON_VERSION_RE = re.compile(r"Python\s+(\d+)\.(\d+)(?:\.(\d+))?")
 _GIT_VERSION_RE = re.compile(r"git version\s+(\d+)\.(\d+)(?:\.(\d+))?")
 _UV_VERSION_RE = re.compile(r"uv\s+(\d+)\.(\d+)(?:\.(\d+))?")
+_NODE_VERSION_RE = re.compile(r"v?(\d+)\.(\d+)(?:\.(\d+))?")
 
 
 # HELPER FUNCTIONS
@@ -95,15 +107,15 @@ def _format_version(version: tuple[int, int, int]) -> str:
 def _install_guidance(tool: str, system: str) -> str:
     """
     @brief      OS-keyed install guidance with a concrete, copyable command.
-    @param[in]  tool One of ``"python"``, ``"git"``, ``"uv"``.
+    @param[in]  tool One of ``"python"``, ``"git"``, ``"node"``, ``"uv"``.
     @param[in]  system A ``platform.system()`` value (``"Windows"``,
                 ``"Linux"``, or anything else, e.g. ``"Darwin"``); an unknown
                 value falls back to generic guidance rather than raising.
     @return     One or two sentences: what to run, and why it is safe to run.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     table: dict[str, dict[str, str]] = {
         "python": {
@@ -118,6 +130,14 @@ def _install_guidance(tool: str, system: str) -> str:
             "Windows": "Install Git: winget install --id Git.Git -e",
             "Linux": "Install Git: sudo apt-get update && sudo apt-get install -y git",
             "_default": "Install Git 2.30 or newer from https://git-scm.com/downloads.",
+        },
+        "node": {
+            "Windows": "Install Node.js (needed to run every AEGIS hook): "
+            "winget install --id OpenJS.NodeJS.LTS -e",
+            "Linux": "Install Node.js (needed to run every AEGIS hook): "
+            "sudo apt-get update && sudo apt-get install -y nodejs npm",
+            "_default": "Install Node.js (needed to run every AEGIS hook) from "
+            "https://nodejs.org/en/download/.",
         },
         "uv": {
             "Windows": "Optional: winget install --id astral-sh.uv -e "
@@ -226,6 +246,50 @@ def probe_git(runner: CommandRunner) -> ProbeFindingRecord:
         status="fail",
         detail=f"{detail} (>= {_MIN_GIT[0]}.{_MIN_GIT[1]} required)",
         guidance=_install_guidance("git", system),
+    )
+
+
+def probe_node(runner: CommandRunner) -> ProbeFindingRecord:
+    """
+    @brief      Detect Node.js, the runtime every AEGIS hook is dispatched
+                through (``node .agentic/tools/run_hook.mjs ...``).
+    @details    Deliberately warn-not-block (architecture-review follow-up,
+                2026-07-18): unlike ``prereq.python``/``prereq.git``, a
+                missing or unparseable Node is reported as ``"warn"``, never
+                ``"fail"``, mirroring ``machine.os``'s precedent. No minimum
+                version is enforced — the goal is presence, not a version
+                floor, since hooks are simple scripts with no known minimum
+                Node requirement.
+    @param[in]  runner Injectable :class:`CommandRunner`.
+    @return     A ``prereq.node`` :class:`ProbeFindingRecord`: ``"ok"`` when
+                found with a parseable version, ``"warn"`` when missing or the
+                version text cannot be parsed.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    system = platform.system()
+    result = runner.run(("node", "--version"))
+    if not result.ok():
+        return ProbeFindingRecord(
+            name="prereq.node",
+            status="warn",
+            detail="node was not found (every AEGIS hook is dispatched through it via "
+            "run_hook.mjs; hooks will not run until it is installed)",
+            guidance=_install_guidance("node", system),
+        )
+    output = result.combined_output().strip()
+    version = _parse_version(output, _NODE_VERSION_RE)
+    if version is None:
+        return ProbeFindingRecord(
+            name="prereq.node",
+            status="warn",
+            detail=f"'node --version' produced unparseable output: {output!r}",
+            guidance=_install_guidance("node", system),
+        )
+    return ProbeFindingRecord(
+        name="prereq.node", status="ok", detail=f"node {_format_version(version)}", guidance=None
     )
 
 

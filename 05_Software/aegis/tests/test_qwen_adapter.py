@@ -26,6 +26,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+# CONSTANTS
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PACKAGE_ROOT.parents[1]
 TEMPLATE = PACKAGE_ROOT / "template"
@@ -55,6 +57,9 @@ HOOK_SCRIPTS = (
     "delivery_preflight.py",
     "post_tool_evidence.py",
 )
+
+
+# LOCAL HELPERS
 
 
 def load_scaffold_module():
@@ -104,6 +109,9 @@ def hook_commands(settings: dict) -> list[str]:
                 if isinstance(command, str):
                     commands.append(command)
     return commands
+
+
+# TESTS
 
 
 def test_qwen_adapter_files_exist() -> None:
@@ -220,3 +228,6 @@ def test_scaffold_copies_qwen_adapter(tmp_path: Path) -> None:
     assert (target / "QWEN.md").exists()
     assert (target / ".qwen" / "skills" / "agentic-development" / "SKILL.md").exists()
     assert (target / ".qwen" / "commands" / "workflow-status.md").exists()
+
+
+# END OF FILE

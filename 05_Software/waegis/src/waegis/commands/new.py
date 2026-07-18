@@ -59,9 +59,29 @@
          forking the logic. ``_find_prior_journal``/``_render_human_outcome``
          carry mode/handoff parameters (defaulting to Wizard N's values) so
          Wizard E reuses them too.
+@details **``deploy.gates`` is optional (added 0.4.0).** Its ``automation``
+         changed from ``ASSISTED`` to ``AUTO`` (shared with Wizard E via
+         :data:`GATES_STEP`, so this applies to both catalogs): declining the
+         old generic "Proceed with '<title>'?" gate halted the whole run,
+         which is wrong for potentially slow gate commands. ``_act_gates`` now
+         asks its own top-level confirmation and defers every configured gate
+         command (a valid, already-supported ``_verify_gates`` outcome)
+         instead of raising when declined.
+@details **Console output layout (added 0.4.0).** ``_ConsoleRunSink`` now
+         indents step notes to align under the (now padded, see
+         ``io/console.py`` 0.2.0) marker column and writes a blank line after
+         each finished step, so the live log reads as distinct blocks.
+         ``_render_human_outcome`` prints a ``=== Summary ... ===`` header
+         before its end-of-run recap so it no longer looks like an accidental
+         repeat of the live log above it.
+@details **``prereq.node`` (added 0.5.0, architecture-review follow-up).** New
+         warn-not-block step in ``P1_PREREQ``, between ``prereq.git`` and
+         ``prereq.git-identity`` (also inserted into ``_COMMON_PREFIX_IDS``,
+         so Wizard E gets it automatically): every AEGIS hook is dispatched
+         through Node, which nothing checked for before this step existed.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.3.0
+@date 2026-07-18
+@version 0.5.0
 """
 
 # IMPORTS
@@ -125,7 +145,7 @@ from ..probes.network import (
     to_blocking_point_report,
 )
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
-from ..probes.tools import probe_git, probe_python
+from ..probes.tools import probe_git, probe_node, probe_python
 from ..repo import gitops
 from ..repo.workflow_toml import (
     WORKFLOW_FIELD_SPECS,
@@ -190,12 +210,19 @@ EXIT_FAILURE = 1
 _FIRST_PROMPT_RE = re.compile(r"```text\s*\n(.*?)\n```", re.DOTALL)
 
 # @brief The ordered Wizard N step ids, mirroring plan §8.1 row for row.
+#        ``prereq.node`` (added 0.4.0, architecture-review follow-up) is the
+#        one deliberate deviation from plan §8.1: every AEGIS hook is
+#        dispatched through Node (``run_hook.mjs``) but nothing checked for it
+#        before this addition. Warn-not-block, so it sits alongside
+#        ``machine.os`` in spirit rather than blocking like
+#        ``prereq.python``/``prereq.git``.
 NEW_STEP_IDS: tuple[str, ...] = (
     "home.init",
     "machine.os",
     "machine.disk",
     "prereq.python",
     "prereq.git",
+    "prereq.node",
     "prereq.git-identity",
     "net.proxy",
     "repo.target-path",
@@ -828,6 +855,29 @@ def _on_fail_prereq_git(ctx: EngineContext) -> Remediation:
         remediation=finding.guidance or "Install Git 2.30 or newer and ensure it is on PATH.",
         it_request=finding.guidance,
     )
+
+
+# --- step: prereq.node ----------------------------------------------------------
+
+
+def _detect_prereq_node(ctx: EngineContext) -> bool:
+    """
+    @brief      prereq.node detect: probe for Node.js and record the finding.
+    @details    Report-only, like ``machine.os``: this step's ``verify`` always
+                passes (see its ``StepSpec`` below), so a missing Node never
+                stops the run — it only means every AEGIS hook will not run
+                until Node is installed, which the recorded note/guidance
+                makes explicit.
+    @param[in]  ctx Active engine context.
+    @return     ``True`` when the probe reports ``ok`` (found and parseable).
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    finding = probe_node(_runner(ctx))
+    _note_finding(ctx, finding)
+    return finding.status == "ok"
 
 
 # --- step: prereq.git-identity -------------------------------------------------
@@ -1466,19 +1516,37 @@ def _act_gates(ctx: EngineContext) -> None:
     @brief      deploy.gates act: offer to run each configured gate command once
                 in TARGET, recording every outcome; a failing or empty gate must
                 be explicitly accepted (recorded, never silent).
+    @details    This step is ``AUTO`` automation (not ``ASSISTED``): it asks its
+                own top-level "proceed?" confirmation here rather than relying
+                on the generic per-step gate, because gate commands (e.g. a
+                full test suite) can be slow, and an operator declining to run
+                them right now should defer them cleanly (recorded outcome
+                ``deferred``, verify still passes) instead of halting the
+                whole run the way an ``ASSISTED`` decline would.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If the operator refuses to accept a failing or
                 empty gate (the step then fails, by their decision).
     @exception  OSError / tomllib.TOMLDecodeError If workflow.toml is unreadable.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.2.0
     """
     runner = _runner(ctx)
     target = _target(ctx)
     test_cmds, lint_cmds = _read_gates(target)
     outcomes: dict[str, str] = {}
+    if not ctx.asker.confirm("Proceed with 'Try the quality gates once'?", default=True):
+        for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
+            if not commands:
+                outcomes[f"{gate_name} (empty)"] = "accepted-empty"
+                continue
+            for command in commands:
+                outcomes[" ".join(command)] = "deferred"
+        ctx.note("gate run deferred entirely by operator (recorded)")
+        ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
+        ctx.record_answer("gate_outcomes", outcomes)
+        return
     for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
         if not commands:
             ctx.note(f"gate '{gate_name}' is configured empty and will pass without checking anything")
@@ -1835,6 +1903,7 @@ _COMMON_PREFIX_IDS: tuple[str, ...] = (
     "machine.disk",
     "prereq.python",
     "prereq.git",
+    "prereq.node",
     "prereq.git-identity",
     "net.proxy",
 )
@@ -1935,6 +2004,19 @@ def _build_new_steps() -> list[StepSpec]:
             change_summary=lambda ctx: "probe git; guide an install if missing",
         ),
         StepSpec(
+            id="prereq.node",
+            title="Check for Node.js",
+            why="Every AEGIS hook (write-zone guard, secret scan, ...) is dispatched through "
+            "Node (.agentic/tools/run_hook.mjs). Unlike Python/git this never blocks the run: a "
+            "missing Node is reported so hooks work once installed, but setup still completes.",
+            phase=Phase.P1_PREREQ,
+            automation=Automation.AUTO,
+            preconditions=("prereq.git",),
+            detect=_detect_prereq_node,
+            verify=lambda ctx: True,
+            change_summary=lambda ctx: "probe Node.js, used by every AEGIS hook (no changes, never blocks)",
+        ),
+        StepSpec(
             id="prereq.git-identity",
             title="Check your git identity",
             why="Git refuses to commit without a user.name and user.email. If they are not set "
@@ -1942,7 +2024,7 @@ def _build_new_steps() -> list[StepSpec]:
             "records an identity the wizard sets repo-locally right after 'git init'.",
             phase=Phase.P1_PREREQ,
             automation=Automation.MANUAL,
-            preconditions=("prereq.git",),
+            preconditions=("prereq.node",),
             detect=_detect_git_identity,
             act=_act_git_identity,
             verify=_verify_git_identity,
@@ -2029,13 +2111,17 @@ def _build_new_steps() -> list[StepSpec]:
             title="Try the quality gates once",
             why="Runs each configured gate command once inside TARGET so you know immediately "
             "whether they work. You may explicitly accept a failing or deferred gate - the "
-            "decision is recorded, never silent.",
+            "decision is recorded, never silent. Optional: declining defers every gate "
+            "(recorded, not a failure) instead of stopping the run.",
             phase=Phase.P4_DEPLOY,
-            automation=Automation.ASSISTED,
+            automation=Automation.AUTO,
             preconditions=("deploy.workflow-toml",),
             act=_act_gates,
             verify=_verify_gates,
-            change_summary=lambda ctx: "offer to run each configured gate command once in TARGET",
+            change_summary=lambda ctx: (
+                "offer to run each configured gate command once in TARGET "
+                "(optional; declining defers every gate instead of stopping)"
+            ),
         ),
         StepSpec(
             id="verify.cli-smoke",
@@ -2249,9 +2335,12 @@ class _ConsoleRunSink:
              to :class:`LiveStatusRenderer`, and each finished step's messages
              are echoed indented so warnings (empty gates, guidance) are loud on
              the console, not only in the journal.
+    @details Notes are indented to align under the padded marker column (added
+             0.2.0, see ``io/console.py`` 0.2.0), and a blank line follows each
+             finished step's notes so the log reads as distinct step blocks.
     @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
+    @date 2026-07-18
+    @version 0.2.0
     """
 
     def __init__(self, stream: IO[str]) -> None:
@@ -2273,7 +2362,8 @@ class _ConsoleRunSink:
         @return     None
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
+        @date       2026-07-18
+        @version    0.2.0
         """
         if isinstance(event, PlanReady):
             render_plan_preview(event.plan, self._stream)
@@ -2284,7 +2374,8 @@ class _ConsoleRunSink:
         if isinstance(event, StepFinished):
             self._live.emit(event)
             for message in event.result.messages:
-                self._stream.write(f"    - {message}\n")
+                self._stream.write(f"       - {message}\n")
+            self._stream.write("\n")
             return
         self._live.emit(event)
 
@@ -2573,11 +2664,15 @@ def _render_human_outcome(
     @param[in]  handoff_step_id Id of the P5 handoff step whose notes are echoed
                 on success; defaults to Wizard N's ``"handoff.summary"``, Wizard
                 E passes ``"handoff.adoption"``.
+    @details    The success recap is prefixed with a ``=== Summary ... ===``
+                header (0.3.0) marking it as a deliberate, unprefixed re-print
+                of the handoff step's own notes (already shown, bullet-prefixed,
+                in the live step log) rather than an accidental duplicate.
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
+    @date       2026-07-18
+    @version    0.3.0
     """
     if summary.dry_run:
         stream.write("dry run: no changes were made.\n")
@@ -2585,7 +2680,12 @@ def _render_human_outcome(
     if summary.ok:
         handoff = next((r for r in summary.results if r.step_id == handoff_step_id), None)
         if handoff is not None and handoff.acted:
-            stream.write("\n")
+            # Deliberately re-prints the handoff step's own notes (already
+            # shown, prefixed, during the live step log): this is the final,
+            # unprefixed recap the operator copies from, not an accidental
+            # repeat, so a header marks the boundary between "what happened"
+            # (the log above) and "what to do next" (this recap).
+            stream.write("\n=== Summary (recap of the handoff notes above) ===\n")
             for message in handoff.messages:
                 stream.write(message + "\n")
         else:

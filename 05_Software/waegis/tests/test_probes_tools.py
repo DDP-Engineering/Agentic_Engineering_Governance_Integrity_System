@@ -8,16 +8,20 @@
 # -----------------------------------------------------------------------------
 """
 @file test_probes_tools.py
-@brief Tool probe tests: python (fallback order), git, uv (T2.1).
+@brief Tool probe tests: python (fallback order), git, node, uv (T2.1).
 @details Strictly offline: every case uses :class:`FakeCommandRunner` from
          ``_fake_command_runner.py``, never a real subprocess. Covers, for
          each probe family, version-compliant / too-old / not-found /
          unparseable-output outcomes, the documented python fallback order
          (``py -3`` -> ``python3`` -> ``python``), and that Windows/Ubuntu
          install guidance differs and each names a concrete command.
+@details ``probe_node`` (added 0.1.1, architecture-review follow-up) is
+         warn-not-block like ``uv``, but unlike ``uv`` its absence is a
+         ``"warn"`` (visible, since hooks depend on it) rather than a mere
+         ``"info"`` (uv is a pure performance optional).
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.1.1
 """
 
 # IMPORTS
@@ -252,6 +256,65 @@ def test_probe_git_warns_on_unparseable_output(monkeypatch: pytest.MonkeyPatch) 
     assert finding.status == "warn"
 
 
+# --- node probe ----------------------------------------------------------
+
+
+def test_probe_node_ok_when_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      A found, parseable node version reports ``"ok"``.
+    @return     None
+    @exception  AssertionError If status is not ``"ok"``.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
+    runner = FakeCommandRunner({("node", "--version"): ok_result(stdout="v22.9.0\n")})
+
+    finding = tools.probe_node(runner)
+
+    assert finding.name == "prereq.node"
+    assert finding.status == "ok"
+    assert "22.9.0" in finding.detail
+
+
+def test_probe_node_absence_is_a_warning_not_a_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      A missing node is reported as ``"warn"``, never ``"fail"``
+                (warn-not-block, unlike ``prereq.python``/``prereq.git``).
+    @return     None
+    @exception  AssertionError If the status implies a hard failure.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
+    runner = FakeCommandRunner({})
+
+    finding = tools.probe_node(runner)
+
+    assert finding.status == "warn"
+    assert finding.guidance is not None
+
+
+def test_probe_node_warns_on_unparseable_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      Unparseable node version output degrades to a warning, not a
+                crash.
+    @return     None
+    @exception  AssertionError If status is not exactly ``"warn"``.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
+    runner = FakeCommandRunner({("node", "--version"): ok_result(stdout="unexpected output\n")})
+
+    finding = tools.probe_node(runner)
+
+    assert finding.status == "warn"
+
+
 # --- uv probe ------------------------------------------------------------
 
 
@@ -294,7 +357,7 @@ def test_probe_uv_absence_is_informational_not_a_failure(monkeypatch: pytest.Mon
 # --- OS-keyed guidance --------------------------------------------------------
 
 
-@pytest.mark.parametrize("tool", ["python", "git", "uv"])
+@pytest.mark.parametrize("tool", ["python", "git", "node", "uv"])
 def test_install_guidance_differs_between_windows_and_ubuntu(tool: str) -> None:
     """
     @brief      Windows and Ubuntu/Debian guidance differ and each names a
@@ -302,7 +365,8 @@ def test_install_guidance_differs_between_windows_and_ubuntu(tool: str) -> None:
     @return     None
     @exception  AssertionError If the two texts match or lack a command.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     windows_guidance = tools._install_guidance(tool, "Windows")
     linux_guidance = tools._install_guidance(tool, "Linux")
@@ -336,7 +400,8 @@ def test_tool_findings_satisfy_probe_finding_and_round_trip_json(monkeypatch: py
     @exception  AssertionError If a finding fails the protocol check or a
                 field is dropped by the JSON round trip.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @date       2026-07-18
+    @version    0.1.1
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner(
@@ -344,11 +409,17 @@ def test_tool_findings_satisfy_probe_finding_and_round_trip_json(monkeypatch: py
             ("py", "-3", "--version"): not_found_result(),
             ("python3", "--version"): ok_result(stdout="Python 3.11.6\n"),
             ("git", "--version"): ok_result(stdout="git version 2.43.0\n"),
+            ("node", "--version"): ok_result(stdout="v22.9.0\n"),
             ("uv", "--version"): not_found_result(),
         }
     )
 
-    findings = [tools.probe_python(runner), tools.probe_git(runner), tools.probe_uv(runner)]
+    findings = [
+        tools.probe_python(runner),
+        tools.probe_git(runner),
+        tools.probe_node(runner),
+        tools.probe_uv(runner),
+    ]
     for finding in findings:
         assert isinstance(finding, ProbeFinding)
 
@@ -356,6 +427,7 @@ def test_tool_findings_satisfy_probe_finding_and_round_trip_json(monkeypatch: py
     assert {entry["name"] for entry in payload["findings"]} == {
         "prereq.python",
         "prereq.git",
+        "prereq.node",
         "prereq.uv",
     }
 

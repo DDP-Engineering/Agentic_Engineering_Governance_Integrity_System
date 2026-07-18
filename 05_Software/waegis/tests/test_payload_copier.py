@@ -16,19 +16,27 @@
          trees; one end-to-end test copies the real
          ``05_Software/aegis/template/`` (read-only as a source) to catch
          real-world surprises the fixtures might miss.
+@details ``ensure_executable`` tests (added 0.2.0, architecture-review
+         follow-up) cover the POSIX execute-bit backstop applied to every
+         copied ``.sh`` file; the mocked-``chmod`` tests are meaningful on
+         any host OS, plus one real-filesystem proof skipped on Windows.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.2.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+import waegis.payload.copier as copier_module
 from waegis.payload.copier import (
     ConflictDecision,
     CopierError,
@@ -37,6 +45,7 @@ from waegis.payload.copier import (
     PayloadMissingError,
     TargetDirectoryMissingError,
     copy_payload,
+    ensure_executable,
     should_exclude,
 )
 from waegis.payload.locate import read_payload_version
@@ -638,6 +647,106 @@ def test_payload_shipped_manifest_is_never_copied(tmp_path: Path) -> None:
     assert MANIFEST_RELATIVE_PATH not in result.copied
     manifest = read_manifest(target)  # parses: the stale payload copy would fail validation
     assert MANIFEST_RELATIVE_PATH not in manifest.files
+
+
+# --- execute-bit backstop (ensure_executable, architecture-review follow-up) ---
+
+
+def test_ensure_executable_grants_exec_bits_on_posix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      On a POSIX-reported OS, a ``.sh`` destination gets
+                owner/group/other execute bits added to its existing mode.
+    @details    Asserts on the exact ``chmod`` call (mocked, not a real
+                filesystem mode change) so the test is meaningful on any host
+                OS, including this suite's own Windows dev machine where a
+                real chmod would not reflect POSIX semantics.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @param[in]  monkeypatch Pytest fixture.
+    @return     None
+    @exception  AssertionError If ``chmod`` is not called with the OR'd mode.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(copier_module.os, "name", "posix")
+    destination = tmp_path / "run.sh"
+    destination.write_bytes(b"#!/bin/sh\necho hi\n")
+    original_mode = destination.stat().st_mode
+
+    with patch.object(Path, "chmod", autospec=True) as mock_chmod:
+        ensure_executable(destination)
+
+    mock_chmod.assert_called_once_with(
+        destination, original_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    )
+
+
+def test_ensure_executable_is_a_noop_on_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      On Windows, ``ensure_executable`` never calls ``chmod`` — the
+                POSIX execute bit concept does not apply there.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @param[in]  monkeypatch Pytest fixture.
+    @return     None
+    @exception  AssertionError If ``chmod`` is called.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(copier_module.os, "name", "nt")
+    destination = tmp_path / "run.sh"
+    destination.write_bytes(b"#!/bin/sh\necho hi\n")
+
+    with patch.object(Path, "chmod", autospec=True) as mock_chmod:
+        ensure_executable(destination)
+
+    mock_chmod.assert_not_called()
+
+
+def test_ensure_executable_ignores_non_script_suffixes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      A destination whose suffix is not in ``EXECUTABLE_SUFFIXES``
+                (e.g. ``.txt``) is left untouched even on POSIX.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @param[in]  monkeypatch Pytest fixture.
+    @return     None
+    @exception  AssertionError If ``chmod`` is called.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    monkeypatch.setattr(copier_module.os, "name", "posix")
+    destination = tmp_path / "notes.txt"
+    destination.write_text("hi", encoding="utf-8")
+
+    with patch.object(Path, "chmod", autospec=True) as mock_chmod:
+        ensure_executable(destination)
+
+    mock_chmod.assert_not_called()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX execute bits are not meaningful on Windows")
+def test_real_template_shell_scripts_are_executable_after_copy_on_posix(tmp_path: Path) -> None:
+    """
+    @brief      Copying the real template onto a POSIX host leaves
+                ``run.sh``/``install.sh`` genuinely executable on disk, not
+                just mocked — the end-to-end proof, run only where it is
+                meaningful.
+    @param[in]  tmp_path Pytest tmp fixture (TARGET).
+    @return     None
+    @exception  AssertionError If either script lacks the owner execute bit.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    assert REAL_TEMPLATE.is_dir()
+    target = tmp_path / "target"
+
+    copy_payload(REAL_TEMPLATE, target, mode="new")
+
+    for relative in (".agentic/tools/run.sh", ".agentic/tools/install.sh"):
+        mode = (target / relative).stat().st_mode
+        assert mode & stat.S_IXUSR, f"{relative} is not owner-executable after copy"
 
 
 # --- real-payload end-to-end -----------------------------------------------------

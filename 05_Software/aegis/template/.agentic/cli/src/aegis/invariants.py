@@ -30,6 +30,8 @@ from .models import Graph
 from .paths import is_allowed_path
 from .requirements import load_all_requirements
 
+# DATA MODELS / TYPEDEFINITIONS
+
 
 @dataclass
 class InvariantResult:
@@ -44,6 +46,9 @@ class InvariantResult:
     holds: bool
     policy: str
     message: str
+
+
+# PUBLIC API
 
 
 def evaluate(repo_root: Path, graph: Graph, config: WorkflowConfig | None = None) -> list[InvariantResult]:
@@ -83,6 +88,9 @@ def blocking_failures(results: list[InvariantResult]) -> list[InvariantResult]:
     @version    0.1.0
     """
     return [item for item in results if item.policy in {"blocking", "non-waivable"} and not item.holds]
+
+
+# HELPER FUNCTIONS
 
 
 def _coverage(graph: Graph) -> InvariantResult:
@@ -353,3 +361,6 @@ def _root_patterns(roots: list[str]) -> list[str]:
         else:
             patterns.append(f"{normalized}/**")
     return patterns
+
+
+# END OF FILE

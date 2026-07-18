@@ -29,6 +29,9 @@ import pytest
 from aegis.cli import main
 
 
+# LOCAL HELPERS
+
+
 def run_cli(tmp_path: Path, *args: str) -> None:
     """
     @brief      Run CLI workflow behavior.
@@ -61,6 +64,9 @@ def init_repo(tmp_path: Path) -> None:
     @version    0.1.0
     """
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+
+
+# TESTS
 
 
 def test_working_tree_audit_reports_arbitrary_untracked_files_without_failing(
@@ -344,3 +350,6 @@ behavior_changes_allowed = true
     output = capsys.readouterr().out
     assert "ADOPTION-SOURCE-CHANGE" not in output
     assert "Delivery preflight passed" in output
+
+
+# END OF FILE

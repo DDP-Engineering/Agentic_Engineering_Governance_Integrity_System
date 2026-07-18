@@ -24,9 +24,17 @@
          directly on the concrete Asker it constructs. This keeps the engine
          free of prompt-shape knowledge while giving step/command authors the
          full novice-mode prompting behaviour plan §4 requires.
+@details ``FieldSpec.choices`` (added 0.2.0) is an optional small closed set of
+         valid raw values: ``ConsoleAsker.ask_field`` renders it as a numbered
+         menu and accepts either the number or the literal value, so console
+         operators are not required to type a full word (e.g. a conflict
+         decision) by hand. ``ConsoleAsker._write`` also now flushes after
+         every prompt write, so the prompt text is guaranteed to render before
+         the following blocking read under a fully-buffered stream (observed
+         under Windows ``cmd.exe``, unlike a real TTY or PowerShell).
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@date 2026-07-18
+@version 0.2.0
 """
 
 # IMPORTS
@@ -151,8 +159,8 @@ class FieldSpec:
              ``ScriptedAsker``/``--answers`` files are unaffected (they always
              take the literal value).
     @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
+    @date 2026-07-18
+    @version 0.2.0
     """
 
     key: str
@@ -285,7 +293,7 @@ class ConsoleAsker:
         @param[in]  text Text to write (no trailing newline is added).
         @return     None
         @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
+        @version    0.2.0
         """
         self._stdout.write(text)
         flush = getattr(self._stdout, "flush", None)
@@ -355,8 +363,8 @@ class ConsoleAsker:
         @return     The normalized answer.
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
+        @date       2026-07-18
+        @version    0.2.0
         """
         if not self._terse and spec.description:
             self._write(f"{spec.description}\n")
