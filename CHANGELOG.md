@@ -31,6 +31,18 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- AEGIS `store.repo_root_from` resolved the workflow root as the bare process
+  working directory with no validation, so invoking the CLI (directly, via
+  `run_aegis.py`/`run.ps1`/`run.sh`, or through a hook) with the working
+  directory mistakenly set to a project's own `.agentic` folder — or a
+  previously self-nested copy of it — silently created another
+  `.agentic/.agentic/...` layer instead of failing, since every write path
+  (`write_current_run`, `init_graph`) calls `mkdir(parents=True,
+  exist_ok=True)` unconditionally. Reproduced directly against `aegis.cli.main`
+  in a scratch sandbox before the fix. Now raises a clear `SystemExit` when the
+  resolved root is itself named `.agentic` or nested inside one
+  (`05_Software/aegis/template/.agentic/cli/src/aegis/store.py`; regression
+  tests in `05_Software/aegis/tests/test_store.py`).
 - AEGIS `invariants._clean_secrets` (INV-7) only scanned the unstaged
   `git diff`, so a secret in a newly created or already-`git add`-ed file
   never appeared in the scan. Now scans `git diff HEAD` (staged + unstaged
