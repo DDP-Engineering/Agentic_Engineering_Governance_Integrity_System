@@ -20,8 +20,8 @@
          REAL ``05_Software/aegis/template/`` tree as the "new" payload against
          an aged/edited install.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.1.0
+@date 2026-07-20
+@version 0.2.0
 """
 
 # IMPORTS
@@ -685,6 +685,103 @@ def test_json_healthy_upgrade(tmp_path: Path) -> None:
     assert report["manifest_written"] is True
     assert report["conflicts_unresolved"] is False
     assert report["conflicts"] == []
+
+
+def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Path) -> None:
+    """
+    @brief      Complete a branch-and-commit upgrade through ``GitOpResult.ok``.
+    @details    Regression for T6.2: Git operation results expose ``ok`` as a
+                boolean field, so branch creation, staging, and commit must not
+                call it as a method.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @return     None
+    @exception  AssertionError If the upgrade fails or omits a Git operation.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"})
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    branch = "waegis/upgrade-0.4.1"
+    answers = tmp_path / "answers.json"
+    _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
+    runner = FakeCommandRunner(
+        {
+            ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
+            ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
+            ("git", "-C", str(repo), "checkout", "-b", branch): ok_result(),
+            _wrapper_invocation(repo, "--help"): ok_result(),
+            _wrapper_invocation(repo, "status"): failing_result(exit_code=1, stderr=NO_ACTIVE_RUN_MARKER),
+            ("git", "-C", str(repo), "add", "-A"): ok_result(),
+            ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1"): ok_result(),
+        }
+    )
+
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=io.StringIO(),
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=runner,
+        home=tmp_path / "home",
+    )
+
+    assert code == EXIT_OK
+    assert ("git", "-C", str(repo), "checkout", "-b", branch) in runner.calls
+    assert ("git", "-C", str(repo), "add", "-A") in runner.calls
+    assert ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1") in runner.calls
+
+
+def test_branch_commit_upgrade_reports_branch_creation_failure(tmp_path: Path) -> None:
+    """
+    @brief      Return an operational envelope when the upgrade branch fails.
+    @details    Regression for T6.2: failure reporting reads ``GitOpResult.detail``
+                rather than calling a ``CommandResult``-only output method.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @return     None
+    @exception  AssertionError If the failure escapes or loses Git's detail.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"})
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    branch = "waegis/upgrade-0.4.1"
+    answers = tmp_path / "answers.json"
+    _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
+    runner = FakeCommandRunner(
+        {
+            ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
+            ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
+            ("git", "-C", str(repo), "checkout", "-b", branch): failing_result(stderr="branch already exists"),
+        }
+    )
+    stream = io.StringIO()
+
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=runner,
+        home=tmp_path / "home",
+    )
+
+    assert code == EXIT_ERROR
+    assert "branch already exists" in json.loads(stream.getvalue())["messages"][0]
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
 
 
 def test_json_conflict_stop_and_report(tmp_path: Path) -> None:

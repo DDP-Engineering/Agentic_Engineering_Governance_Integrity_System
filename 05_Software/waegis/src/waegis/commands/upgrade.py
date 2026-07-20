@@ -1467,8 +1467,8 @@ def _run_upgrade_hardened(
     @brief      Resolve, approve, journal, transact, verify, and commit upgrade.
     @return     Standardized exit code.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
+    @date       2026-07-20
+    @version    0.2.0
     """
     if as_json:
         non_interactive = True
@@ -1685,14 +1685,14 @@ def _run_upgrade_hardened(
     if git_mode == "branch-commit":
         assert git_branch is not None
         branch_result = gitops.create_branch(active_runner, repo_path, git_branch)
-        if not branch_result.ok():
+        if not branch_result.ok:
             return _emit_upgrade_envelope_or_report(
                 stream,
                 as_json=as_json,
                 status="error",
                 exit_code=EXIT_OPERATIONAL,
                 plan_data=plan_data if as_json else None,
-                messages=(f"could not create upgrade branch {git_branch!r}: {branch_result.combined_output()}",),
+                messages=(f"could not create upgrade branch {git_branch!r}: {branch_result.detail}",),
             )
 
     journal = Journal.begin(
@@ -1739,7 +1739,7 @@ def _run_upgrade_hardened(
     if report.exit_code == EXIT_OK and git_mode == "branch-commit":
         add_result = gitops.add_all(active_runner, repo_path)
         commit_result = gitops.commit(active_runner, repo_path, f"Upgrade AEGIS to {plan.new_payload_version}")
-        if not add_result.ok() or not commit_result.ok():
+        if not add_result.ok or not commit_result.ok:
             return _emit_upgrade_envelope_or_report(
                 stream,
                 as_json=as_json,

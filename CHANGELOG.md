@@ -11,6 +11,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add `WAEGIS_02_Safe_AEGIS_Upgrade.pptx`, an operator guide for safely upgrading an existing AEGIS deployment with WAEGIS.
+
+### Changed
+
+- Refresh `WAEGIS_01_Setup_And_First_Adoption.pptx` for WAEGIS 0.2.0.
+
+### Fixed
+
+- Fix `waegis upgrade` branch-and-commit mode to consume `GitOpResult` status and failure details through its actual data-model fields.
+
 ## [0.5.0] - 2026-07-20
 
 ### Added
