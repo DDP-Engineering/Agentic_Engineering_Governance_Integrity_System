@@ -71,7 +71,7 @@ uv sync --group dev
 Then run workflow commands:
 
 ```powershell
-uv run --group dev python -m aegis start --kind feature --statement "Implement feature X"
+uv run --group dev python -m aegis start --kind feature --statement "Implement feature X" --scope-hint generated/client
 uv run --group dev python -m aegis next
 uv run --group dev python -m aegis alignment --source "human prompt" --understanding "Implement feature X." --scope "in: feature X; out: unrelated behavior" --acceptance "Feature X is covered by a passing check." --risk low --decision proceed --reason "No open questions and low risk"
 uv run --group dev python -m aegis set-stage check --reason "Human-approved test revision"
@@ -86,6 +86,11 @@ uv run --group dev python -m aegis audit coverage
 uv run --group dev python -m aegis impact
 uv run --group dev python -m aegis report
 ```
+
+Repeat `--scope-hint` when a run intentionally touches additional roots outside
+the configured source, test, and documentation roots. The values are persisted
+in the run intent and journal and extend INV-5 advisory scope only; they do not
+relax write-zone or protected-file enforcement.
 
 In a target repository, copy the files under `template/` into the repo root,
 then configure `.agentic/workflow.toml` for source roots, test roots, gate
@@ -104,7 +109,9 @@ from the repository root. Plain `opencode run` uses the workflow agent, and
 from the CLI. For Qwen Code
 workflows, `QWEN.md` points back to `AGENTS.md` and `.qwen/` provides native
 command-hook bindings, thin skill wrappers, and command prompts; start Qwen Code
-from the repository root and trust the project; see `template/.qwen/README.md`.
+from the repository root and trust the project. Qwen hook matchers cover both
+friendly tool aliases and raw write/shell identifiers across supported builds;
+see `template/.qwen/README.md`.
 The template also includes a `.agentic/knowledge/components/` component
 knowledge convention for new or materially changed software components.
 The `agentic-adoption` skill guides existing-project adoption through
@@ -213,6 +220,11 @@ The installable template provides
 `.agentic/knowledge/components/**` as an implementation write zone so component
 docs can be updated alongside source changes.
 
+Component ownership patterns use the workflow's shared path matcher. A bare
+directory entry in `.agentic/components.toml`, such as `src/package/billing`,
+covers that directory and its complete subtree; explicit `/**` patterns remain
+supported, and similarly named sibling directories are not included.
+
 ## Access Modes
 
 Workflow runs start in `standard` access mode. The write-zone guard limits edits
@@ -231,9 +243,22 @@ failure is later proven to be an environment, command, or operator issue, record
 the passing rerun and use `supersede-evidence` to mark the old failure as
 non-blocking while preserving history.
 
+When evidence includes `failure_kind`, generated reports render the
+classification after the result, for example `test-run/fail (env): ...`.
+Current graphs persist change units as an id plus touched paths and do not carry
+the unused defect collection. Older graph files containing legacy
+`change_units[].evidence` or top-level `defects` keys remain readable; those
+retired keys are ignored when loaded.
+
 Use `set-stage` when the human routes work back to an earlier gate. Use
 `requirement activate` after linked checks pass so durable requirement rows do
-not remain `Planned`.
+not remain `Planned`. Newly supplied linked-test identifiers must resolve before
+the register is updated; a rejected activation names the identifier and reason
+and leaves the register unchanged. Manual-only activation remains supported
+when the verification text explicitly describes manual inspection.
+
+Run-local spec and check identifiers are unique: `add-spec` and `add-check`
+reject an identifier already stored in the active graph without modifying it.
 
 `working-tree audit` reports untracked files separately. Arbitrary local files,
 such as notes or saved messages, are advisory by default. Delivery preflight
@@ -251,6 +276,10 @@ The workflow tools parse those registers to:
 - maintain a waiver ratchet for legacy modules;
 - map changed files to impacted requirements and linked tests.
 
+When `impact` receives no explicit paths, it uses the same Git-status parser as
+`working-tree audit`. Renames contribute both the current and previous path, and
+Git-quoted paths are decoded consistently.
+
 Before delivery, run:
 
 ```powershell
@@ -260,3 +289,8 @@ python -m aegis audit traceability
 python -m aegis audit coverage
 python -m aegis delivery-preflight
 ```
+
+`registry audit` is read-only. It compares the cached requirement rows and
+linked-test identifiers with the current Markdown registers; stale caches fail
+the audit and `delivery-preflight` with `run registry sync` as the explicit
+repair command.

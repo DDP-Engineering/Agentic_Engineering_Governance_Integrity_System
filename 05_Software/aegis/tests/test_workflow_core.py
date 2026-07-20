@@ -11,8 +11,8 @@
 @brief Workflow support module for test_workflow_core.
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.4.0
+@date 2026-07-20
+@version 0.7.0
 """
 
 # IMPORTS
@@ -125,6 +125,64 @@ def test_feature_flow_reaches_green_invariants(tmp_path: Path) -> None:
     assert failures == []
 
 
+def test_add_spec_rejects_duplicate_id(tmp_path: Path) -> None:
+    """
+    @brief      Verify T13 rejects a duplicate run-local spec identifier.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
+    command = (
+        "add-spec",
+        "--id",
+        "S-0001",
+        "--tag",
+        "behavior",
+        "--statement",
+        "A valid discount reduces the total.",
+    )
+    run_cli(tmp_path, *command)
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_cli(tmp_path, *command)
+
+    assert str(exc_info.value) == "Spec id already exists: S-0001"
+    assert [item.id for item in load_graph(tmp_path).spec_items] == ["S-0001"]
+
+
+def test_add_check_rejects_duplicate_id(tmp_path: Path) -> None:
+    """
+    @brief      Verify T13 rejects a duplicate run-local check identifier.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
+    command = (
+        "add-check",
+        "--id",
+        "C-0001",
+        "--cites-spec",
+        "S-0001",
+        "--state",
+        "red",
+    )
+    run_cli(tmp_path, *command)
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_cli(tmp_path, *command)
+
+    assert str(exc_info.value) == "Check id already exists: C-0001"
+    assert [item.id for item in load_graph(tmp_path).checks] == ["C-0001"]
+
+
 def test_green_check_without_red_evidence_fails(tmp_path: Path) -> None:
     """
     @brief      Handle test green check without red evidence fails workflow behavior.
@@ -192,6 +250,40 @@ def test_report_contains_intent_and_invariants(tmp_path: Path, capsys: pytest.Ca
     assert "Report written:" in output
 
 
+def test_report_renders_evidence_failure_kind(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """
+    @brief      Verify T14 surfaces a recorded evidence failure classification.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @param[in]  capsys Pytest capture helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "fix", "--statement", "Fix flaky probe")
+    run_cli(
+        tmp_path,
+        "record-evidence",
+        "--kind",
+        "test-run",
+        "--result",
+        "fail",
+        "--failure-kind",
+        "env",
+        "--summary",
+        "Dependency service was unavailable.",
+    )
+    capsys.readouterr()
+
+    run_cli(tmp_path, "report")
+
+    assert (
+        "- `E-0001` test-run/fail (env): Dependency service was unavailable."
+        in capsys.readouterr().out
+    )
+
+
 def test_status_is_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """
     @brief      Handle test status is json workflow behavior.
@@ -211,6 +303,80 @@ def test_status_is_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     assert data["access_mode"] == "standard"
     assert data["intent"]["kind"] == "feature"
     assert data["alignment"] is None
+
+
+def test_start_scope_hints_appear_in_status_and_journal(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief      Verify T12 stores two scope hints in status and run.started.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @param[in]  capsys Pytest capture helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    run_cli(
+        tmp_path,
+        "start",
+        "--kind",
+        "feature",
+        "--statement",
+        "Generate client bindings",
+        "--scope-hint",
+        "generated/client",
+        "--scope-hint",
+        "tools/codegen",
+    )
+    capsys.readouterr()
+
+    run_cli(tmp_path, "status")
+    status = json.loads(capsys.readouterr().out)
+    graph = load_graph(tmp_path)
+    journal = tmp_path / ".agentic" / "runs" / graph.run_id / "journal.jsonl"
+    events = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()]
+
+    assert status["intent"]["scope_hint"] == ["generated/client", "tools/codegen"]
+    assert events[0]["event"] == "run.started"
+    assert events[0]["data"]["scope_hint"] == ["generated/client", "tools/codegen"]
+
+
+def test_scope_hint_allows_inv5_path_outside_configured_roots(tmp_path: Path) -> None:
+    """
+    @brief      Verify T12 extends INV-5 advisory scope through the start CLI.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    run_cli(
+        tmp_path,
+        "start",
+        "--kind",
+        "feature",
+        "--statement",
+        "Generate client bindings",
+        "--scope-hint",
+        "generated/client",
+    )
+    run_cli(
+        tmp_path,
+        "record-change",
+        "--id",
+        "CU-0001",
+        "--path",
+        "generated/client/api.py",
+    )
+
+    results = {item.id: item for item in evaluate(tmp_path, load_graph(tmp_path))}
+
+    assert results["INV-5"].holds
+    assert results["INV-5"].message == "Touched paths are in configured scope."
 
 
 def test_next_enters_alignment_when_enabled(tmp_path: Path) -> None:
@@ -593,6 +759,50 @@ def test_old_graph_without_alignment_loads(tmp_path: Path) -> None:
     )
 
     assert graph.alignment is None
+
+
+def test_legacy_graph_ignores_removed_defect_and_change_unit_evidence_fields() -> None:
+    """
+    @brief      Verify T14 reads legacy dead fields without retaining them.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    graph = Graph.from_dict(
+        {
+            "run_id": "fix-legacy",
+            "stage": "implementation",
+            "intent": {
+                "id": "I-0001",
+                "kind": "fix",
+                "statement": "Load an older graph.",
+            },
+            "change_units": [
+                {
+                    "id": "CU-0001",
+                    "touched_paths": ["src/fix.py"],
+                    "evidence": ["E-0001"],
+                }
+            ],
+            "defects": [
+                {
+                    "id": "D-0001",
+                    "statement": "Legacy defect record.",
+                    "status": "open",
+                }
+            ],
+        }
+    )
+
+    serialized = graph.to_dict()
+    assert not hasattr(graph, "defects")
+    assert not hasattr(graph.change_units[0], "evidence")
+    assert "defects" not in serialized
+    assert serialized["change_units"] == [
+        {"id": "CU-0001", "touched_paths": ["src/fix.py"]}
+    ]
 
 
 def test_old_graph_with_intake_triage_loads_as_alignment(tmp_path: Path) -> None:

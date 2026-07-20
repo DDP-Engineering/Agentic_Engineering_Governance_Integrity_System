@@ -10,13 +10,12 @@
 @file test_cli_smoke.py
 @brief Smoke tests for the WAEGIS CLI scaffold (task T0.1 acceptance).
 @details Asserts ``python -m waegis --help`` exits 0 and lists every planned
-         subcommand, that each not-yet-implemented subcommand is a stub exiting
-         2, and that the real handlers (``analyze`` T3.3, ``new`` T4.3,
-         ``adopt`` T5.2, ``doctor`` T6.1) answer through their own subparsers.
-         Runs entirely offline (no network access).
+         subcommand, that every command has a dedicated parser and handler,
+         and that representative command-specific help remains available.
+         The suite runs entirely offline (no network access).
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.4.0
+@date 2026-07-20
+@version 0.5.0
 """
 
 # IMPORTS
@@ -30,6 +29,7 @@ from pathlib import Path
 
 import pytest
 
+import waegis.cli as cli_module
 from waegis.cli import SUBCOMMANDS, main
 
 # CONSTANTS
@@ -83,23 +83,40 @@ def test_help_exits_zero_and_lists_subcommands() -> None:
         assert name in result.stdout, f"missing subcommand in help: {name}"
 
 
+def test_cli_has_only_dedicated_command_handlers() -> None:
+    """
+    @brief      Verify T14 removes the unreachable generic stub fallback.
+    @return     None.
+    @exception  AssertionError If dead stub symbols or unhandled commands remain.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    parser = cli_module.build_parser()
+    subparsers = next(
+        action
+        for action in parser._actions
+        if isinstance(action, cli_module.argparse._SubParsersAction)
+    )
+
+    assert not hasattr(cli_module, "_make_stub")
+    assert not hasattr(cli_module, "EXIT_NOT_IMPLEMENTED")
+    assert list(subparsers.choices) == [name for name, _help in SUBCOMMANDS]
+    assert all(command.get_default("handler") is not None for command in subparsers.choices.values())
+
+
 def test_version_is_a_real_command(capsys: pytest.CaptureFixture[str]) -> None:
     """
-    @brief      Every planned subcommand other than ``analyze`` (T3.3),
-                ``new`` (T4.3), ``adopt`` (T5.2), ``doctor`` (T6.1), and
-                ``upgrade`` (T6.2) is still a stub that exits 2 — regression
-                guard proving the real handlers did not disturb any other
-                subcommand's stub behavior (only ``version``, ``self-update``,
-                and ``gui`` remain stubs).
-    @param[in]  name Subcommand name under test.
+    @brief      Verify ``version`` dispatches through its dedicated real handler.
+    @param[in]  capsys Pytest capture helper.
     @return     None
-    @exception  AssertionError If the stub does not return exit code 2.
+    @exception  AssertionError If version output or its exit code changes.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.6.0
+    @version    0.7.0
     """
     assert main(["version"]) == 0
-    assert "WAEGIS 0.1.0" in capsys.readouterr().out
+    assert "WAEGIS 0.2.0" in capsys.readouterr().out
 
 
 def test_upgrade_is_no_longer_a_stub() -> None:
@@ -115,7 +132,15 @@ def test_upgrade_is_no_longer_a_stub() -> None:
     """
     result = _run_module("upgrade", "--help")
     assert result.returncode == 0, result.stderr
-    for flag in ("--repo", "--dry-run", "--json", "--payload"):
+    for flag in (
+        "--repo",
+        "--dry-run",
+        "--answers",
+        "--non-interactive",
+        "--yes",
+        "--json",
+        "--payload",
+    ):
         assert flag in result.stdout, f"missing flag in 'upgrade --help': {flag}"
 
 

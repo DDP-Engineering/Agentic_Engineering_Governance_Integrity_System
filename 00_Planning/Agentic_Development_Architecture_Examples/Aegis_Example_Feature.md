@@ -29,7 +29,7 @@ A target project has adopted the template. The copied project contains:
 - `.qwen/` and `QWEN.md` for Qwen Code behavior (native `settings.json` command
   hooks reusing `.agentic/hooks/`, skill wrappers, and command prompts);
 - `AGENTS.md`, `CHANGELOG.md`;
-- `05_SoftwareDocu/` with the component documentation template.
+- `.agentic/knowledge/components/` with the component documentation template.
 
 The user asks:
 
@@ -85,7 +85,7 @@ Evidence: none yet
 Invariant status: expected blockers because no specs/checks/evidence exist
 Needs human: confirm discount semantics
 Next prompt options:
-- Continue to requirement gate after clarifying percentage/fixed, stacking, and rounding
+- Continue to Intent Alignment after clarifying percentage/fixed, stacking, and rounding
 - Revise scope
 - Abort or park this run
 ```
@@ -94,10 +94,31 @@ The human clarifies:
 
 ```text
 Use percentage-only codes, one code per order, floor total at zero, and round to cents.
-Continue to the requirement gate.
+Continue to Intent Alignment.
 ```
 
-## 3. Requirement Gate
+## 3. Intent Alignment Gate
+
+Before drafting requirements, the agent records what it understood and checks
+that the proposed scope and acceptance target match the existing checkout
+implementation:
+
+```text
+<workflow> alignment --source "human prompt and clarification" --understanding "Add percentage-only checkout discount codes, one per order, rounded to cents with a zero floor." --scope "in: checkout discount calculation and its tests/component knowledge; out: stacking and fixed-value codes" --acceptance "Valid codes reduce totals correctly; invalid codes are rejected; totals never become negative." --risk low --decision proceed --reason "Scope and edge-case rules are explicit; no open questions remain." --planned-path src/checkout/total.py --planned-path src/checkout/discounts.py
+```
+
+Typical alignment stop:
+
+```text
+Stage: alignment
+Understanding: percentage-only discount codes with explicit rounding and floor rules
+Open questions: none
+Risk: low
+Decision: proceed
+Needs human: approve or revise the recorded intent before requirement work
+```
+
+## 4. Requirement Gate
 
 The agent writes the smallest testable spec items and updates durable
 requirements.
@@ -128,7 +149,7 @@ planned rows linked to the related component, for example
 `src/checkout/total.py`.
 
 If this creates or materially changes a component, the requirement notes include
-the expected `05_SoftwareDocu/Checkout_Discounts.md` update.
+the expected `.agentic/knowledge/components/Checkout_Discounts.md` update.
 
 Stop summary:
 
@@ -143,7 +164,7 @@ Documentation status: component doc update required during implementation
 Needs human: approve or revise S-0001..S-0003
 ```
 
-## 4. Check Gate
+## 5. Check Gate
 
 After approval, the agent adds tests only. It does not edit source code.
 
@@ -184,7 +205,7 @@ Invariant status: INV-1/2/3 are now satisfiable; implementation still pending
 Needs human: approve implementation
 ```
 
-## 5. Implementation Gate
+## 6. Implementation Gate
 
 After approval, the agent edits only implementation files and required component
 documentation.
@@ -194,14 +215,14 @@ Expected edits:
 ```text
 src/checkout/total.py
 src/checkout/discounts.py
-05_SoftwareDocu/Checkout_Discounts.md
-05_SoftwareDocu/README.md
+.agentic/knowledge/components/Checkout_Discounts.md
+.agentic/knowledge/components/index.md
 ```
 
 The component document follows:
 
 ```text
-05_SoftwareDocu/component_documentation_template.md
+.agentic/knowledge/components/component_template.md
 ```
 
 The agent uses `$write-component-documentation` in Codex,
@@ -221,7 +242,7 @@ It records passing evidence and touched paths:
 <workflow> record-evidence --kind test-run --result pass --summary "Discount tests pass after implementation" --check-id C-0001
 <workflow> record-evidence --kind test-run --result pass --summary "Discount tests pass after implementation" --check-id C-0002
 <workflow> record-evidence --kind test-run --result pass --summary "Discount tests pass after implementation" --check-id C-0003
-<workflow> record-change --id CU-0001 --path src/checkout/total.py --path src/checkout/discounts.py --path 05_SoftwareDocu/Checkout_Discounts.md --path 05_SoftwareDocu/README.md
+<workflow> record-change --id CU-0001 --path src/checkout/total.py --path src/checkout/discounts.py --path .agentic/knowledge/components/Checkout_Discounts.md --path .agentic/knowledge/components/index.md
 ```
 
 Stop summary:
@@ -235,7 +256,7 @@ Documentation status: new component document added and indexed
 Needs human: approve validation
 ```
 
-## 6. Validation Gate
+## 7. Validation Gate
 
 Validation is read-only unless the human sends the run back to an earlier gate.
 
@@ -262,7 +283,7 @@ Read-only review checks:
 - specs still match implementation;
 - no secrets are present;
 - touched paths are intentional;
-- `05_SoftwareDocu/Checkout_Discounts.md` reflects current code;
+- `.agentic/knowledge/components/Checkout_Discounts.md` reflects current code;
 - `CHANGELOG.md` is updated if the change is release-notable.
 
 Stop summary:
@@ -275,7 +296,7 @@ Documentation status: component docs current
 Needs human: approve delivery preflight/report
 ```
 
-## 7. Delivery Gate
+## 8. Delivery Gate
 
 The agent prepares delivery, but does not commit, push, or open a PR unless the
 human explicitly approves.
@@ -299,7 +320,7 @@ Risks/open notes: none or listed
 Approval needed: commit, push, or PR
 ```
 
-## 8. What This Example Demonstrates
+## 9. What This Example Demonstrates
 
 - The workflow is gate-based and human-steered.
 - Requirements are written before tests.

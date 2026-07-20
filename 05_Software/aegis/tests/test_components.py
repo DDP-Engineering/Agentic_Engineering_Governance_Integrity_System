@@ -11,8 +11,8 @@
 @brief Component manifest support tests.
 @details Covers the approved component and bundle contract for adoption runs.
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-22
-@version 0.2.0
+@date 2026-07-20
+@version 0.3.0
 """
 
 # IMPORTS
@@ -66,13 +66,13 @@ def test_no_manifest_returns_empty_components_and_bundles(tmp_path: Path) -> Non
 
 def test_one_component_resolves_repo_relative_path(tmp_path: Path) -> None:
     """
-    @brief      Verify component path globs resolve repository-relative files.
+    @brief      Verify T11 keeps explicit component subtree globs working.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-20
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -94,6 +94,55 @@ criticality = "high"
     assert component.tests == ["tests/billing/**"]
     assert component.criticality == "high"
     assert component.adoption_status == "baseline-usable"
+
+
+def test_bare_component_directory_matches_its_subtree(tmp_path: Path) -> None:
+    """
+    @brief      Verify T11 treats a bare component directory as a tree root.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    write_manifest(
+        tmp_path,
+        """
+[components.module]
+paths = ["src/module"]
+adoption_status = "baseline-usable"
+""",
+    )
+
+    component = component_for_path(load_components(tmp_path), "src/module/impl.py")
+
+    assert component is not None
+    assert component.name == "module"
+
+
+def test_bare_component_directory_does_not_match_sibling(tmp_path: Path) -> None:
+    """
+    @brief      Verify T11 does not extend a bare directory into sibling names.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    write_manifest(
+        tmp_path,
+        """
+[components.module]
+paths = ["src/module"]
+adoption_status = "baseline-usable"
+""",
+    )
+
+    component = component_for_path(load_components(tmp_path), "src/module2/x.py")
+
+    assert component is None
 
 
 def test_baseline_usable_satisfies_baseline_comparison() -> None:

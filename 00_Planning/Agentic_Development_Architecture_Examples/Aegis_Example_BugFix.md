@@ -51,7 +51,7 @@ It inspects:
 - existing requirements under `.agentic/requirements/`;
 - the existing discount tests;
 - `src/checkout/discounts.py` and related calculation code;
-- `05_SoftwareDocu/Checkout_Discounts.md`;
+- `.agentic/knowledge/components/Checkout_Discounts.md`;
 - `CHANGELOG.md` for recent related changes.
 
 It runs:
@@ -81,12 +81,32 @@ Evidence: none yet
 Traceability status: impacted requirement REQ-FUNC-012 found
 Needs human: confirm expected rounding rule if ambiguous
 Next prompt options:
-- Continue to check gate with a reproduction test
+- Continue to Intent Alignment, then the requirement/check decision
 - Revise bug scope
 - Abort or park this run
 ```
 
-## 3. Requirement Gate
+## 3. Intent Alignment Gate
+
+The agent records that the request is a local correction to already-contracted
+rounding behavior, not permission to redesign checkout discounts:
+
+```text
+<workflow> alignment --source "bug report" --understanding "Correct SAVE10 cents rounding from 17.98 to 17.99 for a 19.99 order." --scope "in: existing discount rounding implementation, reproduction test, and component knowledge; out: discount policy changes" --acceptance "The reproduction passes and existing discount tests remain green." --risk low --decision proceed --reason "The expected behavior is covered by REQ-FUNC-012 and no open questions remain." --planned-path src/checkout/discounts.py --planned-path tests/test_checkout_discounts.py
+```
+
+Typical alignment stop:
+
+```text
+Stage: alignment
+Understanding: restore the existing cents-rounding contract
+Existing requirement: REQ-FUNC-012
+Open questions: none
+Decision: proceed
+Needs human: approve the recorded fix boundary before requirement confirmation
+```
+
+## 4. Requirement Gate
 
 For this bug, the accepted durable requirement already exists. The agent does
 not invent a new requirement just because code is broken.
@@ -121,7 +141,7 @@ Requirement status: existing durable requirement confirmed
 Needs human: approve reproduction check
 ```
 
-## 4. Check Gate
+## 5. Check Gate
 
 The agent writes a reproduction test only. It does not edit source code.
 
@@ -160,7 +180,7 @@ Needs human: approve implementation
 If the reproduction test unexpectedly passes, the agent stops and reports that
 the bug is not reproduced in the current environment.
 
-## 5. Implementation Gate
+## 6. Implementation Gate
 
 After approval, the agent edits only implementation files and required
 documentation.
@@ -178,7 +198,7 @@ Because this is a material behavior fix for the discount component, the agent
 updates:
 
 ```text
-05_SoftwareDocu/Checkout_Discounts.md
+.agentic/knowledge/components/Checkout_Discounts.md
 ```
 
 If the fix is user-visible or release-notable, the agent also updates:
@@ -198,7 +218,7 @@ Then records evidence and touched paths:
 
 ```text
 <workflow> record-evidence --kind test-run --result pass --summary "SAVE10 cents rounding reproduction now passes" --check-id C-0001
-<workflow> record-change --id CU-0001 --path src/checkout/discounts.py --path tests/test_checkout_discounts.py --path 05_SoftwareDocu/Checkout_Discounts.md --path CHANGELOG.md
+<workflow> record-change --id CU-0001 --path src/checkout/discounts.py --path tests/test_checkout_discounts.py --path .agentic/knowledge/components/Checkout_Discounts.md --path CHANGELOG.md
 ```
 
 Stop summary:
@@ -211,7 +231,7 @@ Documentation status: discount component doc updated
 Needs human: approve validation
 ```
 
-## 6. Validation Gate
+## 7. Validation Gate
 
 Validation is read-only unless the human routes back to a previous gate.
 
@@ -237,7 +257,7 @@ Read-only review checks:
 - reproduction test was not weakened after implementation;
 - linked existing behavior still passes;
 - no unrelated tests were deleted;
-- `05_SoftwareDocu/Checkout_Discounts.md` matches the fixed behavior;
+- `.agentic/knowledge/components/Checkout_Discounts.md` matches the fixed behavior;
 - `CHANGELOG.md` reflects the fix if release-notable;
 - no secrets or unexpected files are in the diff.
 
@@ -252,7 +272,7 @@ Documentation status: component doc current
 Needs human: approve delivery preflight/report
 ```
 
-## 7. Delivery Gate
+## 8. Delivery Gate
 
 The agent prepares delivery:
 
@@ -286,7 +306,7 @@ Requirement-Touched: REQ-FUNC-012
 Tests-Added: tests/test_checkout_discounts.py::test_save10_rounds_1999_order_to_1799
 ```
 
-## 8. What This Example Demonstrates
+## 9. What This Example Demonstrates
 
 - A bug fix starts by finding the existing behavior contract.
 - If the contract exists, the first new test is a reproduction test.

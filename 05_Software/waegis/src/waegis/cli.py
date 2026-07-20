@@ -9,22 +9,13 @@
 """
 @file cli.py
 @brief Command-line entry point for the WAEGIS guided wizard.
-@details Defines the top-level ``waegis`` argument parser and registers every
-         planned subcommand of the CLI contract (plan §5). Most subcommands are
-         still stubs that report "not implemented" and exit with code 2; later
-         tasks replace them with real command handlers one at a time.
-         ``analyze`` (T3.3) was the first real handler; ``new`` (T4.3) the
-         second, ``adopt`` (T5.2) the third, ``doctor`` (T6.1) the fourth, and
-         ``upgrade`` (T6.2) the fifth, all wiring the plan §5 contract.
-         ``doctor`` and ``upgrade`` use their own ``--repo``/``--json`` shape
-         (matching ``analyze``, not ``new``/``adopt``'s ``TARGET``-based shape)
-         since they operate on an existing install rather than deploying one.
-         Only ``version``, ``self-update``, and ``gui`` remain generic
-         not-implemented stubs after this task. The exit codes are part of the
-         public contract from 0.1.0 onward (AD-9/D13).
+@details Defines the top-level ``waegis`` argument parser and registers each
+         supported command through its dedicated subparser and real handler.
+         New-project and adoption commands use a positional target, while
+         existing-install commands use their documented ``--repo`` contracts.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.6.0
+@date 2026-07-20
+@version 0.7.0
 """
 
 # IMPORTS
@@ -50,9 +41,6 @@ from .runtime import RuntimeRegistrationError, register_packaged_runtime
 from .version import WIZARD_VERSION
 
 # CONSTANTS
-
-# @brief Exit code returned by not-yet-implemented subcommand stubs.
-EXIT_NOT_IMPLEMENTED = 2
 
 # @brief Planned subcommands (plan §5) as ``(name, help)`` pairs. Registered in
 #        order so ``waegis --help`` lists the full CLI surface from 0.1.0.
@@ -98,25 +86,6 @@ class _WaegisArgumentParser(argparse.ArgumentParser):
 # LOCAL HELPERS
 
 
-def _make_stub(name: str):
-    """
-    @brief      Build a subcommand handler that reports a not-implemented stub.
-    @param[in]  name Subcommand name used in the diagnostic message.
-    @return     Callable taking parsed arguments and returning the
-                not-implemented exit code (:data:`EXIT_NOT_IMPLEMENTED`).
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
-    """
-
-    def _handler(_args: argparse.Namespace) -> int:
-        print(f"waegis {name}: not implemented", file=sys.stderr)
-        return EXIT_NOT_IMPLEMENTED
-
-    return _handler
-
-
 def _handle_new(args: argparse.Namespace) -> int:
     """
     @brief      Adapt parsed ``waegis new`` arguments to :func:`run_new`.
@@ -142,14 +111,13 @@ def _handle_new(args: argparse.Namespace) -> int:
 
 def _add_new_parser(sub: argparse._SubParsersAction) -> None:
     """
-    @brief      Register the real ``new`` subparser with the plan §5 arguments
-                (T4.3), in place of the generic not-implemented stub.
+    @brief      Register the ``new`` subparser with its deployment arguments.
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     parser = sub.add_parser("new", help=dict(SUBCOMMANDS)["new"])
     parser.add_argument("target", metavar="TARGET", help="Directory to create the new AEGIS project in")
@@ -191,8 +159,7 @@ def _handle_adopt(args: argparse.Namespace) -> int:
 
 def _add_adopt_parser(sub: argparse._SubParsersAction) -> None:
     """
-    @brief      Register the real ``adopt`` subparser with the plan §5 arguments
-                (T5.2), in place of the generic not-implemented stub.
+    @brief      Register the ``adopt`` subparser with its deployment arguments.
     @details    The flag shape is identical to ``new`` (frozen cross-command CLI
                 contract per plan §15/D13).
     @param[in]  sub The top-level subparsers action to register under.
@@ -200,7 +167,7 @@ def _add_adopt_parser(sub: argparse._SubParsersAction) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-14
-    @version    0.1.0
+    @version    0.2.0
     """
     parser = sub.add_parser("adopt", help=dict(SUBCOMMANDS)["adopt"])
     parser.add_argument("target", metavar="TARGET", help="Existing repository to adopt AEGIS into")
@@ -232,15 +199,14 @@ def _handle_analyze(args: argparse.Namespace) -> int:
 
 def _add_analyze_parser(sub: argparse._SubParsersAction) -> None:
     """
-    @brief      Register the real ``analyze`` subparser with its own
-                ``--repo``/``--json`` arguments (plan §5 CLI contract), in
-                place of the generic not-implemented stub.
+    @brief      Register the ``analyze`` subparser with ``--repo`` and
+                ``--json`` arguments.
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     parser = sub.add_parser("analyze", help=dict(SUBCOMMANDS)["analyze"])
     parser.add_argument("--repo", required=True, help="Repository root to analyze")
@@ -320,15 +286,14 @@ def _handle_doctor(args: argparse.Namespace) -> int:
 
 def _add_doctor_parser(sub: argparse._SubParsersAction) -> None:
     """
-    @brief      Register the real ``doctor`` subparser with its own
-                ``--repo``/``--json`` arguments (plan §5 CLI contract), in
-                place of the generic not-implemented stub.
+    @brief      Register the ``doctor`` subparser with ``--repo`` and
+                ``--json`` arguments.
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    0.2.0
     """
     parser = sub.add_parser("doctor", help=dict(SUBCOMMANDS)["doctor"])
     parser.add_argument("--repo", required=True, help="Repository root to diagnose")
@@ -339,20 +304,17 @@ def _add_doctor_parser(sub: argparse._SubParsersAction) -> None:
 def _handle_upgrade(args: argparse.Namespace) -> int:
     """
     @brief      Adapt parsed ``waegis upgrade`` arguments to :func:`run_upgrade`.
-    @details    The frozen §5 contract exposes only ``--repo``/``--dry-run``/
-                ``--json``/``--payload`` (no answers file). The interactive
-                (non-``--json``) path drives per-file conflict decisions with a
-                :class:`ConsoleAsker`; the ``--json`` path supplies no asker, so
-                :func:`run_upgrade` stops-and-reports on any conflict rather than
-                guessing (a conflict is never auto-resolved).
-    @param[in]  args Parsed namespace with ``repo``, ``dry_run``, ``json``, and
-                ``payload``.
+    @details    The parser accepts ``--repo``, ``--dry-run``, ``--answers``,
+                ``--non-interactive``, ``--yes``, ``--json``, and ``--payload``.
+                Interactive human output uses :class:`ConsoleAsker`; JSON mode
+                supplies no asker and never guesses conflict decisions.
+    @param[in]  args Parsed namespace containing the documented upgrade flags.
     @return     The exit code from :func:`run_upgrade` (0 ok / 1 conflicts /
                 2 smoke-failed / 3 operational).
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    0.2.0
     """
     asker = None if args.json else ConsoleAsker(stdin=sys.stdin, stdout=sys.stdout)
     return run_upgrade(
@@ -370,17 +332,15 @@ def _handle_upgrade(args: argparse.Namespace) -> int:
 
 def _add_upgrade_parser(sub: argparse._SubParsersAction) -> None:
     """
-    @brief      Register the real ``upgrade`` subparser with the plan §5
-                arguments (T6.2), in place of the generic not-implemented stub.
-    @details    Uses the ``--repo``/``--json`` shape shared with ``analyze`` and
-                ``doctor`` (an existing-install command), plus ``--dry-run`` and
-                ``--payload`` from the §5 contract.
+    @brief      Register the ``upgrade`` subparser for an existing installation.
+    @details    Supports dry runs, answers files, non-interactive approval,
+                JSON output, and an explicit payload override.
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    0.2.0
     """
     parser = sub.add_parser("upgrade", help=dict(SUBCOMMANDS)["upgrade"])
     parser.add_argument("--repo", required=True, help="Repository root to upgrade to a newer AEGIS payload")
@@ -407,16 +367,13 @@ def _add_version_parser(sub: argparse._SubParsersAction) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     """
-    @brief      Build the top-level ``waegis`` argument parser: ``new`` (T4.3),
-                ``adopt`` (T5.2), ``analyze`` (T3.3), ``doctor`` (T6.1), and
-                ``upgrade`` (T6.2) get their real handlers and arguments; only
-                ``version``, ``self-update``, and ``gui`` remain
-                not-implemented stubs.
+    @brief      Build the top-level parser with one dedicated subparser and
+                handler for every supported WAEGIS command.
     @return     Configured :class:`argparse.ArgumentParser`.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.6.0
+    @date       2026-07-20
+    @version    0.7.0
     """
     parser = _WaegisArgumentParser(
         prog="waegis",
@@ -426,33 +383,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    for name, help_text in SUBCOMMANDS:
-        if name == "new":
-            _add_new_parser(sub)
-            continue
-        if name == "adopt":
-            _add_adopt_parser(sub)
-            continue
-        if name == "analyze":
-            _add_analyze_parser(sub)
-            continue
-        if name == "configure":
-            _add_configure_parser(sub)
-            continue
-        if name == "doctor":
-            _add_doctor_parser(sub)
-            continue
-        if name == "repair":
-            _add_repair_parser(sub)
-            continue
-        if name == "upgrade":
-            _add_upgrade_parser(sub)
-            continue
-        if name == "version":
-            _add_version_parser(sub)
-            continue
-        stub = sub.add_parser(name, help=help_text)
-        stub.set_defaults(handler=_make_stub(name))
+    _add_new_parser(sub)
+    _add_adopt_parser(sub)
+    _add_analyze_parser(sub)
+    _add_configure_parser(sub)
+    _add_doctor_parser(sub)
+    _add_repair_parser(sub)
+    _add_upgrade_parser(sub)
+    _add_version_parser(sub)
     return parser
 
 

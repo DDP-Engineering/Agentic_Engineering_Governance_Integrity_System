@@ -12,9 +12,17 @@
 @details Covers expected workflow behavior through focused pytest checks.
 @details OS-aware case sensitivity of `guard_write_zone.matches` covered as
          of 0.3.0 (architecture-review follow-up).
+@details T7 regression coverage (0.4.0) verifies that a governed project with
+         no active run receives actionable start guidance while an active
+         intake-stage run retains the existing write-zone denial.
+@details T5 regression coverage (0.5.0) verifies that ``gh pr merge`` reaches
+         delivery preflight like PR creation and other outward actions.
+@details T6 regression coverage (0.6.0) verifies that the pre-tool secret scan
+         honors repository-configured patterns without failing closed on
+         missing configuration or invalid regular expressions.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.3.0
+@date 2026-07-20
+@version 0.6.0
 """
 
 # IMPORTS
@@ -208,6 +216,78 @@ def test_matches_is_case_sensitive_on_non_windows(monkeypatch) -> None:
 
 
 # --- Codex apply_patch payloads -------------------------------------------------
+
+
+def test_guard_write_zone_no_active_run_denial_says_so(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Without an active run, the denial names the missing run.
+    @param[in]  tmp_path Working directory hosting no workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T7 regression test (analysis-review follow-up, 2026-07-20): with
+                hooks installed but no run started, the stage fell back to
+                ``intake`` and every non-``.agentic`` edit was denied with
+                "Edit outside 'intake' write zone" — technically correct but
+                misleading. The denial (still a denial) now states that no run
+                is active and how to start one, so a fresh agent's first
+                blocked edit points at the actual next step.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.2.0
+    """
+    (tmp_path / ".agentic").mkdir()
+    payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
+    output = run_hook(guard_main, payload, monkeypatch)
+    decision = json.loads(output)["hookSpecificOutput"]
+    reason = decision["permissionDecisionReason"]
+    assert decision["permissionDecision"] == "deny"
+    assert "No active AEGIS run" in reason
+    assert ".agentic\\tools\\run.ps1 start --kind feature" in reason
+    assert "bash .agentic/tools/run.sh start --kind feature" in reason
+    assert "then retry. Blocked:" in reason
+    assert "src/app.py" in reason
+
+
+def test_guard_write_zone_no_run_bookkeeping_edit_stays_allowed(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Without an active run, `.agentic` edits stay allowed as before.
+    @param[in]  tmp_path Working directory hosting no workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T7 changes only denial text; the existing bookkeeping allowance
+                remains unchanged.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    (tmp_path / ".agentic").mkdir()
+    payload = file_edit_payload(tmp_path, "Edit", ".agentic/notes.md")
+    output = run_hook(guard_main, payload, monkeypatch)
+    assert output == ""
+
+
+def test_guard_write_zone_active_intake_denial_message_unchanged(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      With an active intake-stage run, the stage denial is unchanged.
+    @param[in]  tmp_path Working directory hosting the workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T7 must not replace stage-specific guidance when a readable
+                active run already exists.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    (tmp_path / ".agentic").mkdir()
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
+    payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
+    output = run_hook(guard_main, payload, monkeypatch)
+    assert "deny" in output
+    assert "Edit outside 'intake' write zone" in output
+    assert "No active AEGIS run" not in output
 
 
 def test_guard_write_zone_denies_implementation_test_edit(tmp_path: Path, monkeypatch) -> None:
@@ -459,15 +539,77 @@ def test_guard_write_zone_allows_qwen_source_write_during_implementation(tmp_pat
 # --- Secret scan and delivery preflight ----------------------------------------
 
 
-def test_secret_scan_denies_secret_like_input(tmp_path: Path, monkeypatch) -> None:
+def test_secret_scan_denies_configured_pattern(tmp_path: Path, monkeypatch) -> None:
     """
-    @brief      Handle test secret scan denies secret like input workflow behavior.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @param[in]  monkeypatch Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
+    @brief      Deny tool input matching a repository-configured secret pattern.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T6 regression test: custom ``[secrets].patterns`` previously
+                protected INV-7 and working-tree audit only; the PreToolUse hook
+                ignored them.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
+    @date       2026-07-20
+    @version    0.2.0
+    """
+    agentic = tmp_path / ".agentic"
+    agentic.mkdir()
+    (agentic / "workflow.toml").write_text(
+        "[secrets]\npatterns = ['ACME_TOKEN_[0-9]{8}']\n",
+        encoding="utf-8",
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "echo ACME_TOKEN_12345678"},
+    }
+    output = run_hook(secret_main, payload, monkeypatch)
+    assert "Possible secret" in output
+
+
+def test_secret_scan_ignores_invalid_configured_regex(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Ignore an invalid configured regex without blocking benign input.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T6 keeps the hook fail-open for bad user configuration; the
+                invalid expression is neither allowed to crash nor treated as
+                a match-all denial.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.2.0
+    """
+    agentic = tmp_path / ".agentic"
+    agentic.mkdir()
+    (agentic / "workflow.toml").write_text(
+        "[secrets]\npatterns = ['[invalid']\n",
+        encoding="utf-8",
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "echo safe"},
+    }
+    output = run_hook(secret_main, payload, monkeypatch)
+    assert output == ""
+
+
+def test_secret_scan_missing_workflow_uses_builtin_patterns(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Preserve built-in secret detection when workflow config is absent.
+    @param[in]  tmp_path Repository root without ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T6 configuration loading must not change the legacy no-config
+                behavior.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
     @version    0.1.0
     """
     payload = {
@@ -517,6 +659,33 @@ def test_delivery_preflight_denies_push_without_launcher(tmp_path: Path, monkeyp
         "tool_name": "Bash",
         "cwd": str(tmp_path),
         "tool_input": {"command": "git push origin main"},
+    }
+    output = run_hook(delivery_main, payload, monkeypatch)
+    assert "permissionDecision" in output
+    assert "deny" in output
+
+
+def test_delivery_preflight_denies_gh_pr_merge_without_launcher(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      Route GitHub PR merges through delivery preflight.
+    @param[in]  tmp_path Working directory without a workflow launcher.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    T5 regression test for ``gh pr merge --squash 12``: the command
+                previously bypassed ``DELIVERY_PATTERNS`` even though PR create,
+                Git push, and Git merge were intercepted.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "gh pr merge --squash 12"},
     }
     output = run_hook(delivery_main, payload, monkeypatch)
     assert "permissionDecision" in output

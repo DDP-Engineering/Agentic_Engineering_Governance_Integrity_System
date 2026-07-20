@@ -37,7 +37,7 @@ from pathlib import Path
 
 import pytest
 
-from waegis.commands.adopt import DEFAULT_ADOPTION_BRANCH, run_adopt
+from waegis.commands.adopt import DEFAULT_ADOPTION_BRANCH, build_adopt_catalog, run_adopt
 from waegis.commands.new import EXIT_OK, WORKFLOW_TOML_RELATIVE_PATH
 from waegis.payload.locate import locate_payload
 from waegis.payload.manifest import ManifestState, compute_drift, hash_file, load_manifest
@@ -212,7 +212,9 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path) -> None:  # type: 
     """
     @brief      Re-running against the same TARGET auto-discovers the prior adopt
                 journal and skips every step (plan §4 detect-and-skip / resume):
-                17 results (net.proxy filtered out), all ``skipped``, ``ok`` true.
+                one result per catalog step except the filtered ``net.proxy``
+                (count derived from the catalog so a step addition cannot
+                strand this test), all ``skipped``, ``ok`` true.
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If any step re-ran or the summary drifted.
@@ -232,7 +234,9 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path) -> None:  # type: 
     assert envelope["command"] == "adopt" and envelope["status"] == "ok"
     summary = envelope["result"]
     assert summary["mode"] == "adopt" and summary["ok"] is True and summary["stopped_at"] is None
-    assert len(summary["results"]) == 17  # net.proxy filtered out (no clone URL)
+    # One result per catalog step; net.proxy is filtered out (no clone URL).
+    expected_steps = sum(1 for spec in build_adopt_catalog().ordered() if spec.id != "net.proxy")
+    assert len(summary["results"]) == expected_steps
     assert all(result["status"] in {"skipped", "done"} for result in summary["results"])
     assert any(result["status"] == "skipped" for result in summary["results"])
 

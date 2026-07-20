@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from waegis.commands.new import EXIT_OK, WORKFLOW_TOML_RELATIVE_PATH, run_new
+from waegis.commands.new import EXIT_OK, WORKFLOW_TOML_RELATIVE_PATH, build_new_catalog, run_new
 from waegis.payload.manifest import ManifestState, compute_drift, load_manifest
 from waegis.probes.runner import SubprocessCommandRunner
 from waegis.repo import gitops
@@ -173,8 +173,10 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     """
     @brief      Re-running against the same TARGET auto-discovers the prior
                 journal and skips every step (plan §4 detect-and-skip /
-                resume): the frozen run-summary JSON shows 16 results, all
-                ``skipped`` (net.proxy does not apply), and ``ok`` true.
+                resume): the run-summary JSON shows one result per catalog
+                step except the filtered ``net.proxy`` (count derived from
+                the catalog so a step addition cannot strand this test), all
+                ``skipped``, and ``ok`` true.
     @param[in]  tmp_path Pytest tmp fixture.
     @param[in]  answers_file Prepared answers file fixture.
     @return     None
@@ -196,7 +198,9 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     summary = envelope["result"]
     assert set(summary) == {"mode", "dry_run", "ok", "stopped_at", "results"}
     assert summary["mode"] == "new" and summary["ok"] is True and summary["stopped_at"] is None
-    assert len(summary["results"]) == 16  # net.proxy filtered out (no clone URL)
+    # One result per catalog step; net.proxy is filtered out (no clone URL).
+    expected_steps = sum(1 for spec in build_new_catalog().ordered() if spec.id != "net.proxy")
+    assert len(summary["results"]) == expected_steps
     assert all(result["status"] in {"skipped", "done"} for result in summary["results"])
     assert any(result["status"] == "skipped" for result in summary["results"])
     for result in summary["results"]:

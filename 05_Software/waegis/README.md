@@ -23,8 +23,14 @@ migration, or version-bump path for earlier partial implementations.
 person with no repo-setup knowledge can follow. It is a **separate package** from
 the AEGIS payload and is **never copied into that payload** (AD-1).
 
-Design and task breakdown live in
-`00_Planning/WAEGIS_Wizard_Implementation_Plan.md`.
+The implemented command and lifecycle contracts are documented in this README
+and beside their corresponding modules under `src/waegis/`. Historical task
+plans are not required to operate or maintain the package.
+
+Older source docstrings retain compact section and decision tokens such as
+`plan §4`, `D12`, or `AD-9` as provenance labels. They do not point to a shipped
+document and are not normative; the current code, tests, CLI help, and this
+README define the supported behavior.
 
 ## Principles
 
@@ -503,8 +509,8 @@ The Wizard N journey (plan §8.1): every step of the table registered as a real
 `waegis new TARGET [--answers F] [--dry-run] [--non-interactive] [--json]
 [--payload PATH]`.
 
-- **Catalog** — 17 steps in plan §8.1 order (`home.init`, `machine.os`,
-  `machine.disk`, `prereq.python`, `prereq.git`, `prereq.git-identity`,
+- **Catalog** — 18 steps in execution order (`home.init`, `machine.os`,
+  `machine.disk`, `prereq.python`, `prereq.node`, `prereq.git`, `prereq.git-identity`,
   `net.proxy`, `repo.target-path`, `repo.init-or-clone`,
   `deploy.payload-copy`, `deploy.workflow-toml`, `deploy.gates`,
   `verify.cli-smoke`, `verify.workflow-smoke`, `verify.hooks-present`,
@@ -558,7 +564,8 @@ repository, resolving payload/local conflicts file by file. Same CLI shape as
   step list). `net.proxy` `applies()` is false for adopt (no clone URL), so it
   is filtered out. `deploy.workflow-toml` reuses Wizard N's shared
   detect/verify/on_fail with an adopt-specific `act`.
-- **Catalog** — 18 steps in plan §8.2 order: the shared prefix, then
+- **Catalog** — 19 steps in execution order: the shared prefix (including
+  `prereq.node`), then
   `repo.validate-existing`, `repo.prior-install`, `analyze.repo`,
   `deploy.adoption-copy`, `deploy.workflow-toml`, `deploy.gates`, the three
   `verify.*` steps, `repo.adoption-commit`, `handoff.adoption`.

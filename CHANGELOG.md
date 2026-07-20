@@ -11,8 +11,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-20
+
+### Added
+
+- `aegis start` now accepts repeatable `--scope-hint` values, persists them in
+  `Intent.scope_hint`, includes them in the `run.started` journal event, and
+  makes intentional extra roots available to INV-5 without hand-editing run
+  state. Scope hints remain advisory and do not relax write zones or protected
+  files (backlog T12).
+
 ### Changed
 
+- Repair the T15 documentation bundle without restoring intentionally removed
+  planning artifacts: first-reader READMEs now point only to maintained
+  sources, the architecture and worked examples describe current component
+  knowledge, adoption stages, and Intent Alignment, WAEGIS catalog counts match
+  the executable catalogs, shipped skills use repository-neutral audit command
+  placeholders, and operator/configuration guides document lightweight changes,
+  parallel work, glob semantics, and language-specific traceability behavior.
+- Remove the unconsumed AEGIS `Defect` model, `Graph.defects`, and
+  `ChangeUnit.evidence` from current graph serialization while keeping legacy
+  graph files readable by ignoring those retired keys. Workflow reports now
+  surface `Evidence.failure_kind` as `kind/result (classification): summary`.
+  WAEGIS now registers all eight supported commands directly through dedicated
+  parsers and handlers, with the unreachable generic stub factory/exit constant
+  removed and CLI docstrings corrected to match the current flags (backlog T14).
 - Harden the WAEGIS lifecycle and supersede the earlier Unreleased T6.2
   behavior: completed journals always run a fresh detection pass; only
   fingerprint-compatible incomplete journals may replay allowlisted answers.
@@ -21,9 +45,11 @@ All notable changes to this project will be documented in this file.
   back automatically on apply/smoke failure or a recovered interruption, and
   writes the manifest last. Manifestless/earlier-layout upgrade and restamping
   are no longer supported.
-- Keep `manifest_version` and `journal_version` at `1` for the unreleased
-  implementation while making all current fields mandatory. No compatibility
-  reader or migration path is provided for earlier partial layouts.
+- Release the AEGIS payload as `0.5.0` and the independently versioned WAEGIS
+  wizard as `0.2.0`. WAEGIS continues to accept AEGIS payloads in
+  `>=0.4.0,<1.0`; `manifest_version` and `journal_version` remain at `1` while
+  all current fields stay mandatory. No compatibility reader or migration path
+  is provided for earlier partial layouts.
 - Standardize command JSON as one non-interactive envelope and exit codes as
   0 success, 1 warning/input/approval required, 2 validation/verification
   failure, and 3 operational/internal failure. Non-interactive mutations
@@ -31,6 +57,56 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Embedded AEGIS package metadata now matches the CLI project version and is
+  protected by a scaffold parity test; the package marker's stray second
+  docstring was removed. `add-spec` and `add-check` now reject duplicate
+  run-local IDs before mutating the graph, while `impact` reuses the robust
+  working-tree Git parser so renames contribute both current and previous paths
+  and quoted paths are decoded consistently (backlog T13).
+- Qwen Code hook matchers previously covered only the friendly `Edit`,
+  `WriteFile`, and `Bash` names, so builds emitting raw `write_file`, `replace`,
+  or `run_shell_command` identifiers could bypass the matcher before the shared
+  guard received the payload. PreToolUse and PostToolUse now match the friendly
+  and raw-name unions while preserving the same guard commands and order
+  (backlog T8).
+- Component ownership used raw `fnmatch`, so a bare directory entry such as
+  `src/module` did not own files below it and could follow a different
+  case-sensitivity policy from write-zone and scope checks. Component lookup
+  now uses the shared `matches_pattern` policy: bare directories cover their
+  subtree, explicit `/**` patterns remain valid, and similarly named siblings
+  remain outside the component (backlog T11).
+- Registry audit previously checked only cache presence and JSON syntax, so a
+  requirement register edited after `registry sync` could pass delivery with
+  stale `requirements.json` or `checks.json` data. The read-only audit now
+  compares cached requirement records and linked-test keys with the live
+  registers, reports `REGISTRY-STALE`, and names `registry sync` as the repair;
+  `delivery-preflight` inherits the deterministic failure (backlog T10).
+- Requirement activation previously wrote an `Active` register row even when a
+  freshly supplied linked-test identifier did not resolve. Activation now
+  validates every new link before writing, reports all unresolved identifiers
+  and reasons as a clean CLI error, and leaves the register unchanged; valid
+  links and manual-only activation retain their existing behavior (backlog T9).
+- The PreToolUse secret hook used only four hardcoded patterns while INV-7 and
+  working-tree audit honored repository-specific `[secrets].patterns`. The hook
+  now scans the union of built-in and configured regexes across every adapter;
+  missing/malformed configuration and invalid user regexes remain fail-open and
+  cannot crash or block tool use by themselves (backlog T6).
+- Adapter secret-file deny lists had drifted from the canonical write-zone
+  protection list, and `gh pr merge` could bypass the controls used for PR
+  creation. Claude Code and Qwen now deny every canonical secret/key glob for
+  read and edit/write tools, Codex covers the corresponding filesystem-profile
+  extensions, and PR merges are intercepted by the shared preflight plus the
+  Claude, Qwen, and OpenCode permission layers (backlog T5).
+- Claude Code, Codex, and Qwen previously ran `secret_scan.py` only for Bash
+  input, so secrets pasted through edit/write tools were not intercepted until
+  a later invariant or working-tree audit. Their edit matchers now run the
+  secret scan alongside `guard_write_zone.py` (including Codex's Windows
+  command twin), matching the existing OpenCode and Pi coverage (backlog T4).
+- AEGIS's write-zone hook reported a no-run fallback as an ordinary intake
+  write-zone violation, leaving a fresh agent without the actual recovery
+  action. It now keeps the denial behavior unchanged but identifies that no
+  active run exists, includes Windows and POSIX `start` examples, and lists
+  the blocked paths; active-run stage messages are unchanged (backlog T7).
 - AEGIS `store.repo_root_from` resolved the workflow root as the bare process
   working directory with no validation, so invoking the CLI (directly, via
   `run_aegis.py`/`run.ps1`/`run.sh`, or through a hook) with the working
