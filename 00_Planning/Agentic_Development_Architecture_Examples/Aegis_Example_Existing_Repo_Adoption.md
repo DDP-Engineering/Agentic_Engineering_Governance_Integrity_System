@@ -75,14 +75,35 @@ Stage: adoption-intake
 Adoption scope: repo-level discovery only
 Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/current_run
 Behavior-change check: No application behavior changes
-Needs human: approve repo-discovery
+Needs human: approve adoption alignment
 Next prompt options:
-- Continue to repo-discovery
+- Continue to adoption-alignment
 - Restrict discovery to a named subsystem
 - Park or abort this adoption run
 ```
 
-## 3. Repo Discovery Gate
+## 3. Adoption Alignment Gate
+
+Before repository discovery, the agent records the no-behavior-change boundary,
+the intended discovery depth, assumptions, open questions, and the proposed
+first adoption slice:
+
+```text
+<workflow> alignment --source "human adoption request" --understanding "Discover the existing repository and propose the smallest baseline-usable component slice without changing application behavior." --scope "in: read-only repository discovery and workflow-owned adoption artifacts; out: product behavior and production configuration" --acceptance "A reviewed component map and one approved adoption slice are produced without runtime changes." --risk low --decision proceed --reason "The no-behavior-change boundary is explicit; discovery remains read-only." --planned-path .agentic/components.toml --planned-path .agentic/reports/adoption
+```
+
+Typical alignment stop:
+
+```text
+Stage: adoption-alignment
+Understanding: map the repository before adopting one approved component
+Assumptions: existing build and test commands remain authoritative
+Open questions: none
+Decision: proceed
+Needs human: approve repo-discovery
+```
+
+## 4. Repo Discovery Gate
 
 After approval, the agent performs read-only discovery of the existing project.
 It identifies:
@@ -126,7 +147,7 @@ Recommended next slice: Billing only, because it has clear paths and tests
 Needs human: approve component-map updates
 ```
 
-## 4. Component Map Gate
+## 5. Component Map Gate
 
 After approval, the agent creates or updates `.agentic/components.toml`.
 
@@ -176,7 +197,7 @@ Baseline status: components discovered, none baseline-usable yet
 Needs human: approve Billing as the first component-adoption slice
 ```
 
-## 5. Component Adoption Gate
+## 6. Component Adoption Gate
 
 After the human approves a single component, the agent works only inside that
 local scope. For the Billing example, the approved scope is:
@@ -231,7 +252,7 @@ Remaining gaps: payment retry timing still needs manual confirmation
 Needs human: approve baseline-review
 ```
 
-## 6. Baseline Review Gate
+## 7. Baseline Review Gate
 
 The agent reviews whether the component is safe enough for normal feature or
 fix work.
@@ -266,7 +287,7 @@ Behavior-change check: No application behavior changes
 Needs human: approve adoption-delivery or choose next component
 ```
 
-## 7. Adoption Delivery Gate
+## 8. Adoption Delivery Gate
 
 The agent prepares a delivery summary for the adoption slice:
 
@@ -293,7 +314,7 @@ Next safe work:
 - Checkout remains discovered and should be adopted before behavior-changing work
 ```
 
-## 8. What This Example Demonstrates
+## 9. What This Example Demonstrates
 
 - Existing repositories start with discovery, not implementation.
 - Adoption is a separate run kind: `start --kind adoption`.

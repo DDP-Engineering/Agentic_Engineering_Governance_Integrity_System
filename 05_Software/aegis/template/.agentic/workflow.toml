@@ -81,7 +81,7 @@ lint = []
 
 [secrets]
 # Regular expressions scanned during secret checks. Keep this list conservative:
-# entries here may block delivery if a matching token-like value is found.
+# entries here may deny matching tool input and block delivery.
 patterns = [
   "sk-[A-Za-z0-9_-]{20,}",
   "ghp_[A-Za-z0-9_]{20,}",

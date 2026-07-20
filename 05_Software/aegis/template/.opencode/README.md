@@ -79,8 +79,9 @@ OpenCode tool events onto the shared `.agentic/hooks/` Python scripts:
 - reads of protected secret/key paths are blocked natively;
 - post-tool events run `post_tool_evidence.py`.
 
-Set `AEGIS_PYTHON` if OpenCode cannot find the desired Python
-interpreter. Python 3.11 or newer is required by the workflow CLI and hooks.
+Interpreter order is explicit `AEGIS_PYTHON`, the runtime registered by
+packaged WAEGIS, then a supported system Python. The workflow CLI and hooks do
+not require a system Python when that registered runtime is present.
 
 Delivery actions such as push, merge, publish, and PR creation still require a
 passing delivery preflight and explicit human approval.

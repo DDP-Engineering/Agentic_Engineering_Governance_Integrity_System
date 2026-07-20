@@ -9,10 +9,11 @@
 """
 @file report.py
 @brief Markdown report rendering for workflow runs.
-@details Mirrors the packaged CLI implementation shipped into generated projects.
+@details Renders persisted workflow evidence, including optional failure
+classifications, for generated projects.
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.4.0
+@date 2026-07-20
+@version 0.5.0
 """
 
 # IMPORTS
@@ -28,17 +29,19 @@ from .invariants import evaluate
 from .models import Graph
 from .requirements import audit_coverage, audit_registry, audit_traceability
 
+# PUBLIC API
+
 
 def render_report(repo_root: Path, graph: Graph) -> str:
     """
-    @brief      Render render report workflow behavior.
+    @brief      Render a complete Markdown report for the active workflow graph.
     @param[in]  repo_root Input value used by the workflow helper.
     @param[in]  graph Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.4.0
+    @date       2026-07-20
+    @version    0.5.0
     """
     results = evaluate(repo_root, graph)
     traceability_issues = audit_traceability(repo_root)
@@ -93,7 +96,10 @@ def render_report(repo_root: Path, graph: Graph) -> str:
     lines.extend(["", "## Evidence"])
     if graph.evidence:
         for item in graph.evidence:
-            lines.append(f"- `{item.id}` {item.kind}/{item.result}: {item.summary}")
+            failure_kind = f" ({item.failure_kind})" if item.failure_kind else ""
+            lines.append(
+                f"- `{item.id}` {item.kind}/{item.result}{failure_kind}: {item.summary}"
+            )
     else:
         lines.append("- None recorded.")
 
@@ -138,6 +144,9 @@ def write_report(repo_root: Path, graph: Graph) -> Path:
     path = repo_root / ".agentic" / "runs" / graph.run_id / "report.md"
     path.write_text(render_report(repo_root, graph), encoding="utf-8")
     return path
+
+
+# HELPER FUNCTIONS
 
 
 def _render_adoption_baseline(repo_root: Path, graph: Graph) -> list[str]:
@@ -204,3 +213,6 @@ def _touched_paths(graph: Graph) -> list[str]:
     @version    0.1.0
     """
     return sorted({path for unit in graph.change_units for path in unit.touched_paths})
+
+
+# END OF FILE

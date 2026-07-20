@@ -30,14 +30,14 @@ from waegis import version
 
 def test_wizard_version_is_exported() -> None:
     """
-    @brief      The package exposes the wizard version starting at 0.1.0 (AD-11).
+    @brief      The package exposes the released wizard version (AD-11).
     @return     None
     @exception  AssertionError On a version mismatch.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-12
-    @version    0.1.0
+    @version    0.2.0
     """
-    assert version.WIZARD_VERSION == "0.1.0"
+    assert version.WIZARD_VERSION == "0.2.0"
     assert waegis.__version__ == version.WIZARD_VERSION
 
 

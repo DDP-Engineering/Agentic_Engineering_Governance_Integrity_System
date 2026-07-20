@@ -29,6 +29,9 @@ import pytest
 from aegis.cli import main
 
 
+# LOCAL HELPERS
+
+
 def run_cli(tmp_path: Path, *args: str) -> None:
     """
     @brief      Run CLI workflow behavior.
@@ -61,6 +64,9 @@ def init_repo(tmp_path: Path) -> None:
     @version    0.1.0
     """
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+
+
+# TESTS
 
 
 def test_working_tree_audit_reports_arbitrary_untracked_files_without_failing(
@@ -110,6 +116,44 @@ blocked_patterns = ["generated/**"]
     generated = tmp_path / "generated"
     generated.mkdir()
     (generated / "artifact.txt").write_text("Generated delivery blocker.\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc:
+        run_cli(tmp_path, "working-tree", "audit")
+
+    assert exc.value.code == 1
+
+
+def test_working_tree_audit_matches_blocked_pattern_for_non_ascii_filename(tmp_path: Path) -> None:
+    """
+    @brief      A blocked-pattern path with a non-ASCII name is still matched.
+    @param[in]  tmp_path Input value used by the workflow helper.
+    @return     Result produced by the workflow helper.
+    @details    Regression test (code-review follow-up, 2026-07-18): Git's
+                default `core.quotePath=true` reports a non-ASCII filename such
+                as `café.txt` as the C-style-quoted, octal-escaped string
+                `"caf\303\251.txt"` in `git status --porcelain` output. Before
+                the `-c core.quotepath=false` fix plus `_unquote_git_path`,
+                `_git_status` passed that literal quoted string through
+                unchanged, so no blocked-pattern glob (like `generated/**`)
+                could ever match it.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-18
+    @version    0.1.0
+    """
+    init_repo(tmp_path)
+    agentic = tmp_path / ".agentic"
+    agentic.mkdir()
+    (agentic / "workflow.toml").write_text(
+        """
+[working_tree]
+blocked_patterns = ["generated/**"]
+""",
+        encoding="utf-8",
+    )
+    generated = tmp_path / "generated"
+    generated.mkdir()
+    (generated / "café.txt").write_text("Generated delivery blocker.\n", encoding="utf-8")
 
     with pytest.raises(SystemExit) as exc:
         run_cli(tmp_path, "working-tree", "audit")
@@ -344,3 +388,6 @@ behavior_changes_allowed = true
     output = capsys.readouterr().out
     assert "ADOPTION-SOURCE-CHANGE" not in output
     assert "Delivery preflight passed" in output
+
+
+# END OF FILE

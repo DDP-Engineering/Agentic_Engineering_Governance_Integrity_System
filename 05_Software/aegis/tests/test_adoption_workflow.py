@@ -11,8 +11,8 @@
 @brief Adoption workflow CLI and invariant tests.
 @details Covers local component scope checks and adoption status commands.
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-22
-@version 0.1.1
+@date 2026-07-20
+@version 0.2.0
 """
 
 # IMPORTS
@@ -69,20 +69,20 @@ def write_manifest(repo_root: Path, body: str) -> None:
 
 def write_billing_manifest(repo_root: Path, adoption_status: str) -> None:
     """
-    @brief      Write a one-component billing manifest.
+    @brief      Write a T11 component manifest with a bare directory path.
     @param[in]  repo_root Temporary repository root.
     @param[in]  adoption_status Adoption status for the billing component.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-20
+    @version    0.2.0
     """
     write_manifest(
         repo_root,
         f"""
 [components.billing]
-paths = ["src/billing/**"]
+paths = ["src/billing"]
 tests = ["tests/billing/**"]
 adoption_status = "{adoption_status}"
 criticality = "high"

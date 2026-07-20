@@ -7,7 +7,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Agentic Development Stack Architecture
 
-> **Date**: June 17, 2026
+> **Date**: July 20, 2026
 > **Author**: Dan Pasare
 > **Status**: Draft, aligned to the standalone AEGIS project.
 > **Scope**: Architecture for AEGIS, a generic, copyable agentic engineering governance and integrity system.
@@ -46,7 +46,7 @@ assume that the agent is fully autonomous. Instead, it gives the agent:
   scope, assumptions, acceptance target, open questions, risk, and proceed/pause
   decision before requirement/spec work, including recommended responses for
   automated flow when questions remain;
-- component documentation rules under `05_SoftwareDocu/`.
+- workflow-owned component knowledge under `.agentic/knowledge/components/`.
 
 The current implementation is a **manual gate workflow with deterministic
 guardrails**. A future implementation can add a fully automated conductor, but
@@ -65,10 +65,17 @@ When the template is copied into a target repository, the target receives:
     PROMPT_CHEATSHEET.md
     WORKFLOW_CHEATSHEET.svg
   hooks/
+  knowledge/
+    components/
+      component_template.md
+      index.md
   registry/
+  reports/
+    adoption/
   requirements/
   skills/
   tools/
+  components.toml
   workflow.toml
 .codex/
   config.toml
@@ -95,9 +102,6 @@ opencode.json
   settings.json
   skills/
   README.md
-05_SoftwareDocu/
-  README.md
-  component_documentation_template.md
 AGENTS.md
 CLAUDE.md
 QWEN.md
@@ -116,7 +120,9 @@ The important split is:
 - `.opencode/` and `opencode.json` are the OpenCode adapter layer.
 - `.qwen/` and `QWEN.md` are the Qwen Code adapter layer; its `settings.json`
   binds the shared hooks natively and points `context.fileName` at `AGENTS.md`.
-- `05_SoftwareDocu/` is the component documentation convention.
+- `.agentic/knowledge/components/` is the workflow-owned component
+  documentation convention; `.agentic/components.toml` maps component scope and
+  `.agentic/reports/` holds generated adoption reports.
 - `CHANGELOG.md` is the target project's human release/change log.
 - `.agentic/documents/PROMPT_CHEATSHEET.md` is the operator-facing prompt
   reference.
@@ -128,7 +134,7 @@ flowchart TB
   subgraph TARGET["Target project"]
     SRC["Source code"]
     TESTS["Tests"]
-    DOCS["05_SoftwareDocu"]
+    DOCS[".agentic/knowledge/components"]
     CHANGELOG["CHANGELOG.md"]
   end
 
@@ -203,6 +209,16 @@ The gate order is intentionally explicit in the shipped template. The user can
 ask the agent to stop at each gate, inspect the output, approve, revise, or
 abort.
 
+Existing-project adoption uses a parallel seven-stage route:
+
+1. `adoption-intake`
+2. `adoption-alignment`
+3. `repo-discovery`
+4. `component-map`
+5. `component-adoption`
+6. `baseline-review`
+7. `adoption-delivery`
+
 After `intake` and `adoption-intake`, the workflow enters `alignment` or
 `adoption-alignment` before requirement/spec work or adoption discovery
 proceeds. The record lives in `graph.json`, is appended to `journal.jsonl` as
@@ -221,10 +237,9 @@ Each active run is stored under `.agentic/runs/<run-id>/graph.json`.
 ```mermaid
 erDiagram
   INTENT ||--o{ SPEC_ITEM : scopes
-  INTENT ||--o| INTAKE_TRIAGE : clarifies
+  INTENT ||--o| INTENT_ALIGNMENT : clarifies
   SPEC_ITEM ||--o{ CHECK : verified_by
   CHECK ||--o{ EVIDENCE : produces
-  CHANGE_UNIT ||--o{ EVIDENCE : supported_by
   INTENT ||--o{ DECISION : records
 
   INTENT {
@@ -233,7 +248,7 @@ erDiagram
     string statement
     string scope_hint
   }
-  INTAKE_TRIAGE {
+  INTENT_ALIGNMENT {
     string source
     string understanding
     string risk
@@ -257,6 +272,7 @@ erDiagram
     string kind
     string result
     string summary
+    string failure_kind
   }
   CHANGE_UNIT {
     string id
@@ -281,10 +297,12 @@ The current CLI evaluates these invariants:
 | `INV-6` | Evidence | The run has recorded evidence. | blocking |
 | `INV-7` | Clean secrets | Configured secret patterns do not appear in the Git diff. | non-waivable |
 | `INV-8` | Green requirements active | Green checks that cite durable requirements only cite `Active` requirement rows. | blocking |
+| `INV-9` | Component baseline scope | Behavior-changing runs only touch mapped components that meet the configured adoption baseline or belong to an approved bundle. | blocking |
 
 The invariants are deliberately small. They catch the most common failure modes:
 unverified requirements, orphan tests, tests that never failed, missing
-evidence, scope creep, secrets, and durable requirements left `Planned`.
+evidence, scope creep, secrets, durable requirements left `Planned`, and changes
+to components that are not baseline-ready.
 
 Invariant severities are currently fixed in `invariants.py`. The template ships
 no declarative policy file, so tuning a severity means editing that module.
@@ -311,18 +329,19 @@ This is what turns a one-off agent session into a maintainable project memory.
 ## 8. Component Documentation
 
 New components and material component changes require documentation under
-`05_SoftwareDocu/`.
+`.agentic/knowledge/components/`.
 
 The template ships:
 
-- `05_SoftwareDocu/component_documentation_template.md`;
-- `05_SoftwareDocu/README.md`;
+- `.agentic/knowledge/components/component_template.md`;
+- `.agentic/knowledge/components/index.md`;
 - `write-component-documentation` (Codex `$`, Claude Code `/`, Pi `/skill:`,
   OpenCode native `skill`, Qwen Code `/skills`);
 - `documentation-audit` (Codex `$`, Claude Code `/`, Pi `/skill:`,
   OpenCode native `skill`, Qwen Code `/skills`);
 - workflow config for `[documentation]`;
-- implementation write-zone allowance for `05_SoftwareDocu/**`.
+- implementation write-zone allowance for
+  `.agentic/knowledge/components/**`.
 
 Component documentation complements requirements and tests. It does not replace
 durable requirement rows or linked verification.
@@ -462,14 +481,19 @@ The template supports three levels of portability:
 The current template is useful as a manual, auditable workflow. The next
 evolution steps are:
 
-1. Wire a declarative policy file (invariant severities and gate stops) into the
-   CLI so workflow strictness is configurable without code edits.
-2. Add stronger stage validation around CLI commands.
-3. Add deterministic checks for required component documentation.
+1. Implement the ratified parallel-branch simplification so concurrent work is
+   isolated by worktree and run state without adding a database or lock files.
+2. Add stronger stage validation around CLI commands when it can preserve the
+   manual stop-and-review model.
+3. Revisit an advisory component-documentation check after component mappings
+   and parallel-run state are stable.
 4. Provide adapters for additional agent platforms (Codex, Claude Code, Pi,
    OpenCode, and Qwen Code are supported today).
-5. Optionally add a conductor that chooses the next gate based on unmet
-   invariants.
+
+An auto-advancing conductor, fail-closed hooks, and a declarative invariant
+severity file are deliberately not part of the current roadmap. They would
+weaken the manual-gate product contract or add policy surface without proven
+demand.
 
 ## 14. Summary
 

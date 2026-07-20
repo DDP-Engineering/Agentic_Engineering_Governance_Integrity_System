@@ -25,6 +25,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+# CONSTANTS
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PACKAGE_ROOT.parents[1]
 TEMPLATE = PACKAGE_ROOT / "template"
@@ -41,6 +43,9 @@ SKILL_NAMES = (
     "python-codestyle-audit",
     "write-component-documentation",
 )
+
+
+# LOCAL HELPERS
 
 
 def load_scaffold_module():
@@ -70,6 +75,9 @@ def read_manifest() -> dict:
     @version    0.1.0
     """
     return json.loads((PI_DIR / "package.json").read_text(encoding="utf-8"))
+
+
+# TESTS
 
 
 def test_pi_adapter_files_exist() -> None:
@@ -205,3 +213,6 @@ def test_scaffold_copies_pi_adapter_and_skips_node_modules(tmp_path: Path) -> No
     assert (target / ".pi" / "tests" / "hook-bridge.test.ts").exists()
     # vitest dependencies must never land in a scaffolded project.
     assert not (target / ".pi" / "node_modules").exists()
+
+
+# END OF FILE

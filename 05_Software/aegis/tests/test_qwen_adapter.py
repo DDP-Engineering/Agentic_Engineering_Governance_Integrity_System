@@ -14,8 +14,8 @@
          resolve to the shared engine, the outward-delivery denies are present,
          and the scaffolder copies the adapter into a new project.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-01
-@version 0.1.0
+@date 2026-07-20
+@version 0.2.0
 """
 
 # IMPORTS
@@ -25,6 +25,8 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+
+# CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PACKAGE_ROOT.parents[1]
@@ -55,6 +57,9 @@ HOOK_SCRIPTS = (
     "delivery_preflight.py",
     "post_tool_evidence.py",
 )
+
+
+# LOCAL HELPERS
 
 
 def load_scaffold_module():
@@ -104,6 +109,9 @@ def hook_commands(settings: dict) -> list[str]:
                 if isinstance(command, str):
                     commands.append(command)
     return commands
+
+
+# TESTS
 
 
 def test_qwen_adapter_files_exist() -> None:
@@ -185,6 +193,36 @@ def test_write_guard_matcher_covers_qwen_write_tool() -> None:
     assert "WriteFile" in write_entry["matcher"]
 
 
+def test_hook_matchers_cover_friendly_and_raw_qwen_tool_names() -> None:
+    """
+    @brief      Verify T8 hooks cover friendly aliases and raw Qwen tool ids.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    settings = read_settings()
+    pre_tool = settings["hooks"]["PreToolUse"]
+    post_tool = settings["hooks"]["PostToolUse"]
+    write_entry = next(entry for entry in pre_tool if "guard_write_zone.py" in json.dumps(entry))
+    shell_entry = next(entry for entry in pre_tool if "delivery_preflight.py" in json.dumps(entry))
+    evidence_entry = next(entry for entry in post_tool if "post_tool_evidence.py" in json.dumps(entry))
+    write_hook_names = {hook["name"] for hook in write_entry["hooks"]}
+
+    assert write_entry["matcher"] == "Edit|WriteFile|write_file|replace"
+    assert write_hook_names == {"agentic-guard-write-zone", "agentic-edit-secret-scan"}
+    assert shell_entry["matcher"] == "Bash|run_shell_command"
+    assert set(evidence_entry["matcher"].split("|")) == {
+        "Bash",
+        "run_shell_command",
+        "Edit",
+        "WriteFile",
+        "write_file",
+        "replace",
+    }
+
+
 def test_skill_wrappers_reuse_shared_engine() -> None:
     """
     @brief      Verify each wrapper references the shared skill it adapts.
@@ -220,3 +258,6 @@ def test_scaffold_copies_qwen_adapter(tmp_path: Path) -> None:
     assert (target / "QWEN.md").exists()
     assert (target / ".qwen" / "skills" / "agentic-development" / "SKILL.md").exists()
     assert (target / ".qwen" / "commands" / "workflow-status.md").exists()
+
+
+# END OF FILE

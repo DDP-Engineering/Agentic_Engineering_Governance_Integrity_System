@@ -19,12 +19,14 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from aegis.config import load_config
 from aegis.invariants import evaluate
 from aegis.models import ChangeUnit, Graph, Intent
 
+# CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,6 +34,9 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 #        artifacts (the .pi/ vitest toolchain). Template-hygiene walks skip these
 #        because they are not part of the shipped template deliverable.
 _DEPENDENCY_DIRS = {"node_modules", ".vitest", ".git", ".opencode-cache"}
+
+
+# TESTS
 
 
 def test_default_documentation_config(tmp_path: Path) -> None:
@@ -433,6 +438,7 @@ def test_template_includes_local_cli_bootstrap() -> None:
     assert (template_root / ".agentic" / "tools" / "run_aegis.py").exists()
     assert (template_root / ".agentic" / "tools" / "run.ps1").exists()
     assert (template_root / ".agentic" / "tools" / "run.sh").exists()
+    assert (template_root / ".agentic" / "tools" / "run_hook.mjs").exists()
     assert (template_root / ".agentic" / "tools" / "install.ps1").exists()
     assert (template_root / ".agentic" / "tools" / "install.sh").exists()
 
@@ -446,16 +452,18 @@ def test_template_has_no_generated_python_cache() -> None:
     @date       2026-06-20
     @version    0.1.0
     """
-    template_root = PACKAGE_ROOT / "template"
-
-    # Third-party dependency trees (the .pi/ vitest toolchain) are install-on-demand
-    # and gitignored; they are not part of the template deliverable.
-    def in_template_scope(path: Path) -> bool:
-        return not any(part in _DEPENDENCY_DIRS for part in path.relative_to(template_root).parts)
-
-    assert not any("__pycache__" in path.parts for path in template_root.rglob("*") if in_template_scope(path))
-    assert not any(path.suffix == ".pyc" for path in template_root.rglob("*") if in_template_scope(path))
-    assert not any(path.name.endswith(".egg-info") for path in template_root.rglob("*") if in_template_scope(path))
+    repository_root = PACKAGE_ROOT.parents[1]
+    result = subprocess.run(
+        ["git", "-C", str(repository_root), "ls-files", "--", "05_Software/aegis/template"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    tracked = [Path(line) for line in result.stdout.splitlines() if line]
+    assert not any("__pycache__" in path.parts for path in tracked)
+    assert not any(path.suffix == ".pyc" for path in tracked)
+    assert not any(path.name.endswith(".egg-info") for path in tracked)
 
 
 def test_template_text_files_have_legal_header() -> None:
@@ -489,3 +497,6 @@ def test_template_text_files_have_legal_header() -> None:
             missing.append(path.relative_to(template_root).as_posix())
 
     assert missing == []
+
+
+# END OF FILE

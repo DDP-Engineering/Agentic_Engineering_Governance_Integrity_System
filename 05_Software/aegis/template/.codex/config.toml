@@ -24,7 +24,11 @@ extends = ":workspace"
 ".agentic" = "write"
 "**/*.env" = "deny"
 "**/*.pem" = "deny"
+"**/*.key" = "deny"
+"**/*.p12" = "deny"
+"**/*.pfx" = "deny"
 "**/*_rsa" = "deny"
+"**/*_rsa.pub" = "deny"
 
 # Offline-first default. Enable only when the target project explicitly needs
 # network access and the human approves it. Outward delivery (push, PR, merge)

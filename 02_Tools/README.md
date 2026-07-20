@@ -22,5 +22,18 @@ packaging the standalone AEGIS project belong here.
   python 02_Tools\create_project_from_template.py D:\Path\To\NewProject
   ```
 
-  Pass `--force` to overwrite existing files in the target directory.
+  Pass `--force` to overwrite existing files in the target directory,
+  `--dry-run` to preview the copied files without writing, and
+  `--existing-repo` to require the target directory to already exist
+  (adoption of an existing repository).
+
+  Since task T3.2 the script is a thin wrapper over the WAEGIS
+  manifest-aware copier (`05_Software/waegis/src/waegis/payload/copier.py`).
+  The flags and messages are unchanged, with one new side effect: every real
+  (non-dry-run) copy also writes `<target>/.agentic/install-manifest.json`
+  recording the payload version and the sha256 of every copied file, which is
+  what enables `waegis analyze`/`doctor`/`upgrade` to manage the install
+  later. `--dry-run` writes nothing, including no manifest. An overwrite
+  refusal now happens before any file is written, so a refused run leaves the
+  target untouched.
 

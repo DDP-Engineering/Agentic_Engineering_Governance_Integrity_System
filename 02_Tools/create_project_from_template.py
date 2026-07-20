@@ -12,41 +12,66 @@
 @details Supports both new-project bootstrap and safe existing-repository
          adoption. Existing files are never overwritten unless ``--force`` is
          supplied, and ``--dry-run`` can preview copied files without writing.
+         Since T3.2 this script is a thin wrapper over the WAEGIS
+         manifest-aware copier (``waegis.payload.copier``): the public flags
+         and messages are unchanged, but every real (non-dry-run) copy now
+         also writes ``<target>/.agentic/install-manifest.json`` recording the
+         payload version and the sha256 of every copied file (plan §6, AD-6)
+         so `waegis analyze`/`doctor`/`upgrade` can manage the install later.
+         ``--dry-run`` writes nothing, including no manifest. An overwrite
+         refusal now happens before any file is written, so a refused run
+         leaves the target untouched (previously files earlier in the walk
+         were already copied).
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-23
-@version 0.2.0
+@date 2026-07-12
+@version 0.3.0
 """
 
 from __future__ import annotations
 
 import argparse
-import shutil
+import sys
 from pathlib import Path
 
+# The WAEGIS package (stdlib-only) lives in this repository; make it importable
+# when this script runs straight from a checkout without an install.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "05_Software" / "waegis" / "src"))
+
+from waegis.payload.copier import (  # noqa: E402
+    EXCLUDED_PARTS,
+    EXCLUDED_PATTERNS,
+    EXCLUDED_SUFFIXES,
+    CopierError,
+    copy_payload,
+)
+from waegis.payload.copier import should_exclude as _should_exclude  # noqa: E402
+
+__all__ = [
+    "TEMPLATE_ROOT",
+    "EXCLUDED_PARTS",
+    "EXCLUDED_SUFFIXES",
+    "EXCLUDED_PATTERNS",
+    "should_exclude",
+    "copy_template",
+    "main",
+]
 
 TEMPLATE_ROOT = Path(__file__).resolve().parents[1] / "05_Software" / "aegis" / "template"
-# `node_modules`/`.vitest` belong to the `.pi/` adapter's isolated vitest setup and
-# must never be carried into a scaffolded project.
-EXCLUDED_PARTS = {"__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".vitest"}
-EXCLUDED_SUFFIXES = {".pyc"}
-EXCLUDED_PATTERNS = ("*.egg-info", ".uv-cache*")
 
 
 def should_exclude(path: Path) -> bool:
     """
     @brief      Return whether a template path is generated or dependency state.
+    @details    Delegates to ``waegis.payload.copier.should_exclude`` — the
+                single source of truth for the exclusion rules since T3.2.
     @param[in]  path Path relative to the template root.
     @return     True when the path must not be copied into a target project.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-23
-    @version    0.2.0
+    @date       2026-07-12
+    @version    0.3.0
     """
-    if any(part in EXCLUDED_PARTS for part in path.parts):
-        return True
-    if path.suffix in EXCLUDED_SUFFIXES:
-        return True
-    return any(path.match(pattern) for pattern in EXCLUDED_PATTERNS)
+    return _should_exclude(path)
 
 
 def copy_template(
@@ -58,6 +83,14 @@ def copy_template(
 ) -> list[Path]:
     """
     @brief      Copy or preview the bundled template files into a target root.
+    @details    Thin wrapper over ``waegis.payload.copier.copy_payload``. The
+                observable contract is unchanged (never-overwrite default,
+                dry-run preview, ``SystemExit`` messages) with one documented
+                addition: a real copy also writes
+                ``<target>/.agentic/install-manifest.json`` (mode ``"new"``,
+                or ``"adopt"`` when ``require_existing_target`` is set). The
+                manifest is a side-effect file and is not included in the
+                returned list.
     @param[in]  target Target project or existing repository root.
     @param[in]  force Overwrite existing files when true.
     @param[in]  dry_run Preview copied file paths without writing.
@@ -66,33 +99,21 @@ def copy_template(
     @exception  SystemExit Raised for a missing template, missing existing repo,
                 or an overwrite refusal.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-23
-    @version    0.2.0
+    @date       2026-07-12
+    @version    0.3.0
     """
-    if not TEMPLATE_ROOT.exists():
-        raise SystemExit(f"Template directory not found: {TEMPLATE_ROOT}")
-
-    target = target.resolve()
-    if require_existing_target and not target.is_dir():
-        raise SystemExit(f"Existing repository directory not found: {target}")
-
-    copied: list[Path] = []
-    for source in sorted(TEMPLATE_ROOT.rglob("*")):
-        relative = source.relative_to(TEMPLATE_ROOT)
-        if should_exclude(relative):
-            continue
-        destination = target / relative
-        if source.is_dir():
-            if not dry_run:
-                destination.mkdir(parents=True, exist_ok=True)
-            continue
-        if destination.exists() and not force:
-            raise SystemExit(f"Refusing to overwrite existing file: {destination}")
-        if not dry_run:
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination)
-        copied.append(destination)
-    return copied
+    try:
+        result = copy_payload(
+            TEMPLATE_ROOT,
+            target,
+            mode="adopt" if require_existing_target else "new",
+            force=force,
+            dry_run=dry_run,
+            require_existing_target=require_existing_target,
+        )
+    except CopierError as exc:
+        raise SystemExit(str(exc)) from exc
+    return [result.target / relative for relative in result.copied]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -102,8 +123,8 @@ def main(argv: list[str] | None = None) -> int:
     @return     Process exit code.
     @exception  SystemExit Raised by argparse or copy validation failures.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-23
-    @version    0.2.0
+    @date       2026-07-12
+    @version    0.3.0
     """
     parser = argparse.ArgumentParser(
         description="Copy the AEGIS payload into a new project or existing repository."

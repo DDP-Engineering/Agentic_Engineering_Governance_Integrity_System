@@ -23,6 +23,10 @@ from __future__ import annotations
 
 import sys
 
+# CONSTANTS
+
 # @brief Prevent ``.pyc`` files from being written next to the template source
 #        so the shipped template stays clean and reproducible.
 sys.dont_write_bytecode = True
+
+# END OF FILE

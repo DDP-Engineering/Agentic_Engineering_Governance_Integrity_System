@@ -11,20 +11,20 @@ Planning notes, requirements, architecture sketches, and future workflow design
 records for the standalone AEGIS project belong here.
 
 - `Agentic_Development_Architecture/` - the agentic development stack
-  architecture document and future workflow-mode specifications, including
-  existing-project adoption mode and its implementation plan.
+  architecture document, including the current feature/fix and
+  existing-project adoption execution models.
 - `Agentic_Development_Architecture_Examples/` - worked feature and bug-fix
   examples of the workflow, including Intent Alignment before requirement work.
-- `Pi_Integration_Plan.md` - plan for the Pi (pi.dev) adapter under
-  `template/.pi/`.
-- `WAEGIS_Wizard_Implementation_Plan.md` - exhaustive, task-by-task
-  implementation plan for the WAEGIS guided configuration and deployment
-  wizard (`waegis new` / `waegis adopt` plus `analyze`/`doctor`/`upgrade`),
-  written for execution with Claude Code.
+- Pi adapter behavior is documented by the stack architecture and the copied
+  template assets under `05_Software/aegis/template/.pi/`.
+- WAEGIS implementation behavior is documented by
+  `05_Software/waegis/README.md` and the source-local module documentation.
 - OpenCode adapter behavior is documented in the stack architecture and the
-  copied template assets under `template/.opencode/` and `template/opencode.json`.
+  copied template assets under `05_Software/aegis/template/.opencode/` and
+  `05_Software/aegis/template/opencode.json`.
 - Qwen Code adapter behavior is documented in the stack architecture and the
-  copied template assets under `template/.qwen/` and `template/QWEN.md`.
+  copied template assets under `05_Software/aegis/template/.qwen/` and
+  `05_Software/aegis/template/QWEN.md`.
 - `Agentic_Flow_Artifact_Map.svg` maps the workflow stages to the `.agentic`
   files, commands, hooks, and skills that create or update persisted workflow
   information.
@@ -37,4 +37,3 @@ records for the standalone AEGIS project belong here.
 - `PROMPT_CHEATSHEET.md` - planning reference copy of the operator prompt cheat
   sheet; the canonical copy ships at
   `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`.
-- `Full_Workflow_Demo.mp4` - screen recording walking through a full workflow run.

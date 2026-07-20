@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "provider": "astral-sh/python-build-standalone",
+  "release": "20260510",
+  "python_version": "3.13.13",
+  "targets": {
+    "windows-x64": {
+      "asset": "cpython-3.13.13+20260510-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "e1d52e7b6707a04942970e120c298f0cfa36c138177ae4d5d5ea176f6a3cd834"
+    },
+    "linux-x64": {
+      "asset": "cpython-3.13.13+20260510-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "bbe27549e475fe5f22d42a8e0d553dc79d80d8a00e05712599637857d287360e"
+    }
+  }
+}

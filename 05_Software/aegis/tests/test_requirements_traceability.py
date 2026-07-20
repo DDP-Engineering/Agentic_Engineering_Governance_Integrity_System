@@ -11,8 +11,8 @@
 @brief Workflow support module for test_requirements_traceability.
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.1.1
+@date 2026-07-20
+@version 0.4.0
 """
 
 # IMPORTS
@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -38,10 +39,14 @@ from aegis.config import load_config
 from aegis.invariants import blocking_failures, evaluate
 from aegis.store import load_graph
 
+# CONSTANTS
 
 HEADER = """| ID | Status | Priority | Requirement | Rationale | Related Components | Verification Method | Linked Tests | Created On | Last Updated |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 """
+
+
+# LOCAL HELPERS
 
 
 def run_cli(tmp_path: Path, *args: str) -> None:
@@ -145,6 +150,9 @@ def write_register(
     (tmp_path / ".agentic" / "requirements" / "coverage_waivers.txt").write_text("", encoding="utf-8")
 
 
+# TESTS
+
+
 def test_parse_register_and_resolve_python_test(tmp_path: Path) -> None:
     """
     @brief      Handle test parse register and resolve python test workflow behavior.
@@ -227,15 +235,45 @@ def test_impact_maps_changed_file_to_requirement_and_test(tmp_path: Path) -> Non
     assert report[0]["linked_tests"] == ["tests/test_calculator.py::test_add"]
 
 
+def test_impact_maps_git_rename_to_current_and_previous_paths(tmp_path: Path) -> None:
+    """
+    @brief      Verify T13 maps both sides of a Git rename through the shared parser.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    write_config(tmp_path)
+    write_tested_module(tmp_path)
+    write_register(tmp_path)
+    for command in (
+        ("git", "init"),
+        ("git", "config", "user.name", "AEGIS Tests"),
+        ("git", "config", "user.email", "aegis-tests@example.invalid"),
+        ("git", "add", "."),
+        ("git", "commit", "-m", "baseline"),
+        ("git", "mv", "src/calculator.py", "src/totalizer.py"),
+    ):
+        subprocess.run(command, cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    report = impact(tmp_path)
+
+    assert [item["file"] for item in report] == ["src/totalizer.py", "src/calculator.py"]
+    assert report[0]["requirements"] == []
+    assert report[1]["requirements"][0]["req_id"] == "REQ-FUNC-001"
+
+
 def test_registry_sync_and_audit(tmp_path: Path) -> None:
     """
-    @brief      Handle test registry sync and audit workflow behavior.
+    @brief      Verify T10 detects a stale requirements cache until re-sync.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @date       2026-07-20
+    @version    0.2.0
     """
     write_config(tmp_path)
     write_tested_module(tmp_path)
@@ -244,6 +282,64 @@ def test_registry_sync_and_audit(tmp_path: Path) -> None:
     result = sync_registry(tmp_path)
     assert result["requirement_count"] == 1
     assert result["check_count"] == 1
+    assert audit_registry(tmp_path) == []
+
+    registry = tmp_path / ".agentic" / "registry"
+    requirements_cache = registry / "requirements.json"
+    checks_cache = registry / "checks.json"
+    cached_requirements = requirements_cache.read_text(encoding="utf-8")
+    cached_checks = checks_cache.read_text(encoding="utf-8")
+    register = tmp_path / ".agentic" / "requirements" / "functional.md"
+    register.write_text(
+        register.read_text(encoding="utf-8").replace(
+            "Addition returns a sum.",
+            "Addition returns a precise sum.",
+        ),
+        encoding="utf-8",
+    )
+
+    issues = audit_registry(tmp_path)
+
+    assert [(issue.code, issue.message) for issue in issues] == [
+        (
+            "REGISTRY-STALE",
+            "requirements registry cache does not match the registers; run registry sync",
+        )
+    ]
+    assert requirements_cache.read_text(encoding="utf-8") == cached_requirements
+    assert checks_cache.read_text(encoding="utf-8") == cached_checks
+
+    sync_registry(tmp_path)
+    assert audit_registry(tmp_path) == []
+
+
+def test_registry_audit_detects_stale_check_keys(tmp_path: Path) -> None:
+    """
+    @brief      Verify T10 compares the linked-test keys in the checks cache.
+    @param[in]  tmp_path Temporary repository path provided by pytest.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    write_config(tmp_path)
+    write_tested_module(tmp_path)
+    write_register(tmp_path)
+    sync_registry(tmp_path)
+    checks_path = tmp_path / ".agentic" / "registry" / "checks.json"
+    checks_path.write_text("{}\n", encoding="utf-8")
+
+    issues = audit_registry(tmp_path)
+
+    assert [(issue.code, issue.message) for issue in issues] == [
+        (
+            "REGISTRY-STALE",
+            "requirements registry cache does not match the registers; run registry sync",
+        )
+    ]
+
+    sync_registry(tmp_path)
     assert audit_registry(tmp_path) == []
 
 
@@ -387,14 +483,14 @@ adoption_status = "ready"
 
 def test_delivery_preflight_includes_traceability_gates(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """
-    @brief      Handle test delivery preflight includes traceability gates workflow behavior.
+    @brief      Verify T10 makes delivery preflight block stale registry caches.
     @param[in]  tmp_path Input value used by the workflow helper.
     @param[in]  capsys Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @date       2026-07-20
+    @version    0.2.0
     """
     write_config(tmp_path)
     write_tested_module(tmp_path)
@@ -411,16 +507,31 @@ def test_delivery_preflight_includes_traceability_gates(tmp_path: Path, capsys: 
     run_cli(tmp_path, "delivery-preflight")
     assert "Delivery preflight passed" in capsys.readouterr().out
 
+    register = tmp_path / ".agentic" / "requirements" / "functional.md"
+    register.write_text(
+        register.read_text(encoding="utf-8").replace(
+            "Addition returns a sum.",
+            "Addition returns a precise sum.",
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_cli(tmp_path, "delivery-preflight")
+    output = capsys.readouterr().out
+    assert exc.value.code == 1
+    assert "REGISTRY-STALE" in output
+    assert "requirements registry cache does not match the registers; run registry sync" in output
+
 
 def test_requirement_activate_updates_row_and_linked_tests(tmp_path: Path) -> None:
     """
-    @brief      Handle test requirement activate updates row and linked tests workflow behavior.
+    @brief      Verify T9 accepts a freshly linked test that resolves successfully.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @date       2026-07-20
+    @version    0.2.0
     """
     write_config(tmp_path)
     write_tested_module(tmp_path)
@@ -445,6 +556,83 @@ def test_requirement_activate_updates_row_and_linked_tests(tmp_path: Path) -> No
     assert row.linked_tests == ["tests/test_calculator.py::test_add"]
     assert row.verification == "Automated test"
     assert audit_traceability(tmp_path) == []
+
+
+def test_requirement_activate_rejects_unresolved_link_without_writing_register(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief      Verify T9 rejects an unresolved new link and preserves the register.
+    @param[in]  tmp_path Temporary repository path provided by pytest.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    write_config(tmp_path)
+    write_tested_module(tmp_path)
+    write_register(tmp_path, "-", "Planned")
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "demo")
+    register_path = tmp_path / ".agentic" / "requirements" / "functional.md"
+    original_register = register_path.read_text(encoding="utf-8")
+
+    expected_error = (
+        "linked test(s) do not resolve: "
+        "tests/test_missing.py::test_missing: tests/test_missing.py does not exist; "
+        "tests/test_calculator.py::test_missing: "
+        "test_missing not found in tests/test_calculator.py"
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        run_cli(
+            tmp_path,
+            "requirement",
+            "activate",
+            "--id",
+            "REQ-FUNC-001",
+            "--linked-test",
+            "tests/test_missing.py::test_missing",
+            "--linked-test",
+            "tests/test_calculator.py::test_missing",
+            "--verification",
+            "Automated test",
+        )
+
+    assert str(exc_info.value) == expected_error
+    assert register_path.read_text(encoding="utf-8") == original_register
+    row = load_all_requirements(tmp_path)[0]
+    assert row.status == "Planned"
+    assert row.linked_tests == ["-"]
+
+
+def test_requirement_activate_manual_only_remains_supported(tmp_path: Path) -> None:
+    """
+    @brief      Verify T9 leaves manual-only requirement activation unchanged.
+    @param[in]  tmp_path Temporary repository path provided by pytest.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-20
+    @version    0.1.0
+    """
+    write_config(tmp_path)
+    write_register(tmp_path, "-", "Planned")
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "demo")
+
+    run_cli(
+        tmp_path,
+        "requirement",
+        "activate",
+        "--id",
+        "REQ-FUNC-001",
+        "--verification",
+        "Manual inspection of the calculator result",
+    )
+
+    row = load_all_requirements(tmp_path)[0]
+    assert row.status == "Active"
+    assert row.linked_tests == []
+    assert row.verification == "Manual inspection of the calculator result"
 
 
 def test_green_requirement_linked_check_requires_active_requirement(tmp_path: Path) -> None:
@@ -527,3 +715,6 @@ def test_green_requirement_linked_check_requires_active_requirement(tmp_path: Pa
     graph = load_graph(tmp_path)
 
     assert blocking_failures(evaluate(tmp_path, graph)) == []
+
+
+# END OF FILE
