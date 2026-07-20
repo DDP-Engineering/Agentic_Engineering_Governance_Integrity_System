@@ -12,7 +12,7 @@
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
 @date 2026-06-20
-@version 0.4.0
+@version 0.5.0
 """
 
 # IMPORTS
@@ -34,6 +34,10 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 #        artifacts (the .pi/ vitest toolchain). Template-hygiene walks skip these
 #        because they are not part of the shipped template deliverable.
 _DEPENDENCY_DIRS = {"node_modules", ".vitest", ".git", ".opencode-cache"}
+
+# @brief Generated Python distribution-metadata directory suffix excluded from
+#        template-hygiene walks because editable package builds create it locally.
+_GENERATED_METADATA_SUFFIX = ".egg-info"
 
 
 # TESTS
@@ -473,7 +477,7 @@ def test_template_text_files_have_legal_header() -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     template_root = PACKAGE_ROOT / "template"
     exempt_suffixes = {".json"}
@@ -483,9 +487,10 @@ def test_template_text_files_have_legal_header() -> None:
     for path in template_root.rglob("*"):
         if not path.is_file():
             continue
-        # Skip third-party dependency trees (the .pi/ vitest toolchain): they are
-        # install-on-demand, gitignored, and cannot carry our license header.
-        if any(part in _DEPENDENCY_DIRS for part in path.relative_to(template_root).parts):
+        # Skip install-on-demand dependencies and generated Python package
+        # metadata; neither is shipped template material.
+        relative_parts = path.relative_to(template_root).parts
+        if any(part in _DEPENDENCY_DIRS or part.endswith(_GENERATED_METADATA_SUFFIX) for part in relative_parts):
             continue
         if path.suffix.lower() in exempt_suffixes or path.name in exempt_names:
             continue

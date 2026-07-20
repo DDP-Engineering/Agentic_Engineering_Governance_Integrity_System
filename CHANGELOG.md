@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Exclude generated Python `*.egg-info` metadata directories from the AEGIS
+  template legal-header test so editable package builds do not create a false
+  failure.
 - Fix `waegis upgrade` branch-and-commit mode to consume `GitOpResult` status and failure details through its actual data-model fields.
 
 ## [0.5.0] - 2026-07-20
