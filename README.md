@@ -160,6 +160,16 @@ registers Python 3.11+ for the deployed AEGIS CLI and hooks, so a system Python
 is not required in that flow. Git remains an external prerequisite; the AEGIS
 CLI itself has no third-party runtime dependencies.
 
+## OpenAI Build Week
+
+During OpenAI Build Week, the project was substantially extended with Codex
+and GPT-5.6. The work strengthened the AEGIS and WAEGIS lifecycle, expanded
+cross-platform and multi-agent guardrails, increased deterministic test
+coverage, and prepared the repository for practical evaluation and adoption.
+Codex supported repository analysis, implementation, documentation updates,
+validation, and release-readiness work; the project remains human-directed and
+all changes are reviewed and verified locally.
+
 ## License
 
 This project is licensed under the PolyForm Noncommercial License 1.0.0.

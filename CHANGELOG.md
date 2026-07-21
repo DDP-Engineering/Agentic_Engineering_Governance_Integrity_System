@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Refresh `WAEGIS_01_Setup_And_First_Adoption.pptx` for WAEGIS 0.2.0.
+- Document the Codex and GPT-5.6 contribution to the OpenAI Build Week project
+  in the public README, alongside the repository's setup instructions.
 
 ### Fixed
 
