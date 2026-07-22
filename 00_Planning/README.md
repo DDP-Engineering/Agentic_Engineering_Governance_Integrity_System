@@ -30,10 +30,17 @@ records for the standalone AEGIS project belong here.
   information.
 - `Aegis_Artifact_Flow.svg` - stage-by-stage map of which skills,
   commands, scripts, and hooks create or update `.agentic` workflow artifacts.
-- `Aegis_Artifact_Flow_ro.svg` - Romanian version of the `.agentic`
-  workflow artifact flow map.
 - `Aegis_Architecture_Presentation.pptx` - slide deck overview of the
   AEGIS architecture.
 - `PROMPT_CHEATSHEET.md` - planning reference copy of the operator prompt cheat
   sheet; the canonical copy ships at
   `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`.
+- `AEGIS_Hard_Break_Modernization_Master_Plan_2026-07-22.md` - coordinated
+  execution order and shared acceptance criteria for the requirement, workspace
+  state, and policy-neutral configuration hard break.
+- `AEGIS_Requirement_Snapshot_Traceability_Plan_2026-07-22.md` - UUIDv4
+  requirement records, in-memory traceability, and registry removal plan.
+- `AEGIS_Worktree_Local_Run_State_Plan_2026-07-22.md` - per-worktree active-run
+  pointer and explicit run selection plan.
+- `AEGIS_Policy_Neutral_Configuration_Plan_2026-07-22.md` - strict
+  `workflow.toml` policy model and shared CLI/hook/adapter consumption plan.

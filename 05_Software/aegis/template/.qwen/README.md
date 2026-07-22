@@ -15,11 +15,17 @@ source for gate order, requirements, documentation rules, safety rules, and stop
 format. `settings.json` sets `context.fileName` to `["AGENTS.md", "QWEN.md"]` so
 Qwen loads `AGENTS.md` first and treats `QWEN.md` only as the adapter note.
 
+Before repository work, run the project-local `config validate --json` and
+`config show --effective --json` commands. Report write, protected-read/path,
+scope, secret, gate, coverage, and delivery modes and active rule counts, plus
+the selected worktree run or explicit `--run-id`. AEGIS policy comes only from
+the validated file; Qwen trust and host controls remain separate.
+
 ## Contents
 
 - `settings.json` - Qwen Code project settings. Wires the shared `.agentic/hooks/`
-  guards to Qwen tool events, points the context at `AGENTS.md`, and denies secret
-  reads/writes plus outward delivery commands.
+  guards to Qwen tool events and points the context at `AGENTS.md`. Repository
+  policy remains in `workflow.toml`, not adapter permission lists.
 - `skills/` - thin Qwen Code skill wrappers that reference the shared, neutral
   procedures under `.agentic/skills/` (single source of truth, same as the Codex,
   Claude Code, and OpenCode adapters).
@@ -30,15 +36,20 @@ Qwen loads `AGENTS.md` first and treats `QWEN.md` only as the adapter note.
 
 Qwen Code has a native command-hook system (`PreToolUse` / `PostToolUse` in
 `settings.json`) whose JSON-on-stdin protocol and `hookSpecificOutput` deny signal
-match what the four `.agentic/hooks/*.py` guards already emit. The adapter reuses
+match what the `.agentic/hooks/*.py` guards already emit. The adapter reuses
 the Python hooks **byte-for-byte** - no bridge code, the same design as the Codex
 and Claude Code adapters:
 
 | Qwen tool event | Python hook(s) | Effect on deny |
 |---|---|---|
+| `Read` / `ReadFile` / `read_file` (PreToolUse) | `guard_read_path.py` | block with reason |
 | `WriteFile` / `Edit` / `write_file` / `replace` (PreToolUse) | `guard_write_zone.py`, then `secret_scan.py` (full input) | block with reason |
 | `Bash` / `run_shell_command` (PreToolUse) | `secret_scan.py`, then `delivery_preflight.py` | block with reason |
 | any edit/shell (PostToolUse) | `post_tool_evidence.py` | fire-and-forget journal entry |
+
+Qwen settings contain no repository path or outward-command denylist. The
+shared hooks apply only modes and rules validated from `.agentic/workflow.toml`;
+Qwen host safety controls remain independent.
 
 ## Tool-name compatibility
 
@@ -50,6 +61,7 @@ maps `Edit` to `edit`, `WriteFile` to `write_file`, and `Bash` to
 `replace` for editing. The adapter therefore uses harmless unions:
 
 - `Edit|WriteFile|write_file|replace` for edit pre-hooks;
+- `Read|ReadFile|read_file` for read pre-hooks;
 - `Bash|run_shell_command` for shell pre-hooks;
 - the union of both sets for post-tool evidence.
 

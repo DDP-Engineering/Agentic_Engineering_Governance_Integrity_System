@@ -20,6 +20,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
       .h3 { font: 700 20px Arial, sans-serif; fill: #17202a; }
       .body { font: 19px Arial, sans-serif; fill: #263746; }
       .mono { font: 16px Consolas, "Courier New", monospace; fill: #17202a; }
+      .stage-card .mono { font-size: 12px; }
       .label { font: 700 15px Arial, sans-serif; fill: #ffffff; }
       .panel { fill: #ffffff; stroke: #d2d7dc; stroke-width: 2; rx: 8; }
       .stage { fill: #ffffff; stroke-width: 3; rx: 8; }
@@ -60,13 +61,13 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <text class="body" x="100" y="270">Producer: AEGIS copy/scaffold operation</text>
   <text class="mono" x="100" y="300">Source: 05_Software/aegis/template/.agentic/**</text>
   <text class="mono" x="100" y="326">Writes: workflow.toml, components.toml, cli/, tools/, hooks/, requirements/</text>
-  <text class="mono" x="100" y="352">Also: registry/, skills/, documents/, knowledge/, reports/</text>
+  <text class="mono" x="100" y="352">Also: skills/, documents/, knowledge/, reports/</text>
 
   <rect class="guard" x="935" y="190" width="795" height="180"/>
-  <text class="h2" x="965" y="232">Always-on write guard</text>
+  <text class="h2" x="965" y="232">Configured write guard</text>
   <text class="body" x="965" y="270">Hook: .agentic/hooks/guard_write_zone.py</text>
-  <text class="mono" x="965" y="300">Reads: .agentic/current_run, .agentic/runs/&lt;run-id&gt;/graph.json, .agentic/workflow.toml</text>
-  <text class="mono" x="965" y="326">Effect: permits or denies edits by stage; does not write workflow artifacts</text>
+  <text class="mono" x="965" y="300">Reads: validated workflow.toml; resolves run only for stage_restricted mode</text>
+  <text class="mono" x="965" y="326">Effect: applies configured write/protected-path policy; no hidden denylist</text>
 
   <rect class="lane" x="70" y="390" width="1660" height="150"/>
   <text class="h2" x="100" y="432">Runtime command path</text>
@@ -76,7 +77,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <rect class="artifact" x="1595" y="474" width="105" height="50"/>
   <text class="mono" x="1612" y="505">CLI</text>
 
-  <g transform="translate(70 590)">
+  <g class="stage-card" transform="translate(70 590)">
     <rect class="stage blue" x="0" y="0" width="230" height="345"/>
     <rect class="chip-blue" x="22" y="22" width="80" height="28" rx="14"/>
     <text class="label" x="49" y="42">1</text>
@@ -86,13 +87,13 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
     <text class="mono" x="22" y="178">cmd: start --kind ...</text>
     <text class="mono" x="22" y="204">script: store.py:init_graph</text>
     <text class="body" x="22" y="243">Writes</text>
-    <text class="mono" x="22" y="271">.agentic/current_run</text>
-    <text class="mono" x="22" y="297">.agentic/runs/&lt;id&gt;/graph.json</text>
-    <text class="mono" x="22" y="323">.agentic/runs/&lt;id&gt;/journal.jsonl</text>
+    <text class="mono" x="22" y="271">current_run pointer</text>
+    <text class="mono" x="22" y="297">runs/&lt;id&gt;/graph.json</text>
+    <text class="mono" x="22" y="323">runs/&lt;id&gt;/journal.jsonl</text>
   </g>
   <path class="arrow" d="M 300 762 L 335 762"/>
 
-  <g transform="translate(345 590)">
+  <g class="stage-card" transform="translate(345 590)">
     <rect class="stage green" x="0" y="0" width="230" height="345"/>
     <rect class="chip-green" x="22" y="22" width="80" height="28" rx="14"/>
     <text class="label" x="49" y="42">2</text>
@@ -108,7 +109,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   </g>
   <path class="arrow" d="M 575 762 L 610 762"/>
 
-  <g transform="translate(620 590)">
+  <g class="stage-card" transform="translate(620 590)">
     <rect class="stage green" x="0" y="0" width="230" height="345"/>
     <rect class="chip-green" x="22" y="22" width="80" height="28" rx="14"/>
     <text class="label" x="49" y="42">3</text>
@@ -116,15 +117,15 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
     <text class="body" x="22" y="124">Creator/modifier</text>
     <text class="mono" x="22" y="152">skill: agentic-development</text>
     <text class="mono" x="22" y="178">cmd: add-spec</text>
-    <text class="mono" x="22" y="204">cmd: requirement activate</text>
+    <text class="mono" x="22" y="204">cmd: requirement create</text>
     <text class="body" x="22" y="243">Writes</text>
     <text class="mono" x="22" y="271">graph.json spec_items</text>
-    <text class="mono" x="22" y="297">.agentic/requirements/*.md</text>
-    <text class="mono" x="22" y="323">journal: requirement.activated</text>
+    <text class="mono" x="22" y="297">requirements/&lt;cat&gt;/*.toml</text>
+    <text class="mono" x="22" y="323">journal: req.activated</text>
   </g>
   <path class="arrow" d="M 850 762 L 885 762"/>
 
-  <g transform="translate(895 590)">
+  <g class="stage-card" transform="translate(895 590)">
     <rect class="stage amber" x="0" y="0" width="230" height="345"/>
     <rect class="chip-amber" x="22" y="22" width="80" height="28" rx="14"/>
     <text class="label" x="49" y="42">4</text>
@@ -140,7 +141,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   </g>
   <path class="arrow" d="M 1125 762 L 1160 762"/>
 
-  <g transform="translate(1170 590)">
+  <g class="stage-card" transform="translate(1170 590)">
     <rect class="stage purple" x="0" y="0" width="230" height="345"/>
     <rect class="chip-purple" x="22" y="22" width="80" height="28" rx="14"/>
     <text class="label" x="49" y="42">5</text>
@@ -156,18 +157,18 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   </g>
   <path class="arrow" d="M 1400 762 L 1435 762"/>
 
-  <g transform="translate(1445 590)">
+  <g class="stage-card" transform="translate(1445 590)">
     <rect class="stage teal" x="0" y="0" width="230" height="345"/>
     <rect class="chip-teal" x="22" y="22" width="80" height="28" rx="14"/>
     <text class="label" x="49" y="42">6</text>
     <text class="h2" x="22" y="85">Validation</text>
     <text class="body" x="22" y="124">Creator/modifier</text>
-    <text class="mono" x="22" y="152">skill: regression-traceability</text>
-    <text class="mono" x="22" y="178">skill: documentation-audit</text>
+    <text class="mono" x="22" y="152">skill: regression audit</text>
+    <text class="mono" x="22" y="178">skill: documentation audit</text>
     <text class="mono" x="22" y="204">cmd: gates/audit/impact</text>
     <text class="body" x="22" y="243">Mostly reads</text>
     <text class="mono" x="22" y="271">workflow.toml</text>
-    <text class="mono" x="22" y="297">requirements/*.md</text>
+    <text class="mono" x="22" y="297">requirements/*/*.toml</text>
     <text class="mono" x="22" y="323">graph.json</text>
   </g>
 
@@ -178,8 +179,8 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
     <rect class="chip-red" x="28" y="28" width="94" height="30" rx="15"/>
     <text class="label" x="59" y="49">7</text>
     <text class="h2" x="28" y="92">Delivery</text>
-    <text class="body" x="28" y="132">Creator/modifier: skill agentic-delivery, command registry sync/audit, delivery-preflight, report.</text>
-    <text class="mono" x="28" y="166">requirements.py:sync_registry writes .agentic/registry/requirements.json, checks.json, features.json</text>
+    <text class="body" x="28" y="132">Creator/modifier: skill agentic-delivery, impact/audits, delivery-preflight, report.</text>
+    <text class="mono" x="28" y="166">requirements.py builds by_id/by_test/by_path in memory from canonical TOML snapshots; writes no registry/cache</text>
     <text class="mono" x="28" y="196">report.py:write_report writes .agentic/runs/&lt;run-id&gt;/report.md</text>
     <text class="mono" x="28" y="226">cli.py:set-stage / next / set-access-mode can update graph.json decisions, stage, and access_mode at any gate</text>
   </g>
@@ -191,6 +192,6 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
   <rect class="panel" x="930" y="1355" width="800" height="95"/>
   <text class="h3" x="960" y="1390">Durable vs run-local</text>
-  <text class="mono" x="960" y="1420">Durable: workflow.toml, components.toml, requirements/*.md, knowledge/**</text>
-  <text class="mono" x="960" y="1445">Run-local: current_run, runs/&lt;id&gt;/graph.json, journal.jsonl, report.md</text>
+  <text class="tiny" x="960" y="1420">Durable: workflow.toml, components.toml, UUID TOML snapshots, knowledge/**</text>
+  <text class="tiny" x="960" y="1445">Local: .workspace/state/current_run; graph, journal, and report under runs/&lt;id&gt;</text>
 </svg>

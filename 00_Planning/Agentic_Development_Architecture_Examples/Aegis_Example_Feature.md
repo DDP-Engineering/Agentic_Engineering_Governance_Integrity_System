@@ -7,17 +7,20 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Worked Example - New Feature With AEGIS
 
-> **Date**: June 17, 2026
-> **Status**: Draft, aligned to the standalone AEGIS project.
+> **Date**: July 22, 2026
+> **Status**: Current worked example, aligned to AEGIS and WAEGIS.
 > **Companion**: `Aegis_Example_BugFix.md`.
 
 ## 1. Scenario
 
-A target project has adopted the template. The copied project contains:
+WAEGIS has configured, deployed, and verified the AEGIS payload in a new target
+project through its external `waegis new` lifecycle. WAEGIS is not copied into
+the target; after deployment, AEGIS owns the in-repository engineering workflow.
+The deployed project contains:
 
 - `.agentic/cli/` and `.agentic/tools/` for local workflow commands;
-- `.agentic/workflow.toml` for roots, write zones, gates, and documentation;
-- `.agentic/requirements/` for durable requirement registers;
+- `.agentic/workflow.toml` for explicit structure and repository-policy modes;
+- `.agentic/requirements/` for UUID-backed current TOML snapshots;
 - `.agentic/documents/` for operator references (`PROMPT_CHEATSHEET.md`, etc.);
 - `.codex/skills/` for Codex behavior;
 - `.claude/skills/`, `.claude/settings.json`, and `CLAUDE.md` for Claude Code
@@ -36,7 +39,7 @@ The user asks:
 ```text
 Use the agentic development workflow.
 Implement feature: Let customers apply a discount code at checkout.
-Stop at each gate and wait for my approval.
+Stop at each stage boundary and wait for my approval before advancing.
 ```
 
 The workflow command placeholder is:
@@ -50,13 +53,24 @@ Common replacements:
 - Windows: `.\.agentic\tools\run.ps1`
 - Ubuntu: `bash .agentic/tools/run.sh`
 
-## 2. Intake Gate
+## 2. Intake Stage
 
 The agent reads:
 
 - `AGENTS.md`;
 - `.agentic/workflow.toml`;
 - existing source, tests, requirements, and documentation indexes.
+
+Before that inspection it runs:
+
+```text
+<workflow> config validate --json
+<workflow> config show --effective --json
+```
+
+It reports all effective restriction modes and active rule counts, distinguishes
+AEGIS policy from external safety, and states that this worktree will select the
+new run.
 
 The human operator may use `.agentic/documents/PROMPT_CHEATSHEET.md` to choose
 the next prompt, but the agent's workflow contract comes from `AGENTS.md`,
@@ -80,7 +94,7 @@ Typical intake output:
 
 ```text
 Stage: intake
-Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/current_run
+Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/.workspace/state/current_run
 Evidence: none yet
 Invariant status: expected blockers because no specs/checks/evidence exist
 Needs human: confirm discount semantics
@@ -97,7 +111,7 @@ Use percentage-only codes, one code per order, floor total at zero, and round to
 Continue to Intent Alignment.
 ```
 
-## 3. Intent Alignment Gate
+## 3. Intent Alignment Stage
 
 Before drafting requirements, the agent records what it understood and checks
 that the proposed scope and acceptance target match the existing checkout
@@ -118,7 +132,7 @@ Decision: proceed
 Needs human: approve or revise the recorded intent before requirement work
 ```
 
-## 4. Requirement Gate
+## 4. Requirement Stage
 
 The agent writes the smallest testable spec items and updates durable
 requirements.
@@ -144,9 +158,11 @@ The agent records them:
 <workflow> add-spec --id S-0003 --tag property --statement "The checkout total must never be less than zero after discounts." --status accepted --threshold "total >= 0"
 ```
 
-The durable register under `.agentic/requirements/functional.md` receives
-planned rows linked to the related component, for example
-`src/checkout/total.py`.
+The agent first runs `requirement list --category functional --json`. When no
+equivalent contract exists, it calls `requirement create` for each new behavior
+and uses the returned UUID-backed IDs. The planned snapshots are written under
+`.agentic/requirements/functional/` with `src/checkout/total.py` in their
+current `affected_paths` sets.
 
 If this creates or materially changes a component, the requirement notes include
 the expected `.agentic/knowledge/components/Checkout_Discounts.md` update.
@@ -157,14 +173,14 @@ Stop summary:
 Stage: requirement
 Artifacts changed:
 - .agentic/runs/<run-id>/graph.json
-- .agentic/requirements/functional.md
+- .agentic/requirements/functional/REQ-FUNC-<uuid>.toml
 Evidence: none yet
 Invariant status: INV-1 and INV-6 still blocking, as expected
 Documentation status: component doc update required during implementation
 Needs human: approve or revise S-0001..S-0003
 ```
 
-## 5. Check Gate
+## 5. Check Stage
 
 After approval, the agent adds tests only. It does not edit source code.
 
@@ -205,7 +221,7 @@ Invariant status: INV-1/2/3 are now satisfiable; implementation still pending
 Needs human: approve implementation
 ```
 
-## 6. Implementation Gate
+## 6. Implementation Stage
 
 After approval, the agent edits only implementation files and required component
 documentation.
@@ -256,9 +272,9 @@ Documentation status: new component document added and indexed
 Needs human: approve validation
 ```
 
-## 7. Validation Gate
+## 7. Validation Stage
 
-Validation is read-only unless the human sends the run back to an earlier gate.
+Validation is read-only unless the human sends the run back to an earlier stage.
 
 The agent runs:
 
@@ -296,14 +312,16 @@ Documentation status: component docs current
 Needs human: approve delivery preflight/report
 ```
 
-## 8. Delivery Gate
+## 8. Delivery Stage
 
 The agent prepares delivery, but does not commit, push, or open a PR unless the
 human explicitly approves.
 
 ```text
-<workflow> registry sync
-<workflow> registry audit
+<workflow> impact src/checkout/total.py tests/test_checkout_discounts.py
+<workflow> working-tree audit
+<workflow> audit traceability
+<workflow> audit coverage
 <workflow> delivery-preflight
 <workflow> report
 ```
@@ -313,7 +331,7 @@ Delivery output:
 ```text
 Delivery preflight: pass
 Report: .agentic/runs/<run-id>/report.md
-Gate results: focused and full tests pass
+Validation results: focused and full tests pass
 Traceability status: requirements linked to checks
 Documentation status: component documentation current
 Risks/open notes: none or listed
@@ -322,7 +340,8 @@ Approval needed: commit, push, or PR
 
 ## 9. What This Example Demonstrates
 
-- The workflow is gate-based and human-steered.
+- The workflow is human-steered across seven stages and six approval
+  transitions.
 - Requirements are written before tests.
 - Tests are red before implementation.
 - Implementation includes source and component documentation.

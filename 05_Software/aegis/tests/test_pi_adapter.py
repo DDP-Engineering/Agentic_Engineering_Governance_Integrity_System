@@ -10,29 +10,28 @@
 @file test_pi_adapter.py
 @brief Python-side parity checks for the Pi adapter package under template/.pi.
 @details Verifies the Pi adapter files exist, the package manifest is valid and
-         noncommercial-safe, the reused skills resolve to the shared engine, and
-         the scaffolder copies the adapter while excluding vitest dev artifacts.
+         noncommercial-safe, repository policy is delegated to shared Python
+         hooks, and scaffolding excludes vitest dev artifacts.
 @author Eng. Dan Dumitru Pasare
 @date 2026-06-20
-@version 0.1.0
+@version 0.3.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
+
+from waegis.payload.copier import copy_payload
 
 # CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[1]
 TEMPLATE = PACKAGE_ROOT / "template"
 PI_DIR = TEMPLATE / ".pi"
 EXTENSION = PI_DIR / "extensions" / "agentic-guard"
-SCAFFOLD_SCRIPT = REPO_ROOT / "02_Tools" / "create_project_from_template.py"
 
 SKILL_NAMES = (
     "agentic-adoption",
@@ -46,23 +45,6 @@ SKILL_NAMES = (
 
 
 # LOCAL HELPERS
-
-
-def load_scaffold_module():
-    """
-    @brief      Load the scaffolder module from the tools script by file path.
-    @return     Imported ``create_project_from_template`` module object.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
-    """
-    spec = importlib.util.spec_from_file_location("create_project_from_template", SCAFFOLD_SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def read_manifest() -> dict:
@@ -165,24 +147,26 @@ def test_extension_sources_carry_license_header() -> None:
 
 def test_bridge_maps_pi_tools_to_python_hooks() -> None:
     """
-    @brief      Verify the bridge references the four shared Python guard hooks.
+    @brief      Verify the bridge references every shared Python guard hook.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     bridge = (EXTENSION / "bridge.ts").read_text(encoding="utf-8")
     for hook in (
+        "guard_read_path.py",
         "guard_write_zone.py",
         "secret_scan.py",
         "delivery_preflight.py",
         "post_tool_evidence.py",
     ):
         assert hook in bridge
-    # The four hooks the bridge drives must actually exist in the engine.
+    # Every hook the bridge drives must actually exist in the engine.
     hooks_dir = TEMPLATE / ".agentic" / "hooks"
     for hook in (
+        "guard_read_path.py",
         "guard_write_zone.py",
         "secret_scan.py",
         "delivery_preflight.py",
@@ -199,12 +183,11 @@ def test_scaffold_copies_pi_adapter_and_skips_node_modules(tmp_path: Path) -> No
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
 
-    module.copy_template(target)
+    copy_payload(TEMPLATE, target, mode="new")
 
     assert (target / ".pi" / "package.json").exists()
     assert (target / ".pi" / "settings.json").exists()

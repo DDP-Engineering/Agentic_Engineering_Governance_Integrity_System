@@ -604,10 +604,10 @@ def test_exclusion_rules_never_copy_generated_or_dependency_state(tmp_path: Path
 
 def test_should_exclude_predicate_matches_ported_rules(tmp_path: Path) -> None:
     """
-    @brief      The shared should_exclude predicate matches the rules ported
-                from create_project_from_template.py.
+    @brief      The shared should_exclude predicate enforces every deployment
+                exclusion rule.
     @return     None
-    @exception  AssertionError If any rule diverges from the legacy set.
+    @exception  AssertionError If any deployment exclusion rule diverges.
     @author     Eng. Dan Dumitru Pasare
     @version    0.1.0
     """

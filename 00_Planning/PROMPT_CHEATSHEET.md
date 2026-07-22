@@ -2,7 +2,7 @@
 Copyright (c) 2026 DDP Engineering
 This software is licensed under the PolyForm Noncommercial License 1.0.0.
 Commercial use requires a separate commercial license.
-See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
 # AEGIS Prompt Cheat Sheet
@@ -23,16 +23,48 @@ In copied target projects, use `<workflow>` as the workflow command placeholder:
 - Windows after optional install: `.\.agentic\.venv\Scripts\aegis.exe`
 - Ubuntu after optional install: `.agentic/.venv/bin/aegis`
 
-## Create A New Project From This Template
+## Mandatory Session Bootstrap
 
-Use the helper script from the template repository:
+Begin every procedure below with this prompt:
 
-```powershell
-python 02_Tools\create_project_from_template.py D:\Path\To\NewProject
+```text
+Before inspecting or changing repository files, run:
+<workflow> config validate --json
+<workflow> config show --effective --json
+Report the effective write-access, protected-read/path, scope, secret, gate,
+coverage, and delivery modes and active rule counts. State whether the run is
+selected by this worktree or by an explicit --run-id. Treat AEGIS repository
+policy as separate from external host, sandbox, approval, and OS safety.
+Stop on any configuration or run-resolution error; do not infer defaults or
+guess a run ID.
 ```
 
-Or copy the contents of `template/` into the new project root manually. The
-new project should receive:
+## Create A New Project From This Template
+
+Use WAEGIS as the recommended deployment and lifecycle tool. WAEGIS is a
+separate, stdlib-only package: it configures and deploys the AEGIS payload but
+is not copied into the target repository.
+
+Preview and deploy a new project:
+
+```powershell
+waegis new D:\Path\To\NewProject --dry-run
+waegis new D:\Path\To\NewProject
+```
+
+Preview and deploy AEGIS into an existing repository:
+
+```powershell
+waegis adopt D:\Path\To\ExistingRepo --dry-run
+waegis adopt D:\Path\To\ExistingRepo
+```
+
+After deployment, use `waegis doctor --repo <path>` to verify installation
+health. Use `waegis configure`, `waegis repair`, and `waegis upgrade` for the
+managed lifecycle. When running WAEGIS from a source checkout, use that
+checkout's documented environment runner, for example `uv run waegis ...`.
+
+The deployed AEGIS payload contains:
 
 - `.agentic/` workflow state, hooks, requirements, documents, and config.
 - `.agentic/cli/` bundled Python CLI for the workflow.
@@ -42,14 +74,20 @@ new project should receive:
 - `.claude/` Claude Code settings, hooks config, and thin skill adapters.
 - `.pi/` Pi adapter and Pi package: a bridge extension plus a `pi.skills`
   manifest reusing `.agentic/skills/`.
+- `.opencode/` OpenCode skills, commands, agents, and the local guard plugin,
+  plus the root `opencode.json` configuration.
+- `.qwen/` Qwen Code settings, commands, hooks, and thin skill adapters, plus
+  the root `QWEN.md` adapter note.
 - `AGENTS.md` repository workflow instructions.
 - `CLAUDE.md` Claude Code adapter note that points back to `AGENTS.md`.
 - `CHANGELOG.md` starter release/change log.
 - `.agentic/documents/PROMPT_CHEATSHEET.md` human operator prompts for the copied workflow.
 - `.agentic/knowledge/components/` component documentation template and index.
 
-After copying, adjust `.agentic/workflow.toml` for the target repository's real
-source roots, test roots, gate commands, write zones, and documentation roots.
+After deployment, adjust `.agentic/workflow.toml` for the target repository's
+real structural roots. The shipped schema-version-2 policy is explicitly
+unrestricted/disabled; opt into gates and guardrails only by selecting a
+restrictive mode and providing its required rules.
 The copied workflow can be run immediately with:
 
 ```powershell
@@ -74,8 +112,11 @@ Use this prompt in the new project:
 
 ```text
 Use the agentic development workflow installed in this repository.
-Read AGENTS.md and .agentic/workflow.toml.
+Read AGENTS.md, then run config validate --json and
+config show --effective --json.
 Inspect the configured source, test, requirement, and documentation roots.
+Report every effective restriction mode and active rule count, distinguishing
+AEGIS repository policy from external platform safety.
 Tell me whether the workflow configuration matches this project and list any
 paths or gate commands that need adjustment.
 Do not edit files yet.
@@ -92,6 +133,16 @@ beforehand). The same skills are invoked as `/skill:agentic-development`,
 `/skill:agentic-adoption`, `/skill:agentic-delivery`,
 `/skill:documentation-audit`, `/skill:write-component-documentation`,
 `/skill:regression-traceability`, and `/skill:python-codestyle-audit`.
+
+For OpenCode, start `opencode` from the repository root. The configured AEGIS
+agent loads the shared skills by name. Use `/workflow-status`,
+`/workflow-preflight`, and `/workflow-report` in the TUI, or run the matching
+`opencode run --command <command>` form from the shell.
+
+For Qwen Code, start `qwen` from the repository root and trust the project.
+Confirm that `AGENTS.md` is loaded with `/memory show`; the shared skills appear
+in `/skills`. The same `/workflow-status`, `/workflow-preflight`, and
+`/workflow-report` command prompts are available.
 
 ## Adopt An Existing Project
 
@@ -193,13 +244,19 @@ Continue to the requirement gate.
 Draft the minimal spec items for <feature or fix>.
 Allowed spec tags are only behavior and property.
 Use one testable sentence per spec item.
-Also draft/update the durable requirement rows under .agentic/requirements/.
+Run <workflow> requirement list --json before creating anything and identify
+semantically related current snapshots.
+Use <workflow> requirement create for a new behavioral contract and use the
+returned UUID-backed ID. Use <workflow> requirement update for a revision of
+the same contract, preserving its ID and replacing complete linked-test or
+affected-path sets when associations change.
 If this creates or materially changes a component, include the expected
 .agentic/knowledge/components component-documentation update in the acceptance
 notes.
-New requirement rows start as Planned.
+New requirement snapshots start as Planned.
 Do not implement anything.
-Stop after showing me the drafted spec items for approval.
+Stop after showing me the drafted spec items and requirement command results
+for approval.
 ```
 
 Approve requirements:
@@ -280,6 +337,16 @@ Command shape after approval:
 
 ## Scope Advisory
 
+Declare intentional extra roots when starting the run:
+
+```text
+<workflow> start --kind feature --statement "<feature>" --scope-hint generated/client --scope-hint tools/codegen
+```
+
+`--scope-hint` is repeatable and journaled. It extends the INV-5 advisory scope
+for the new run, but does not relax configured stage write access, protected
+paths, or host permissions.
+
 Accept intentional scope overflow:
 
 ```text
@@ -298,6 +365,45 @@ Revert or revise the out-of-scope changes to stay within the approved scope.
 Do not change requirements or tests unless you ask first.
 Stop after reporting the revised diff and invariant status.
 ```
+
+## Small Change / Docs-Only Recipe
+
+Use this named light path for an approved low-risk maintenance change that does
+not alter runtime behavior. It keeps the same evidence and delivery controls
+without inventing feature requirements or tests that do not apply:
+
+```text
+Use the agentic development workflow for a small change / docs-only run.
+Run:
+<workflow> start --kind change --statement "<small change>"
+<workflow> set-access-mode repo-wide --reason "Approved maintenance across <paths>"
+
+Confirm the intent, exact paths, acceptance result, and that runtime behavior is
+out of scope. Make only the approved edits, then run:
+<workflow> record-change --id CU-0001 --path <changed-path> [--path <changed-path>]
+<workflow> record-evidence --kind note --result pass --summary "<manual or automated verification>"
+<workflow> delivery-preflight
+
+Do not commit, push, create a PR, merge, publish, or deploy. Stop after reporting
+the changed paths, verification, preflight result, and any remaining human step.
+```
+
+Use focused automated validation when the repository provides it. For a purely
+textual change, a documented manual verification is acceptable; red-before-green
+still applies whenever an executable behavior check is introduced or changed.
+
+## Parallel Work Guidance
+
+Use one Git worktree per active run. The selector under
+`.agentic/.workspace/state/current_run` is ignored and explicitly local to that
+worktree, but represents only one active run. Two agents must not share the
+same worktree and mutate the same workflow state concurrently. Never copy or
+stage `.agentic/.workspace/`.
+
+Graph-dependent commands accept `--run-id <existing-run-id>`. Use it when
+automation must pin a run; explicit selection wins over the pointer and does
+not rewrite it. Run automation from its dedicated worktree and do not add
+locking, caches, or multi-run pointer state to one worktree.
 
 ## Validation Gate
 
@@ -342,11 +448,15 @@ Prepare delivery only:
 Approved to run delivery preflight and generate the report.
 Do not commit, push, or create a PR.
 Run:
-<workflow> registry sync
-<workflow> registry audit
+<workflow> impact
 <workflow> working-tree audit
+<workflow> audit traceability
+<workflow> audit coverage
 <workflow> delivery-preflight
 <workflow> report
+
+Traceability and impact read canonical requirement TOML snapshots directly.
+There is no registry synchronization, registry audit, or generated cache.
 
 Run $documentation-audit or an equivalent manual documentation review before
 delivery. Confirm new or materially changed components have matching
@@ -392,7 +502,8 @@ repo folders:
 Start or switch this workflow run to repo-wide access mode.
 Reason: <why broad repo maintenance is needed>.
 Scope: <folders or categories expected to change>.
-Keep protected Git, secret, environment, and key files blocked.
+Honor only restrictions active in validated workflow.toml; repo-wide access
+never bypasses configured protected paths or external platform safety.
 ```
 
 Audit Python style:
@@ -432,7 +543,9 @@ Inspect the active run with:
 <workflow> status
 <workflow> invariants
 
-Tell me the current stage, blocking failures, and the next safe prompt.
+If I provide <existing-run-id>, append --run-id <existing-run-id> to both
+commands. Tell me whether selection is explicit or worktree-local, the current
+stage, blocking failures, and the next safe prompt.
 Do not edit files.
 ```
 

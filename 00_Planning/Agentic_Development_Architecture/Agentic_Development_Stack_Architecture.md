@@ -7,17 +7,21 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Agentic Development Stack Architecture
 
-> **Date**: July 20, 2026
+> **Date**: July 22, 2026
 > **Author**: Dan Pasare
-> **Status**: Draft, aligned to the standalone AEGIS project.
-> **Scope**: Architecture for AEGIS, a generic, copyable agentic engineering governance and integrity system.
-> **Implementation target**: `05_Software/aegis/template/`.
+> **Status**: Current architecture, aligned to the standalone AEGIS and WAEGIS implementations.
+> **Scope**: Architecture for AEGIS, a generic, deployable agentic engineering governance and integrity system.
+> **Implementation targets**: `05_Software/aegis/template/` and `05_Software/waegis/`.
 
 ## 1. Architecture Intent
 
-This project packages a reusable method for agentic software development. A new
-project can adopt it by copying the template files into its repository root or
-by running `02_Tools/create_project_from_template.py`.
+This project packages a reusable method for agentic software development.
+WAEGIS is the recommended deployment and lifecycle tool: it configures and
+deploys the AEGIS payload into new or existing repositories, verifies the
+result, and supports later analysis, configuration, repair, and upgrade.
+WAEGIS is a separate stdlib-only package and is never copied into the deployed
+AEGIS payload. Repository maintainers exercise the same payload through
+WAEGIS's manifest-aware copier; there is no separate deployment wrapper.
 
 The architecture is designed for human-steered development agents. It does not
 assume that the agent is fully autonomous. Instead, it gives the agent:
@@ -48,9 +52,19 @@ assume that the agent is fully autonomous. Instead, it gives the agent:
   automated flow when questions remain;
 - workflow-owned component knowledge under `.agentic/knowledge/components/`.
 
-The current implementation is a **manual gate workflow with deterministic
-guardrails**. A future implementation can add a fully automated conductor, but
-the shipped template does not require one.
+Outside the target repository, WAEGIS provides the guided `new`, `adopt`,
+`analyze`, `configure`, `doctor`, `repair`, `upgrade`, and `version` lifecycle.
+Once deployment completes, in-repository engineering work is governed by AEGIS;
+WAEGIS does not become part of the runtime workflow graph.
+
+The current implementation is a **human-steered, seven-stage workflow with six
+approval transitions and deterministic guardrails**. A fully automated
+conductor is intentionally outside the current product contract.
+
+Every agent begins by running `config validate --json` and
+`config show --effective --json`, reporting the effective repository-policy
+modes and the selected run. `.agentic/workflow.toml` is the only AEGIS
+repository-policy source; host/platform safety remains independent.
 
 ## 2. Delivered Project Shape
 
@@ -69,10 +83,17 @@ When the template is copied into a target repository, the target receives:
     components/
       component_template.md
       index.md
-  registry/
   reports/
     adoption/
   requirements/
+    functional/
+    ux/
+    non_functional/
+    security/
+    data_privacy/
+    platform/
+    release/
+    testing/
   skills/
   tools/
   components.toml
@@ -83,6 +104,7 @@ When the template is copied into a target repository, the target receives:
   skills/
 .claude/
   agents/
+  README.md
   settings.json
   skills/
 .pi/
@@ -90,13 +112,17 @@ When the template is copied into a target repository, the target receives:
     agentic-guard/
   package.json
   settings.json
+  tests/
   README.md
 opencode.json
 .opencode/
+  agents/
   commands/
   plugins/
     agentic-guard.mjs
   skills/
+  tests/
+  README.md
 .qwen/
   commands/
   settings.json
@@ -127,10 +153,18 @@ The important split is:
 - `.agentic/documents/PROMPT_CHEATSHEET.md` is the operator-facing prompt
   reference.
 
+WAEGIS is deliberately absent from this copied shape. It owns deployment and
+lifecycle management from outside the target, while AEGIS owns the project-local
+workflow after deployment.
+
 ## 3. Runtime Layers
 
 ```mermaid
 flowchart TB
+  subgraph DEPLOYMENT["Deployment tooling outside the target"]
+    WAEGIS["WAEGIS: configure, deploy, verify, repair, upgrade"]
+  end
+
   subgraph TARGET["Target project"]
     SRC["Source code"]
     TESTS["Tests"]
@@ -142,7 +176,7 @@ flowchart TB
     CLI[".agentic/cli aegis"]
     TOOLS[".agentic/tools run/install wrappers"]
     STATE[".agentic/runs graph + journal"]
-    REQS[".agentic/requirements durable registers"]
+    REQS[".agentic/requirements UUID TOML snapshots"]
     CONFIG[".agentic/workflow.toml"]
     HOOKS[".agentic/hooks"]
   end
@@ -165,6 +199,8 @@ flowchart TB
 
   AGENT --> WF
   HUMAN --> AGENT
+  WAEGIS -->|deploys configured payload| WF
+  WAEGIS -->|verifies managed installation| TARGET
   WF --> TARGET
   CLI --> STATE
   CLI --> REQS
@@ -173,10 +209,14 @@ flowchart TB
   SKILLS --> DOCS
   CLAUDESKILLS --> DOCS
   SKILLS --> OPENCODE
+  SKILLS --> QWEN
+  SKILLS --> PI
 ```
 
-The workflow is portable because the core state and checks are plain files and
-Python scripts. Codex receives extra automation through `.codex/skills` and
+The deployment boundary is explicit: WAEGIS plans and verifies installation
+from outside the target repository, then AEGIS operates inside it. The workflow
+is portable because the core state and checks are plain files and Python
+scripts. Codex receives extra automation through `.codex/skills` and
 `.codex/hooks.json`. Claude Code receives project memory and automation through
 `CLAUDE.md`, `.claude/settings.json`, and `.claude/skills`. Pi receives a bridge
 extension and a Pi package under `.pi/` that map its tool events onto the same
@@ -195,7 +235,7 @@ authoritative agent behavior contract.
 
 ## 4. Execution Model
 
-The workflow uses seven gates:
+Standard development uses seven ordered stages:
 
 1. `intake`
 2. `alignment`
@@ -205,9 +245,11 @@ The workflow uses seven gates:
 6. `validation`
 7. `delivery`
 
-The gate order is intentionally explicit in the shipped template. The user can
-ask the agent to stop at each gate, inspect the output, approve, revise, or
-abort.
+The seven stages create six approval transitions. The order is intentionally
+explicit in the shipped template: the user can inspect each stage result and
+approve, revise, pause, or abort before the workflow advances. The term
+"gate" is reserved for an approval transition or for a configured deterministic
+test/lint command; it is not a synonym for a stage.
 
 Existing-project adoption uses a parallel seven-stage route:
 
@@ -280,8 +322,9 @@ erDiagram
   }
 ```
 
-The graph records the current run. Durable project behavior is also captured in
-Markdown requirement registers under `.agentic/requirements/`.
+The graph records one run. Durable current project behavior is captured in one
+UUIDv4-backed TOML snapshot per requirement under `.agentic/requirements/`.
+Reverse test/path indexes are derived in memory and never persisted.
 
 ## 6. Invariants
 
@@ -296,7 +339,7 @@ The current CLI evaluates these invariants:
 | `INV-5` | In scope | Recorded touched paths are under configured source, test, spec, documentation, or scope-hint roots. | advisory |
 | `INV-6` | Evidence | The run has recorded evidence. | blocking |
 | `INV-7` | Clean secrets | Configured secret patterns do not appear in the Git diff. | non-waivable |
-| `INV-8` | Green requirements active | Green checks that cite durable requirements only cite `Active` requirement rows. | blocking |
+| `INV-8` | Green requirements active | Green checks that cite durable requirements only cite current `Active` snapshots. | blocking |
 | `INV-9` | Component baseline scope | Behavior-changing runs only touch mapped components that meet the configured adoption baseline or belong to an approved bundle. | blocking |
 
 The invariants are deliberately small. They catch the most common failure modes:
@@ -304,8 +347,10 @@ unverified requirements, orphan tests, tests that never failed, missing
 evidence, scope creep, secrets, durable requirements left `Planned`, and changes
 to components that are not baseline-ready.
 
-Invariant severities are currently fixed in `invariants.py`. The template ships
-no declarative policy file, so tuning a severity means editing that module.
+Intrinsic invariants remain fixed workflow contracts. Repository-specific
+scope, secrets, coverage, and component-baseline decisions come only from the
+validated schema-version-2 `.agentic/workflow.toml`. Disabled or unrestricted
+modes return explicit pass results instead of applying hidden defaults.
 
 ## 7. Durable Requirements And Regression Traceability
 
@@ -313,16 +358,21 @@ The workflow has two requirement layers:
 
 - **Run spec items**: short-lived items in `graph.json`, created for the active
   feature, fix, or change.
-- **Durable requirement rows**: long-lived Markdown rows under
-  `.agentic/requirements/`.
+- **Durable requirement snapshots**: one current TOML record per UUID-backed
+  requirement under `.agentic/requirements/<category>/`.
 
-Durable requirement rows are used by:
+Durable requirement snapshots are used by:
 
 - `audit traceability` to verify linked tests resolve;
 - `audit coverage` to detect coverable source files without test-linked
   requirement coverage;
-- `impact` to map changed files to existing requirements and linked tests;
-- `registry sync` and `registry audit` to refresh delivery-time caches.
+- `impact` to map changed files to existing requirements and linked tests; and
+- reports and delivery preflight through deterministic in-memory indexes.
+
+Agents list/search before creating, use `requirement create` for a new ID,
+preserve the ID for revisions of the same contract, and replace complete
+linked-test/affected-path sets with `requirement update`. No generated registry
+or traceability cache exists.
 
 This is what turns a one-off agent session into a maintainable project memory.
 
@@ -344,7 +394,7 @@ The template ships:
   `.agentic/knowledge/components/**`.
 
 Component documentation complements requirements and tests. It does not replace
-durable requirement rows or linked verification.
+durable requirement snapshots or linked verification.
 
 ## 9. Change Log And Delivery Records
 
@@ -355,14 +405,18 @@ The workflow also generates per-run delivery records:
 
 - `.agentic/runs/<run-id>/journal.jsonl`;
 - `.agentic/runs/<run-id>/graph.json`;
-- `.agentic/runs/<run-id>/report.md`;
-- `.agentic/registry/*.json` after registry sync.
+- `.agentic/runs/<run-id>/report.md`.
+
+The worktree-local selector lives at
+`.agentic/.workspace/state/current_run`. `.agentic/.workspace/` is ignored,
+created on demand, never copied between worktrees, and never staged. An explicit
+`--run-id` pins automation without mutating the pointer.
 
 The changelog and the workflow report have different purposes:
 
 - `CHANGELOG.md` summarizes user-visible or release-relevant change history.
 - The workflow report records why a specific run is ready to deliver.
-- Requirement registers preserve durable behavioral contracts.
+- Requirement snapshots preserve current durable behavioral contracts.
 
 ## 10. Skills And Hooks
 
@@ -372,6 +426,7 @@ The shared, platform-neutral skill procedures live once under
 `.agentic/skills/`:
 
 - `agentic-development`;
+- `agentic-adoption`;
 - `agentic-delivery`;
 - `regression-traceability`;
 - `write-component-documentation`;
@@ -423,13 +478,15 @@ worktree policy.
 
 ## 11. Portability Model
 
-The template supports three levels of portability:
+Portability is layered between external deployment tooling, the shared AEGIS
+core, and host-specific adapters:
 
 | Layer | Portable? | Notes |
 |---|---|---|
+| WAEGIS | External deployer | Separate stdlib-only package for guided deployment and lifecycle management; never copied into the payload. |
 | `.agentic/cli` | Yes | Plain Python 3.11+, no third-party runtime dependencies. Git is required for the secret, working-tree, impact, and delivery checks. |
 | `.agentic/tools` | Yes | PowerShell and Bash wrappers for Windows and Ubuntu 22+. |
-| `.agentic/workflow.toml` | Yes | Project-specific roots, gates, secrets, write zones. |
+| `.agentic/workflow.toml` | Yes | Mandatory schema-version-2 structure and the only AEGIS repository policy. |
 | `.agentic/skills` | Yes | Shared, platform-neutral skill procedures; the single skill source. |
 | `.agentic/hooks` | Mostly | Standalone Python scripts, but binding depends on the host agent. |
 | `.codex/skills` | Codex adapter | Thin pointers to `.agentic/skills`; reusable by other agents. |
@@ -468,27 +525,37 @@ The template supports three levels of portability:
    The workflow requires it, and scope rules allow it, but there is not yet a
    deterministic invariant that detects every missing component document.
 
-5. **Workflow policy is fixed in code.**
-   Invariant severities and the manual-gate model live in `invariants.py` and
-   `AGENTS.md`. The template ships no declarative policy file, and no automated
-   conductor that would consume one.
+5. **Intrinsic invariants remain code-defined.**
+   Repository policy is declarative in mandatory schema-version-2
+   `.agentic/workflow.toml`, including explicit unrestricted/disabled modes.
+   The invariant set and intrinsic severities remain workflow contracts in
+   code rather than repository-tunable policy.
 
-6. **Requirement tables are intentionally simple.**
-   They are easy to review, but they rely on a stable Markdown table shape.
+6. **Hard-break configuration compatibility is intentional.**
+   Schema-version-2 configuration and UUID TOML requirement snapshots reject
+   legacy layouts instead of silently migrating or applying compatibility
+   defaults. Deployment and upgrade tooling must surface those incompatibilities
+   explicitly.
+
+7. **WAEGIS release evidence is not yet complete.**
+   The hardened lifecycle and packaging paths exist, but clean-machine and
+   Ubuntu lifecycle/archive journeys still need recorded release evidence.
+   Network self-update, the GUI, and the optional AI advisor remain deferred.
 
 ## 13. Evolution Path
 
-The current template is useful as a manual, auditable workflow. The next
-evolution steps are:
+The current template is useful as a human-steered, auditable workflow. Worktree
+isolation and local run selection are delivered constraints, not future work.
+The next evolution steps are:
 
-1. Implement the ratified parallel-branch simplification so concurrent work is
-   isolated by worktree and run state without adding a database or lock files.
+1. Complete WAEGIS clean-machine and Ubuntu lifecycle/archive evidence for
+   release readiness.
 2. Add stronger stage validation around CLI commands when it can preserve the
    manual stop-and-review model.
 3. Revisit an advisory component-documentation check after component mappings
-   and parallel-run state are stable.
-4. Provide adapters for additional agent platforms (Codex, Claude Code, Pi,
-   OpenCode, and Qwen Code are supported today).
+   have sufficient operational evidence.
+4. Provide adapters for additional agent platforms; Codex, Claude Code, Pi,
+   OpenCode, and Qwen Code are supported today.
 
 An auto-advancing conductor, fail-closed hooks, and a declarative invariant
 severity file are deliberately not part of the current roadmap. They would
@@ -497,8 +564,10 @@ demand.
 
 ## 14. Summary
 
-The architecture packages agentic development as a copied project workflow:
-local CLI, durable state, requirements, prompts, component documentation,
-guardrails, and delivery preflight. Its current strength is not full autonomy;
-its strength is that a human and an agent can work through software changes in a
-repeatable, inspectable, evidence-backed way.
+The architecture separates deployment from operation. WAEGIS configures,
+deploys, verifies, repairs, and upgrades the payload from outside the target;
+AEGIS runs inside the target with a local CLI, durable state, UUID requirement
+snapshots, prompts, component documentation, host adapters, guardrails, and
+delivery preflight. Its strength is not full autonomy; its strength is that a
+human and an agent can work through software changes in a repeatable,
+inspectable, evidence-backed way.

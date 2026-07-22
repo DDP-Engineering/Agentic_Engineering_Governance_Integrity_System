@@ -53,6 +53,15 @@ Code style and Python documentation style are defined in:
 
 Follow that file for implementation and documentation conventions.
 
+Name durable files, tests, fixtures, symbols, headings, and reusable artifacts
+after the behavior or domain contract they represent. Do not encode transient
+planning labels such as work-package numbers, task numbers, sprint names, or
+plan filenames in those names or in explanatory prose unless the artifact is
+itself a planning/traceability record and the reference is semantically
+required. Prefer self-contained names that remain accurate if planning
+documents are renamed, reorganized, or removed. Requirement IDs remain valid
+where the traceability rules below call for them.
+
 When changing the implementation of a function, method, or documented nested
 helper, update that callable's local `@version` tag in its documentation block
 in the same change.

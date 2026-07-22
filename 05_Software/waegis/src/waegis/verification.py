@@ -13,7 +13,7 @@
          wrapper invocation and health semantics cannot drift between commands.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -37,7 +37,7 @@ HOOK_FILES: tuple[str, ...] = (
 )
 
 SMOKE_TIMEOUT_SECONDS = 120.0
-NO_ACTIVE_RUN_MARKER = "No active agentic run"
+NO_ACTIVE_RUN_MARKER = "RUN-POINTER-MISSING"
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
@@ -73,7 +73,7 @@ def smoke_reverify(
     @exception  None Subprocess failures become findings.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.1.0
+    @version    0.2.0
     """
     findings: list[ProbeFindingRecord] = []
     ok = True

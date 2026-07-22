@@ -7,8 +7,8 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Worked Example - Existing Repository Adoption
 
-> **Date**: June 23, 2026
-> **Status**: Draft, aligned to the standalone AEGIS project.
+> **Date**: July 22, 2026
+> **Status**: Current worked example, aligned to AEGIS and WAEGIS.
 > **Companions**: `Aegis_Example_Feature.md`,
 > `Aegis_Example_BugFix.md`.
 
@@ -18,12 +18,18 @@ A mature target repository exists before AEGIS is introduced.
 It already has source code, tests, deployment scripts, and human-authored
 documentation, but it does not yet have reliable agentic traceability.
 
-The copied workflow adds:
+The operator first previews deployment with `waegis adopt <target> --dry-run`,
+then runs `waegis adopt <target>`. WAEGIS configures, deploys, and verifies the
+payload from outside the target repository. Its job ends at the verified
+installation boundary; the in-repository AEGIS adoption workflow begins after
+that handoff.
+
+The deployed workflow adds:
 
 - `.agentic/cli/` and `.agentic/tools/` for local workflow commands;
-- `.agentic/workflow.toml` for stages, roots, write zones, and adoption policy;
+- `.agentic/workflow.toml` for explicit structure and repository-policy modes;
 - `.agentic/components.toml` as the durable component map;
-- `.agentic/requirements/` for durable requirement registers;
+- `.agentic/requirements/` for UUID-backed current TOML snapshots;
 - `.agentic/knowledge/components/` for workflow-owned component knowledge;
 - `.agentic/reports/adoption/` for adoption summaries;
 - `.agentic/documents/` for operator references;
@@ -35,9 +41,10 @@ The user asks:
 ```text
 Use the agentic adoption workflow for this existing repository.
 Do not change application behavior.
-Start with repo-level discovery, then propose the smallest useful component
-adoption slice.
-Stop at each gate and wait for my approval.
+Start with adoption-intake and adoption-alignment. After I approve alignment,
+perform repo-level discovery and propose the smallest useful component adoption
+slice.
+Stop at each stage boundary and wait for my approval before advancing.
 ```
 
 The workflow command placeholder is:
@@ -51,7 +58,18 @@ Common replacements:
 - Windows: `.\.agentic\tools\run.ps1`
 - Ubuntu: `bash .agentic/tools/run.sh`
 
-## 2. Adoption Intake Gate
+## 2. Adoption Intake Stage
+
+Before repository inspection, the agent runs:
+
+```text
+<workflow> config validate --json
+<workflow> config show --effective --json
+```
+
+It reports all effective restriction modes and active rule counts, distinguishes
+AEGIS policy from external safety, and states that this worktree will select the
+new adoption run.
 
 The agent reads:
 
@@ -73,7 +91,7 @@ Then it reports the intended slice before changing adoption artifacts:
 ```text
 Stage: adoption-intake
 Adoption scope: repo-level discovery only
-Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/current_run
+Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/.workspace/state/current_run
 Behavior-change check: No application behavior changes
 Needs human: approve adoption alignment
 Next prompt options:
@@ -82,7 +100,7 @@ Next prompt options:
 - Park or abort this adoption run
 ```
 
-## 3. Adoption Alignment Gate
+## 3. Adoption Alignment Stage
 
 Before repository discovery, the agent records the no-behavior-change boundary,
 the intended discovery depth, assumptions, open questions, and the proposed
@@ -103,7 +121,7 @@ Decision: proceed
 Needs human: approve repo-discovery
 ```
 
-## 4. Repo Discovery Gate
+## 4. Repo Discovery Stage
 
 After approval, the agent performs read-only discovery of the existing project.
 It identifies:
@@ -147,7 +165,7 @@ Recommended next slice: Billing only, because it has clear paths and tests
 Needs human: approve component-map updates
 ```
 
-## 5. Component Map Gate
+## 5. Component Map Stage
 
 After approval, the agent creates or updates `.agentic/components.toml`.
 
@@ -197,14 +215,15 @@ Baseline status: components discovered, none baseline-usable yet
 Needs human: approve Billing as the first component-adoption slice
 ```
 
-## 6. Component Adoption Gate
+## 6. Component Adoption Stage
 
 After the human approves a single component, the agent works only inside that
 local scope. For the Billing example, the approved scope is:
 
 - `src/billing/**` for read-only behavior characterization;
 - `tests/billing/**` for characterization tests;
-- `.agentic/requirements/*.md` for requirement rows tied to observed behavior;
+- `.agentic/requirements/<category>/*.toml` for current snapshots tied to
+  observed behavior;
 - `.agentic/knowledge/components/Billing.md` for durable component knowledge;
 - `.agentic/reports/adoption/` for adoption summaries.
 
@@ -218,12 +237,14 @@ The agent then characterizes existing behavior. It may add or improve tests
 that describe current behavior, including negative cases and corner cases, but
 it must not intentionally change runtime product behavior during adoption.
 
-Example requirement rows:
+Example run specs and durable snapshot creation:
 
 ```text
-<workflow> add-spec --id S-0001 --tag existing-behavior --statement "WHEN a draft invoice has no line items, invoice finalization is rejected with the existing validation error." --status accepted
-<workflow> add-spec --id S-0002 --tag existing-behavior --statement "WHEN invoice tax is calculated for a supported region, the total matches the current tax table behavior." --status accepted
-<workflow> add-spec --id S-0003 --tag edge-case --statement "WHEN payment handoff fails, the invoice remains unpaid and the current retry state is preserved." --status accepted
+<workflow> add-spec --id S-0001 --tag behavior --statement "WHEN a draft invoice has no line items, invoice finalization is rejected with the existing validation error." --status accepted
+<workflow> add-spec --id S-0002 --tag behavior --statement "WHEN invoice tax is calculated for a supported region, the total matches the current tax table behavior." --status accepted
+<workflow> add-spec --id S-0003 --tag property --statement "WHEN payment handoff fails, the invoice remains unpaid and the current retry state is preserved." --status accepted
+<workflow> requirement list --category functional --json
+<workflow> requirement create --category functional --priority Must --requirement "A draft invoice with no line items is rejected by the existing validation behavior." --rationale "Preserve observed invoice finalization behavior during adoption." --verification "Automated test" --affected-path src/billing/invoices.py
 ```
 
 Example check rows:
@@ -245,14 +266,14 @@ Typical component-adoption output:
 ```text
 Stage: component-adoption
 Adoption scope: Billing
-Artifacts changed: tests/billing/**, .agentic/requirements/*.md, .agentic/knowledge/components/Billing.md
+Artifacts changed: tests/billing/**, .agentic/requirements/functional/REQ-FUNC-<uuid>.toml, .agentic/knowledge/components/Billing.md
 Behavior-change check: No application behavior changes
 Evidence: characterization tests pass against current behavior
 Remaining gaps: payment retry timing still needs manual confirmation
 Needs human: approve baseline-review
 ```
 
-## 7. Baseline Review Gate
+## 7. Baseline Review Stage
 
 The agent reviews whether the component is safe enough for normal feature or
 fix work.
@@ -287,13 +308,15 @@ Behavior-change check: No application behavior changes
 Needs human: approve adoption-delivery or choose next component
 ```
 
-## 8. Adoption Delivery Gate
+## 8. Adoption Delivery Stage
 
 The agent prepares a delivery summary for the adoption slice:
 
 ```text
-<workflow> registry sync
-<workflow> registry audit
+<workflow> impact src/billing/invoices.py tests/billing/test_invoice_finalization.py
+<workflow> working-tree audit
+<workflow> audit traceability
+<workflow> audit coverage
 <workflow> adoption baseline
 <workflow> delivery-preflight
 <workflow> report
@@ -316,7 +339,9 @@ Next safe work:
 
 ## 9. What This Example Demonstrates
 
-- Existing repositories start with discovery, not implementation.
+- WAEGIS deploys and verifies the payload before the in-repository adoption run.
+- AEGIS adoption starts with intake and alignment, then discovery, never
+  implementation.
 - Adoption is a separate run kind: `start --kind adoption`.
 - The default adoption slice is one component unless a bundle is explicitly
   approved.

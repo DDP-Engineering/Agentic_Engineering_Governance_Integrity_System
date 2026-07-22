@@ -11,28 +11,27 @@
 @brief Python-side parity checks for the OpenCode adapter under template/.opencode.
 @details Verifies the OpenCode adapter files exist, the default workflow agent
          points behavior-changing work at the shared neutral workflow skills,
-         the plugin maps OpenCode tool events to the shared Python hooks, and
-         the scaffolder copies the adapter.
+         the plugin maps OpenCode tool events to policy-neutral shared Python
+         hooks, and the scaffolder copies the adapter.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-02
-@version 0.2.0
+@version 0.4.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
+
+from waegis.payload.copier import copy_payload
 
 # CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[1]
 TEMPLATE = PACKAGE_ROOT / "template"
 OPENCODE_DIR = TEMPLATE / ".opencode"
-SCAFFOLD_SCRIPT = REPO_ROOT / "02_Tools" / "create_project_from_template.py"
 
 SKILL_NAMES = (
     "agentic-adoption",
@@ -51,26 +50,6 @@ COMMAND_NAMES = (
 )
 
 WORKFLOW_AGENT = "aegis"
-
-
-# LOCAL HELPERS
-
-
-def load_scaffold_module():
-    """
-    @brief      Load the scaffolder module from the tools script by file path.
-    @return     Imported ``create_project_from_template`` module object.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-25
-    @version    0.1.0
-    """
-    spec = importlib.util.spec_from_file_location("create_project_from_template", SCAFFOLD_SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 # TESTS
@@ -96,14 +75,14 @@ def test_opencode_adapter_files_exist() -> None:
         assert (OPENCODE_DIR / "skills" / name / "SKILL.md").exists()
 
 
-def test_opencode_config_is_project_scoped_and_conservative() -> None:
+def test_opencode_config_has_no_repository_policy_duplication() -> None:
     """
-    @brief      Verify the OpenCode project config avoids model locks and guards secrets.
+    @brief      Verify project config avoids model locks and repository rules.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-02
-    @version    0.2.0
+    @version    0.3.0
     """
     config = json.loads((TEMPLATE / "opencode.json").read_text(encoding="utf-8"))
 
@@ -113,10 +92,9 @@ def test_opencode_config_is_project_scoped_and_conservative() -> None:
     assert "provider" not in config
     assert ".agentic/documents/CLI_API_REFERENCE.md" in config["instructions"]
     assert config["permission"]["skill"]["*"] == "allow"
-    assert config["permission"]["edit"][".env"] == "deny"
-    assert config["permission"]["edit"]["**/*.pem"] == "deny"
-    assert config["permission"]["bash"]["git push*"] == "ask"
-    assert config["permission"]["bash"]["gh pr create*"] == "ask"
+    assert config["permission"]["read"] == {"*": "allow"}
+    assert config["permission"]["edit"] == {"*": "allow"}
+    assert config["permission"]["bash"] == {"*": "allow"}
 
 
 def test_opencode_default_agent_loads_aegis() -> None:
@@ -190,6 +168,7 @@ def test_opencode_plugin_maps_tools_to_shared_hooks() -> None:
     """
     plugin = (OPENCODE_DIR / "plugins" / "agentic-guard.mjs").read_text(encoding="utf-8")
     for hook in (
+        "guard_read_path.py",
         "guard_write_zone.py",
         "secret_scan.py",
         "delivery_preflight.py",
@@ -203,19 +182,19 @@ def test_opencode_plugin_maps_tools_to_shared_hooks() -> None:
     assert "tool.execute.after" in plugin
 
 
-def test_opencode_plugin_blocks_protected_read_patterns() -> None:
+def test_opencode_plugin_delegates_protected_reads_without_native_patterns() -> None:
     """
-    @brief      Verify the plugin carries native protected-read patterns.
+    @brief      Verify reads use the shared hook without native patterns.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-25
-    @version    0.1.0
+    @version    0.2.0
     """
     plugin = (OPENCODE_DIR / "plugins" / "agentic-guard.mjs").read_text(encoding="utf-8")
-    for pattern in (".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "*_rsa"):
-        assert pattern in plugin
-    assert "Reading protected path is blocked" in plugin
+    assert "guard_read_path.py" in plugin
+    assert "PROTECTED_READ_PATTERNS" not in plugin
+    assert "protectedPathDeny" not in plugin
 
 
 def test_scaffold_copies_opencode_adapter(tmp_path: Path) -> None:
@@ -226,12 +205,11 @@ def test_scaffold_copies_opencode_adapter(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-02
-    @version    0.2.0
+    @version    0.3.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
 
-    module.copy_template(target)
+    copy_payload(TEMPLATE, target, mode="new")
 
     assert (target / "opencode.json").exists()
     assert (target / ".opencode" / "README.md").exists()

@@ -41,11 +41,11 @@
          ``prereq.git-identity`` accepts a pending repo-local identity from the
          answers (§8.1's "or will be set repo-local"), applied by
          ``repo.init-or-clone`` after init; ``verify.workflow-smoke`` accepts
-         the embedded CLI's coherent "No active agentic run" response as the
-         healthy fresh-install outcome (the real CLI exits non-zero on
+         the embedded CLI's coherent ``RUN-POINTER-MISSING`` response as the
+         healthy fresh-install outcome (the real CLI exits with status 2 on
          ``status`` before any run is started).
 @details **Non-interactive contract (AD-9).** ``--non-interactive`` validates
-         the answers against the six workflow FieldSpecs with their interactive
+         the answers against the complete workflow FieldSpecs with their interactive
          defaults *stripped*: a machine-driven (WADORE) run must pin the full
          configuration explicitly, and every missing key is reported at once
          before the engine (or journal) starts. ``git_user_name``/
@@ -91,6 +91,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import sys
 import tomllib
 from dataclasses import replace
@@ -195,9 +196,8 @@ MIN_FREE_DISK_BYTES = 1024**3
 # @brief Timeout for operator gate commands (a real test suite may be slow).
 GATE_TIMEOUT_SECONDS = 600.0
 
-# @brief The embedded workflow CLI's coherent fresh-install response to
-#        ``status`` (read from the real template CLI: store.read_current_run
-#        raises SystemExit with this text before any run is started).
+# @brief The embedded workflow CLI reports actionable workspace-state guidance
+#        when ``status`` runs before any AEGIS run has been started.
 # @brief Templated initial-commit message (plan §8.1 repo.initial-commit).
 INITIAL_COMMIT_MESSAGE = f"Bootstrap AEGIS via WAEGIS {WIZARD_VERSION}"
 
@@ -466,12 +466,12 @@ def _read_gates(target: Path) -> tuple[list[list[str]], list[list[str]]]:
     @exception  tomllib.TOMLDecodeError If the file is not valid TOML.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     document = tomllib.loads((target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8"))
     gates = document.get("gates", {})
-    test_cmds = [[str(part) for part in command] for command in gates.get("test", [])]
-    lint_cmds = [[str(part) for part in command] for command in gates.get("lint", [])]
+    test_cmds = [shlex.split(str(command)) for command in gates.get("test", [])]
+    lint_cmds = [shlex.split(str(command)) for command in gates.get("lint", [])]
     return test_cmds, lint_cmds
 
 
@@ -1315,7 +1315,7 @@ def _detect_workflow_toml(ctx: EngineContext) -> bool:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     target = _target(ctx)
     load = load_manifest(target)
@@ -1329,7 +1329,12 @@ def _detect_workflow_toml(ctx: EngineContext) -> bool:
     source_roots = document.get("source", {}).get("roots", [])
     test_roots = document.get("tests", {}).get("roots", [])
     try:
-        verify_workflow_invariants(document, source_roots=source_roots, test_roots=test_roots)
+        verify_workflow_invariants(
+            document,
+            source_roots=source_roots,
+            test_roots=test_roots,
+            repo_root=target,
+        )
     except WorkflowTomlError:
         return False
     return True
@@ -1355,7 +1360,7 @@ def _act_workflow_toml(ctx: EngineContext) -> None:
     @exception  OSError If the file or roots cannot be written.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     target = _target(ctx)
     collected: dict[str, Any] = {}
@@ -1369,17 +1374,7 @@ def _act_workflow_toml(ctx: EngineContext) -> None:
             ctx.record_answer(spec.key, extras[spec.key])
 
     base_text = (_payload_root(ctx) / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
-    generated = generate_workflow_toml(
-        base_text,
-        source_roots=collected["source_roots"],
-        test_roots=collected["test_roots"],
-        language=collected["language"],
-        gate_test_cmds=collected["gate_test_cmds"],
-        gate_lint_cmds=collected["gate_lint_cmds"],
-        alignment_enabled=collected["alignment_enabled"],
-        source_extensions=extras["source_extensions"],
-        test_file_patterns=extras["test_file_patterns"],
-    )
+    generated = generate_workflow_toml(base_text, **collected, **extras)
     for warning in generated.warnings:
         ctx.note(f"WARNING: {warning.message}")
 
@@ -1460,7 +1455,7 @@ def _verify_workflow_toml(ctx: EngineContext) -> bool:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     target = _target(ctx)
     document = _workflow_document(target)
@@ -1473,7 +1468,12 @@ def _verify_workflow_toml(ctx: EngineContext) -> bool:
     else:
         source_roots, test_roots = roots
     try:
-        verify_workflow_invariants(document, source_roots=source_roots, test_roots=test_roots)
+        verify_workflow_invariants(
+            document,
+            source_roots=source_roots,
+            test_roots=test_roots,
+            repo_root=target,
+        )
     except WorkflowTomlError as exc:
         ctx.note(f"invariant check failed: {exc}")
         return False
@@ -1530,12 +1530,21 @@ def _act_gates(ctx: EngineContext) -> None:
     @exception  OSError / tomllib.TOMLDecodeError If workflow.toml is unreadable.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-18
-    @version    0.2.0
+    @version    0.3.0
     """
     runner = _runner(ctx)
     target = _target(ctx)
     test_cmds, lint_cmds = _read_gates(target)
     outcomes: dict[str, str] = {}
+    document = tomllib.loads(
+        (target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+    if document.get("gates", {}).get("mode") == "disabled":
+        outcomes["gates"] = "disabled"
+        ctx.note("gate execution is disabled explicitly by workflow.toml")
+        ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
+        ctx.record_answer("gate_outcomes", outcomes)
+        return
     if not ctx.asker.confirm("Proceed with 'Try the quality gates once'?", default=True):
         for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
             if not commands:
@@ -1591,12 +1600,12 @@ def _verify_gates(ctx: EngineContext) -> bool:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    0.2.0
     """
     outcomes = ctx.shared.get(SHARED_GATE_OUTCOMES)
     if outcomes is None:
         return False
-    allowed = {"pass", "accepted-failing", "deferred", "accepted-empty"}
+    allowed = {"pass", "accepted-failing", "deferred", "accepted-empty", "disabled"}
     return all(value in allowed for value in outcomes.values())
 
 
@@ -1931,7 +1940,7 @@ def _build_new_steps() -> list[StepSpec]:
     @exception  waegis.engine.StepContractError If a step were ever malformed.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-14
-    @version    0.1.0
+    @version    0.2.0
     """
     steps = [
         StepSpec(
@@ -2140,7 +2149,7 @@ def _build_new_steps() -> list[StepSpec]:
             id="verify.workflow-smoke",
             title="Smoke-test the workflow status",
             why="Runs the wrapper's 'status' inside TARGET (and 'gates run' when gates are "
-            "configured and passed). On a fresh install the CLI answers 'No active agentic run' "
+            "configured and passed). On a fresh install the CLI answers 'RUN-POINTER-MISSING' "
             "- that coherent response is the expected healthy outcome here.",
             phase=Phase.P4_DEPLOY,
             automation=Automation.AUTO,

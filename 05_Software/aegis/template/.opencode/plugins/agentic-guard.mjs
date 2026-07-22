@@ -18,22 +18,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const PROTECTED_READ_PATTERNS = [
-  ".env",
-  ".env.*",
-  "*.env",
-  "*.pem",
-  "*.key",
-  "*.p12",
-  "*.pfx",
-  "*_rsa",
-  "*_rsa.pub",
-  "id_rsa",
-  "id_rsa.pub",
-  "id_ed25519",
-  "id_ed25519.pub",
-];
-
 export function resolveInterpreter() {
   const override = process.env.AEGIS_PYTHON;
   if (override && override.trim()) return { command: override.trim(), args: [] };
@@ -99,29 +83,6 @@ export function parseHookDecision(stdout) {
   return null;
 }
 
-function fnmatchToRegExp(pattern) {
-  let regex = "";
-  for (const ch of pattern) {
-    if (ch === "*") regex += ".*";
-    else if (ch === "?") regex += ".";
-    else regex += ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  }
-  return new RegExp(`^${regex}$`);
-}
-
-const PROTECTED_READ_MATCHERS = PROTECTED_READ_PATTERNS.map(fnmatchToRegExp);
-
-export function protectedPathDeny(path) {
-  if (!path) return null;
-  const basename = String(path).replace(/\\/g, "/").split("/").filter(Boolean).pop();
-  if (!basename) return null;
-  const lower = basename.toLowerCase();
-  if (PROTECTED_READ_MATCHERS.some((matcher) => matcher.test(lower))) {
-    return `Reading protected path is blocked: ${path}`;
-  }
-  return null;
-}
-
 export function normalizeToolName(name) {
   const value = String(name ?? "").toLowerCase();
   if (value === "patch") return "apply_patch";
@@ -173,7 +134,17 @@ export async function handleBeforeTool(input, output, cwd, runPythonHook) {
   const args = output?.args ?? input?.args ?? {};
 
   if (tool === "read") {
-    const reason = protectedPathDeny(pathFromArgs(args));
+    const reason = await runPythonHook(
+      "guard_read_path.py",
+      hookPayload(
+        cwd,
+        "PreToolUse",
+        "Read",
+        { file_path: pathFromArgs(args) },
+        undefined,
+        undefined,
+      ),
+    );
     if (reason) throw new Error(reason);
     return;
   }

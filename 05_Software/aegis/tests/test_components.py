@@ -12,13 +12,14 @@
 @details Covers the approved component and bundle contract for adoption runs.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.3.0
+@version 0.5.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from aegis import components as component_module
@@ -41,7 +42,7 @@ def write_manifest(repo_root: Path, body: str) -> None:
     @version    0.1.0
     """
     agentic = repo_root / ".agentic"
-    agentic.mkdir()
+    agentic.mkdir(exist_ok=True)
     (agentic / "components.toml").write_text(body, encoding="utf-8")
 
 
@@ -56,9 +57,9 @@ def test_no_manifest_returns_empty_components_and_bundles(tmp_path: Path) -> Non
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
-    manifest = load_components(tmp_path)
+    manifest = load_components(tmp_path, ".agentic/components.toml")
 
     assert manifest.components == {}
     assert manifest.bundles == {}
@@ -72,7 +73,7 @@ def test_one_component_resolves_repo_relative_path(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.2.0
+    @version    0.3.0
     """
     write_manifest(
         tmp_path,
@@ -85,7 +86,7 @@ criticality = "high"
 """,
     )
 
-    manifest = load_components(tmp_path)
+    manifest = load_components(tmp_path, ".agentic/components.toml")
     component = component_for_path(manifest, "src/billing/invoice_api/routes.py")
 
     assert component is not None
@@ -104,7 +105,7 @@ def test_bare_component_directory_matches_its_subtree(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -115,7 +116,9 @@ adoption_status = "baseline-usable"
 """,
     )
 
-    component = component_for_path(load_components(tmp_path), "src/module/impl.py")
+    component = component_for_path(
+        load_components(tmp_path, ".agentic/components.toml"), "src/module/impl.py"
+    )
 
     assert component is not None
     assert component.name == "module"
@@ -129,7 +132,7 @@ def test_bare_component_directory_does_not_match_sibling(tmp_path: Path) -> None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -140,33 +143,35 @@ adoption_status = "baseline-usable"
 """,
     )
 
-    component = component_for_path(load_components(tmp_path), "src/module2/x.py")
+    component = component_for_path(
+        load_components(tmp_path, ".agentic/components.toml"), "src/module2/x.py"
+    )
 
     assert component is None
 
 
 def test_baseline_usable_satisfies_baseline_comparison() -> None:
     """
-    @brief      Verify baseline-usable satisfies the default baseline minimum.
+    @brief      Verify baseline-usable satisfies an explicit baseline minimum.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
-    assert has_usable_baseline("baseline-usable")
+    assert has_usable_baseline("baseline-usable", "baseline-usable")
 
 
 def test_discovered_is_below_usable_baseline() -> None:
     """
-    @brief      Verify discovered status is below the default usable baseline.
+    @brief      Verify discovered status is below an explicit usable baseline.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
-    assert not has_usable_baseline("discovered")
+    assert not has_usable_baseline("discovered", "baseline-usable")
 
 
 def test_bundle_with_six_components_emits_bundle_too_large(tmp_path: Path) -> None:
@@ -177,7 +182,7 @@ def test_bundle_with_six_components_emits_bundle_too_large(tmp_path: Path) -> No
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -203,7 +208,7 @@ adoption_status = "baseline-usable"
 """,
     )
 
-    issues = audit_components(tmp_path)
+    issues = audit_components(tmp_path, load_config(tmp_path))
 
     assert "COMPONENT-BUNDLE-TOO-LARGE" in {issue.code for issue in issues}
 
@@ -216,7 +221,7 @@ def test_approved_bundle_with_two_components_is_valid(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -236,7 +241,7 @@ adoption_status = "baseline-usable"
 """,
     )
 
-    assert audit_components(tmp_path) == []
+    assert audit_components(tmp_path, load_config(tmp_path)) == []
 
 
 def test_invalid_component_status_emits_component_status_invalid(tmp_path: Path) -> None:
@@ -247,7 +252,7 @@ def test_invalid_component_status_emits_component_status_invalid(tmp_path: Path)
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -258,12 +263,15 @@ adoption_status = "ready"
 """,
     )
 
-    issues = audit_components(tmp_path)
+    issues = audit_components(tmp_path, load_config(tmp_path))
 
     assert "COMPONENT-STATUS-INVALID" in {issue.code for issue in issues}
 
 
-def test_audit_components_uses_configured_manifest_by_default(tmp_path: Path) -> None:
+def test_audit_components_uses_configured_manifest_by_default(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify component audit uses configured manifest path by default.
     @param[in]  tmp_path Temporary repository root.
@@ -271,16 +279,13 @@ def test_audit_components_uses_configured_manifest_by_default(tmp_path: Path) ->
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[components]
-manifest = ".agentic/custom-components.toml"
-""",
-        encoding="utf-8",
+    agentic.mkdir(exist_ok=True)
+    replace_workflow_toml(
+        'manifest = ".agentic/components.toml"',
+        'manifest = ".agentic/custom-components.toml"',
     )
     (agentic / "custom-components.toml").write_text(
         """
@@ -291,7 +296,7 @@ adoption_status = "ready"
         encoding="utf-8",
     )
 
-    issues = audit_components(tmp_path)
+    issues = audit_components(tmp_path, load_config(tmp_path))
 
     assert "COMPONENT-STATUS-INVALID" in {issue.code for issue in issues}
 
@@ -304,7 +309,7 @@ def test_local_scope_blocks_component_below_minimum_baseline(tmp_path: Path) -> 
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -315,7 +320,12 @@ adoption_status = "discovered"
 """,
     )
 
-    issues = component_module.audit_local_scope(tmp_path, ["src/billing/invoice.py"])
+    issues = component_module.audit_local_scope(
+        tmp_path,
+        ["src/billing/invoice.py"],
+        load_config(tmp_path),
+        "baseline-usable",
+    )
 
     assert [issue.code for issue in issues] == ["COMPONENT-BASELINE-MISSING"]
     assert issues[0].name == "billing"
@@ -330,7 +340,7 @@ def test_local_scope_allows_component_with_usable_baseline(tmp_path: Path) -> No
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -341,7 +351,12 @@ adoption_status = "baseline-usable"
 """,
     )
 
-    issues = component_module.audit_local_scope(tmp_path, ["src/billing/invoice.py"])
+    issues = component_module.audit_local_scope(
+        tmp_path,
+        ["src/billing/invoice.py"],
+        load_config(tmp_path),
+        "baseline-usable",
+    )
 
     assert issues == []
 
@@ -354,7 +369,7 @@ def test_local_scope_allows_approved_bundle_with_usable_bundle_baseline(tmp_path
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -377,6 +392,8 @@ adoption_status = "baseline-usable"
     issues = component_module.audit_local_scope(
         tmp_path,
         ["src/billing/invoice_model.py", "src/billing/invoice_repository.py"],
+        load_config(tmp_path),
+        "baseline-usable",
     )
 
     assert issues == []
@@ -390,7 +407,7 @@ def test_local_scope_blocks_approved_bundle_when_bundle_and_component_baselines_
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -413,13 +430,18 @@ adoption_status = "discovered"
     issues = component_module.audit_local_scope(
         tmp_path,
         ["src/billing/invoice_model.py", "src/billing/invoice_repository.py"],
+        load_config(tmp_path),
+        "baseline-usable",
     )
 
     assert [issue.code for issue in issues] == ["COMPONENT-BASELINE-MISSING"]
     assert issues[0].name == "invoice_model"
 
 
-def test_config_reads_adoption_component_knowledge_and_report_settings(tmp_path: Path) -> None:
+def test_config_reads_adoption_component_knowledge_and_report_settings(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify workflow config parses adoption component settings.
     @param[in]  tmp_path Temporary repository root.
@@ -430,26 +452,26 @@ def test_config_reads_adoption_component_knowledge_and_report_settings(tmp_path:
     @version    0.1.0
     """
     agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[adoption]
-default_completion_level = "baseline-strict"
-allow_component_bundles = false
-max_bundle_components = 2
-behavior_changes_allowed = true
-
-[components]
-manifest = ".agentic/custom-components.toml"
-
-[knowledge]
-roots = [".agentic/custom-knowledge", "docs/architecture"]
-
-[reports]
-adoption_root = ".agentic/custom-reports/adoption"
-""",
-        encoding="utf-8",
+    agentic.mkdir(exist_ok=True)
+    replace_workflow_toml("allow_component_bundles = true", "allow_component_bundles = false")
+    replace_workflow_toml("max_bundle_components = 5", "max_bundle_components = 2")
+    replace_workflow_toml(
+        '[components.baseline_guard]\nmode = "disabled"',
+        '[components.baseline_guard]\nmode = "enforce"\nminimum_completion_level = "baseline-strict"',
     )
+    replace_workflow_toml(
+        'manifest = ".agentic/components.toml"',
+        'manifest = ".agentic/custom-components.toml"',
+    )
+    replace_workflow_toml(
+        'roots = [".agentic/knowledge"]',
+        'roots = [".agentic/custom-knowledge", "docs/architecture"]',
+    )
+    replace_workflow_toml(
+        'adoption_root = ".agentic/reports/adoption"',
+        'adoption_root = ".agentic/custom-reports/adoption"',
+    )
+    (agentic / "custom-components.toml").write_text("[components]\n", encoding="utf-8")
 
     cfg = load_config(tmp_path)
 
@@ -458,7 +480,7 @@ adoption_root = ".agentic/custom-reports/adoption"
     assert not cfg.adoption_allow_component_bundles
     assert cfg.adoption_max_bundle_components == 2
     assert cfg.adoption_behavior_changes_allowed
-    assert cfg.knowledge_roots == [".agentic/custom-knowledge", "docs/architecture"]
+    assert cfg.knowledge_roots == (".agentic/custom-knowledge", "docs/architecture")
     assert cfg.adoption_report_root == ".agentic/custom-reports/adoption"
 
 

@@ -550,7 +550,7 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    0.3.0
     """
     path = repo / WORKFLOW_TOML_RELATIVE_PATH
     if not path.is_file():
@@ -601,48 +601,61 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
         findings.append(_finding("workflow.roots.test", "ok", f"all {len(test_roots)} test root(s) exist"))
 
     try:
-        verify_workflow_invariants(document, source_roots=source_roots, test_roots=test_roots)
-        findings.append(_finding("workflow.invariants", "ok", "write-zone invariants hold"))
+        verify_workflow_invariants(
+            document,
+            source_roots=source_roots,
+            test_roots=test_roots,
+            repo_root=repo,
+        )
+        findings.append(_finding("workflow.invariants", "ok", "schema-version-2 policy contract is valid"))
     except InvariantViolationError as exc:
         findings.append(
             _finding(
                 "workflow.invariants",
                 "fail",
                 str(exc),
-                guidance="fix write_zones/traceability to match [source].roots/[tests].roots, or "
-                "re-generate workflow.toml",
+                guidance="repair the reported schema or policy inconsistency, then re-generate workflow.toml",
             )
         )
 
     gates = _table(document, "gates")
     test_cmds = gates.get("test", [])
     lint_cmds = gates.get("lint", [])
+    gates_disabled = gates.get("mode") == "disabled"
     findings.append(
         _finding(
             "workflow.gates.test",
-            "ok" if test_cmds else "warn",
-            f"gate 'test' has {len(test_cmds)} command(s)" if test_cmds else "gate 'test' is configured empty",
-            guidance=None if test_cmds else "configure [gates].test",
+            "ok",
+            "gate execution is disabled"
+            if gates_disabled
+            else f"gate 'test' has {len(test_cmds)} command(s)",
         )
     )
     findings.append(
         _finding(
             "workflow.gates.lint",
-            "ok" if lint_cmds else "warn",
-            f"gate 'lint' has {len(lint_cmds)} command(s)" if lint_cmds else "gate 'lint' is configured empty",
-            guidance=None if lint_cmds else "configure [gates].lint",
+            "ok",
+            "gate execution is disabled"
+            if gates_disabled
+            else f"gate 'lint' has {len(lint_cmds)} command(s)",
         )
     )
 
     components_path = _table(document, "components").get("manifest")
+    baseline_mode = _table(_table(document, "components"), "baseline_guard").get("mode")
     if components_path:
         exists = (repo / str(components_path)).is_file()
         findings.append(
             _finding(
                 "workflow.components-manifest",
-                "ok" if exists else "warn",
-                f"[components].manifest = {components_path!r} {'exists' if exists else 'is missing'}",
-                guidance=None if exists else "restore the component manifest file or update [components].manifest",
+                "ok" if exists or baseline_mode == "disabled" else "fail",
+                f"[components].manifest = {components_path!r} "
+                f"{'exists' if exists else 'is missing; baseline guard is disabled'}",
+                guidance=(
+                    None
+                    if exists or baseline_mode == "disabled"
+                    else "restore the component manifest or disable components.baseline_guard"
+                ),
             )
         )
     else:

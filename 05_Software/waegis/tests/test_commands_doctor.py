@@ -84,6 +84,7 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
         language="python",
         gate_test_cmds=gate_cmds,
         gate_lint_cmds=gate_cmds,
+        gates_mode="enforce" if gates_configured else "disabled",
         alignment_enabled=True,
     )
     (repo / WORKFLOW_TOML_RELATIVE_PATH).write_text(generated.text, encoding="utf-8", newline="")
@@ -248,7 +249,7 @@ def test_update_available_distinct_from_drift(tmp_path: Path) -> None:
 # --- workflow.toml: invariant violation -----------------------------------------
 
 
-def test_workflow_toml_invariant_violation_exit_two_fail(tmp_path: Path) -> None:
+def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
     """
     @brief      A hand-edited installed workflow.toml that breaks write-zone
                 alignment (``src/**`` dropped from
@@ -265,10 +266,10 @@ def test_workflow_toml_invariant_violation_exit_two_fail(tmp_path: Path) -> None
     workflow_path = repo / WORKFLOW_TOML_RELATIVE_PATH
     text = workflow_path.read_text(encoding="utf-8")
     broken = text.replace(
-        'implementation = ["src/**", ".agentic/knowledge/components/**"]',
-        'implementation = [".agentic/knowledge/components/**"]',
+        '[gates]\nmode = "enforce"',
+        '[gates]\nmode = "disabled"',
     )
-    assert broken != text, "the expected implementation line was not found to break"
+    assert broken != text, "the expected enforced gates mode was not found to break"
     workflow_path.write_text(broken, encoding="utf-8", newline="")
 
     report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
@@ -281,7 +282,7 @@ def test_workflow_toml_invariant_violation_exit_two_fail(tmp_path: Path) -> None
 # --- workflow.toml: empty gates ---------------------------------------------------
 
 
-def test_missing_gates_warn_not_fail(tmp_path: Path) -> None:
+def test_disabled_gates_are_explicitly_valid(tmp_path: Path) -> None:
     """
     @brief      Empty ``[gates].test``/``[gates].lint`` on an otherwise valid
                 installed workflow.toml produces warn-level findings, not a
@@ -295,9 +296,9 @@ def test_missing_gates_warn_not_fail(tmp_path: Path) -> None:
     _install_healthy_repo(repo, gates_configured=False)
 
     report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
-    assert _finding(report.workflow_toml, "workflow.gates.test").status == "warn"
-    assert _finding(report.workflow_toml, "workflow.gates.lint").status == "warn"
-    assert report.exit_code == EXIT_WARN
+    assert _finding(report.workflow_toml, "workflow.gates.test").status == "ok"
+    assert _finding(report.workflow_toml, "workflow.gates.lint").status == "ok"
+    assert report.exit_code == EXIT_OK
 
 
 # --- runnability: missing hook file -----------------------------------------------
@@ -525,7 +526,7 @@ def test_json_output_is_valid_and_documented_for_healthy_repo(tmp_path: Path) ->
         assert set(finding) == {"name", "status", "detail", "guidance", "repair_action"}
 
 
-def test_json_output_is_valid_and_documented_for_mixed_verdict(tmp_path: Path) -> None:
+def test_json_output_reports_disabled_gates_as_valid(tmp_path: Path) -> None:
     """
     @brief      ``--json`` output for a mixed-verdict repo (empty gates,
                 warn-level) parses via ``json.loads`` and reports the warn
@@ -539,15 +540,15 @@ def test_json_output_is_valid_and_documented_for_mixed_verdict(tmp_path: Path) -
     _install_healthy_repo(repo, gates_configured=False)
     stream = io.StringIO()
     exit_code = run_doctor(repo, as_json=True, stream=stream, runner=_healthy_runner(repo), home=tmp_path / "home")
-    assert exit_code == EXIT_WARN
+    assert exit_code == EXIT_OK
 
     payload = json.loads(stream.getvalue())
     report = payload["result"]
-    assert report["overall_status"] == "warn"
-    assert payload["exit_code"] == 1
+    assert report["overall_status"] == "ok"
+    assert payload["exit_code"] == 0
     gate_findings = [f for f in report["groups"]["workflow_toml"] if f["name"].startswith("workflow.gates")]
     assert gate_findings
-    assert all(f["status"] == "warn" for f in gate_findings)
+    assert all(f["status"] == "ok" for f in gate_findings)
 
 
 # --- human rendering does not crash and mentions every group ----------------------

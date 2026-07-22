@@ -383,7 +383,7 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-14
-    @version    0.1.0
+    @version    0.2.0
     """
     if analysis is not None:
         source = [proposal.path for proposal in analysis.source_roots]
@@ -403,6 +403,7 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
         "language": language,
         "gate_test_cmds": gate_test,
         "gate_lint_cmds": gate_lint,
+        "gates_mode": "enforce" if gate_test or gate_lint else "disabled",
         "alignment_enabled": True,
     }
     seeded: list[FieldSpec] = []
@@ -1046,19 +1047,15 @@ def _act_adopt_workflow_toml(ctx: EngineContext) -> None:
     @exception  OSError If the file or roots cannot be written.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-14
-    @version    0.1.0
+    @version    0.2.0
     """
     target = _target(ctx)
     answers = _resolved_analysis_answers(ctx)
     base_text = (_payload_root(ctx) / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
+    generator_answers = {spec.key: answers[spec.key] for spec in WORKFLOW_FIELD_SPECS}
     generated = generate_workflow_toml(
         base_text,
-        source_roots=answers["source_roots"],
-        test_roots=answers["test_roots"],
-        language=answers["language"],
-        gate_test_cmds=answers["gate_test_cmds"],
-        gate_lint_cmds=answers["gate_lint_cmds"],
-        alignment_enabled=answers["alignment_enabled"],
+        **generator_answers,
         source_extensions=answers.get("source_extensions"),
         test_file_patterns=answers.get("test_file_patterns"),
     )

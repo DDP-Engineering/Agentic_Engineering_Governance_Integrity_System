@@ -11,15 +11,80 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Remove the obsolete `create_project_from_template.py` compatibility wrapper;
+  deployment documentation and integration tests now use WAEGIS directly.
+- Expand the AEGIS architecture presentation with complete maintained-adapter
+  coverage, explicit Alignment and Check stages, WAEGIS deployment guidance,
+  and the protective Aegis naming concept.
+- Synchronize the planning and copied prompt cheat sheets with WAEGIS-managed
+  deployment, OpenCode and Qwen Code usage, scope hints, the lightweight
+  documentation-change recipe, and worktree-local concurrency guidance.
+- Refresh the stack architecture to separate WAEGIS deployment from AEGIS
+  operation, distinguish seven stages from six approval transitions, and
+  replace obsolete policy, requirement-table, and worktree roadmap statements.
+- Bring the feature, bug-fix, and existing-repository adoption examples onto
+  the same WAEGIS-to-AEGIS handoff, stage terminology, and delivery working-tree
+  audit contract.
+- Require component-manifest paths and baseline thresholds to be passed
+  explicitly by AEGIS consumers, and remove unused write-hook compatibility
+  state accessors plus the obsolete empty registry directory.
+
+### Fixed
+
+- Keep WAEGIS release staging aligned with deployment exclusions so Node/Vitest
+  state, uv caches, Python bytecode, and generated package metadata cannot enter
+  release payloads, and normalize Linux tar modes so Windows-hosted builds
+  preserve executable launchers, runtimes, shell scripts, and LF-only shebangs.
+- Align WAEGIS schema-version-2 verification with the strict AEGIS contract for
+  closed tables, exact scalar types, normalized repository paths and globs,
+  regular expressions, conditional fields, and filesystem-aware baseline
+  manifests.
+- Apply delivery preflight to Qwen's raw `run_shell_command` tool identifier
+  and reject unsupported explicit gate names instead of silently succeeding.
+
+## [1.0.0] - 2026-07-22
+
 ### Added
 
+- Add the strict immutable schema-version-2 AEGIS configuration model,
+  actionable `ConfigurationError` contract, shared hook bootstrap, and
+  `aegis config validate` / `aegis config show --effective` commands.
+- Add WAEGIS generation and validation for every explicit configuration mode,
+  active rule collection, and complete stage-restricted write mapping.
+- Add typed active-run resolution with stable `RUN-POINTER-*` and
+  `RUN-ID-NOT-FOUND` errors, strict run-ID/graph validation, and atomic
+  per-worktree pointer publication under `.agentic/.workspace/state/`.
+- Add UUIDv4-backed TOML requirement snapshots, deterministic atomic
+  persistence, agent-facing create/show/list/update/activate commands, and
+  process-local requirement-to-test and requirement-to-path indexes.
 - Add `WAEGIS_02_Safe_AEGIS_Upgrade.pptx`, an operator guide for safely upgrading an existing AEGIS deployment with WAEGIS.
 
 ### Changed
 
+- Make the template policy explicitly unrestricted or disabled, remove
+  structural-to-policy inference, and require gate commands as complete command
+  strings under an explicit gate mode.
+- Move the active-run pointer from `.agentic/current_run` to ignored
+  `.agentic/.workspace/state/current_run`; the old pointer is unsupported,
+  `load_graph` requires an explicit resolved ID, and state-aware hooks use the
+  shared resolver instead of parsing pointers independently.
+- Replace shared Markdown requirement registers and generated registry caches
+  with one canonical current snapshot per requirement; traceability, coverage,
+  impact, INV-8, reports, and delivery preflight now read live TOML records.
+- Integrate explicit `--run-id` selection across every graph-dependent CLI
+  leaf, make CLI orchestration load one strict configuration model per
+  operation, and pass that model through gates, invariants, reports,
+  requirements, component checks, and delivery preflight.
 - Refresh `WAEGIS_01_Setup_And_First_Adoption.pptx` for WAEGIS 0.2.0.
-- Document the Codex and GPT-5.6 contribution to the OpenAI Build Week project
-  in the public README, alongside the repository's setup instructions.
+- Align agent instructions, canonical skills, adapter wrappers, onboarding,
+  configuration references, architecture maps, examples, and operator
+  artifacts with the schema-version-2 configuration model, UUIDv4 TOML
+  requirement snapshots, per-worktree active-run selection, and live delivery
+  checks without a generated registry.
+- Extend the WAEGIS payload compatibility upper bound through AEGIS 1.x so the
+  wizard accepts and reports the bundled AEGIS 1.0.0 payload.
 
 ### Fixed
 
@@ -27,6 +92,8 @@ All notable changes to this project will be documented in this file.
   template legal-header test so editable package builds do not create a false
   failure.
 - Fix `waegis upgrade` branch-and-commit mode to consume `GitOpResult` status and failure details through its actual data-model fields.
+- Keep the realistic WAEGIS upgrade fixture aligned with the category-based
+  requirement snapshot layout shipped by the current AEGIS payload.
 
 ## [0.5.0] - 2026-07-20
 

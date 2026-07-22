@@ -37,6 +37,13 @@ including scope, assumptions, open questions with recommended default
 responses, risk, decision, reason, and planned paths. It can be skipped through
 the delivered `[alignment].enabled` workflow configuration.
 
+Before repository work, agents validate the mandatory schema-version-2
+`.agentic/workflow.toml`, inspect effective modes, and report active
+restrictions. Durable requirements are UUIDv4-backed TOML snapshots, active-run
+selection is ignored per-worktree state under `.agentic/.workspace/`, and all
+traceability indexes are derived in memory. No requirement registry or cache is
+generated.
+
 ## Repository Layout
 
 - `00_Planning/` - future workflow architecture notes, requirements, and design
@@ -70,6 +77,10 @@ the delivered `[alignment].enabled` workflow configuration.
   written `.agentic` artifacts.
 - `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`
   contains human operator prompt examples delivered with each generated project.
+- `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md`
+  documents the complete schema-version-2 configuration and policy modes.
+- `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md`
+  separates intrinsic workflow contracts from repository and platform policy.
 - `05_Software/aegis/template/.agentic/documents/WORKFLOW_CHEATSHEET.svg`
   provides a visual one-page workflow reference.
 - `00_Planning/PROMPT_CHEATSHEET.md` is the planning reference copy of the same
@@ -99,20 +110,23 @@ the delivered `[alignment].enabled` workflow configuration.
 
 ## Creating Or Adopting A Project
 
-To create a new project from the bundled template:
+Use WAEGIS to preview and deploy AEGIS into a new project:
 
 ```powershell
-python 02_Tools\create_project_from_template.py D:\Path\To\NewProject
+waegis new D:\Path\To\NewProject --dry-run
+waegis new D:\Path\To\NewProject
 ```
 
-To adopt an existing repository, preview the copy first:
+For an existing repository, use the adoption workflow:
 
 ```powershell
-python 02_Tools\create_project_from_template.py D:\Path\To\ExistingRepo --existing-repo --dry-run
+waegis adopt D:\Path\To\ExistingRepo --dry-run
+waegis adopt D:\Path\To\ExistingRepo
 ```
 
-Then run the same command without `--dry-run`. Existing files are not
-overwritten unless `--force` is supplied.
+WAEGIS configures the deployment, resolves adoption conflicts explicitly,
+writes the install manifest, and verifies the result. It remains a separate
+tool and is not copied into the target AEGIS payload.
 
 ## Quick Validation
 

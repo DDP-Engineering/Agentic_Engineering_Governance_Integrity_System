@@ -71,12 +71,16 @@ uv sync --group dev
 Then run workflow commands:
 
 ```powershell
+uv run --group dev python -m aegis config validate
+uv run --group dev python -m aegis config show --effective --json
 uv run --group dev python -m aegis start --kind feature --statement "Implement feature X" --scope-hint generated/client
 uv run --group dev python -m aegis next
 uv run --group dev python -m aegis alignment --source "human prompt" --understanding "Implement feature X." --scope "in: feature X; out: unrelated behavior" --acceptance "Feature X is covered by a passing check." --risk low --decision proceed --reason "No open questions and low risk"
 uv run --group dev python -m aegis set-stage check --reason "Human-approved test revision"
 uv run --group dev python -m aegis set-access-mode repo-wide --reason "Human-approved broad maintenance"
 uv run --group dev python -m aegis supersede-evidence --id <old-evidence-id> --by <new-evidence-id> --reason "Passing rerun supersedes an external failure"
+uv run --group dev python -m aegis requirement create --category functional --priority Must --requirement "Feature X behaves as specified." --rationale "Durable behavior contract." --verification "Inspection: inspect Feature X"
+uv run --group dev python -m aegis requirement list --status Planned --json
 uv run --group dev python -m aegis requirement activate --id <requirement-id> --linked-test <test-id> --verification "Automated test"
 uv run --group dev python -m aegis working-tree audit
 uv run --group dev python -m aegis status
@@ -87,14 +91,30 @@ uv run --group dev python -m aegis impact
 uv run --group dev python -m aegis report
 ```
 
-Repeat `--scope-hint` when a run intentionally touches additional roots outside
-the configured source, test, and documentation roots. The values are persisted
-in the run intent and journal and extend INV-5 advisory scope only; they do not
-relax write-zone or protected-file enforcement.
+`start` selects the new run for the current Git worktree by atomically writing
+`.agentic/.workspace/state/current_run`. The entire `.agentic/.workspace/`
+directory is ignored and must never be staged or copied between worktrees. The
+retired `.agentic/current_run` path is not read as a fallback. Missing,
+malformed, or stale state produces a stable `RUN-POINTER-*` message explaining
+how to start or select a valid run.
+
+Every graph-dependent leaf accepts `--run-id <existing-run-id>` after its
+complete subcommand path, for example `status --run-id ...`,
+`gates run --run-id ...`, and `requirement activate --run-id ...`. Explicit
+selection wins over the worktree pointer and never rewrites it. Repository-wide
+commands such as `config`, `audit`, `impact`, `working-tree audit`, and
+`requirement create/show/list/update` reject the option.
+
+Repeat `--scope-hint` to record the intended run scope for reviewers and later
+workflow stages. Hints are persisted in the run intent and journal, but never
+authorize paths outside an explicit `[guardrails.scope]` policy.
 
 In a target repository, copy the files under `template/` into the repo root,
-then configure `.agentic/workflow.toml` for source roots, test roots, gate
-commands, secret patterns, and write zones. The shared skill procedures live
+then configure the complete schema-version-2 `.agentic/workflow.toml`. Every
+repository restriction has an explicit mode; disabled/unrestricted modes use
+empty rule collections, while active modes require their rules. Validate the
+file with `aegis config validate` and inspect normalized behavior with
+`aegis config show --effective` before starting governed work. The shared skill procedures live
 once under `.agentic/skills/`. For Codex-compatible workflows, `.codex/skills/`
 provides thin adapters that point to them. For Claude Code workflows,
 `CLAUDE.md` points back to `AGENTS.md` and `.claude/skills/` provides matching
@@ -118,29 +138,34 @@ The `agentic-adoption` skill guides existing-project adoption through
 repo-discovery, component-map approval, single-component component-adoption,
 baseline-review, and adoption-delivery without application behavior changes.
 
-To create a new project with the bundled template from this repository:
+Every agent-facing procedure begins with `config validate --json` and
+`config show --effective --json`, reports all effective restriction modes and
+active rule counts, and identifies the selected worktree run or explicit
+`--run-id`. AEGIS policy remains separate from host/platform safety.
+
+Use WAEGIS to preview and deploy the bundled AEGIS payload into a new project:
 
 ```powershell
-python ..\..\02_Tools\create_project_from_template.py D:\Path\To\NewProject
+waegis new D:\Path\To\NewProject --dry-run
+waegis new D:\Path\To\NewProject
 ```
 
-To adopt an existing repository, preview the copy first:
+For an existing repository, use the adoption workflow:
 
 ```powershell
-python ..\..\02_Tools\create_project_from_template.py D:\Path\To\ExistingRepo --existing-repo --dry-run
+waegis adopt D:\Path\To\ExistingRepo --dry-run
+waegis adopt D:\Path\To\ExistingRepo
 ```
 
-Then run the same command without `--dry-run`. Existing files are not
-overwritten unless `--force` is supplied.
-
-The script copies the same files that a manual copy of `template/` would copy,
-including `.agentic/` (with the shared `.agentic/skills/` procedures),
+WAEGIS resolves adoption conflicts explicitly, writes the install manifest,
+configures the repository, and verifies the deployment. The deployed payload
+includes `.agentic/` (with the shared `.agentic/skills/` procedures),
 `.codex/`, `.claude/`, `.pi/`, `.opencode/`, and `.qwen/` adapters, `AGENTS.md`,
 `CLAUDE.md`, `QWEN.md`, `opencode.json`, and `CHANGELOG.md`. Adoption artifacts such as
 `.agentic/components.toml`,
 `.agentic/knowledge/components/`, and `.agentic/reports/adoption/` are included.
-The `.pi/` adapter's install-on-demand `node_modules/` is excluded from the
-copy.
+The `.pi/` adapter's install-on-demand `node_modules/` is excluded. WAEGIS is a
+separate lifecycle tool and is not copied into the deployed payload.
 
 The copied project can run the bundled CLI immediately:
 
@@ -216,9 +241,9 @@ that adopt the template:
   changed.
 
 The installable template provides
-`.agentic/knowledge/components/component_template.md` and configures
-`.agentic/knowledge/components/**` as an implementation write zone so component
-docs can be updated alongside source changes.
+`.agentic/knowledge/components/component_template.md`. Repositories using
+`stage_restricted` write access must include their component-documentation paths
+in the relevant stage lists; the unrestricted template has no implicit zones.
 
 Component ownership patterns use the workflow's shared path matcher. A bare
 directory entry in `.agentic/components.toml`, such as `src/package/billing`,
@@ -227,14 +252,15 @@ supported, and similarly named sibling directories are not included.
 
 ## Access Modes
 
-Workflow runs start in `standard` access mode. The write-zone guard limits edits
-to the current stage's configured paths.
+Workflow runs start in `standard` access mode. When
+`guardrails.write_access.mode = "stage_restricted"`, the write guard applies the
+current stage's complete configured path list. Under `unrestricted`, it does not
+resolve a run merely to authorize a write.
 
 For broad maintenance tasks, a human may explicitly start or switch a run to
-`repo-wide` access mode with a reason. This relaxes the template's write-zone
-guard for normal files under the repository root, while protected Git, secret,
-environment, and key files remain blocked. It does not override the outer
-filesystem permissions of the host agent tool.
+`repo-wide` access mode with a reason. Under stage-restricted policy this
+bypasses stage lists, but never bypasses configured protected paths. It does not
+override external filesystem, sandbox, approval, or operating-system controls.
 
 ## Evidence And Delivery Corrections
 
@@ -251,24 +277,29 @@ the unused defect collection. Older graph files containing legacy
 retired keys are ignored when loaded.
 
 Use `set-stage` when the human routes work back to an earlier gate. Use
-`requirement activate` after linked checks pass so durable requirement rows do
-not remain `Planned`. Newly supplied linked-test identifiers must resolve before
-the register is updated; a rejected activation names the identifier and reason
-and leaves the register unchanged. Manual-only activation remains supported
-when the verification text explicitly describes manual inspection.
+`requirement activate` after linked checks pass so durable requirement
+snapshots do not remain `Planned`. Supplied linked-test identifiers replace the
+complete current set and must resolve before the TOML snapshot is updated; a
+rejected activation names the identifier and reason and leaves the file
+unchanged. Manual-only activation uses an explicit `Manual:` or `Inspection:`
+verification method.
 
 Run-local spec and check identifiers are unique: `add-spec` and `add-check`
 reject an identifier already stored in the active graph without modifying it.
 
 `working-tree audit` reports untracked files separately. Arbitrary local files,
 such as notes or saved messages, are advisory by default. Delivery preflight
-blocks only protected paths, configured blocked patterns under
-`[working_tree]`, or configured secret-pattern matches.
+blocks only active configured protected paths, blocked patterns under
+`[guardrails.working_tree]`, configured secret matches, adoption-source policy,
+or other blocking preflight findings.
 
 ## Regression And Traceability Support
 
-Durable requirements live in `.agentic/requirements/` as Markdown registers.
-The workflow tools parse those registers to:
+Durable requirements live in `.agentic/requirements/` as one complete TOML
+snapshot per UUIDv4-backed requirement. Use `requirement list` before creating
+a requirement, keep the same ID for revisions of the same behavioral contract,
+and use `requirement update` to replace complete linked-test or affected-path
+sets. The workflow tools read the canonical files directly to:
 
 - verify linked tests resolve;
 - prevent `Active` requirements without verification;
@@ -283,14 +314,11 @@ Git-quoted paths are decoded consistently.
 Before delivery, run:
 
 ```powershell
-python -m aegis registry sync
-python -m aegis registry audit
 python -m aegis audit traceability
 python -m aegis audit coverage
 python -m aegis delivery-preflight
 ```
 
-`registry audit` is read-only. It compares the cached requirement rows and
-linked-test identifiers with the current Markdown registers; stale caches fail
-the audit and `delivery-preflight` with `run registry sync` as the explicit
-repair command.
+No generated requirement registry or cache exists. Traceability, coverage,
+impact, reports, invariants, and delivery preflight build any reverse mappings
+in memory from the current TOML snapshots.

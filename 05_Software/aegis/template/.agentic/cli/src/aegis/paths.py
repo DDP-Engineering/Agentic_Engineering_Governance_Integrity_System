@@ -14,7 +14,7 @@
          case-sensitive on non-Windows hosts, matching the real filesystem.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -57,9 +57,8 @@ def matches_pattern(path: str, pattern: str) -> bool:
     @param[in]  pattern Glob pattern in either slash style.
     @return     True when the path matches the pattern directly or as a tree
                 rooted at the pattern.
-    @details    Shared matcher used by scope checks and the working-tree audit so
-                they stay consistent. The standalone `guard_write_zone.py` hook
-                keeps its own copy because it runs without importing this package.
+    @details    Shared matcher used by scope checks, working-tree audit, and
+                configured read/write hooks so every policy consumer agrees.
     @details    Case-folded only on Windows (``os.name == "nt"``), added
                 0.2.0 (architecture-review follow-up): the previous
                 unconditional ``.lower()`` matched Windows' own
@@ -77,7 +76,7 @@ def matches_pattern(path: str, pattern: str) -> bool:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-18
-    @version    0.2.0
+    @version    0.3.0
     """
     normalized_path = path.replace("\\", "/")
     normalized_pattern = pattern.replace("\\", "/").rstrip("/")

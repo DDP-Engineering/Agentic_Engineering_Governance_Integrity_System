@@ -12,10 +12,12 @@
 @details Uses only the standard library. Embedded CPython inputs are pinned by
          filename and SHA-256 in ``runtime-lock.json``. Each application archive
          contains an internal file manifest; the output directory receives a
-         release manifest and ``SHA256SUMS`` for the final artifacts.
+         release manifest and ``SHA256SUMS`` for the final artifacts. Linux tar
+         modes are normalized explicitly so cross-builds from Windows retain
+         executable launchers, interpreters, and shell scripts.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -35,6 +37,7 @@ import urllib.error
 import urllib.request
 import zipapp
 import zipfile
+from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -46,7 +49,16 @@ SOURCE_ROOT = PACKAGE_ROOT / "src"
 PAYLOAD_ROOT = REPOSITORY_ROOT / "05_Software" / "aegis" / "template"
 LOCK_FILE = Path(__file__).with_name("runtime-lock.json")
 BASE_URL = "https://github.com/astral-sh/python-build-standalone/releases/download"
-GENERATED_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+GENERATED_NAMES = {
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "node_modules",
+    ".vitest",
+}
+GENERATED_SUFFIXES = {".pyc"}
+GENERATED_PATTERNS = ("*.egg-info", ".uv-cache*")
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -69,13 +81,33 @@ def sha256_file(path: Path) -> str:
 
 
 def _copy_tree(source: Path, destination: Path) -> None:
-    """@brief Copy a source tree while rejecting links and generated caches."""
+    """
+    @brief      Copy a source tree while rejecting links and generated state.
+    @param[in]  source Existing source directory.
+    @param[in]  destination Destination directory created or extended.
+    @return     None.
+    @details    Uses the same payload exclusions as the deployment copier and
+                additionally rejects the packaging-only ``.mypy_cache``.
+    @exception  PackagingError If the source is missing or contains a link or
+                unsupported filesystem entry.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.2.0
+    """
     if not source.is_dir():
         raise PackagingError(f"release input directory does not exist: {source}")
     destination.mkdir(parents=True, exist_ok=True)
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
-        if any(part in GENERATED_NAMES for part in relative.parts):
+        if (
+            any(part in GENERATED_NAMES for part in relative.parts)
+            or relative.suffix in GENERATED_SUFFIXES
+            or any(
+                fnmatchcase(part, pattern)
+                for part in relative.parts
+                for pattern in GENERATED_PATTERNS
+            )
+        ):
             continue
         if path.is_symlink():
             raise PackagingError(f"release input contains a symlink: {path}")
@@ -149,9 +181,20 @@ def _copy_materialized_file(source: Path, target: Path) -> str:
     return str(target)
 
 
-def _extract_runtime(archive_path: Path, destination: Path) -> None:
-    """@brief Safely extract regular runtime files and materialize safe links."""
+def _extract_runtime(archive_path: Path, destination: Path) -> frozenset[str]:
+    """
+    @brief      Safely extract runtime files and materialize confined links.
+    @param[in]  archive_path Pinned runtime tar archive.
+    @param[in]  destination Runtime staging directory.
+    @return     Runtime-relative POSIX paths that require execute permission.
+    @exception  PackagingError If an archive entry or link is unsafe or
+                unsupported.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.2.0
+    """
     links: list[tarfile.TarInfo] = []
+    executable_files: set[str] = set()
     with tarfile.open(archive_path, "r:gz") as archive:
         for member in archive.getmembers():
             target = _safe_member_path(destination, member.name)
@@ -170,6 +213,8 @@ def _extract_runtime(archive_path: Path, destination: Path) -> None:
             with source, open(target, "wb") as output:
                 shutil.copyfileobj(source, output)
             target.chmod(member.mode & 0o777)
+            if member.mode & 0o111:
+                executable_files.add(PurePosixPath(member.name).as_posix())
     for member in links:
         target = _safe_member_path(destination, member.name)
         link_name = PurePosixPath(member.linkname)
@@ -184,10 +229,48 @@ def _extract_runtime(archive_path: Path, destination: Path) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         if source.is_dir():
             shutil.copytree(source, target, copy_function=_copy_materialized_file)
+            source_relative = PurePosixPath(source.relative_to(destination).as_posix())
+            target_relative = PurePosixPath(target.relative_to(destination).as_posix())
+            for executable in tuple(executable_files):
+                try:
+                    suffix = PurePosixPath(executable).relative_to(source_relative)
+                except ValueError:
+                    continue
+                executable_files.add((target_relative / suffix).as_posix())
         elif source.is_file():
             _copy_materialized_file(source, target)
+            source_relative = source.relative_to(destination).as_posix()
+            if source_relative in executable_files or member.mode & 0o111:
+                executable_files.add(target.relative_to(destination).as_posix())
         else:
             raise PackagingError(f"unresolved runtime link: {member.name!r} -> {member.linkname!r}")
+    return frozenset(executable_files)
+
+
+def _linux_tar_filter(
+    member: tarfile.TarInfo,
+    *,
+    root_name: str,
+    executable_paths: frozenset[str],
+) -> tarfile.TarInfo:
+    """
+    @brief      Normalize Linux archive modes independently of the build host.
+    @param[in]  member Tar entry produced from the staged application tree.
+    @param[in]  root_name Top-level application directory in the tar archive.
+    @param[in]  executable_paths Root-relative files requiring execute bits.
+    @return     The same tar entry with a deterministic POSIX mode.
+    @exception  None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    prefix = f"{root_name}/"
+    relative = member.name[len(prefix) :] if member.name.startswith(prefix) else ""
+    if member.isdir():
+        member.mode = 0o755
+    elif member.isfile():
+        member.mode = 0o755 if relative in executable_paths or relative.endswith(".sh") else 0o644
+    return member
 
 
 def _find_interpreter(runtime_root: Path, target: str) -> Path:
@@ -299,22 +382,46 @@ def _build_application_archive(
     runtime_cache: Path,
     offline: bool,
 ) -> Path:
-    """@brief Build one self-contained OS application archive."""
+    """
+    @brief      Build one self-contained OS application archive.
+    @param[in]  target Runtime target key from ``runtime-lock.json``.
+    @param[in]  zipapp_path Previously built payload-bundled zipapp.
+    @param[in]  output Final application archive path.
+    @param[in]  runtime_cache Cache containing or receiving pinned runtimes.
+    @param[in]  offline Refuse network access when true.
+    @return     Final archive path.
+    @details    Launcher text preserves its declared newline convention on
+                every host; Linux tar modes are normalized independently of
+                Windows filesystem semantics.
+    @exception  PackagingError If runtime acquisition, staging, or archive
+                validation inputs fail.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.2.0
+    """
     runtime_archive = _download_runtime(target, runtime_cache, offline=offline)
     with tempfile.TemporaryDirectory(prefix=f"waegis-{target}-") as temporary_text:
         staging = Path(temporary_text) / f"waegis-{target}"
         runtime = staging / "runtime"
         runtime.mkdir(parents=True)
-        _extract_runtime(runtime_archive, runtime)
+        runtime_executables = _extract_runtime(runtime_archive, runtime)
         interpreter = _find_interpreter(runtime, target)
         relative_python = interpreter.relative_to(staging).as_posix()
         shutil.copy2(zipapp_path, staging / "waegis.pyz")
         _copy_tree(PAYLOAD_ROOT, staging / "payload")
         if target == "windows-x64":
-            (staging / "waegis.cmd").write_text(_windows_launcher(relative_python), encoding="utf-8")
+            (staging / "waegis.cmd").write_text(
+                _windows_launcher(relative_python),
+                encoding="utf-8",
+                newline="",
+            )
         else:
             launcher = staging / "waegis"
-            launcher.write_text(_linux_launcher(relative_python), encoding="utf-8")
+            launcher.write_text(
+                _linux_launcher(relative_python),
+                encoding="utf-8",
+                newline="",
+            )
             launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         _write_archive_manifest(staging, target=target)
         temporary = output.with_name(output.name + ".tmp")
@@ -324,8 +431,20 @@ def _build_application_archive(
                     if path.is_file():
                         bundle.write(path, path.relative_to(staging.parent).as_posix())
         else:
+            executable_paths = frozenset(
+                {"waegis", relative_python}
+                | {f"runtime/{path}" for path in runtime_executables}
+            )
             with tarfile.open(temporary, "w:gz") as bundle:
-                bundle.add(staging, arcname=staging.name)
+                bundle.add(
+                    staging,
+                    arcname=staging.name,
+                    filter=lambda member: _linux_tar_filter(
+                        member,
+                        root_name=staging.name,
+                        executable_paths=executable_paths,
+                    ),
+                )
         os.replace(temporary, output)
     return output
 

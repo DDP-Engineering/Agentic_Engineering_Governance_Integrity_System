@@ -68,8 +68,8 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <text x="560" y="314" class="mono">skill</text>
   <rect x="760" y="285" width="220" height="46" rx="6" class="artifact" />
   <text x="780" y="314" class="mono">fisier .agentic</text>
-  <text x="1030" y="300" class="small">Fiecare rand de etapa arata cine actioneaza, cu ce comanda sau script, si ce artefact persista.</text>
-  <text x="1030" y="330" class="small">Adoption mode adauga component map, scope local, baseline review si knowledge sub .agentic.</text>
+  <text x="1030" y="300" class="small">Fiecare rand arata actorul, comanda sau scriptul si artefactul persistent.</text>
+  <text x="1030" y="330" class="small">Adoption adauga scope local, baseline review si knowledge.</text>
 
   <!-- Stage spine -->
   <line x1="160" y1="500" x2="160" y2="2005" class="arrow" />
@@ -84,7 +84,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <text x="280" y="590" class="tiny">src/aegis/cli.py -> store.init_graph()</text>
   <line x1="705" y1="568" x2="805" y2="568" class="thin-arrow" />
   <rect x="830" y="520" width="745" height="96" rx="6" class="artifact" />
-  <text x="850" y="548" class="mono">.agentic/current_run</text>
+  <text x="850" y="548" class="mono">.agentic/.workspace/state/current_run</text>
   <text x="850" y="575" class="mono">.agentic/runs/&lt;run_id&gt;/graph.json</text>
   <text x="850" y="602" class="mono">.agentic/runs/&lt;run_id&gt;/journal.jsonl</text>
 
@@ -111,7 +111,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <text x="280" y="978" class="label">03 Requirement</text>
   <text x="440" y="980" class="h2">Transforma intentia aliniata in specificatii, cerinte sau adoption scope</text>
   <rect x="260" y="1010" width="435" height="92" rx="6" class="script" />
-  <text x="280" y="1038" class="mono">add-spec / add-check</text>
+  <text x="280" y="1038" class="mono">add-spec / requirement create|update</text>
   <text x="280" y="1065" class="mono">requirement activate / adoption baseline</text>
   <text x="280" y="1092" class="tiny">requirements.py + components.py</text>
   <line x1="720" y1="1055" x2="820" y2="1055" class="thin-arrow" />
@@ -119,21 +119,21 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <text x="865" y="1023" class="mono">.agentic/runs/&lt;run_id&gt;/graph.json</text>
   <text x="865" y="1050" class="mono">.agentic/runs/&lt;run_id&gt;/journal.jsonl</text>
   <text x="865" y="1077" class="mono">graph.json spec_items</text>
-  <text x="865" y="1104" class="mono">.agentic/requirements/*.md | components.toml</text>
+  <text x="865" y="1104" class="mono">requirements/&lt;category&gt;/*.toml | components.toml</text>
 
   <!-- Check -->
   <rect x="230" y="1190" width="1420" height="210" rx="8" class="stage amber" />
   <rect x="260" y="1220" width="112" height="34" rx="17" class="chip-amber" />
   <text x="283" y="1243" class="label">04 Check</text>
-  <text x="392" y="1245" class="h2">Leaga testele, verifica scope-ul local si sincronizeaza cache-ul</text>
+  <text x="392" y="1245" class="h2">Leaga testele, verifica scope-ul si calculeaza impactul live</text>
   <rect x="260" y="1275" width="435" height="82" rx="6" class="script" />
-  <text x="280" y="1303" class="mono">registry sync / audit / impact</text>
+  <text x="280" y="1303" class="mono">audit traceability / coverage / impact</text>
   <text x="280" y="1330" class="tiny">requirements.py + adoption scope-check</text>
   <line x1="720" y1="1315" x2="820" y2="1315" class="thin-arrow" />
   <rect x="845" y="1257" width="730" height="112" rx="6" class="artifact" />
-  <text x="865" y="1285" class="mono">.agentic/registry/requirements.json</text>
-  <text x="865" y="1312" class="mono">.agentic/registry/checks.json</text>
-  <text x="865" y="1339" class="mono">.agentic/registry/features.json</text>
+  <text x="865" y="1285" class="mono">requirements/&lt;category&gt;/*.toml</text>
+  <text x="865" y="1312" class="mono">index in-memory: by_id / by_test / by_path</text>
+  <text x="865" y="1339" class="mono">niciun registry sau cache persistent</text>
 
   <!-- Implementation -->
   <rect x="230" y="1440" width="1420" height="225" rx="8" class="stage red" />
@@ -143,15 +143,15 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <rect x="260" y="1525" width="365" height="90" rx="6" class="hook" />
   <text x="280" y="1553" class="mono">guard_write_zone.py</text>
   <text x="280" y="1580" class="tiny">PreToolUse: citeste stage + access_mode</text>
-  <text x="280" y="1607" class="tiny">blocheaza editarile in afara zonei</text>
+  <text x="280" y="1607" class="tiny">aplica modul si caile configurate</text>
   <rect x="655" y="1525" width="310" height="90" rx="6" class="skill" />
   <text x="675" y="1553" class="mono">agent skill / Codex</text>
   <text x="675" y="1580" class="tiny">scrie cod, teste sau knowledge</text>
-  <text x="675" y="1607" class="tiny">conform write_zones</text>
+  <text x="675" y="1607" class="tiny">conform modurilor validate</text>
   <line x1="990" y1="1570" x2="1090" y2="1570" class="thin-arrow" />
   <rect x="1115" y="1510" width="460" height="125" rx="6" class="artifact" />
   <text x="1135" y="1538" class="mono">.agentic/workflow.toml</text>
-  <text x="1135" y="1565" class="tiny">sursa zonelor permise</text>
+  <text x="1135" y="1565" class="tiny">unica sursa de politica AEGIS</text>
   <text x="1135" y="1592" class="mono">.agentic/knowledge/components/*.md</text>
   <text x="1135" y="1619" class="tiny">knowledge local; fara schimbari de comportament in adoption</text>
 
@@ -187,7 +187,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   <rect x="700" y="2060" width="370" height="105" rx="6" class="script" />
   <text x="720" y="2088" class="mono">invariants / audit</text>
   <text x="720" y="2115" class="tiny">invariants.py + requirements.py</text>
-  <text x="720" y="2142" class="tiny">citeste registries, requirements, graph</text>
+  <text x="720" y="2142" class="tiny">citeste snapshots TOML si graful selectat</text>
   <line x1="1095" y1="2112" x2="1195" y2="2112" class="thin-arrow" />
   <rect x="1220" y="2045" width="355" height="140" rx="6" class="artifact" />
   <text x="1240" y="2073" class="mono">report.md</text>
@@ -202,7 +202,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
   <rect x="110" y="2385" width="300" height="120" rx="6" class="artifact" />
   <text x="130" y="2413" class="h3">Run operational</text>
-  <text x="130" y="2443" class="mono">current_run</text>
+  <text x="130" y="2443" class="mono">.workspace/state/current_run</text>
   <text x="130" y="2470" class="mono">runs/&lt;run_id&gt;/graph.json</text>
   <text x="130" y="2497" class="mono">runs/&lt;run_id&gt;/journal.jsonl</text>
 
@@ -220,9 +220,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
   <rect x="1070" y="2385" width="300" height="120" rx="6" class="artifact" />
   <text x="1090" y="2413" class="h3">Trasabilitate durabila</text>
-  <text x="1090" y="2443" class="mono">requirements/*.md</text>
+  <text x="1090" y="2443" class="mono">requirements/*/*.toml</text>
   <text x="1090" y="2470" class="mono">runs/&lt;run_id&gt;/graph.json</text>
-  <text x="1090" y="2497" class="mono">registry/*.json</text>
+  <text x="1090" y="2497" class="mono">indexuri doar in memorie</text>
 
   <rect x="1390" y="2385" width="300" height="120" rx="6" class="artifact" />
   <text x="1410" y="2413" class="h3">Puncte de intrare</text>
@@ -232,4 +232,3 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
   <text x="80" y="2595" class="tiny">Nota: skill-urile nu scriu automat singure; ele ghideaza agentul sau ruleaza scripturi. Persistenta efectiva apare prin CLI, hook-uri, scripturi si editari explicite.</text>
 </svg>
-

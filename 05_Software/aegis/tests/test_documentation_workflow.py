@@ -12,13 +12,14 @@
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
 @date 2026-06-20
-@version 0.5.0
+@version 0.7.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import subprocess
 from pathlib import Path
 
@@ -55,16 +56,19 @@ def test_default_documentation_config(tmp_path: Path) -> None:
     """
     cfg = load_config(tmp_path)
 
-    assert cfg.documentation_roots == [".agentic/knowledge/components"]
+    assert cfg.documentation_roots == (".agentic/knowledge/components",)
     assert cfg.component_documentation_template == ".agentic/knowledge/components/component_template.md"
     assert cfg.alignment_enabled is True
     assert cfg.alignment_pause_on_open_questions is True
     assert cfg.alignment_risk_threshold == "medium"
     assert cfg.alignment_allow_recommended_responses is True
-    assert cfg.alignment_protected_scope_patterns == []
+    assert cfg.alignment_protected_scope_patterns == ()
 
 
-def test_alignment_config_reads_policy(tmp_path: Path) -> None:
+def test_alignment_config_reads_policy(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify intent-alignment policy configuration is loaded.
     @param[in]  tmp_path Input value used by the workflow helper.
@@ -74,30 +78,31 @@ def test_alignment_config_reads_policy(tmp_path: Path) -> None:
     @date       2026-07-03
     @version    0.2.0
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[alignment]
-enabled = false
-pause_on_open_questions = false
-risk_threshold = "high"
-allow_recommended_responses = false
-protected_scope_patterns = ["src/security/**"]
-""",
-        encoding="utf-8",
+    replace_workflow_toml(
+        "pause_on_open_questions = true", "pause_on_open_questions = false"
+    )
+    replace_workflow_toml('risk_threshold = "medium"', 'risk_threshold = "high"')
+    replace_workflow_toml(
+        "allow_recommended_responses = true", "allow_recommended_responses = false"
+    )
+    replace_workflow_toml(
+        '[alignment.protected_scope]\nmode = "disabled"\npatterns = []',
+        '[alignment.protected_scope]\nmode = "enforce"\npatterns = ["src/security/**"]',
     )
 
     cfg = load_config(tmp_path)
 
-    assert cfg.alignment_enabled is False
+    assert cfg.alignment_enabled is True
     assert cfg.alignment_pause_on_open_questions is False
     assert cfg.alignment_risk_threshold == "high"
     assert cfg.alignment_allow_recommended_responses is False
-    assert cfg.alignment_protected_scope_patterns == ["src/security/**"]
+    assert cfg.alignment_protected_scope_patterns == ("src/security/**",)
 
 
-def test_documentation_config_reads_roots_and_template(tmp_path: Path) -> None:
+def test_documentation_config_reads_roots_and_template(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Handle test documentation config reads roots and template workflow behavior.
     @param[in]  tmp_path Input value used by the workflow helper.
@@ -105,26 +110,27 @@ def test_documentation_config_reads_roots_and_template(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.1
+    @version    0.1.2
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[documentation]
-roots = ["docs/components", "05_SoftwareDocu"]
-component_template = "docs/components/component_template.md"
-""",
-        encoding="utf-8",
+    replace_workflow_toml(
+        'roots = [".agentic/knowledge/components"]',
+        'roots = ["docs/components", "05_SoftwareDocu"]',
+    )
+    replace_workflow_toml(
+        'component_template = ".agentic/knowledge/components/component_template.md"',
+        'component_template = "docs/components/component_template.md"',
     )
 
     cfg = load_config(tmp_path)
 
-    assert cfg.documentation_roots == ["docs/components", "05_SoftwareDocu"]
+    assert cfg.documentation_roots == ("docs/components", "05_SoftwareDocu")
     assert cfg.component_documentation_template == "docs/components/component_template.md"
 
 
-def test_documentation_root_is_in_scope(tmp_path: Path) -> None:
+def test_documentation_root_is_in_scope(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Handle test documentation root is in scope workflow behavior.
     @param[in]  tmp_path Input value used by the workflow helper.
@@ -132,8 +138,13 @@ def test_documentation_root_is_in_scope(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.1
+    @version    0.3.0
     """
+    replace_workflow_toml(
+        '[guardrails.scope]\nmode = "unrestricted"\nallowed_roots = []',
+        '[guardrails.scope]\nmode = "advisory"\n'
+        'allowed_roots = [".agentic/knowledge/components"]',
+    )
     graph = Graph(
         run_id="RUN-0001",
         stage="implementation",
@@ -141,12 +152,19 @@ def test_documentation_root_is_in_scope(tmp_path: Path) -> None:
         change_units=[ChangeUnit(id="CU-0001", touched_paths=[".agentic/knowledge/components/New_Component.md"])],
     )
 
-    result = next(item for item in evaluate(tmp_path, graph) if item.id == "INV-5")
+    result = next(
+        item
+        for item in evaluate(tmp_path, graph, load_config(tmp_path))
+        if item.id == "INV-5"
+    )
 
     assert result.holds
 
 
-def test_unconfigured_path_remains_out_of_scope(tmp_path: Path) -> None:
+def test_unconfigured_path_remains_out_of_scope(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Handle test unconfigured path remains out of scope workflow behavior.
     @param[in]  tmp_path Input value used by the workflow helper.
@@ -154,8 +172,13 @@ def test_unconfigured_path_remains_out_of_scope(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.2.0
+    @version    0.4.0
     """
+    replace_workflow_toml(
+        '[guardrails.scope]\nmode = "unrestricted"\nallowed_roots = []',
+        '[guardrails.scope]\nmode = "advisory"\n'
+        'allowed_roots = [".agentic/knowledge/components"]',
+    )
     graph = Graph(
         run_id="RUN-0001",
         stage="implementation",
@@ -163,7 +186,11 @@ def test_unconfigured_path_remains_out_of_scope(tmp_path: Path) -> None:
         change_units=[ChangeUnit(id="CU-0001", touched_paths=["notes/New_Component.md"])],
     )
 
-    result = next(item for item in evaluate(tmp_path, graph) if item.id == "INV-5")
+    result = next(
+        item
+        for item in evaluate(tmp_path, graph, load_config(tmp_path))
+        if item.id == "INV-5"
+    )
 
     assert not result.holds
     assert "notes/New_Component.md" in result.message
@@ -176,7 +203,7 @@ def test_template_includes_component_documentation_assets() -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.1
+    @version    0.1.2
     """
     template_root = PACKAGE_ROOT / "template"
 
@@ -406,7 +433,10 @@ def test_documentation_audit_defaults_to_changed_component_docs() -> None:
     assert "changed implementation files" in skill
     assert "`.agentic/knowledge/components/*.md`" in skill
     assert "only when explicitly requested or when their scope changes" in skill
-    assert "root README or package README files" not in skill.split("4. Update stale or missing component documentation directly:")[1].split("5.")[0]
+    update_step = skill.split(
+        "Update stale or missing component documentation directly:"
+    )[1].split("6.")[0]
+    assert "root README or package README files" not in update_step
 
 
 def test_prompt_cheatsheet_is_not_authoritative_workflow_source() -> None:
@@ -416,7 +446,7 @@ def test_prompt_cheatsheet_is_not_authoritative_workflow_source() -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.1.1
     """
     text = (PACKAGE_ROOT / "template" / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md").read_text(encoding="utf-8")
 
@@ -502,6 +532,103 @@ def test_template_text_files_have_legal_header() -> None:
             missing.append(path.relative_to(template_root).as_posix())
 
     assert missing == []
+
+
+def test_agent_instructions_require_effective_configuration_bootstrap() -> None:
+    """
+    @brief      Verify canonical skills and adapter wrappers require WP6 bootstrap.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.2
+    """
+    template_root = PACKAGE_ROOT / "template"
+    skill_names = {
+        "agentic-adoption",
+        "agentic-development",
+        "agentic-delivery",
+        "documentation-audit",
+        "python-codestyle-audit",
+        "regression-traceability",
+        "write-component-documentation",
+    }
+
+    for name in skill_names:
+        canonical = (
+            template_root / ".agentic" / "skills" / name / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        assert "<workflow> config validate" in canonical
+        assert "<workflow> config show --effective" in canonical
+        assert "selected" in canonical.lower()
+        assert "run" in canonical.lower()
+        assert "external" in canonical.lower()
+
+        for adapter in (".codex", ".claude", ".opencode", ".qwen"):
+            wrapper = (
+                template_root / adapter / "skills" / name / "SKILL.md"
+            ).read_text(encoding="utf-8")
+            assert "Before invoking the shared procedure" in wrapper
+            assert "<workflow> config validate" in wrapper
+            assert "<workflow> config show --effective" in wrapper
+
+
+def test_operator_documents_describe_only_current_workflow_contracts() -> None:
+    """
+    @brief      Verify maintained operator documents expose the schema-2 contract.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.1
+    """
+    documents_root = PACKAGE_ROOT / "template" / ".agentic" / "documents"
+    maintained = {
+        "WORKFLOW_CONFIGURATION.md",
+        "POLICY_CONFIGURATION.md",
+        "How_To_Start_A_New_Project.md",
+        "CLI_API_REFERENCE.md",
+        "PROMPT_CHEATSHEET.md",
+    }
+
+    combined = "\n".join(
+        (documents_root / name).read_text(encoding="utf-8")
+        for name in maintained
+    )
+    assert "schema_version = 2" in combined
+    assert "<workflow> config validate" in combined
+    assert "<workflow> config show --effective" in combined
+    assert ".agentic/.workspace/state/current_run" in combined
+    assert "UUIDv4" in combined
+    assert "requirements/registry" not in combined
+    assert "write_zones" not in combined
+
+
+def test_planning_examples_and_maps_use_current_artifact_contracts() -> None:
+    """
+    @brief      Verify maintained planning examples and SVG maps use WP6 terms.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    repository_root = PACKAGE_ROOT.parents[1]
+    planning_root = repository_root / "00_Planning"
+    paths = [
+        planning_root / "Agentic_Development_Architecture_Examples" / "Aegis_Example_BugFix.md",
+        planning_root / "Agentic_Development_Architecture_Examples" / "Aegis_Example_Feature.md",
+        planning_root / "Agentic_Development_Architecture_Examples" / "Aegis_Example_Existing_Repo_Adoption.md",
+        planning_root / "Aegis_Artifact_Flow.svg",
+        planning_root / "Agentic_Flow_Artifact_Map.svg",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+    assert ".agentic/.workspace/state/current_run" in combined
+    assert "UUID-backed" in combined
+    assert "requirements/registry" not in combined
+    assert ".agentic/current_run" not in combined
+    assert "write zones" not in combined.lower()
 
 
 # END OF FILE

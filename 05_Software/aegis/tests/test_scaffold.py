@@ -13,19 +13,18 @@
 @details T4 coverage verifies that every JSON-configured adapter which runs the
          write-zone guard for edit tools also runs the secret scan on the same
          matcher.
-@details T5 coverage keeps adapter secret-path denies aligned with the shared
-         write-zone guard and requires pull-request merges to use the same
-         outward-delivery permission path as PR creation.
+@details WP5 coverage requires every adapter to delegate repository read,
+         write, secret, and delivery decisions to configured Python hooks and
+         rejects native repository denylists in adapter settings or plugins.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.7.0
+@version 1.0.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
 import tomllib
@@ -33,37 +32,22 @@ import tomllib
 import pytest
 
 from aegis import __version__
+from waegis.payload.copier import (
+    OverwriteRefusedError,
+    TargetDirectoryMissingError,
+    copy_payload,
+)
 
 # CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[1]
-SCRIPT_PATH = REPO_ROOT / "02_Tools" / "create_project_from_template.py"
+TEMPLATE_ROOT = PACKAGE_ROOT / "template"
 EDIT_HOOK_CONFIGS = (
     Path(".claude/settings.json"),
     Path(".codex/hooks.json"),
     Path(".qwen/settings.json"),
 )
-
-
-# LOCAL HELPERS
-
-
-def load_scaffold_module():
-    """
-    @brief      Load scaffold module workflow behavior.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.3.0
-    """
-    spec = importlib.util.spec_from_file_location("create_project_from_template", SCRIPT_PATH)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+READ_HOOK_CONFIGS = EDIT_HOOK_CONFIGS
 
 
 # TESTS
@@ -76,12 +60,12 @@ def test_embedded_cli_package_version_matches_pyproject() -> None:
     @exception  AssertionError If package and project metadata versions differ.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.2.0
+    @version    0.2.1
     """
     pyproject_path = PACKAGE_ROOT / "template" / ".agentic" / "cli" / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
-    assert __version__ == "0.5.0"
+    assert __version__ == "1.0.0"
     assert __version__ == pyproject["project"]["version"]
 
 
@@ -132,76 +116,92 @@ def test_edit_hook_configs_pair_write_zone_and_secret_scan(config_relative_path:
             )
 
 
-def test_adapter_secret_path_denies_match_canonical_guard_patterns() -> None:
+def test_write_zone_hook_has_no_builtin_protected_path_policy() -> None:
     """
-    @brief      Keep adapter secret-file denies aligned with the canonical guard list.
+    @brief      Protected write paths come only from validated workflow policy.
     @return     None.
-    @details    T5 drift guard: every canonical secret glob except the internal
-                ``.git/**`` protection must have Read/Edit/Write denies in
-                Claude Code and Qwen; Claude's MultiEdit surface is covered too.
-                Codex keeps its filesystem-profile style while denying every
-                required extension/glob supported by that profile.
-    @exception  AssertionError If an adapter omits a required deny entry.
+    @exception  AssertionError If the hook reintroduces a static denylist.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     guard_path = PACKAGE_ROOT / "template" / ".agentic" / "hooks" / "guard_write_zone.py"
-    spec = importlib.util.spec_from_file_location("scaffold_guard_write_zone", guard_path)
-    assert spec is not None
-    assert spec.loader is not None
-    guard_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(guard_module)
-    secret_patterns = [
-        pattern for pattern in guard_module.PROTECTED_PATH_PATTERNS if pattern != ".git/**"
-    ]
+    source = guard_path.read_text(encoding="utf-8")
 
-    adapter_tools = {
-        Path(".claude/settings.json"): ("Read", "Edit", "Write", "MultiEdit"),
-        Path(".qwen/settings.json"): ("Read", "Edit", "Write"),
-    }
-    for config_relative_path, tools in adapter_tools.items():
-        data = json.loads((PACKAGE_ROOT / "template" / config_relative_path).read_text(encoding="utf-8"))
-        denies = data["permissions"]["deny"]
-        for pattern in secret_patterns:
-            for tool in tools:
-                assert f"{tool}({pattern})" in denies, (
-                    f"{config_relative_path} lacks {tool} deny for canonical pattern {pattern!r}"
-                )
-
-    codex_data = tomllib.loads(
-        (PACKAGE_ROOT / "template" / ".codex" / "config.toml").read_text(encoding="utf-8")
-    )
-    codex_filesystem = codex_data["permissions"]["agentic-workspace"]["filesystem"][":workspace_roots"]
-    for pattern in (
-        "**/*.env",
-        "**/*.pem",
-        "**/*.key",
-        "**/*.p12",
-        "**/*.pfx",
-        "**/*_rsa",
-        "**/*_rsa.pub",
-    ):
-        assert codex_filesystem.get(pattern) == "deny", f"Codex lacks filesystem deny for {pattern!r}"
+    assert "PROTECTED_PATH_PATTERNS" not in source
+    assert "config.protected_paths" in source
+    assert "policy.patterns" in source
 
 
-def test_adapter_delivery_permissions_cover_gh_pr_merge() -> None:
+@pytest.mark.parametrize("config_relative_path", READ_HOOK_CONFIGS)
+def test_json_adapter_configs_delegate_reads_to_shared_hook(
+    config_relative_path: Path,
+) -> None:
     """
-    @brief      Require PR merges to follow adapter outward-delivery controls.
+    @brief      Require JSON-configured adapters to use the Python read guard.
+    @param[in]  config_relative_path Adapter hook configuration below template.
     @return     None.
-    @details    T5 closes the gap where PR creation was denied/asked but
-                ``gh pr merge`` bypassed the adapter permission layer.
-    @exception  AssertionError If Claude, Qwen, or OpenCode omits the command.
+    @exception  AssertionError If configured reads bypass shared policy.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
+    @date       2026-07-22
     @version    0.1.0
     """
-    for config_relative_path in (Path(".claude/settings.json"), Path(".qwen/settings.json")):
-        data = json.loads((PACKAGE_ROOT / "template" / config_relative_path).read_text(encoding="utf-8"))
-        assert "Bash(gh pr merge*)" in data["permissions"]["deny"]
+    data = json.loads(
+        (PACKAGE_ROOT / "template" / config_relative_path).read_text(encoding="utf-8")
+    )
+    read_groups = [
+        group
+        for group in data["hooks"]["PreToolUse"]
+        if any(
+            "guard_read_path.py" in hook.get("command", "")
+            or "guard_read_path.py" in hook.get("commandWindows", "")
+            for hook in group.get("hooks", [])
+        )
+    ]
 
-    opencode = json.loads((PACKAGE_ROOT / "template" / "opencode.json").read_text(encoding="utf-8"))
-    assert opencode["permission"]["bash"].get("gh pr merge*") == "ask"
+    assert read_groups
+
+
+def test_adapters_contain_no_native_repository_denylist() -> None:
+    """
+    @brief      Adapter assets delegate policy without static path/command rules.
+    @return     None.
+    @exception  AssertionError If a duplicate repository denylist remains.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    template = PACKAGE_ROOT / "template"
+    for relative in (Path(".claude/settings.json"), Path(".qwen/settings.json")):
+        data = json.loads((template / relative).read_text(encoding="utf-8"))
+        assert "permissions" not in data
+
+    opencode = json.loads((template / "opencode.json").read_text(encoding="utf-8"))
+    assert opencode["permission"]["read"] == {"*": "allow"}
+    assert opencode["permission"]["edit"] == {"*": "allow"}
+    assert opencode["permission"]["bash"] == {"*": "allow"}
+
+    codex = (template / ".codex" / "config.toml").read_text(encoding="utf-8")
+    assert "**/*.env" not in codex
+    assert '".git" = "read"' not in codex
+    assert 'filesystem.":workspace_roots"' not in codex
+
+    for relative in (
+        Path(".pi/extensions/agentic-guard/bridge.ts"),
+        Path(".opencode/plugins/agentic-guard.mjs"),
+    ):
+        source = (template / relative).read_text(encoding="utf-8")
+        assert "PROTECTED_READ_PATTERNS" not in source
+        assert "protectedPathDeny" not in source
+        assert "guard_read_path.py" in source
+
+    hook_sources = "\n".join(
+        (template / ".agentic" / "hooks" / name).read_text(encoding="utf-8")
+        for name in ("guard_write_zone.py", "secret_scan.py", "delivery_preflight.py")
+    )
+    assert "REPO_WIDE_ZONES" not in hook_sources
+    assert "DELIVERY_PATTERNS" not in hook_sources
+    assert "PATTERNS = [" not in hook_sources
 
 
 def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
@@ -212,19 +212,20 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.2.0
+    @version    0.4.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
 
-    copied = module.copy_template(target)
+    result = copy_payload(TEMPLATE_ROOT, target, mode="new")
 
-    assert copied
+    assert result.copied
     assert (target / "AGENTS.md").exists()
     assert (target / "CHANGELOG.md").exists()
     assert (target / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md").exists()
     assert (target / ".agentic" / "documents" / "WORKFLOW_CHEATSHEET.svg").exists()
     assert (target / ".agentic" / "workflow.toml").exists()
+    assert ".agentic/.workspace/" in (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert not (target / ".agentic" / ".workspace").exists()
     assert (target / ".agentic" / "components.toml").exists()
     assert (target / ".codex" / "config.toml").exists()
     assert (target / "opencode.json").exists()
@@ -257,6 +258,7 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     assert (target / ".agentic" / "tools" / "install.ps1").exists()
     assert (target / ".agentic" / "tools" / "install.sh").exists()
     assert (target / ".agentic" / "hooks" / "guard_write_zone.py").exists()
+    assert (target / ".agentic" / "hooks" / "guard_read_path.py").exists()
     assert (target / ".agentic" / "LICENSE.txt").exists()
     assert (target / ".agentic" / "knowledge" / "components" / "component_template.md").exists()
     assert (target / ".agentic" / "knowledge" / "components" / "index.md").exists()
@@ -273,12 +275,11 @@ def test_scaffold_ships_polyform_license_in_agentic(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-21
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
 
-    module.copy_template(target)
+    copy_payload(TEMPLATE_ROOT, target, mode="new")
 
     license_path = target / ".agentic" / "LICENSE.txt"
     assert license_path.exists()
@@ -299,19 +300,14 @@ def test_scaffold_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
     target.mkdir()
     (target / "AGENTS.md").write_text("existing\n", encoding="utf-8")
 
-    try:
-        module.copy_template(target)
-    except SystemExit as exc:
-        assert "Refusing to overwrite" in str(exc)
-    else:
-        raise AssertionError("copy_template should reject existing files without force")
+    with pytest.raises(OverwriteRefusedError, match="Refusing to overwrite"):
+        copy_payload(TEMPLATE_ROOT, target, mode="new")
 
 
 def test_scaffold_existing_repo_requires_existing_target(tmp_path: Path) -> None:
@@ -322,17 +318,17 @@ def test_scaffold_existing_repo_requires_existing_target(tmp_path: Path) -> None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-23
-    @version    0.2.0
+    @version    0.3.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "missing-existing-repo"
 
-    try:
-        module.copy_template(target, require_existing_target=True)
-    except SystemExit as exc:
-        assert "Existing repository directory not found" in str(exc)
-    else:
-        raise AssertionError("copy_template should require an existing repo when requested")
+    with pytest.raises(TargetDirectoryMissingError):
+        copy_payload(
+            TEMPLATE_ROOT,
+            target,
+            mode="adopt",
+            require_existing_target=True,
+        )
 
 
 def test_scaffold_dry_run_does_not_write_files(tmp_path: Path) -> None:
@@ -343,15 +339,20 @@ def test_scaffold_dry_run_does_not_write_files(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-23
-    @version    0.2.0
+    @version    0.3.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "existing-repo"
     target.mkdir()
 
-    copied = module.copy_template(target, dry_run=True, require_existing_target=True)
+    result = copy_payload(
+        TEMPLATE_ROOT,
+        target,
+        mode="adopt",
+        dry_run=True,
+        require_existing_target=True,
+    )
 
-    assert copied
+    assert result.copied
     assert target.exists()
     assert not (target / ".agentic").exists()
     assert list(target.iterdir()) == []
@@ -366,12 +367,11 @@ def test_scaffold_writes_install_manifest(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-12
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
 
-    copied = module.copy_template(target)
+    result = copy_payload(TEMPLATE_ROOT, target, mode="new")
 
     manifest_file = target / ".agentic" / "install-manifest.json"
     assert manifest_file.exists()
@@ -380,9 +380,9 @@ def test_scaffold_writes_install_manifest(tmp_path: Path) -> None:
     assert manifest["product"] == "aegis"
     assert manifest["mode"] == "new"
     # Every copied payload file is recorded; the manifest never lists itself.
-    assert len(manifest["files"]) == len(copied)
+    assert len(manifest["files"]) == len(result.copied)
     assert ".agentic/install-manifest.json" not in manifest["files"]
-    assert manifest_file not in copied
+    assert ".agentic/install-manifest.json" not in result.copied
 
 
 def test_scaffold_dry_run_writes_no_manifest(tmp_path: Path) -> None:
@@ -394,15 +394,20 @@ def test_scaffold_dry_run_writes_no_manifest(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-12
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "existing-repo"
     target.mkdir()
 
-    copied = module.copy_template(target, dry_run=True, require_existing_target=True)
+    result = copy_payload(
+        TEMPLATE_ROOT,
+        target,
+        mode="adopt",
+        dry_run=True,
+        require_existing_target=True,
+    )
 
-    assert copied
+    assert result.copied
     assert not (target / ".agentic" / "install-manifest.json").exists()
     assert list(target.iterdir()) == []
 
@@ -415,9 +420,8 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     template = tmp_path / "template"
     target = tmp_path / "new-project"
     (template / "pkg" / "__pycache__").mkdir(parents=True)
@@ -427,14 +431,9 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     (template / "src").mkdir()
     (template / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
 
-    original = module.TEMPLATE_ROOT
-    try:
-        module.TEMPLATE_ROOT = template
-        copied = module.copy_template(target)
-    finally:
-        module.TEMPLATE_ROOT = original
+    result = copy_payload(template, target, mode="new")
 
-    assert copied == [target / "src" / "app.py"]
+    assert result.copied == ("src/app.py",)
     assert (target / "src" / "app.py").exists()
     assert not (target / "pkg" / "__pycache__").exists()
     assert not (target / ".pytest_cache").exists()

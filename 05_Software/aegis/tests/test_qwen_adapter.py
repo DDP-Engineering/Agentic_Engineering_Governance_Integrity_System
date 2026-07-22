@@ -10,30 +10,28 @@
 @file test_qwen_adapter.py
 @brief Python-side parity checks for the Qwen Code adapter under template/.qwen.
 @details Verifies the Qwen adapter files exist, the settings keep AGENTS.md
-         authoritative and wire the four shared Python guards, the reused skills
-         resolve to the shared engine, the outward-delivery denies are present,
-         and the scaffolder copies the adapter into a new project.
+         authoritative, delegate repository policy to shared Python hooks,
+         reuse shared skills, and contain no adapter-native denylist.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.2.0
+@version 0.4.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
+
+from waegis.payload.copier import copy_payload
 
 # CONSTANTS
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[1]
 TEMPLATE = PACKAGE_ROOT / "template"
 QWEN_DIR = TEMPLATE / ".qwen"
 HOOKS_DIR = TEMPLATE / ".agentic" / "hooks"
-SCAFFOLD_SCRIPT = REPO_ROOT / "02_Tools" / "create_project_from_template.py"
 
 SKILL_NAMES = (
     "agentic-adoption",
@@ -52,6 +50,7 @@ COMMAND_NAMES = (
 )
 
 HOOK_SCRIPTS = (
+    "guard_read_path.py",
     "guard_write_zone.py",
     "secret_scan.py",
     "delivery_preflight.py",
@@ -60,23 +59,6 @@ HOOK_SCRIPTS = (
 
 
 # LOCAL HELPERS
-
-
-def load_scaffold_module():
-    """
-    @brief      Load the scaffolder module from the tools script by file path.
-    @return     Imported ``create_project_from_template`` module object.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
-    """
-    spec = importlib.util.spec_from_file_location("create_project_from_template", SCAFFOLD_SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def read_settings() -> dict:
@@ -150,12 +132,12 @@ def test_settings_keep_agents_md_authoritative() -> None:
 
 def test_settings_wire_shared_python_guards() -> None:
     """
-    @brief      Verify the four shared guard hooks are wired and present on disk.
+    @brief      Verify the shared guard hooks are wired and present on disk.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-01
-    @version    0.1.0
+    @version    0.2.0
     """
     commands = " ".join(hook_commands(read_settings()))
     for script in HOOK_SCRIPTS:
@@ -163,20 +145,21 @@ def test_settings_wire_shared_python_guards() -> None:
         assert (HOOKS_DIR / script).exists()
 
 
-def test_settings_deny_outward_delivery_and_secrets() -> None:
+def test_settings_delegate_policy_without_native_denies() -> None:
     """
-    @brief      Verify the permission denies block publishing and secret files.
+    @brief      Verify repository policy is delegated entirely to Python hooks.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-01
-    @version    0.1.0
+    @version    0.2.0
     """
-    denies = read_settings().get("permissions", {}).get("deny", [])
-    assert "Bash(git push*)" in denies
-    assert "Bash(gh pr create*)" in denies
-    assert "Bash(git merge*)" in denies
-    assert "Read(.env)" in denies
+    settings = read_settings()
+    assert "permissions" not in settings
+    commands = " ".join(hook_commands(settings))
+    assert "guard_read_path.py" in commands
+    assert "secret_scan.py" in commands
+    assert "delivery_preflight.py" in commands
 
 
 def test_write_guard_matcher_covers_qwen_write_tool() -> None:
@@ -199,17 +182,19 @@ def test_hook_matchers_cover_friendly_and_raw_qwen_tool_names() -> None:
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     settings = read_settings()
     pre_tool = settings["hooks"]["PreToolUse"]
     post_tool = settings["hooks"]["PostToolUse"]
+    read_entry = next(entry for entry in pre_tool if "guard_read_path.py" in json.dumps(entry))
     write_entry = next(entry for entry in pre_tool if "guard_write_zone.py" in json.dumps(entry))
     shell_entry = next(entry for entry in pre_tool if "delivery_preflight.py" in json.dumps(entry))
     evidence_entry = next(entry for entry in post_tool if "post_tool_evidence.py" in json.dumps(entry))
     write_hook_names = {hook["name"] for hook in write_entry["hooks"]}
 
+    assert read_entry["matcher"] == "Read|ReadFile|read_file"
     assert write_entry["matcher"] == "Edit|WriteFile|write_file|replace"
     assert write_hook_names == {"agentic-guard-write-zone", "agentic-edit-secret-scan"}
     assert shell_entry["matcher"] == "Bash|run_shell_command"
@@ -246,12 +231,11 @@ def test_scaffold_copies_qwen_adapter(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-01
-    @version    0.1.0
+    @version    0.2.0
     """
-    module = load_scaffold_module()
     target = tmp_path / "new-project"
 
-    module.copy_template(target)
+    copy_payload(TEMPLATE, target, mode="new")
 
     assert (target / ".qwen" / "settings.json").exists()
     assert (target / ".qwen" / "README.md").exists()

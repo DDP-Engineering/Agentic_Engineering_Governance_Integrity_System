@@ -269,9 +269,8 @@ callers render.
 
 ## Payload copier and locator (`src/waegis/payload/copier.py` and `locate.py`, task T3.2)
 
-The copy step both wizards run: absorbs the proven safe-copy semantics of
-`02_Tools/create_project_from_template.py` (which is now a thin wrapper over
-this module) and emits the T3.1 install manifest on every real copy.
+The shared copy step used by both deployment wizards owns the safe-copy
+contract and emits the T3.1 install manifest on every real copy.
 
 - `locate.py` — payload resolution per plan §5: an explicit `--payload` path
   wins but is validated first (`InvalidPayloadError` unless it contains the
@@ -286,16 +285,14 @@ this module) and emits the T3.1 install manifest on every real copy.
     newline translation), so the copied file's `hash_file()` always equals
     the source's — proven by a direct hash-equality test, and the reason the
     manifest (hashed at the target) records the as-shipped hashes.
-  - **Exclusions**: the shared `should_exclude` predicate ports the legacy
+  - **Exclusions**: the shared `should_exclude` predicate enforces the payload
     rules (`__pycache__`, `.pytest_cache`, `.ruff_cache`, `node_modules`,
     `.vitest`, `*.pyc`, `*.egg-info`, `.uv-cache*`), with one fix: glob
     patterns match every path component, so files *inside* a `*.egg-info` /
-    `.uv-cache*` directory are excluded too (the legacy predicate skipped
-    the directory but still copied its contents).
+    `.uv-cache*` directory are excluded whole.
   - **Strict new-project mode** (no hook, no force): any pre-existing
     destination file raises a typed `OverwriteRefusedError` naming the path —
-    exact legacy parity, including refusing on byte-identical files and on
-    dry-run.
+    including byte-identical files and dry-run previews.
   - **Adoption mode** (`on_conflict` hook supplied): each payload file is
     classified does-not-exist (copied) / exists-identical (left in place,
     still recorded in the manifest `files` since content matches) /
@@ -303,8 +300,8 @@ this module) and emits the T3.1 install manifest on every real copy.
     internally**: the caller-supplied `ConflictDecisionHook` is called
     exactly once per conflict (never for identical or missing files) and
     returns keep-local / take-payload / write-new (payload written verbatim
-    as `<name>.new` beside the kept local file). `force=True` is the legacy
-    override, implemented as an internal constant take-payload hook;
+    as `<name>.new` beside the kept local file). `force=True` is an explicit
+    override implemented as an internal constant take-payload hook;
     combining it with a caller hook raises `ValueError`.
   - **No partial writes**: scan/classify/decide (including every hook call)
     is read-only and completes before the apply phase, so a refusal, an
@@ -356,7 +353,35 @@ own subparser (`--repo` required, `--json` flag) instead of the generic
 not-implemented stub; every other subcommand's stub registration and exit
 code (2) are unchanged.
 
-## workflow.toml generator (`src/waegis/repo/workflow_toml.py`, task T4.1)
+## workflow.toml schema-version-2 generator
+
+One generator serves `new`, `adopt`, `configure`, and `repair`; `doctor` reuses
+the same validator. WAEGIS edits the real template `.agentic/workflow.toml`,
+parses the generated text again, and refuses to save incomplete or
+inconsistent configuration. Validation uses a closed schema: unknown keys,
+wrong scalar types, invalid repository paths or globs, and duplicates after
+normalization are rejected consistently with the AEGIS parser. When validation
+has a repository root, an enforced baseline guard also requires its configured
+component manifest to exist and parse as TOML.
+
+Structural answers and repository policy are independent. Every coverage,
+source-change, alignment-scope, gate, secret, protected-path, working-tree,
+write-access, scope, and delivery mode is selected explicitly, together with
+its rule collection. Disabled or unrestricted modes require empty rules;
+active modes require their rules. `gates_mode` is also explicit, and gate
+commands are stored as complete command strings rather than argv arrays.
+
+Conditional values are emitted only for the active mode: the baseline minimum
+completion level for an enforced baseline guard, and the complete stage map for
+stage-restricted write access. Targeted section-aware substitution preserves
+local comments and unowned text.
+
+Generated projects instruct agents to run AEGIS `config validate --json` and
+`config show --effective --json`, report effective restriction modes and active
+rule counts, and state the selected worktree run or explicit run ID before
+repository work.
+
+### Historical generator design (pre-schema 2)
 
 The single generator serving both `waegis new` and `waegis adopt` (only the
 answer *source* differs — interview vs. analysis proposals). It rewrites the
@@ -382,7 +407,7 @@ scratch, and enforces every plan §7 invariant before returning.
   strategy: targeted text substitution** — a section-aware line scanner
   replaces only the twelve generator-owned keys (`source.roots`,
   `tests.roots`, the four `[traceability]` keys, `gates.test/lint`,
-  `alignment.enabled`, `write_zones.check/implementation/component-adoption`);
+  `alignment.enabled`, plus the legacy pre-schema-2 write-zone keys);
   every other line, comments included, passes through **byte-identical**
   (proven by exact string-slice tests). Comments are preserved, not
   regenerated.
@@ -473,8 +498,8 @@ command, or mutates the target repo. Distinct from
 - **Colocated tests** — files matching the top language's preset
   `test_file_patterns` sitting outside every detected test root (e.g.
   `*_test.go`) raise `ColocatedTests(detected=True, …)` with the plan D12
-  note that write zones must become file-pattern-based; T5.2 decides how to
-  act.
+  note that test discovery may require explicit structural roots and configured
+  stage patterns; the operator decides how to act.
 - **Gate candidates** — `GateCandidate` carries structured provenance
   (`source_file` + `source_detail`), the verbatim `raw` string, and the §7
   argv shape (`list[list[str]]` per `gate_test_cmds`/`gate_lint_cmds`).
@@ -525,8 +550,8 @@ The Wizard N journey (plan §8.1): every step of the table registered as a real
   re-probes); `prereq.git-identity` accepts a pending repo-local identity from
   the `git_user_name`/`git_user_email` answers, applied by
   `repo.init-or-clone` right after `git init`; `verify.workflow-smoke` accepts
-  the embedded CLI's coherent "No active agentic run" response as the healthy
-  fresh-install outcome (the real CLI exits non-zero on `status` before any
+  the embedded CLI's coherent `RUN-POINTER-MISSING` response as the healthy
+  fresh-install outcome (the real CLI exits with validation status before any
   run is started); `repo.initial-commit` proves a commit exists via
   `gitops.head_commit` (an empty porcelain status alone is also what a failed
   git call produces).
@@ -535,6 +560,10 @@ The Wizard N journey (plan §8.1): every step of the table registered as a real
   `workflow.toml` from answers is the manifest re-read and the path moved from
   `files` into `generated`, keeping the manifest truthful at every checkpoint,
   drift reports clean, and re-run detect green.
+- **Local run state** — the deployed `.gitignore` contains the exact
+  `.agentic/.workspace/` rule, while that directory is absent from the payload
+  and manifest. A worktree creates `.agentic/.workspace/state/current_run`
+  only when its first AEGIS run starts.
 - **Smoke invocations** (confirmed against the real scripts, run with
   `cwd=TARGET` because the embedded CLI resolves its repo root from the
   working directory): Windows `powershell -NoProfile -ExecutionPolicy Bypass
@@ -629,11 +658,11 @@ be misread as a health verdict). Every group reuses the same building blocks
   verbosity split).
 - **workflow.toml** — parses via `tomllib` (`fail` if it cannot); every
   configured `[source].roots`/`[tests].roots` entry exists on disk (`warn`
-  per missing root); write-zone alignment via `repo/workflow_toml.py`'s
-  `verify_workflow_invariants`, re-used exactly rather than reimplemented
+  per missing root); complete schema-version-2 validation via
+  `repo/workflow_toml.py`, re-used exactly rather than reimplemented
   (`fail` if it raises — a real foreign/manual edit on an *installed* repo,
   unlike T4.1's generation-time guard which prevents this at the source);
-  `[gates].test`/`[gates].lint` non-empty (`warn` each if empty);
+  gate mode and command consistency validated (`disabled` is explicit);
   `[components].manifest` path exists (`warn` if configured but missing).
 - **Runnability** — wrapper scripts (`run.ps1`/`run.sh`) present (`fail` if
   either is missing) and the platform-appropriate one answers `--help` with
@@ -730,6 +759,22 @@ x64/Linux x64 application archives. Embedded CPython inputs are pinned in
 `packaging/runtime-lock.json`; final artifacts have `SHA256SUMS`, an external
 release manifest, and per-archive file manifests. Use `--verify-only` to verify
 an existing output directory.
+
+Release staging excludes Python caches and bytecode, test/lint/type-checker
+caches, Node/Vitest dependency state, uv caches, and generated `*.egg-info`
+metadata using the same payload rules as deployment. Linux tar modes are
+normalized during packaging, preserving executable launchers, embedded runtime
+binaries, and shell scripts even when the archive is built on Windows; launcher
+newlines are serialized explicitly as LF for Linux and CRLF for Windows. Build
+and re-verify the complete release from this folder with:
+
+```powershell
+python packaging\build_release.py --output dist
+python packaging\build_release.py --output dist --verify-only
+```
+
+Use `--offline` only when both pinned runtime archives already exist under the
+selected `--runtime-cache`; `--zipapp-only` produces only the portable `.pyz`.
 
 Application launchers atomically register their embedded interpreter in the
 per-user WAEGIS `runtime-python` pointer. Deployed AEGIS CLI wrappers and hook

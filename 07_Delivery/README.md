@@ -12,14 +12,17 @@ publication records for the standalone AEGIS project belong here.
 
 ## Current Delivery Model
 
-The template is delivered as copied files plus a bundled Python CLI:
+WAEGIS deploys the template as copied files plus a bundled Python CLI:
 
-- `02_Tools/create_project_from_template.py` copies the installable template
-  into a target project.
+- The separate WAEGIS package configures, copies, records, and verifies the
+  installable template in a new or existing target project.
 - The copied project receives `.agentic/cli/` with the workflow CLI source.
 - The copied project receives `.agentic/tools/` with Windows PowerShell and
   Bash wrappers for immediate local execution.
 - The copied project can optionally install the CLI into `.agentic/.venv/`.
+
+WAEGIS is the deployment/lifecycle tool and is never copied into the target
+AEGIS payload.
 
 The current CLI has no third-party runtime dependencies. Python 3.11 or newer
 is required. The install scripts prefer `uv` when available and otherwise use

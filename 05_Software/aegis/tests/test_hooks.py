@@ -10,19 +10,19 @@
 @file test_hooks.py
 @brief Workflow support module for test_hooks.
 @details Covers expected workflow behavior through focused pytest checks.
-@details OS-aware case sensitivity of `guard_write_zone.matches` covered as
-         of 0.3.0 (architecture-review follow-up).
-@details T7 regression coverage (0.4.0) verifies that a governed project with
-         no active run receives actionable start guidance while an active
-         intake-stage run retains the existing write-zone denial.
+@details OS-aware case sensitivity of the hook's shared path matcher is covered
+         for configured write and read policies.
+@details WP2 coverage verifies canonical workspace-state errors for restricted
+         writes, run-independent unrestricted writes, and non-destructive
+         post-tool warnings when no valid run is selected.
 @details T5 regression coverage (0.5.0) verifies that ``gh pr merge`` reaches
          delivery preflight like PR creation and other outward actions.
-@details T6 regression coverage (0.6.0) verifies that the pre-tool secret scan
-         honors repository-configured patterns without failing closed on
-         missing configuration or invalid regular expressions.
+@details WP5 coverage verifies that write, read, secret, and delivery hooks
+         consume only the canonical schema-version-2 configuration and deny
+         pre-tool operations when that policy cannot be validated.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.6.0
+@date 2026-07-22
+@version 1.1.0
 """
 
 # IMPORTS
@@ -33,9 +33,11 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import shutil
 import sys
 from types import ModuleType
 
+from aegis import paths as paths_module
 from aegis.cli import main as cli_main
 
 
@@ -44,6 +46,9 @@ from aegis.cli import main as cli_main
 # @brief Standalone hook scripts are the single runtime source of truth; tests
 #        load them directly from the template so the executed code is covered.
 HOOKS_DIR = Path(__file__).resolve().parents[1] / "template" / ".agentic" / "hooks"
+CLI_SOURCE_DIR = HOOKS_DIR.parent / "cli" / "src"
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
 
 
 def load_hook(module_name: str) -> ModuleType:
@@ -67,8 +72,29 @@ def load_hook(module_name: str) -> ModuleType:
 
 guard_module = load_hook("guard_write_zone")
 guard_main = guard_module.main
+read_main = load_hook("guard_read_path").main
 secret_main = load_hook("secret_scan").main
 delivery_main = load_hook("delivery_preflight").main
+post_evidence_main = load_hook("post_tool_evidence").main
+config_bootstrap = load_hook("workflow_config_bootstrap")
+
+
+def test_workflow_config_bootstrap_uses_canonical_parser() -> None:
+    """
+    @brief      The shared hook bootstrap imports the delivered strict parser.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    template_root = HOOKS_DIR.parents[1]
+
+    config = config_bootstrap.load_workflow_config(template_root)
+
+    assert config.schema_version == 2
+    assert config.write_access.mode == "unrestricted"
+    payload = config_bootstrap.configuration_error_payload(RuntimeError("missing parser"))
+    assert payload["code"] == "CONFIG-BOOTSTRAP-FAILED"
 
 
 def run_cli(tmp_path: Path, *args: str) -> None:
@@ -80,8 +106,10 @@ def run_cli(tmp_path: Path, *args: str) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
+    if args and args[0] == "start":
+        configure_stage_restricted_guardrails(tmp_path)
     cwd = Path.cwd()
     try:
         import os
@@ -90,6 +118,68 @@ def run_cli(tmp_path: Path, *args: str) -> None:
         cli_main(list(args))
     finally:
         os.chdir(cwd)
+
+
+def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
+    """
+    @brief      Enable the historical stage-zone test policy explicitly.
+    @param[in]  tmp_path Temporary repository containing the shared fixture.
+    @return     None.
+    @details    WP2 removes hook fallbacks. Tests that exercise stage behavior
+                therefore opt into complete stage-restricted and protected-path
+                policies before starting a run.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    path = tmp_path / ".agentic" / "workflow.toml"
+    text = path.read_text(encoding="utf-8")
+    if 'mode = "stage_restricted"' in text:
+        return
+    text = text.replace(
+        '[guardrails.protected_paths]\nmode = "disabled"\npatterns = []\noperations = []',
+        '[guardrails.protected_paths]\nmode = "enforce"\n'
+        'patterns = [".git/**", "**/*.key", "**/id_rsa"]\n'
+        'operations = ["write"]',
+    )
+    text = text.replace(
+        '[guardrails.write_access]\nmode = "unrestricted"',
+        '[guardrails.write_access]\nmode = "stage_restricted"\n\n'
+        '[guardrails.write_access.stages]\n'
+        'intake = [".agentic/**"]\n'
+        'alignment = [".agentic/**"]\n'
+        'requirement = [".agentic/requirements/**"]\n'
+        'check = ["tests/**", "test/**"]\n'
+        'implementation = ["src/**", "app/**", "lib/**", ".agentic/knowledge/components/**"]\n'
+        'validation = []\n'
+        'delivery = [".agentic/**"]\n'
+        'adoption-intake = [".agentic/**"]\n'
+        'adoption-alignment = [".agentic/**"]\n'
+        'repo-discovery = [".agentic/**"]\n'
+        'component-map = [".agentic/**"]\n'
+        'component-adoption = [".agentic/**"]\n'
+        'baseline-review = []\n'
+        'adoption-delivery = [".agentic/**"]',
+    )
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def replace_workflow_fragment(tmp_path: Path, old: str, new: str) -> None:
+    """
+    @brief      Replace one unique policy fragment in the shared configuration.
+    @param[in]  tmp_path Temporary repository containing ``workflow.toml``.
+    @param[in]  old Exact existing fragment.
+    @param[in]  new Exact replacement fragment.
+    @return     None.
+    @exception  AssertionError If the expected fragment is not unique.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    path = tmp_path / ".agentic" / "workflow.toml"
+    text = path.read_text(encoding="utf-8")
+    assert text.count(old) == 1
+    path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
 
 
 def run_hook(func, payload: dict, monkeypatch) -> str:
@@ -102,14 +192,34 @@ def run_hook(func, payload: dict, monkeypatch) -> str:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
+    cwd_value = payload.get("cwd")
+    if isinstance(cwd_value, str):
+        install_hook_runtime(Path(cwd_value))
     stdin = io.StringIO(json.dumps(payload))
     stdout = io.StringIO()
     monkeypatch.setattr(sys, "stdin", stdin)
     monkeypatch.setattr(sys, "stdout", stdout)
     func()
     return stdout.getvalue()
+
+
+def install_hook_runtime(repo_root: Path) -> None:
+    """
+    @brief      Install the canonical parser/store package in a hook fixture.
+    @param[in]  repo_root Temporary repository used by a standalone hook.
+    @return     None.
+    @details    Delivered projects contain `.agentic/cli/src/aegis`; temporary
+                hook repositories reproduce that runtime boundary so the hook
+                bootstrap is exercised instead of importing test-process state.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    destination = repo_root / ".agentic" / "cli" / "src"
+    if not (destination / "aegis").is_dir():
+        shutil.copytree(CLI_SOURCE_DIR, destination, dirs_exist_ok=True)
 
 
 def apply_patch_payload(tmp_path: Path, target: str) -> dict:
@@ -178,7 +288,7 @@ def advance_to_implementation(tmp_path: Path) -> None:
     run_cli(tmp_path, "next")
 
 
-# --- matches() OS-aware case sensitivity (architecture-review follow-up) -------
+# --- Shared path-policy matching -----------------------------------------------
 
 
 def test_matches_is_case_insensitive_on_windows(monkeypatch) -> None:
@@ -192,7 +302,7 @@ def test_matches_is_case_insensitive_on_windows(monkeypatch) -> None:
     @date       2026-07-18
     @version    0.1.0
     """
-    monkeypatch.setattr(guard_module.os, "name", "nt")
+    monkeypatch.setattr(paths_module.os, "name", "nt")
     assert guard_module.matches("Src/App.py", "src/**")
     assert guard_module.matches("src/app.py", "SRC/**")
 
@@ -209,7 +319,7 @@ def test_matches_is_case_sensitive_on_non_windows(monkeypatch) -> None:
     @date       2026-07-18
     @version    0.1.0
     """
-    monkeypatch.setattr(guard_module.os, "name", "posix")
+    monkeypatch.setattr(paths_module.os, "name", "posix")
     assert not guard_module.matches("Src/App.py", "src/**")
     assert not guard_module.matches("src/app.py", "SRC/**")
     assert guard_module.matches("src/app.py", "src/**")
@@ -218,9 +328,9 @@ def test_matches_is_case_sensitive_on_non_windows(monkeypatch) -> None:
 # --- Codex apply_patch payloads -------------------------------------------------
 
 
-def test_guard_write_zone_no_active_run_denial_says_so(tmp_path: Path, monkeypatch) -> None:
+def test_guard_write_zone_stage_restricted_missing_run_uses_resolver_error(tmp_path: Path, monkeypatch) -> None:
     """
-    @brief      Without an active run, the denial names the missing run.
+    @brief      Stage-restricted writes require a valid local run selection.
     @param[in]  tmp_path Working directory hosting no workflow run.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
@@ -234,24 +344,22 @@ def test_guard_write_zone_no_active_run_denial_says_so(tmp_path: Path, monkeypat
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.2.0
+    @version    0.3.0
     """
-    (tmp_path / ".agentic").mkdir()
+    configure_stage_restricted_guardrails(tmp_path)
     payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
     decision = json.loads(output)["hookSpecificOutput"]
     reason = decision["permissionDecisionReason"]
     assert decision["permissionDecision"] == "deny"
-    assert "No active AEGIS run" in reason
-    assert ".agentic\\tools\\run.ps1 start --kind feature" in reason
-    assert "bash .agentic/tools/run.sh start --kind feature" in reason
-    assert "then retry. Blocked:" in reason
-    assert "src/app.py" in reason
+    assert reason.startswith("RUN-POINTER-MISSING:")
+    assert "--run-id <existing-run-id>" in reason
+    assert ".agentic/.workspace/state/current_run" in reason
 
 
-def test_guard_write_zone_no_run_bookkeeping_edit_stays_allowed(tmp_path: Path, monkeypatch) -> None:
+def test_guard_write_zone_unrestricted_policy_needs_no_run(tmp_path: Path, monkeypatch) -> None:
     """
-    @brief      Without an active run, `.agentic` edits stay allowed as before.
+    @brief      Unrestricted policy authorizes writes without resolving a run.
     @param[in]  tmp_path Working directory hosting no workflow run.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
@@ -260,10 +368,9 @@ def test_guard_write_zone_no_run_bookkeeping_edit_stays_allowed(tmp_path: Path, 
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    (tmp_path / ".agentic").mkdir()
-    payload = file_edit_payload(tmp_path, "Edit", ".agentic/notes.md")
+    payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
     assert output == ""
 
@@ -281,7 +388,7 @@ def test_guard_write_zone_active_intake_denial_message_unchanged(tmp_path: Path,
     @date       2026-07-20
     @version    0.1.0
     """
-    (tmp_path / ".agentic").mkdir()
+    (tmp_path / ".agentic").mkdir(exist_ok=True)
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
@@ -325,21 +432,25 @@ def test_guard_write_zone_allows_implementation_source_edit(tmp_path: Path, monk
     assert output == ""
 
 
-def test_guard_write_zone_allows_requirement_register_edit(tmp_path: Path, monkeypatch) -> None:
+def test_guard_write_zone_allows_requirement_snapshot_edit(tmp_path: Path, monkeypatch) -> None:
     """
-    @brief      Handle test guard write zone allows requirement register edit workflow behavior.
+    @brief      Verify the requirement stage allows canonical snapshot edits.
     @param[in]  tmp_path Input value used by the workflow helper.
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     run_cli(tmp_path, "next")
     run_cli(tmp_path, "next")
-    payload = apply_patch_payload(tmp_path, ".agentic/requirements/functional.md")
+    payload = apply_patch_payload(
+        tmp_path,
+        ".agentic/requirements/functional/"
+        "REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789.toml",
+    )
     output = run_hook(guard_main, payload, monkeypatch)
     assert output == ""
 
@@ -536,6 +647,144 @@ def test_guard_write_zone_allows_qwen_source_write_during_implementation(tmp_pat
     assert output == ""
 
 
+# --- Workspace-local post-tool evidence ---------------------------------------
+
+
+def test_post_tool_evidence_warns_without_valid_workspace_pointer(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Missing local state emits a structured non-destructive warning.
+    @param[in]  tmp_path Repository without an active-run pointer.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    payload = {
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Read",
+        "tool_use_id": "tool-1",
+        "tool_response": {},
+        "cwd": str(tmp_path),
+    }
+
+    output = run_hook(post_evidence_main, payload, monkeypatch)
+
+    warning = json.loads(output)
+    assert warning["warning"]["code"] == "RUN-POINTER-MISSING"
+    assert warning["hookSpecificOutput"]["hookEventName"] == "PostToolUse"
+    assert not (tmp_path / ".agentic" / "runs").exists()
+
+
+def test_post_tool_evidence_appends_only_to_selected_run(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A valid workspace selection receives the tool journal entry.
+    @param[in]  tmp_path Repository with an active run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Evidence state")
+    run_id = (tmp_path / ".agentic" / ".workspace" / "state" / "current_run").read_text(encoding="utf-8").strip()
+    journal = tmp_path / ".agentic" / "runs" / run_id / "journal.jsonl"
+    before = journal.read_text(encoding="utf-8")
+    payload = {
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Read",
+        "tool_use_id": "tool-2",
+        "tool_response": {"ok": True},
+        "cwd": str(tmp_path),
+    }
+
+    output = run_hook(post_evidence_main, payload, monkeypatch)
+
+    assert output == ""
+    appended = journal.read_text(encoding="utf-8")[len(before) :]
+    entry = json.loads(appended)
+    assert entry["event"] == "agentic.tool"
+    assert entry["data"]["tool_use_id"] == "tool-2"
+
+
+# --- Configured read policy ----------------------------------------------------
+
+
+def test_guard_read_path_denies_configured_protected_read(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Deny a read matched by the canonical protected-path policy.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.protected_paths]\nmode = "disabled"\npatterns = []\noperations = []',
+        '[guardrails.protected_paths]\nmode = "enforce"\n'
+        'patterns = ["credentials/**"]\noperations = ["read"]',
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": "credentials/service.json"},
+    }
+
+    output = run_hook(read_main, payload, monkeypatch)
+
+    assert "permissionDecision" in output
+    assert "credentials/service.json" in output
+
+
+def test_guard_read_path_disabled_allows_former_builtin_secret_name(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      Disabled policy carries no hidden secret/key filename denylist.
+    @param[in]  tmp_path Repository root containing unrestricted policy.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "ReadFile",
+        "cwd": str(tmp_path),
+        "tool_input": {"path": "local.env"},
+    }
+
+    assert run_hook(read_main, payload, monkeypatch) == ""
+
+
+def test_guard_read_path_invalid_configuration_denies(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Unknown read policy is an actionable deny instead of fallback.
+    @param[in]  tmp_path Repository root containing malformed TOML.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    (tmp_path / ".agentic" / "workflow.toml").write_text("not = [valid", encoding="utf-8")
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "read",
+        "cwd": str(tmp_path),
+        "tool_input": {"path": "README.md"},
+    }
+
+    output = run_hook(read_main, payload, monkeypatch)
+
+    assert "CONFIG-TOML-INVALID" in output
+    assert "permissionDecision" in output
+
+
 # --- Secret scan and delivery preflight ----------------------------------------
 
 
@@ -545,19 +794,16 @@ def test_secret_scan_denies_configured_pattern(tmp_path: Path, monkeypatch) -> N
     @param[in]  tmp_path Repository root containing ``workflow.toml``.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @details    T6 regression test: custom ``[secrets].patterns`` previously
-                protected INV-7 and working-tree audit only; the PreToolUse hook
-                ignored them.
+    @details    The hook compiles only patterns accepted by ``aegis.config``.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.2.0
+    @version    0.3.0
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        "[secrets]\npatterns = ['ACME_TOKEN_[0-9]{8}']\n",
-        encoding="utf-8",
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = ["ACME_TOKEN_[0-9]{8}"]',
     )
     payload = {
         "hook_event_name": "PreToolUse",
@@ -569,25 +815,21 @@ def test_secret_scan_denies_configured_pattern(tmp_path: Path, monkeypatch) -> N
     assert "Possible secret" in output
 
 
-def test_secret_scan_ignores_invalid_configured_regex(tmp_path: Path, monkeypatch) -> None:
+def test_secret_scan_invalid_configured_regex_denies(tmp_path: Path, monkeypatch) -> None:
     """
-    @brief      Ignore an invalid configured regex without blocking benign input.
+    @brief      Deny when the canonical parser rejects an invalid regex.
     @param[in]  tmp_path Repository root containing ``workflow.toml``.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @details    T6 keeps the hook fail-open for bad user configuration; the
-                invalid expression is neither allowed to crash nor treated as
-                a match-all denial.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.2.0
+    @version    0.3.0
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        "[secrets]\npatterns = ['[invalid']\n",
-        encoding="utf-8",
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = ["[invalid"]',
     )
     payload = {
         "hook_event_name": "PreToolUse",
@@ -596,20 +838,43 @@ def test_secret_scan_ignores_invalid_configured_regex(tmp_path: Path, monkeypatc
         "tool_input": {"command": "echo safe"},
     }
     output = run_hook(secret_main, payload, monkeypatch)
-    assert output == ""
+    assert "CONFIG-RULE-INVALID" in output
+    assert "permissionDecision" in output
 
 
-def test_secret_scan_missing_workflow_uses_builtin_patterns(tmp_path: Path, monkeypatch) -> None:
+def test_secret_scan_missing_workflow_denies_without_builtin_fallback(
+    tmp_path: Path, monkeypatch
+) -> None:
     """
-    @brief      Preserve built-in secret detection when workflow config is absent.
+    @brief      Missing workflow policy denies instead of using built-in rules.
     @param[in]  tmp_path Repository root without ``workflow.toml``.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @details    T6 configuration loading must not change the legacy no-config
-                behavior.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
+    @version    0.2.0
+    """
+    (tmp_path / ".agentic" / "workflow.toml").unlink()
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "echo sk-abcdefghijklmnopqrstuvwxyz123456"},
+    }
+    output = run_hook(secret_main, payload, monkeypatch)
+    assert "CONFIG-MISSING" in output
+    assert "permissionDecision" in output
+
+
+def test_secret_scan_disabled_has_no_builtin_patterns(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Disabled scanning allows text formerly matched by Python defaults.
+    @param[in]  tmp_path Repository root containing unrestricted policy.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
     @version    0.1.0
     """
     payload = {
@@ -618,8 +883,8 @@ def test_secret_scan_missing_workflow_uses_builtin_patterns(tmp_path: Path, monk
         "cwd": str(tmp_path),
         "tool_input": {"command": "echo sk-abcdefghijklmnopqrstuvwxyz123456"},
     }
-    output = run_hook(secret_main, payload, monkeypatch)
-    assert "Possible secret" in output
+
+    assert run_hook(secret_main, payload, monkeypatch) == ""
 
 
 def test_delivery_preflight_ignores_non_delivery_command(tmp_path: Path, monkeypatch) -> None:
@@ -631,8 +896,13 @@ def test_delivery_preflight_ignores_non_delivery_command(tmp_path: Path, monkeyp
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.delivery]\nmode = "disabled"\ncommand_patterns = []',
+        '[guardrails.delivery]\nmode = "enforce"\ncommand_patterns = ["git push"]',
+    )
     payload = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
@@ -643,15 +913,16 @@ def test_delivery_preflight_ignores_non_delivery_command(tmp_path: Path, monkeyp
     assert output == ""
 
 
-def test_delivery_preflight_denies_push_without_launcher(tmp_path: Path, monkeypatch) -> None:
+def test_delivery_preflight_disabled_ignores_former_builtin_command(
+    tmp_path: Path, monkeypatch
+) -> None:
     """
-    @brief      Deny a publish command when the workflow launcher is absent.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @param[in]  monkeypatch Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
+    @brief      Disabled delivery policy carries no built-in command fragments.
+    @param[in]  tmp_path Repository root containing unrestricted policy.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
+    @date       2026-07-22
     @version    0.1.0
     """
     payload = {
@@ -660,7 +931,66 @@ def test_delivery_preflight_denies_push_without_launcher(tmp_path: Path, monkeyp
         "cwd": str(tmp_path),
         "tool_input": {"command": "git push origin main"},
     }
+
+    assert run_hook(delivery_main, payload, monkeypatch) == ""
+
+
+def test_delivery_preflight_denies_configured_push_without_launcher(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      Deny a publish command when the workflow launcher is absent.
+    @param[in]  tmp_path Input value used by the workflow helper.
+    @param[in]  monkeypatch Input value used by the workflow helper.
+    @return     Result produced by the workflow helper.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-06-20
+    @version    0.2.0
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.delivery]\nmode = "disabled"\ncommand_patterns = []',
+        '[guardrails.delivery]\nmode = "enforce"\ncommand_patterns = ["git push"]',
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "git push origin main"},
+    }
     output = run_hook(delivery_main, payload, monkeypatch)
+    assert "permissionDecision" in output
+    assert "deny" in output
+
+
+def test_qwen_delivery_preflight_denies_configured_push_without_launcher(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      Apply delivery preflight to Qwen's raw shell tool identifier.
+    @param[in]  tmp_path Working directory without a workflow launcher.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.delivery]\nmode = "disabled"\ncommand_patterns = []',
+        '[guardrails.delivery]\nmode = "enforce"\ncommand_patterns = ["git push"]',
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "run_shell_command",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "git push origin main"},
+    }
+
+    output = run_hook(delivery_main, payload, monkeypatch)
+
     assert "permissionDecision" in output
     assert "deny" in output
 
@@ -679,8 +1009,13 @@ def test_delivery_preflight_denies_gh_pr_merge_without_launcher(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.delivery]\nmode = "disabled"\ncommand_patterns = []',
+        '[guardrails.delivery]\nmode = "enforce"\ncommand_patterns = ["gh pr merge"]',
+    )
     payload = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
@@ -690,6 +1025,30 @@ def test_delivery_preflight_denies_gh_pr_merge_without_launcher(
     output = run_hook(delivery_main, payload, monkeypatch)
     assert "permissionDecision" in output
     assert "deny" in output
+
+
+def test_delivery_preflight_invalid_configuration_denies(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Delivery commands are denied when repository policy is unknown.
+    @param[in]  tmp_path Repository root containing no workflow configuration.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    (tmp_path / ".agentic" / "workflow.toml").unlink()
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "cwd": str(tmp_path),
+        "tool_input": {"command": "git status"},
+    }
+
+    output = run_hook(delivery_main, payload, monkeypatch)
+
+    assert "CONFIG-MISSING" in output
+    assert "permissionDecision" in output
 
 
 # END OF FILE

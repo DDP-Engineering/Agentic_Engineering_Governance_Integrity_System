@@ -48,20 +48,21 @@ def test_wizard_version_is_exported() -> None:
         ("0.4.1", True),
         ("0.9.9", True),
         ("0.3.9", False),
-        ("1.0.0", False),
-        ("1.2.0", False),
+        ("1.0.0", True),
+        ("1.2.0", True),
+        ("2.0.0", False),
     ],
 )
 def test_payload_compat_range(payload_version: str, expected: bool) -> None:
     """
-    @brief      Payload compatibility respects ``>=0.4.0,<1.0`` (AD-11).
+    @brief      Payload compatibility respects ``>=0.4.0,<2.0`` (AD-11).
     @param[in]  payload_version Payload version under test.
     @param[in]  expected Expected compatibility verdict.
     @return     None
     @exception  AssertionError If the verdict does not match.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-12
-    @version    0.1.0
+    @version    0.1.1
     """
     assert version.is_payload_compatible(payload_version) is expected
 

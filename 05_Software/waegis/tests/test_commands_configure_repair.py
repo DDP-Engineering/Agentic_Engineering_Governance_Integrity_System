@@ -33,6 +33,7 @@ from waegis.commands.repair import run_repair
 from waegis.payload.copier import copy_payload
 from waegis.payload.locate import locate_payload
 from waegis.payload.manifest import hash_file, read_manifest
+from waegis.repo.workflow_toml import ALL_STAGES
 from waegis.transaction import FileTransaction
 
 from _fake_command_runner import FakeCommandRunner, failing_result
@@ -46,6 +47,28 @@ _ANSWERS = {
     "gate_test_cmds": [],
     "gate_lint_cmds": [],
     "alignment_enabled": True,
+    "baseline_guard_mode": "disabled",
+    "baseline_minimum_completion_level": "baseline-usable",
+    "coverage_mode": "disabled",
+    "coverage_roots": [],
+    "coverage_exclude": [],
+    "source_changes_mode": "unrestricted",
+    "alignment_protected_scope_mode": "disabled",
+    "alignment_protected_scope_patterns": [],
+    "gates_mode": "disabled",
+    "secrets_mode": "disabled",
+    "secret_patterns": [],
+    "protected_paths_mode": "disabled",
+    "protected_path_patterns": [],
+    "protected_path_operations": [],
+    "working_tree_mode": "unrestricted",
+    "working_tree_blocked_patterns": [],
+    "write_access_mode": "unrestricted",
+    "write_access_stages": {stage: [] for stage in ALL_STAGES},
+    "scope_mode": "unrestricted",
+    "scope_allowed_roots": [],
+    "delivery_mode": "disabled",
+    "delivery_command_patterns": [],
 }
 _ENVELOPE_KEYS = {"schema_version", "command", "status", "exit_code", "plan", "result", "messages"}
 
@@ -96,10 +119,10 @@ def test_configure_change_and_no_op(tmp_path: Path) -> None:
         payload=payload,
         runner=FakeCommandRunner({}),
     )
-    assert code == 1
+    assert code == 0
     document = _json(stream)
     assert document["command"] == "configure"
-    assert document["status"] == "warning"
+    assert document["status"] == "ok"
     assert document["result"]["configured"] is True
     assert 'roots = ["src"]' in (repo / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
     manifest = read_manifest(repo)
@@ -153,8 +176,9 @@ def test_configure_gate_failure_rolls_back_file_and_manifest(tmp_path: Path) -> 
         tmp_path / "configure.json",
         {
             "source_roots": ["src"],
-            "gate_test_cmds": [["test-command"]],
-            "run_gates": True,
+                "gate_test_cmds": [["test-command"]],
+                "gates_mode": "enforce",
+                "run_gates": True,
             "run_smoke": False,
         },
     )
@@ -281,7 +305,7 @@ def test_repair_smoke_failure_rolls_back(tmp_path: Path) -> None:
     runner = FakeCommandRunner(
         {
             _wrapper_invocation(repo, "--help"): failing_result(exit_code=1, stderr="boom"),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=1, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
         }
     )
     stream = io.StringIO()

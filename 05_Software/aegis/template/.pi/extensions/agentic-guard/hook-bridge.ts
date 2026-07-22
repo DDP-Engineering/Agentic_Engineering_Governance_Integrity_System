@@ -26,28 +26,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-/**
- * Secret/key file patterns that must never be read. Mirrors the Read denies in
- * `.claude/settings.json` and the secret subset of `PROTECTED_PATH_PATTERNS` in
- * `.agentic/hooks/guard_write_zone.py`. Matched against the file basename so a
- * secret is blocked wherever it lives.
- */
-export const PROTECTED_READ_PATTERNS: readonly string[] = [
-  ".env",
-  ".env.*",
-  "*.env",
-  "*.pem",
-  "*.key",
-  "*.p12",
-  "*.pfx",
-  "*_rsa",
-  "*_rsa.pub",
-  "id_rsa",
-  "id_rsa.pub",
-  "id_ed25519",
-  "id_ed25519.pub",
-];
-
 /** Result of running a spawned process. */
 export interface SpawnResult {
   stdout: string;
@@ -86,8 +64,6 @@ export interface HookBridge {
     hookName: string,
     payload: Record<string, unknown>,
   ): Promise<string | null>;
-  /** Return a deny reason when `path` points at a protected secret/key file, else `null`. */
-  protectedPathDeny(path: string | undefined, cwd: string): string | null;
 }
 
 /**
@@ -173,38 +149,6 @@ export function parseHookDecision(stdout: string): string | null {
   return null;
 }
 
-/** Translate a simple fnmatch-style pattern (`*`, `?`) into a `RegExp`. */
-function fnmatchToRegExp(pattern: string): RegExp {
-  let regex = "";
-  for (const ch of pattern) {
-    if (ch === "*") regex += ".*";
-    else if (ch === "?") regex += ".";
-    else regex += ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  }
-  return new RegExp(`^${regex}$`);
-}
-
-const PROTECTED_READ_MATCHERS = PROTECTED_READ_PATTERNS.map(fnmatchToRegExp);
-
-/**
- * Deny reads of secret/key files. Matches the file basename against
- * {@link PROTECTED_READ_PATTERNS}. `cwd` is accepted for signature parity with
- * the other guard checks; the basename test is location-independent.
- */
-export function protectedPathDeny(
-  path: string | undefined,
-  _cwd: string,
-): string | null {
-  if (!path) return null;
-  const basename = path.replace(/\\/g, "/").split("/").filter(Boolean).pop();
-  if (!basename) return null;
-  const lower = basename.toLowerCase();
-  if (PROTECTED_READ_MATCHERS.some((matcher) => matcher.test(lower))) {
-    return `Reading protected path is blocked: ${path}`;
-  }
-  return null;
-}
-
 /** Build a {@link HookBridge}, optionally injecting a spawn function/interpreter for tests. */
 export function createHookBridge(options: HookBridgeOptions = {}): HookBridge {
   const spawnImpl = options.spawn ?? defaultSpawn;
@@ -228,6 +172,5 @@ export function createHookBridge(options: HookBridgeOptions = {}): HookBridge {
       }
       return parseHookDecision(result.stdout);
     },
-    protectedPathDeny,
   };
 }

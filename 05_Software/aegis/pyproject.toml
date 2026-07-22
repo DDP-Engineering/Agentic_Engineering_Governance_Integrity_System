@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aegis"
-version = "0.5.0"
+version = "1.0.0"
 description = "Agentic Engineering Governance & Integrity System"
 requires-python = ">=3.11"
 dependencies = []
@@ -25,4 +25,4 @@ where = ["template/.agentic/cli/src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["template/.agentic/cli/src"]
+pythonpath = ["template/.agentic/cli/src", "../waegis/src"]

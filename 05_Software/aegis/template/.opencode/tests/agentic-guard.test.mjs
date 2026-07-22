@@ -11,7 +11,6 @@ import test from "node:test";
 import {
   AgenticGuard,
   parseHookDecision,
-  protectedPathDeny,
 } from "../plugins/agentic-guard.mjs";
 
 test("parseHookDecision returns deny reason from hook stdout", () => {
@@ -25,16 +24,28 @@ test("parseHookDecision returns deny reason from hook stdout", () => {
   assert.equal(parseHookDecision(stdout), "blocked");
 });
 
-test("protectedPathDeny blocks secret filenames", () => {
-  assert.equal(
-    protectedPathDeny("config/.env"),
-    "Reading protected path is blocked: config/.env",
+test("read tools use the shared configured Python hook", async () => {
+  const calls = [];
+  const hooks = await AgenticGuard(
+    { directory: "/repo" },
+    {
+      cwd: "/repo",
+      runPythonHook: async (hook, payload) => {
+        calls.push({ hook, payload });
+        return null;
+      },
+    },
   );
-  assert.equal(
-    protectedPathDeny("keys/id_ed25519"),
-    "Reading protected path is blocked: keys/id_ed25519",
+
+  await hooks["tool.execute.before"](
+    { tool: "read" },
+    { args: { filePath: "private/data.json" } },
   );
-  assert.equal(protectedPathDeny("src/index.ts"), null);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].hook, "guard_read_path.py");
+  assert.equal(calls[0].payload.tool_name, "Read");
+  assert.equal(calls[0].payload.tool_input.file_path, "private/data.json");
 });
 
 test("write tools run write-zone and secret hooks", async () => {

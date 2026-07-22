@@ -16,7 +16,7 @@
  *   write -> guard_write_zone.py (Write), then secret_scan.py (full input)
  *   edit  -> guard_write_zone.py (Edit),  then secret_scan.py (full input)
  *   bash  -> secret_scan.py (Bash), then delivery_preflight.py (Bash)
- *   read  -> native protected-path deny (no Python equivalent)
+ *   read  -> guard_read_path.py (configured protected-read policy)
  * PostToolUse via `tool_result`:
  *   any   -> post_tool_evidence.py (fire-and-forget)
  */
@@ -93,7 +93,12 @@ export async function handleToolCall(
     }
 
     case "read": {
-      const reason = bridge.protectedPathDeny(event.input?.path as string | undefined, cwd);
+      const reason = await bridge.runPythonHook(cwd, "guard_read_path.py", {
+        hook_event_name: "PreToolUse",
+        tool_name: "Read",
+        tool_input: { path: event.input?.path },
+        cwd,
+      });
       if (reason) return { block: true, reason };
       return undefined;
     }

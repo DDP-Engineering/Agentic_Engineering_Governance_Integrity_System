@@ -12,13 +12,14 @@
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
 @date 2026-06-20
-@version 0.1.1
+@version 0.2.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 import os
 from pathlib import Path
@@ -40,8 +41,8 @@ def run_cli(tmp_path: Path, *args: str) -> None:
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     cwd = Path.cwd()
     try:
@@ -61,9 +62,23 @@ def init_repo(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", ".agentic/workflow.toml"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "workflow config"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        env={
+            **os.environ,
+            "GIT_AUTHOR_NAME": "Test",
+            "GIT_AUTHOR_EMAIL": "test@example.com",
+            "GIT_COMMITTER_NAME": "Test",
+            "GIT_COMMITTER_EMAIL": "test@example.com",
+        },
+    )
 
 
 # TESTS
@@ -93,7 +108,10 @@ def test_working_tree_audit_reports_arbitrary_untracked_files_without_failing(
     assert report["untracked"] == [{"status": "??", "path": "meeting-notes.md"}]
 
 
-def test_working_tree_audit_fails_for_configured_blocked_patterns(tmp_path: Path) -> None:
+def test_working_tree_audit_fails_for_configured_blocked_patterns(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Handle test working tree audit fails for configured blocked patterns workflow behavior.
     @param[in]  tmp_path Input value used by the workflow helper.
@@ -101,18 +119,13 @@ def test_working_tree_audit_fails_for_configured_blocked_patterns(tmp_path: Path
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    init_repo(tmp_path)
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[working_tree]
-blocked_patterns = ["generated/**"]
-""",
-        encoding="utf-8",
+    replace_workflow_toml(
+        '[guardrails.working_tree]\nmode = "unrestricted"\nblocked_patterns = []',
+        '[guardrails.working_tree]\nmode = "restricted"\nblocked_patterns = ["generated/**"]',
     )
+    init_repo(tmp_path)
     generated = tmp_path / "generated"
     generated.mkdir()
     (generated / "artifact.txt").write_text("Generated delivery blocker.\n", encoding="utf-8")
@@ -123,7 +136,10 @@ blocked_patterns = ["generated/**"]
     assert exc.value.code == 1
 
 
-def test_working_tree_audit_matches_blocked_pattern_for_non_ascii_filename(tmp_path: Path) -> None:
+def test_working_tree_audit_matches_blocked_pattern_for_non_ascii_filename(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      A blocked-pattern path with a non-ASCII name is still matched.
     @param[in]  tmp_path Input value used by the workflow helper.
@@ -139,18 +155,13 @@ def test_working_tree_audit_matches_blocked_pattern_for_non_ascii_filename(tmp_p
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-18
-    @version    0.1.0
+    @version    0.2.0
     """
-    init_repo(tmp_path)
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[working_tree]
-blocked_patterns = ["generated/**"]
-""",
-        encoding="utf-8",
+    replace_workflow_toml(
+        '[guardrails.working_tree]\nmode = "unrestricted"\nblocked_patterns = []',
+        '[guardrails.working_tree]\nmode = "restricted"\nblocked_patterns = ["generated/**"]',
     )
+    init_repo(tmp_path)
     generated = tmp_path / "generated"
     generated.mkdir()
     (generated / "café.txt").write_text("Generated delivery blocker.\n", encoding="utf-8")
@@ -172,13 +183,12 @@ def test_delivery_preflight_allows_arbitrary_untracked_files(
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     init_repo(tmp_path)
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "demo")
     run_cli(tmp_path, "record-evidence", "--kind", "note", "--result", "info", "--summary", "ready")
-    run_cli(tmp_path, "registry", "sync")
     (tmp_path / "saved-mail.txt").write_text("Local user artifact.\n", encoding="utf-8")
 
     run_cli(tmp_path, "delivery-preflight")
@@ -189,6 +199,7 @@ def test_delivery_preflight_allows_arbitrary_untracked_files(
 def test_delivery_preflight_blocks_adoption_source_changes(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
     """
     @brief      Verify adoption delivery blocks application source changes.
@@ -197,13 +208,17 @@ def test_delivery_preflight_blocks_adoption_source_changes(
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-22
+    @param[in]  replace_workflow_toml Strict configuration editor fixture.
+    @version    0.3.0
     """
+    replace_workflow_toml(
+        '[adoption.source_changes]\nmode = "unrestricted"',
+        '[adoption.source_changes]\nmode = "blocked"',
+    )
     init_repo(tmp_path)
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt billing")
     run_cli(tmp_path, "record-evidence", "--kind", "note", "--result", "info", "--summary", "ready")
-    run_cli(tmp_path, "registry", "sync")
     source = tmp_path / "src" / "billing"
     source.mkdir(parents=True)
     (source / "invoice.py").write_text("def total():\n    return 1\n", encoding="utf-8")
@@ -220,6 +235,7 @@ def test_delivery_preflight_blocks_adoption_source_changes(
 def test_delivery_preflight_blocks_untracked_file_under_nested_source_root(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
     """
     @brief      Verify adoption delivery blocks nested untracked source roots.
@@ -228,25 +244,18 @@ def test_delivery_preflight_blocks_untracked_file_under_nested_source_root(
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-22
+    @param[in]  replace_workflow_toml Strict configuration editor fixture.
+    @version    0.3.0
     """
-    init_repo(tmp_path)
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[source]
-roots = ["src/billing"]
-
-[traceability]
-coverable_roots = ["src/billing"]
-""",
-        encoding="utf-8",
+    replace_workflow_toml('roots = ["src", "app", "lib"]', 'roots = ["src/billing"]')
+    replace_workflow_toml(
+        '[adoption.source_changes]\nmode = "unrestricted"',
+        '[adoption.source_changes]\nmode = "blocked"',
     )
+    init_repo(tmp_path)
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt billing")
     run_cli(tmp_path, "record-evidence", "--kind", "note", "--result", "info", "--summary", "ready")
-    run_cli(tmp_path, "registry", "sync")
     source = tmp_path / "src" / "billing"
     source.mkdir(parents=True)
     (source / "invoice.py").write_text("def total():\n    return 1\n", encoding="utf-8")
@@ -274,13 +283,12 @@ def test_delivery_preflight_allows_adoption_artifacts_and_characterization_tests
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     init_repo(tmp_path)
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt billing")
     run_cli(tmp_path, "record-evidence", "--kind", "note", "--result", "info", "--summary", "ready")
-    run_cli(tmp_path, "registry", "sync")
     adoption_paths = [
         ".agentic/components.toml",
         ".agentic/knowledge/components/billing.md",
@@ -302,6 +310,7 @@ def test_delivery_preflight_allows_adoption_artifacts_and_characterization_tests
 def test_delivery_preflight_blocks_adoption_source_rename_to_non_source(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
     """
     @brief      Verify adoption delivery blocks source paths hidden by renames.
@@ -310,9 +319,14 @@ def test_delivery_preflight_blocks_adoption_source_rename_to_non_source(
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-22
+    @param[in]  replace_workflow_toml Strict configuration editor fixture.
+    @version    0.3.0
     """
+    replace_workflow_toml(
+        '[adoption.source_changes]\nmode = "unrestricted"',
+        '[adoption.source_changes]\nmode = "blocked"',
+    )
     init_repo(tmp_path)
     source = tmp_path / "src" / "billing"
     source.mkdir(parents=True)
@@ -334,7 +348,6 @@ def test_delivery_preflight_blocks_adoption_source_rename_to_non_source(
     )
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt billing")
     run_cli(tmp_path, "record-evidence", "--kind", "note", "--result", "info", "--summary", "ready")
-    run_cli(tmp_path, "registry", "sync")
     docs = tmp_path / "docs"
     docs.mkdir()
     invoice.rename(docs / "invoice.py")
@@ -360,29 +373,15 @@ def test_delivery_preflight_allows_adoption_source_changes_when_config_enabled(
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
+    @date       2026-07-22
+    @version    0.2.0
     """
     init_repo(tmp_path)
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[adoption]
-behavior_changes_allowed = true
-""",
-        encoding="utf-8",
-    )
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt billing")
     run_cli(tmp_path, "record-evidence", "--kind", "note", "--result", "info", "--summary", "ready")
-    run_cli(tmp_path, "registry", "sync")
     source = tmp_path / "src" / "billing"
     source.mkdir(parents=True)
     (source / "invoice.py").write_text("def total():\n    return 1\n", encoding="utf-8")
-    waivers = tmp_path / ".agentic" / "requirements" / "coverage_waivers.txt"
-    waivers.parent.mkdir(parents=True, exist_ok=True)
-    waivers.write_text("src/billing/invoice.py\n", encoding="utf-8")
-
     run_cli(tmp_path, "delivery-preflight")
 
     output = capsys.readouterr().out

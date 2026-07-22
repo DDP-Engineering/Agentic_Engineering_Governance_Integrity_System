@@ -18,9 +18,7 @@
          package data, or
          the executing zipapp. The final fallback is the repo-checkout
          template at ``05_Software/aegis/template/`` resolved relative to
-         this installed module, mirroring how
-         ``02_Tools/create_project_from_template.py`` resolves its
-         ``TEMPLATE_ROOT``. Packaged zipapps extract their embedded payload to
+         this installed module. Packaged zipapps extract their embedded payload to
          a content-addressed per-user cache; application archives expose the
          payload beside the launcher. Also owns ``read_payload_version``: the
          payload's
@@ -193,8 +191,7 @@ def repo_checkout_payload_root() -> Path | None:
                 installed module.
     @details    From ``.../05_Software/waegis/src/waegis/payload/locate.py``
                 walk up to ``05_Software/`` and descend into
-                ``aegis/template/`` — the same shape as the legacy script's
-                ``TEMPLATE_ROOT`` resolution.
+                ``aegis/template/`` in the repository checkout.
     @return     The template directory when it exists and looks like a payload
                 root, else ``None``.
     @exception  None

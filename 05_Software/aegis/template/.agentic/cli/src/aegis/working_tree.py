@@ -17,7 +17,7 @@
          escaped, quoted string.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.3.0
+@version 0.4.0
 """
 
 # IMPORTS
@@ -29,27 +29,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from .config import WorkflowConfig, load_config
+from .config import WorkflowConfig
 from .paths import matches_pattern
 
 # CONSTANTS
-
-PROTECTED_PATH_PATTERNS = [
-    ".git/**",
-    ".env",
-    ".env.*",
-    "**/*.env",
-    "**/*.pem",
-    "**/*.key",
-    "**/*.p12",
-    "**/*.pfx",
-    "**/*_rsa",
-    "**/*_rsa.pub",
-    "**/id_rsa",
-    "**/id_rsa.pub",
-    "**/id_ed25519",
-    "**/id_ed25519.pub",
-]
 
 MAX_SECRET_SCAN_BYTES = 1_000_000
 
@@ -58,7 +41,7 @@ MAX_SECRET_SCAN_BYTES = 1_000_000
 
 def audit_working_tree(
     repo_root: Path,
-    config: WorkflowConfig | None = None,
+    config: WorkflowConfig,
     graph: Any | None = None,
 ) -> dict[str, Any]:
     """
@@ -71,16 +54,19 @@ def audit_working_tree(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.2.0
+    @version    0.3.0
     """
-    cfg = config or load_config(repo_root)
     entries = _git_status(repo_root)
     findings = []
     for entry in entries:
         path = entry["path"]
         entry_paths = _entry_paths(entry)
         blocked_adoption_path = next(
-            (candidate for candidate in entry_paths if _is_blocked_adoption_source_change(candidate, cfg, graph)),
+            (
+                candidate
+                for candidate in entry_paths
+                if _is_blocked_adoption_source_change(candidate, config, graph)
+            ),
             None,
         )
         if blocked_adoption_path:
@@ -91,11 +77,15 @@ def audit_working_tree(
                     "Adoption delivery cannot include application source changes.",
                 )
             )
-        if _matches_any(path, PROTECTED_PATH_PATTERNS):
+        if (
+            config.protected_paths.mode == "enforce"
+            and "write" in config.protected_paths.operations
+            and _matches_any(path, config.protected_paths.patterns)
+        ):
             findings.append(_finding("protected-path", path, "Protected path is present in the working tree."))
-        if _matches_any(path, cfg.working_tree_blocked_patterns):
+        if _matches_any(path, config.working_tree_blocked_patterns):
             findings.append(_finding("blocked-pattern", path, "Path matches a configured working-tree blocker."))
-        secret = _secret_match(repo_root / path, cfg.secret_patterns)
+        secret = _secret_match(repo_root / path, config.secret_patterns)
         if secret:
             findings.append(_finding("secret-pattern", path, f"Configured secret pattern matched: {secret}"))
     return {

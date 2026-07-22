@@ -7,14 +7,16 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Worked Example - Bug Fix With AEGIS
 
-> **Date**: June 17, 2026
-> **Status**: Draft, aligned to the standalone AEGIS project.
+> **Date**: July 22, 2026
+> **Status**: Current worked example, aligned to AEGIS and WAEGIS.
 > **Companion**: `Aegis_Example_Feature.md`.
 
 ## 1. Scenario
 
 The checkout discount feature already exists. The project uses AEGIS
-and has active requirement rows under `.agentic/requirements/`.
+and has active requirement snapshots under `.agentic/requirements/`.
+WAEGIS may manage installation health, repair, configuration, and upgrades from
+outside the repository, but it is not part of this in-repository bug-fix run.
 It may be driven from Codex through `.codex/skills/`, from Claude Code through
 `CLAUDE.md` and `.claude/skills/`, from Pi through the `.pi/` adapter, from
 OpenCode through `opencode.json` and `.opencode/`, or from Qwen Code through
@@ -38,7 +40,18 @@ Common replacements:
 - Windows: `.\.agentic\tools\run.ps1`
 - Ubuntu: `bash .agentic/tools/run.sh`
 
-## 2. Intake Gate
+## 2. Intake Stage
+
+Before repository inspection, the agent runs:
+
+```text
+<workflow> config validate --json
+<workflow> config show --effective --json
+```
+
+It reports all effective restriction modes and active rule counts, distinguishes
+AEGIS policy from external safety, and states that this worktree will select the
+new run.
 
 The agent starts a fix run:
 
@@ -66,7 +79,7 @@ Triage result:
 
 ```text
 Existing requirement covers the intended behavior:
-REQ-FUNC-012 - Valid percentage discounts reduce checkout total by the
+REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789 - Valid percentage discounts reduce checkout total by the
 configured rate and round monetary results to cents.
 
 This is a code defect, not a new feature requirement.
@@ -76,9 +89,9 @@ Stop summary:
 
 ```text
 Stage: intake
-Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/current_run
+Artifacts changed: .agentic/runs/<run-id>/graph.json, .agentic/.workspace/state/current_run
 Evidence: none yet
-Traceability status: impacted requirement REQ-FUNC-012 found
+Traceability status: impacted requirement REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789 found
 Needs human: confirm expected rounding rule if ambiguous
 Next prompt options:
 - Continue to Intent Alignment, then the requirement/check decision
@@ -86,13 +99,13 @@ Next prompt options:
 - Abort or park this run
 ```
 
-## 3. Intent Alignment Gate
+## 3. Intent Alignment Stage
 
 The agent records that the request is a local correction to already-contracted
 rounding behavior, not permission to redesign checkout discounts:
 
 ```text
-<workflow> alignment --source "bug report" --understanding "Correct SAVE10 cents rounding from 17.98 to 17.99 for a 19.99 order." --scope "in: existing discount rounding implementation, reproduction test, and component knowledge; out: discount policy changes" --acceptance "The reproduction passes and existing discount tests remain green." --risk low --decision proceed --reason "The expected behavior is covered by REQ-FUNC-012 and no open questions remain." --planned-path src/checkout/discounts.py --planned-path tests/test_checkout_discounts.py
+<workflow> alignment --source "bug report" --understanding "Correct SAVE10 cents rounding from 17.98 to 17.99 for a 19.99 order." --scope "in: existing discount rounding implementation, reproduction test, and component knowledge; out: discount policy changes" --acceptance "The reproduction passes and existing discount tests remain green." --risk low --decision proceed --reason "The expected behavior is covered by REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789 and no open questions remain." --planned-path src/checkout/discounts.py --planned-path tests/test_checkout_discounts.py
 ```
 
 Typical alignment stop:
@@ -100,18 +113,18 @@ Typical alignment stop:
 ```text
 Stage: alignment
 Understanding: restore the existing cents-rounding contract
-Existing requirement: REQ-FUNC-012
+Existing requirement: REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789
 Open questions: none
 Decision: proceed
 Needs human: approve the recorded fix boundary before requirement confirmation
 ```
 
-## 4. Requirement Gate
+## 4. Requirement Stage
 
 For this bug, the accepted durable requirement already exists. The agent does
 not invent a new requirement just because code is broken.
 
-The requirement gate records or confirms the related run spec:
+The requirement stage records or confirms the related run spec:
 
 ```text
 S-0001 [behavior]
@@ -125,8 +138,9 @@ The agent records it:
 <workflow> add-spec --id S-0001 --tag behavior --statement "WHEN a valid percentage discount is applied to a cents-valued order, the checkout total is rounded to the expected cent value." --status accepted
 ```
 
-If no existing requirement covered the expected behavior, this gate would add or
-update the durable requirement row first. That is the important bug-fix fork:
+If no existing requirement covered the expected behavior, this stage would
+create or update the durable requirement snapshot first. That is the important
+bug-fix fork:
 
 - covered contract: write reproduction check next;
 - missing contract: update requirements before writing the check.
@@ -141,7 +155,7 @@ Requirement status: existing durable requirement confirmed
 Needs human: approve reproduction check
 ```
 
-## 5. Check Gate
+## 5. Check Stage
 
 The agent writes a reproduction test only. It does not edit source code.
 
@@ -152,7 +166,7 @@ tests/test_checkout_discounts.py::test_save10_rounds_1999_order_to_1799
 ```
 
 The test cites `S-0001` and, where useful, the durable requirement ID
-`REQ-FUNC-012`.
+`REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789`.
 
 The agent records the check:
 
@@ -180,7 +194,7 @@ Needs human: approve implementation
 If the reproduction test unexpectedly passes, the agent stops and reports that
 the bug is not reproduced in the current environment.
 
-## 6. Implementation Gate
+## 6. Implementation Stage
 
 After approval, the agent edits only implementation files and required
 documentation.
@@ -231,9 +245,9 @@ Documentation status: discount component doc updated
 Needs human: approve validation
 ```
 
-## 7. Validation Gate
+## 7. Validation Stage
 
-Validation is read-only unless the human routes back to a previous gate.
+Validation is read-only unless the human routes back to a previous stage.
 
 The agent runs:
 
@@ -267,18 +281,20 @@ Stop summary:
 Stage: validation
 Artifacts changed: none
 Evidence: invariants pass, audits pass, full test suite passes
-Traceability status: REQ-FUNC-012 linked to reproduction test
+Traceability status: REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789 linked to reproduction test
 Documentation status: component doc current
 Needs human: approve delivery preflight/report
 ```
 
-## 8. Delivery Gate
+## 8. Delivery Stage
 
 The agent prepares delivery:
 
 ```text
-<workflow> registry sync
-<workflow> registry audit
+<workflow> impact src/checkout/discounts.py tests/test_checkout_discounts.py
+<workflow> working-tree audit
+<workflow> audit traceability
+<workflow> audit coverage
 <workflow> delivery-preflight
 <workflow> report
 ```
@@ -288,7 +304,7 @@ Delivery output:
 ```text
 Delivery preflight: pass
 Report: .agentic/runs/<run-id>/report.md
-Gate results: reproduction, focused, and full tests pass
+Validation results: reproduction, focused, and full tests pass
 Traceability status: impacted requirement verified
 Documentation status: component docs current
 Risks/open notes: none or listed
@@ -302,7 +318,7 @@ fix(checkout): round percentage discount cents correctly
 
 Intent: <run-id>
 Spec-Touched: S-0001
-Requirement-Touched: REQ-FUNC-012
+Requirement-Touched: REQ-FUNC-6f3a61e8-84fc-438a-9b0b-53554cd04789
 Tests-Added: tests/test_checkout_discounts.py::test_save10_rounds_1999_order_to_1799
 ```
 

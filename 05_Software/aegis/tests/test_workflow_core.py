@@ -12,25 +12,39 @@
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.7.0
+@version 0.10.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 from pathlib import Path
 
 import pytest
 
 from aegis.cli import main
+from aegis.config import load_config
 from aegis.invariants import blocking_failures, evaluate
 from aegis.models import Graph
-from aegis.store import load_graph
+from aegis.store import load_graph as load_graph_by_id, resolve_run_id
 
 
 # LOCAL HELPERS
+
+
+def load_active_graph(repo_root: Path) -> Graph:
+    """
+    @brief      Resolve and load the worktree-selected graph for a test.
+    @param[in]  repo_root Temporary repository root.
+    @return     Active graph loaded through the hard-break explicit API.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    return load_graph_by_id(repo_root, resolve_run_id(repo_root))
 
 
 def run_cli(tmp_path: Path, *args: str) -> None:
@@ -57,6 +71,116 @@ def run_cli(tmp_path: Path, *args: str) -> None:
 # TESTS
 
 
+def test_status_missing_workspace_pointer_exits_two_with_remediation(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief      CLI state failures use the stable validation exit contract.
+    @param[in]  tmp_path Repository without an active run.
+    @param[in]  capsys Pytest output capture fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    with pytest.raises(SystemExit) as raised:
+        run_cli(tmp_path, "status")
+
+    assert raised.value.code == 2
+    output = capsys.readouterr().out
+    assert output.startswith("RUN-POINTER-MISSING:")
+    assert ".agentic/.workspace/state/current_run" in output
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ("status",),
+        ("next",),
+        ("invariants",),
+        ("report",),
+        ("delivery-preflight",),
+        ("set-stage",),
+        ("set-access-mode",),
+        ("alignment",),
+        ("supersede-evidence",),
+        ("gates", "run"),
+        ("requirement", "activate"),
+        ("add-spec",),
+        ("add-check",),
+        ("record-evidence",),
+        ("record-change",),
+    ],
+)
+def test_graph_dependent_cli_inventory_exposes_run_id(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    command: tuple[str, ...],
+) -> None:
+    """
+    @brief Verify every normative graph-dependent leaf exposes `--run-id`.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] capsys Pytest output capture fixture.
+    @param[in] command Complete command path before `--help`.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-22
+    @version 0.1.0
+    """
+    with pytest.raises(SystemExit) as raised:
+        run_cli(tmp_path, *command, "--help")
+
+    assert raised.value.code == 0
+    assert "--run-id RUN_ID" in capsys.readouterr().out
+
+
+def test_invalid_explicit_run_id_exits_two_without_pointer_fallback(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Verify an explicit invalid selector uses the stable resolver error.
+    @param[in] tmp_path Repository without an active-run pointer.
+    @param[in] capsys Pytest output capture fixture.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-22
+    @version 0.1.0
+    """
+    with pytest.raises(SystemExit) as raised:
+        run_cli(tmp_path, "status", "--run-id", "invalid")
+
+    assert raised.value.code == 2
+    output = capsys.readouterr().out
+    assert output.startswith("RUN-ID-NOT-FOUND:")
+    assert "RUN-POINTER-MISSING" not in output
+
+
+def test_status_explicit_run_wins_without_rewriting_pointer(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Verify CLI explicit selection wins and preserves worktree state.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] capsys Pytest output capture fixture.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-22
+    @version 0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Selected")
+    selected = json.loads(capsys.readouterr().out)["run_id"]
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Pointer")
+    pointer = json.loads(capsys.readouterr().out)["run_id"]
+
+    run_cli(tmp_path, "status", "--run-id", selected)
+
+    assert json.loads(capsys.readouterr().out)["run_id"] == selected
+    assert resolve_run_id(tmp_path) == pointer
+
+
 def test_feature_flow_reaches_green_invariants(tmp_path: Path) -> None:
     """
     @brief      Handle test feature flow reaches green invariants workflow behavior.
@@ -65,7 +189,7 @@ def test_feature_flow_reaches_green_invariants(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.2.0
+    @version    0.3.0
     """
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     run_cli(
@@ -120,8 +244,8 @@ def test_feature_flow_reaches_green_invariants(tmp_path: Path) -> None:
         "--check-id",
         "C-0001",
     )
-    graph = load_graph(tmp_path)
-    failures = blocking_failures(evaluate(tmp_path, graph))
+    graph = load_active_graph(tmp_path)
+    failures = blocking_failures(evaluate(tmp_path, graph, load_config(tmp_path)))
     assert failures == []
 
 
@@ -151,7 +275,7 @@ def test_add_spec_rejects_duplicate_id(tmp_path: Path) -> None:
         run_cli(tmp_path, *command)
 
     assert str(exc_info.value) == "Spec id already exists: S-0001"
-    assert [item.id for item in load_graph(tmp_path).spec_items] == ["S-0001"]
+    assert [item.id for item in load_active_graph(tmp_path).spec_items] == ["S-0001"]
 
 
 def test_add_check_rejects_duplicate_id(tmp_path: Path) -> None:
@@ -180,7 +304,7 @@ def test_add_check_rejects_duplicate_id(tmp_path: Path) -> None:
         run_cli(tmp_path, *command)
 
     assert str(exc_info.value) == "Check id already exists: C-0001"
-    assert [item.id for item in load_graph(tmp_path).checks] == ["C-0001"]
+    assert [item.id for item in load_active_graph(tmp_path).checks] == ["C-0001"]
 
 
 def test_green_check_without_red_evidence_fails(tmp_path: Path) -> None:
@@ -191,7 +315,7 @@ def test_green_check_without_red_evidence_fails(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     run_cli(
@@ -226,8 +350,13 @@ def test_green_check_without_red_evidence_fails(tmp_path: Path) -> None:
         "--summary",
         "C-0001 passes",
     )
-    graph = load_graph(tmp_path)
-    failures = {item.id for item in blocking_failures(evaluate(tmp_path, graph))}
+    graph = load_active_graph(tmp_path)
+    failures = {
+        item.id
+        for item in blocking_failures(
+            evaluate(tmp_path, graph, load_config(tmp_path))
+        )
+    }
     assert "INV-3" in failures
 
 
@@ -335,7 +464,7 @@ def test_start_scope_hints_appear_in_status_and_journal(
 
     run_cli(tmp_path, "status")
     status = json.loads(capsys.readouterr().out)
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     journal = tmp_path / ".agentic" / "runs" / graph.run_id / "journal.jsonl"
     events = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()]
 
@@ -344,16 +473,23 @@ def test_start_scope_hints_appear_in_status_and_journal(
     assert events[0]["data"]["scope_hint"] == ["generated/client", "tools/codegen"]
 
 
-def test_scope_hint_allows_inv5_path_outside_configured_roots(tmp_path: Path) -> None:
+def test_scope_hint_does_not_override_configured_scope(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
-    @brief      Verify T12 extends INV-5 advisory scope through the start CLI.
+    @brief      Verify a run hint cannot authorize paths outside configured scope.
     @param[in]  tmp_path Temporary repository root used by the workflow helper.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.3.0
     """
+    replace_workflow_toml(
+        '[guardrails.scope]\nmode = "unrestricted"\nallowed_roots = []',
+        '[guardrails.scope]\nmode = "advisory"\nallowed_roots = ["src"]',
+    )
     run_cli(
         tmp_path,
         "start",
@@ -373,10 +509,15 @@ def test_scope_hint_allows_inv5_path_outside_configured_roots(tmp_path: Path) ->
         "generated/client/api.py",
     )
 
-    results = {item.id: item for item in evaluate(tmp_path, load_graph(tmp_path))}
+    results = {
+        item.id: item
+        for item in evaluate(
+            tmp_path, load_active_graph(tmp_path), load_config(tmp_path)
+        )
+    }
 
-    assert results["INV-5"].holds
-    assert results["INV-5"].message == "Touched paths are in configured scope."
+    assert not results["INV-5"].holds
+    assert "generated/client/api.py" in results["INV-5"].message
 
 
 def test_next_enters_alignment_when_enabled(tmp_path: Path) -> None:
@@ -392,11 +533,14 @@ def test_next_enters_alignment_when_enabled(tmp_path: Path) -> None:
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add export")
     run_cli(tmp_path, "next")
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     assert graph.stage == "alignment"
 
 
-def test_next_skips_alignment_when_disabled(tmp_path: Path) -> None:
+def test_next_skips_alignment_when_disabled(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify disabled alignment policy skips the standard alignment stage.
     @param[in]  tmp_path Temporary repository root used by the workflow helper.
@@ -404,22 +548,14 @@ def test_next_skips_alignment_when_disabled(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-03
-    @version    0.1.0
+    @version    0.2.0
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[alignment]
-enabled = false
-""",
-        encoding="utf-8",
-    )
+    replace_workflow_toml("[alignment]\nenabled = true", "[alignment]\nenabled = false")
 
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add export")
     run_cli(tmp_path, "next")
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     assert graph.stage == "requirement"
 
 
@@ -479,7 +615,7 @@ def test_alignment_records_graph_and_journal(tmp_path: Path, capsys: pytest.Capt
     )
     output = json.loads(capsys.readouterr().out)
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     alignment = graph.alignment
     assert alignment is not None
     assert alignment.source == "human prompt"
@@ -611,7 +747,7 @@ def test_alignment_allows_questions_with_recommended_responses(tmp_path: Path) -
         "Question has a default response for automated flow.",
     )
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     assert graph.alignment is not None
     assert graph.alignment.decision == "proceed"
     assert graph.alignment.recommended_responses == ["Use CSV because no alternate format was requested."]
@@ -651,7 +787,10 @@ def test_alignment_requires_pause_for_threshold_risk(tmp_path: Path) -> None:
         )
 
 
-def test_alignment_requires_pause_for_protected_planned_path(tmp_path: Path) -> None:
+def test_alignment_requires_pause_for_protected_planned_path(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify protected planned paths reject proceed decisions.
     @param[in]  tmp_path Temporary repository root used by the workflow helper.
@@ -659,17 +798,12 @@ def test_alignment_requires_pause_for_protected_planned_path(tmp_path: Path) -> 
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-03
-    @version    0.1.0
+    @version    0.2.0
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[alignment]
-risk_threshold = "high"
-protected_scope_patterns = ["src/security/**"]
-""",
-        encoding="utf-8",
+    replace_workflow_toml('risk_threshold = "medium"', 'risk_threshold = "high"')
+    replace_workflow_toml(
+        '[alignment.protected_scope]\nmode = "disabled"\npatterns = []',
+        '[alignment.protected_scope]\nmode = "enforce"\npatterns = ["src/security/**"]',
     )
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Change auth")
     run_cli(tmp_path, "next")
@@ -730,7 +864,7 @@ def test_alignment_accepts_pause_for_adoption_alignment(tmp_path: Path) -> None:
         "Need component selection.",
     )
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     assert graph.stage == "adoption-alignment"
     assert graph.alignment is not None
     assert graph.alignment.decision == "pause"
@@ -855,7 +989,7 @@ def test_adoption_run_starts_in_adoption_intake(tmp_path: Path) -> None:
     """
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt existing project")
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
 
     assert graph.intent.kind == "adoption"
     assert graph.stage == "adoption-intake"
@@ -873,7 +1007,7 @@ def test_adoption_next_uses_adoption_stage_sequence(tmp_path: Path) -> None:
     """
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt existing project")
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     assert graph.stage == "adoption-intake"
 
     for expected_stage in [
@@ -886,11 +1020,14 @@ def test_adoption_next_uses_adoption_stage_sequence(tmp_path: Path) -> None:
         "adoption-delivery",
     ]:
         run_cli(tmp_path, "next")
-        graph = load_graph(tmp_path)
+        graph = load_active_graph(tmp_path)
         assert graph.stage == expected_stage
 
 
-def test_adoption_next_skips_alignment_when_disabled(tmp_path: Path) -> None:
+def test_adoption_next_skips_alignment_when_disabled(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify disabled alignment policy skips the adoption-alignment stage.
     @param[in]  tmp_path Temporary repository root used by the workflow helper.
@@ -898,22 +1035,14 @@ def test_adoption_next_skips_alignment_when_disabled(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-03
-    @version    0.1.0
+    @version    0.2.0
     """
-    agentic = tmp_path / ".agentic"
-    agentic.mkdir()
-    (agentic / "workflow.toml").write_text(
-        """
-[alignment]
-enabled = false
-""",
-        encoding="utf-8",
-    )
+    replace_workflow_toml("[alignment]\nenabled = true", "[alignment]\nenabled = false")
 
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt existing project")
     run_cli(tmp_path, "next")
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
     assert graph.stage == "repo-discovery"
 
 
@@ -936,7 +1065,7 @@ def test_set_stage_accepts_adoption_stage_and_routes_run(tmp_path: Path) -> None
         "Human-approved adoption discovery",
     )
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
 
     assert graph.stage == "repo-discovery"
     assert graph.decisions[-1].question == "Workflow stage route"
@@ -988,7 +1117,7 @@ def test_repo_wide_access_mode_records_decision(tmp_path: Path, capsys: pytest.C
     )
     capsys.readouterr()
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
 
     assert graph.access_mode == "repo-wide"
     assert graph.decisions[-1].chosen == "repo-wide"
@@ -1008,7 +1137,7 @@ def test_set_stage_records_decision_and_routes_run(tmp_path: Path) -> None:
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     run_cli(tmp_path, "set-stage", "check", "--reason", "Human-approved test revision")
 
-    graph = load_graph(tmp_path)
+    graph = load_active_graph(tmp_path)
 
     assert graph.stage == "check"
     assert graph.decisions[-1].question == "Workflow stage route"
@@ -1024,7 +1153,7 @@ def test_unsuperseded_late_failure_blocks_no_regression(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     run_cli(tmp_path, "set-stage", "implementation", "--reason", "Testing late failure")
@@ -1039,8 +1168,13 @@ def test_unsuperseded_late_failure_blocks_no_regression(tmp_path: Path) -> None:
         "Focused regression failed",
     )
 
-    graph = load_graph(tmp_path)
-    failures = {item.id for item in blocking_failures(evaluate(tmp_path, graph))}
+    graph = load_active_graph(tmp_path)
+    failures = {
+        item.id
+        for item in blocking_failures(
+            evaluate(tmp_path, graph, load_config(tmp_path))
+        )
+    }
 
     assert "INV-4" in failures
 
@@ -1053,7 +1187,7 @@ def test_superseded_late_failure_no_longer_blocks_no_regression(tmp_path: Path) 
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
     run_cli(tmp_path, "set-stage", "implementation", "--reason", "Testing supersede flow")
@@ -1090,8 +1224,8 @@ def test_superseded_late_failure_no_longer_blocks_no_regression(tmp_path: Path) 
         "Passing rerun proves the old failure was environmental",
     )
 
-    graph = load_graph(tmp_path)
-    failures = blocking_failures(evaluate(tmp_path, graph))
+    graph = load_active_graph(tmp_path)
+    failures = blocking_failures(evaluate(tmp_path, graph, load_config(tmp_path)))
 
     assert failures == []
     assert graph.evidence[0].status == "superseded"

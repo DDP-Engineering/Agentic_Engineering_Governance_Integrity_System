@@ -1,0 +1,82 @@
+schema_version = 2
+
+[source]
+roots = ["src", "app", "lib"]
+
+[tests]
+roots = ["tests", "test"]
+
+[requirements]
+roots = [".agentic/requirements"]
+
+[documentation]
+roots = [".agentic/knowledge/components"]
+component_template = ".agentic/knowledge/components/component_template.md"
+
+[components]
+manifest = ".agentic/components.toml"
+
+[components.baseline_guard]
+mode = "disabled"
+
+[knowledge]
+roots = [".agentic/knowledge"]
+
+[reports]
+adoption_root = ".agentic/reports/adoption"
+
+[traceability]
+language = "python"
+source_extensions = [".py"]
+test_file_patterns = ["test_*.py", "*_test.py"]
+
+[traceability.coverage]
+mode = "disabled"
+coverable_roots = []
+exclude = []
+
+[adoption]
+allow_component_bundles = true
+max_bundle_components = 5
+
+[adoption.source_changes]
+mode = "unrestricted"
+
+[alignment]
+enabled = true
+pause_on_open_questions = true
+risk_threshold = "medium"
+allow_recommended_responses = true
+
+[alignment.protected_scope]
+mode = "disabled"
+patterns = []
+
+[gates]
+mode = "disabled"
+test = []
+lint = []
+
+[guardrails.secrets]
+mode = "disabled"
+patterns = []
+
+[guardrails.protected_paths]
+mode = "disabled"
+patterns = []
+operations = []
+
+[guardrails.working_tree]
+mode = "unrestricted"
+blocked_patterns = []
+
+[guardrails.write_access]
+mode = "unrestricted"
+
+[guardrails.scope]
+mode = "unrestricted"
+allowed_roots = []
+
+[guardrails.delivery]
+mode = "disabled"
+command_patterns = []

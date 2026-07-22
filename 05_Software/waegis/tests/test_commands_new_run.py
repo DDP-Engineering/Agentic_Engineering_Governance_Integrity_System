@@ -31,6 +31,7 @@ import json
 from pathlib import Path
 
 from waegis.commands.new import EXIT_FAILURE, EXIT_OK, NEW_STEP_IDS, run_new
+from waegis.repo.workflow_toml import ALL_STAGES
 
 from _fake_command_runner import FakeCommandRunner
 
@@ -44,6 +45,28 @@ _FULL_ANSWERS: dict = {
     "gate_test_cmds": [],
     "gate_lint_cmds": [],
     "alignment_enabled": True,
+    "baseline_guard_mode": "disabled",
+    "baseline_minimum_completion_level": "baseline-usable",
+    "coverage_mode": "disabled",
+    "coverage_roots": [],
+    "coverage_exclude": [],
+    "source_changes_mode": "unrestricted",
+    "alignment_protected_scope_mode": "disabled",
+    "alignment_protected_scope_patterns": [],
+    "gates_mode": "disabled",
+    "secrets_mode": "disabled",
+    "secret_patterns": [],
+    "protected_paths_mode": "disabled",
+    "protected_path_patterns": [],
+    "protected_path_operations": [],
+    "working_tree_mode": "unrestricted",
+    "working_tree_blocked_patterns": [],
+    "write_access_mode": "unrestricted",
+    "write_access_stages": {stage: [] for stage in ALL_STAGES},
+    "scope_mode": "unrestricted",
+    "scope_allowed_roots": [],
+    "delivery_mode": "disabled",
+    "delivery_command_patterns": [],
 }
 
 
@@ -278,12 +301,20 @@ def test_malformed_answers_file_fails_cleanly(tmp_path) -> None:  # type: ignore
 
 
 def test_incompatible_payload_is_rejected_before_planning(tmp_path: Path) -> None:
-    """@brief A payload outside the supported range cannot reach the engine."""
+    """
+    @brief      Verify a payload outside the supported range cannot reach the engine.
+    @param[in]  tmp_path Temporary payload and target workspace.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
     payload = tmp_path / "payload"
     (payload / ".agentic/cli").mkdir(parents=True)
     (payload / ".agentic/workflow.toml").write_text("[source]\nroots=[]\n", encoding="utf-8")
     (payload / ".agentic/cli/pyproject.toml").write_text(
-        '[project]\nname="aegis"\nversion="1.0.0"\n',
+        '[project]\nname="aegis"\nversion="2.0.0"\n',
         encoding="utf-8",
     )
     out = io.StringIO()

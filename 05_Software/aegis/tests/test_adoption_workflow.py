@@ -12,13 +12,14 @@
 @details Covers local component scope checks and adoption status commands.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.2.0
+@version 0.4.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 import os
 from pathlib import Path
@@ -26,8 +27,9 @@ from pathlib import Path
 import pytest
 
 from aegis.cli import main
+from aegis.config import load_config
 from aegis.invariants import blocking_failures, evaluate
-from aegis.store import load_graph
+from aegis.store import load_graph, resolve_run_id
 
 
 # HELPER FUNCTIONS
@@ -95,6 +97,7 @@ criticality = "high"
 def test_adoption_scope_check_blocks_unadopted_component(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
     """
     @brief      Verify scope-check exits one for unadopted mapped components.
@@ -104,8 +107,13 @@ def test_adoption_scope_check_blocks_unadopted_component(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
+    replace_workflow_toml(
+        '[components.baseline_guard]\nmode = "disabled"',
+        '[components.baseline_guard]\nmode = "enforce"\n'
+        'minimum_completion_level = "baseline-usable"',
+    )
     write_billing_manifest(tmp_path, "discovered")
 
     with pytest.raises(SystemExit) as excinfo:
@@ -223,7 +231,10 @@ def test_adoption_baseline_prints_markdown_summary(
     assert "baseline-usable" in output
 
 
-def test_component_baseline_scope_invariant_blocks_unadopted_feature_scope(tmp_path: Path) -> None:
+def test_component_baseline_scope_invariant_blocks_unadopted_feature_scope(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify feature runs block mapped unadopted component paths.
     @param[in]  tmp_path Temporary repository root.
@@ -231,21 +242,34 @@ def test_component_baseline_scope_invariant_blocks_unadopted_feature_scope(tmp_p
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.4.0
     """
+    replace_workflow_toml(
+        '[components.baseline_guard]\nmode = "disabled"',
+        '[components.baseline_guard]\nmode = "enforce"\n'
+        'minimum_completion_level = "baseline-usable"',
+    )
     write_billing_manifest(tmp_path, "discovered")
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Change invoice behavior")
     run_cli(tmp_path, "record-change", "--id", "CU-0001", "--path", "src/billing/invoice.py")
 
-    graph = load_graph(tmp_path)
-    failures = {item.id: item for item in blocking_failures(evaluate(tmp_path, graph))}
+    graph = load_graph(tmp_path, resolve_run_id(tmp_path))
+    failures = {
+        item.id: item
+        for item in blocking_failures(
+            evaluate(tmp_path, graph, load_config(tmp_path))
+        )
+    }
 
     assert "INV-9" in failures
     assert "COMPONENT-BASELINE-MISSING" in failures["INV-9"].message
     assert "billing" in failures["INV-9"].message
 
 
-def test_component_baseline_scope_invariant_does_not_block_adoption_run(tmp_path: Path) -> None:
+def test_component_baseline_scope_invariant_does_not_block_adoption_run(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
     """
     @brief      Verify adoption runs do not block on local baseline scope.
     @param[in]  tmp_path Temporary repository root.
@@ -253,14 +277,22 @@ def test_component_baseline_scope_invariant_does_not_block_adoption_run(tmp_path
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.4.0
     """
+    replace_workflow_toml(
+        '[components.baseline_guard]\nmode = "disabled"',
+        '[components.baseline_guard]\nmode = "enforce"\n'
+        'minimum_completion_level = "baseline-usable"',
+    )
     write_billing_manifest(tmp_path, "discovered")
     run_cli(tmp_path, "start", "--kind", "adoption", "--statement", "Adopt billing")
     run_cli(tmp_path, "record-change", "--id", "CU-0001", "--path", "src/billing/invoice.py")
 
-    graph = load_graph(tmp_path)
-    results = {item.id: item for item in evaluate(tmp_path, graph)}
+    graph = load_graph(tmp_path, resolve_run_id(tmp_path))
+    results = {
+        item.id: item
+        for item in evaluate(tmp_path, graph, load_config(tmp_path))
+    }
 
     assert results["INV-9"].holds
     assert "adoption runs" in results["INV-9"].message
@@ -321,6 +353,7 @@ def test_report_includes_baseline_for_non_adoption_run_with_component_manifest(
 def test_adoption_report_lists_local_scope_findings_for_touched_paths(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
     """
     @brief      Verify report surfaces local component-scope findings.
@@ -330,8 +363,13 @@ def test_adoption_report_lists_local_scope_findings_for_touched_paths(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
+    replace_workflow_toml(
+        '[components.baseline_guard]\nmode = "disabled"',
+        '[components.baseline_guard]\nmode = "enforce"\n'
+        'minimum_completion_level = "baseline-usable"',
+    )
     write_billing_manifest(tmp_path, "discovered")
     run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Change billing")
     run_cli(tmp_path, "record-change", "--id", "CU-0001", "--path", "src/billing/invoice.py")

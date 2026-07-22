@@ -9,10 +9,9 @@
 """
 @file copier.py
 @brief Manifest-aware, byte-verbatim payload copier with conflict handling.
-@details Task T3.2: absorbs the proven safe-copy semantics of
-         ``02_Tools/create_project_from_template.py`` (exclusion rules,
+@details Owns the shared deployment copy contract (exclusion rules,
          never-overwrite default, force override, dry-run preview) and extends
-         them with adoption conflict classification (does-not-exist /
+         it with adoption conflict classification (does-not-exist /
          exists-identical / exists-different), a caller-supplied per-conflict
          decision hook, and install-manifest emission (plan §6, AD-6).
 @details **The one rule this module exists to enforce:** an exists-and-different
@@ -75,8 +74,7 @@ from .manifest import (
 
 # @brief Directory-name parts never copied into a target (generated or
 #        dependency state; `node_modules`/`.vitest` belong to the `.pi/`
-#        adapter's isolated vitest setup). Ported verbatim from
-#        02_Tools/create_project_from_template.py.
+#        adapter's isolated vitest setup).
 EXCLUDED_PARTS = frozenset({"__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".vitest"})
 
 # @brief File suffixes never copied into a target.
@@ -335,14 +333,10 @@ def should_exclude(path: PurePath) -> bool:
     """
     @brief      Return whether a payload-relative path is generated or
                 dependency state that must never be copied into a target.
-    @details    Ported from ``create_project_from_template.py`` (excluded
-                directory parts, excluded suffixes, excluded glob patterns)
-                with one deliberate fix: the glob patterns are matched against
-                *every* path component, not only the final one. The legacy
-                ``path.match(pattern)`` variant excluded a ``pkg.egg-info``
-                directory itself but still copied the files inside it
-                (recreating the directory via ``mkdir(parents=True)``);
-                pattern-named cache/metadata trees are now excluded whole.
+    @details    Applies the shared excluded directory parts, suffixes, and glob
+                patterns. Glob patterns are matched against *every* path
+                component so pattern-named cache and metadata trees are
+                excluded whole.
     @param[in]  path Path relative to the payload root.
     @return     True when the path must not be copied.
     @exception  None

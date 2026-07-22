@@ -15,7 +15,7 @@
          and exclusive of the maximum, mirroring ``>=MIN,<MAX`` semantics.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-12
-@version 0.1.0
+@version 0.1.1
 """
 
 # IMPORTS
@@ -31,10 +31,10 @@ WIZARD_VERSION = "0.2.0"
 PAYLOAD_COMPAT_MIN = "0.4.0"
 
 # @brief Exclusive upper bound of the compatible AEGIS payload version.
-PAYLOAD_COMPAT_MAX = "1.0.0"
+PAYLOAD_COMPAT_MAX = "2.0.0"
 
 # @brief Human-readable compatibility specifier for reports and messages.
-PAYLOAD_COMPAT_SPEC = ">=0.4.0,<1.0"
+PAYLOAD_COMPAT_SPEC = ">=0.4.0,<2.0"
 
 
 # HELPER FUNCTIONS

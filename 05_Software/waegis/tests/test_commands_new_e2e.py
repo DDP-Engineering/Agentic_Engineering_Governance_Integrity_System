@@ -40,7 +40,7 @@ from waegis.commands.new import EXIT_OK, WORKFLOW_TOML_RELATIVE_PATH, build_new_
 from waegis.payload.manifest import ManifestState, compute_drift, load_manifest
 from waegis.probes.runner import SubprocessCommandRunner
 from waegis.repo import gitops
-from waegis.repo.workflow_toml import verify_workflow_invariants
+from waegis.repo.workflow_toml import ALL_STAGES, verify_workflow_invariants
 
 # CONSTANTS
 
@@ -63,6 +63,28 @@ _ANSWERS: dict = {
     "gate_test_cmds": [],
     "gate_lint_cmds": [],
     "alignment_enabled": True,
+    "baseline_guard_mode": "disabled",
+    "baseline_minimum_completion_level": "baseline-usable",
+    "coverage_mode": "disabled",
+    "coverage_roots": [],
+    "coverage_exclude": [],
+    "source_changes_mode": "unrestricted",
+    "alignment_protected_scope_mode": "disabled",
+    "alignment_protected_scope_patterns": [],
+    "gates_mode": "disabled",
+    "secrets_mode": "disabled",
+    "secret_patterns": [],
+    "protected_paths_mode": "disabled",
+    "protected_path_patterns": [],
+    "protected_path_operations": [],
+    "working_tree_mode": "unrestricted",
+    "working_tree_blocked_patterns": [],
+    "write_access_mode": "unrestricted",
+    "write_access_stages": {stage: [] for stage in ALL_STAGES},
+    "scope_mode": "unrestricted",
+    "scope_allowed_roots": [],
+    "delivery_mode": "disabled",
+    "delivery_command_patterns": [],
     "git_user_name": "WAEGIS E2E",
     "git_user_email": "waegis-e2e@example.com",
 }
@@ -82,7 +104,7 @@ def _run(target: Path, home: Path, answers_file: Path, *, as_json: bool = False)
     @return     ``(exit_code, captured_output)``.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     out = io.StringIO()
     code = run_new(
@@ -105,7 +127,7 @@ def answers_file(tmp_path: Path) -> Path:
     @return     Path to the answers JSON file.
     @exception  OSError If the file cannot be written.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.1.1
     """
     path = tmp_path / "answers.json"
     path.write_text(json.dumps(_ANSWERS), encoding="utf-8")
@@ -149,6 +171,8 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     verify_workflow_invariants(document, source_roots=["src"], test_roots=["tests"])
     assert document["gates"]["test"] == [] and document["gates"]["lint"] == []
     assert (target / "src" / ".gitkeep").is_file() and (target / "tests" / ".gitkeep").is_file()
+    assert ".agentic/.workspace/" in (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert not (target / ".agentic" / ".workspace").exists()
 
     # Git: work tree, clean, with the bootstrap commit.
     runner = SubprocessCommandRunner()
@@ -156,10 +180,11 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     assert gitops.status_porcelain(runner, target) == []
     assert gitops.head_commit(runner, target) is not None
 
-    # Handoff: real first prompt from the shipped cheat sheet, loud gate warning.
+    # Handoff: real first prompt and explicit disabled-gate status.
     assert "First prompt to try" in text
-    assert "agentic development workflow" in text
-    assert "will pass without checking anything" in text
+    assert "config validate --json" in text
+    assert "config show --effective --json" in text
+    assert "gate execution is disabled explicitly" in text
 
     # Journal: completed run recorded under the isolated home.
     journals = list((home / "journals").glob("*.json"))

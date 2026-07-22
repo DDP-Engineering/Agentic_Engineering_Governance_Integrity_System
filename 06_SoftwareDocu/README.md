@@ -15,12 +15,13 @@ documentation ships with the template:
   commands, evidence lifecycle, requirement activation, audits, and delivery
   preflight.
 - `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md` -
-  manual gates, Intent Alignment policy, invariant severities, and operator
-  decisions.
+  intrinsic workflow contracts, repository-policy modes, external safety
+  boundaries, and operator decisions.
 - `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md` -
   operator-ready prompts for each workflow gate.
 - `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md` -
-  repository-local configuration, traceability, gates, and write zones.
+  complete schema-version-2 structure, validation, modes, traceability, gates,
+  and configured guardrails.
 
 Presentation material maintained in this folder:
 

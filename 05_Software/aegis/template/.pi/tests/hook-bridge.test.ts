@@ -15,7 +15,6 @@ import {
 import {
   createHookBridge,
   parseHookDecision,
-  protectedPathDeny,
   type HookBridge,
   type SpawnResult,
 } from "../extensions/agentic-guard/hook-bridge";
@@ -44,7 +43,6 @@ function fakeBridge(denyReasons: Record<string, string> = {}): HookBridge & {
       calls.push({ hookName, payload });
       return denyReasons[hookName] ?? null;
     },
-    protectedPathDeny,
   };
 }
 
@@ -72,26 +70,6 @@ describe("parseHookDecision", () => {
       hookSpecificOutput: { permissionDecision: "deny" },
     });
     expect(parseHookDecision(stdout)).toBe("Blocked by agentic workflow guard.");
-  });
-});
-
-describe("protectedPathDeny", () => {
-  it.each([".env", ".env.local", "config/app.env", "deep/dir/server.pem", "tls.key", "deploy/id_rsa", "secrets.p12"])(
-    "blocks reading %s",
-    (path) => {
-      expect(protectedPathDeny(path, CWD)).not.toBeNull();
-    },
-  );
-
-  it.each(["src/app.py", "README.md", "tests/test_app.py", "envfile.txt"])(
-    "allows reading %s",
-    (path) => {
-      expect(protectedPathDeny(path, CWD)).toBeNull();
-    },
-  );
-
-  it("allows an undefined path", () => {
-    expect(protectedPathDeny(undefined, CWD)).toBeNull();
   });
 });
 
@@ -181,15 +159,27 @@ describe("handleToolCall mapping", () => {
     });
   });
 
-  it("blocks a read of a protected path natively (no Python call)", async () => {
-    const bridge = fakeBridge();
+  it("routes reads through the shared configured Python hook", async () => {
+    const bridge = fakeBridge({ "guard_read_path.py": "Reading configured protected path is blocked: private/data" });
     const result = await handleToolCall(
-      { toolName: "read", toolCallId: "t6", input: { path: ".env" } },
+      { toolName: "read", toolCallId: "t6", input: { path: "private/data" } },
       CWD,
       bridge,
     );
-    expect(result).toMatchObject({ block: true });
-    expect(bridge.calls).toHaveLength(0);
+    expect(result).toEqual({
+      block: true,
+      reason: "Reading configured protected path is blocked: private/data",
+    });
+    expect(bridge.calls).toHaveLength(1);
+    expect(bridge.calls[0]).toMatchObject({
+      hookName: "guard_read_path.py",
+      payload: {
+        hook_event_name: "PreToolUse",
+        tool_name: "Read",
+        tool_input: { path: "private/data" },
+        cwd: CWD,
+      },
+    });
   });
 
   it("allows a read of an ordinary file", async () => {
@@ -200,6 +190,7 @@ describe("handleToolCall mapping", () => {
       bridge,
     );
     expect(result).toBeUndefined();
+    expect(bridge.calls.map((c) => c.hookName)).toEqual(["guard_read_path.py"]);
   });
 
   it("ignores unrelated tools", async () => {

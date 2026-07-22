@@ -14,7 +14,7 @@
          invocation would have used) and every prompt against a
          ``ScriptedAsker``. Covers the exact wrapper invocation shapes for the
          smoke steps (``powershell -File run.ps1`` / ``bash run.sh``, run
-         inside TARGET), the fresh-install "No active agentic run" acceptance,
+         inside TARGET), the fresh-install `RUN-POINTER-MISSING` acceptance,
          the gates-recording contract, the pending repo-local git identity,
          the nested-work-tree confirmation, hooks/adapter presence, and the
          manifest ``generated`` amendment.
@@ -23,7 +23,7 @@
          see ``test_gates_top_level_decline_defers_everything_without_further_prompts``).
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -104,11 +104,15 @@ def _write_workflow_toml(target: Path, *, test_cmds: str = "[]", lint_cmds: str 
     @return     None
     @exception  OSError If the file cannot be written.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     path = target / WORKFLOW_TOML_RELATIVE_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"[gates]\ntest = {test_cmds}\nlint = {lint_cmds}\n", encoding="utf-8")
+    mode = "enforce" if test_cmds != "[]" or lint_cmds != "[]" else "disabled"
+    path.write_text(
+        f'[gates]\nmode = "{mode}"\ntest = {test_cmds}\nlint = {lint_cmds}\n',
+        encoding="utf-8",
+    )
 
 
 # TESTS
@@ -186,9 +190,9 @@ def test_cli_smoke_verify_false_without_result(tmp_path) -> None:  # type: ignor
 # --- verify.workflow-smoke ------------------------------------------------------
 
 
-def test_workflow_smoke_accepts_fresh_install_no_active_run(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_workflow_smoke_accepts_fresh_install_missing_pointer(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """
-    @brief      A fresh install's coherent "No active agentic run" response
+    @brief      A fresh install's coherent `RUN-POINTER-MISSING` response
                 (non-zero exit, confirmed against the real template CLI) is the
                 healthy outcome for the ``status`` smoke.
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
@@ -196,13 +200,13 @@ def test_workflow_smoke_accepts_fresh_install_no_active_run(tmp_path, monkeypatc
     @return     None
     @exception  AssertionError If the argv or the acceptance is wrong.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path)
     expected = ("bash", str(tmp_path / ".agentic" / "tools" / "run.sh"), "status")
     runner = FakeCommandRunner(
-        {expected: failing_result(exit_code=1, stderr="No active agentic run. Start one with: aegis start")}
+        {expected: failing_result(exit_code=2, stderr="RUN-POINTER-MISSING: No active AEGIS run is selected")}
     )
     ctx = _ctx(tmp_path, runner)
     spec = _CATALOG.get("verify.workflow-smoke")
@@ -252,12 +256,12 @@ def test_workflow_smoke_runs_gates_only_when_configured_and_passed(tmp_path, mon
     @version    0.1.0
     """
     monkeypatch.setattr(os, "name", "posix")
-    _write_workflow_toml(tmp_path, test_cmds='[["echo", "hi"]]')
+    _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     wrapper = str(tmp_path / ".agentic" / "tools" / "run.sh")
     status_argv = ("bash", wrapper, "status")
     gates_argv = ("bash", wrapper, "gates", "run")
     responses = {
-        status_argv: failing_result(exit_code=1, stderr="No active agentic run"),
+        status_argv: failing_result(exit_code=2, stderr="RUN-POINTER-MISSING"),
         gates_argv: ok_result(stdout="gates ok"),
     }
     spec = _CATALOG.get("verify.workflow-smoke")
@@ -419,7 +423,7 @@ def test_gates_records_pass_and_accepted_empty(tmp_path) -> None:  # type: ignor
     @author     Eng. Dan Dumitru Pasare
     @version    0.1.0
     """
-    _write_workflow_toml(tmp_path, test_cmds='[["echo", "hi"]]')
+    _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({("echo", "hi"): ok_result(stdout="hi")})
     ctx = _ctx(tmp_path, runner)
     spec = _CATALOG.get("deploy.gates")
@@ -443,7 +447,7 @@ def test_gates_failing_command_must_be_explicitly_accepted(tmp_path) -> None:  #
     @date       2026-07-18
     @version    0.1.1
     """
-    _write_workflow_toml(tmp_path, test_cmds='[["false-cmd"]]')
+    _write_workflow_toml(tmp_path, test_cmds='["false-cmd"]')
     responses = {("false-cmd",): failing_result(exit_code=1, stderr="boom")}
     spec = _CATALOG.get("deploy.gates")
 
@@ -472,7 +476,7 @@ def test_gates_deferred_execution_is_recorded(tmp_path) -> None:  # type: ignore
     @date       2026-07-18
     @version    0.1.1
     """
-    _write_workflow_toml(tmp_path, test_cmds='[["echo", "hi"]]')
+    _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({})
     # confirms: proceed with gates? yes; run test gate now? NO; accept empty
     # lint? yes.
@@ -503,7 +507,7 @@ def test_gates_top_level_decline_defers_everything_without_further_prompts(tmp_p
     @date       2026-07-18
     @version    0.1.0
     """
-    _write_workflow_toml(tmp_path, test_cmds='[["echo", "hi"]]')
+    _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({})
     # A single False must be enough: no per-gate follow-up prompt occurs.
     ctx = _ctx(tmp_path, runner, confirms=[False])

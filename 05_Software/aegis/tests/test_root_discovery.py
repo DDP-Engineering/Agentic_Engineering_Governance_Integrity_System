@@ -19,7 +19,7 @@
          behavior).
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -207,6 +207,7 @@ def test_start_from_subdirectory_creates_run_at_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    unrestricted_workflow_toml: str,
 ) -> None:
     """
     @brief      `aegis start` run from a subdirectory writes under the real root.
@@ -219,10 +220,15 @@ def test_start_from_subdirectory_creates_run_at_root(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
     root = tmp_path / "project"
     (root / ".agentic").mkdir(parents=True)
+    (root / ".agentic" / "workflow.toml").write_text(
+        unrestricted_workflow_toml,
+        encoding="utf-8",
+        newline="\n",
+    )
     subdirectory = root / "src"
     subdirectory.mkdir()
     monkeypatch.chdir(subdirectory)
@@ -238,20 +244,27 @@ def test_status_from_subdirectory_finds_active_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    unrestricted_workflow_toml: str,
 ) -> None:
     """
     @brief      `aegis status` from a subdirectory reports the root's active run.
     @param[in]  tmp_path Pytest-provided temporary directory.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @param[in]  capsys Pytest capture fixture.
+    @param[in]  unrestricted_workflow_toml Complete strict workflow config.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
     root = tmp_path / "project"
     (root / ".agentic").mkdir(parents=True)
+    (root / ".agentic" / "workflow.toml").write_text(
+        unrestricted_workflow_toml,
+        encoding="utf-8",
+        newline="\n",
+    )
     subdirectory = root / "src"
     subdirectory.mkdir()
     monkeypatch.chdir(root)

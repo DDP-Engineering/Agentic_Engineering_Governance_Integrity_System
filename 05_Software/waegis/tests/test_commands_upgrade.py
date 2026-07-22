@@ -174,14 +174,14 @@ def _smoke_ok_runner(repo: Path) -> FakeCommandRunner:
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner`.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     return FakeCommandRunner(
         {
             ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             _wrapper_invocation(repo, "--help"): ok_result(),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=1, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
         }
     )
 
@@ -192,14 +192,14 @@ def _smoke_fail_runner(repo: Path) -> FakeCommandRunner:
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner` whose ``--help`` fails.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     return FakeCommandRunner(
         {
             ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             _wrapper_invocation(repo, "--help"): failing_result(exit_code=1, stderr="boom"),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=1, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
         }
     )
 
@@ -698,7 +698,7 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
     @exception  AssertionError If the upgrade fails or omits a Git operation.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.1.0
+    @version    0.2.0
     """
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
@@ -713,7 +713,7 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             ("git", "-C", str(repo), "checkout", "-b", branch): ok_result(),
             _wrapper_invocation(repo, "--help"): ok_result(),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=1, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
             ("git", "-C", str(repo), "add", "-A"): ok_result(),
             ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1"): ok_result(),
         }
@@ -852,6 +852,15 @@ def test_run_upgrade_missing_repo_is_operational_error(tmp_path: Path) -> None:
 
 
 def test_real_template_as_new_payload(tmp_path: Path) -> None:
+    """
+    @brief      Verify upgrade actions against the current shipped AEGIS payload.
+    @param[in]  tmp_path Temporary repository and payload workspace.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.1
+    """
     real = locate_payload()  # the repo-checkout template
     repo = tmp_path / "repo"
     copy_payload(real, repo, mode="new")  # manifest O == real template hashes
@@ -864,12 +873,12 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
 
     # (a) upstream changed AGENTS.md (repo copy unmodified -> AUTO_APPLY_NEW)
     _write(new / "AGENTS.md", (new / "AGENTS.md").read_text(encoding="utf-8") + "\n# upstream change\n")
-    # (b) upstream removed a requirements file (repo copy unmodified -> DELETE_REMOVED)
-    removed_rel = ".agentic/requirements/security.md"
+    # (b) upstream removed a category placeholder (repo copy unmodified -> DELETE_REMOVED)
+    removed_rel = ".agentic/requirements/security/.gitkeep"
     (new / removed_rel).unlink()
     # (c) upstream version bump
     ver_file = new / ".agentic" / "cli" / "pyproject.toml"
-    ver_file.write_text(ver_file.read_text(encoding="utf-8").replace('version = "0.5.0"', 'version = "0.5.1"'), encoding="utf-8")
+    ver_file.write_text(ver_file.read_text(encoding="utf-8").replace('version = "1.0.0"', 'version = "1.0.1"'), encoding="utf-8")
 
     # Operator locally edited CLAUDE.md (upstream unchanged there -> KEEP_LOCAL).
     _write(repo / "CLAUDE.md", (repo / "CLAUDE.md").read_text(encoding="utf-8") + "\n# my local note\n")
@@ -884,7 +893,7 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
 
     report = apply_upgrade(plan, hook=None, runner=_smoke_ok_runner(repo))
     assert report.manifest_written is True
-    assert report.manifest.payload_version == "0.5.1"
+    assert report.manifest.payload_version == "1.0.1"
     assert not (repo / removed_rel).exists()  # removed upstream, unmodified -> deleted
     assert "# upstream change" in (repo / "AGENTS.md").read_text(encoding="utf-8")
     assert "# my local note" in (repo / "CLAUDE.md").read_text(encoding="utf-8")  # local edit preserved

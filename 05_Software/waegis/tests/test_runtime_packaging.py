@@ -9,9 +9,11 @@
 """
 @file test_runtime_packaging.py
 @brief Embedded-runtime registration and payload-zipapp acceptance tests.
+@details Covers runtime discovery, reproducible source filtering, pinned
+         runtime metadata, zipapp execution, and archive extraction safety.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.1.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -96,7 +98,7 @@ def test_payload_bundled_zipapp_smoke_and_hash_verification(tmp_path: Path) -> N
     assert result.returncode == 0, result.stderr
     document = json.loads(result.stdout)
     assert document["result"]["packaging_type"] == "zipapp"
-    assert document["result"]["bundled_payload_version"] == "0.5.0"
+    assert document["result"]["bundled_payload_version"] == "1.0.0"
     assert len(document["result"]["bundled_payload_digest"]) == 64
 
     artifacts[0].write_bytes(artifacts[0].read_bytes() + b"corrupt")
@@ -116,8 +118,55 @@ def test_runtime_lock_pins_both_release_assets() -> None:
     assert all(len(entry["sha256"]) == 64 for entry in lock["targets"].values())
 
 
+def test_release_copy_excludes_generated_payload_state(tmp_path: Path) -> None:
+    """
+    @brief      Keep release staging aligned with deployment-copy exclusions.
+    @param[in]  tmp_path Temporary source and destination roots.
+    @return     None.
+    @exception  AssertionError If generated dependency, cache, metadata, or
+                bytecode state reaches the staged release tree.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.1.0
+    """
+    builder = _builder()
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    included = source / "src" / "app.py"
+    included.parent.mkdir(parents=True)
+    included.write_text("print('release')\n", encoding="utf-8")
+    excluded_files = (
+        source / "src" / "__pycache__" / "app.pyc",
+        source / ".pytest_cache" / "README.md",
+        source / ".mypy_cache" / "state.json",
+        source / ".ruff_cache" / "state",
+        source / ".pi" / "node_modules" / "package" / "index.js",
+        source / ".pi" / ".vitest" / "results.json",
+        source / ".uv-cache-build" / "archive.bin",
+        source / "package.egg-info" / "PKG-INFO",
+        source / "standalone.pyc",
+    )
+    for path in excluded_files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"generated")
+
+    builder._copy_tree(source, destination)
+
+    assert (destination / "src" / "app.py").read_text(encoding="utf-8") == "print('release')\n"
+    for path in excluded_files:
+        assert not (destination / path.relative_to(source)).exists()
+
+
 def test_runtime_extraction_materializes_relative_symlinks(tmp_path: Path) -> None:
-    """@brief Linux runtime links become ordinary files on a Windows build host."""
+    """
+    @brief      Materialize runtime links and retain executable-mode metadata.
+    @param[in]  tmp_path Temporary runtime archive and extraction root.
+    @return     None.
+    @exception  AssertionError If link bytes or executable metadata are lost.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.2.0
+    """
     builder = _builder()
     archive_path = tmp_path / "runtime.tar.gz"
     content = b"embedded-python"
@@ -129,15 +178,54 @@ def test_runtime_extraction_materializes_relative_symlinks(tmp_path: Path) -> No
         link = tarfile.TarInfo("python/bin/python3")
         link.type = tarfile.SYMTYPE
         link.linkname = "python3.13"
+        link.mode = 0o777
         archive.addfile(link)
 
     destination = tmp_path / "runtime"
-    builder._extract_runtime(archive_path, destination)
+    executable_files = builder._extract_runtime(archive_path, destination)
 
     materialized = destination / "python/bin/python3"
     assert materialized.is_file()
     assert not materialized.is_symlink()
     assert materialized.read_bytes() == content
+    assert executable_files == frozenset({"python/bin/python3", "python/bin/python3.13"})
+
+
+def test_linux_tar_filter_normalizes_cross_build_modes() -> None:
+    """
+    @brief      Preserve required Linux executables in Windows-hosted builds.
+    @return     None.
+    @exception  AssertionError If directory, data, script, launcher, or runtime
+                modes are not deterministic and executable where required.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-22
+    @version    0.2.0
+    """
+    builder = _builder()
+    executable_paths = frozenset({"waegis", "runtime/python/bin/python3"})
+
+    directory = tarfile.TarInfo("waegis-linux-x64/runtime")
+    directory.type = tarfile.DIRTYPE
+    launcher = tarfile.TarInfo("waegis-linux-x64/waegis")
+    interpreter = tarfile.TarInfo("waegis-linux-x64/runtime/python/bin/python3")
+    shell_script = tarfile.TarInfo("waegis-linux-x64/payload/.agentic/tools/run.sh")
+    data = tarfile.TarInfo("waegis-linux-x64/payload/AGENTS.md")
+
+    for member in (directory, launcher, interpreter, shell_script, data):
+        builder._linux_tar_filter(
+            member,
+            root_name="waegis-linux-x64",
+            executable_paths=executable_paths,
+        )
+
+    assert directory.mode == 0o755
+    assert launcher.mode == 0o755
+    assert interpreter.mode == 0o755
+    assert shell_script.mode == 0o755
+    assert data.mode == 0o644
+    launcher_text = builder._linux_launcher("runtime/python/bin/python3")
+    assert launcher_text.startswith("#!/usr/bin/env sh\n")
+    assert "\r\n" not in launcher_text
 
 
 # END OF FILE

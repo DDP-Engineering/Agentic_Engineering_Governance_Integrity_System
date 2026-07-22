@@ -16,6 +16,12 @@ Do not duplicate the workflow contract here. `AGENTS.md` remains the canonical
 source for gate order, requirements, documentation rules, safety rules, and stop
 format. Pi reads `AGENTS.md` natively.
 
+Before repository work, run the project-local `config validate --json` and
+`config show --effective --json` commands. Report write, protected-read/path,
+scope, secret, gate, coverage, and delivery modes and active rule counts, plus
+the selected worktree run or explicit `--run-id`. AEGIS policy comes only from
+the validated file; Pi trust and host controls remain separate.
+
 ## Contents
 
 - `package.json` - Pi package manifest. Declares the `agentic-guard` extension
@@ -28,12 +34,12 @@ format. Pi reads `AGENTS.md` natively.
   - `index.ts` - subscribes to `tool_call` / `tool_result` and wires the bridge.
   - `bridge.ts` - maps Pi tool events onto the Python guard hooks.
   - `hook-bridge.ts` - spawns the `.agentic/hooks/*.py` scripts and parses their
-    deny signal; also the protected-path read check.
+    deny signal without interpreting repository policy.
 - `tests/hook-bridge.test.ts` - vitest specs for the mapping and decision logic.
 
 ## How it works
 
-Pi's hooks are in-process TypeScript, but the four guard hooks under
+Pi's hooks are in-process TypeScript, but the shared guard hooks under
 `.agentic/hooks/` already speak a clean JSON-on-stdin protocol. The extension
 translates Pi tool events into the existing hook payloads and reuses the Python
 **byte-for-byte**:
@@ -42,11 +48,13 @@ translates Pi tool events into the existing hook payloads and reuses the Python
 |---|---|---|
 | `write` / `edit` | `guard_write_zone.py`, then `secret_scan.py` (full input) | block with reason |
 | `bash` | `secret_scan.py`, then `delivery_preflight.py` | block with reason |
-| `read` | native protected-path check (mirrors the `.claude` Read denies) | block with reason |
+| `read` | `guard_read_path.py` | block with reason |
 | `tool_result` (any) | `post_tool_evidence.py` | fire-and-forget journal entry |
 
 `block` is returned as `{ block: true, reason }`. Pi enforces this in every mode
 (TUI, RPC, JSON, print) because blocking is a return value, not a UI prompt.
+Read, write, secret, and delivery rules come only from the validated
+`.agentic/workflow.toml`; the TypeScript bridge contains no repository denylist.
 
 > **Transport note:** Pi's `pi.exec()` cannot pass stdin (its options are only
 > `{ signal, timeout }`, with no `cwd` option either), so the hooks are spawned

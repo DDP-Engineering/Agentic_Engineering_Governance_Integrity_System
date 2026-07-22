@@ -4,6 +4,17 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .agentic/tools/run_hook.mjs .agentic/hooks/guard_read_path.py",
+            "commandWindows": "node .agentic\\tools\\run_hook.mjs .agentic\\hooks\\guard_read_path.py",
+            "statusMessage": "Checking configured read policy"
+          }
+        ]
+      },
+      {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
           {

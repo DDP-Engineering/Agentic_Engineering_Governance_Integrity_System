@@ -7,6 +7,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Per-worktree AEGIS runtime state is created on demand and never tracked.
+.agentic/.workspace/
+
 # Adapter dependencies are installed on demand.
 node_modules/
 .vitest/
