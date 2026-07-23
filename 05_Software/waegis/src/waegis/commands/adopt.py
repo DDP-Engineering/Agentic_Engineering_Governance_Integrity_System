@@ -88,7 +88,7 @@ from ..engine import (
 )
 from ..io.answers import AnswersFileError, load_answers_file, unknown_keys
 from ..io.console import plan_preview_json, run_summary_json
-from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_VALIDATION, write_envelope
+from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
 from ..io.prompts import (
     ConsoleAsker,
     FieldSpec,
@@ -125,6 +125,7 @@ from ..repo.gitops import (
     status_porcelain,
 )
 from ..repo.workflow_toml import WORKFLOW_FIELD_SPECS, generate_workflow_toml
+from ..transaction import payload_transaction, recover_incomplete_transactions
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from .new import (
     COMMON_PREFIX_STEPS,
@@ -937,8 +938,8 @@ def _act_adoption_copy(ctx: EngineContext) -> None:
     @exception  waegis.payload.locate.PayloadLocateError If no payload resolves.
     @exception  waegis.payload.copier.CopierError On a copy failure.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     payload = _payload_root(ctx)
     target = _target(ctx)
@@ -948,6 +949,13 @@ def _act_adoption_copy(ctx: EngineContext) -> None:
         mode="adopt",
         on_conflict=_make_conflict_hook(ctx),
         require_existing_target=True,
+        # Crash safety, and the case that matters most: adoption writes into a
+        # repository that already holds the operator's own work. The journal is
+        # staged over exactly the destinations the apply phase will touch —
+        # including every take-payload overwrite — so an interruption is rolled
+        # back on the next WAEGIS command instead of leaving the repository
+        # half-converted with no manifest.
+        on_apply=lambda paths: payload_transaction(target, command="adopt", paths=paths),
     )
     assert result.manifest is not None and result.manifest_file is not None
     ctx.shared[SHARED_ADOPTION_COPY_RESULT] = result
@@ -1454,8 +1462,8 @@ def run_adopt(
     @exception  None Operational failures are reported on ``stream`` and encoded
                 in the exit code.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     target_path = Path(target).resolve()
     if as_json:
@@ -1478,6 +1486,26 @@ def run_adopt(
             return write_envelope(stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(message,))
         stream.write(f"waegis adopt: {message}\n")
         return EXIT_VALIDATION
+
+    # --- roll back an interrupted prior run before touching TARGET ---
+    # A dry run writes nothing, so it must not mutate the target either.
+    if not dry_run:
+        try:
+            recovered = recover_incomplete_transactions(target_path)
+        except (OSError, ValueError) as exc:
+            message = f"could not recover an interrupted transaction: {exc}"
+            if as_json:
+                return write_envelope(
+                    stream, "adopt", status="error", exit_code=EXIT_OPERATIONAL, messages=(message,)
+                )
+            stream.write(f"waegis adopt: {message}\n")
+            return EXIT_OPERATIONAL
+        if recovered:
+            message = f"rolled back {len(recovered)} interrupted transaction(s): {', '.join(recovered)}"
+            if as_json:
+                json_messages.append(message)
+            else:
+                stream.write(f"waegis adopt: {message}\n")
 
     # --- answers seam (before any engine or journal work) ---
     answers: dict[str, Any] = {}

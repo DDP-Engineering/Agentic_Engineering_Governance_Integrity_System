@@ -29,8 +29,20 @@ from .probes.runner import CommandRunner
 
 # CONSTANTS
 
+# @brief Every guard the payload ships under ``.agentic/hooks/``, checked for
+#        presence by the `verify.hooks-present` wizard step and by
+#        `waegis doctor`. A hook missing from this tuple is a hook whose absence
+#        from an install is never noticed: both callers report success over the
+#        names listed here, so an uncopied file simply is not looked for.
+#        `guard_read_path.py` was missing until 0.3.0, having arrived with the
+#        protected-read policy without this list being updated alongside it.
+#        `tests/test_commands_new_steps.py` derives the expected set from the
+#        real template so the next hook added cannot repeat that.
+#        `workflow_config_bootstrap.py` is deliberately absent: it is the shared
+#        config loader the hooks import, not a hook the adapters dispatch.
 HOOK_FILES: tuple[str, ...] = (
     "delivery_preflight.py",
+    "guard_read_path.py",
     "guard_write_zone.py",
     "post_tool_evidence.py",
     "secret_scan.py",

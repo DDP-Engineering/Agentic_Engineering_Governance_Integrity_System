@@ -47,11 +47,11 @@ opinions:
 
 | Invariant | Contract |
 | --- | --- |
-| `INV-1` | Every change unit cites an approved spec item. |
-| `INV-2` | Every check cites a spec item. |
+| `INV-1` | Every accepted or realized spec item is covered by a check. |
+| `INV-2` | Every check cites an existing spec item. |
 | `INV-3` | A check records failing evidence before passing evidence. |
 | `INV-4` | No active failing regression evidence remains for implementation, validation, or delivery. |
-| `INV-6` | Passing evidence cites a recorded check. |
+| `INV-6` | The run has recorded evidence. |
 | `INV-8` | Green checks citing durable requirements cite current `Active` snapshots. |
 
 Stage transitions, journaling, immutable evidence IDs, evidence supersession,
@@ -153,6 +153,13 @@ Missing, malformed, incomplete, unknown, wrong-type, or inconsistent
 configuration is never a default. CLI operations fail before acting and exit
 with status `2`. Pre-tool hooks deny with the same stable code and remediation.
 Post-tool hooks emit a warning and skip policy-dependent evidence recording.
+
+The guard transports also fail closed beyond configuration errors. Because the
+shared guards always exit `0` and signal a denial on stdout, a guard that cannot
+run at all — a missing or unlaunchable Python interpreter, or a hook that
+crashed — is treated as a block, not an allow, on every adapter. An unavailable
+guard therefore denies the operation it was meant to check rather than silently
+permitting it.
 
 Examples:
 

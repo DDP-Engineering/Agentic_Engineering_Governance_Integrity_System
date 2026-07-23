@@ -36,6 +36,7 @@ coverage.xml
 # Build artifacts
 build/
 dist/
+.runtime-cache/
 .eggs/
 *.egg-info/
 *.egg

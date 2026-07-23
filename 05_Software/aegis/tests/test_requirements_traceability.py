@@ -755,6 +755,10 @@ def test_report_and_preflight_need_no_registry_directory(
     @version 0.2.0
     """
     configure_repository(tmp_path)
+    # Delivery preflight audits the working tree, and an unreadable tree is a
+    # blocking finding rather than a pass, so the fixture has to be a real
+    # repository for this test to exercise what it is actually about.
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     monkeypatch.chdir(tmp_path)
     main(["start", "--kind", "feature", "--statement", "Live preflight"])
     capsys.readouterr()

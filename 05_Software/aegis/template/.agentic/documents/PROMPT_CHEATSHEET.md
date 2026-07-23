@@ -2,7 +2,7 @@
 Copyright (c) 2026 DDP Engineering
 This software is licensed under the PolyForm Noncommercial License 1.0.0.
 Commercial use requires a separate commercial license.
-See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
 # AEGIS Prompt Cheat Sheet
@@ -10,6 +10,11 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 This is a human operator flyer. Use these prompts in an agentic development tool
 after the target repo has AEGIS installed. Replace text in
 `<angle brackets>`.
+
+**New here, or just want to run a change?** Go straight to
+[The Development Workflow, Stage By Stage](#the-development-workflow-stage-by-stage) —
+the seven prompts, in order, that carry one change from request to delivery.
+Everything else on this sheet is reference.
 
 The authoritative agent workflow rules live in `AGENTS.md`, `.agentic/`
 configuration, and the platform skill/adaptor files. This cheat sheet provides
@@ -39,6 +44,132 @@ Stop on any configuration or run-resolution error; do not infer defaults or
 guess a run ID.
 ```
 
+## The Development Workflow, Stage By Stage
+
+This is the fast path: **one prompt per stage, given in order.** After the
+bootstrap above, paste the prompt for the stage you are on, read what the agent
+reports, and only then approve the move to the next stage. The agent advances;
+you decide when it may.
+
+The golden rule for every prompt below: **do one stage, then stop and wait for
+me.** That single instruction is what keeps a human in control of an AI that
+would otherwise run to the end on its own.
+
+Seven stages, start to finish:
+
+```text
+Intake → Alignment → Requirement → Check → Implementation → Validation → Delivery
+```
+
+Each block gives you the plain prompt to paste and the signal that the stage is
+done. The detailed rules for each gate — exact commands, edge cases, revisions —
+are in the per-gate sections further down; this spine is the everyday path.
+
+### Stage 1 — Intake · commit to what you are doing
+
+```text
+Use the agentic development workflow.
+I want to <feature / fix / behavior change, in one or two sentences>.
+Start a run at intake. Inspect the repository and run impact analysis for the
+files this is likely to touch. Ask me any clarifying questions now.
+Do not write requirements, tests, or code yet. Stop and summarize your
+understanding for my approval.
+```
+
+Move on when: the agent has restated the request and you agree it understood you.
+
+### Stage 2 — Alignment · prove it understood you
+
+```text
+Continue to Intent Alignment.
+Record: your understanding of the request, what is in and out of scope, your
+assumptions, the acceptance target (how we will know it works), any open
+questions with your recommended answers, a risk level, and the paths you plan
+to touch. Decide proceed or pause.
+If risk is high, questions are still open, or a protected area is in scope,
+pause for me rather than proceeding.
+Stop after recording alignment and show me the result.
+```
+
+Move on when: alignment is recorded and any pause has been resolved by you.
+
+### Stage 3 — Requirement · make it testable
+
+```text
+Continue to the requirement gate.
+Draft the minimal spec items (one testable sentence each, tagged behavior or
+property). Check existing requirements first and reuse or revise where one
+already covers this. Record accepted specs into the workflow graph.
+Do not write tests or code yet. Stop and show me the specs and the invariant
+status for approval.
+```
+
+Move on when: you approve the specs and the workflow reports the expected
+missing-check state.
+
+### Stage 4 — Check · write the tests, and watch them fail
+
+```text
+Approved. Continue to the check gate.
+Write the minimal tests for the accepted specs. Each test must cite the spec it
+verifies, and cover the failure paths too — invalid input, boundaries, and the
+error the behavior should produce — not only the happy path.
+Run them and confirm the new tests fail first. Record each test and its failing
+evidence.
+Do not touch source yet. Stop and report the test IDs, the red evidence, and the
+invariant status.
+```
+
+Move on when: the new tests exist, cite their specs, and are recorded failing.
+
+### Stage 5 — Implementation · write only enough to pass
+
+```text
+Approved. Continue to implementation.
+Write only the code needed to make the failing tests pass. Stay inside the
+source area; do not edit the tests. If a test turns out to be wrong, stop and
+ask me to route back to the check gate rather than changing it quietly.
+Run the linked tests until the new ones pass and the existing ones stay green.
+Record the changed paths and the passing evidence.
+Stop and report what changed, the green evidence, and the invariant status.
+```
+
+Move on when: the new tests pass, nothing else regressed, and evidence is recorded.
+
+### Stage 6 — Validation · audit the whole change
+
+```text
+Approved. Continue to validation. Do not edit files.
+Run the invariants, traceability audit, coverage audit, impact analysis, and the
+full test suite. Then read the diff and check for scope creep, weakened or
+deleted tests, missing spec citations, secrets, and any mismatch between the
+approved specs and what was built.
+Record the validation evidence. Stop and tell me whether this is ready to
+prepare for delivery.
+```
+
+Move on when: the audits are clean and you are satisfied reading the diff.
+
+### Stage 7 — Delivery · the final gate
+
+```text
+Approved to run delivery preflight and generate the report.
+Do not commit, push, or open a PR.
+Run delivery-preflight and the report, then show me the git status.
+Stop and tell me the preflight result, the report location, and whether this is
+ready for a human-approved commit.
+```
+
+Move on when: preflight passes — then **you** commit, push, or open the PR. A
+clean preflight means the work is ready, not that it is authorized. That last
+decision is always yours.
+
+---
+
+The rest of this sheet is reference: deployment and adoption, the detailed
+version of each gate, scope and maintenance access, and how to resume, park, or
+inspect a run.
+
 ## Create A New Project From This Template
 
 Use WAEGIS as the recommended deployment and lifecycle tool. WAEGIS is a
@@ -64,7 +195,7 @@ health. Use `waegis configure`, `waegis repair`, and `waegis upgrade` for the
 managed lifecycle. When running WAEGIS from a source checkout, use that
 checkout's documented environment runner, for example `uv run waegis ...`.
 
-The new project should receive:
+The deployed AEGIS payload contains:
 
 - `.agentic/` workflow state, hooks, requirements, documents, and config.
 - `.agentic/cli/` bundled Python CLI for the workflow.
@@ -84,8 +215,8 @@ The new project should receive:
 - `.agentic/documents/PROMPT_CHEATSHEET.md` human operator prompts for the copied workflow.
 - `.agentic/knowledge/components/` component documentation template and index.
 
-After copying, adjust `.agentic/workflow.toml` for the target repository's real
-structural roots. The shipped schema-version-2 policy is explicitly
+After deployment, adjust `.agentic/workflow.toml` for the target repository's
+real structural roots. The shipped schema-version-2 policy is explicitly
 unrestricted/disabled; opt into gates and guardrails only by selecting a
 restrictive mode and providing its required rules.
 The copied workflow can be run immediately with:

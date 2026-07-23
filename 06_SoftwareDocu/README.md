@@ -23,8 +23,19 @@ documentation ships with the template:
   complete schema-version-2 structure, validation, modes, traceability, gates,
   and configured guardrails.
 
-Presentation material maintained in this folder:
+Presentation material maintained in this folder (WAEGIS 0.3.0):
 
 - `WAEGIS_01_Setup_And_First_Adoption.pptx` - setup and first-adoption journey.
 - `WAEGIS_02_Architecture_Portability_And_MultiLanguage.pptx` - architecture,
   portability, and multi-language overview.
+- `WAEGIS_02_Safe_AEGIS_Upgrade.pptx` - moving an installed project to a new
+  AEGIS payload version without overwriting local work.
+
+Stakeholder architecture decks (split by scope, one shared visual system):
+
+- `WAEGIS_Architecture_Presentation.pptx` - WAEGIS as the deployment wizard: the
+  five-phase run, the configuration interview, `new` versus `adopt`, and the
+  managed lifecycle.
+- `AEGIS_Governance_Workflow_Presentation.pptx` - AEGIS as the governance
+  workflow: the seven development stages (input, gate, and output for each), the
+  enforcement layers, and the adoption track.

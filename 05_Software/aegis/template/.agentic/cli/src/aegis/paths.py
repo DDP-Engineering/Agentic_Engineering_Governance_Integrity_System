@@ -12,9 +12,12 @@
 @details Mirrors the packaged CLI implementation shipped into generated projects.
 @details ``matches_pattern`` (0.2.0, architecture-review follow-up) is now
          case-sensitive on non-Windows hosts, matching the real filesystem.
+@details ``contained_relative_path`` (0.4.0) is the lenient containment check
+         used by policy evaluators reading persisted data; ``relative_to_root``
+         remains the strict form used at input boundaries.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.3.0
+@date 2026-07-23
+@version 0.4.0
 """
 
 # IMPORTS
@@ -48,6 +51,31 @@ def relative_to_root(path: str | Path, root: Path) -> str:
     except ValueError as exc:
         raise ValueError(f"Path escapes workspace root: {path}") from exc
     return rel.as_posix()
+
+
+def contained_relative_path(path: str | Path, root: Path) -> str | None:
+    """
+    @brief      Return the repo-relative form of a path, or ``None`` when it
+                escapes the workspace root.
+    @param[in]  path Repository-relative or absolute candidate path.
+    @param[in]  root Workspace root the candidate must stay inside.
+    @return     Normalized POSIX repo-relative path, or ``None`` for an escape.
+    @details    Lenient counterpart to :func:`relative_to_root`. Policy
+                evaluators read persisted data that may predate validation, and
+                an escaping entry there must become a reported finding rather
+                than an exception that aborts the whole evaluation. Use
+                :func:`relative_to_root` at input boundaries, where an escape is
+                an operator error worth refusing immediately, and this function
+                when classifying data already on disk.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    try:
+        return relative_to_root(path, root)
+    except ValueError:
+        return None
 
 
 def matches_pattern(path: str, pattern: str) -> bool:

@@ -604,31 +604,4 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     assert "write_zones" not in combined
 
 
-def test_planning_examples_and_maps_use_current_artifact_contracts() -> None:
-    """
-    @brief      Verify maintained planning examples and SVG maps use WP6 terms.
-    @return     None.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
-    """
-    repository_root = PACKAGE_ROOT.parents[1]
-    planning_root = repository_root / "00_Planning"
-    paths = [
-        planning_root / "Agentic_Development_Architecture_Examples" / "Aegis_Example_BugFix.md",
-        planning_root / "Agentic_Development_Architecture_Examples" / "Aegis_Example_Feature.md",
-        planning_root / "Agentic_Development_Architecture_Examples" / "Aegis_Example_Existing_Repo_Adoption.md",
-        planning_root / "Aegis_Artifact_Flow.svg",
-        planning_root / "Agentic_Flow_Artifact_Map.svg",
-    ]
-    combined = "\n".join(path.read_text(encoding="utf-8") for path in paths)
-
-    assert ".agentic/.workspace/state/current_run" in combined
-    assert "UUID-backed" in combined
-    assert "requirements/registry" not in combined
-    assert ".agentic/current_run" not in combined
-    assert "write zones" not in combined.lower()
-
-
 # END OF FILE

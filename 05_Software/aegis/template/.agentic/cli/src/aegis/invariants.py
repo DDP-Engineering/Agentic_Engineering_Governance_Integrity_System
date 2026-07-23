@@ -13,9 +13,12 @@
 @details INV-7 (0.3.0, code-review follow-up) now scans `git diff HEAD` plus
          untracked file content instead of only the unstaged `git diff`, which
          previously missed staged and newly created files.
+@details INV-5 (0.6.0) reports a recorded path that escapes the repository as
+         its own finding instead of raising: an exception here aborts the whole
+         `evaluate` pass and with it every command that reads invariants.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.5.0
+@date 2026-07-23
+@version 0.6.0
 """
 
 # IMPORTS
@@ -30,7 +33,7 @@ from pathlib import Path
 from .components import audit_local_scope
 from .config import WorkflowConfig
 from .models import Graph
-from .paths import is_allowed_path
+from .paths import contained_relative_path, matches_pattern
 from .requirements import load_requirement_index
 from .working_tree import MAX_SECRET_SCAN_BYTES
 
@@ -279,10 +282,18 @@ def _in_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig) -> InvariantRe
     @param[in]  graph Input value used by the workflow helper.
     @param[in]  cfg Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
+    @details    A recorded path that escapes the repository root is reported as
+                its own finding instead of raising. Recording is validated at
+                the CLI boundary, but a graph written before that validation —
+                or edited by hand — must still be evaluable: an exception here
+                propagates out of `evaluate` and takes `status`, `invariants`,
+                `report`, and `delivery-preflight` down with it, leaving the run
+                unusable until the graph is repaired by hand. An escaping path
+                is never inside a configured root, so it fails the invariant.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
+    @date       2026-07-23
+    @version    0.3.0
     """
     severity = "blocking" if cfg.scope.mode == "enforce" else "advisory"
     if cfg.scope.mode == "unrestricted":
@@ -296,15 +307,28 @@ def _in_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig) -> InvariantRe
     touched = [path for unit in graph.change_units for path in unit.touched_paths]
     if not touched:
         return InvariantResult("INV-5", "In scope", True, severity, "No change units recorded yet.")
-    allowed = list(cfg.scope.allowed_roots)
-    bad = [path for path in touched if not is_allowed_path(path, repo_root, _root_patterns(allowed))]
-    return InvariantResult(
-        "INV-5",
-        "In scope",
-        not bad,
-        severity,
-        "Touched paths are in configured scope." if not bad else f"Out-of-scope paths: {', '.join(bad)}",
-    )
+    patterns = _root_patterns(list(cfg.scope.allowed_roots))
+    escaping: list[str] = []
+    out_of_scope: list[str] = []
+    for path in touched:
+        relative = contained_relative_path(path, repo_root)
+        if relative is None:
+            escaping.append(path)
+        elif not any(matches_pattern(relative, pattern) for pattern in patterns):
+            out_of_scope.append(relative)
+    if not escaping and not out_of_scope:
+        return InvariantResult(
+            "INV-5", "In scope", True, severity, "Touched paths are in configured scope."
+        )
+    parts = []
+    if out_of_scope:
+        parts.append(f"Out-of-scope paths: {', '.join(out_of_scope)}")
+    if escaping:
+        parts.append(
+            "Paths outside the repository (re-record them relative to the repository root): "
+            f"{', '.join(escaping)}"
+        )
+    return InvariantResult("INV-5", "In scope", False, severity, "; ".join(parts))
 
 
 def _evidence(graph: Graph) -> InvariantResult:

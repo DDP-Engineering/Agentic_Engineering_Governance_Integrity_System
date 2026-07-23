@@ -194,7 +194,25 @@ def test_hook_matchers_cover_friendly_and_raw_qwen_tool_names() -> None:
     evidence_entry = next(entry for entry in post_tool if "post_tool_evidence.py" in json.dumps(entry))
     write_hook_names = {hook["name"] for hook in write_entry["hooks"]}
 
-    assert read_entry["matcher"] == "Read|ReadFile|read_file"
+    # Every Qwen tool that returns file content or file names, by canonical id
+    # and by the display aliases older versions emit. Grep, glob, and directory
+    # listing are covered as well as the single-file read: a protected-read
+    # policy that only intercepted `read_file` was bypassable by asking the same
+    # host for the same bytes through its search tool. Asserted as a set so the
+    # alternation may be reordered or extended without editing this test.
+    read_matchers = set(read_entry["matcher"].split("|"))
+    assert {
+        "Read",
+        "ReadFile",
+        "read_file",
+        "read_many_files",
+        "grep_search",
+        "Grep",
+        "search_file_content",
+        "glob",
+        "Glob",
+        "list_directory",
+    } <= read_matchers
     assert write_entry["matcher"] == "Edit|WriteFile|write_file|replace"
     assert write_hook_names == {"agentic-guard-write-zone", "agentic-edit-secret-scan"}
     assert shell_entry["matcher"] == "Bash|run_shell_command"

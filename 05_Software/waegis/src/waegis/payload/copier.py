@@ -39,9 +39,15 @@
          on every copied file whose suffix is in :data:`EXECUTABLE_SUFFIXES`
          (currently ``.sh``), called right after every ``shutil.copy2`` in
          :func:`copy_payload`. A no-op on Windows.
+@details **Apply-phase scope (added 0.4.0).** :data:`ApplyScopeHook`, passed as
+         ``on_apply``, wraps the write phase in a caller-supplied context
+         manager and receives the exact destinations about to be written. It
+         lets the deployment commands stage a rollback journal over the copy
+         without this module depending on the transaction layer, and it is
+         never entered on a dry run or a refusal because neither writes.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.3.0
+@date 2026-07-23
+@version 0.4.0
 """
 
 # IMPORTS
@@ -51,6 +57,7 @@ from __future__ import annotations
 import os
 import shutil
 import stat
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from enum import Enum
@@ -149,6 +156,17 @@ class PayloadConflict:
 #        without this hook (force=True is an internal constant take-payload
 #        hook, the one documented exception).
 ConflictDecisionHook = Callable[[PayloadConflict], ConflictDecision]
+
+# @brief Caller-supplied wrapper around the apply phase. Called exactly once,
+#        after every refusal and every conflict decision has been made and
+#        immediately before the first byte is written, with the sorted
+#        repo-relative POSIX paths the apply phase is about to write (copied
+#        files, `.new` sidecars, and the install manifest). The returned context
+#        manager wraps the whole apply phase, so a caller can stage a rollback
+#        journal there. Never called on a dry run or when the copy refuses,
+#        because neither writes anything. This module stays free of the
+#        transaction implementation itself: it only offers the seam.
+ApplyScopeHook = Callable[[tuple[str, ...]], AbstractContextManager[Any]]
 
 
 @dataclass(frozen=True)
@@ -404,6 +422,7 @@ def copy_payload(
     dry_run: bool = False,
     require_existing_target: bool = False,
     on_conflict: ConflictDecisionHook | None = None,
+    on_apply: ApplyScopeHook | None = None,
     payload_version: str | None = None,
     product: str = "aegis",
     generated: Iterable[str] = (),
@@ -455,6 +474,11 @@ def copy_payload(
                 already exist (existing-repo adoption guard).
     @param[in]  on_conflict Per-conflict decision hook; required for any
                 conflict to be resolved (never decided internally).
+    @param[in]  on_apply Optional wrapper around the apply phase, called once
+                with the exact repo-relative paths about to be written. Lets a
+                caller stage a rollback journal over the write phase without
+                this module depending on the transaction layer. Never called on
+                a dry run or when the copy refuses.
     @param[in]  payload_version Manifest payload version; defaults to the
                 version read from the payload's own declaration, falling back
                 to ``"unknown"``.
@@ -473,17 +497,18 @@ def copy_payload(
     @exception  CopierError If a destination exists but is not a regular file,
                 the hook returns a non-``ConflictDecision``, or a ``WRITE_NEW``
                 sidecar path already exists with different content.
-    @exception  OSError If reading or writing a file fails mid-apply (files
-                already applied remain — disk-level failures are outside the
-                no-partial-write guarantee, which covers refusals and hook
-                errors).
+    @exception  OSError If reading or writing a file fails mid-apply. Files
+                already applied remain unless the caller supplied ``on_apply``
+                with a rollback scope; without one, disk-level failures stay
+                outside the no-partial-write guarantee, which otherwise covers
+                refusals and hook errors.
     @details    Every write (``copied`` and sidecar) now also runs through
                 :func:`ensure_executable` (0.3.0), so a shell script payload
                 file always lands executable on a POSIX target regardless of
                 the source's own mode.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
+    @date       2026-07-23
+    @version    0.3.0
     """
     if force and on_conflict is not None:
         raise ValueError("force=True and on_conflict are mutually exclusive: force is the constant take-payload hook")
@@ -587,37 +612,49 @@ def copy_payload(
         resolutions.append(ConflictResolution(conflict=conflict, decision=decision, written_path=written_path))
 
     # Phase 2 — apply. Everything below writes; all refusals happened above.
-    target.mkdir(parents=True, exist_ok=True)
-    for relative in dirs:
-        resolve_managed_path(target, relative.as_posix()).mkdir(parents=True, exist_ok=True)
     copied = missing + rewritten + take_payload
-    for relative in copied:
-        destination = resolve_managed_path(target, relative.as_posix())
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(resolve_managed_path(payload_root, relative.as_posix()), destination)
-        ensure_executable(destination)
-    for relative, sidecar in sidecar_writes:
-        sidecar_destination = resolve_managed_path(target, sidecar.as_posix())
-        sidecar_destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(resolve_managed_path(payload_root, relative.as_posix()), sidecar_destination)
-        ensure_executable(sidecar_destination)
-
-    if payload_version is None:
-        payload_version = read_payload_version(payload_root) or UNKNOWN_PAYLOAD_VERSION
-    manifest = build_manifest(
-        target,
-        product=product,
-        payload_version=payload_version,
-        mode=mode,
-        file_paths=[rel.as_posix() for rel in copied + identical],
-        generated=generated,
-        skipped=skipped,
-        payload_digest=inventory.digest,
-        configuration=configuration,
-        installed_at=installed_at,
-        installed_by=installed_by,
+    # The exact destinations the apply phase will touch, so a caller-supplied
+    # scope can stage a rollback journal over precisely those paths and nothing
+    # more. Computed here rather than by the caller because only this function
+    # knows the resolved conflict decisions.
+    written_paths = tuple(
+        sorted(
+            {relative.as_posix() for relative in copied}
+            | {sidecar.as_posix() for _, sidecar in sidecar_writes}
+            | {MANIFEST_RELATIVE_PATH}
+        )
     )
-    manifest_file = write_manifest(target, manifest)
+    with nullcontext() if on_apply is None else on_apply(written_paths):
+        target.mkdir(parents=True, exist_ok=True)
+        for relative in dirs:
+            resolve_managed_path(target, relative.as_posix()).mkdir(parents=True, exist_ok=True)
+        for relative in copied:
+            destination = resolve_managed_path(target, relative.as_posix())
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(resolve_managed_path(payload_root, relative.as_posix()), destination)
+            ensure_executable(destination)
+        for relative, sidecar in sidecar_writes:
+            sidecar_destination = resolve_managed_path(target, sidecar.as_posix())
+            sidecar_destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(resolve_managed_path(payload_root, relative.as_posix()), sidecar_destination)
+            ensure_executable(sidecar_destination)
+
+        if payload_version is None:
+            payload_version = read_payload_version(payload_root) or UNKNOWN_PAYLOAD_VERSION
+        manifest = build_manifest(
+            target,
+            product=product,
+            payload_version=payload_version,
+            mode=mode,
+            file_paths=[rel.as_posix() for rel in copied + identical],
+            generated=generated,
+            skipped=skipped,
+            payload_digest=inventory.digest,
+            configuration=configuration,
+            installed_at=installed_at,
+            installed_by=installed_by,
+        )
+        manifest_file = write_manifest(target, manifest)
 
     return CopyResult(
         target=target,

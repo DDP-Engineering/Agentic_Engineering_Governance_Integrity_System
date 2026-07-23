@@ -306,6 +306,14 @@ contract and emits the T3.1 install manifest on every real copy.
   - **No partial writes**: scan/classify/decide (including every hook call)
     is read-only and completes before the apply phase, so a refusal, an
     invalid hook return, or a hook exception leaves the target untouched.
+  - **Apply-phase scope** (`on_apply`): an optional context manager wrapping
+    the write phase, called once with the exact repo-relative destinations
+    about to be written (copied files, `.new` sidecars, and the manifest).
+    `new` and `adopt` pass `payload_transaction` here, so a failure or an
+    interruption partway through the copy is rolled back rather than leaving a
+    half-installed payload. Never entered on a dry run or a refusal, because
+    neither writes. The copier itself stays free of the transaction layer: it
+    only offers the seam.
   - **Dry-run** returns the would-be copied list and the classified conflict
     list without calling the hook and without writing anything (no manifest).
   - **Manifest emission**: `build_manifest`/`write_manifest` (T3.1) write
@@ -555,6 +563,15 @@ The Wizard N journey (plan §8.1): every step of the table registered as a real
   run is started); `repo.initial-commit` proves a commit exists via
   `gitops.head_commit` (an empty porcelain status alone is also what a failed
   git call produces).
+- **Crash safety** — `deploy.payload-copy` and `deploy.adoption-copy` run their
+  apply phase inside a `payload_transaction`, so a failure or an interruption
+  partway through the copy restores every destination it had already written.
+  Both commands also run `recover_incomplete_transactions` against TARGET before
+  anything else, so a run killed outright — which never reaches its own rollback
+  — is undone by the next WAEGIS command. `--dry-run` skips recovery, because a
+  dry run must not mutate the target either. The post-apply `verify.*` steps are
+  a separate engine concern and run after the transaction has committed: they
+  report a bad install, they do not roll one back.
 - **Manifest amendment** — `deploy.payload-copy` writes the manifest via
   `copy_payload`; only after `deploy.workflow-toml` actually rewrites
   `workflow.toml` from answers is the manifest re-read and the path moved from

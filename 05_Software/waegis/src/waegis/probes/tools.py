@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file tools.py
-@brief Tool probes: python (>=3.11), git (>=2.30), node (warn-not-block), uv
+@brief Tool probes: python (>=3.11), git (>=2.30), node (>=18, warn-not-block), uv
        (informational) (T2.1).
 @details Implements the ``prereq.python`` and ``prereq.git`` probes from plan
          §8.1, plus an optional ``prereq.uv`` probe. Every probe runs commands
@@ -59,6 +59,14 @@ from waegis.runtime import python_probe_candidates
 # @brief Minimum supported Python / git versions (plan §8.1).
 _MIN_PYTHON: tuple[int, int] = (3, 11)
 _MIN_GIT: tuple[int, int] = (2, 30)
+
+# @brief Minimum Node major for the hook transports. Set from the syntax the
+#        adapters actually use — `node:`-prefixed builtin imports,
+#        `import.meta.url`, `pathToFileURL`, and nullish coalescing — which
+#        needs Node 16, rounded up to the oldest release line still receiving
+#        security fixes. Reported below the floor as a warning, never a block:
+#        see :func:`probe_node` for why this probe cannot hard-fail.
+_MIN_NODE: tuple[int, int] = (18, 0)
 
 _PYTHON_VERSION_RE = re.compile(r"Python\s+(\d+)\.(\d+)(?:\.(\d+))?")
 _GIT_VERSION_RE = re.compile(r"git version\s+(\d+)\.(\d+)(?:\.(\d+))?")
@@ -253,30 +261,52 @@ def probe_node(runner: CommandRunner) -> ProbeFindingRecord:
     """
     @brief      Detect Node.js, the runtime every AEGIS hook is dispatched
                 through (``node .agentic/tools/run_hook.mjs ...``).
-    @details    Deliberately warn-not-block (architecture-review follow-up,
-                2026-07-18): unlike ``prereq.python``/``prereq.git``, a
-                missing or unparseable Node is reported as ``"warn"``, never
-                ``"fail"``, mirroring ``machine.os``'s precedent. No minimum
-                version is enforced — the goal is presence, not a version
-                floor, since hooks are simple scripts with no known minimum
-                Node requirement.
+    @details    Warn-not-block, unlike ``prereq.python``/``prereq.git``. The
+                consequence of a missing Node is severe — the Claude Code,
+                Codex, and Qwen Code adapters dispatch every guard through
+                ``node``, so without it their tool calls proceed completely
+                unchecked — but this probe still must not fail the run:
+
+                - A non-green step stops the wizard outright and there is no
+                  override, so blocking here would make AEGIS undeployable for
+                  an OpenCode-only project. OpenCode ships its own runtime and
+                  runs the guard plugin inside it, needing no system Node.
+                  (A Pi project always has Node: Pi is installed with ``npm``.)
+                - Nothing about the installed payload is wrong without Node.
+                  Install it afterwards and every hook starts working, with no
+                  repair or re-run needed.
+
+                The severity therefore reflects "recoverable later", while the
+                message carries the security consequence, which is what an
+                operator actually needs to act on.
+    @details    A minimum version is enforced as of 0.2.0. The adapters use
+                ``node:``-prefixed builtin imports, ``import.meta.url``,
+                ``pathToFileURL``, and nullish coalescing; :data:`_MIN_NODE`
+                records the resulting floor so an ancient Node is reported
+                rather than failing later as an opaque syntax error inside a
+                hook — where, being a non-zero exit from a host's perspective,
+                it would read as a non-blocking hook error and let the tool
+                call through.
     @param[in]  runner Injectable :class:`CommandRunner`.
     @return     A ``prereq.node`` :class:`ProbeFindingRecord`: ``"ok"`` when
-                found with a parseable version, ``"warn"`` when missing or the
-                version text cannot be parsed.
+                found at or above :data:`_MIN_NODE`, otherwise ``"warn"``.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     system = platform.system()
+    guards_absent = (
+        "the Claude Code, Codex, and Qwen Code adapters dispatch every AEGIS guard through "
+        "it, and a guard that cannot be launched does not block: their tool calls run "
+        "completely unchecked until this is resolved"
+    )
     result = runner.run(("node", "--version"))
     if not result.ok():
         return ProbeFindingRecord(
             name="prereq.node",
             status="warn",
-            detail="node was not found (every AEGIS hook is dispatched through it via "
-            "run_hook.mjs; hooks will not run until it is installed)",
+            detail=f"node was not found - {guards_absent}",
             guidance=_install_guidance("node", system),
         )
     output = result.combined_output().strip()
@@ -286,6 +316,16 @@ def probe_node(runner: CommandRunner) -> ProbeFindingRecord:
             name="prereq.node",
             status="warn",
             detail=f"'node --version' produced unparseable output: {output!r}",
+            guidance=_install_guidance("node", system),
+        )
+    if version < (*_MIN_NODE, 0):
+        return ProbeFindingRecord(
+            name="prereq.node",
+            status="warn",
+            detail=(
+                f"node {_format_version(version)} is older than the supported "
+                f"{_MIN_NODE[0]}.{_MIN_NODE[1]} - {guards_absent}"
+            ),
             guidance=_install_guidance("node", system),
         )
     return ProbeFindingRecord(

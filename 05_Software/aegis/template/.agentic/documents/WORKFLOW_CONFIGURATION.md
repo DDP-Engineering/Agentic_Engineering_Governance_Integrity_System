@@ -91,6 +91,20 @@ configured patterns. There are no built-in credential patterns.
 
 ### Protected paths
 
+Read policy applies to every tool that returns file content or file names —
+the single-file read, grep-style search, glob, and directory listing — on all
+adapters. It blocks a protected path from being **targeted**.
+
+It cannot redact results: a repository-wide search that names no path is
+allowed and may still surface a line from a protected file, because no
+supported host lets a pre-tool hook rewrite tool output. Protected paths are a
+guard against direct access, not a secrecy boundary — keep real secrets out of
+the working tree.
+
+Pattern shape decides whether a directory listing is blocked: `dir` matches the
+directory entry and everything under it, while `dir/**` matches only what is
+inside it. Use the bare directory to protect the listing itself.
+
 ```toml
 [guardrails.protected_paths]
 mode = "enforce"
@@ -236,6 +250,13 @@ command; failing preflight denies it. External approval remains required.
   separators, and removes a trailing `/` before duplicate detection.
 - Case is preserved.
 - Globs support `*`, `**`, `?`, and balanced bracket expressions.
+- A pattern naming a directory matches that directory and everything beneath
+  it, so `src/security` and `src/security/**` select the same subtree. The
+  match is on whole path segments: `src/security` never matches
+  `src/securityaudit/`. Every pattern setting in this file — secrets, protected
+  paths, working-tree blockers, write access, scope, coverage, alignment
+  protected scope, and component baselines — resolves through one shared
+  matcher, so a pattern means the same thing wherever it appears.
 - Malformed bracket expressions and invalid regular expressions are errors.
 - Set-like lists reject duplicates after normalization instead of discarding
   them silently.

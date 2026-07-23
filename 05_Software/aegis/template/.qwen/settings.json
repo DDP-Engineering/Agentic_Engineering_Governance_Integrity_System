@@ -9,7 +9,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Read|ReadFile|read_file",
+        "matcher": "Read|ReadFile|read_file|read_many_files|ReadManyFiles|grep_search|Grep|search_file_content|glob|Glob|list_directory|ListFiles",
         "hooks": [
           {
             "type": "command",

@@ -315,6 +315,99 @@ def test_probe_node_warns_on_unparseable_output(monkeypatch: pytest.MonkeyPatch)
     assert finding.status == "warn"
 
 
+def test_probe_node_warns_below_the_supported_major(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      A node older than :data:`tools._MIN_NODE` is reported.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None
+    @exception  AssertionError If an old node passes as ``"ok"``.
+    @details    The adapters use `node:`-prefixed builtin imports,
+                `import.meta.url`, and nullish coalescing. On an interpreter
+                too old for those, a guard fails as a syntax error at launch —
+                which a host reads as a *non-blocking* hook error, letting the
+                tool call through. Naming the floor here turns a silent bypass
+                into a setup-time message.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
+    runner = FakeCommandRunner({("node", "--version"): ok_result(stdout="v14.21.3\n")})
+
+    finding = tools.probe_node(runner)
+
+    assert finding.status == "warn"
+    assert "14.21.3" in finding.detail
+    assert "18" in finding.detail
+    assert finding.guidance is not None
+
+
+def test_probe_node_accepts_exactly_the_supported_major(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      The floor itself is supported, not one release above it.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None
+    @exception  AssertionError If the boundary version is rejected.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
+    floor = f"v{tools._MIN_NODE[0]}.{tools._MIN_NODE[1]}.0\n"
+    runner = FakeCommandRunner({("node", "--version"): ok_result(stdout=floor)})
+
+    assert tools.probe_node(runner).status == "ok"
+
+
+def test_probe_node_never_fails_whatever_the_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      No ``probe_node`` outcome is ever ``"fail"``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None
+    @exception  AssertionError If any outcome would stop the wizard.
+    @details    The engine stops the whole run at the first non-green step and
+                offers no override, so a `"fail"` here would make AEGIS
+                undeployable for an OpenCode-only project — OpenCode runs the
+                guard plugin in its own runtime and needs no system Node. The
+                message carries the security consequence instead; the severity
+                stays recoverable because installing Node afterwards fixes it
+                with no repair or re-run.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
+    for stdout, found in [("v22.9.0\n", True), ("v14.0.0\n", True), ("garbage\n", True), ("", False)]:
+        runner = FakeCommandRunner(
+            {("node", "--version"): ok_result(stdout=stdout) if found else not_found_result()}
+        )
+
+        assert tools.probe_node(runner).status != "fail"
+
+
+def test_probe_node_states_the_security_consequence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    @brief      A missing node explains that guards run unchecked, not merely
+                that hooks are unavailable.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None
+    @exception  AssertionError If the consequence is not stated.
+    @details    Because the finding never blocks, its text is the only thing
+                that makes an operator act. "Hooks will not run" reads like a
+                missing convenience; the real outcome is that guarded tool
+                calls proceed without being checked at all.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
+    runner = FakeCommandRunner({("node", "--version"): not_found_result()})
+
+    detail = tools.probe_node(runner).detail
+
+    assert "unchecked" in detail
+
+
 # --- uv probe ------------------------------------------------------------
 
 

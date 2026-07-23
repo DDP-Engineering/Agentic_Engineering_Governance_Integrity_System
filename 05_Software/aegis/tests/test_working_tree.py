@@ -389,4 +389,54 @@ def test_delivery_preflight_allows_adoption_source_changes_when_config_enabled(
     assert "Delivery preflight passed" in output
 
 
+def test_working_tree_blocks_when_directory_is_not_a_repository(tmp_path: Path) -> None:
+    """
+    @brief      Verify a non-repository working tree blocks instead of passing.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @return     None.
+    @details    Regression guard. `git status` exits 128 outside a repository
+                and writes its diagnosis to stderr, leaving stdout empty —
+                byte-identical to a genuinely clean tree. The audit read only
+                stdout, so it concluded there was nothing to block on and
+                delivery preflight passed without ever having inspected
+                anything.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    with pytest.raises(SystemExit):
+        run_cli(tmp_path, "working-tree")
+
+
+def test_working_tree_blocks_when_git_is_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief      Verify a missing git executable blocks instead of raising.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    The second failure mode, and the one that behaved differently:
+                a missing git raised `FileNotFoundError` straight out of the
+                audit, so the delivery hook surfaced a raw traceback as its deny
+                reason instead of an actionable message. It now blocks the same
+                way an unreadable status does.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    init_repo(tmp_path)
+
+    def _no_git(*args: object, **kwargs: object) -> None:
+        """@brief Stand in for an absent git executable."""
+        raise FileNotFoundError(2, "The system cannot find the file specified", "git")
+
+    monkeypatch.setattr("aegis.working_tree.subprocess.run", _no_git)
+    with pytest.raises(SystemExit):
+        run_cli(tmp_path, "working-tree")
+
+
 # END OF FILE

@@ -11,9 +11,15 @@
 @brief Command-line interface for the agentic workflow runner.
 @details Provides reusable implementation behavior for the standalone AEGIS system,
 including clean validation errors, duplicate-id guards, and explicit run scope hints.
+@details ``record-change`` (0.14.0) normalizes every recorded path to
+         repository-relative form and refuses one that escapes the repository,
+         so a graph can never hold a path the policy evaluators cannot resolve.
+@details The alignment protected-scope gate (0.15.0) matches through the shared
+         :func:`aegis.paths.matches_pattern` rather than ``fnmatch.fnmatch``, so
+         it agrees with every other policy consumer on what a pattern means.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 0.13.0
+@date 2026-07-23
+@version 0.15.0
 """
 
 # IMPORTS
@@ -22,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
-import fnmatch
 import json
 from pathlib import Path
 
@@ -37,6 +42,7 @@ from .config import (
 from .gates import run_gates
 from .invariants import blocking_failures, evaluate
 from .models import ADOPTION_STAGES, ALL_STAGES, AccessMode, Check, ChangeUnit, Decision, Evidence, IntentAlignment, SpecItem, STAGES
+from .paths import matches_pattern, relative_to_root
 from .requirements import (
     activate_requirement,
     audit_coverage,
@@ -76,8 +82,8 @@ def main(argv: list[str] | None = None) -> None:
     @return     Result produced by the workflow helper.
     @exception  SystemExit If command validation or a workflow gate fails.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.13.0
+    @date       2026-07-23
+    @version    0.14.0
     """
     parser = argparse.ArgumentParser(prog="aegis")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -567,13 +573,46 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if args.command == "record-change":
-        graph.change_units.append(ChangeUnit(id=args.id, touched_paths=args.path))
+        graph.change_units.append(
+            ChangeUnit(id=args.id, touched_paths=_normalized_touched_paths(root, args.path))
+        )
         save_graph(root, graph)
         print(f"Recorded change unit {args.id}")
         return
 
 
 # HELPER FUNCTIONS
+
+
+def _normalized_touched_paths(root: Path, paths: list[str]) -> list[str]:
+    """
+    @brief      Normalize recorded change-unit paths to repository-relative form.
+    @param[in]  root Repository root the paths must stay inside.
+    @param[in]  paths Raw `--path` values as supplied on the command line.
+    @return     Deduplicated repository-relative POSIX paths, in input order.
+    @details    Accepts either repository-relative or absolute-inside-repository
+                input and stores one canonical form, so scope and component
+                checks compare like with like. Refuses a path that escapes the
+                repository at the moment it is recorded: persisting one puts the
+                run into a state where every policy evaluation over the graph
+                has to reason about a path it can never resolve.
+    @exception  SystemExit If any path resolves outside the repository root.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    normalized: list[str] = []
+    for path in paths:
+        try:
+            relative = relative_to_root(path, root)
+        except ValueError:
+            raise SystemExit(
+                f"Change-unit path is outside the repository: {path}\n"
+                "Record a repository-relative path, or an absolute path inside the repository."
+            ) from None
+        if relative not in normalized:
+            normalized.append(relative)
+    return normalized
 
 
 def _add_run_id_argument(parser: argparse.ArgumentParser) -> None:
@@ -794,19 +833,31 @@ def _alignment_protected_paths(planned_paths: list[str], patterns: list[str]) ->
     @brief      Collect planned paths matching configured protected-scope globs.
     @param[in]  planned_paths Planned repository-relative paths.
     @param[in]  patterns Protected path glob patterns.
-    @return     Sorted matching planned paths.
+    @return     Sorted matching planned paths, in their original spelling.
+    @details    Matches through the shared :func:`aegis.paths.matches_pattern`
+                (0.3.0), the same matcher used by scope checks, the working-tree
+                audit, component ownership, and the configured read/write hooks.
+                The previous ``fnmatch.fnmatch`` was the one policy consumer
+                that disagreed with the rest: it has no tree-rooted form, so a
+                directory pattern such as ``"src"`` never matched
+                ``"src/app.py"`` and the pause gate silently never fired for the
+                most natural way to write the setting. It also missed a trailing
+                separator, so ``"src/"`` behaved differently from ``"src"``.
+                ``matches_pattern`` handles slash normalization, the trailing
+                separator, and the ``pattern/**`` subtree form itself, so no
+                pre-normalization is needed here.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-03
-    @version    0.2.0
+    @date       2026-07-23
+    @version    0.3.0
     """
-    matches = set()
-    normalized_patterns = [pattern.replace("\\", "/") for pattern in patterns]
-    for path in planned_paths:
-        normalized = path.replace("\\", "/")
-        if any(fnmatch.fnmatch(normalized, pattern) for pattern in normalized_patterns):
-            matches.add(path)
-    return sorted(matches)
+    return sorted(
+        {
+            path
+            for path in planned_paths
+            if any(matches_pattern(path, pattern) for pattern in patterns)
+        }
+    )
 
 
 def _print_issues(issues) -> None:

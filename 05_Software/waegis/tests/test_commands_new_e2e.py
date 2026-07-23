@@ -171,7 +171,11 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     verify_workflow_invariants(document, source_roots=["src"], test_roots=["tests"])
     assert document["gates"]["test"] == [] and document["gates"]["lint"] == []
     assert (target / "src" / ".gitkeep").is_file() and (target / "tests" / ".gitkeep").is_file()
-    assert ".agentic/.workspace/" in (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    gitignore_lines = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert ".agentic/.workspace/" in gitignore_lines
+    # `new` and `adopt` now write through a rollback journal, so the transaction
+    # root must be ignored before the bootstrap commit can pick it up.
+    assert ".agentic/.waegis-transactions/" in gitignore_lines
     assert not (target / ".agentic" / ".workspace").exists()
 
     # Git: work tree, clean, with the bootstrap commit.

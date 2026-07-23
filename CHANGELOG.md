@@ -11,8 +11,66 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-23
+
+Component versions in this release: AEGIS payload 1.1.0, WAEGIS 0.3.0. The two
+are versioned independently; this changelog tracks the project as a whole.
+
 ### Changed
 
+- Declare and check the Node requirement that was previously only implied. The
+  adapters use `node:`-prefixed builtin imports, `import.meta.url`,
+  `pathToFileURL`, and nullish coalescing, so a real minimum has always
+  existed, but nothing stated or verified it: on an interpreter too old to
+  parse them a guard failed at launch, which every host reads as a
+  *non-blocking* hook error and lets the tool call through unguarded. The Pi
+  package manifest now declares `engines.node >= 18` and `waegis doctor`
+  reports anything below that floor.
+
+  `prereq.node` stays a warning rather than an error, deliberately. The wizard
+  stops at the first non-green step with no override, so failing here would
+  make AEGIS undeployable for an OpenCode-only project — OpenCode runs the
+  guard plugin in its own runtime and needs no system Node, and a Pi project
+  always has one because Pi is installed with `npm`. Nothing about the
+  installed payload is wrong without Node either: install it afterwards and
+  every hook works with no repair or re-run. The severity therefore reflects
+  "recoverable later" while the message now carries the security consequence —
+  that the Claude Code, Codex, and Qwen Code adapters run their tool calls
+  completely unchecked until it is resolved — which is what an operator needs
+  in order to act. The runtime requirements are documented with the same
+  distinction.
+- Normalize recorded change-unit paths at the point they are recorded.
+  `record-change` now accepts repository-relative or absolute-inside-repository
+  paths, stores one canonical repository-relative form, drops repeated
+  spellings of the same path, and refuses a path that resolves outside the
+  repository.
+- Give `waegis new` and `waegis adopt` the same crash safety the mutating
+  lifecycle commands already had. Both now run their payload copy inside a
+  persistent rollback transaction and recover an interrupted prior run against
+  TARGET before doing anything else. `copy_payload` gained an `on_apply` seam
+  that wraps only the write phase and receives the exact destinations about to
+  be written, so the copier still carries no dependency on the transaction
+  layer. `--dry-run` neither stages nor recovers a transaction.
+- Make every hook transport fail closed and resolve the same interpreter. The
+  Claude Code/Codex/Qwen Code launcher, the OpenCode plugin, and the Pi bridge
+  now offer one ordered candidate list (`py -3` then `python` on Windows,
+  `python3` then `python` elsewhere), each probed on `PATH` before use, and all
+  three treat a guard that could not run as a block instead of an allow.
+  `run_hook.mjs` is now importable without executing its launcher body.
+- Document that every agent must be launched from the repository root, and why
+  it is a safety requirement rather than a convenience. Agent hosts locate their
+  project configuration relative to the launch directory, so a session started
+  in a subdirectory finds no project config, registers no hooks, and runs with
+  every guard silently absent — the tool calls are not blocked, they are never
+  inspected, and nothing reports it. The gap opens before any hook loads, so no
+  hook can detect it. Recorded in the shared hooks README with the evidence, in
+  each adapter's own notes, and in the CLI runtime requirements, together with a
+  way to confirm guards are live in a session. Anchoring the hook commands to
+  the Git root was considered and rejected: it fails in a project without a
+  `.git` directory, disagrees with `find_repository_root`, which resolves
+  `.agentic/` first, has no single form valid across `bash`, PowerShell, and
+  `cmd.exe`, and would not close this gap in any case, because the commands
+  already resolve correctly whenever the configuration containing them loads.
 - Remove the obsolete `create_project_from_template.py` compatibility wrapper;
   deployment documentation and integration tests now use WAEGIS directly.
 - Expand the AEGIS architecture presentation with complete maintained-adapter
@@ -33,6 +91,141 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Make `run.sh` resolve the registered interpreter on Windows. It is a bash
+  script, so it took the POSIX branch unconditionally — but bash on Windows is
+  Git Bash, a supported way to use the repository, and packaged WAEGIS registers
+  its interpreter under `APPDATA` there. Looking only in `~/.config/waegis`
+  silently missed it and fell through to the system candidates, where bare
+  `python` on a stock Windows host is the Microsoft Store alias stub: it
+  launches, exits non-zero and writes nothing. The wrapper now mirrors
+  `run_hook.mjs` exactly — `WAEGIS_HOME`, then the Windows roaming profile,
+  then the POSIX config directory — and offers `py -3` before `python` on
+  Windows. It also trims `AEGIS_PYTHON` and the pointer file's contents, as the
+  Node and PowerShell launchers already did.
+- Give both CLI wrappers the same exit status when no interpreter is available.
+  `run.ps1` reported it with a plain `Write-Error`, which under the script's
+  `$ErrorActionPreference = "Stop"` raises a terminating error and ends the
+  script with status 1, never reaching its own `exit`; `run.sh` used an explicit
+  2. Both now exit 2. The replacement deliberately avoids `[Console]::Error`:
+  a static .NET call fails outright under PowerShell Constrained Language Mode,
+  which is the configuration a locked-down corporate host is most likely to be
+  running — and exactly where a missing-interpreter message matters most.
+  `test_guard_transport_parity.py` now covers both wrappers: shared resolution
+  order, the Windows pointer location, the candidate order, the shared exit
+  status, and the absence of Constrained-Language-unsafe constructs.
+- Start verifying that `guard_read_path.py` was installed. `HOOK_FILES` listed
+  four of the five guards the payload ships, omitting the protected-read guard,
+  which arrived with the protected-read policy without the list being updated
+  alongside it. Both consumers — the `verify.hooks-present` wizard step and
+  `waegis doctor`'s runnability check — report success over the listed names
+  only, so a `guard_read_path.py` that failed to copy was never looked for:
+  setup finished green, doctor reported "all hook files present", and the
+  protected-read policy silently enforced nothing. The list is now complete,
+  and a test derives the expected set from the real template instead of
+  restating it, so the next hook added fails that test rather than going
+  unchecked.
+- Correct the Qwen adapter README, which still described the guard as failing
+  open when Python cannot be run. Every transport now fails closed; the Pi and
+  OpenCode notes were updated with that change and this one was missed.
+- Stop protected-read policy from being bypassable through a host's search
+  tools. Every adapter routed only its single canonical read tool to
+  `guard_read_path.py`, so an enforced `protected_paths` read policy could be
+  sidestepped by asking the same host for the same bytes through its grep tool,
+  and for protected file names through its glob or directory-listing tool. All
+  four tool classes now reach the guard on Claude Code (`Read`/`Grep`/`Glob`),
+  Qwen Code (`read_file`/`read_many_files`/`grep_search`/`glob`/`list_directory`,
+  including the display aliases older builds emit), OpenCode
+  (`read`/`grep`/`glob`/`list`), and Pi (`read`/`grep`/`find`/`ls`); Codex has no
+  distinct read tool and reads through `shell`, already matched. Adapters now
+  forward the real tool name so the guard can distinguish a read that must name
+  a file — still denied when it names none — from a search whose scope argument
+  is optional. A `pattern` argument is read as a path only for glob-style tools,
+  never for grep, where it is a content regex.
+
+  Known limitation, now documented rather than implied: an unscoped
+  repository-wide search carries no path to inspect and is allowed, so it may
+  still surface a line from a protected file. No supported host lets a pre-tool
+  hook rewrite tool output, so this guard blocks a protected path from being
+  targeted and is not a secrecy boundary.
+- Stop WAEGIS rollback journals from being committable. `.agentic/.waegis-transactions/`
+  holds verbatim backup copies of the files a deployment command is about to
+  overwrite, and it was not in the template `.gitignore`, so a `git add -A` run
+  while an install was in flight would commit the operator's own pre-change file
+  content. The exposure grew when `new` and `adopt` became transactional,
+  because both now create the directory.
+- Stop an `apply_patch` envelope from bypassing the write-zone guard when the
+  host sends it under a key other than `command`. The shared path extractor read
+  `command` alone and returned no paths for any other key — and a write-zone
+  guard that extracts no paths has nothing to block, so the call proceeded. The
+  envelope is now read from `command`, `cmd`, `script`, `patch`, and `input`,
+  matching the hedge the OpenCode adapter already applied on its own side, and
+  a path carried by more than one key is reported once.
+- Stop an unreadable working tree from being reported as a clean one. The
+  delivery working-tree audit read only `git status` stdout and ignored the
+  exit code, and git leaves stdout empty when it fails — so a directory that is
+  not a repository, a broken index, or an unreadable object store produced
+  output byte-identical to a genuinely clean tree and `delivery-preflight`
+  passed without having inspected anything. A missing `git` executable behaved
+  differently but no better: it raised `FileNotFoundError` out of the audit, and
+  the delivery hook surfaced that traceback as its deny reason. Both now record
+  a `git-status-unavailable` blocking finding. This is a behavior change:
+  `working-tree` and `delivery-preflight` no longer pass outside a git
+  repository, where previously the git-based scans no-opped by documented
+  design. `impact` is unaffected — it widens its result set from `git status`
+  as a convenience, so the blocking judgement stays in one place.
+- Stop WAEGIS from losing subprocess output containing non-ASCII paths. The
+  probe command runner requested text mode without pinning an encoding, so
+  output was decoded with the host locale — `cp1252` on a stock Windows
+  install. A Git command reporting a path such as `Ё.txt` emits UTF-8 bytes
+  `cp1252` cannot map, and because that decode runs inside `subprocess`'s own
+  reader thread, the failure never surfaced as an error: the thread died and
+  the runner returned `stdout=None`, violating its own `str` contract. Probes
+  testing the output for truthiness saw "no output"; probes calling `.strip()`
+  saw an `AttributeError` far from the cause. Decoding is now pinned to UTF-8
+  with replacement, matching how the AEGIS side already reads git.
+- Stop the alignment protected-scope gate from silently never firing for a
+  directory pattern. It was the one policy consumer still matching with
+  `fnmatch.fnmatch` instead of the shared `matches_pattern`, and `fnmatch` has
+  no tree-rooted form: a pattern of `src/security` — the most natural way to
+  write the setting — did not match `src/security/auth.py`, so a planned change
+  to a protected path recorded a `proceed` decision without ever pausing. A
+  trailing separator was also significant, so `src/security/` and
+  `src/security` behaved differently. The gate now matches through
+  `matches_pattern`, which every other scope, working-tree, component, and hook
+  check already uses. Latent in the shipped template, which configures
+  `mode = "disabled"`, and live for anyone who enables it.
+- Stop a recorded change-unit path that points outside the repository from
+  making a run unusable. The scope invariant resolved every recorded path
+  against the repository root and let the resulting error escape, so a single
+  such path aborted `status`, `invariants`, `report`, and `delivery-preflight`
+  with a traceback — and the delivery hook surfaced that traceback as its deny
+  reason — until the run graph was repaired by hand. The invariant now reports
+  an escaping path as its own finding, distinct from a path that is simply
+  outside the configured roots.
+- Stop an interrupted `waegis new` or `waegis adopt` from leaving a
+  half-installed payload behind. Both wrote payload files one at a time with no
+  rollback journal, so a failure or interruption partway through left the files
+  written up to that point on disk with no manifest recording them — and, for
+  adoption, with the operator's own overwritten files unrecoverable. Only
+  `configure`, `repair`, and `upgrade` were transactional.
+- Stop one unrelated directory under `.agentic/.waegis-transactions/` from
+  making every mutating WAEGIS command fail. Transaction recovery loaded every
+  subdirectory unconditionally, so a leftover directory carrying no
+  `state.json` raised out of the recovery step that runs before any other work.
+  A malformed state document that *is* present still raises: that is a real
+  interrupted run whose journal was damaged.
+- Stop the OpenCode and Pi guards from silently allowing a tool call whenever
+  the shared Python hook could not produce a decision. Both transports read only
+  the hook's stdout and ignored its exit status, so a crashed guard, an
+  unlaunchable interpreter, or a missing interpreter was indistinguishable from
+  a guard that ran and permitted the call. On Windows the OpenCode plugin also
+  spawned bare `python` without probing `PATH`, which resolves to the Microsoft
+  Store alias stub when no interpreter is installed: it launches, exits
+  non-zero, writes nothing, and every guard allowed.
+- Normalize a crashed hook to the blocking exit status in
+  `.agentic/tools/run_hook.mjs`. It previously forwarded the hook's own status,
+  and exit `1` is only a *non-blocking* hook error for Claude Code, Codex, and
+  Qwen Code, so a guard that raised let the tool call proceed unchecked.
 - Keep WAEGIS release staging aligned with deployment exclusions so Node/Vitest
   state, uv caches, Python bytecode, and generated package metadata cannot enter
   release payloads, and normalize Linux tar modes so Windows-hosted builds

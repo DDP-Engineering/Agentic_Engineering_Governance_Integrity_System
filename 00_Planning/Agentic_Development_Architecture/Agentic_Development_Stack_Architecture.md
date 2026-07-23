@@ -7,9 +7,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Agentic Development Stack Architecture
 
-> **Date**: July 22, 2026
+> **Date**: July 23, 2026
 > **Author**: Dan Pasare
 > **Status**: Current architecture, aligned to the standalone AEGIS and WAEGIS implementations.
+> **Versions**: AEGIS payload 1.1.0, WAEGIS 0.3.0 (versioned independently).
 > **Scope**: Architecture for AEGIS, a generic, deployable agentic engineering governance and integrity system.
 > **Implementation targets**: `05_Software/aegis/template/` and `05_Software/waegis/`.
 
@@ -21,7 +22,10 @@ deploys the AEGIS payload into new or existing repositories, verifies the
 result, and supports later analysis, configuration, repair, and upgrade.
 WAEGIS is a separate stdlib-only package and is never copied into the deployed
 AEGIS payload. Repository maintainers exercise the same payload through
-WAEGIS's manifest-aware copier; there is no separate deployment wrapper.
+WAEGIS's manifest-aware copier; there is no separate deployment wrapper. Every
+mutating WAEGIS command, `new` and `adopt` included, writes through a rollback
+journal, so an interrupted install rolls back on the next invocation instead of
+leaving a half-written repository.
 
 The architecture is designed for human-steered development agents. It does not
 assume that the agent is fully autonomous. Instead, it gives the agent:
@@ -30,8 +34,9 @@ assume that the agent is fully autonomous. Instead, it gives the agent:
 - a durable workflow state under `.agentic/`;
 - human-readable operating instructions in `AGENTS.md`;
 - human operator prompt examples and references under `.agentic/documents/`
-  (`PROMPT_CHEATSHEET.md`, `CLI_API_REFERENCE.md`, `How_To_Start_A_New_Project.md`,
-  `WORKFLOW_CHEATSHEET.svg`);
+  (`PROMPT_CHEATSHEET.md`, `CLI_API_REFERENCE.md`, `WORKFLOW_CONFIGURATION.md`,
+  `POLICY_CONFIGURATION.md`, `COMPONENTS_CONFIGURATION.md`, and
+  `How_To_Start_A_New_Project.md`);
 - shared, platform-neutral skill procedures under `.agentic/skills/`;
 - Codex skill and hook adapters under `.codex/`;
 - Claude Code project memory, settings, hooks, and skill adapters under
@@ -77,7 +82,6 @@ When the template is copied into a target repository, the target receives:
     CLI_API_REFERENCE.md
     How_To_Start_A_New_Project.md
     PROMPT_CHEATSHEET.md
-    WORKFLOW_CHEATSHEET.svg
   hooks/
   knowledge/
     components/
@@ -467,9 +471,23 @@ The hook layer currently covers:
 - secret-like input scanning for shell commands (and, under Pi and OpenCode,
   full write/edit content);
 - delivery preflight before publish-like shell commands;
-- protected-path read denial (under Pi and OpenCode, mirroring the `.claude`
-  Read denies);
+- protected-path read denial — extended to the content-search and directory-
+  listing tools, not only the single-file read tool, on Claude Code, Qwen Code,
+  OpenCode, and Pi (Codex reads through its shell tool, already covered by the
+  command guards), so a protected path cannot be reached through a host's grep,
+  glob, or list tool instead of its read tool;
 - journal logging after tool use.
+
+The guard transports fail closed. Because the shared Python guards always exit
+0 and signal a denial on stdout, a guard that cannot run — a missing or
+unlaunchable Python interpreter, or a hook that crashed — is treated as a block,
+not an allow, and every transport normalizes that case to the host's blocking
+exit status. The Claude Code / Codex / Qwen Code launcher (`run_hook.mjs`), the
+OpenCode plugin, and the Pi bridge resolve the same interpreter in the same
+order and share this contract; a parity test fails if any one of them drifts.
+The delivery preflight is fail closed in the same spirit: an unreadable working
+tree — no repository, or `git` absent — is a blocking finding rather than a
+silently clean pass.
 
 Hooks are guardrails, not a complete sandbox. Shell commands can still create
 files in ways that a simple edit-hook does not fully model. For unattended or
@@ -504,6 +522,17 @@ core, and host-specific adapters:
 | `.qwen/settings.json` | Qwen-specific | Native command-hook bindings for the shared hook scripts, `context.fileName` pointing at `AGENTS.md`, and permission denies. |
 | `.qwen/skills` | Qwen adapter | Thin pointers to `.agentic/skills`. |
 
+Runtime floors are Python 3.11+ and Git 2.30+ (both required, checked by
+`waegis doctor`) and Node 18+ for the adapters that dispatch guards through
+`run_hook.mjs` — Claude Code, Codex, and Qwen Code — as well as OpenCode and Pi.
+Node is reported as a warning rather than a hard failure, because an
+OpenCode-only project runs its guard plugin in its own runtime; the warning
+states the security consequence, that without Node those adapters' tool calls
+run unchecked. Every agent must be started from the repository root: each host
+discovers its project configuration relative to the launch directory, so a
+session started in a subdirectory loads no configuration and registers no
+guards at all (see §12).
+
 ## 12. Known Weak Points
 
 1. **Gate discipline is partly human/agent-driven.**
@@ -511,11 +540,13 @@ core, and host-specific adapters:
    from being run in the wrong stage.
 
 2. **Hook enforcement is host-specific.**
-   Codex, Claude Code, Pi, OpenCode, and Qwen Code get useful hook bindings.
-   Other agent runtimes need equivalent bindings. The Pi binding additionally
-   requires Node and a project-trust step; the OpenCode binding requires OpenCode
-   local plugin loading and a usable Python interpreter; the Qwen Code binding
-   requires a usable Python interpreter and a project-trust step.
+   Codex, Claude Code, Pi, OpenCode, and Qwen Code get useful hook bindings, and
+   those bindings now fail closed — an unavailable guard blocks rather than
+   allows. Other agent runtimes still need equivalent bindings. The Pi binding
+   additionally requires Node and a project-trust step; the OpenCode binding
+   requires OpenCode local plugin loading and a usable Python interpreter; the
+   Qwen Code binding requires a usable Python interpreter and a project-trust
+   step.
 
 3. **Write-zone protection is cooperative.**
    It is good for normal edit flows, but it is not a hardened filesystem
@@ -542,6 +573,21 @@ core, and host-specific adapters:
    Ubuntu lifecycle/archive journeys still need recorded release evidence.
    Network self-update, the GUI, and the optional AI advisor remain deferred.
 
+8. **Guards depend on the launch directory.**
+   Every host discovers its project configuration relative to the directory the
+   agent was started in, and none search parent directories. A session started
+   in a subdirectory therefore loads no configuration and registers no guards at
+   all — the failure happens before any hook runs, so no hook can report it. The
+   operational rule is to start every agent from the repository root; it cannot
+   be closed by changing how the hooks are addressed.
+
+9. **Cross-platform behavior is verified by inspection, not yet by CI.**
+   The Python suites run green on the development host, and platform branches
+   (interpreter resolution, case-folding, executable bits) are written and unit-
+   tested with the platform simulated. There is no continuous integration
+   running both suites on Windows and Ubuntu, so Linux behavior rests on code
+   review rather than executed evidence.
+
 ## 13. Evolution Path
 
 The current template is useful as a human-steered, auditable workflow. Worktree
@@ -550,17 +596,21 @@ The next evolution steps are:
 
 1. Complete WAEGIS clean-machine and Ubuntu lifecycle/archive evidence for
    release readiness.
-2. Add stronger stage validation around CLI commands when it can preserve the
+2. Add continuous integration that runs both test suites on Windows and Ubuntu,
+   replacing inspection-based cross-platform confidence with executed evidence.
+3. Add stronger stage validation around CLI commands when it can preserve the
    manual stop-and-review model.
-3. Revisit an advisory component-documentation check after component mappings
+4. Revisit an advisory component-documentation check after component mappings
    have sufficient operational evidence.
-4. Provide adapters for additional agent platforms; Codex, Claude Code, Pi,
+5. Provide adapters for additional agent platforms; Codex, Claude Code, Pi,
    OpenCode, and Qwen Code are supported today.
 
-An auto-advancing conductor, fail-closed hooks, and a declarative invariant
-severity file are deliberately not part of the current roadmap. They would
-weaken the manual-gate product contract or add policy surface without proven
-demand.
+Fail-closed guard transports are now delivered rather than deferred: an
+unavailable guard blocks the tool call instead of allowing it, which strengthens
+rather than weakens the manual-gate contract. An auto-advancing conductor and a
+declarative invariant severity file remain deliberately outside the current
+roadmap — they would weaken the manual-gate product contract or add policy
+surface without proven demand.
 
 ## 14. Summary
 

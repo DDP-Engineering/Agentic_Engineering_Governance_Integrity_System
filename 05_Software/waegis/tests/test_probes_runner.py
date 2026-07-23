@@ -22,6 +22,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from waegis.probes.runner import CommandResult, SubprocessCommandRunner
 
 from _fake_command_runner import FakeCommandRunner, failing_result, not_found_result, ok_result
@@ -98,6 +100,37 @@ def test_subprocess_command_runner_reports_not_found_for_missing_executable() ->
     assert result.exit_code is None
     assert result.stdout == ""
     assert result.stderr == ""
+
+
+def test_subprocess_command_runner_decodes_non_ascii_output_as_utf8() -> None:
+    """
+    @brief      ``SubprocessCommandRunner`` decodes UTF-8 child output on any
+                host locale rather than losing it.
+    @return     None
+    @exception  AssertionError If the output is misdecoded or lost.
+    @details    Regression guard. ``text=True`` without an explicit ``encoding``
+                decodes with the locale preferred encoding, which is ``cp1252``
+                on a stock Windows host. ``Ё`` encodes to ``d0 81`` in UTF-8 and
+                ``cp1252`` cannot map ``0x81``. The failure is quieter than a
+                raised error: the decode happens in ``subprocess``'s own reader
+                thread, so that thread dies and ``run`` returns ``stdout=None``
+                — a ``None`` where the ``CommandResult`` contract promises
+                ``str``. Asserting the exact text catches both the lost output
+                and any future mojibake. Git reports such a path whenever a
+                repository contains one, so this is reachable from a plain
+                ``waegis adopt``. The child writes raw bytes so the assertion
+                does not depend on the child's own stdout encoding.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    runner = SubprocessCommandRunner()
+    result = runner.run(
+        (sys.executable, "-c", "import sys; sys.stdout.buffer.write('Ё.txt'.encode('utf-8'))"),
+    )
+    assert result.found is True
+    assert result.exit_code == 0
+    assert result.stdout == "Ё.txt"
 
 
 # END OF FILE

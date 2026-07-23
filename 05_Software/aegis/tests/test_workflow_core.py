@@ -11,8 +11,8 @@
 @brief Workflow support module for test_workflow_core.
 @details Covers expected workflow behavior through focused pytest checks.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.10.0
+@date 2026-07-23
+@version 0.11.0
 """
 
 # IMPORTS
@@ -829,6 +829,106 @@ def test_alignment_requires_pause_for_protected_planned_path(
             "--reason",
             "Trying to proceed.",
         )
+
+
+def test_alignment_protected_scope_matches_bare_directory_pattern(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """
+    @brief      Verify a directory pattern protects the whole subtree under it.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @param[in]  replace_workflow_toml Exact-fragment editor for the config.
+    @return     None.
+    @details    Regression guard for the protected-scope matcher. The gate used
+                ``fnmatch.fnmatch``, which has no tree-rooted form, so the most
+                natural way to write the setting — a bare directory, with no
+                glob — silently never matched anything under it and the pause
+                gate never fired. Every other policy consumer uses the shared
+                ``matches_pattern``, which treats ``"src/security"`` as the
+                subtree it names.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    replace_workflow_toml('risk_threshold = "medium"', 'risk_threshold = "high"')
+    replace_workflow_toml(
+        '[alignment.protected_scope]\nmode = "disabled"\npatterns = []',
+        '[alignment.protected_scope]\nmode = "enforce"\npatterns = ["src/security"]',
+    )
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Change auth")
+    run_cli(tmp_path, "next")
+
+    with pytest.raises(SystemExit, match="protected scope"):
+        run_cli(
+            tmp_path,
+            "alignment",
+            "--source",
+            "human prompt",
+            "--understanding",
+            "Change authentication behavior.",
+            "--scope",
+            "in: auth flow",
+            "--acceptance",
+            "Existing auth checks pass.",
+            "--planned-path",
+            "src/security/auth.py",
+            "--risk",
+            "low",
+            "--decision",
+            "proceed",
+            "--reason",
+            "Trying to proceed.",
+        )
+
+
+def test_alignment_protected_scope_leaves_unrelated_paths_alone(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """
+    @brief      Verify a directory pattern does not capture a sibling prefix.
+    @param[in]  tmp_path Temporary repository root used by the workflow helper.
+    @param[in]  replace_workflow_toml Exact-fragment editor for the config.
+    @return     None.
+    @details    The companion to the subtree check above: broadening the matcher
+                must not turn ``"src/security"`` into a prefix match that also
+                captures ``src/securityaudit/``, which is a different directory.
+                Without this, the subtree fix could be satisfied by a plain
+                ``startswith``.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    replace_workflow_toml('risk_threshold = "medium"', 'risk_threshold = "high"')
+    replace_workflow_toml(
+        '[alignment.protected_scope]\nmode = "disabled"\npatterns = []',
+        '[alignment.protected_scope]\nmode = "enforce"\npatterns = ["src/security"]',
+    )
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Change auth")
+    run_cli(tmp_path, "next")
+    run_cli(
+        tmp_path,
+        "alignment",
+        "--source",
+        "human prompt",
+        "--understanding",
+        "Change unrelated behavior.",
+        "--scope",
+        "in: audit report",
+        "--acceptance",
+        "Existing checks pass.",
+        "--planned-path",
+        "src/securityaudit/report.py",
+        "--risk",
+        "low",
+        "--decision",
+        "proceed",
+        "--reason",
+        "Nothing protected is planned.",
+    )
 
 
 def test_alignment_accepts_pause_for_adoption_alignment(tmp_path: Path) -> None:
