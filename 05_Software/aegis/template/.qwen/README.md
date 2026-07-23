@@ -75,12 +75,22 @@ the same write identifiers because it is reused byte-for-byte across adapters.
 ## Prerequisites and trust
 
 - **Python runtime.** Hooks use `AEGIS_PYTHON`, the packaged-WAEGIS registered
-  runtime, then a supported system Python. If
-  `python` cannot be run, the guard fails open (allows) - the same "needs Python on
-  PATH" caveat as the Codex and Claude Code adapters. Adjust the `command` entries
-  in `settings.json` locally if your interpreter is named differently.
+  runtime, then the first system launcher that actually resolves on `PATH`
+  (`py -3` then `python` on Windows, `python3` then `python` elsewhere) — the
+  same ordered list the Codex and Claude Code adapters use. If no interpreter
+  can be run, the guard **blocks** with an actionable reason rather than
+  allowing the call: the shared hooks always exit 0 and answer on stdout, so
+  silence is never an allow. Install Python, set `AEGIS_PYTHON`, or run a
+  packaged WAEGIS command to register a runtime.
 - **Project trust.** Qwen loads project-local settings, skills, and commands only
   after the workspace is trusted. Trust the project on first start.
+- **Launch directory.** Qwen resolves `.qwen/settings.json` against the
+  directory it was started in and does not search parent directories. Starting
+  it in a subdirectory means the settings file is not found, so **no hooks are
+  registered and every guard is silently absent** for that session. Always start
+  Qwen Code from the repository root. See
+  [`../.agentic/hooks/README.md`](../.agentic/hooks/README.md) for why this
+  cannot be fixed by changing the hook commands.
 
 ## Usage
 

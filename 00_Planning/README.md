@@ -25,16 +25,14 @@ records for the standalone AEGIS project belong here.
 - Qwen Code adapter behavior is documented in the stack architecture and the
   copied template assets under `05_Software/aegis/template/.qwen/` and
   `05_Software/aegis/template/QWEN.md`.
-- `Agentic_Flow_Artifact_Map.svg` maps the workflow stages to the `.agentic`
-  files, commands, hooks, and skills that create or update persisted workflow
-  information.
-- `Aegis_Artifact_Flow.svg` - stage-by-stage map of which skills,
-  commands, scripts, and hooks create or update `.agentic` workflow artifacts.
-- `Aegis_Architecture_Presentation.pptx` - slide deck overview of the
-  AEGIS architecture.
+- The stakeholder architecture decks (`WAEGIS_Architecture_Presentation.pptx`
+  and `AEGIS_Governance_Workflow_Presentation.pptx`) live under
+  `06_SoftwareDocu/`.
 - `PROMPT_CHEATSHEET.md` - planning reference copy of the operator prompt cheat
-  sheet; the canonical copy ships at
-  `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`.
+  sheet; it leads with a stage-by-stage spine of the prompts a human gives the
+  agent to drive one change from intake through delivery. The canonical copy
+  ships at `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`
+  and is kept identical to this one.
 - `AEGIS_Hard_Break_Modernization_Master_Plan_2026-07-22.md` - coordinated
   execution order and shared acceptance criteria for the requirement, workspace
   state, and policy-neutral configuration hard break.

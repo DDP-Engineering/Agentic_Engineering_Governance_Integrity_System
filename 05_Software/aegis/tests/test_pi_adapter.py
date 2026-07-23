@@ -97,6 +97,26 @@ def test_manifest_is_noncommercial_safe() -> None:
     assert "publishConfig" not in manifest
 
 
+def test_manifest_declares_the_supported_node_floor() -> None:
+    """
+    @brief      Verify the manifest declares a Node engine floor.
+    @return     None.
+    @details    The adapters use `node:`-prefixed builtin imports,
+                `import.meta.url`, `pathToFileURL`, and nullish coalescing, so
+                they do have a real minimum. Leaving it undeclared meant an
+                interpreter too old to parse them failed at hook launch — read
+                by every host as a *non-blocking* hook error, letting the tool
+                call through unguarded.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    engines = read_manifest().get("engines", {})
+    assert "node" in engines, "the Node requirement must be declared, not implied"
+    assert engines["node"] == ">=18"
+
+
 def test_manifest_declares_extension_and_reuses_shared_skills() -> None:
     """
     @brief      Verify the manifest wires the extension and reuses engine skills.

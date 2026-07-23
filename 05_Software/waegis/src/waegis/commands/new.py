@@ -124,7 +124,7 @@ from ..io.answers import (
     unknown_keys,
 )
 from ..io.console import LiveStatusRenderer, plan_preview_json, render_plan_preview, run_summary_json
-from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_VALIDATION, write_envelope
+from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
 from ..io.prompts import ConsoleAsker, FieldSpec, PromptsError, ScriptedAnswerError, ScriptedAsker, ValidationError
 from ..lifecycle import build_journal_fingerprints, find_resume_journal, replay_answers
 from ..payload.copier import CopierError, copy_payload, inspect_payload, should_exclude
@@ -154,6 +154,7 @@ from ..repo.workflow_toml import (
     generate_workflow_toml,
     verify_workflow_invariants,
 )
+from ..transaction import payload_transaction, recover_incomplete_transactions
 from ..verification import (
     HOOK_FILES,
     NO_ACTIVE_RUN_MARKER,
@@ -1246,11 +1247,22 @@ def _act_payload_copy(ctx: EngineContext) -> None:
     @exception  waegis.payload.copier.CopierError On a strict-mode refusal
                 (pre-existing files) or copy failure.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     payload = _payload_root(ctx)
-    result = copy_payload(payload, _target(ctx), mode="new")
+    target = _target(ctx)
+    result = copy_payload(
+        payload,
+        target,
+        mode="new",
+        # Crash safety: the copy writes hundreds of files one at a time, so an
+        # interruption partway through would otherwise leave a half-scaffolded
+        # directory and no manifest. The journal is staged over exactly the
+        # destinations the apply phase will touch and rolls back on the next
+        # WAEGIS command if this process never finishes.
+        on_apply=lambda paths: payload_transaction(target, command="new", paths=paths),
+    )
     assert result.manifest is not None and result.manifest_file is not None
     ctx.record_answer("payload_version", result.manifest.payload_version)
     ctx.record_artifact(str(result.manifest_file))
@@ -2015,9 +2027,13 @@ def _build_new_steps() -> list[StepSpec]:
         StepSpec(
             id="prereq.node",
             title="Check for Node.js",
-            why="Every AEGIS hook (write-zone guard, secret scan, ...) is dispatched through "
-            "Node (.agentic/tools/run_hook.mjs). Unlike Python/git this never blocks the run: a "
-            "missing Node is reported so hooks work once installed, but setup still completes.",
+            why="The Claude Code, Codex, and Qwen Code adapters dispatch every AEGIS guard "
+            "(write-zone, secret scan, protected read, delivery preflight) through Node "
+            "(.agentic/tools/run_hook.mjs). Without Node those guards cannot launch, and a "
+            "guard that cannot launch does not block - their tool calls run unchecked. Unlike "
+            "Python/git this still never stops setup: OpenCode runs the guard in its own "
+            "runtime and needs no system Node, and installing Node later makes every hook work "
+            "with no repair or re-run.",
             phase=Phase.P1_PREREQ,
             automation=Automation.AUTO,
             preconditions=("prereq.git",),
@@ -2162,8 +2178,9 @@ def _build_new_steps() -> list[StepSpec]:
         StepSpec(
             id="verify.hooks-present",
             title="Verify hooks and agent adapters",
-            why="Confirms the four workflow hook files and every agent adapter folder shipped by "
-            "the payload are present in TARGET, so agent tools find their configuration.",
+            why="Confirms every workflow hook file and agent adapter folder shipped by the "
+            "payload is present in TARGET, so agent tools find their configuration. A hook that "
+            "did not copy is a guard that never runs, and nothing else would report it.",
             phase=Phase.P4_DEPLOY,
             automation=Automation.AUTO,
             preconditions=("verify.workflow-smoke",),
@@ -2498,8 +2515,8 @@ def run_new(
     @exception  None Operational failures are reported on ``stream`` and
                 encoded in the exit code.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     target_path = Path(target).resolve()
     if as_json:
@@ -2516,6 +2533,26 @@ def run_new(
         stream.write("waegis new: non-interactive mutation requires --yes\n")
         return EXIT_NEEDS_INPUT
     json_messages: list[str] = []
+
+    # --- roll back an interrupted prior run before touching TARGET ---
+    # A dry run writes nothing, so it must not mutate the target either.
+    if not dry_run:
+        try:
+            recovered = recover_incomplete_transactions(target_path)
+        except (OSError, ValueError) as exc:
+            message = f"could not recover an interrupted transaction: {exc}"
+            if as_json:
+                return write_envelope(
+                    stream, "new", status="error", exit_code=EXIT_OPERATIONAL, messages=(message,)
+                )
+            stream.write(f"waegis new: {message}\n")
+            return EXIT_OPERATIONAL
+        if recovered:
+            message = f"rolled back {len(recovered)} interrupted transaction(s): {', '.join(recovered)}"
+            if as_json:
+                json_messages.append(message)
+            else:
+                stream.write(f"waegis new: {message}\n")
 
     # --- answers seam (before any engine or journal work) ---
     answers: dict[str, Any] = {}

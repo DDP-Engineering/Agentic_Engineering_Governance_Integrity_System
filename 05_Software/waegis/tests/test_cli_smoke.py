@@ -116,7 +116,7 @@ def test_version_is_a_real_command(capsys: pytest.CaptureFixture[str]) -> None:
     @version    0.7.0
     """
     assert main(["version"]) == 0
-    assert "WAEGIS 0.2.0" in capsys.readouterr().out
+    assert "WAEGIS 0.3.0" in capsys.readouterr().out
 
 
 def test_upgrade_is_no_longer_a_stub() -> None:

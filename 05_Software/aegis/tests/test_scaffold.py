@@ -65,7 +65,7 @@ def test_embedded_cli_package_version_matches_pyproject() -> None:
     pyproject_path = PACKAGE_ROOT / "template" / ".agentic" / "cli" / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
-    assert __version__ == "1.0.0"
+    assert __version__ == "1.1.0"
     assert __version__ == pyproject["project"]["version"]
 
 
@@ -222,9 +222,13 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     assert (target / "AGENTS.md").exists()
     assert (target / "CHANGELOG.md").exists()
     assert (target / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md").exists()
-    assert (target / ".agentic" / "documents" / "WORKFLOW_CHEATSHEET.svg").exists()
     assert (target / ".agentic" / "workflow.toml").exists()
-    assert ".agentic/.workspace/" in (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    gitignore_lines = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert ".agentic/.workspace/" in gitignore_lines
+    # Rollback journals hold verbatim backups of files a deployment command is
+    # about to overwrite; tracking them would publish the operator's own
+    # pre-change content on the next `git add -A`.
+    assert ".agentic/.waegis-transactions/" in gitignore_lines
     assert not (target / ".agentic" / ".workspace").exists()
     assert (target / ".agentic" / "components.toml").exists()
     assert (target / ".codex" / "config.toml").exists()

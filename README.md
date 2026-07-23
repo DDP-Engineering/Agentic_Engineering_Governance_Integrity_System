@@ -81,8 +81,6 @@ generated.
   documents the complete schema-version-2 configuration and policy modes.
 - `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md`
   separates intrinsic workflow contracts from repository and platform policy.
-- `05_Software/aegis/template/.agentic/documents/WORKFLOW_CHEATSHEET.svg`
-  provides a visual one-page workflow reference.
 - `00_Planning/PROMPT_CHEATSHEET.md` is the planning reference copy of the same
   human prompt set.
 - `00_Planning/Agentic_Development_Architecture_Examples/` contains worked

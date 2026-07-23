@@ -26,9 +26,21 @@
          process working directory, so the wizard's smoke and gate steps must
          run wrapper scripts *inside* the target repo. ``cwd=None`` (the
          default) preserves the original behavior for every existing caller.
+@details Child output is decoded as UTF-8 with replacement (0.3.0). ``text=True``
+         alone decodes with the locale preferred encoding, which is ``cp1252``
+         on a stock Windows host: a Git command reporting a path such as
+         ``Ё.txt`` returns bytes (``d0 81``) that ``cp1252`` cannot map. The
+         resulting ``UnicodeDecodeError`` is raised inside ``subprocess``'s
+         own reader thread, so it never reaches this caller — the thread dies
+         and ``run`` returns ``stdout=None``. That silently violated the
+         ``CommandResult.stdout: str`` contract: a probe testing truthiness saw
+         "no output" and concluded the command produced nothing, while one
+         calling ``.strip()`` or ``.splitlines()`` got an ``AttributeError``
+         far from the real cause. Git and the tools probed here emit UTF-8
+         regardless of the console code page.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.2.0
+@date 2026-07-23
+@version 0.3.0
 """
 
 # IMPORTS
@@ -163,15 +175,22 @@ class SubprocessCommandRunner:
         @return     A :class:`CommandResult` capturing the real outcome.
         @exception  None All failure modes are captured in the returned
                     :class:`CommandResult` rather than raised.
+        @details    Decoding is pinned to UTF-8 with replacement rather than
+                    left to the locale, so non-ASCII child output cannot come
+                    back as ``stdout=None`` from a decode that failed inside
+                    ``subprocess``'s reader thread. See the module docstring for
+                    the concrete ``cp1252`` case this closes.
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-13
-        @version    0.2.0
+        @date       2026-07-23
+        @version    0.3.0
         """
         try:
             completed = subprocess.run(
                 list(argv),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
                 cwd=str(cwd) if cwd is not None else None,
                 check=False,

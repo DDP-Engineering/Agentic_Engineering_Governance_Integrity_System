@@ -51,13 +51,20 @@ def audit_working_tree(
     @param[in]  graph Active workflow graph when delivery preflight needs
                 run-kind-specific checks.
     @return     Result produced by the workflow helper.
+    @details    An unreadable working tree is a blocking finding, not a pass
+                (0.4.0). The audit's whole job is to prove nothing blocking is
+                present, and it cannot prove that from a status it never got —
+                so a Git that failed or is missing has to fail closed, the same
+                way an unavailable guard hook blocks rather than allows.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.3.0
+    @date       2026-07-23
+    @version    0.4.0
     """
-    entries = _git_status(repo_root)
+    entries, status_error = _git_status(repo_root)
     findings = []
+    if status_error:
+        findings.append(_finding("git-status-unavailable", "", status_error))
     for entry in entries:
         path = entry["path"]
         entry_paths = _entry_paths(entry)
@@ -98,31 +105,49 @@ def audit_working_tree(
 # HELPER FUNCTIONS
 
 
-def _git_status(repo_root: Path) -> list[dict[str, str]]:
+def _git_status(repo_root: Path) -> tuple[list[dict[str, str]], str | None]:
     """
-    @brief      Handle git status workflow behavior.
-    @param[in]  repo_root Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
+    @brief      Read the porcelain working-tree status.
+    @param[in]  repo_root Repository root the status is read for.
+    @return     Parsed entries, and an error message when the status could not
+                be read at all (``None`` on success).
+    @details    Both failure modes are reported rather than mistaken for a
+                clean tree (0.2.0). Git exiting non-zero — not a repository,
+                a broken index, an unreadable object store — writes its
+                diagnosis to stderr and leaves stdout empty, which is
+                byte-identical to a genuinely clean tree, so the audit used to
+                conclude there was nothing to block on. Git being absent
+                entirely raised ``FileNotFoundError`` out of the audit, which
+                the delivery hook then surfaced as a raw traceback. Neither is
+                an answer, so both come back as an error for the caller to turn
+                into a blocking finding.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.2
+    @date       2026-07-23
+    @version    0.2.0
     """
-    result = subprocess.run(
-        # `-c core.quotepath=false` stops Git from C-style-quoting and
-        # octal-escaping paths containing non-ASCII bytes (its default
-        # `core.quotePath=true` behavior); without it, a file such as
-        # `café.txt` is reported as the literal string `"caf\303\251.txt"`,
-        # which none of the protected/blocked/secret path patterns below
-        # would ever match.
-        ["git", "-c", "core.quotepath=false", "status", "--porcelain", "-uall"],
-        cwd=repo_root,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            # `-c core.quotepath=false` stops Git from C-style-quoting and
+            # octal-escaping paths containing non-ASCII bytes (its default
+            # `core.quotePath=true` behavior); without it, a file such as
+            # `café.txt` is reported as the literal string `"caf\303\251.txt"`,
+            # which none of the protected/blocked/secret path patterns below
+            # would ever match.
+            ["git", "-c", "core.quotepath=false", "status", "--porcelain", "-uall"],
+            cwd=repo_root,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        return [], f"Git could not be run to audit the working tree: {exc}"
+    if result.returncode != 0:
+        detail = (result.stderr or "").strip().splitlines()
+        reason = detail[-1] if detail else "no diagnostic output"
+        return [], f"Git status failed with exit code {result.returncode}: {reason}"
     entries = []
     for line in result.stdout.splitlines():
         if len(line) < 4:
@@ -136,7 +161,7 @@ def _git_status(repo_root: Path) -> list[dict[str, str]]:
         if previous_path:
             entry["previous_path"] = _unquote_git_path(previous_path).replace("\\", "/")
         entries.append(entry)
-    return entries
+    return entries, None
 
 
 _GIT_QUOTE_ESCAPES = {"\\": "\\", '"': '"', "n": "\n", "t": "\t", "a": "\a", "b": "\b", "f": "\f", "v": "\v"}

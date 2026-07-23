@@ -13,9 +13,12 @@
          destination. A later lifecycle invocation rolls back any transaction
          left in a non-terminal phase by process termination. All target paths
          pass the managed-path confinement validator.
+@details ``payload_transaction`` (0.2.0) packages the staged/applying/verified/
+         committed sequence as one context manager so the deployment commands
+         wrap their payload writes without restating the protocol.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.1.0
+@date 2026-07-23
+@version 0.2.0
 """
 
 # IMPORTS
@@ -26,9 +29,10 @@ import json
 import os
 import shutil
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 from .payload.manifest import normalize_managed_path, resolve_managed_path
 
@@ -188,20 +192,64 @@ class FileTransaction:
         os.replace(temporary, path)
 
 
+@contextmanager
+def payload_transaction(
+    repo: Path, *, command: str, paths: Iterable[str]
+) -> Iterator[FileTransaction]:
+    """
+    @brief      Wrap a block of repository writes in one rollback journal.
+    @param[in]  repo Repository root receiving the writes.
+    @param[in]  command Command name recorded in the transaction state.
+    @param[in]  paths Every repo-relative path the block may write.
+    @return     Context manager yielding the staged transaction.
+    @details    Stages backups and marks ``applying`` on entry, marks
+                ``verified`` and commits on a clean exit, and rolls back on any
+                exception — including ``KeyboardInterrupt`` and ``SystemExit``,
+                which is the interruption case the journal exists for. A process
+                killed inside the block leaves the transaction non-terminal, so
+                :func:`recover_incomplete_transactions` restores it on the next
+                WAEGIS command.
+    @exception  OSError If staging, rollback, or commit fails.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    transaction = FileTransaction.begin(repo, command=command, paths=paths)
+    transaction.mark("applying")
+    try:
+        yield transaction
+    except BaseException:
+        if transaction.directory.exists():
+            transaction.rollback()
+        raise
+    transaction.mark("verified")
+    transaction.commit()
+
+
 def recover_incomplete_transactions(repo: Path) -> tuple[str, ...]:
     """
     @brief      Roll back every non-terminal transaction left by interruption.
     @return     Recovered transaction ids.
+    @details    A subdirectory with no ``state.json`` at all carries no record of
+                what to restore and is not a transaction: it is skipped rather
+                than raised on, so unrelated litter under the transaction root
+                cannot make every WAEGIS command fail. A ``state.json`` that is
+                present but unreadable or malformed still raises — that is a
+                real interrupted transaction whose journal was damaged, and
+                silently ignoring it would strand a partially applied change.
     @exception  OSError If recovery cannot restore state safely.
+    @exception  ValueError If a present transaction state document is malformed.
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     root = resolve_managed_path(repo.resolve(), TRANSACTION_DIRECTORY)
     if not root.is_dir():
         return ()
     recovered: list[str] = []
     for directory in sorted(path for path in root.iterdir() if path.is_dir()):
+        if not (directory / "state.json").is_file():
+            continue
         transaction = FileTransaction.load(repo, directory)
         if transaction.state.get("phase") not in _TERMINAL_PHASES:
             transaction.rollback()

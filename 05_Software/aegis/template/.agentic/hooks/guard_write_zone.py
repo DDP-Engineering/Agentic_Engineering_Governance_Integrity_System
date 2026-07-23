@@ -17,7 +17,10 @@
          canonical AEGIS store API.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.6.0
+@details `extract_target_paths` (0.7.0) reads the `apply_patch` envelope from
+         any of the keys a host may use, not `command` alone, so a patch that
+         arrives under a different key still yields paths to check.
+@version 0.7.0
 """
 
 # IMPORTS
@@ -28,6 +31,15 @@ import json
 from pathlib import Path
 import re
 import sys
+
+
+# @brief Argument keys that may carry an `apply_patch` envelope, in the order
+#        they are read. Hosts disagree on the name: Codex sends `command`, and
+#        the OpenCode adapter already probes `command`/`cmd`/`script` before
+#        falling back to `patch`/`input`. Every key is read rather than only
+#        the first that matches, because a host is free to send more than one
+#        and missing the populated one means extracting no paths at all.
+PATCH_ENVELOPE_KEYS = ("command", "cmd", "script", "patch", "input")
 
 
 # PUBLIC API
@@ -133,19 +145,31 @@ def extract_target_paths(tool_input: dict) -> list[str]:
                 Code ``Edit``/``Write``/``MultiEdit`` ``file_path`` argument, and
                 the Qwen Code ``WriteFile``/``write_file`` ``file_path`` argument so
                 the write-zone guard applies identically across every adapter.
+    @details    The patch envelope is read from any of ``command``, ``cmd``,
+                ``script``, ``patch``, or ``input`` (0.2.0). Hosts disagree on
+                which key carries it, and this function is the shared
+                implementation every adapter feeds — the OpenCode adapter
+                already hedged across the same keys on its own side, which only
+                helped the calls routed through it. A patch arriving under an
+                unread key produced no paths at all, and a guard that extracts
+                no paths finds nothing to block.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
+    @date       2026-07-23
+    @version    0.2.0
     """
     paths: list[str] = []
-    command = tool_input.get("command", "")
-    if isinstance(command, str) and command:
-        paths.extend(extract_patch_paths(command))
+    for key in PATCH_ENVELOPE_KEYS:
+        candidate = tool_input.get(key)
+        if isinstance(candidate, str) and candidate:
+            paths.extend(extract_patch_paths(candidate))
     file_path = tool_input.get("file_path")
     if isinstance(file_path, str) and file_path:
         paths.append(file_path)
-    return paths
+    # Two keys can carry the same patch text, so the same path can be found
+    # twice; the caller checks each path against the write zone and duplicate
+    # findings would report one violation more than once.
+    return list(dict.fromkeys(paths))
 
 
 def extract_patch_paths(command: str) -> list[str]:

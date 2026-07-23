@@ -628,9 +628,17 @@ def _resolve_cpp(source: str, identifier: str) -> bool:
 
 
 def _git_working_set(repo_root: Path) -> list[str]:
-    """@brief Return current and previous paths from the shared Git status parser."""
+    """
+    @brief Return current and previous paths from the shared Git status parser.
+    @details An unreadable status yields no paths here rather than a finding.
+             This feeds impact analysis, which widens a result set as a
+             convenience; the blocking judgement on an unreadable working tree
+             belongs to `working_tree.audit_working_tree`, and duplicating it
+             here would report the same problem twice.
+    """
     files: list[str] = []
-    for entry in _git_status(repo_root):
+    entries, _status_error = _git_status(repo_root)
+    for entry in entries:
         files.append(entry["path"])
         previous_path = entry.get("previous_path")
         if previous_path:

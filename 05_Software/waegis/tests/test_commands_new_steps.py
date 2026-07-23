@@ -551,6 +551,38 @@ def test_hooks_present_requires_all_hooks_and_adapters(tmp_path) -> None:  # typ
     assert spec.verify(broken) is False
 
 
+def test_hook_files_match_the_real_template() -> None:
+    """
+    @brief      :data:`HOOK_FILES` matches the guards actually shipped under
+                ``05_Software/aegis/template/.agentic/hooks/``.
+    @return     None
+    @exception  AssertionError If the constant and the real template diverge.
+    @details    Derived from the template rather than restated, because a hook
+                missing from the constant is a hook whose absence from an
+                install is never noticed: `verify.hooks-present` and
+                `waegis doctor` both report success over the listed names only,
+                so an uncopied file is simply not looked for. That is how
+                `guard_read_path.py` — the protected-read guard — went
+                unverified from the day it was added until 0.3.0. Comparing
+                against the real directory means the next hook added fails this
+                test instead of silently going unchecked.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    hooks_root = Path(__file__).resolve().parents[2] / "aegis" / "template" / ".agentic" / "hooks"
+    shipped = {
+        entry.name
+        for entry in hooks_root.iterdir()
+        if entry.is_file()
+        and entry.suffix == ".py"
+        # The shared config loader the hooks import, not a dispatched guard.
+        and entry.name != "workflow_config_bootstrap.py"
+    }
+
+    assert shipped == set(HOOK_FILES)
+
+
 # --- manifest amendment ----------------------------------------------------------------
 
 

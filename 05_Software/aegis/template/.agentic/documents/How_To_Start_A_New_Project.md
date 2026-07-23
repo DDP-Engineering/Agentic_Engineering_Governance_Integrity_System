@@ -15,12 +15,25 @@ and validate its structure before opting into repository restrictions.
 
 | Tool | Purpose | Check |
 | --- | --- | --- |
-| Git | Working-tree analysis and delivery context | `git --version` |
+| Git 2.30+ | Working-tree analysis and delivery context | `git --version` |
 | Python 3.11+ | Local CLI and hook implementation | `python --version` |
-| Node.js | Cross-adapter hook launcher | `node --version` |
+| Node.js 18+ | Cross-adapter hook launcher | `node --version` |
 
 Packaged WAEGIS can register its bundled Python runtime, so a separately
 installed system Python is not required after registration.
+
+Node is required by the Claude Code, Codex, and Qwen Code adapters, which launch
+the guards through `run_hook.mjs`; OpenCode and Pi run the guards in their own
+runtimes and need no system Node. Without a usable Node those three adapters
+cannot launch their guards, and an unlaunchable guard blocks the tool call
+rather than allowing it — so a missing Node means unchecked tool calls, not a
+missing convenience.
+
+**Always start the agent from the repository root** — the directory that holds
+`.agentic/`. Each host discovers its project configuration relative to the
+directory it was launched in and does not search parent directories, so a
+session started in a subdirectory loads no configuration and registers no guards
+at all.
 
 ## 2. Install or Deploy
 
@@ -286,12 +299,14 @@ configured decisions to the shared Python implementation.
 | `RUN-POINTER-STALE` | Selected graph is absent or invalid | Start/select a valid run; do not guess. |
 | `gates run` reports disabled | `gates.mode` is `disabled` | Enable gates and provide complete commands if desired. |
 | Coverage reports a source file | Enforced coverage found no current mapping | Update a requirement `affected_paths`/linked test or approve a legacy waiver. |
-| A hook cannot start Python | Adapter transport has no usable runtime | Set `AEGIS_PYTHON` or register the WAEGIS runtime. |
+| A hook cannot start Python | Adapter transport has no usable runtime; the guarded tool call is blocked until it is resolved | Set `AEGIS_PYTHON` or register the WAEGIS runtime. |
+| Guards never seem to run | The agent was started below the repository root, so no configuration loaded | Restart the agent from the directory that holds `.agentic/`. |
 
 ## 13. Further Reading
 
 - `WORKFLOW_CONFIGURATION.md` - complete schema, modes, and validation rules.
 - `POLICY_CONFIGURATION.md` - intrinsic workflow versus repository policy.
+- `COMPONENTS_CONFIGURATION.md` - component map and adoption baseline configuration.
 - `CLI_API_REFERENCE.md` - command and error contracts.
 - `PROMPT_CHEATSHEET.md` - operator-ready prompts.
 - `.agentic/requirements/README.md` - requirement snapshot format.

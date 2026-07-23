@@ -116,16 +116,18 @@ The workflow compares status levels in this order:
 | `baseline-usable` | The component has enough requirements, tests, and documentation for normal behavior-changing work. |
 | `baseline-strict` | The component has stronger-than-default coverage or review expectations. |
 
-The minimum status required before behavior-changing work is configured by:
+The minimum status required before behavior-changing work is configured in
+`.agentic/workflow.toml` by the component baseline guard:
 
 ```toml
-[adoption]
-default_completion_level = "baseline-usable"
+[components.baseline_guard]
+mode = "enforce"
+minimum_completion_level = "baseline-usable"
 ```
 
 If a run records changes to a mapped component below that level, the component
-baseline invariant can block delivery until adoption is completed or scope is
-revised.
+baseline invariant (`INV-9`) can block delivery until adoption is completed or
+scope is revised. When the guard is `disabled`, the level is not enforced.
 
 ## Bundle Fields
 

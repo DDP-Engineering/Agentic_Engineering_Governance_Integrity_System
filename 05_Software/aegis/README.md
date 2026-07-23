@@ -52,8 +52,6 @@ checks stay reusable across languages and frameworks.
   skills, hooks, and written `.agentic` artifacts.
 - `template/.agentic/documents/PROMPT_CHEATSHEET.md` - human operator prompt
   examples copied with the workflow.
-- `template/.agentic/documents/WORKFLOW_CHEATSHEET.svg` - visual one-page
-  workflow reference copied with the workflow.
 - `tests/` - unit and fixture tests for the template itself, run against the
   single-source CLI under `template/.agentic/cli/src`.
 - `../../00_Planning/PROMPT_CHEATSHEET.md` - planning reference copy of the

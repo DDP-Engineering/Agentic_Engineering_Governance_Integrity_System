@@ -105,7 +105,14 @@ next prompt options.
    - Stop and ask the human to review the spec.
 
 4. Check
-   - Add tests/checks that cite spec IDs.
+   - Add tests/checks that cite spec IDs. For each `behavior` spec item cover
+     the happy path *and* the failure paths it implies: invalid input, boundary
+     and empty values, and the specific error or rejection the behavior is meant
+     to produce. A single assertion of the obvious case rarely fixes the
+     behavior or catches a regression.
+   - Prefer several small, focused checks over one broad one, so that when a
+     check goes red later it names the specific behavior that broke. Match the
+     depth of coverage to the risk in the spec item, not to a fixed count.
    - Also cite durable requirement IDs in test comments, docstrings, or names
      where practical.
    - For new components, include checks or review expectations that make the

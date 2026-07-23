@@ -10,6 +10,13 @@ __pycache__/
 # Per-worktree AEGIS runtime state is created on demand and never tracked.
 .agentic/.workspace/
 
+# WAEGIS rollback journals. These hold verbatim backup copies of files a
+# deployment command is about to overwrite, so committing them would publish
+# the pre-change content of the operator's own files — and a `git add -A` run
+# while an install is in flight would do exactly that. The directory is
+# transient: it is rolled back or removed when the transaction terminates.
+.agentic/.waegis-transactions/
+
 # Adapter dependencies are installed on demand.
 node_modules/
 .vitest/

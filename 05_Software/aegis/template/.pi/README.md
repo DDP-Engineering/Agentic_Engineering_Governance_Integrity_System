@@ -65,14 +65,25 @@ Read, write, secret, and delivery rules come only from the validated
 ## Prerequisites and trust
 
 - **Python runtime.** Set `AEGIS_PYTHON` to pin an interpreter. Otherwise the
-  bridge uses the runtime registered by packaged WAEGIS, then a supported
-  system Python. If no interpreter can be
-  run, the guard fails open (allows) — the same "needs Python on PATH" caveat as
-  the Codex/Claude adapters.
+  bridge uses the runtime registered by packaged WAEGIS, then the first system
+  launcher that actually resolves on `PATH` (`py -3` then `python` on Windows,
+  `python3` then `python` elsewhere) — the same ordered list the Codex, Claude
+  Code, and Qwen Code launcher uses. If no interpreter can be run, the guard
+  **blocks** with an actionable reason rather than allowing the call: the
+  shared hooks always exit 0 and answer on stdout, so silence is never an
+  allow. Install Python, set `AEGIS_PYTHON`, or run a packaged WAEGIS command
+  to register a runtime.
 - **Project trust.** Project-local extensions and skills load only after the
   project is trusted (`ctx.isProjectTrusted()`). This is the one behavioral
   difference from the Codex and Claude adapters, which do not require a trust
   step. Trust the project when Pi prompts on first start.
+- **Launch directory.** Start Pi from the repository root, the directory holding
+  `.agentic/`. Pi resolves project-local resources from the current working
+  directory; started in a subdirectory it finds no `.pi/`, so the guard
+  extension is never registered and every guard is silently absent for that
+  session — tool calls are not blocked, they are never inspected. Declining
+  trust has the same effect and is at least visible; this one is not. See
+  [`../.agentic/hooks/README.md`](../.agentic/hooks/README.md).
 
 ## Install & usage
 

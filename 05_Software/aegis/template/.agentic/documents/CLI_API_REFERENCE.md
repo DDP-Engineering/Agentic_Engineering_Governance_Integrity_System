@@ -60,20 +60,47 @@ below an existing install.
 
 ## Runtime Requirements
 
-- Python 3.11 or newer, supplied by `AEGIS_PYTHON`, the packaged-WAEGIS
+- Python **3.11 or newer**, supplied by `AEGIS_PYTHON`, the packaged-WAEGIS
   registered runtime, or the system. The CLI has no third-party dependencies.
-- `git` on `PATH`. The secret scan (`INV-7`), `working-tree audit`, `impact`,
-  and `delivery-preflight` shell out to `git`.
+- `git` **2.30 or newer** on `PATH`. The secret scan (`INV-7`),
+  `working-tree audit`, `impact`, and `delivery-preflight` shell out to `git`.
+- Node **18 or newer** on `PATH` for the Claude Code, Codex, and Qwen Code
+  adapters, which dispatch every guard through
+  `node .agentic/tools/run_hook.mjs`. **Without it those guards cannot launch,
+  and a guard that cannot launch does not block — tool calls run unchecked.**
+  OpenCode runs its guard plugin in its own runtime and needs no system Node;
+  Pi is installed with `npm` and therefore always has one. `waegis doctor`
+  reports a missing or too-old Node as a warning rather than an error, because
+  installing it afterwards makes every hook work with no repair or re-run.
+- At least **1 GiB** free disk at the target, checked during deployment.
+- **Start the agent from the repository root** — the directory holding
+  `.agentic/`. Agent hosts locate their project configuration relative to the
+  directory they were launched in; started in a subdirectory, a host finds no
+  project config, registers no hooks, and runs the whole session with every
+  guard silently absent. Nothing reports this: the tool calls are not blocked,
+  they are simply never inspected. It happens before any hook loads, so no hook
+  can detect it, and it is not fixable by changing how the hooks are addressed.
+  See `.agentic/hooks/README.md`. To confirm guards are live in a session, ask
+  the agent to read a path covered by an enforced
+  `guardrails.protected_paths` read policy; a loaded configuration denies it.
 
-Degraded behavior without git:
+Behavior without git:
 
 - If the `git` executable is missing, `INV-7` (`Clean secrets`) reports
   `Could not inspect git diff for secrets` and fails closed, which blocks
   `delivery-preflight`.
-- If the directory is not a git repository, the git-based scans see no changes:
-  `impact` and `working-tree audit` return nothing and `INV-7` finds nothing to
-  scan. These checks no-op rather than protect, so run the workflow inside a git
-  repository.
+- If `git status` cannot be read at all — the executable is missing, the
+  directory is not a repository, or git exits non-zero for any other reason —
+  `working-tree audit` records a `git-status-unavailable` blocking finding,
+  which blocks `delivery-preflight`. An unreadable working tree is never
+  reported as a clean one: the audit exists to prove nothing blocking is
+  staged, and it cannot prove that from a status it never received.
+- `impact` widens its result set from `git status` as a convenience, so an
+  unreadable status simply contributes no extra paths there. The blocking
+  judgement belongs to `working-tree audit` alone and is not duplicated.
+
+Run the workflow inside a git repository. Delivery is a git operation, so
+`delivery-preflight` cannot pass outside one.
 
 ## Workflow Stages
 
@@ -473,7 +500,13 @@ Arguments:
 | Argument | Required | Meaning |
 | --- | --- | --- |
 | `--id <id>` | Yes | Run-local change unit id. |
-| `--path <path>` | Yes | Repeatable. A touched path. |
+| `--path <path>` | Yes | Repeatable. A touched path, repository-relative or absolute inside the repository. |
+
+Paths are normalized to repository-relative form before they are stored, and
+repeated spellings of the same path are stored once, so scope and component
+checks compare recorded paths against repository-relative globs consistently.
+A path that resolves outside the repository is refused: the command exits
+without recording anything and names the offending path.
 
 Stage: `implementation`, sometimes `validation` if change units are recorded
 after final cleanup.
@@ -856,26 +889,34 @@ Writes:
 
 ## Hook Integration
 
-These four standalone hook scripts are the runtime source of truth and are
+These five standalone hook scripts are the runtime source of truth and are
 reused unchanged by all five agent adapters:
 
 - **Codex** wires them through `.codex/hooks.json` (PreToolUse / PostToolUse
   command hooks); edit inputs run both the write-zone guard and secret scan.
+  Codex reads through its shell tool, so its reads are covered by the command
+  guards rather than a separate read matcher.
 - **Claude Code** wires them through `.claude/settings.json` (matching hook
-  bindings plus protected-path Read/Edit/Write denies); edit inputs run both
-  the write-zone guard and secret scan.
+  bindings plus the protected-read guard on `Read` / `Grep` / `Glob`); edit
+  inputs run both the write-zone guard and secret scan.
 - **Qwen Code** wires them through `.qwen/settings.json`; `WriteFile` / `Edit`
-  inputs run both the write-zone guard and secret scan, while Bash input also
-  runs delivery preflight. See `.qwen/README.md`.
+  inputs run both the write-zone guard and secret scan, Bash input also runs
+  delivery preflight, and the read, search, glob, and directory-listing tools
+  run the protected-read guard. See `.qwen/README.md`.
 - **Pi** wires them through the `.pi/` bridge extension, which maps Pi
   `tool_call` / `tool_result` events onto the same JSON-on-stdin hook protocol.
-  It passes full write/edit input to `secret_scan.py`, and a native check denies
-  reads of protected secret/key files. See `.pi/README.md`.
+  It passes full write/edit input to `secret_scan.py`, and its `read`, `grep`,
+  `find`, and `ls` tools run `guard_read_path.py`. See `.pi/README.md`.
 - **OpenCode** wires them through `.opencode/plugins/agentic-guard.mjs`, which
   maps `tool.execute.before` / `tool.execute.after` events onto the same
   JSON-on-stdin hook protocol. The plugin also scans write/edit content for
-  secrets and denies protected secret/key reads natively. See
-  `.opencode/README.md`.
+  secrets and runs the protected-read guard on its `read`, `grep`, `glob`, and
+  `list` tools. See `.opencode/README.md`.
+
+Each adapter transport fails closed: because the shared guards always exit 0 and
+signal a denial on stdout, a guard that cannot run — a missing or unlaunchable
+Python interpreter, or a hook that crashed — is treated as a block, not an
+allow.
 
 ### `guard_write_zone.py`
 
@@ -908,6 +949,37 @@ Related CLI commands:
 - `next`
 - `set-stage`
 - `set-access-mode`
+
+### `guard_read_path.py`
+
+Hook path:
+
+```text
+.agentic/hooks/guard_read_path.py
+```
+
+When it runs: before the read, content-search, glob, and directory-listing
+tools on every adapter that exposes them (a host's read, grep, glob, and
+find/list tools).
+
+What it reads: the validated `.agentic/workflow.toml`
+`[guardrails.protected_paths]` policy, applied only when `read` is a configured
+operation.
+
+What it does: denies access to a configured protected path whether the agent
+targets it through the single-file read tool or through a content-search, glob,
+or listing tool — so a protected path cannot be reached by asking a host for the
+same bytes through its grep, or the same file names through its glob or listing
+tool, instead of its read tool. A search that names no path — a
+repository-wide grep — is allowed, because no pre-tool hook can rewrite tool
+output; the guard blocks a protected path from being *targeted*, not every
+search that might incidentally surface a line from one. When the policy is
+`disabled` or does not list `read`, it returns an explicit allow. Configuration
+and path failures become actionable hook denials; there are no built-in
+protected paths or permissive fallbacks.
+
+Related CLI commands: none directly; the protected-read policy comes from
+`.agentic/workflow.toml`.
 
 ### `post_tool_evidence.py`
 

@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "description": "Pi adapter for AEGIS. Bridges Pi tool events to the shared Python guard hooks and reuses the shared neutral skills from ../.agentic/skills.",
   "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "keywords": ["pi-package"],

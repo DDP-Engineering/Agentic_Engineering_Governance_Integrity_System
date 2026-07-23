@@ -37,6 +37,8 @@ import shutil
 import sys
 from types import ModuleType
 
+import pytest
+
 from aegis import paths as paths_module
 from aegis.cli import main as cli_main
 
@@ -523,6 +525,82 @@ def test_guard_write_zone_repo_wide_blocks_protected_path(tmp_path: Path, monkey
     assert ".git/config" in output
 
 
+@pytest.mark.parametrize("envelope_key", ["command", "cmd", "script", "patch", "input"])
+def test_guard_write_zone_reads_patch_envelope_from_any_key(
+    tmp_path: Path,
+    monkeypatch,
+    envelope_key: str,
+) -> None:
+    """
+    @brief      Verify the patch envelope is honored under every accepted key.
+    @param[in]  tmp_path Working directory the hook resolves against.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @param[in]  envelope_key Argument key carrying the patch text.
+    @return     None.
+    @details    Regression guard. The extractor read `command` alone, so a host
+                sending the patch under any other name yielded no paths — and a
+                write-zone guard that extracts no paths finds nothing to block,
+                which is an allow. The OpenCode adapter hedged across these same
+                keys on its own side, but that only covered calls routed through
+                it; this is the shared implementation every adapter feeds.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
+    run_cli(
+        tmp_path,
+        "set-access-mode",
+        "repo-wide",
+        "--reason",
+        "Human-approved broad maintenance",
+    )
+    payload = apply_patch_payload(tmp_path, ".git/config")
+    payload["tool_input"] = {envelope_key: payload["tool_input"]["command"]}
+
+    output = run_hook(guard_main, payload, monkeypatch)
+
+    assert "permissionDecision" in output
+    assert "deny" in output
+    assert ".git/config" in output
+
+
+def test_guard_write_zone_reports_a_path_once_across_duplicate_keys(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """
+    @brief      Verify a path carried by two keys is reported a single time.
+    @param[in]  tmp_path Working directory the hook resolves against.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Reading every envelope key rather than the first match means the
+                same patch can be seen twice. Deduplication keeps one violation
+                from being reported as two.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
+    run_cli(
+        tmp_path,
+        "set-access-mode",
+        "repo-wide",
+        "--reason",
+        "Human-approved broad maintenance",
+    )
+    payload = apply_patch_payload(tmp_path, ".git/config")
+    command = payload["tool_input"]["command"]
+    payload["tool_input"] = {"command": command, "patch": command}
+
+    output = run_hook(guard_main, payload, monkeypatch)
+
+    assert "deny" in output
+    assert output.count(".git/config") == 1
+
+
 # --- Claude Code file-edit payloads --------------------------------------------
 
 
@@ -737,6 +815,273 @@ def test_guard_read_path_denies_configured_protected_read(tmp_path: Path, monkey
 
     assert "permissionDecision" in output
     assert "credentials/service.json" in output
+
+
+def enforce_protected_read(tmp_path: Path) -> None:
+    """
+    @brief      Turn on an enforced protected-read policy over ``credentials``.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.protected_paths]\nmode = "disabled"\npatterns = []\noperations = []',
+        '[guardrails.protected_paths]\nmode = "enforce"\n'
+        'patterns = ["credentials/**"]\noperations = ["read"]',
+    )
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "tool_input"),
+    [
+        # Claude Code
+        ("Grep", {"path": "credentials/service.json"}),
+        ("Glob", {"pattern": "credentials/**"}),
+        # Qwen Code, canonical ids and the display aliases older builds emit
+        ("grep_search", {"path": "credentials/service.json"}),
+        ("search_file_content", {"path": "credentials/service.json"}),
+        ("glob", {"pattern": "credentials/**"}),
+        ("list_directory", {"path": "credentials/tokens"}),
+        ("read_many_files", {"paths": ["README.md", "credentials/service.json"]}),
+        # OpenCode
+        ("grep", {"path": "credentials/service.json"}),
+        ("list", {"path": "credentials/tokens"}),
+        # Pi
+        ("find", {"pattern": "credentials/**"}),
+        ("ls", {"path": "credentials/tokens"}),
+    ],
+)
+def test_guard_read_path_blocks_protected_path_through_search_tools(
+    tmp_path: Path,
+    monkeypatch,
+    tool_name: str,
+    tool_input: dict,
+) -> None:
+    """
+    @brief      Deny a protected path targeted through a search or list tool.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @param[in]  tool_name Adapter tool identifier under test.
+    @param[in]  tool_input Arguments naming the protected path.
+    @return     None.
+    @details    Regression guard for the protected-read bypass. The policy was
+                enforced only for the single canonical read tool, so on every
+                adapter the same bytes could be obtained by asking the host's
+                grep instead — and the file names by asking its glob or listing
+                tool. Each case here is one host's real tool identifier,
+                verified against that host's shipped build.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    enforce_protected_read(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": tool_name,
+        "cwd": str(tmp_path),
+        "tool_input": tool_input,
+    }
+
+    output = run_hook(read_main, payload, monkeypatch)
+
+    assert "permissionDecision" in output
+    assert "deny" in output
+    assert "credentials" in output
+
+
+def test_guard_read_path_directory_listing_follows_pattern_shape(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A ``dir/**`` pattern covers a directory's contents, ``dir`` also
+                covers the directory itself.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Pins the distinction so listing behavior stays predictable, and
+                so nobody "fixes" it by loosening the shared matcher — which
+                every scope, working-tree, component, and hook check also uses.
+                An operator who wants the directory entry itself protected
+                writes the bare directory; `credentials/**` deliberately names
+                only what is inside it.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    enforce_protected_read(tmp_path)
+    listing = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "list_directory",
+        "cwd": str(tmp_path),
+        "tool_input": {"path": "credentials"},
+    }
+
+    # `credentials/**` names the contents, so the directory entry is not itself
+    # a protected path.
+    assert run_hook(read_main, listing, monkeypatch) == ""
+
+    replace_workflow_fragment(
+        tmp_path,
+        'patterns = ["credentials/**"]',
+        'patterns = ["credentials"]',
+    )
+
+    assert "deny" in run_hook(read_main, listing, monkeypatch)
+
+
+def test_guard_read_path_allows_unscoped_search(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Allow a repository-wide search that names no path.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    The documented limit of this guard, pinned so it stays a
+                deliberate choice. A search with no scope argument means the
+                whole repository; denying it would make any enforced
+                protected-read policy unusable, since no pre-tool hook on any
+                supported host can redact a result set. The guard blocks a
+                protected path from being *targeted*, not every search that
+                might incidentally touch one.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    enforce_protected_read(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Grep",
+        "cwd": str(tmp_path),
+        "tool_input": {"pattern": "password"},
+    }
+
+    assert run_hook(read_main, payload, monkeypatch) == ""
+
+
+def test_guard_read_path_does_not_treat_grep_regex_as_a_path(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A grep content regex is never interpreted as a path.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    ``pattern`` means a content regex for grep and a path glob for
+                glob, so it is read only for the glob-style tools. Reading it
+                for grep would compare arbitrary regex text against the
+                protected patterns and block a legitimate search whose regex
+                happened to look like a protected path.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    enforce_protected_read(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Grep",
+        "cwd": str(tmp_path),
+        "tool_input": {"pattern": "credentials/.*", "path": "src"},
+    }
+
+    assert run_hook(read_main, payload, monkeypatch) == ""
+
+
+def test_guard_read_path_still_denies_a_read_naming_no_file(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A content read carrying no path stays a denial.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Only the search tools gained the permissive empty-target branch.
+                A read tool cannot operate without a target, so a payload
+                without one is malformed and must not become an allow.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    enforce_protected_read(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {},
+    }
+
+    output = run_hook(read_main, payload, monkeypatch)
+
+    assert "deny" in output
+
+
+def test_guard_read_path_tool_sets_are_disjoint_and_classify_every_name() -> None:
+    """
+    @brief      Verify the read and search tool sets stay a clean partition.
+    @return     None.
+    @details    The two sets drive different empty-target behavior — a read
+                naming no file is denied, an unscoped search is allowed — so a
+                name appearing in both would make that behavior depend on set
+                iteration order. `GLOB_PATTERN_TOOLS` must also be a subset of
+                the search tools, since it only refines how their ``pattern``
+                argument is read.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    read_module = load_hook("guard_read_path")
+
+    assert not (read_module.CONTENT_READ_TOOLS & read_module.SEARCH_TOOLS)
+    assert read_module.GLOB_PATTERN_TOOLS <= read_module.SEARCH_TOOLS
+    # A grep-style tool must never be treated as glob-style: its `pattern` is a
+    # content regex, not a path.
+    assert not (
+        {"Grep", "grep", "grep_search", "search_file_content"} & read_module.GLOB_PATTERN_TOOLS
+    )
+
+
+def test_claude_and_qwen_matchers_cover_every_search_tool() -> None:
+    """
+    @brief      Verify the two settings-driven adapters route their search tools.
+    @return     None.
+    @details    The Python guard can only refuse a call an adapter actually
+                sends it. Claude Code and Qwen Code select hooks by a matcher
+                string in JSON settings, so their coverage is a config fact that
+                no guard-level test can establish. OpenCode and Pi dispatch in
+                code and are covered by their own adapter suites; Codex has no
+                distinct read tool — it reads through `shell`, already matched
+                by the Bash entry.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-23
+    @version    0.1.0
+    """
+    template = Path(__file__).resolve().parents[1] / "template"
+
+    claude = json.loads((template / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    claude_read = next(
+        entry
+        for entry in claude["hooks"]["PreToolUse"]
+        if "guard_read_path.py" in json.dumps(entry)
+    )
+    assert {"Read", "Grep", "Glob"} <= set(claude_read["matcher"].split("|"))
+
+    qwen = json.loads((template / ".qwen" / "settings.json").read_text(encoding="utf-8"))
+    qwen_read = next(
+        entry
+        for entry in qwen["hooks"]["PreToolUse"]
+        if "guard_read_path.py" in json.dumps(entry)
+    )
+    qwen_matchers = set(qwen_read["matcher"].split("|"))
+    assert {"read_file", "grep_search", "glob", "list_directory"} <= qwen_matchers
 
 
 def test_guard_read_path_disabled_allows_former_builtin_secret_name(
