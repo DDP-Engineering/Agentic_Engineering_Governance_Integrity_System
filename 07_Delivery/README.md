@@ -12,7 +12,7 @@ publication records for the standalone AEGIS project belong here.
 
 ## Releases
 
-- `waegis-0.3.0/` - WAEGIS 0.3.0 with bundled AEGIS payload 1.1.0. Portable
+- `waegis-0.3.0/` - WAEGIS 0.3.0 with bundled AEGIS payload 1.2.0. Portable
   zipapp plus self-contained Windows and Linux archives (embedded CPython). See
   `waegis-0.3.0/RELEASE.md` for artifacts, checksums, usage, and the build
   command. The binaries are reproducible from source and are not tracked in

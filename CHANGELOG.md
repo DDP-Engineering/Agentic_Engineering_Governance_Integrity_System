@@ -11,6 +11,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-24
+
+Component versions in this release: AEGIS payload 1.2.0, WAEGIS 0.3.0. The two
+are versioned independently; this changelog tracks the project as a whole.
+
+### Changed
+
+- Require a resolvable test (or an explicit manual method) for every non-Retired
+  requirement, not only `Active` ones. The traceability audit previously raised
+  `REQ-NO-VERIFICATION` only for an `Active` requirement that lacked a resolvable
+  linked test and a `Manual:`/`Inspection:` verification, so a `Planned`
+  requirement could sit untested indefinitely and still pass delivery preflight —
+  a drafted contract with no test was invisible to regression gating.
+  `audit traceability` now applies the same rule to every non-Retired
+  requirement (`Planned` and `Active`); `Retired` requirements and explicit
+  `Manual:`/`Inspection:` verification remain exempt. Because delivery preflight
+  already blocks on any traceability finding, a release now requires every
+  non-Retired requirement to carry at least one resolvable test or a manual
+  method.
+- Strengthen requirement-stage guidance for completeness and atomicity: one
+  requirement per behavior, decompose the feature before drafting, write failure
+  and boundary behaviors as their own requirements, enumerate and trace
+  acceptance criteria, cover the applicable requirement categories, and report a
+  requirement-stage review checklist at the gate.
+
 ## [1.1.0] - 2026-07-23
 
 Component versions in this release: AEGIS payload 1.1.0, WAEGIS 0.3.0. The two

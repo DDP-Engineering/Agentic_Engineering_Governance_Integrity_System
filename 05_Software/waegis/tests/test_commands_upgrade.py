@@ -878,7 +878,7 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
     (new / removed_rel).unlink()
     # (c) upstream version bump
     ver_file = new / ".agentic" / "cli" / "pyproject.toml"
-    ver_file.write_text(ver_file.read_text(encoding="utf-8").replace('version = "1.1.0"', 'version = "1.1.1"'), encoding="utf-8")
+    ver_file.write_text(ver_file.read_text(encoding="utf-8").replace('version = "1.2.0"', 'version = "1.2.1"'), encoding="utf-8")
 
     # Operator locally edited CLAUDE.md (upstream unchanged there -> KEEP_LOCAL).
     _write(repo / "CLAUDE.md", (repo / "CLAUDE.md").read_text(encoding="utf-8") + "\n# my local note\n")
@@ -893,7 +893,7 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
 
     report = apply_upgrade(plan, hook=None, runner=_smoke_ok_runner(repo))
     assert report.manifest_written is True
-    assert report.manifest.payload_version == "1.1.1"
+    assert report.manifest.payload_version == "1.2.1"
     assert not (repo / removed_rel).exists()  # removed upstream, unmodified -> deleted
     assert "# upstream change" in (repo / "AGENTS.md").read_text(encoding="utf-8")
     assert "# my local note" in (repo / "CLAUDE.md").read_text(encoding="utf-8")  # local edit preserved

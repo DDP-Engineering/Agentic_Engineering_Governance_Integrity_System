@@ -824,4 +824,110 @@ def test_inv8_reads_active_requirements_from_live_index(tmp_path: Path) -> None:
     assert active.holds
 
 
+def test_planned_requirement_without_a_test_is_flagged(tmp_path: Path) -> None:
+    """
+    @brief Verify a non-Retired requirement with no resolvable test is flagged.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-24
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    record = create_fixed_record(tmp_path, config, linked_tests=())
+
+    issues = audit_traceability(tmp_path, config)
+
+    assert [(issue.code, issue.req_id) for issue in issues] == [
+        ("REQ-NO-VERIFICATION", record.id)
+    ]
+    assert record.status == "Planned"
+    assert "(Planned)" in issues[0].message
+
+
+def test_planned_requirement_with_a_resolvable_test_is_not_flagged(tmp_path: Path) -> None:
+    """
+    @brief Verify a Planned requirement backed by a resolvable test passes traceability.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-24
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    write_tested_module(tmp_path)
+    record = create_fixed_record(tmp_path, config)
+
+    assert record.status == "Planned"
+    assert audit_traceability(tmp_path, config) == []
+
+
+def test_planned_requirement_with_manual_method_is_not_flagged(tmp_path: Path) -> None:
+    """
+    @brief Verify manual verification still exempts a testless non-Retired requirement.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-24
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    create_requirement(
+        tmp_path,
+        category="functional",
+        priority="Must",
+        requirement="Generated report is inspected.",
+        rationale="Some behavior is only verifiable by inspection.",
+        verification="Inspection: inspect the generated report",
+        config=config,
+        timestamp=CREATED,
+    )
+
+    assert audit_traceability(tmp_path, config) == []
+
+
+def test_retired_requirement_without_a_test_is_not_flagged(tmp_path: Path) -> None:
+    """
+    @brief Verify Retired requirements are exempt from the verification gate.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-24
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    record = create_fixed_record(tmp_path, config, linked_tests=())
+    update_requirement(
+        tmp_path,
+        record.id,
+        status="Retired",
+        config=config,
+        timestamp=UPDATED,
+    )
+
+    assert audit_traceability(tmp_path, config) == []
+
+
+def test_delivery_preflight_blocks_a_planned_requirement_without_tests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Verify delivery preflight blocks when a non-Retired requirement has no test.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-24
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    create_fixed_record(tmp_path, config, linked_tests=())
+    monkeypatch.chdir(tmp_path)
+    main(["start", "--kind", "feature", "--statement", "Preflight blocks untested requirement"])
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["delivery-preflight"])
+
+    assert exc_info.value.code == 1
+    assert "REQ-NO-VERIFICATION" in capsys.readouterr().out
+
+
 # END OF FILE
