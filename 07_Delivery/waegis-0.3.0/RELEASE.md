@@ -8,9 +8,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # WAEGIS 0.3.0 Delivery Package
 
 - **WAEGIS version**: 0.3.0
-- **Bundled AEGIS payload**: 1.1.0
+- **Bundled AEGIS payload**: 1.2.0
 - **Compatible AEGIS payload range**: `>=0.4.0,<2.0`
-- **Built**: 2026-07-23
+- **Built**: 2026-07-24
 - **Builder**: `05_Software/waegis/packaging/build_release.py` (stdlib-only)
 - **Embedded runtime** (self-contained archives): CPython 3.13.13,
   astral-sh/python-build-standalone release 20260510, pinned by SHA-256 in
@@ -31,14 +31,14 @@ and the checksums below are. Rebuild them from source with the command in the
 ## Checksums (SHA-256)
 
 ```text
-e8b19865dd7ca83985844bb53be23340115997d25ba4b546ad34d692e9de271b  waegis-0.3.0-linux-x64.tar.gz
-f501ab57b6f0d4be61f287d83669b4c558cbbdd40243bd19972afd7cb8a6015f  waegis-0.3.0-windows-x64.zip
-2bf496db42459e093f1b6f1b402cd0a8d739eb85d25a1e28d782f228329013bd  waegis-0.3.0.pyz
+813e2400a0155e3b0bc5ffc205750b7bce0fb6a82b57d8174f0df89270bbc49e  waegis-0.3.0-linux-x64.tar.gz
+c2a441f3b34dbe84e04acf5b08eb55fe4df3519ea21c96cf57c1bb9ec3c2f954  waegis-0.3.0-windows-x64.zip
+c070a532545bd12c393a80d06ed941ad65bf7832e4141849ddc98e2b9d9ff0d6  waegis-0.3.0.pyz
 ```
 
 The `.pyz` wrapper hash varies between builds (zipapp embeds timestamps); the
 bundled AEGIS payload content digest is stable at
-`178a7f1c8b8d0e46af69bb237f414ddb9a4786fd047c45977371e987e266567a`.
+`be60e07e771a2dc77acc3579abbb26b29926c5c2ca32e422e88915e3e4f19838`.
 
 ## Usage
 
