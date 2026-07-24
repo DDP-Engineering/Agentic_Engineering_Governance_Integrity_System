@@ -170,6 +170,7 @@ def test_opencode_plugin_maps_tools_to_shared_hooks() -> None:
     for hook in (
         "guard_read_path.py",
         "guard_write_zone.py",
+        "guard_shell_write.py",
         "secret_scan.py",
         "delivery_preflight.py",
         "post_tool_evidence.py",

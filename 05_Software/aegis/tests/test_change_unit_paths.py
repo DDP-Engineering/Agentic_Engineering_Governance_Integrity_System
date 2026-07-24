@@ -34,7 +34,7 @@ from aegis.cli import main
 from aegis.config import load_config
 from aegis.invariants import evaluate
 from aegis.models import ChangeUnit, Graph, Intent
-from aegis.paths import contained_relative_path, is_allowed_path
+from aegis.paths import contained_relative_path, relative_to_root
 from aegis.store import graph_path, load_graph, resolve_run_id
 
 # CONSTANTS
@@ -356,7 +356,7 @@ def test_the_strict_helper_still_raises_so_boundaries_can_refuse(tmp_path: Path)
     @version    0.1.0
     """
     with pytest.raises(ValueError, match="escapes workspace root"):
-        is_allowed_path(tmp_path.parent / "outside.py", tmp_path, ["src/**"])
+        relative_to_root(tmp_path.parent / "outside.py", tmp_path)
 
 
 # END OF FILE

@@ -894,29 +894,35 @@ Writes:
 
 ## Hook Integration
 
-These five standalone hook scripts are the runtime source of truth and are
-reused unchanged by all five agent adapters:
+These six standalone hook scripts are the runtime source of truth and are
+reused unchanged by all five agent adapters. Shell commands run the shell-write
+guard (`guard_shell_write.py`), which applies the same write-zone and
+protected-path policy to file writes performed through the shell, alongside the
+secret scan and delivery preflight:
 
 - **Codex** wires them through `.codex/hooks.json` (PreToolUse / PostToolUse
-  command hooks); edit inputs run both the write-zone guard and secret scan.
-  Codex reads through its shell tool, so its reads are covered by the command
-  guards rather than a separate read matcher.
+  command hooks); edit inputs run both the write-zone guard and secret scan,
+  and shell input runs the shell-write guard, secret scan, and delivery
+  preflight. Codex reads through its shell tool, so its reads are covered by the
+  command guards rather than a separate read matcher.
 - **Claude Code** wires them through `.claude/settings.json` (matching hook
   bindings plus the protected-read guard on `Read` / `Grep` / `Glob`); edit
   inputs run both the write-zone guard and secret scan.
 - **Qwen Code** wires them through `.qwen/settings.json`; `WriteFile` / `Edit`
   inputs run both the write-zone guard and secret scan, Bash input also runs
-  delivery preflight, and the read, search, glob, and directory-listing tools
-  run the protected-read guard. See `.qwen/README.md`.
+  the shell-write guard and delivery preflight, and the read, search, glob, and
+  directory-listing tools run the protected-read guard. See `.qwen/README.md`.
 - **Pi** wires them through the `.pi/` bridge extension, which maps Pi
   `tool_call` / `tool_result` events onto the same JSON-on-stdin hook protocol.
-  It passes full write/edit input to `secret_scan.py`, and its `read`, `grep`,
-  `find`, and `ls` tools run `guard_read_path.py`. See `.pi/README.md`.
+  It passes full write/edit input to `secret_scan.py`, runs the shell-write
+  guard on `bash` commands, and its `read`, `grep`, `find`, and `ls` tools run
+  `guard_read_path.py`. See `.pi/README.md`.
 - **OpenCode** wires them through `.opencode/plugins/agentic-guard.mjs`, which
   maps `tool.execute.before` / `tool.execute.after` events onto the same
   JSON-on-stdin hook protocol. The plugin also scans write/edit content for
-  secrets and runs the protected-read guard on its `read`, `grep`, `glob`, and
-  `list` tools. See `.opencode/README.md`.
+  secrets, runs the shell-write guard on `bash` commands, and runs the
+  protected-read guard on its `read`, `grep`, `glob`, and `list` tools. See
+  `.opencode/README.md`.
 
 Each adapter transport fails closed: because the shared guards always exit 0 and
 signal a denial on stdout, a guard that cannot run — a missing or unlaunchable

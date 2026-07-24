@@ -43,6 +43,7 @@ from .probes.runner import CommandRunner
 HOOK_FILES: tuple[str, ...] = (
     "delivery_preflight.py",
     "guard_read_path.py",
+    "guard_shell_write.py",
     "guard_write_zone.py",
     "post_tool_evidence.py",
     "secret_scan.py",

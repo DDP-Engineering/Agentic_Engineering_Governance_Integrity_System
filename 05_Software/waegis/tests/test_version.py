@@ -37,7 +37,7 @@ def test_wizard_version_is_exported() -> None:
     @date       2026-07-12
     @version    0.2.0
     """
-    assert version.WIZARD_VERSION == "0.3.0"
+    assert version.WIZARD_VERSION == "0.4.0"
     assert waegis.__version__ == version.WIZARD_VERSION
 
 

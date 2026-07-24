@@ -105,6 +105,7 @@ def _healthy_runner(repo: Path) -> FakeCommandRunner:
         {
             ("py", "-3", "--version"): ok_result("Python 3.11.9"),
             ("git", "--version"): ok_result("git version 2.40.0"),
+            ("node", "--version"): ok_result("v20.11.0"),
             _wrapper_invocation(repo, "--help"): ok_result(),
         }
     )
@@ -323,6 +324,42 @@ def test_missing_hook_file_exit_two_fail(tmp_path: Path) -> None:
     hooks_finding = _finding(report.runnability, "runnability.hooks")
     assert hooks_finding.status == "fail"
     assert "secret_scan.py" in hooks_finding.detail
+
+
+# --- runnability: missing hook launcher runtime (node) ----------------------------
+
+
+def test_missing_node_reports_hook_runtime_warn(tmp_path: Path) -> None:
+    """
+    @brief      When ``node`` does not resolve, ``runnability.hook-runtime`` is
+                ``warn`` and the overall exit is 1: every adapter launches the
+                guards through ``node .agentic/tools/run_hook.mjs``, so a missing
+                Node.js silently disables enforcement (fail-open) rather than
+                breaking any installed file.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _install_healthy_repo(repo)
+    runner = FakeCommandRunner(
+        {
+            ("py", "-3", "--version"): ok_result("Python 3.11.9"),
+            ("git", "--version"): ok_result("git version 2.40.0"),
+            _wrapper_invocation(repo, "--help"): ok_result(),
+            # `node --version` is deliberately not scripted, so the fake runner
+            # reports it as "not found".
+        }
+    )
+
+    report = build_doctor_report(repo, runner=runner, home=tmp_path / "home")
+
+    assert report.exit_code == EXIT_WARN
+    node_finding = _finding(report.runnability, "runnability.hook-runtime")
+    assert node_finding.status == "warn"
+    assert node_finding.guidance is not None and "run_hook.mjs" in node_finding.guidance
 
 
 # --- manifest: four-way state, reported distinctly --------------------------------

@@ -67,8 +67,13 @@
            ``run.ps1``/``run.sh`` is missing) and the platform-appropriate one
            answers ``--help`` with exit 0 through the injected
            :class:`waegis.probes.runner.CommandRunner` (``fail`` otherwise);
-           hook files present (``fail`` if any of the four core hooks is
-           missing — a functional break); known agent adapter directories
+           hook files present (``fail`` if any of the core hooks in
+           :data:`waegis.verification.HOOK_FILES` is missing — a functional
+           break); the hook launcher runtime ``node``
+           resolves (``warn`` if not — every adapter runs the guards through
+           ``node .agentic/tools/run_hook.mjs``, and a host reads a hook that
+           could not launch as a non-blocking error, so a missing Node.js
+           silently disables enforcement); known agent adapter directories
            present (``warn`` per missing one — informational, not every repo
            uses every adapter). ``_wrapper_invocation``/``HOOK_FILES`` are
            imported from :mod:`waegis.commands.new` rather than re-derived,
@@ -677,11 +682,18 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
                 invocation.
     @return     Findings for ``runnability.wrapper-files``,
                 ``runnability.cli-smoke``, ``runnability.hooks``,
-                ``runnability.adapters``.
+                ``runnability.hook-runtime``, ``runnability.adapters``.
+    @details    ``runnability.hook-runtime`` (0.2.0, code-review follow-up)
+                probes ``node`` because every adapter launches the shared Python
+                guards through ``node .agentic/tools/run_hook.mjs``. A missing
+                Node.js is a ``warn``, not a ``fail``: the installed files are
+                intact, but a host treats a hook that could not launch as a
+                non-blocking error, so the guards silently stop enforcing —
+                exactly the fail-open this finding exists to surface.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
+    @date       2026-07-24
+    @version    0.2.0
     """
     findings: list[ProbeFindingRecord] = []
 
@@ -726,6 +738,28 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
         )
     else:
         findings.append(_finding("runnability.hooks", "ok", f"all {len(HOOK_FILES)} hook files present"))
+
+    node_result = runner.run(["node", "--version"], timeout=SMOKE_TIMEOUT_SECONDS, cwd=repo)
+    if node_result.ok():
+        version = node_result.stdout.strip() or "present"
+        findings.append(
+            _finding("runnability.hook-runtime", "ok", f"node ({version}) resolves; hook guards can launch")
+        )
+    else:
+        findings.append(
+            _finding(
+                "runnability.hook-runtime",
+                "warn",
+                "node was not found on PATH",
+                guidance=(
+                    "every adapter launches the guards through 'node .agentic/tools/run_hook.mjs'; "
+                    "without Node.js on PATH the hook command cannot start, and a host treats a hook "
+                    "that failed to launch as a non-blocking error rather than a block, so the read, "
+                    "write-zone, secret, and delivery guards silently stop enforcing. Install Node.js "
+                    "(or put it on PATH) and re-run 'waegis doctor'."
+                ),
+            )
+        )
 
     missing_adapters = [adapter for adapter in ADAPTER_DIR_NAMES if not (repo / adapter).is_dir()]
     if missing_adapters:

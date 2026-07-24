@@ -11,6 +11,50 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-25
+
+Component versions in this release: AEGIS payload 1.3.0, WAEGIS 0.4.0. The two
+are versioned independently; this changelog tracks the project as a whole.
+
+### Added
+
+- **Shell write guard (`guard_shell_write.py`).** A new AEGIS pre-tool hook
+  extends the configured write-zone and protected-path policy to file writes
+  performed through the shell — output redirection (`>`/`>>`), `tee`,
+  `cp`/`mv`/`install`, `dd of=`, and `sed -i` — closing a gap where
+  `guard_write_zone.py`, wired only to the dedicated editing tools, never saw a
+  repository file written from a shell command. It enforces only on targets
+  inside the repository (writes to `/tmp`, `/dev/null`, and other external paths
+  are untouched) and is wired into every adapter's shell matcher (Claude Code,
+  Codex, Qwen Code, OpenCode, Pi). Best-effort by design; the delivery
+  working-tree audit remains the backstop.
+- **`waegis doctor` hook-launcher check.** A new `runnability.hook-runtime`
+  finding warns when `node` does not resolve on `PATH`. Every adapter launches
+  the guards through `node .agentic/tools/run_hook.mjs`, and a host treats a
+  hook that could not launch as a non-blocking error, so a missing Node.js
+  silently disables enforcement. The requirement is now documented in
+  `.agentic/hooks/README.md`.
+
+### Changed
+
+- `INV-7` (clean secrets) also scans `git diff --cached`, catching a secret in a
+  staged-but-never-committed file in a repository with no `HEAD` yet.
+- `secret_scan.py` serializes scanned input with `ensure_ascii=False`, so a
+  configured pattern can match a secret containing non-ASCII characters.
+
+### Fixed
+
+- The working-tree audit only splits a Git status entry on `" -> "` for
+  rename/copy records, so a file whose own name contains that sequence is no
+  longer misparsed.
+- The `run.sh` wrapper folds a registered runtime path to forward slashes, so a
+  Windows interpreter path resolves reliably under Git Bash.
+
+### Removed
+
+- The unused `aegis.paths.is_allowed_path` helper; policy consumers compose
+  `relative_to_root`/`contained_relative_path` with `matches_pattern` directly.
+
 ## [1.2.0] - 2026-07-24
 
 Component versions in this release: AEGIS payload 1.2.0, WAEGIS 0.3.0. The two

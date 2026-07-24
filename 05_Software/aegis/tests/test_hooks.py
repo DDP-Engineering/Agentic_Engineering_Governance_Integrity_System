@@ -78,6 +78,8 @@ read_main = load_hook("guard_read_path").main
 secret_main = load_hook("secret_scan").main
 delivery_main = load_hook("delivery_preflight").main
 post_evidence_main = load_hook("post_tool_evidence").main
+shell_write_module = load_hook("guard_shell_write")
+shell_write_main = shell_write_module.main
 config_bootstrap = load_hook("workflow_config_bootstrap")
 
 
@@ -1394,6 +1396,219 @@ def test_delivery_preflight_invalid_configuration_denies(tmp_path: Path, monkeyp
 
     assert "CONFIG-MISSING" in output
     assert "permissionDecision" in output
+
+
+# --- Shell write-zone guard ----------------------------------------------------
+
+
+def shell_payload(tmp_path: Path, command: str, tool_name: str = "Bash") -> dict:
+    """
+    @brief      Build a shell pre-tool payload for one command.
+    @param[in]  tmp_path Working directory the hook should resolve against.
+    @param[in]  command Shell command line under inspection.
+    @param[in]  tool_name Shell tool identifier (``Bash`` or ``run_shell_command``).
+    @return     Pre-tool-use payload mimicking a shell invocation.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    return {
+        "hook_event_name": "PreToolUse",
+        "tool_name": tool_name,
+        "cwd": str(tmp_path),
+        "tool_input": {"command": command},
+    }
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("echo hi > out.txt", ["out.txt"]),
+        ("echo hi >> logs/app.log", ["logs/app.log"]),
+        ("printf '%s' x > a/b/c.txt", ["a/b/c.txt"]),
+        ("cat a | tee src/x.txt", ["src/x.txt"]),
+        ("cat a | tee -a logs/x.txt", ["logs/x.txt"]),
+        ("cp template.py deploy/config.py", ["deploy/config.py"]),
+        ("mv old.py src/new.py", ["src/new.py"]),
+        ("sed -i 's/a/b/' src/app.py", ["src/app.py"]),
+        ("sed -i.bak 's/a/b/' src/app.py", ["src/app.py"]),
+        ("dd if=/dev/zero of=disk.img bs=1M", ["disk.img"]),
+        ("echo x > /dev/null", ["/dev/null"]),
+        # No write target: reads, fd duplication, and a redirection that lives
+        # entirely inside quotes must all yield nothing.
+        ("cat src/app.py", []),
+        ("grep -r foo src/", []),
+        ("echo x 2>&1", []),
+        ('echo "a > b"', []),
+        ("sed 's/a/b/' src/app.py", []),
+    ],
+)
+def test_extract_write_targets_recognizes_common_forms(command: str, expected: list) -> None:
+    """
+    @brief      The best-effort extractor finds the obvious shell write forms
+                and ignores reads, fd duplication, and quoted operators.
+    @param[in]  command Shell command line under test.
+    @param[in]  expected Write targets the extractor should report.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    assert shell_write_module.extract_write_targets(command) == expected
+
+
+def test_guard_shell_write_denies_out_of_zone_redirect(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A shell redirection into another stage's zone is denied.
+    @param[in]  tmp_path Working directory hosting the workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    At implementation the test tree is out of the write zone, so a
+                ``> tests/...`` redirection is blocked exactly as an editor edit
+                of the same path would be.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    advance_to_implementation(tmp_path)
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > tests/test_app.py"), monkeypatch)
+    assert "deny" in output
+    assert "tests/test_app.py" in output
+
+
+def test_guard_shell_write_allows_in_zone_redirect(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A shell redirection into the active zone is allowed.
+    @param[in]  tmp_path Working directory hosting the workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    advance_to_implementation(tmp_path)
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > src/app.py"), monkeypatch)
+    assert output == ""
+
+
+def test_guard_shell_write_ignores_targets_outside_the_repository(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A shell write to a path outside the workspace is not governed.
+    @param[in]  tmp_path Working directory hosting the workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    ``/dev/null`` and other external paths are not repository
+                write-zone concerns, so an in-zone command redirecting there is
+                left untouched even at a stage whose zone would reject it as a
+                repository path.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    advance_to_implementation(tmp_path)
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "pytest -q > /dev/null 2>&1"), monkeypatch)
+    assert output == ""
+
+
+def test_guard_shell_write_allows_non_writing_command_without_a_run(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A read-only shell command is allowed and forces no run selection.
+    @param[in]  tmp_path Working directory with stage-restricted policy, no run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Repository policy and run state are consulted only once an
+                in-repository write target is found, so a command that writes
+                nothing never triggers the missing-run denial that a real shell
+                write would.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    configure_stage_restricted_guardrails(tmp_path)
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "git status && ls -la src/"), monkeypatch)
+    assert output == ""
+
+
+def test_guard_shell_write_missing_run_uses_resolver_error(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A stage-restricted shell write with no active run is denied with
+                the canonical resolver error.
+    @param[in]  tmp_path Working directory with stage-restricted policy, no run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    configure_stage_restricted_guardrails(tmp_path)
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > src/app.py"), monkeypatch)
+    reason = json.loads(output)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert reason.startswith("RUN-POINTER-MISSING:")
+
+
+def test_guard_shell_write_repo_wide_blocks_protected_path(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A protected path is blocked from a shell write even in repo-wide
+                mode.
+    @param[in]  tmp_path Working directory hosting the workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
+    run_cli(
+        tmp_path,
+        "set-access-mode",
+        "repo-wide",
+        "--reason",
+        "Human-approved broad maintenance",
+    )
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "cp key.pem deploy/id_rsa"), monkeypatch)
+    assert "deny" in output
+    assert "deploy/id_rsa" in output
+
+
+def test_guard_shell_write_unrestricted_policy_allows_repo_write(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Under unrestricted write policy a shell repository write is
+                allowed without resolving a run.
+    @param[in]  tmp_path Working directory with the default unrestricted policy.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > src/app.py"), monkeypatch)
+    assert output == ""
+
+
+def test_guard_shell_write_applies_to_qwen_shell_tool(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      The guard inspects Qwen's ``run_shell_command`` tool as well.
+    @param[in]  tmp_path Working directory hosting the workflow run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-24
+    @version    0.1.0
+    """
+    advance_to_implementation(tmp_path)
+    payload = shell_payload(tmp_path, "echo x > tests/test_app.py", tool_name="run_shell_command")
+    output = run_hook(shell_write_main, payload, monkeypatch)
+    assert "deny" in output
 
 
 # END OF FILE

@@ -12,6 +12,10 @@ publication records for the standalone AEGIS project belong here.
 
 ## Releases
 
+- `waegis-0.4.0/` - WAEGIS 0.4.0 with bundled AEGIS payload 1.3.0 (current).
+  Adds the shell write guard and the `waegis doctor` hook-launcher check. See
+  `waegis-0.4.0/RELEASE.md` for artifacts, checksums, usage, and the build
+  command.
 - `waegis-0.3.0/` - WAEGIS 0.3.0 with bundled AEGIS payload 1.2.0. Portable
   zipapp plus self-contained Windows and Linux archives (embedded CPython). See
   `waegis-0.3.0/RELEASE.md` for artifacts, checksums, usage, and the build

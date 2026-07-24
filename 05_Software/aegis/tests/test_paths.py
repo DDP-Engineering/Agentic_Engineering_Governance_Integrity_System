@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 
 from aegis import paths as paths_module
-from aegis.paths import is_allowed_path, matches_pattern, relative_to_root
+from aegis.paths import matches_pattern, relative_to_root
 
 
 def test_relative_path_inside_root(tmp_path: Path) -> None:
@@ -64,10 +64,11 @@ def test_glob_write_zone_match(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    assert is_allowed_path("tests/test_app.py", tmp_path, ["tests/**"])
-    assert not is_allowed_path("src/app.py", tmp_path, ["tests/**"])
+    rel = relative_to_root("tests/test_app.py", tmp_path)
+    assert matches_pattern(rel, "tests/**")
+    assert not matches_pattern(rel, "src/**")
 
 
 def test_windows_style_pattern_normalization(tmp_path: Path) -> None:
@@ -78,9 +79,9 @@ def test_windows_style_pattern_normalization(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    assert is_allowed_path("src/app.py", tmp_path, ["src\\**"])
+    assert matches_pattern(relative_to_root("src/app.py", tmp_path), "src\\**")
 
 
 def test_matching_is_case_insensitive_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:

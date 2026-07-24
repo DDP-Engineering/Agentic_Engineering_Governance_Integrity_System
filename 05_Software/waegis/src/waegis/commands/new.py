@@ -187,7 +187,7 @@ SHARED_WORKFLOW_SMOKE_GATES = "workflow_smoke_gates"
 # @brief Repo-relative path of the generated configuration surface.
 WORKFLOW_TOML_RELATIVE_PATH = ".agentic/workflow.toml"
 
-# @brief The four hook files verify.hooks-present requires, read from the real
+# @brief The hook files verify.hooks-present requires, read from the real
 #        template payload (05_Software/aegis/template/.agentic/hooks/).
 # @brief Minimum free disk space at the TARGET drive (plan §8.1 machine.disk).
 MIN_FREE_DISK_BYTES = 1024**3
