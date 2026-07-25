@@ -1,9 +1,0 @@
-{
-  "artifacts": {
-    "waegis-0.3.0-linux-x64.tar.gz": "813e2400a0155e3b0bc5ffc205750b7bce0fb6a82b57d8174f0df89270bbc49e",
-    "waegis-0.3.0-windows-x64.zip": "c2a441f3b34dbe84e04acf5b08eb55fe4df3519ea21c96cf57c1bb9ec3c2f954",
-    "waegis-0.3.0.pyz": "c070a532545bd12c393a80d06ed941ad65bf7832e4141849ddc98e2b9d9ff0d6"
-  },
-  "schema_version": 1,
-  "waegis_version": "0.3.0"
-}
