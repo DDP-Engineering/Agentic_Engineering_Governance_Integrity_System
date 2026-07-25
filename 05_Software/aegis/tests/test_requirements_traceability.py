@@ -123,6 +123,24 @@ def write_tested_module(repo_root: Path) -> None:
     )
 
 
+def write_spec_file(
+    repo_root: Path, relative: str = ".agentic/specs/feature.spec.md"
+) -> str:
+    """
+    @brief Write a companion spec artifact and return its repository path.
+    @param[in] repo_root Temporary repository root.
+    @param[in] relative Repository-relative spec path to create.
+    @return The repository-relative path written.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-25
+    @version 0.1.0
+    """
+    path = repo_root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# Spec\n\nConcrete definition.\n", encoding="utf-8", newline="\n")
+    return relative
+
+
 def create_fixed_record(
     repo_root: Path,
     config: WorkflowConfig,
@@ -349,6 +367,132 @@ def test_collection_update_replaces_and_clears_complete_sets(tmp_path: Path) -> 
     assert replaced.linked_tests == ("tests/test_calculator_renamed.py::test_sum",)
     assert cleared.affected_paths == ()
     assert cleared.linked_tests == ()
+
+
+def test_spec_ref_round_trips_and_normalizes(tmp_path: Path) -> None:
+    """
+    @brief Verify spec_ref is normalized, persisted after verification, and reloads.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-25
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    write_spec_file(tmp_path)
+    record = create_requirement(
+        tmp_path,
+        category="functional",
+        priority="Must",
+        requirement="Feature behaves.",
+        rationale="Needed.",
+        verification="Manual: inspect the feature",
+        spec_ref="./.agentic/specs/feature.spec.md",
+        config=config,
+        timestamp=CREATED,
+    )
+    path = tmp_path / record.source_file
+    text = path.read_text(encoding="utf-8")
+
+    assert record.spec_ref == ".agentic/specs/feature.spec.md"
+    assert 'spec_ref = ".agentic/specs/feature.spec.md"' in text
+    assert text.index("verification") < text.index("spec_ref") < text.index("affected_paths")
+    assert record.to_dict()["spec_ref"] == ".agentic/specs/feature.spec.md"
+    assert load_requirement_file(path, tmp_path, ".agentic/requirements", config) == record
+
+
+def test_create_rejects_spec_ref_without_file(tmp_path: Path) -> None:
+    """
+    @brief Verify a non-empty spec_ref must name an existing file at creation.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-25
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    with pytest.raises(ValueError, match="spec_ref does not resolve"):
+        create_requirement(
+            tmp_path,
+            category="functional",
+            priority="Must",
+            requirement="Feature behaves.",
+            rationale="Needed.",
+            verification="Manual: inspect the feature",
+            spec_ref=".agentic/specs/missing.spec.md",
+            config=config,
+            timestamp=CREATED,
+        )
+    assert load_all_requirements(tmp_path, config) == []
+
+
+def test_update_sets_and_clears_spec_ref(tmp_path: Path) -> None:
+    """
+    @brief Verify spec_ref is patchable, clearable, and mutually exclusive with clear.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-25
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    write_spec_file(tmp_path)
+    record = create_fixed_record(tmp_path, config, linked_tests=())
+    assert record.spec_ref == ""
+
+    with_ref = update_requirement(
+        tmp_path,
+        record.id,
+        spec_ref=".agentic/specs/feature.spec.md",
+        config=config,
+        timestamp=UPDATED,
+    )
+    assert with_ref.spec_ref == ".agentic/specs/feature.spec.md"
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        update_requirement(
+            tmp_path,
+            record.id,
+            spec_ref=".agentic/specs/feature.spec.md",
+            clear_spec_ref=True,
+            config=config,
+        )
+
+    cleared = update_requirement(
+        tmp_path,
+        record.id,
+        clear_spec_ref=True,
+        config=config,
+        timestamp=UPDATED,
+    )
+    assert cleared.spec_ref == ""
+
+
+def test_audit_reports_stale_spec_ref(tmp_path: Path) -> None:
+    """
+    @brief Verify a deleted spec target yields a REQ-SPEC-MISSING traceability finding.
+    @return None.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-25
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    relative = write_spec_file(tmp_path)
+    record = create_requirement(
+        tmp_path,
+        category="functional",
+        priority="Must",
+        requirement="Feature behaves.",
+        rationale="Needed.",
+        verification="Manual: inspect the feature",
+        spec_ref=relative,
+        config=config,
+        timestamp=CREATED,
+    )
+    assert audit_traceability(tmp_path, config) == []
+
+    (tmp_path / relative).unlink()
+    issues = audit_traceability(tmp_path, config)
+
+    assert [issue.code for issue in issues] == ["REQ-SPEC-MISSING"]
+    assert issues[0].req_id == record.id
 
 
 def test_activation_replaces_tests_and_does_not_write_on_failure(tmp_path: Path) -> None:
@@ -632,6 +776,7 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
     """
     configure_repository(tmp_path)
     monkeypatch.chdir(tmp_path)
+    write_spec_file(tmp_path)
 
     main(
         [
@@ -647,6 +792,8 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
             "Agent-facing contract coverage.",
             "--verification",
             "Inspection: inspect the created snapshot",
+            "--spec-ref",
+            ".agentic/specs/feature.spec.md",
             "--affected-path",
             "src/cli.py",
         ]
@@ -655,6 +802,7 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
     requirement_id = created["id"]
     assert created["path"].endswith(f"/{requirement_id}.toml")
     assert created["record"]["status"] == "Planned"
+    assert created["record"]["spec_ref"] == ".agentic/specs/feature.spec.md"
 
     main(["requirement", "show", "--id", requirement_id, "--json"])
     assert json.loads(capsys.readouterr().out)["id"] == requirement_id
@@ -668,9 +816,12 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
             "--priority",
             "Should",
             "--clear-affected-paths",
+            "--clear-spec-ref",
         ]
     )
-    assert json.loads(capsys.readouterr().out)["affected_paths"] == []
+    updated = json.loads(capsys.readouterr().out)
+    assert updated["affected_paths"] == []
+    assert updated["spec_ref"] == ""
 
     main(["requirement", "list", "--status", "Planned", "--json"])
     assert [item["id"] for item in json.loads(capsys.readouterr().out)] == [

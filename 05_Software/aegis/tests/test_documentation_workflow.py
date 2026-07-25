@@ -295,9 +295,25 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
         assert "Copyright (c) 2026 DDP Engineering" in text
         assert "project-specific application name" not in text
 
-    # The neutral source carries the full procedures, not just adapter pointers.
+    # The neutral source carries the full procedures, now in per-stage reference
+    # modules dispatched from the router, not just adapter pointers.
     development = (skills_root / "agentic-development" / "SKILL.md").read_text(encoding="utf-8")
-    assert "Stage Procedure" in development
+    assert "Stage Modules" in development
+    assert "reference/requirement.md" in development
+    reference_dir = skills_root / "agentic-development" / "reference"
+    for module in (
+        "intake.md",
+        "alignment.md",
+        "requirement.md",
+        "check.md",
+        "implementation.md",
+        "validation.md",
+    ):
+        assert (reference_dir / module).is_file()
+    requirement_module = (reference_dir / "requirement.md").read_text(encoding="utf-8")
+    assert "One requirement, one behavior" in requirement_module
+    assert "Requirement Stage Review" in requirement_module
+    assert "spec_ref" in requirement_module
     documentation = (skills_root / "documentation-audit" / "SKILL.md").read_text(encoding="utf-8")
     assert "Manual review checklist" in documentation
     adoption = (skills_root / "agentic-adoption" / "SKILL.md").read_text(encoding="utf-8")
@@ -306,6 +322,17 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
     assert "component-map" in adoption
     assert "component-adoption" in adoption
     assert "local scope before change" in adoption
+    adoption_reference = skills_root / "agentic-adoption" / "reference"
+    for module in (
+        "adoption-intake.md",
+        "adoption-alignment.md",
+        "repo-discovery.md",
+        "component-map.md",
+        "component-adoption.md",
+        "baseline-review.md",
+        "adoption-delivery.md",
+    ):
+        assert (adoption_reference / module).is_file()
 
 
 def test_installable_template_includes_claude_skill_wrappers() -> None:

@@ -24,6 +24,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tarfile
@@ -98,7 +99,7 @@ def test_payload_bundled_zipapp_smoke_and_hash_verification(tmp_path: Path) -> N
     assert result.returncode == 0, result.stderr
     document = json.loads(result.stdout)
     assert document["result"]["packaging_type"] == "zipapp"
-    assert document["result"]["bundled_payload_version"] == "1.3.0"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", document["result"]["bundled_payload_version"])
     assert len(document["result"]["bundled_payload_digest"]) == 64
 
     artifacts[0].write_bytes(artifacts[0].read_bytes() + b"corrupt")

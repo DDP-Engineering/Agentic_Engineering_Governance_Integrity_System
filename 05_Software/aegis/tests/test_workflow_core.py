@@ -97,6 +97,7 @@ def test_status_missing_workspace_pointer_exits_two_with_remediation(
     "command",
     [
         ("status",),
+        ("resume",),
         ("next",),
         ("invariants",),
         ("report",),
@@ -247,6 +248,106 @@ def test_feature_flow_reaches_green_invariants(tmp_path: Path) -> None:
     graph = load_active_graph(tmp_path)
     failures = blocking_failures(evaluate(tmp_path, graph, load_config(tmp_path)))
     assert failures == []
+
+
+def test_resume_brief_reconstructs_run_context(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """
+    @brief      A fresh session's resume brief reconstructs run context from state.
+    @param[in]  tmp_path Temporary repository root.
+    @param[in]  capsys Pytest output capture fixture.
+    @return     None.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-25
+    @version    0.1.0
+    """
+    spec = tmp_path / ".agentic" / "specs" / "discount.spec.md"
+    spec.parent.mkdir(parents=True, exist_ok=True)
+    spec.write_text("# Spec\n\nDiscount detail.\n", encoding="utf-8", newline="\n")
+
+    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
+    capsys.readouterr()
+    run_cli(
+        tmp_path,
+        "requirement",
+        "create",
+        "--category",
+        "functional",
+        "--priority",
+        "Must",
+        "--requirement",
+        "A valid discount reduces the total.",
+        "--rationale",
+        "Operators offer promotions.",
+        "--verification",
+        "Automated test",
+        "--spec-ref",
+        ".agentic/specs/discount.spec.md",
+    )
+    requirement_id = json.loads(capsys.readouterr().out)["id"]
+    run_cli(
+        tmp_path,
+        "add-spec",
+        "--id",
+        "S-0001",
+        "--tag",
+        "behavior",
+        "--statement",
+        "WHEN a valid discount is applied, total is reduced.",
+        "--example",
+        "Given total 100, when SAVE10, then total 90.",
+    )
+    run_cli(
+        tmp_path,
+        "add-check",
+        "--id",
+        "C-0001",
+        "--cites-spec",
+        "S-0001",
+        "--cites-requirement",
+        requirement_id,
+        "--path",
+        "tests/test_discount.py",
+    )
+    run_cli(
+        tmp_path,
+        "record-evidence",
+        "--kind",
+        "test-run",
+        "--result",
+        "fail",
+        "--summary",
+        "C-0001 fails before implementation",
+        "--check-id",
+        "C-0001",
+    )
+    capsys.readouterr()
+
+    run_cli(tmp_path, "resume")
+    brief = json.loads(capsys.readouterr().out)
+
+    assert brief["stage"] == "intake"
+    assert brief["next_stage"] == "alignment"
+    assert brief["intent"]["statement"] == "Add discounts"
+    assert [item["id"] for item in brief["spec_items"]] == ["S-0001"]
+    assert brief["spec_items"][0]["examples"] == [
+        "Given total 100, when SAVE10, then total 90."
+    ]
+    assert [check["id"] for check in brief["checks"]] == ["C-0001"]
+    assert brief["requirements"] == [
+        {
+            "id": requirement_id,
+            "status": "Planned",
+            "priority": "Must",
+            "requirement": "A valid discount reduces the total.",
+            "verification": "Automated test",
+            "spec_ref": ".agentic/specs/discount.spec.md",
+            "linked_tests": [],
+        }
+    ]
+    assert [item["result"] for item in brief["recent_evidence"]] == ["fail"]
+    assert "intake" in brief["guidance"]
 
 
 def test_add_spec_rejects_duplicate_id(tmp_path: Path) -> None:

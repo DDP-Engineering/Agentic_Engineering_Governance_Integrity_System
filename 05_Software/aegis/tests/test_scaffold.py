@@ -65,7 +65,6 @@ def test_embedded_cli_package_version_matches_pyproject() -> None:
     pyproject_path = PACKAGE_ROOT / "template" / ".agentic" / "cli" / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
-    assert __version__ == "1.3.0"
     assert __version__ == pyproject["project"]["version"]
 
 

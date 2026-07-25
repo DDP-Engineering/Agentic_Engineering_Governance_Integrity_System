@@ -31,6 +31,7 @@ import pytest
 
 import waegis.cli as cli_module
 from waegis.cli import SUBCOMMANDS, main
+from waegis.version import WIZARD_VERSION
 
 # CONSTANTS
 
@@ -116,7 +117,7 @@ def test_version_is_a_real_command(capsys: pytest.CaptureFixture[str]) -> None:
     @version    0.7.0
     """
     assert main(["version"]) == 0
-    assert "WAEGIS 0.4.0" in capsys.readouterr().out
+    assert f"WAEGIS {WIZARD_VERSION}" in capsys.readouterr().out
 
 
 def test_upgrade_is_no_longer_a_stub() -> None:

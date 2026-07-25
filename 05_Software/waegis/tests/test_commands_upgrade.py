@@ -31,11 +31,13 @@ from __future__ import annotations
 import hashlib
 import json
 import io
+import re
 from pathlib import Path
 
 import pytest
 
 from waegis.cli import main
+from waegis.version import WIZARD_VERSION
 from waegis.commands.new import NO_ACTIVE_RUN_MARKER, _amend_manifest_generated, _wrapper_invocation
 from waegis.commands.upgrade import (
     EXIT_CONFLICTS,
@@ -878,7 +880,13 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
     (new / removed_rel).unlink()
     # (c) upstream version bump
     ver_file = new / ".agentic" / "cli" / "pyproject.toml"
-    ver_file.write_text(ver_file.read_text(encoding="utf-8").replace('version = "1.3.0"', 'version = "1.3.1"'), encoding="utf-8")
+    _pyproject = ver_file.read_text(encoding="utf-8")
+    _current = re.search(r'version = "(\d+)\.(\d+)\.(\d+)"', _pyproject)
+    bumped_payload_version = f"{_current.group(1)}.{_current.group(2)}.{int(_current.group(3)) + 1}"
+    ver_file.write_text(
+        _pyproject.replace(_current.group(0), f'version = "{bumped_payload_version}"'),
+        encoding="utf-8",
+    )
 
     # Operator locally edited CLAUDE.md (upstream unchanged there -> KEEP_LOCAL).
     _write(repo / "CLAUDE.md", (repo / "CLAUDE.md").read_text(encoding="utf-8") + "\n# my local note\n")
@@ -893,7 +901,7 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
 
     report = apply_upgrade(plan, hook=None, runner=_smoke_ok_runner(repo))
     assert report.manifest_written is True
-    assert report.manifest.payload_version == "1.3.1"
+    assert report.manifest.payload_version == bumped_payload_version
     assert not (repo / removed_rel).exists()  # removed upstream, unmodified -> deleted
     assert "# upstream change" in (repo / "AGENTS.md").read_text(encoding="utf-8")
     assert "# my local note" in (repo / "CLAUDE.md").read_text(encoding="utf-8")  # local edit preserved
@@ -908,7 +916,7 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
 
 def test_version_command_is_released(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["version"]) == 0
-    assert "WAEGIS 0.4.0" in capsys.readouterr().out
+    assert f"WAEGIS {WIZARD_VERSION}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("name", ["self-update", "gui"])

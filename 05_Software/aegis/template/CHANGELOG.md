@@ -11,6 +11,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-25
+
+### Added
+
+- Requirement snapshots carry an optional `spec_ref` naming a companion
+  specification file (data structures, interface/message formats, exact dialog
+  and copy text, example payloads, worked acceptance examples) so an
+  implementation cannot drift from what was analysed while the `requirement`
+  sentence stays a single testable behavior. `requirement create` accepts
+  `--spec-ref <path>` and `requirement update` accepts `--spec-ref`/
+  `--clear-spec-ref`. A non-empty `spec_ref` must resolve to an existing file at
+  write time; a later-deleted target is reported as `REQ-SPEC-MISSING` by
+  `audit traceability`. Ships `.agentic/requirements/spec_template.md`.
+- `resume` command: prints a compact, read-only bootstrap brief (current stage
+  and computed next stage, intent, alignment, spec items, checks, recent active
+  evidence, and the run's cited requirements resolved with their `spec_ref`) so a
+  fresh agent session continues an existing run without prior chat context. The
+  `agentic-development` skill gained a matching "Session Resume" step.
+
+### Changed
+
+- **Hard break:** the requirement snapshot schema gains a required `spec_ref`
+  key (empty string when unused); snapshots written before this change are
+  rejected rather than migrated. The `schema_version` stays `1` — the field
+  tracks released format generations, and nothing has been released yet, so it
+  is bumped only at the first real release that must migrate live data.
+- `agentic-development` and `agentic-adoption` skills restructured into thin
+  routers that dispatch to per-stage modules under `reference/` (development:
+  intake, alignment, requirement, check, implementation, validation; adoption:
+  adoption-intake, adoption-alignment, repo-discovery, component-map,
+  component-adoption, baseline-review, adoption-delivery). A session — including
+  a resumed one — loads only the current stage's module instead of the whole
+  workflow, cutting the always-loaded footprint for small-context runners.
+
 ## [1.3.0] - 2026-07-25
 
 ### Added

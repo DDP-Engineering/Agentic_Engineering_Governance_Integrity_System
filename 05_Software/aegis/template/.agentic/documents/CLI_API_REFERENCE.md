@@ -242,6 +242,28 @@ Reads:
 - `.agentic/runs/<run-id>/graph.json`
 - configured workflow state needed for invariant checks
 
+### `resume`
+
+Prints a compact bootstrap brief as JSON so a fresh session continues an
+existing run without prior chat context. The brief reports the current stage and
+computed next stage, the intent and recorded alignment, spec items, checks,
+recent active evidence, the run's cited requirements resolved with their
+`spec_ref`, and a short guidance line. It is read-only and writes no state.
+
+```powershell
+<workflow> resume --run-id <existing-run-id>
+```
+
+Stage: any stage. Run it first when opening a new session on an in-progress run.
+
+Flow caller: human prompt or `agentic-development` Stage 0 resume.
+
+Reads:
+
+- `.agentic/.workspace/state/current_run`
+- `.agentic/runs/<run-id>/graph.json`
+- cited requirement snapshots under `.agentic/requirements/` and their `spec_ref`
+
 ### `next`
 
 Moves the active run to the next built-in stage.
@@ -555,11 +577,14 @@ Creates one independent `Planned` UUIDv4-backed TOML snapshot and returns its
 ID, repository-relative path, and complete record as JSON.
 
 ```powershell
-<workflow> requirement create --category functional --priority Must --requirement "Invoice export writes CSV." --rationale "Operators need portable exports." --verification "Inspection: inspect the exported CSV" --affected-path src/exporter.py
+<workflow> requirement create --category functional --priority Must --requirement "Invoice export writes CSV." --rationale "Operators need portable exports." --verification "Inspection: inspect the exported CSV" --spec-ref .agentic/requirements/functional/invoice_export.spec.md --affected-path src/exporter.py
 ```
 
-The command never accepts a caller-supplied ID, status, or run selector and
-never edits a shared counter or register.
+`--spec-ref` is optional and names a repository-relative companion spec file
+(no globs) holding the concrete data structures, interface formats, dialog text,
+and worked examples for the behavior. When supplied, the file must already exist
+or the create is rejected. The command never accepts a caller-supplied ID,
+status, or run selector and never edits a shared counter or register.
 
 ### `requirement show` and `requirement list`
 
@@ -583,8 +608,10 @@ linked tests and affected paths.
 
 Omitted collections remain unchanged. Supplied repeatable values replace the
 complete set; `--clear-linked-tests` and `--clear-affected-paths` explicitly
-replace their set with empty. At least one update option is required. The ID,
-category, schema version, and creation date are immutable.
+replace their set with empty. `--spec-ref <path>` sets the companion spec
+reference (the file must exist) and `--clear-spec-ref` removes it; the two are
+mutually exclusive. At least one update option is required. The ID, category,
+schema version, and creation date are immutable.
 
 ### `requirement activate`
 

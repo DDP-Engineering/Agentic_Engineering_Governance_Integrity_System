@@ -11,6 +11,39 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-25
+
+Component versions in this release: AEGIS payload 1.4.0, WAEGIS 0.5.0. The two
+are versioned independently; this changelog tracks the project as a whole.
+
+### Added
+
+- **Requirement companion specs (`spec_ref`).** Requirement snapshots carry an
+  optional `spec_ref` naming a companion spec file (data structures, interface
+  and message formats, exact dialog and copy text, example payloads, worked
+  acceptance examples) so an implementation cannot drift from what was analysed,
+  while the `requirement` sentence stays a single testable behavior.
+  `requirement create/update` gained `--spec-ref`/`--clear-spec-ref`; a
+  non-empty reference must resolve to an existing file at write time, and a
+  later-deleted target is reported as `REQ-SPEC-MISSING` by `audit
+  traceability`. Ships `.agentic/requirements/spec_template.md`.
+- **`resume` command.** A read-only bootstrap brief — current and next stage,
+  intent, alignment, spec items, checks, recent evidence, and the run's cited
+  requirements resolved with their `spec_ref` — so a fresh agent session
+  continues an existing run without prior chat context.
+
+### Changed
+
+- The requirement snapshot schema gains a required `spec_ref` key (empty string
+  when unused); snapshots written before this change are rejected rather than
+  migrated. The `schema_version` stays `1` (nothing is released yet, so it is
+  bumped only when live data must migrate).
+- The `agentic-development` and `agentic-adoption` skills are restructured into
+  thin routers that dispatch to per-stage modules under `reference/`, so a
+  session — including a resumed one — loads only the current stage's guidance
+  rather than the whole workflow, cutting the always-loaded footprint for
+  small-context runners.
+
 ## [1.3.0] - 2026-07-25
 
 Component versions in this release: AEGIS payload 1.3.0, WAEGIS 0.4.0. The two
