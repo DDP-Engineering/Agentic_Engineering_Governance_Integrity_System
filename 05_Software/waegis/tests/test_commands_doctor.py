@@ -362,6 +362,85 @@ def test_missing_node_reports_hook_runtime_warn(tmp_path: Path) -> None:
     assert node_finding.guidance is not None and "run_hook.mjs" in node_finding.guidance
 
 
+# --- runnability: adapter config the host cannot load -----------------------------
+
+
+def test_unsupported_key_in_codex_hooks_config_exit_two_fail(tmp_path: Path) -> None:
+    """
+    @brief      A `.codex/hooks.json` carrying a top-level key Codex rejects is
+                ``runnability.adapter-configs`` = ``fail`` with exit 2.
+    @details    Codex parses the file with ``deny_unknown_fields``, so one
+                unknown key makes it discard the whole file and register no
+                hooks at all — every guard silently absent, tool calls never
+                inspected. The adapter *directory* is still present, so
+                ``runnability.adapters`` stays ``ok``; this asserts the two
+                checks are genuinely distinct, since directory presence
+                reporting ``ok`` over an unloadable config is the exact gap
+                that let a broken payload ship.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _install_healthy_repo(repo)
+    config_path = repo / ".codex" / "hooks.json"
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    config_path.write_text(json.dumps({"_legal": "Copyright", **data}, indent=2), encoding="utf-8")
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
+
+    assert report.exit_code == EXIT_FAIL
+    finding = _finding(report.runnability, "runnability.adapter-configs")
+    assert finding.status == "fail"
+    assert "_legal" in finding.detail
+    assert ".codex/hooks.json" in finding.detail
+    assert _finding(report.runnability, "runnability.adapters").status == "ok"
+
+
+def test_unparseable_adapter_config_reports_fail(tmp_path: Path) -> None:
+    """
+    @brief      An adapter config that is not valid JSON is ``fail`` too: the
+                host discards it for the same reason and with the same effect.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _install_healthy_repo(repo)
+    (repo / ".codex" / "hooks.json").write_text("{ not json", encoding="utf-8")
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
+
+    assert report.exit_code == EXIT_FAIL
+    finding = _finding(report.runnability, "runnability.adapter-configs")
+    assert finding.status == "fail"
+    assert "could not be parsed" in finding.detail
+
+
+def test_absent_adapter_config_is_not_a_failure(tmp_path: Path) -> None:
+    """
+    @brief      A repo without the Codex adapter at all is ``ok`` here — an
+                absent adapter is ``runnability.adapters``' business, and not
+                every repo uses every agent client.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _install_healthy_repo(repo)
+    (repo / ".codex" / "hooks.json").unlink()
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
+
+    assert _finding(report.runnability, "runnability.adapter-configs").status == "ok"
+
+
 # --- manifest: four-way state, reported distinctly --------------------------------
 
 

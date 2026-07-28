@@ -25,7 +25,7 @@ from __future__ import annotations
 # CONSTANTS
 
 # @brief Independent WAEGIS wizard version (SemVer).
-WIZARD_VERSION = "0.5.0"
+WIZARD_VERSION = "0.6.0"
 
 # @brief Inclusive lower bound of the compatible AEGIS payload version.
 PAYLOAD_COMPAT_MIN = "0.4.0"

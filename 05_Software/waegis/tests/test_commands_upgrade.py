@@ -49,6 +49,7 @@ from waegis.commands.upgrade import (
     apply_upgrade,
     build_upgrade_plan,
     make_resolution_hook,
+    render_upgrade_report,
     run_upgrade,
     UpgradeError,
 )
@@ -485,6 +486,108 @@ def test_conflict_hook_called_once_only_for_conflicts(tmp_path: Path) -> None:
     hook = _RecordingHook(ConflictDecision.KEEP_LOCAL)
     apply_upgrade(plan, hook=hook, runner=_smoke_ok_runner(repo))
     assert hook.calls == ["c.txt"]  # exactly once, only the true conflict
+
+
+def test_rewritten_hook_config_is_reported_for_retrust(tmp_path: Path) -> None:
+    """
+    @brief      Rewriting `.codex/hooks.json` reports it as needing re-trust,
+                and the human report says so in the action-required block.
+    @details    Codex binds hook trust to the file's content hash, so a
+                byte-correct upgrade of this file stops every hook in it from
+                running until it is re-reviewed. The upgrade still succeeds and
+                the smoke re-verify still passes, so this notice is the only
+                signal the operator gets that enforcement is now off.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / ".codex/hooks.json", '{"hooks": {}}')
+    _make_manifest(repo, {".codex/hooks.json": '{"hooks": {}}'})
+    _make_payload(new, {".codex/hooks.json": '{"description": "x", "hooks": {}}'})
+
+    plan = _plan(repo, new)
+    assert _action_of(plan, ".codex/hooks.json") is FileAction.AUTO_APPLY_NEW
+    report = apply_upgrade(plan, runner=_smoke_ok_runner(repo))
+
+    assert report.manifest_written
+    assert report.hook_configs_needing_retrust() == (".codex/hooks.json",)
+    assert report.to_dict()["hook_configs_needing_retrust"] == [".codex/hooks.json"]
+
+    buffer = io.StringIO()
+    render_upgrade_report(report, buffer)
+    rendered = buffer.getvalue()
+    assert "ACTION REQUIRED" in rendered
+    assert ".codex/hooks.json" in rendered
+
+
+def test_untouched_hook_config_needs_no_retrust(tmp_path: Path) -> None:
+    """
+    @brief      An upgrade that does not rewrite the hook config reports no
+                re-trust, and stays silent about it in the human report.
+    @details    Guards against a notice that fires on every upgrade: one the
+                operator learns to skip is worth no more than none at all.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / ".codex/hooks.json", '{"hooks": {}}')
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {".codex/hooks.json": '{"hooks": {}}', "file.txt": "X"})
+    _make_payload(new, {".codex/hooks.json": '{"hooks": {}}', "file.txt": "Y"})
+
+    plan = _plan(repo, new)
+    assert _action_of(plan, ".codex/hooks.json") is FileAction.UNCHANGED
+    report = apply_upgrade(plan, runner=_smoke_ok_runner(repo))
+
+    assert report.hook_configs_needing_retrust() == ()
+    buffer = io.StringIO()
+    render_upgrade_report(report, buffer)
+    assert "ACTION REQUIRED" not in buffer.getvalue()
+
+
+def test_keep_local_hook_config_needs_no_retrust(tmp_path: Path) -> None:
+    """
+    @brief      A conflict resolved ``keep-local`` writes nothing, so the
+                existing hook trust survives and no re-review is demanded.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / ".codex/hooks.json", '{"hooks": {"local": 1}}')  # L != O
+    _make_manifest(repo, {".codex/hooks.json": '{"hooks": {}}'})
+    _make_payload(new, {".codex/hooks.json": '{"hooks": {"new": 1}}'})  # N != O, N != L
+
+    plan = _plan(repo, new)
+    assert _action_of(plan, ".codex/hooks.json") is FileAction.CONFLICT
+    report = apply_upgrade(plan, hook=_RecordingHook(ConflictDecision.KEEP_LOCAL), runner=_smoke_ok_runner(repo))
+
+    assert report.hook_configs_needing_retrust() == ()
+
+
+def test_take_payload_hook_config_needs_retrust(tmp_path: Path) -> None:
+    """
+    @brief      A conflict resolved ``take-payload`` does rewrite the file, so
+                it is reported for re-trust like any other write.
+    @return     None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / ".codex/hooks.json", '{"hooks": {"local": 1}}')
+    _make_manifest(repo, {".codex/hooks.json": '{"hooks": {}}'})
+    _make_payload(new, {".codex/hooks.json": '{"hooks": {"new": 1}}'})
+
+    plan = _plan(repo, new)
+    report = apply_upgrade(plan, hook=_RecordingHook(ConflictDecision.TAKE_PAYLOAD), runner=_smoke_ok_runner(repo))
+
+    assert report.hook_configs_needing_retrust() == (".codex/hooks.json",)
 
 
 def test_conflict_keep_local(tmp_path: Path) -> None:

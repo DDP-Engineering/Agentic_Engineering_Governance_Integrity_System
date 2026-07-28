@@ -11,6 +11,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-28
+
+### Fixed
+
+- **`.codex/hooks.json` was rejected wholesale by Codex, leaving every guard
+  absent on that host.** Codex parses the file with a strict deserializer that
+  accepts exactly two top-level keys, `description` and `hooks`; the three
+  `_legal`/`_comment*` annotation keys the file carried made it fail with
+  ``unknown field `_legal` ``. A rejected hooks file registers *no* hooks at
+  all, so the read guard, write-zone guard, secret scan, shell-write guard,
+  delivery preflight, and evidence recorder were all silently inactive under
+  Codex — tool calls were not blocked, they were never inspected. The file now
+  carries a single short `description`; the annotation prose moved to
+  `.codex/README.md` and `.agentic/hooks/README.md`. The hook wiring itself is
+  unchanged and was already schema-valid (`commandWindows` and `statusMessage`
+  are supported Codex fields, and `Bash` is the name Codex gives its shell tool
+  in hook events).
+
+### Added
+
+- `.codex/README.md`, documenting the Codex adapter and the two host gates that
+  must be cleared before guards run.
+- `.agentic/hooks/README.md` gained a "Codex requires trust before hooks run"
+  section: Codex loads project-local hooks only for a trusted project, and then
+  runs each hook only after it has been reviewed in the `/hooks` panel. Hook
+  trust is keyed to the file's content hash, so an AEGIS payload upgrade that
+  changes `.codex/hooks.json` returns those hooks to "review required" and they
+  stop running until re-reviewed.
+
+### Changed
+
+- `.pi/README.md` no longer claims project trust is "the one behavioral
+  difference from the Codex and Claude adapters". Codex requires both a project
+  trust step and a per-hook review; only Claude Code needs neither.
+
 ## [1.4.0] - 2026-07-25
 
 ### Added

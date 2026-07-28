@@ -11,6 +11,59 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-28
+
+Component versions in this release: AEGIS payload 1.4.1, WAEGIS 0.6.0. The two
+are versioned independently; this changelog tracks the project as a whole.
+
+### Fixed
+
+- **Codex guards were entirely absent in every installed repository.**
+  `.codex/hooks.json` carried the `_legal`/`_comment*` annotation keys used
+  across the other adapters' JSON, but Codex parses that file with a strict
+  deserializer accepting exactly two top-level keys, `description` and `hooks`.
+  An unknown key does not get ignored — it rejects the whole file, so Codex
+  registered **no hooks at all**: the read guard, write-zone guard, secret scan,
+  shell-write guard, delivery preflight, and evidence recorder were all silently
+  inactive. Tool calls were not blocked; they were never inspected. The hook
+  wiring itself was always schema-valid and is unchanged.
+
+  The defect survived because nothing validated adapter configurations against
+  the hosts that actually parse them: the payload tests asserted AEGIS semantics
+  over `json.loads` output, and `waegis doctor` checked only that the adapter
+  *directory* existed. Valid JSON in a present directory is not a loadable host
+  config, and both checks reported healthy over a repository with no enforcement.
+
+### Added
+
+- **`waegis doctor` gained `runnability.adapter-configs`**, which parses each
+  strictly-deserialized adapter config and verifies its top-level keys against
+  the set its host accepts. Severity is `fail`, ranking with the missing-hook
+  check rather than the informational adapter-directory one: a config the host
+  discards removes enforcement rather than degrading it.
+- **`waegis upgrade` now reports hook configs that need re-trust.** Codex binds
+  per-hook trust to the file's content hash, so any rewrite of
+  `.codex/hooks.json` — including a correct payload upgrade — returns its hooks
+  to "review required" and stops them running until re-reviewed in the `/hooks`
+  panel. A successful upgrade could therefore turn enforcement off while every
+  other signal reported health. The human report ends with an action-required
+  block naming the affected files, and the `--json` result gains an additive
+  `hook_configs_needing_retrust` key.
+- **Payload test `test_strict_host_configs_use_only_supported_top_level_keys`**,
+  which blocks the original defect at the source, plus a companion check keeping
+  annotation keys `_`-prefixed in the configs whose hosts do tolerate them.
+- **`.codex/README.md`**, the adapter reference the Codex directory never had.
+
+### Changed
+
+- `.agentic/hooks/README.md` documents the two Codex gates that stand in front
+  of the guards — project trust and per-hook review — alongside the existing
+  Node-on-PATH and launch-directory fail-opens. All four share a shape: the
+  guards are absent, nothing reports it, and the session looks healthy.
+- `.pi/README.md` no longer claims project trust is "the one behavioral
+  difference from the Codex and Claude adapters". Codex requires both a project
+  trust step and a per-hook review; only Claude Code needs neither.
+
 ## [1.4.0] - 2026-07-25
 
 Component versions in this release: AEGIS payload 1.4.0, WAEGIS 0.5.0. The two
