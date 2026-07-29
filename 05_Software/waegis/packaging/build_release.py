@@ -512,6 +512,12 @@ def build_release(output: Path, *, runtime_cache: Path, offline: bool, zipapp_on
         )
     hashes = {path.name: sha256_file(path) for path in artifacts}
     release_manifest = output / "release-manifest.json"
+    # newline="" suppresses the platform translation `\n` -> `\r\n`. These two
+    # files are shipped as release assets and consumed by POSIX tooling: a
+    # CRLF `SHA256SUMS` makes `sha256sum -c` look for a filename with a
+    # trailing carriage return and fail every entry, which reads as a corrupt
+    # download rather than as a packaging bug. Building on Windows must not
+    # produce different bytes here than building on Linux.
     release_manifest.write_text(
         json.dumps(
             {"schema_version": 1, "waegis_version": WIZARD_VERSION, "artifacts": hashes},
@@ -520,10 +526,12 @@ def build_release(output: Path, *, runtime_cache: Path, offline: bool, zipapp_on
         )
         + "\n",
         encoding="utf-8",
+        newline="",
     )
     (output / "SHA256SUMS").write_text(
         "".join(f"{digest}  {name}\n" for name, digest in sorted(hashes.items())),
         encoding="utf-8",
+        newline="",
     )
     return artifacts
 

@@ -115,9 +115,9 @@ hashes, so a directory of binaries is never ambiguous about what it holds.
 ## Checksums (SHA-256)
 
 ```text
-c31f0b4ab2e7648b255cecf2ecfa30d481f052dc17f31bce26ad305843024dc3  waegis-linux-x64.tar.gz
-0ccf94ea19acc93ae55de9d4899b97e61f17fc19d1ff90fc168af5438b5209b1  waegis-windows-x64.zip
-19686ef8d0d05340a9199b01b545b5e1a64e39a8cc4d8e21730b6c439479b551  waegis.pyz
+bb545321d1cd2d01b31a42c8f87f28262eaa7caaccce0d75914578ccd997a7b3  waegis-linux-x64.tar.gz
+6f0cc4c7acfeb0c601604389cb2cb42690841078f2401314d190b7fb13a586b4  waegis-windows-x64.zip
+723914cac498dc65aeebe0afa6fb38db23e82dabee3bdad9841aaae0d646076f  waegis.pyz
 ```
 
 The `.pyz` wrapper hash varies between builds (zipapp embeds timestamps), so a

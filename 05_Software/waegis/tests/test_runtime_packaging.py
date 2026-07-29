@@ -146,6 +146,34 @@ def test_release_artifact_names_carry_no_version(tmp_path: Path) -> None:
     assert set(manifest["artifacts"]) == {builder.ZIPAPP_NAME}
 
 
+def test_release_metadata_uses_lf_line_endings(tmp_path: Path) -> None:
+    """
+    @brief      ``SHA256SUMS`` and the release manifest are written with LF.
+    @details    Both ship as release assets and are consumed by POSIX tooling.
+                Windows newline translation turns each line into ``...\\r\\n``,
+                which makes `sha256sum -c SHA256SUMS` look for a filename ending
+                in a carriage return and fail every entry — indistinguishable,
+                to whoever downloaded it, from a corrupt artifact. A build must
+                produce the same bytes on Windows as on Linux.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-29
+    @version    0.1.0
+    """
+    builder = _builder()
+    output = tmp_path / "dist"
+    builder.build_release(
+        output,
+        runtime_cache=tmp_path / "runtime-cache",
+        offline=True,
+        zipapp_only=True,
+    )
+
+    for name in ("SHA256SUMS", "release-manifest.json"):
+        raw = (output / name).read_bytes()
+        assert b"\r\n" not in raw, f"{name} carries CRLF line endings"
+        assert raw.endswith(b"\n"), f"{name} must end with a newline"
+
+
 def test_default_build_output_is_the_single_delivery_dist(tmp_path: Path) -> None:
     """
     @brief      The default output is one Git-ignored delivery directory.
