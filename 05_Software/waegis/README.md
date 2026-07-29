@@ -786,9 +786,16 @@ newlines are serialized explicitly as LF for Linux and CRLF for Windows. Build
 and re-verify the complete release from this folder with:
 
 ```powershell
-python packaging\build_release.py --output dist
-python packaging\build_release.py --output dist --verify-only
+python packaging\build_release.py
+python packaging\build_release.py --verify-only
 ```
+
+Both default to `07_Delivery\dist`, the single directory delivery binaries live
+in; pass `--output` only to build somewhere else. Artifacts are named
+`waegis.pyz`, `waegis-windows-x64.zip`, and `waegis-linux-x64.tar.gz` — no
+version in the filename, so a build overwrites the previous one and stable paths
+stay valid across releases. Identify a build with `python waegis.pyz version` or
+from the `release-manifest.json` written beside the artifacts.
 
 Use `--offline` only when both pinned runtime archives already exist under the
 selected `--runtime-cache`; `--zipapp-only` produces only the portable `.pyz`.

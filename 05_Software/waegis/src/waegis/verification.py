@@ -49,6 +49,39 @@ HOOK_FILES: tuple[str, ...] = (
     "secret_scan.py",
 )
 
+# @brief Adapter configurations whose host parses with a strict deserializer
+#        that rejects the *entire file* on an unknown top-level key, mapped to
+#        the exact key set that host accepts.
+# @details Checking that an adapter directory exists says nothing about whether
+#          its host can load the config inside it. Codex deserializes
+#          `.codex/hooks.json` with `deny_unknown_fields` and names the accepted
+#          set in its own parse error ("expected `description` or `hooks`"); a
+#          file it rejects registers **no hooks at all**, so every guard is
+#          silently absent for the session — tool calls are not blocked, they
+#          are never inspected. That is the same fail-open shape as a missing
+#          Node.js runtime, and like it, no hook can report it because no hook
+#          ran. `waegis doctor`'s `runnability.adapter-configs` check exists to
+#          give it the visible signal it otherwise lacks.
+#          Only strictly-parsed configs belong here: hosts that tolerate unknown
+#          keys (Claude Code, Qwen Code, Pi) cannot fail this way, and asserting
+#          an invented key set for them would break on the next feature they add.
+STRICT_ADAPTER_CONFIG_KEYS: dict[str, frozenset[str]] = {
+    ".codex/hooks.json": frozenset({"description", "hooks"}),
+}
+
+# @brief Adapter hook configurations whose host binds per-hook trust to the
+#        file's content hash, so rewriting the file silently revokes it.
+# @details Codex registers a hook from `.codex/hooks.json` but runs it only once
+#          it has been reviewed, and it records that review against the file's
+#          hash. Any rewrite — including a byte-correct AEGIS payload upgrade —
+#          returns every hook in the file to "Modified since last trusted -
+#          review required" and stops it running until the operator re-reviews
+#          it in the `/hooks` panel. The upgrade therefore *succeeds* while
+#          leaving enforcement off, with no error anywhere; the only signal is
+#          a line in a settings panel nobody has a reason to open. `waegis
+#          upgrade` names the affected files so the re-review is not silent.
+HASH_TRUSTED_HOOK_CONFIGS: tuple[str, ...] = (".codex/hooks.json",)
+
 SMOKE_TIMEOUT_SECONDS = 120.0
 NO_ACTIVE_RUN_MARKER = "RUN-POINTER-MISSING"
 

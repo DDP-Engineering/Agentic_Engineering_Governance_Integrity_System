@@ -75,7 +75,13 @@
            could not launch as a non-blocking error, so a missing Node.js
            silently disables enforcement); known agent adapter directories
            present (``warn`` per missing one — informational, not every repo
-           uses every adapter). ``_wrapper_invocation``/``HOOK_FILES`` are
+           uses every adapter); every strictly-parsed adapter config in
+           :data:`waegis.verification.STRICT_ADAPTER_CONFIG_KEYS` still loadable
+           by its host (``fail`` per unparseable or key-rejected file — a
+           config the host discards registers no hooks at all, which removes
+           enforcement rather than degrading it, so it ranks with the missing
+           hook files rather than with the informational adapter-directory
+           check). ``_wrapper_invocation``/``HOOK_FILES`` are
            imported from :mod:`waegis.commands.new` rather than re-derived,
            since T5.2 already factored them out generically for reuse by both
            wizard journeys; severities (fail for hooks, warn for adapters) are
@@ -143,7 +149,12 @@ from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..probes.tools import probe_git, probe_python, probe_uv
 from ..repo.workflow_toml import InvariantViolationError, verify_workflow_invariants
 from ..version import _parse_version
-from ..verification import HOOK_FILES, SMOKE_TIMEOUT_SECONDS, wrapper_invocation
+from ..verification import (
+    HOOK_FILES,
+    SMOKE_TIMEOUT_SECONDS,
+    STRICT_ADAPTER_CONFIG_KEYS,
+    wrapper_invocation,
+)
 from .analyze import ADAPTER_DIR_NAMES
 from .new import MIN_FREE_DISK_BYTES
 
@@ -672,6 +683,75 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
 # --- group: Runnability -----------------------------------------------------------
 
 
+def _build_adapter_config_finding(repo: Path) -> ProbeFindingRecord:
+    """
+    @brief      ``runnability.adapter-configs``: every strictly-parsed adapter
+                config present in the repo is still loadable by its host.
+    @details    Only files listed in
+                :data:`waegis.verification.STRICT_ADAPTER_CONFIG_KEYS` are
+                checked, and only when they exist — an absent adapter is the
+                ``runnability.adapters`` check's business, not this one. Two
+                things make a present file unloadable: it is not valid JSON, or
+                it carries a top-level key its host's deserializer rejects.
+                Both are ``fail`` rather than ``warn`` because the host
+                discards the whole file either way, registering no hooks at all;
+                that is an absence of enforcement, not a degraded one, and it
+                produces no signal on the host side beyond a line in a settings
+                panel.
+    @param[in]  repo Repository root.
+    @return     One ``runnability.adapter-configs`` finding.
+    @exception  None Read and parse failures become the finding.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    problems: list[str] = []
+    checked = 0
+    for relative_path, allowed in sorted(STRICT_ADAPTER_CONFIG_KEYS.items()):
+        config_path = repo / relative_path
+        if not config_path.is_file():
+            continue
+        checked += 1
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problems.append(f"{relative_path} could not be parsed: {exc}")
+            continue
+        if not isinstance(data, dict):
+            problems.append(f"{relative_path} is not a JSON object")
+            continue
+        unsupported = sorted(set(data) - allowed)
+        if unsupported:
+            problems.append(
+                f"{relative_path} has unsupported top-level key(s) {', '.join(unsupported)} "
+                f"(its host accepts only {', '.join(sorted(allowed))})"
+            )
+
+    if problems:
+        return _finding(
+            "runnability.adapter-configs",
+            "fail",
+            "; ".join(problems),
+            guidance=(
+                "the host rejects the whole file, so it registers no hooks and every guard is "
+                "silently absent for that agent - tool calls are not blocked, they are never "
+                "inspected. Remove the unsupported key(s) or restore the file with "
+                "'waegis repair', then re-run 'waegis doctor'."
+            ),
+        )
+    if checked == 0:
+        return _finding(
+            "runnability.adapter-configs",
+            "ok",
+            "no strictly-parsed adapter configs are installed here",
+        )
+    return _finding(
+        "runnability.adapter-configs",
+        "ok",
+        f"all {checked} strictly-parsed adapter config(s) are loadable by their host",
+    )
+
+
 def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[ProbeFindingRecord, ...]:
     """
     @brief      Runnability group: wrapper scripts present and answer
@@ -682,7 +762,8 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
                 invocation.
     @return     Findings for ``runnability.wrapper-files``,
                 ``runnability.cli-smoke``, ``runnability.hooks``,
-                ``runnability.hook-runtime``, ``runnability.adapters``.
+                ``runnability.hook-runtime``, ``runnability.adapters``,
+                ``runnability.adapter-configs``.
     @details    ``runnability.hook-runtime`` (0.2.0, code-review follow-up)
                 probes ``node`` because every adapter launches the shared Python
                 guards through ``node .agentic/tools/run_hook.mjs``. A missing
@@ -690,10 +771,16 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
                 intact, but a host treats a hook that could not launch as a
                 non-blocking error, so the guards silently stop enforcing —
                 exactly the fail-open this finding exists to surface.
+    @details    ``runnability.adapter-configs`` (0.3.0) covers the third shape
+                of the same fail-open: an adapter config the host cannot parse.
+                A present adapter directory does not mean a loadable config, so
+                the directory check alone reported ``ok`` for a repo whose Codex
+                guards were entirely absent. See
+                :func:`_build_adapter_config_finding`.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.2.0
+    @date       2026-07-28
+    @version    0.3.0
     """
     findings: list[ProbeFindingRecord] = []
 
@@ -775,6 +862,8 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
         findings.append(
             _finding("runnability.adapters", "ok", f"all {len(ADAPTER_DIR_NAMES)} known adapter directories present")
         )
+
+    findings.append(_build_adapter_config_finding(repo))
 
     return tuple(findings)
 

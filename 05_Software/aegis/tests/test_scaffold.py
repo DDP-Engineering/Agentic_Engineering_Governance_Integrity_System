@@ -49,6 +49,28 @@ EDIT_HOOK_CONFIGS = (
 )
 READ_HOOK_CONFIGS = EDIT_HOOK_CONFIGS
 
+# @brief Adapter configs whose host parses with a strict deserializer that
+#        rejects the *whole file* on an unknown top-level key, mapped to the
+#        exact key set that host accepts.
+# @details Codex deserializes `.codex/hooks.json` with `deny_unknown_fields`;
+#          its own parse error names the accepted set verbatim ("expected
+#          `description` or `hooks`"). A rejected hooks file registers no hooks
+#          at all, so an unknown key here does not degrade enforcement, it
+#          removes it: tool calls are not blocked, they are never inspected.
+#          That is why this is a guard-presence contract and not style policing.
+STRICT_HOST_CONFIG_KEYS: dict[Path, frozenset[str]] = {
+    Path(".codex/hooks.json"): frozenset({"description", "hooks"}),
+}
+
+# @brief Adapter configs whose host tolerates unknown top-level keys, so the
+#        `_`-prefixed annotation convention is safe to use in them.
+TOLERANT_HOST_CONFIGS = (
+    Path(".claude/settings.json"),
+    Path(".qwen/settings.json"),
+    Path(".pi/settings.json"),
+    Path(".pi/package.json"),
+)
+
 
 # TESTS
 
@@ -161,6 +183,70 @@ def test_json_adapter_configs_delegate_reads_to_shared_hook(
     assert read_groups
 
 
+@pytest.mark.parametrize("config_relative_path", sorted(STRICT_HOST_CONFIG_KEYS))
+def test_strict_host_configs_use_only_supported_top_level_keys(config_relative_path: Path) -> None:
+    """
+    @brief      Keep strictly-parsed adapter configs within the key set their
+                host actually accepts.
+    @param[in]  config_relative_path Adapter configuration below the template root.
+    @return     None.
+    @details    Regression coverage for a shipped payload whose
+                `.codex/hooks.json` carried `_legal` and `_comment*` annotation
+                keys. Codex rejected the file outright and registered zero
+                hooks, so the read, write-zone, secret, shell-write, delivery,
+                and evidence guards were all silently absent under that host
+                while the file remained valid JSON and every other test passed.
+                Valid JSON is not a loadable host config; only the host's own
+                key set decides that.
+    @exception  AssertionError If the config carries a key its host rejects.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    allowed = STRICT_HOST_CONFIG_KEYS[config_relative_path]
+    data = json.loads((PACKAGE_ROOT / "template" / config_relative_path).read_text(encoding="utf-8"))
+    unsupported = sorted(set(data) - allowed)
+
+    assert not unsupported, (
+        f"{config_relative_path} carries top-level key(s) {unsupported} that its host rejects; "
+        f"it accepts only {sorted(allowed)}. An unknown key makes the host discard the whole "
+        "file, which registers no hooks at all and leaves every guard silently absent."
+    )
+
+
+@pytest.mark.parametrize("config_relative_path", TOLERANT_HOST_CONFIGS)
+def test_tolerant_host_config_annotations_stay_underscore_prefixed(config_relative_path: Path) -> None:
+    """
+    @brief      Keep annotation keys recognizable in configs whose host ignores
+                unknown top-level keys.
+    @param[in]  config_relative_path Adapter configuration below the template root.
+    @return     None.
+    @details    These hosts tolerate extra keys, so annotations are safe here —
+                but only while they stay visibly annotations. An un-prefixed
+                comment key is indistinguishable from a misspelled real setting,
+                which a tolerant host silently ignores rather than reporting.
+                Configs whose host is strict are covered by
+                :func:`test_strict_host_configs_use_only_supported_top_level_keys`
+                instead, where annotations are not permitted at all.
+    @exception  AssertionError If a `_`-prefixed annotation convention is broken.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    config_path = PACKAGE_ROOT / "template" / config_relative_path
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+
+    assert config_relative_path not in STRICT_HOST_CONFIG_KEYS, (
+        f"{config_relative_path} is listed as both strict and tolerant; a config has exactly one host parser"
+    )
+    for key, value in data.items():
+        if isinstance(value, str) and key.lower().lstrip("_").startswith(("comment", "legal", "note")):
+            assert key.startswith("_"), (
+                f"{config_relative_path} annotation key {key!r} is not `_`-prefixed; "
+                "a tolerant host cannot distinguish it from a misspelled setting"
+            )
+
+
 def test_adapters_contain_no_native_repository_denylist() -> None:
     """
     @brief      Adapter assets delegate policy without static path/command rules.
@@ -231,6 +317,8 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     assert not (target / ".agentic" / ".workspace").exists()
     assert (target / ".agentic" / "components.toml").exists()
     assert (target / ".codex" / "config.toml").exists()
+    assert (target / ".codex" / "hooks.json").exists()
+    assert (target / ".codex" / "README.md").exists()
     assert (target / "opencode.json").exists()
     assert (target / ".opencode" / "README.md").exists()
     assert (target / ".opencode" / "plugins" / "agentic-guard.mjs").exists()

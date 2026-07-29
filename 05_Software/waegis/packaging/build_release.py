@@ -15,9 +15,26 @@
          release manifest and ``SHA256SUMS`` for the final artifacts. Linux tar
          modes are normalized explicitly so cross-builds from Windows retain
          executable launchers, interpreters, and shell scripts.
+@details **Artifact names carry no version** (0.3.0). A build overwrites the
+         previous one in a single output directory rather than accumulating a
+         new set per release, and documentation, install scripts, and any
+         automation can reference a stable path. Nothing is lost by dropping the
+         suffix: each artifact self-reports its version (``waegis.pyz version``
+         prints the wizard version, bundled payload version, and payload
+         digest), and the tracked ``release-manifest.json`` records the version
+         alongside the hashes.
+@details Artifacts are build outputs and are never tracked in Git. Committing
+         them would grow history permanently and irreversibly for no benefit —
+         a fixed filename does *not* reduce history size, because Git stores
+         blobs rather than names, and the ``.tar.gz`` in particular cannot be
+         delta-compressed at all (stream gzip: one early change shifts every
+         following byte). The tracked publication record is
+         ``07_Delivery/waegis-<version>/`` with ``RELEASE.md``, ``SHA256SUMS``,
+         and ``release-manifest.json``; the binaries are reproducible from a
+         source checkout at that version.
 @author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.2.0
+@date 2026-07-29
+@version 0.3.0
 """
 
 # IMPORTS
@@ -59,6 +76,20 @@ GENERATED_NAMES = {
 }
 GENERATED_SUFFIXES = {".pyc"}
 GENERATED_PATTERNS = ("*.egg-info", ".uv-cache*")
+
+# @brief Default build output: the one directory delivery binaries live in.
+# @details A single, Git-ignored location (the repository's root `.gitignore`
+#          ignores every `dist/`). Builds overwrite it instead of leaving a new
+#          versioned set behind, which is what previously accumulated hundreds
+#          of megabytes of stale archives across three separate directories.
+DEFAULT_OUTPUT_DIR = REPOSITORY_ROOT / "07_Delivery" / "dist"
+
+# @brief Release artifact filenames. Deliberately version-free — see the module
+#        docstring for why the version lives in the artifact and the manifest
+#        rather than in the filename.
+ZIPAPP_NAME = "waegis.pyz"
+WINDOWS_ARCHIVE_NAME = "waegis-windows-x64.zip"
+LINUX_ARCHIVE_NAME = "waegis-linux-x64.tar.gz"
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -458,14 +489,14 @@ def build_release(output: Path, *, runtime_cache: Path, offline: bool, zipapp_on
     from waegis.version import WIZARD_VERSION
 
     output.mkdir(parents=True, exist_ok=True)
-    pyz = _build_zipapp(output / f"waegis-{WIZARD_VERSION}.pyz")
+    pyz = _build_zipapp(output / ZIPAPP_NAME)
     artifacts = [pyz]
     if not zipapp_only:
         artifacts.append(
             _build_application_archive(
                 "windows-x64",
                 zipapp_path=pyz,
-                output=output / f"waegis-{WIZARD_VERSION}-windows-x64.zip",
+                output=output / WINDOWS_ARCHIVE_NAME,
                 runtime_cache=runtime_cache,
                 offline=offline,
             )
@@ -474,7 +505,7 @@ def build_release(output: Path, *, runtime_cache: Path, offline: bool, zipapp_on
             _build_application_archive(
                 "linux-x64",
                 zipapp_path=pyz,
-                output=output / f"waegis-{WIZARD_VERSION}-linux-x64.tar.gz",
+                output=output / LINUX_ARCHIVE_NAME,
                 runtime_cache=runtime_cache,
                 offline=offline,
             )
@@ -529,7 +560,7 @@ def verify_release(output: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     """@brief Parse release-builder arguments and produce the requested artifacts."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=PACKAGE_ROOT / "dist")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--runtime-cache", type=Path, default=PACKAGE_ROOT / ".runtime-cache")
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--zipapp-only", action="store_true")

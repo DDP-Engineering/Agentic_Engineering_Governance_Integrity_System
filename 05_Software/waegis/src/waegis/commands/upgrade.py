@@ -144,6 +144,7 @@ from ..repo import gitops
 from ..transaction import FileTransaction, recover_incomplete_transactions
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from ..verification import (
+    HASH_TRUSTED_HOOK_CONFIGS,
     NO_ACTIVE_RUN_MARKER,
     SMOKE_TIMEOUT_SECONDS,
     smoke_reverify,
@@ -412,6 +413,26 @@ class UpgradeReport:
         """
         return self.plan.by_action(FileAction.KEEP_MODIFIED_REMOVED)
 
+    def hook_configs_needing_retrust(self) -> tuple[str, ...]:
+        """
+        @brief      Adapter hook configs this upgrade rewrites whose host keys
+                    hook trust to file content, so the upgrade revokes it.
+        @details    Only paths the upgrade actually writes count: the two
+                    auto-write actions and a conflict resolved ``take-payload``.
+                    ``keep-local`` writes nothing and ``write-new`` writes a
+                    ``.new`` sidecar, so neither disturbs an existing trust
+                    record; ``delete-removed`` leaves no hook file to trust.
+                    Reported for a dry run too, where it states what the real
+                    run would cost.
+        @return     Sorted tuple of repo-relative POSIX paths, empty when this
+                    upgrade touches none of them.
+        @exception  None
+        @author     Eng. Dan Dumitru Pasare
+        @date       2026-07-28
+        @version    0.1.0
+        """
+        return _hook_configs_needing_retrust(self.plan, self.outcomes)
+
     def to_dict(self) -> dict[str, Any]:
         """
         @brief      Serialize the whole report to the frozen ``--json`` shape.
@@ -423,12 +444,16 @@ class UpgradeReport:
                     "conflicts": [conflict, ...], "resolutions": [{"path",
                     "decision", "written_path"}, ...], "generated_untouched":
                     [path, ...], "smoke": [{"name","status","detail","guidance"},
-                    ...]}``.
+                    ...], "hook_configs_needing_retrust": [path, ...]}``.
+                    The last key is additive (0.2.0): consumers that predate it
+                    keep working, but an integration that reports an upgrade as
+                    complete without reading it will call an install healthy
+                    while its Codex guards have stopped running.
         @return     The JSON-safe mapping.
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
+        @date       2026-07-28
+        @version    0.2.0
         """
         return {
             "repo": str(self.plan.repo),
@@ -453,6 +478,7 @@ class UpgradeReport:
             "smoke": [
                 {"name": f.name, "status": f.status, "detail": f.detail, "guidance": f.guidance} for f in self.smoke
             ],
+            "hook_configs_needing_retrust": list(self.hook_configs_needing_retrust()),
         }
 
 
@@ -578,6 +604,41 @@ def _copy_file(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
     ensure_executable(destination)
+
+
+def _hook_configs_needing_retrust(
+    plan: UpgradePlan,
+    outcomes: tuple[ConflictOutcome, ...],
+) -> tuple[str, ...]:
+    """
+    @brief      Adapter hook configs this plan rewrites whose host keys hook
+                trust to file content, so applying it revokes that trust.
+    @details    Single definition of the rule, shared by
+                :meth:`UpgradeReport.hook_configs_needing_retrust` and the
+                pre-approval/dry-run plan dict — the operator must be able to
+                see the cost *before* approving, and a second copy of the rule
+                is how the two views drift apart.
+                Only paths actually written count: the two auto-write actions
+                and a conflict resolved ``take-payload``. ``keep-local`` writes
+                nothing and ``write-new`` writes a ``.new`` sidecar, so neither
+                disturbs an existing trust record; ``delete-removed`` leaves no
+                hook file to trust.
+    @param[in]  plan The computed plan.
+    @param[in]  outcomes Resolved conflict outcomes (empty before resolution).
+    @return     Sorted tuple of repo-relative POSIX paths.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-28
+    @version    0.1.0
+    """
+    written = set(plan.by_action(FileAction.AUTO_APPLY_NEW))
+    written |= set(plan.by_action(FileAction.ADD_NEW))
+    written |= {
+        outcome.relative_path
+        for outcome in outcomes
+        if outcome.decision is ConflictDecision.TAKE_PAYLOAD
+    }
+    return tuple(sorted(written.intersection(HASH_TRUSTED_HOOK_CONFIGS)))
 
 
 def _sidecar_path(repo: Path, relative_path: str) -> Path:
@@ -1183,13 +1244,20 @@ def render_upgrade_report(report: UpgradeReport, stream: IO[str]) -> None:
                 the smoke re-verify verdict, and whether the manifest was
                 rewritten. For a stop-and-report run it lists the conflicts that
                 need decisions.
+    @details    A successful upgrade that rewrote a hash-trusted hook config
+                (0.2.0) ends with an action-required block. This is the one
+                place the operator can learn that a *successful* upgrade turned
+                their guards off: the host revokes hook trust on any content
+                change, and reports it only inside a settings panel. Every other
+                signal — exit code, smoke verdict, manifest — says the install
+                is healthy, and it is; it is simply not enforcing.
     @param[in]  report The report to render.
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
+    @date       2026-07-28
+    @version    0.2.0
     """
     plan = report.plan
     stream.write(f"WAEGIS upgrade - {plan.repo}\n")
@@ -1219,8 +1287,16 @@ def render_upgrade_report(report: UpgradeReport, stream: IO[str]) -> None:
             stream.write(f"  {path}\n")
         stream.write("\n")
 
+    retrust = report.hook_configs_needing_retrust()
+
     if report.dry_run:
         stream.write("Dry run: nothing was written; the install manifest is unchanged.\n")
+        if retrust:
+            stream.write(
+                f"\nNote: a real run would rewrite {', '.join(retrust)}. The host binds hook "
+                "trust to file content, so that rewrite would stop those guards running until "
+                "they are re-reviewed.\n"
+            )
         return
 
     if report.conflicts_unresolved:
@@ -1239,6 +1315,16 @@ def render_upgrade_report(report: UpgradeReport, stream: IO[str]) -> None:
 
     if report.manifest_written:
         stream.write("Upgrade complete: files applied, smoke re-verify passed, install manifest rewritten.\n")
+        if retrust:
+            stream.write(
+                "\nACTION REQUIRED - guards are not enforcing until you re-review them:\n"
+                f"  This upgrade rewrote {', '.join(retrust)}. The host binds hook trust to the\n"
+                "  file's content, so every hook in it is now back to 'review required' and is\n"
+                "  NOT running. Nothing else reports this: the upgrade succeeded, the files are\n"
+                "  correct, and the session will look healthy while tool calls go uninspected.\n"
+                "  Open the agent's /hooks panel, trust the AEGIS hooks, then confirm by asking\n"
+                "  it to read a path your enforced protected-path read policy covers.\n"
+            )
     else:
         stream.write(
             "Upgrade failed verification and was rolled back; the install manifest and managed "
@@ -1407,6 +1493,7 @@ def _upgrade_plan_dict(
             for outcome in outcomes
         ],
         "generated_untouched": list(plan.generated),
+        "hook_configs_needing_retrust": list(_hook_configs_needing_retrust(plan, outcomes)),
     }
 
 
@@ -1442,6 +1529,12 @@ def _emit_upgrade_envelope_or_report(
                 stream.write(f"  {action}: {len(paths)} file(s)\n")
         for resolution in plan_data["resolutions"]:
             stream.write(f"  resolve {resolution['path']}: {resolution['decision']}\n")
+        retrust = plan_data.get("hook_configs_needing_retrust") or []
+        if retrust:
+            stream.write(
+                f"  NOTE: applying this rewrites {', '.join(retrust)}, which revokes the host's\n"
+                "        hook trust - those guards stop running until re-reviewed in /hooks.\n"
+            )
     if report is not None:
         render_upgrade_report(report, stream)
     return exit_code
