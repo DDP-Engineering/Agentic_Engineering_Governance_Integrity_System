@@ -111,6 +111,57 @@ def test_payload_bundled_zipapp_smoke_and_hash_verification(tmp_path: Path) -> N
         raise AssertionError("release verification must reject a modified artifact")
 
 
+def test_release_artifact_names_carry_no_version(tmp_path: Path) -> None:
+    """
+    @brief      Release artifacts use stable, version-free filenames.
+    @details    Documentation, install scripts, and automation reference these
+                paths directly, so a version creeping back into a filename
+                breaks them silently at the next release. The version is not
+                lost: it is recorded in ``release-manifest.json`` and reported
+                by the artifact itself.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-29
+    @version    0.1.0
+    """
+    builder = _builder()
+    sys.path.insert(0, str(PACKAGE_ROOT / "src"))
+    from waegis.version import WIZARD_VERSION
+
+    output = tmp_path / "dist"
+    artifacts = builder.build_release(
+        output,
+        runtime_cache=tmp_path / "runtime-cache",
+        offline=True,
+        zipapp_only=True,
+    )
+
+    assert artifacts[0].name == builder.ZIPAPP_NAME == "waegis.pyz"
+    assert builder.WINDOWS_ARCHIVE_NAME == "waegis-windows-x64.zip"
+    assert builder.LINUX_ARCHIVE_NAME == "waegis-linux-x64.tar.gz"
+    for name in (builder.ZIPAPP_NAME, builder.WINDOWS_ARCHIVE_NAME, builder.LINUX_ARCHIVE_NAME):
+        assert WIZARD_VERSION not in name, f"artifact name {name!r} carries the version"
+
+    manifest = json.loads((output / "release-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["waegis_version"] == WIZARD_VERSION
+    assert set(manifest["artifacts"]) == {builder.ZIPAPP_NAME}
+
+
+def test_default_build_output_is_the_single_delivery_dist(tmp_path: Path) -> None:
+    """
+    @brief      The default output is one Git-ignored delivery directory.
+    @details    Builds overwrite that directory instead of leaving a versioned
+                set behind; the previous default scattered outputs across three
+                locations that nothing ever cleaned up.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-29
+    @version    0.1.0
+    """
+    builder = _builder()
+
+    assert builder.DEFAULT_OUTPUT_DIR.name == "dist"
+    assert builder.DEFAULT_OUTPUT_DIR.parent.name == "07_Delivery"
+
+
 def test_runtime_lock_pins_both_release_assets() -> None:
     """@brief The release builder has exact assets and hashes for both targets."""
     lock = json.loads((PACKAGE_ROOT / "packaging/runtime-lock.json").read_text(encoding="utf-8"))

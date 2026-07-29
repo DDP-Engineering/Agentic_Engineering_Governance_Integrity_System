@@ -10,6 +10,39 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 Release notes, delivery metadata, packaging notes, prompt references, and
 publication records for the standalone AEGIS project belong here.
 
+## Layout
+
+```text
+07_Delivery/
+  dist/                     build output - fixed names, overwritten, never tracked
+    waegis.pyz
+    waegis-windows-x64.zip
+    waegis-linux-x64.tar.gz
+    SHA256SUMS
+    release-manifest.json
+  waegis-<version>/         publication record - tracked, one per release
+    RELEASE.md
+    SHA256SUMS
+    release-manifest.json
+```
+
+Artifact filenames carry **no version**, so documentation, install scripts, and
+automation can reference a stable path, and a rebuild overwrites the previous
+set instead of leaving another ~94 MB behind. The version is not lost: each
+artifact reports it (`python waegis.pyz version`) and every publication record
+pins it beside the hashes.
+
+Binaries are never tracked in Git. A fixed filename does not change that
+calculation — Git stores blobs rather than names, so committing them would grow
+history by the full artifact size on every release, permanently and
+irreversibly. `.gitignore` in this directory carries the measurements behind
+that decision. What is tracked is the publication record, and the binaries are
+reproducible from a source checkout at the recorded version:
+
+```bash
+uv run python 05_Software/waegis/packaging/build_release.py
+```
+
 ## Releases
 
 > **Every release before 0.6.0 ships a payload with no Codex enforcement.**
@@ -23,8 +56,10 @@ publication records for the standalone AEGIS project belong here.
 - `waegis-0.6.0/` - WAEGIS 0.6.0 with bundled AEGIS payload 1.4.1 (current).
   Fixes the rejected Codex hook configuration described above, and adds the
   `waegis doctor` adapter-config check plus the post-upgrade hook re-trust
-  notice. See `waegis-0.6.0/RELEASE.md` for artifacts, checksums, usage, the
-  build command, and the required post-upgrade hook review.
+  notice. **First release with version-free artifact names**; releases up to
+  0.5.0 shipped as `waegis-<version>.pyz` and friends. See
+  `waegis-0.6.0/RELEASE.md` for artifacts, checksums, usage, the build command,
+  and the required post-upgrade hook review.
 - `waegis-0.5.0/` - WAEGIS 0.5.0 with bundled AEGIS payload 1.4.0
   (**superseded - no Codex enforcement**). Adds requirement companion specs
   (`spec_ref`), the read-only `resume` bootstrap brief, and per-stage skill
@@ -38,9 +73,7 @@ publication records for the standalone AEGIS project belong here.
 - `waegis-0.3.0/` - WAEGIS 0.3.0 with bundled AEGIS payload 1.2.0
   (**superseded - no Codex enforcement**). Portable zipapp plus self-contained
   Windows and Linux archives (embedded CPython). See `waegis-0.3.0/RELEASE.md`
-  for artifacts, checksums, usage, and the build command. The binaries are
-  reproducible from source and are not tracked in Git; the release record and
-  checksums are.
+  for artifacts, checksums, usage, and the build command.
 
 ## Current Delivery Model
 

@@ -74,26 +74,55 @@ fail open and neither produces an error.
 
 ## Artifacts
 
+**This is the first release with version-free artifact names.** Filenames are
+now stable across releases so documentation, install scripts, and automation can
+reference a fixed path; the version lives in the artifact and in this record
+instead. Builds land in `07_Delivery/dist/` and overwrite the previous set.
+
 | File | Size | Target | Needs on target |
 | --- | --- | --- | --- |
-| `waegis-0.6.0.pyz` | ~1.5 MB | Any OS | Python 3.11+ on `PATH` |
-| `waegis-0.6.0-windows-x64.zip` | ~24 MB | Windows x64 | Nothing (embedded CPython) |
-| `waegis-0.6.0-linux-x64.tar.gz` | ~66 MB | Linux x64 | Nothing (embedded CPython) |
+| `waegis.pyz` | ~1.5 MB | Any OS | Python 3.11+ on `PATH` |
+| `waegis-windows-x64.zip` | ~24 MB | Windows x64 | Nothing (embedded CPython) |
+| `waegis-linux-x64.tar.gz` | ~66 MB | Linux x64 | Nothing (embedded CPython) |
 
-The binaries themselves are not tracked in Git (see `.gitignore`); this record
-and the checksums below are. Rebuild them from source with the command in the
-`.gitignore`, or copy them from the builder's own `dist/` output.
+The binaries are not tracked in Git (see `../.gitignore` for why a fixed name
+does not change that); this record and the checksums below are. Rebuild them
+from a source checkout at this version:
+
+```bash
+uv run python 05_Software/waegis/packaging/build_release.py
+```
+
+## Identifying a build
+
+Because the filename no longer carries a version, ask the artifact:
+
+```bash
+python waegis.pyz version
+```
+
+```text
+WAEGIS 0.6.0
+Compatible AEGIS payloads: >=0.4.0,<2.0
+Bundled payload: 1.4.1
+Payload digest: 52317e5c6979ba44b0ae9eaf0ce1f8089019ce2c1e472fce8fd4840d0f8adc55
+Packaging: zipapp
+```
+
+`release-manifest.json` beside the artifacts records the same version with the
+hashes, so a directory of binaries is never ambiguous about what it holds.
 
 ## Checksums (SHA-256)
 
 ```text
-91239f29f29bde28e4b81cae6eaec04984469a24457e729f86b20a4a5abbe90c  waegis-0.6.0-linux-x64.tar.gz
-ce44c6ef7cc4ad6aadf3e889ba46f6e9a1b04ded100ac80c6077e2b14bc49e93  waegis-0.6.0-windows-x64.zip
-8b380283fc861d7f1361f6df655a612fe06bca5cc4ce5b8fd64999444ddee90a  waegis-0.6.0.pyz
+c31f0b4ab2e7648b255cecf2ecfa30d481f052dc17f31bce26ad305843024dc3  waegis-linux-x64.tar.gz
+0ccf94ea19acc93ae55de9d4899b97e61f17fc19d1ff90fc168af5438b5209b1  waegis-windows-x64.zip
+19686ef8d0d05340a9199b01b545b5e1a64e39a8cc4d8e21730b6c439479b551  waegis.pyz
 ```
 
-The `.pyz` wrapper hash varies between builds (zipapp embeds timestamps); the
-bundled AEGIS payload content digest is stable at
+The `.pyz` wrapper hash varies between builds (zipapp embeds timestamps), so a
+rebuild will not reproduce these three hashes byte for byte. The bundled AEGIS
+payload content digest is the stable identity and is
 `52317e5c6979ba44b0ae9eaf0ce1f8089019ce2c1e472fce8fd4840d0f8adc55`.
 
 ## Usage
@@ -101,8 +130,8 @@ bundled AEGIS payload content digest is stable at
 Portable zipapp (Python 3.11+ present):
 
 ```bash
-python waegis-0.6.0.pyz version
-python waegis-0.6.0.pyz new /path/to/NewProject
+python waegis.pyz version
+python waegis.pyz new /path/to/NewProject
 ```
 
 Self-contained Windows archive (no Python required): unzip, then
@@ -119,12 +148,15 @@ Self-contained Linux archive (no Python required): extract, then
 
 ## Verify
 
+Run from the directory holding the artifacts (`07_Delivery/dist/` for a local
+build) — this record directory carries the checksums but not the binaries:
+
 ```bash
 sha256sum -c SHA256SUMS
 ```
 
-Or with the builder itself:
+Or with the builder itself, which also checks each archive's internal manifest:
 
 ```bash
-uv run python 05_Software/waegis/packaging/build_release.py --output <dir> --verify-only
+uv run python 05_Software/waegis/packaging/build_release.py --verify-only
 ```
