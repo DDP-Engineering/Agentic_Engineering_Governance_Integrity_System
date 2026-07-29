@@ -12,20 +12,35 @@ publication records for the standalone AEGIS project belong here.
 
 ## Releases
 
-- `waegis-0.5.0/` - WAEGIS 0.5.0 with bundled AEGIS payload 1.4.0 (current).
-  Adds requirement companion specs (`spec_ref`), the read-only `resume`
-  bootstrap brief, and per-stage skill modules for the development and adoption
-  routers. See `waegis-0.5.0/RELEASE.md` for artifacts, checksums, usage, and
-  the build command.
-- `waegis-0.4.0/` - WAEGIS 0.4.0 with bundled AEGIS payload 1.3.0. Adds the
-  shell write guard and the `waegis doctor` hook-launcher check. See
-  `waegis-0.4.0/RELEASE.md` for artifacts, checksums, usage, and the build
+> **Every release before 0.6.0 ships a payload with no Codex enforcement.**
+> Their `.codex/hooks.json` carries annotation keys that Codex's strict parser
+> rejects, and a rejected file registers *zero* hooks — the read, write-zone,
+> secret, shell-write, delivery, and evidence guards are all silently absent
+> under that agent. Verified in the built artifacts for 0.2.0, 0.3.0, 0.4.0,
+> and 0.5.0. Other adapters are unaffected. Upgrade any install to 0.6.0 with
+> `waegis upgrade --repo <path>`, then re-review the hooks in Codex.
+
+- `waegis-0.6.0/` - WAEGIS 0.6.0 with bundled AEGIS payload 1.4.1 (current).
+  Fixes the rejected Codex hook configuration described above, and adds the
+  `waegis doctor` adapter-config check plus the post-upgrade hook re-trust
+  notice. See `waegis-0.6.0/RELEASE.md` for artifacts, checksums, usage, the
+  build command, and the required post-upgrade hook review.
+- `waegis-0.5.0/` - WAEGIS 0.5.0 with bundled AEGIS payload 1.4.0
+  (**superseded - no Codex enforcement**). Adds requirement companion specs
+  (`spec_ref`), the read-only `resume` bootstrap brief, and per-stage skill
+  modules for the development and adoption routers. See
+  `waegis-0.5.0/RELEASE.md` for artifacts, checksums, usage, and the build
   command.
-- `waegis-0.3.0/` - WAEGIS 0.3.0 with bundled AEGIS payload 1.2.0. Portable
-  zipapp plus self-contained Windows and Linux archives (embedded CPython). See
-  `waegis-0.3.0/RELEASE.md` for artifacts, checksums, usage, and the build
-  command. The binaries are reproducible from source and are not tracked in
-  Git; the release record and checksums are.
+- `waegis-0.4.0/` - WAEGIS 0.4.0 with bundled AEGIS payload 1.3.0
+  (**superseded - no Codex enforcement**). Adds the shell write guard and the
+  `waegis doctor` hook-launcher check. See `waegis-0.4.0/RELEASE.md` for
+  artifacts, checksums, usage, and the build command.
+- `waegis-0.3.0/` - WAEGIS 0.3.0 with bundled AEGIS payload 1.2.0
+  (**superseded - no Codex enforcement**). Portable zipapp plus self-contained
+  Windows and Linux archives (embedded CPython). See `waegis-0.3.0/RELEASE.md`
+  for artifacts, checksums, usage, and the build command. The binaries are
+  reproducible from source and are not tracked in Git; the release record and
+  checksums are.
 
 ## Current Delivery Model
 
