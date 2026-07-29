@@ -35,7 +35,7 @@
          explicit-first active-run contract with typed, actionable failures.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.6.0
+@version 0.7.0
 """
 
 # IMPORTS
@@ -376,8 +376,8 @@ def resolve_run_id(repo_root: Path, explicit_run_id: str | None = None) -> str:
             run_id=None,
             message="No active AEGIS run is selected for this worktree.",
             remediation=(
-                "Start one with `aegis start ...` or rerun this command with "
-                "`--run-id <existing-run-id>`.\n"
+                "Start one with `aegis run start <kind>` or rerun this command "
+                "with `--run <existing-run-id>`.\n"
                 f"Expected pointer: {pointer_relative}"
             ),
         )
@@ -498,7 +498,7 @@ def _stale_pointer_error(run_id: str) -> RunResolutionError:
             f"{run_id}/{GRAPH_FILE} is missing or invalid."
         ),
         remediation=(
-            "Start a new run or pass `--run-id <existing-run-id>` explicitly."
+            "Start a new run or pass `--run <existing-run-id>` explicitly."
         ),
     )
 
@@ -564,7 +564,7 @@ def init_graph(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.4.0
+    @version    0.5.0
     """
     run_id = new_run_id(kind)
     starting_stage: Stage = ADOPTION_STAGES[0] if kind == "adoption" else "intake"
@@ -572,7 +572,7 @@ def init_graph(
         run_id=run_id,
         stage=starting_stage,
         intent=Intent(
-            id="I-0001",
+            id=f"I-{uuid4()}",
             kind=kind,
             statement=statement,
             scope_hint=list(scope_hint or []),

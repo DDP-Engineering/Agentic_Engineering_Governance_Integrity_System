@@ -11,6 +11,53 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-29
+
+Component versions in this release: AEGIS payload 2.0.0, WAEGIS 1.0.0.
+
+### Added
+
+- Add the authoritative design stage between requirement and check, including
+  proposal revisions, requirement/document digests, approval invalidation, and
+  `INV-10 Solution design`.
+- Add schema-3 run-local stage forms with captured retention and check-execution
+  policy, atomic collection import, automatic IDs, reconstruction, routing, and
+  access-change controls.
+- Add external and managed deterministic check evidence, generated manual
+  evidence/supersession forms, red-before-green enforcement, and automatic
+  requirement activation at successful validation closure.
+- Add build, typecheck, lint, test, and security gate groups with independent
+  disabled/enforce modes and fixed execute-all ordering.
+- Add consolidated verification covering impact selection, enabled gates,
+  invariants, traceability, coverage, working-tree review, and validation
+  summary generation.
+- Add an offline ReportLab generator for the maintained new-project PDF guide.
+
+### Changed
+
+- Replace the flag-heavy CLI with the hard-break grouped interface:
+  `run`, `stage`, `requirement`, `check`, `evidence`, `verify`, `delivery`,
+  `adoption`, and `config`.
+- Make generated forms the input boundary for intent, alignment, requirements,
+  design, checks, implementation, validation, delivery, access changes,
+  routing, and evidence.
+- Keep requirement commands read-only and move all mutations into the
+  requirement stage.
+- Merge regression guidance into checks, implementation, validation, and
+  regression traceability, including contract variants, parity, stale-state
+  cleanup, rollback, boundaries, concurrency, and idempotency.
+- Release WAEGIS 1.0.0 with schema-3 generation, all five gate groups, AEGIS
+  compatibility `>=2.0.0,<3.0.0`, and cross-major upgrade rejection.
+- Update planning architecture, examples, template documents, agent adapters,
+  the start-guide PDF, and all five maintained presentation decks for the
+  eight-stage AEGIS 2.0 contract.
+
+### Removed
+
+- Remove all AEGIS 1.x command aliases, expert flags, schema-2 migration,
+  legacy graph loading, manual activation commands, and compatibility shims.
+- Remove cross-major WAEGIS upgrades.
+
 ## [1.4.1] - 2026-07-28
 
 Component versions in this release: AEGIS payload 1.4.1, WAEGIS 0.6.0. The two

@@ -63,10 +63,9 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
     @brief      Build a fully healthy AEGIS install under ``repo`` using the
                 real payload copier and workflow.toml generator.
     @param[in]  repo Empty, already-created target directory.
-    @param[in]  gates_configured When ``True`` (default), configure non-empty
-                ``[gates].test``/``[gates].lint`` so a healthy fixture is
-                truly all-``ok``; ``False`` reproduces the "empty gates"
-                scenario on an otherwise valid install.
+    @param[in]  gates_configured When ``True`` (default), enforce test and lint
+                with explicit commands; ``False`` leaves all five groups
+                explicitly disabled.
     @return     None
     @author     Eng. Dan Dumitru Pasare
     @version    0.1.0
@@ -82,9 +81,18 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
         source_roots=["src"],
         test_roots=["tests"],
         language="python",
-        gate_test_cmds=gate_cmds,
+        gate_build_cmds=[],
+        gate_typecheck_cmds=[],
         gate_lint_cmds=gate_cmds,
-        gates_mode="enforce" if gates_configured else "disabled",
+        gate_test_cmds=gate_cmds,
+        gate_security_cmds=[],
+        stage_form_retention="discard",
+        check_execution="external",
+        gate_build_mode="disabled",
+        gate_typecheck_mode="disabled",
+        gate_lint_mode="enforce" if gates_configured else "disabled",
+        gate_test_mode="enforce" if gates_configured else "disabled",
+        gate_security_mode="disabled",
         alignment_enabled=True,
     )
     (repo / WORKFLOW_TOML_RELATIVE_PATH).write_text(generated.text, encoding="utf-8", newline="")
@@ -267,10 +275,10 @@ def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
     workflow_path = repo / WORKFLOW_TOML_RELATIVE_PATH
     text = workflow_path.read_text(encoding="utf-8")
     broken = text.replace(
-        '[gates]\nmode = "enforce"',
-        '[gates]\nmode = "disabled"',
+        '[gates.test]\nmode = "enforce"\ncommands = ["python -c pass"]',
+        '[gates.test]\nmode = "enforce"\ncommands = []',
     )
-    assert broken != text, "the expected enforced gates mode was not found to break"
+    assert broken != text, "the expected enforced test gate was not found"
     workflow_path.write_text(broken, encoding="utf-8", newline="")
 
     report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
@@ -285,9 +293,8 @@ def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
 
 def test_disabled_gates_are_explicitly_valid(tmp_path: Path) -> None:
     """
-    @brief      Empty ``[gates].test``/``[gates].lint`` on an otherwise valid
-                installed workflow.toml produces warn-level findings, not a
-                hard failure.
+    @brief      All five explicitly disabled gate groups are valid and are
+                reported as disabled rather than passed.
     @return     None
     @author     Eng. Dan Dumitru Pasare
     @version    0.1.0
@@ -297,8 +304,10 @@ def test_disabled_gates_are_explicitly_valid(tmp_path: Path) -> None:
     _install_healthy_repo(repo, gates_configured=False)
 
     report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
-    assert _finding(report.workflow_toml, "workflow.gates.test").status == "ok"
-    assert _finding(report.workflow_toml, "workflow.gates.lint").status == "ok"
+    for name in ("build", "typecheck", "lint", "test", "security"):
+        finding = _finding(report.workflow_toml, f"workflow.gates.{name}")
+        assert finding.status == "ok"
+        assert finding.detail == "disabled"
     assert report.exit_code == EXIT_OK
 
 

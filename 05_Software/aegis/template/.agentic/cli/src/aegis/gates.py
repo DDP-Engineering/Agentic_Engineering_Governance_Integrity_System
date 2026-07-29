@@ -9,7 +9,8 @@
 """
 @file gates.py
 @brief Gate execution helpers for workflow validation commands.
-@details Provides reusable implementation behavior for the standalone AEGIS system.
+@details Executes build, typecheck, lint, test, and security in deterministic
+         order. Disabled groups are reported as disabled and never as passed.
 @details Simple-command argv splitting (0.2.0, code-review follow-up) now uses
          a `shlex.shlex` lexer instead of `shlex.split(..., posix=os.name !=
          "nt")`: the previous non-POSIX mode on Windows only grouped a quoted
@@ -23,7 +24,7 @@
          124 respectively), so they end as recorded failing gate evidence.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.5.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -34,7 +35,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from .config import WorkflowConfig
+from .config import GATE_ORDER, WorkflowConfig
 from .models import Evidence
 from .store import add_evidence, append_journal, load_graph, save_graph
 
@@ -59,22 +60,29 @@ def run_gates(
     @exception  ValueError If a requested gate name is unsupported.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.4.0
+    @version    1.0.0
     """
-    unknown = sorted(set(names or ()) - {"test", "lint"})
+    unknown = sorted(set(names or ()) - set(GATE_ORDER))
     if unknown:
         raise ValueError(
-            f"Unknown gate name(s): {', '.join(unknown)}. Expected test or lint."
+            f"Unknown gate name(s): {', '.join(unknown)}. "
+            f"Expected one or more of {', '.join(GATE_ORDER)}."
         )
     graph = load_graph(repo_root, run_id)
-    selected = names or list(config.gate_commands)
-    if not selected:
-        append_journal(repo_root, graph.run_id, "gates.skipped", {"reason": "no gates configured"})
-        return 0
+    selected = [name for name in GATE_ORDER if not names or name in names]
 
     exit_code = 0
     for name in selected:
-        commands = config.gate_commands.get(name, [])
+        group = getattr(config.gates, name)
+        if group.mode == "disabled":
+            append_journal(
+                repo_root,
+                graph.run_id,
+                "gate.disabled",
+                {"gate": name, "status": "disabled"},
+            )
+            continue
+        commands = group.commands
         for command in commands:
             result = _run_command(repo_root, command, timeout)
             evidence = Evidence(
@@ -84,6 +92,8 @@ def run_gates(
                 summary=f"{name}: {command}",
                 command=command,
                 stage=graph.stage,
+                gate_name=name,
+                exit_status=result.returncode,
             )
             graph = add_evidence(repo_root, graph, evidence)
             append_journal(

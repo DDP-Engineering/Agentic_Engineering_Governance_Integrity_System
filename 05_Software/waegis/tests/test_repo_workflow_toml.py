@@ -8,12 +8,12 @@
 # -----------------------------------------------------------------------------
 """
 @file test_repo_workflow_toml.py
-@brief Verify WAEGIS schema-version-2 workflow generation and validation.
+@brief Verify WAEGIS schema-version-3 workflow generation and validation.
 @details Locks policy-neutral defaults, explicit restrictive modes, canonical
          gate encoding, comment preservation, and never-save-invalid behavior.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 1.1.0
+@version 2.0.0
 """
 
 # IMPORTS
@@ -55,7 +55,7 @@ REAL_TEMPLATE = (
 
 @pytest.fixture(scope="module")
 def base_text() -> str:
-    """@brief Return the real AEGIS schema-version-2 template text."""
+    """@brief Return the real AEGIS schema-version-3 template text."""
     return REAL_TEMPLATE.read_text(encoding="utf-8")
 
 
@@ -68,14 +68,23 @@ def _generate(base_text: str, **overrides: object):  # type: ignore[no-untyped-d
         "source_roots": ["src"],
         "test_roots": ["tests"],
         "language": "python",
-        "gate_test_cmds": [],
+        "gate_build_cmds": [],
+        "gate_typecheck_cmds": [],
         "gate_lint_cmds": [],
+        "gate_test_cmds": [],
+        "gate_security_cmds": [],
         "alignment_enabled": True,
         "baseline_guard_mode": "disabled",
         "coverage_mode": "disabled",
         "source_changes_mode": "unrestricted",
         "alignment_protected_scope_mode": "disabled",
-        "gates_mode": "disabled",
+        "stage_form_retention": "discard",
+        "check_execution": "external",
+        "gate_build_mode": "disabled",
+        "gate_typecheck_mode": "disabled",
+        "gate_lint_mode": "disabled",
+        "gate_test_mode": "disabled",
+        "gate_security_mode": "disabled",
         "secrets_mode": "disabled",
         "protected_paths_mode": "disabled",
         "working_tree_mode": "unrestricted",
@@ -90,11 +99,11 @@ def _generate(base_text: str, **overrides: object):  # type: ignore[no-untyped-d
 # TESTS
 
 
-def test_real_template_is_complete_valid_schema_version_2(base_text: str) -> None:
+def test_real_template_is_complete_valid_schema_version_3(base_text: str) -> None:
     """@brief The shipped AEGIS template is the valid WAEGIS generation base."""
     document = tomllib.loads(base_text)
     verify_workflow_schema(document)
-    assert document["schema_version"] == 2
+    assert document["schema_version"] == 3
 
 
 @pytest.mark.parametrize(
@@ -166,18 +175,24 @@ def test_generator_preserves_unowned_comments_and_values(base_text: str) -> None
 
 
 def test_gate_commands_are_emitted_as_canonical_strings(base_text: str) -> None:
-    """@brief WAEGIS accepts legacy argv input but emits schema-2 strings."""
+    """@brief WAEGIS normalizes argv input into schema-3 gate commands."""
     result = _generate(
         base_text,
-        gates_mode="enforce",
+        gate_test_mode="enforce",
+        gate_lint_mode="enforce",
         gate_test_cmds=[["uv", "run", "pytest", "-q"]],
         gate_lint_cmds=["ruff check ."],
     )
     gates = tomllib.loads(result.text)["gates"]
 
-    assert gates["mode"] == "enforce"
-    assert gates["test"] == ["uv run pytest -q"]
-    assert gates["lint"] == ["ruff check ."]
+    assert gates["test"] == {
+        "mode": "enforce",
+        "commands": ["uv run pytest -q"],
+    }
+    assert gates["lint"] == {
+        "mode": "enforce",
+        "commands": ["ruff check ."],
+    }
     assert normalize_gate_commands('["pytest -q"]') == ["pytest -q"]
 
 
@@ -195,7 +210,7 @@ def test_generator_supports_all_restrictive_policy_modes(base_text: str) -> None
         source_changes_mode="blocked",
         alignment_protected_scope_mode="enforce",
         alignment_protected_scope_patterns=["infra/**"],
-        gates_mode="enforce",
+        gate_test_mode="enforce",
         gate_test_cmds=["pytest -q"],
         secrets_mode="enforce",
         secret_patterns=["token-[0-9]+"],
@@ -226,7 +241,7 @@ def test_generator_supports_all_restrictive_policy_modes(base_text: str) -> None
         {"working_tree_mode": "restricted", "working_tree_blocked_patterns": []},
         {"coverage_mode": "enforce", "coverage_roots": []},
         {"scope_mode": "advisory", "scope_allowed_roots": []},
-        {"gates_mode": "enforce", "gate_test_cmds": [], "gate_lint_cmds": []},
+        {"gate_test_mode": "enforce", "gate_test_cmds": []},
     ],
 )
 def test_generator_rejects_inconsistent_policy_answers(
@@ -273,7 +288,13 @@ def test_questionnaire_exposes_every_policy_mode_and_rule_collection() -> None:
         "coverage_mode",
         "source_changes_mode",
         "alignment_protected_scope_mode",
-        "gates_mode",
+        "stage_form_retention",
+        "check_execution",
+        "gate_build_mode",
+        "gate_typecheck_mode",
+        "gate_lint_mode",
+        "gate_test_mode",
+        "gate_security_mode",
         "secrets_mode",
         "protected_paths_mode",
         "working_tree_mode",

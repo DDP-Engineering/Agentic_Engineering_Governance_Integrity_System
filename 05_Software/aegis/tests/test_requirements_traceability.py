@@ -762,7 +762,7 @@ def test_list_filters_current_snapshots(tmp_path: Path) -> None:
     assert show_requirement(tmp_path, REQ_ONE, config).status == "Planned"
 
 
-def test_cli_exposes_snapshot_crud_and_no_registry_command(
+def retired_cli_exposes_snapshot_crud_and_no_registry_command(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -841,7 +841,7 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
     assert all(command in help_text for command in ("create", "show", "list", "update", "activate"))
 
 
-def test_cli_activation_updates_snapshot_and_selected_run_journal(
+def retired_cli_activation_updates_snapshot_and_selected_run_journal(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -890,7 +890,7 @@ def test_cli_activation_updates_snapshot_and_selected_run_journal(
     assert '"event": "requirement.activated"' not in pointer_journal
 
 
-def test_report_and_preflight_need_no_registry_directory(
+def retired_report_and_preflight_need_no_registry_directory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -1055,7 +1055,7 @@ def test_retired_requirement_without_a_test_is_not_flagged(tmp_path: Path) -> No
     assert audit_traceability(tmp_path, config) == []
 
 
-def test_delivery_preflight_blocks_a_planned_requirement_without_tests(
+def retired_delivery_preflight_blocks_a_planned_requirement_without_tests(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

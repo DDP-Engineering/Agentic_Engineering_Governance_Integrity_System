@@ -81,7 +81,7 @@
          through Node, which nothing checked for before this step existed.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.5.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -456,24 +456,31 @@ def _ask_field(ctx: EngineContext, spec: FieldSpec) -> Any:
     return ask_field(spec)
 
 
-def _read_gates(target: Path) -> tuple[list[list[str]], list[list[str]]]:
+def _read_gates(target: Path) -> dict[str, tuple[str, list[list[str]]]]:
     """
     @brief      Read the configured gate commands from the written workflow.toml.
     @details    Disk is the source of truth (resume-safe): a resumed run whose
                 ``deploy.workflow-toml`` was skipped still sees the real gates.
     @param[in]  target Target repository root.
-    @return     ``(test_commands, lint_commands)`` as argv lists.
+    @return     Gate names mapped to captured mode and argv lists.
     @exception  OSError If the file cannot be read.
     @exception  tomllib.TOMLDecodeError If the file is not valid TOML.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.2.0
+    @version    0.3.0
     """
     document = tomllib.loads((target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8"))
     gates = document.get("gates", {})
-    test_cmds = [shlex.split(str(command)) for command in gates.get("test", [])]
-    lint_cmds = [shlex.split(str(command)) for command in gates.get("lint", [])]
-    return test_cmds, lint_cmds
+    result: dict[str, tuple[str, list[list[str]]]] = {}
+    for name in ("build", "typecheck", "lint", "test", "security"):
+        group = gates.get(name, {})
+        mode = str(group.get("mode", "disabled"))
+        commands = [
+            shlex.split(str(command))
+            for command in group.get("commands", [])
+        ]
+        result[name] = (mode, commands)
+    return result
 
 
 def _payload_file_count(payload_root: Path) -> int:
@@ -1546,21 +1553,19 @@ def _act_gates(ctx: EngineContext) -> None:
     """
     runner = _runner(ctx)
     target = _target(ctx)
-    test_cmds, lint_cmds = _read_gates(target)
+    gates = _read_gates(target)
     outcomes: dict[str, str] = {}
-    document = tomllib.loads(
-        (target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
-    )
-    if document.get("gates", {}).get("mode") == "disabled":
-        outcomes["gates"] = "disabled"
+    if all(mode == "disabled" for mode, _commands in gates.values()):
+        for gate_name in gates:
+            outcomes[gate_name] = "disabled"
         ctx.note("gate execution is disabled explicitly by workflow.toml")
         ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
         ctx.record_answer("gate_outcomes", outcomes)
         return
     if not ctx.asker.confirm("Proceed with 'Try the quality gates once'?", default=True):
-        for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
-            if not commands:
-                outcomes[f"{gate_name} (empty)"] = "accepted-empty"
+        for gate_name, (mode, commands) in gates.items():
+            if mode == "disabled":
+                outcomes[gate_name] = "disabled"
                 continue
             for command in commands:
                 outcomes[" ".join(command)] = "deferred"
@@ -1568,12 +1573,9 @@ def _act_gates(ctx: EngineContext) -> None:
         ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
         ctx.record_answer("gate_outcomes", outcomes)
         return
-    for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
-        if not commands:
-            ctx.note(f"gate '{gate_name}' is configured empty and will pass without checking anything")
-            if not ctx.asker.confirm(f"Gate '{gate_name}' is empty. Accept and continue?", default=True):
-                raise RuntimeError(f"operator rejected the empty '{gate_name}' gate")
-            outcomes[f"{gate_name} (empty)"] = "accepted-empty"
+    for gate_name, (mode, commands) in gates.items():
+        if mode == "disabled":
+            outcomes[gate_name] = "disabled"
             continue
         if not ctx.asker.confirm(
             f"Run the {len(commands)} '{gate_name}' gate command(s) once now inside TARGET?",
@@ -1679,28 +1681,35 @@ def _on_fail_cli_smoke(ctx: EngineContext) -> Remediation:
 
 def _act_workflow_smoke(ctx: EngineContext) -> None:
     """
-    @brief      verify.workflow-smoke act: run the wrapper's ``status`` (and
-                ``gates run`` only when gates are configured non-empty and every
-                gate command passed in deploy.gates).
+    @brief      Run grouped ``run status --json`` and, when applicable,
+                ``verify gates`` through the installed wrapper.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  OSError / tomllib.TOMLDecodeError If workflow.toml is unreadable.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    1.0.0
     """
     runner = _runner(ctx)
     target = _target(ctx)
-    status_argv = _wrapper_invocation(target, "status")
+    status_argv = _wrapper_invocation(target, "run", "status", "--json")
     status_result = runner.run(status_argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=target)
     ctx.shared[SHARED_WORKFLOW_SMOKE_STATUS] = status_result
     ctx.note(f"ran: {' '.join(status_argv)} -> exit {status_result.exit_code}")
 
-    test_cmds, lint_cmds = _read_gates(target)
+    gates = _read_gates(target)
     outcomes = ctx.shared.get(SHARED_GATE_OUTCOMES) or {}
-    all_passed = bool(outcomes) and all(value == "pass" for value in outcomes.values())
-    if (test_cmds or lint_cmds) and all_passed:
-        gates_argv = _wrapper_invocation(target, "gates", "run")
+    all_passed = bool(outcomes) and all(
+        value in {"pass", "disabled"} for value in outcomes.values()
+    )
+    enabled_commands = [
+        command
+        for mode, commands in gates.values()
+        if mode == "enforce"
+        for command in commands
+    ]
+    if enabled_commands and all_passed:
+        gates_argv = _wrapper_invocation(target, "verify", "gates")
         gates_result = runner.run(gates_argv, timeout=GATE_TIMEOUT_SECONDS, cwd=target)
         ctx.shared[SHARED_WORKFLOW_SMOKE_GATES] = gates_result
         ctx.note(f"ran: {' '.join(gates_argv)} -> exit {gates_result.exit_code}")
@@ -1708,8 +1717,7 @@ def _act_workflow_smoke(ctx: EngineContext) -> None:
 
 def _verify_workflow_smoke(ctx: EngineContext) -> bool:
     """
-    @brief      verify.workflow-smoke verify: ``status`` responded coherently
-                (and ``gates run`` exited 0 when it ran).
+    @brief      Verify grouped run status and optional gate responses.
     @details    A fresh install has no active workflow run, and the embedded
                 CLI's ``status`` then exits non-zero with "No active agentic
                 run" (confirmed against the real template CLI) — that coherent
@@ -1720,7 +1728,7 @@ def _verify_workflow_smoke(ctx: EngineContext) -> bool:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.1.0
+    @version    1.0.0
     """
     status_result = ctx.shared.get(SHARED_WORKFLOW_SMOKE_STATUS)
     if status_result is None:

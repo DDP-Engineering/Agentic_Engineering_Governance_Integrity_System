@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file workflow_toml.py
-@brief Strict schema-version-2 workflow.toml generator and validator.
+@brief Strict schema-version-3 workflow.toml generator and validator.
 @details Serves new, adopt, configure, repair, and doctor with one complete
          policy-neutral schema. Structural answers and repository policy are
          independent: every policy mode and every active rule set is supplied
@@ -16,7 +16,7 @@
          parsed and validated before the generated text can be saved.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-13
-@version 1.2.0
+@version 2.0.0
 """
 
 # IMPORTS
@@ -38,11 +38,13 @@ from ..io.prompts import FieldSpec
 # @brief Glob characters forbidden in structural repository roots.
 _ROOT_FORBIDDEN_CHARS = frozenset("*?[]")
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+GATE_ORDER = ("build", "typecheck", "lint", "test", "security")
 ALL_STAGES = (
     "intake",
     "alignment",
     "requirement",
+    "design",
     "check",
     "implementation",
     "validation",
@@ -67,7 +69,11 @@ POLICY_MODE_CHOICES: dict[str, tuple[str, ...]] = {
     "coverage_mode": ("disabled", "enforce"),
     "source_changes_mode": ("unrestricted", "blocked"),
     "alignment_protected_scope_mode": ("disabled", "enforce"),
-    "gates_mode": ("disabled", "enforce"),
+    "gate_build_mode": ("disabled", "enforce"),
+    "gate_typecheck_mode": ("disabled", "enforce"),
+    "gate_lint_mode": ("disabled", "enforce"),
+    "gate_test_mode": ("disabled", "enforce"),
+    "gate_security_mode": ("disabled", "enforce"),
     "secrets_mode": ("disabled", "enforce"),
     "protected_paths_mode": ("disabled", "enforce"),
     "working_tree_mode": ("unrestricted", "restricted"),
@@ -448,6 +454,20 @@ def _mode_validator(key: str):  # type: ignore[no-untyped-def]
     return validate
 
 
+def _choice_value(raw: Any, choices: tuple[str, ...], name: str) -> str:
+    """
+    @brief      Normalize one non-policy enumerated workspace answer.
+    @param[in]  raw Candidate answer.
+    @param[in]  choices Supported values.
+    @param[in]  name Field name used in diagnostics.
+    @return     Normalized choice.
+    @version    0.1.0
+    """
+    if not isinstance(raw, str) or raw.strip() not in choices:
+        raise ValueError(f"{name} expected one of: {', '.join(choices)}")
+    return raw.strip()
+
+
 def normalize_completion_level(raw: Any) -> str:
     """@brief Normalize a component baseline completion threshold."""
     if not isinstance(raw, str) or raw.strip() not in COMPLETION_LEVELS:
@@ -680,7 +700,10 @@ def _verify_unchanged_against_base(
                 raise InvariantViolationError(4, f"[{section}].{key} changed without an answer")
 
 
-def _empty_gate_warnings(gate_test_cmds: Sequence[Any], gate_lint_cmds: Sequence[Any]) -> tuple[GateWarning, ...]:
+def _empty_gate_warnings(
+    gate_commands: Mapping[str, Sequence[Any]],
+    gate_modes: Mapping[str, str],
+) -> tuple[GateWarning, ...]:
     """
     @brief      Build the structured empty-gate warnings (plan §7).
     @param[in]  gate_test_cmds Normalized [gates].test command list.
@@ -692,12 +715,12 @@ def _empty_gate_warnings(gate_test_cmds: Sequence[Any], gate_lint_cmds: Sequence
     @version    0.1.0
     """
     warnings: list[GateWarning] = []
-    for gate, commands in (("test", gate_test_cmds), ("lint", gate_lint_cmds)):
-        if not commands:
+    for gate in GATE_ORDER:
+        if gate_modes[gate] == "enforce" and not gate_commands[gate]:
             warnings.append(
                 GateWarning(
                     gate=gate,
-                    message=f"gate '{gate}' is configured empty and will pass without checking anything",
+                    message=f"gate '{gate}' is enforced but has no commands",
                 )
             )
     return tuple(warnings)
@@ -742,27 +765,18 @@ WORKFLOW_FIELD_SPECS: tuple[FieldSpec, ...] = (
         default="python",
         validator=normalize_language,
     ),
-    FieldSpec(
-        key="gate_test_cmds",
-        description=(
-            "Commands the workflow runs as the 'test' gate, each as a list of "
-            "argv strings. An empty list is allowed but the gate then passes "
-            "without checking anything."
-        ),
-        example='[["uv", "run", "pytest", "-q"]]',
-        default=[],
-        validator=normalize_gate_commands,
-    ),
-    FieldSpec(
-        key="gate_lint_cmds",
-        description=(
-            "Commands the workflow runs as the 'lint' gate, each as a list of "
-            "argv strings. An empty list is allowed but the gate then passes "
-            "without checking anything."
-        ),
-        example='[["ruff", "check", "."]]',
-        default=[],
-        validator=normalize_gate_commands,
+    *tuple(
+        FieldSpec(
+            key=f"gate_{name}_cmds",
+            description=(
+                f"Explicit commands for the deterministic {name} gate. "
+                "Commands remain stored while the group is disabled."
+            ),
+            example="[]",
+            default=[],
+            validator=normalize_gate_commands,
+        )
+        for name in GATE_ORDER
     ),
     FieldSpec(
         key="alignment_enabled",
@@ -777,7 +791,7 @@ WORKFLOW_FIELD_SPECS: tuple[FieldSpec, ...] = (
     ),
 )
 
-# @brief Explicit schema-version-2 policy answers. Empty rule collections are
+# @brief Explicit schema-version-3 policy answers. Empty rule collections are
 #        still collected so disabled/unrestricted modes remain unambiguous.
 WORKFLOW_FIELD_SPECS = (
     *WORKFLOW_FIELD_SPECS,
@@ -838,11 +852,32 @@ WORKFLOW_FIELD_SPECS = (
         validator=normalize_rule_list,
     ),
     FieldSpec(
-        key="gates_mode",
-        description="Validation gate execution mode.",
-        example="disabled",
-        default="disabled",
-        validator=_mode_validator("gates_mode"),
+        key="stage_form_retention",
+        description="Transient stage-form retention mode.",
+        example="discard",
+        default="discard",
+        validator=lambda value: _choice_value(
+            value, ("versioned", "latest", "discard"), "stage_form_retention"
+        ),
+    ),
+    FieldSpec(
+        key="check_execution",
+        description="Deterministic check execution mode.",
+        example="external",
+        default="external",
+        validator=lambda value: _choice_value(
+            value, ("external", "managed"), "check_execution"
+        ),
+    ),
+    *tuple(
+        FieldSpec(
+            key=f"gate_{name}_mode",
+            description=f"Deterministic {name} gate mode.",
+            example="disabled",
+            default="disabled",
+            validator=_mode_validator(f"gate_{name}_mode"),
+        )
+        for name in GATE_ORDER
     ),
     FieldSpec(
         key="secrets_mode",
@@ -986,7 +1021,7 @@ def resolve_language_preset(
     return preset
 
 
-# SCHEMA-VERSION-2 PUBLIC API
+# SCHEMA-VERSION-3 PUBLIC API
 
 
 def _schema_closed(
@@ -996,7 +1031,7 @@ def _schema_closed(
     unknown = [key for key in table if key not in allowed]
     if unknown:
         key_path = f"{dotted_path}.{unknown[0]}" if dotted_path else unknown[0]
-        raise InvariantViolationError(1, f"{key_path} is not part of schema version 2")
+        raise InvariantViolationError(1, f"{key_path} is not part of schema version 3")
 
 
 def _schema_table(
@@ -1174,7 +1209,7 @@ def verify_workflow_schema(
     document: Mapping[str, Any], *, repo_root: Path | None = None
 ) -> None:
     """
-    @brief      Validate the complete policy-neutral workflow schema version 2.
+    @brief      Validate the complete policy-neutral workflow schema version 3.
     @param[in]  document Parsed workflow.toml mapping.
     @param[in]  repo_root Optional repository root for filesystem-dependent
                 baseline-manifest validation.
@@ -1182,7 +1217,7 @@ def verify_workflow_schema(
     @exception  InvariantViolationError If the schema or policy is invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
     top_level = (
         "schema_version",
@@ -1196,12 +1231,16 @@ def verify_workflow_schema(
         "traceability",
         "adoption",
         "alignment",
+        "interface",
         "gates",
         "guardrails",
     )
     _schema_closed(document, "", top_level)
     if type(document.get("schema_version")) is not int or document.get("schema_version") != SCHEMA_VERSION:
-        raise InvariantViolationError(1, "schema_version must be integer 2")
+        raise InvariantViolationError(
+            1,
+            "schema_version must be integer 3; WAEGIS 1.0 does not migrate schema 2",
+        )
 
     source = _schema_table(document, "source", ("roots",))
     tests = _schema_table(document, "tests", ("roots",))
@@ -1374,14 +1413,31 @@ def verify_workflow_schema(
     if alignment_scope_mode == "enforce" and not alignment_enabled:
         raise InvariantViolationError(1, "protected alignment scope requires alignment.enabled = true")
 
-    gates = _schema_table(document, "gates", ("mode", "test", "lint"))
-    gates_mode = _schema_mode(gates, "gates", ("disabled", "enforce"))
-    gate_test = _schema_list(gates, "test", "gates.test")
-    gate_lint = _schema_list(gates, "lint", "gates.lint")
-    if gates_mode == "disabled" and (gate_test or gate_lint):
-        raise InvariantViolationError(1, "disabled gates require empty command lists")
-    if gates_mode == "enforce" and not (gate_test or gate_lint):
-        raise InvariantViolationError(1, "enforced gates require at least one command")
+    interface = _schema_table(
+        document, "interface", ("stage_form_retention", "check_execution")
+    )
+    _schema_choice(
+        interface,
+        "stage_form_retention",
+        "interface.stage_form_retention",
+        ("versioned", "latest", "discard"),
+    )
+    _schema_choice(
+        interface,
+        "check_execution",
+        "interface.check_execution",
+        ("external", "managed"),
+    )
+    gates = _schema_table(document, "gates", GATE_ORDER)
+    for name in GATE_ORDER:
+        key_path = f"gates.{name}"
+        group = _schema_table(document, key_path, ("mode", "commands"))
+        mode = _schema_mode(group, key_path, ("disabled", "enforce"))
+        commands = _schema_list(group, "commands", f"{key_path}.commands")
+        if mode == "enforce" and not commands:
+            raise InvariantViolationError(
+                1, f"enforced {name} gate requires at least one command"
+            )
 
     _schema_table(
         document,
@@ -1553,8 +1609,11 @@ def generate_workflow_toml(
     source_roots: Sequence[str] | str,
     test_roots: Sequence[str] | str,
     language: str,
-    gate_test_cmds: Sequence[Any],
+    gate_build_cmds: Sequence[Any],
+    gate_typecheck_cmds: Sequence[Any],
     gate_lint_cmds: Sequence[Any],
+    gate_test_cmds: Sequence[Any],
+    gate_security_cmds: Sequence[Any],
     alignment_enabled: bool | str,
     source_extensions: Sequence[str] | None = None,
     test_file_patterns: Sequence[str] | None = None,
@@ -1566,7 +1625,13 @@ def generate_workflow_toml(
     source_changes_mode: str = "unrestricted",
     alignment_protected_scope_mode: str = "disabled",
     alignment_protected_scope_patterns: Sequence[str] = (),
-    gates_mode: str,
+    stage_form_retention: str = "discard",
+    check_execution: str = "external",
+    gate_build_mode: str = "disabled",
+    gate_typecheck_mode: str = "disabled",
+    gate_lint_mode: str = "disabled",
+    gate_test_mode: str = "disabled",
+    gate_security_mode: str = "disabled",
     secrets_mode: str = "disabled",
     secret_patterns: Sequence[str] = (),
     protected_paths_mode: str = "disabled",
@@ -1582,7 +1647,7 @@ def generate_workflow_toml(
     delivery_command_patterns: Sequence[str] = (),
 ) -> GeneratedWorkflow:
     """
-    @brief      Generate a complete schema-version-2 workflow configuration.
+    @brief      Generate a complete schema-version-3 workflow configuration.
     @details    Structural answers never imply repository policy. Every policy
                 mode and rule collection is emitted explicitly, and the
                 generated text is parsed and validated before it is returned.
@@ -1590,7 +1655,7 @@ def generate_workflow_toml(
     @exception  WorkflowTomlError If the base or generated schema is invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    1.1.0
+    @version    2.0.0
     """
     roots = normalize_roots(source_roots)
     tests = normalize_roots(test_roots)
@@ -1599,15 +1664,27 @@ def generate_workflow_toml(
         source_extensions=source_extensions,
         test_file_patterns=test_file_patterns,
     )
-    test_cmds = normalize_gate_commands(gate_test_cmds)
-    lint_cmds = normalize_gate_commands(gate_lint_cmds)
+    gate_commands = {
+        "build": normalize_gate_commands(gate_build_cmds),
+        "typecheck": normalize_gate_commands(gate_typecheck_cmds),
+        "lint": normalize_gate_commands(gate_lint_cmds),
+        "test": normalize_gate_commands(gate_test_cmds),
+        "security": normalize_gate_commands(gate_security_cmds),
+    }
+    gate_modes = {
+        "build": gate_build_mode,
+        "typecheck": gate_typecheck_mode,
+        "lint": gate_lint_mode,
+        "test": gate_test_mode,
+        "security": gate_security_mode,
+    }
     alignment = normalize_bool(alignment_enabled)
     modes = {
         "baseline_guard_mode": baseline_guard_mode,
         "coverage_mode": coverage_mode,
         "source_changes_mode": source_changes_mode,
         "alignment_protected_scope_mode": alignment_protected_scope_mode,
-        "gates_mode": gates_mode,
+        **{f"gate_{name}_mode": gate_modes[name] for name in GATE_ORDER},
         "secrets_mode": secrets_mode,
         "protected_paths_mode": protected_paths_mode,
         "working_tree_mode": working_tree_mode,
@@ -1617,6 +1694,12 @@ def generate_workflow_toml(
     }
     for key, mode in modes.items():
         _mode_validator(key)(mode)
+    _choice_value(
+        stage_form_retention,
+        ("versioned", "latest", "discard"),
+        "stage_form_retention",
+    )
+    _choice_value(check_execution, ("external", "managed"), "check_execution")
 
     normalized_rules = {
         "coverage_roots": normalize_rule_list(coverage_roots),
@@ -1650,9 +1733,16 @@ def generate_workflow_toml(
         ("alignment", "enabled"): alignment,
         ("alignment.protected_scope", "mode"): alignment_protected_scope_mode,
         ("alignment.protected_scope", "patterns"): normalized_rules["alignment_protected_scope_patterns"],
-        ("gates", "mode"): gates_mode,
-        ("gates", "test"): test_cmds,
-        ("gates", "lint"): lint_cmds,
+        ("interface", "stage_form_retention"): stage_form_retention,
+        ("interface", "check_execution"): check_execution,
+        **{
+            (f"gates.{name}", "mode"): gate_modes[name]
+            for name in GATE_ORDER
+        },
+        **{
+            (f"gates.{name}", "commands"): gate_commands[name]
+            for name in GATE_ORDER
+        },
         ("guardrails.secrets", "mode"): secrets_mode,
         ("guardrails.secrets", "patterns"): normalized_rules["secret_patterns"],
         ("guardrails.protected_paths", "mode"): protected_paths_mode,
@@ -1692,11 +1782,7 @@ def generate_workflow_toml(
     )
     return GeneratedWorkflow(
         text=generated_text,
-        warnings=(
-            _empty_gate_warnings(test_cmds, lint_cmds)
-            if gates_mode == "enforce"
-            else ()
-        ),
+        warnings=_empty_gate_warnings(gate_commands, gate_modes),
     )
 
 

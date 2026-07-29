@@ -15,7 +15,7 @@
          and exclusive of the maximum, mirroring ``>=MIN,<MAX`` semantics.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-12
-@version 0.1.1
+@version 1.0.0
 """
 
 # IMPORTS
@@ -25,16 +25,16 @@ from __future__ import annotations
 # CONSTANTS
 
 # @brief Independent WAEGIS wizard version (SemVer).
-WIZARD_VERSION = "0.6.0"
+WIZARD_VERSION = "1.0.0"
 
 # @brief Inclusive lower bound of the compatible AEGIS payload version.
-PAYLOAD_COMPAT_MIN = "0.4.0"
+PAYLOAD_COMPAT_MIN = "2.0.0"
 
 # @brief Exclusive upper bound of the compatible AEGIS payload version.
-PAYLOAD_COMPAT_MAX = "2.0.0"
+PAYLOAD_COMPAT_MAX = "3.0.0"
 
 # @brief Human-readable compatibility specifier for reports and messages.
-PAYLOAD_COMPAT_SPEC = ">=0.4.0,<2.0"
+PAYLOAD_COMPAT_SPEC = ">=2.0.0,<3.0.0"
 
 
 # HELPER FUNCTIONS

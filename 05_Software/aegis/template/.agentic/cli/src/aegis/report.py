@@ -9,11 +9,11 @@
 """
 @file report.py
 @brief Markdown report rendering for workflow runs.
-@details Renders persisted workflow evidence, including optional failure
-classifications, for generated projects.
+@details Renders schema-3 stage state, durable requirements, solution design,
+         checks, evidence, verification records, and adoption baseline data.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.7.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -27,7 +27,10 @@ from .components import audit_local_scope, load_components
 from .config import WorkflowConfig
 from .invariants import evaluate
 from .models import Graph
+from .requirement_store import load_all_requirement_records
 from .requirements import audit_coverage, audit_traceability
+from .stage_forms import next_command
+from .verification import validation_summary_path
 
 # PUBLIC API
 
@@ -44,7 +47,7 @@ def render_report(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.7.0
+    @version    1.0.0
     """
     results = evaluate(repo_root, graph, config)
     traceability_issues = audit_traceability(repo_root, config)
@@ -79,19 +82,56 @@ def render_report(
 
     lines.extend([
         "",
-        "## Spec Items",
+        "## Stage Lifecycle",
     ])
-    if graph.spec_items:
-        for item in graph.spec_items:
-            lines.append(f"- `{item.id}` [{item.tag}] {item.status}: {item.statement}")
+    if graph.stage_records:
+        for stage, record in graph.stage_records.items():
+            lines.append(
+                f"- `{stage}` revision {record.revision}: `{record.status}`; "
+                f"retention `{record.retention}`; check execution "
+                f"`{record.check_execution}`"
+            )
+    else:
+        lines.append("- No stage records.")
+
+    lines.extend(["", "## Requirements"])
+    requirements = load_all_requirement_records(repo_root, config)
+    if requirements:
+        for requirement in requirements:
+            lines.append(
+                f"- `{requirement.id}` {requirement.status}: "
+                f"{requirement.requirement}"
+            )
+    else:
+        lines.append("- None recorded.")
+
+    lines.extend(["", "## Solution Design"])
+    if graph.design:
+        design = graph.design
+        lines.extend(
+            [
+                f"- Revision: {design.revision}",
+                f"- Status: `{design.status}`",
+                f"- Approval: `{design.approval}`",
+                f"- Document: `{design.document_path}`",
+                f"- Selected option: {design.selected_option or 'none'}",
+                "- Cited requirements: "
+                + (", ".join(f"`{item}`" for item in design.requirement_digests) or "none"),
+                "- Open questions: "
+                + ("; ".join(design.open_questions) or "none"),
+            ]
+        )
     else:
         lines.append("- None recorded.")
 
     lines.extend(["", "## Checks"])
     if graph.checks:
         for check in graph.checks:
-            cites = ", ".join(check.cites_spec)
-            lines.append(f"- `{check.id}` {check.state}; cites {cites}")
+            cites = ", ".join(check.cites_requirement)
+            lines.append(
+                f"- `{check.id}` {check.state}; requirements {cites}; "
+                f"command `{check.command}`"
+            )
     else:
         lines.append("- None recorded.")
 
@@ -118,14 +158,26 @@ def render_report(
     for issue in coverage_issues:
         lines.append(f"- `{issue.code}` {issue.message}")
 
+    validation_path = validation_summary_path(repo_root, graph)
+    lines.extend(["", "## Deterministic Verification"])
+    if validation_path.is_file():
+        lines.append(
+            f"- Validation summary: "
+            f"`{validation_path.relative_to(repo_root).as_posix()}`"
+        )
+    else:
+        lines.append("- Not yet run. Use `aegis verify run` during validation.")
+
     adoption_lines = _render_adoption_baseline(repo_root, graph, config)
     if adoption_lines:
         lines.extend(["", *adoption_lines])
 
-    lines.extend(["", "## Next Prompts"])
-    lines.append("- Continue the next manual gate after reviewing the report.")
-    lines.append("- Ask the agent to create or update missing artifacts named above.")
-    lines.append("- When ready for delivery, prompt: `Create PR for this agentic workflow run`.")
+    lines.extend(["", "## Handoff"])
+    lines.append(f"- Next command: `{next_command(graph)}`")
+    lines.append(
+        "- Delivery closure records the human handoff decision only; it does "
+        "not push, publish, merge, or create a pull request."
+    )
     lines.append("")
     return "\n".join(lines)
 
@@ -171,7 +223,8 @@ def _render_adoption_baseline(
     lines = [
         "## Adoption Baseline",
         f"- Component manifest: `{config.component_manifest}`",
-        f"- Minimum baseline: `{config.adoption_default_completion_level}`",
+        "- Minimum baseline: "
+        f"`{config.component_baseline_guard.minimum_completion_level}`",
         f"- Adoption report root: `{config.adoption_report_root}`",
         "",
         "### Component Status Counts",
@@ -198,7 +251,7 @@ def _render_adoption_baseline(
             repo_root,
             touched_paths,
             config,
-            config.adoption_default_completion_level,
+            config.component_baseline_guard.minimum_completion_level,
         )
         if issues:
             for issue in issues:

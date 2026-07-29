@@ -52,7 +52,7 @@ class AuditIssue:
     @brief Represent one deterministic traceability or coverage finding.
     @author Eng. Dan Dumitru Pasare
     @date 2026-07-22
-    @version 0.2.0
+    @version 0.3.0
     """
 
     code: str
@@ -586,13 +586,13 @@ def iter_coverable_files(repo_root: Path, config: WorkflowConfig) -> list[str]:
     @return Sorted repository-relative file paths.
     @author Eng. Dan Dumitru Pasare
     @date 2026-07-22
-    @version 0.2.0
+    @version 0.3.0
     """
     if config.coverage.mode == "disabled":
         return []
     extensions = set(config.source_extensions)
     found: list[str] = []
-    for root_name in config.coverable_roots:
+    for root_name in config.coverage.coverable_roots:
         root = repo_root / root_name
         if not root.exists():
             continue
@@ -602,7 +602,7 @@ def iter_coverable_files(repo_root: Path, config: WorkflowConfig) -> list[str]:
             relative = path.resolve().relative_to(repo_root.resolve()).as_posix()
             if any(
                 fnmatchcase(path.name, pattern) or matches_pattern(relative, pattern)
-                for pattern in config.coverable_exclude
+                for pattern in config.coverage.exclude
             ):
                 continue
             found.append(relative)

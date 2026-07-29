@@ -180,11 +180,16 @@ _COVERAGE_TARGET = 0.90
 #        Lint is checked FIRST: lint invocations routinely name test
 #        directories ("ruff check tests/"), while test invocations rarely name
 #        lint tools — checking test first would misclassify those.
+_BUILD_KEYWORDS = frozenset({"build", "compile", "package"})
+_TYPECHECK_KEYWORDS = frozenset({"typecheck", "type-check", "mypy", "pyright", "tsc"})
 _LINT_KEYWORDS = frozenset(
-    {"lint", "ruff", "flake8", "pylint", "eslint", "golangci-lint", "clang-tidy", "mypy"}
+    {"lint", "ruff", "flake8", "pylint", "eslint", "golangci-lint", "clang-tidy"}
 )
 _TEST_KEYWORDS = frozenset(
     {"pytest", "test", "tests", "unittest", "tox", "nox", "jest", "vitest", "mocha", "ctest", "rspec"}
+)
+_SECURITY_KEYWORDS = frozenset(
+    {"security", "bandit", "semgrep", "trivy", "osv-scanner", "audit"}
 )
 
 # @brief Splitter producing lowercase tokens for the keyword classification.
@@ -200,7 +205,9 @@ _SHELL_UNSAFE_MARKERS: tuple[str, ...] = ("&&", "||", ";", "|", ">", "<", "`", "
 _NPM_PLACEHOLDER_MARKER = "no test specified"
 
 # @brief Matches a Makefile `test:`/`lint:` target line (not a `:=` assignment).
-_MAKE_TARGET_RE = re.compile(r"^(test|lint)\s*:(?!=)")
+_MAKE_TARGET_RE = re.compile(
+    r"^(build|typecheck|type-check|lint|test|security)\s*:(?!=)"
+)
 
 # @brief Matches a GitHub-workflow `run:` line (optionally a `- run:` step).
 _RUN_LINE_RE = re.compile(r"^\s*(?:-\s+)?run:\s*(?P<value>.+?)\s*$")
@@ -439,8 +446,11 @@ class RepoAnalysis:
     source_roots: tuple[RootProposal, ...]
     test_roots: tuple[RootProposal, ...]
     colocated_tests: ColocatedTests
-    gate_test_cmds: tuple[GateCandidate, ...]
+    gate_build_cmds: tuple[GateCandidate, ...]
+    gate_typecheck_cmds: tuple[GateCandidate, ...]
     gate_lint_cmds: tuple[GateCandidate, ...]
+    gate_test_cmds: tuple[GateCandidate, ...]
+    gate_security_cmds: tuple[GateCandidate, ...]
     risk_flags: tuple[ProbeFindingRecord, ...]
 
     def to_dict(self) -> dict[str, Any]:
@@ -465,8 +475,11 @@ class RepoAnalysis:
             "source_roots": [proposal.to_dict() for proposal in self.source_roots],
             "test_roots": [proposal.to_dict() for proposal in self.test_roots],
             "colocated_tests": self.colocated_tests.to_dict(),
-            "gate_test_cmds": [candidate.to_dict() for candidate in self.gate_test_cmds],
+            "gate_build_cmds": [candidate.to_dict() for candidate in self.gate_build_cmds],
+            "gate_typecheck_cmds": [candidate.to_dict() for candidate in self.gate_typecheck_cmds],
             "gate_lint_cmds": [candidate.to_dict() for candidate in self.gate_lint_cmds],
+            "gate_test_cmds": [candidate.to_dict() for candidate in self.gate_test_cmds],
+            "gate_security_cmds": [candidate.to_dict() for candidate in self.gate_security_cmds],
             "risk_flags": [_flag_to_dict(flag) for flag in self.risk_flags],
         }
 
@@ -893,10 +906,16 @@ def _classify_gate(text: str) -> str | None:
     @version    0.1.0
     """
     tokens = set(_TOKEN_SPLIT_RE.split(text.lower()))
+    if tokens & _SECURITY_KEYWORDS:
+        return "security"
+    if tokens & _TYPECHECK_KEYWORDS:
+        return "typecheck"
     if tokens & _LINT_KEYWORDS:
         return "lint"
     if tokens & _TEST_KEYWORDS:
         return "test"
+    if tokens & _BUILD_KEYWORDS:
+        return "build"
     return None
 
 
@@ -974,20 +993,33 @@ def _package_json_candidates(repo: Path) -> list[GateCandidate]:
     elif (repo / "yarn.lock").is_file():
         manager = "yarn"
     candidates: list[GateCandidate] = []
-    test_script = scripts.get("test")
-    if isinstance(test_script, str) and test_script.strip() and _NPM_PLACEHOLDER_MARKER not in test_script:
-        candidates.append(
-            GateCandidate(
-                gate="test", argv=(manager, "test"), raw=test_script,
-                source_file="package.json", source_detail="scripts.test", needs_review=False,
-            )
+    for gate, script_name in (
+        ("build", "build"),
+        ("typecheck", "typecheck"),
+        ("lint", "lint"),
+        ("test", "test"),
+        ("security", "security"),
+    ):
+        script = scripts.get(script_name)
+        if (
+            not isinstance(script, str)
+            or not script.strip()
+            or (gate == "test" and _NPM_PLACEHOLDER_MARKER in script)
+        ):
+            continue
+        argv = (
+            (manager, "test")
+            if gate == "test" and manager == "npm"
+            else (manager, "run", script_name)
         )
-    lint_script = scripts.get("lint")
-    if isinstance(lint_script, str) and lint_script.strip():
         candidates.append(
             GateCandidate(
-                gate="lint", argv=(manager, "run", "lint"), raw=lint_script,
-                source_file="package.json", source_detail="scripts.lint", needs_review=False,
+                gate=gate,
+                argv=argv,
+                raw=script,
+                source_file="package.json",
+                source_detail=f"scripts.{script_name}",
+                needs_review=False,
             )
         )
     return candidates
@@ -1065,7 +1097,8 @@ def _makefile_candidates(repo: Path) -> list[GateCandidate]:
         seen.add(target)
         candidates.append(
             GateCandidate(
-                gate=target, argv=("make", target), raw=line.strip(),
+                gate="typecheck" if target == "type-check" else target,
+                argv=("make", target), raw=line.strip(),
                 source_file="Makefile", source_detail=f"target '{target}'", needs_review=False,
             )
         )
@@ -1179,7 +1212,9 @@ def _gitlab_ci_candidates(repo: Path) -> list[GateCandidate]:
     return candidates
 
 
-def _extract_gate_candidates(repo: Path) -> tuple[tuple[GateCandidate, ...], tuple[GateCandidate, ...]]:
+def _extract_gate_candidates(
+    repo: Path,
+) -> tuple[tuple[GateCandidate, ...], ...]:
     """
     @brief      Gather gate candidates from every supported source, in a
                 stable order, deduplicated.
@@ -1209,9 +1244,10 @@ def _extract_gate_candidates(repo: Path) -> tuple[tuple[GateCandidate, ...], tup
             continue
         seen.add(key)
         deduped.append(candidate)
-    tests = tuple(candidate for candidate in deduped if candidate.gate == "test")
-    lints = tuple(candidate for candidate in deduped if candidate.gate == "lint")
-    return tests, lints
+    return tuple(
+        tuple(candidate for candidate in deduped if candidate.gate == gate)
+        for gate in ("build", "typecheck", "lint", "test", "security")
+    )
 
 
 def _collect_risk_flags(repo: Path, inventory: Inventory) -> tuple[ProbeFindingRecord, ...]:
@@ -1393,7 +1429,13 @@ def analyze_inventory(repo: str | os.PathLike[str], inventory: Inventory) -> Rep
     test_root_paths = {proposal.path for proposal in test_roots}
     source_roots = _propose_source_roots(inventory, language, markers, test_root_paths)
     colocated = _detect_colocated_tests(inventory, language, sorted(test_root_paths))
-    gate_test_cmds, gate_lint_cmds = _extract_gate_candidates(repo_path)
+    (
+        gate_build_cmds,
+        gate_typecheck_cmds,
+        gate_lint_cmds,
+        gate_test_cmds,
+        gate_security_cmds,
+    ) = _extract_gate_candidates(repo_path)
     risk_flags = _collect_risk_flags(repo_path, inventory)
     return RepoAnalysis(
         repo=str(repo_path),
@@ -1405,8 +1447,11 @@ def analyze_inventory(repo: str | os.PathLike[str], inventory: Inventory) -> Rep
         source_roots=source_roots,
         test_roots=test_roots,
         colocated_tests=colocated,
-        gate_test_cmds=gate_test_cmds,
+        gate_build_cmds=gate_build_cmds,
+        gate_typecheck_cmds=gate_typecheck_cmds,
         gate_lint_cmds=gate_lint_cmds,
+        gate_test_cmds=gate_test_cmds,
+        gate_security_cmds=gate_security_cmds,
         risk_flags=risk_flags,
     )
 
@@ -1493,7 +1538,8 @@ def render_repo_analysis(analysis: RepoAnalysis, stream: IO[str]) -> None:
         stream.write("  none detected\n")
     stream.write("\n")
 
-    for label, candidates in (("test", analysis.gate_test_cmds), ("lint", analysis.gate_lint_cmds)):
+    for label in ("build", "typecheck", "lint", "test", "security"):
+        candidates = getattr(analysis, f"gate_{label}_cmds")
         stream.write(f"Gate command candidates ({label}):\n")
         if candidates:
             for candidate in candidates:

@@ -8,12 +8,12 @@
 # -----------------------------------------------------------------------------
 """
 @file models.py
-@brief Data models used by the agentic workflow state graph.
-@details Defines the persisted run graph while preserving read compatibility
-with legacy graphs that contain retired, unconsumed fields.
+@brief Data models used by the schema-version-3 workflow state graph.
+@details Defines the authoritative eight-stage run graph. Schema-version-2
+         graphs and legacy fields are rejected rather than migrated.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.5.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -32,6 +32,7 @@ Stage = Literal[
     "intake",
     "alignment",
     "requirement",
+    "design",
     "check",
     "implementation",
     "validation",
@@ -55,6 +56,7 @@ STAGES: list[Stage] = [
     "intake",
     "alignment",
     "requirement",
+    "design",
     "check",
     "implementation",
     "validation",
@@ -151,7 +153,7 @@ class Check:
     @brief      Represent Check data used by the workflow.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     id: str
     level: str
@@ -162,6 +164,9 @@ class Check:
     state: Literal["red", "green", "unknown"] = "unknown"
     red_evidence: str | None = None
     green_evidence: str | None = None
+    contract_variants: list[str] = field(default_factory=list)
+    concerns: list[str] = field(default_factory=list)
+    parity_targets: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -170,7 +175,7 @@ class Evidence:
     @brief      Represent Evidence data used by the workflow.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     id: str
     kind: Literal["test-run", "diff", "scan", "gate", "decision", "note"]
@@ -183,6 +188,10 @@ class Evidence:
     command: str | None = None
     path: str | None = None
     stage: str | None = None
+    check_id: str | None = None
+    gate_name: str | None = None
+    exit_status: int | None = None
+    output_log: str | None = None
     created_at: str = field(default_factory=now_iso)
 
 
@@ -215,23 +224,78 @@ class Decision:
 
 
 @dataclass
+class StageRecord:
+    """
+    @brief      Represent the authoritative imported state for one stage.
+    @details    The captured interface policy applies to this prepared revision
+                even when workspace configuration changes before import.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-29
+    @version    0.1.0
+    """
+
+    stage: Stage
+    revision: int
+    status: Literal["prepared", "applied", "closed"]
+    retention: Literal["versioned", "latest", "discard"]
+    check_execution: Literal["external", "managed"]
+    digest: str = ""
+    artifact: str = ""
+    summary: str = ""
+    unresolved_questions: list[str] = field(default_factory=list)
+    requested_access_mode: str = ""
+    access_rationale: str = ""
+    route_to: str = ""
+    route_rationale: str = ""
+    payload: dict[str, Any] = field(default_factory=dict)
+    prepared_at: str = field(default_factory=now_iso)
+    applied_at: str | None = None
+    closed_at: str | None = None
+
+
+@dataclass
+class SolutionDesign:
+    """
+    @brief      Represent one authoritative solution-design proposal.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-29
+    @version    0.1.0
+    """
+
+    revision: int
+    status: Literal["proposed", "approved", "stale"]
+    document_path: str
+    document_digest: str
+    requirement_digests: dict[str, str]
+    selected_option: str
+    open_questions: list[str] = field(default_factory=list)
+    approval: Literal["none", "human", "stale"] = "none"
+    proposed_at: str = field(default_factory=now_iso)
+    approved_at: str | None = None
+
+
+@dataclass
 class Graph:
     """
     @brief      Represent Graph data used by the workflow.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.5.0
+    @version    1.0.0
     """
     run_id: str
     stage: Stage
     intent: Intent
+    schema_version: int = 3
     access_mode: AccessMode = "standard"
+    complete: bool = False
     alignment: IntentAlignment | None = None
+    design: SolutionDesign | None = None
     spec_items: list[SpecItem] = field(default_factory=list)
     checks: list[Check] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
     change_units: list[ChangeUnit] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
+    stage_records: dict[str, StageRecord] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -240,38 +304,70 @@ class Graph:
         @exception  None
         @author     Eng. Dan Dumitru Pasare
         @date       2026-06-20
-        @version    0.3.0
+        @version    0.4.0
         """
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Graph":
         """
-        @brief      Load current and legacy graph mappings into the active model.
+        @brief      Load one strict schema-version-3 graph mapping.
         @param[in]  data Input value used by the workflow helper.
-        @return     Graph with retired top-level and change-unit fields ignored.
-        @exception  None
+        @return     Parsed graph using only the current persisted contract.
+        @exception  ValueError If the graph is not an exact schema-3 document.
         @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-20
-        @version    0.3.0
+        @date       2026-07-29
+        @version    1.0.0
         """
-        alignment = data.get("alignment") or data.get("intake_triage")
-        if alignment and "recommended_responses" not in alignment:
-            alignment = {**alignment, "recommended_responses": []}
+        expected = {
+            "run_id",
+            "stage",
+            "intent",
+            "schema_version",
+            "access_mode",
+            "complete",
+            "alignment",
+            "design",
+            "spec_items",
+            "checks",
+            "evidence",
+            "change_units",
+            "decisions",
+            "stage_records",
+        }
+        if data.get("schema_version") != 3:
+            raise ValueError(
+                "unsupported run graph schema; AEGIS 2.0 requires schema_version 3"
+            )
+        unknown = sorted(set(data) - expected)
+        missing = sorted(expected - set(data))
+        if unknown or missing:
+            detail = (
+                f"unknown keys: {', '.join(unknown)}"
+                if unknown
+                else f"missing keys: {', '.join(missing)}"
+            )
+            raise ValueError(f"invalid schema-3 run graph: {detail}")
+        alignment = data["alignment"]
+        design = data["design"]
         return cls(
             run_id=data["run_id"],
             stage=data["stage"],
             intent=Intent(**data["intent"]),
-            access_mode=data.get("access_mode", "standard"),
+            schema_version=3,
+            access_mode=data["access_mode"],
+            complete=data["complete"],
             alignment=IntentAlignment(**alignment) if alignment else None,
-            spec_items=[SpecItem(**item) for item in data.get("spec_items", [])],
-            checks=[Check(**item) for item in data.get("checks", [])],
-            evidence=[Evidence(**item) for item in data.get("evidence", [])],
-            change_units=[
-                ChangeUnit(**{key: value for key, value in item.items() if key != "evidence"})
-                for item in data.get("change_units", [])
-            ],
-            decisions=[Decision(**item) for item in data.get("decisions", [])],
+            design=SolutionDesign(**design) if design else None,
+            spec_items=[SpecItem(**item) for item in data["spec_items"]],
+            checks=[Check(**item) for item in data["checks"]],
+            evidence=[Evidence(**item) for item in data["evidence"]],
+            change_units=[ChangeUnit(**item) for item in data["change_units"]],
+            decisions=[Decision(**item) for item in data["decisions"]],
+            stage_records={
+                name: StageRecord(**record)
+                for name, record in data["stage_records"].items()
+            },
         )
 
 

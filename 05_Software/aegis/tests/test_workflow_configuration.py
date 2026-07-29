@@ -8,12 +8,12 @@
 # -----------------------------------------------------------------------------
 """
 @file test_workflow_configuration.py
-@brief Verify strict schema-version-2 workflow configuration behavior.
+@brief Verify strict schema-version-3 workflow configuration behavior.
 @details Covers typed errors, policy consistency, normalization, immutable
          records, and the agent-facing config CLI commands.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -69,7 +69,7 @@ def test_complete_unrestricted_configuration_parses_as_immutable_model(
 
     config = load_config(tmp_path)
 
-    assert config.schema_version == 2
+    assert config.schema_version == 3
     assert config.source_roots == ("src", "app", "lib")
     assert config.write_access.mode == "unrestricted"
     assert config.write_access.stages == {}
@@ -162,8 +162,8 @@ def test_unknown_key_and_wrong_type_are_rejected(
             '[guardrails.scope]\nmode = "advisory"\nallowed_roots = []',
         ),
         (
-            '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-            '[gates]\nmode = "enforce"\ntest = []\nlint = []',
+            '[gates.test]\nmode = "disabled"\ncommands = []',
+            '[gates.test]\nmode = "enforce"\ncommands = []',
         ),
     ],
 )
@@ -269,8 +269,8 @@ def test_every_restrictive_policy_mode_parses_when_rules_are_complete(
             '[alignment.protected_scope]\nmode = "enforce"\npatterns = ["infra/**"]',
         ),
         (
-            '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-            '[gates]\nmode = "enforce"\ntest = ["pytest -q"]\nlint = []',
+            '[gates.test]\nmode = "disabled"\ncommands = []',
+            '[gates.test]\nmode = "enforce"\ncommands = ["pytest -q"]',
         ),
         (
             '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
@@ -322,18 +322,18 @@ def test_config_cli_validate_show_and_json_error(
 
     main(["config", "validate", "--json"])
     validated = json.loads(capsys.readouterr().out)
-    assert validated["valid"] is True
-    assert validated["schema_version"] == 2
+    assert validated["status"] == "ok"
+    assert validated["schema_version"] == 3
 
-    main(["config", "show", "--effective", "--json"])
+    main(["config", "show", "--json"])
     shown = json.loads(capsys.readouterr().out)
-    assert shown == effective_config_dict(load_config(tmp_path))
-    assert shown["guardrails"]["secrets"]["active_rule_count"] == 0
+    assert shown["config"] == effective_config_dict(load_config(tmp_path))
+    assert shown["config"]["guardrails"]["secrets"]["active_rule_count"] == 0
 
     (tmp_path / ".agentic" / "workflow.toml").unlink()
     with pytest.raises(SystemExit) as exc_info:
         main(["config", "validate", "--json"])
-    assert exc_info.value.code == 2
+    assert exc_info.value.code == 1
     error = json.loads(capsys.readouterr().out)
     assert error["code"] == "CONFIG-MISSING"
     assert error["key_path"] == ""
@@ -355,7 +355,7 @@ def test_graph_command_loads_configuration_once_at_cli_boundary(
     @version 0.1.0
     """
     monkeypatch.chdir(tmp_path)
-    main(["start", "--kind", "feature", "--statement", "Load config once"])
+    main(["run", "start", "feature", "--json"])
     capsys.readouterr()
 
     original = cli_module.load_config
@@ -368,7 +368,7 @@ def test_graph_command_loads_configuration_once_at_cli_boundary(
         return original(repo_root)
 
     monkeypatch.setattr(cli_module, "load_config", counting_load_config)
-    main(["status"])
+    main(["run", "status", "--json"])
 
     assert calls == 1
     assert json.loads(capsys.readouterr().out)["run_id"]
@@ -393,10 +393,12 @@ def test_invalid_configuration_stops_command_before_state_mutation(
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(SystemExit) as raised:
-        main(["start", "--kind", "feature", "--statement", "Must not start"])
+        main(["run", "start", "feature", "--json"])
 
-    assert raised.value.code == 2
-    assert capsys.readouterr().out.startswith("CONFIG-MISSING:")
+    assert raised.value.code == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "blocked"
+    assert output["code"] == "CONFIG-MISSING"
     assert not (tmp_path / ".agentic" / "runs").exists()
     assert not (tmp_path / ".agentic" / ".workspace").exists()
 

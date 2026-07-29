@@ -13,7 +13,7 @@
          self-contained schema instead of reconstructing partial defaults.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -30,7 +30,11 @@ EXPECTED_POLICY_MODES = {
     "alignment.protected_scope": "disabled",
     "components.baseline_guard": "disabled",
     "adoption.source_changes": "unrestricted",
-    "gates": "disabled",
+    "gates.build": "disabled",
+    "gates.typecheck": "disabled",
+    "gates.lint": "disabled",
+    "gates.test": "disabled",
+    "gates.security": "disabled",
     "guardrails.secrets": "disabled",
     "guardrails.protected_paths": "disabled",
     "guardrails.working_tree": "unrestricted",
@@ -57,6 +61,8 @@ EXPECTED_STRUCTURAL_KEYS = {
         "allow_recommended_responses",
         "protected_scope",
     },
+    "interface": {"stage_form_retention", "check_execution"},
+    "gates": {"build", "typecheck", "lint", "test", "security"},
 }
 
 # LOCAL HELPERS
@@ -96,7 +102,7 @@ def test_unrestricted_workflow_fixture_has_complete_ratified_shape(
     """
     data = tomllib.loads(unrestricted_workflow_toml)
 
-    assert data["schema_version"] == 2
+    assert data["schema_version"] == 3
     for path, expected_keys in EXPECTED_STRUCTURAL_KEYS.items():
         assert set(_table(data, path)) == expected_keys
     for path, expected_mode in EXPECTED_POLICY_MODES.items():
@@ -111,8 +117,8 @@ def test_unrestricted_workflow_fixture_has_complete_ratified_shape(
     assert _table(data, "traceability.coverage")["coverable_roots"] == []
     assert _table(data, "traceability.coverage")["exclude"] == []
     assert _table(data, "alignment.protected_scope")["patterns"] == []
-    assert _table(data, "gates")["test"] == []
-    assert _table(data, "gates")["lint"] == []
+    for name in ("build", "typecheck", "lint", "test", "security"):
+        assert _table(data, f"gates.{name}")["commands"] == []
     assert "stages" not in _table(data, "guardrails.write_access")
     assert "minimum_completion_level" not in _table(data, "components.baseline_guard")
 

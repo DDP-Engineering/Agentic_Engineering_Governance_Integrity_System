@@ -37,13 +37,16 @@ from _fake_command_runner import FakeCommandRunner
 
 # CONSTANTS
 
-# @brief A complete non-interactive answer set for the six workflow keys.
+# @brief A complete non-interactive answer set for schema-version-3 policy.
 _FULL_ANSWERS: dict = {
     "source_roots": ["src"],
     "test_roots": ["tests"],
     "language": "python",
-    "gate_test_cmds": [],
+    "gate_build_cmds": [],
+    "gate_typecheck_cmds": [],
     "gate_lint_cmds": [],
+    "gate_test_cmds": [],
+    "gate_security_cmds": [],
     "alignment_enabled": True,
     "baseline_guard_mode": "disabled",
     "baseline_minimum_completion_level": "baseline-usable",
@@ -53,7 +56,13 @@ _FULL_ANSWERS: dict = {
     "source_changes_mode": "unrestricted",
     "alignment_protected_scope_mode": "disabled",
     "alignment_protected_scope_patterns": [],
-    "gates_mode": "disabled",
+    "stage_form_retention": "discard",
+    "check_execution": "external",
+    "gate_build_mode": "disabled",
+    "gate_typecheck_mode": "disabled",
+    "gate_lint_mode": "disabled",
+    "gate_test_mode": "disabled",
+    "gate_security_mode": "disabled",
     "secrets_mode": "disabled",
     "secret_patterns": [],
     "protected_paths_mode": "disabled",
@@ -117,7 +126,18 @@ def test_non_interactive_incomplete_answers_fails_before_engine(tmp_path) -> Non
 
     assert code == EXIT_FAILURE
     text = out.getvalue()
-    for key in ("test_roots", "language", "gate_test_cmds", "gate_lint_cmds", "alignment_enabled"):
+    for key in (
+        "test_roots",
+        "language",
+        "gate_build_cmds",
+        "gate_typecheck_cmds",
+        "gate_lint_cmds",
+        "gate_test_cmds",
+        "gate_security_cmds",
+        "stage_form_retention",
+        "check_execution",
+        "alignment_enabled",
+    ):
         assert key in text, f"missing key not named: {key}"
     assert not target.exists()
     assert not (home / "journals").exists()
@@ -314,7 +334,7 @@ def test_incompatible_payload_is_rejected_before_planning(tmp_path: Path) -> Non
     (payload / ".agentic/cli").mkdir(parents=True)
     (payload / ".agentic/workflow.toml").write_text("[source]\nroots=[]\n", encoding="utf-8")
     (payload / ".agentic/cli/pyproject.toml").write_text(
-        '[project]\nname="aegis"\nversion="2.0.0"\n',
+        '[project]\nname="aegis"\nversion="1.9.9"\n',
         encoding="utf-8",
     )
     out = io.StringIO()

@@ -215,7 +215,7 @@ def test_node_monorepo_lockfile_selects_package_manager(tmp_path: Path) -> None:
 
     result = analyze.analyze_repo(tmp_path, runner=_NoGitRunner())
 
-    assert result.gate_test_cmds[0].argv == ("yarn", "test")
+    assert result.gate_test_cmds[0].argv == ("yarn", "run", "test")
 
 
 # --- java-maven ---------------------------------------------------------------

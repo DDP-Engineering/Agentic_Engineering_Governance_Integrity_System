@@ -102,7 +102,7 @@
          changing those names is a wizard MAJOR version bump.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-15
-@version 0.1.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -786,7 +786,7 @@ def _smoke_reverify(runner: CommandRunner, repo: Path) -> tuple[tuple[ProbeFindi
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    1.0.0
     """
     findings: list[ProbeFindingRecord] = []
     ok = True
@@ -807,7 +807,7 @@ def _smoke_reverify(runner: CommandRunner, repo: Path) -> tuple[tuple[ProbeFindi
             )
         )
 
-    status_argv = _wrapper_invocation(repo, "status")
+    status_argv = _wrapper_invocation(repo, "run", "status", "--json")
     status_result = runner.run(status_argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=repo)
     healthy = False
     if status_result.ok():
@@ -828,7 +828,10 @@ def _smoke_reverify(runner: CommandRunner, repo: Path) -> tuple[tuple[ProbeFindi
                 "verify.workflow-smoke",
                 "fail",
                 f"'{' '.join(status_argv)}' did not respond as expected: {detail or 'no output'}",
-                guidance="run the wrapper manually inside the repo (.agentic/tools/run.* status) and check the error",
+                guidance=(
+                    "run the wrapper manually inside the repo with "
+                    "'run status --json' and check the error"
+                ),
             )
         )
 
@@ -1631,6 +1634,19 @@ def _run_upgrade_hardened(
             status="failed",
             exit_code=EXIT_VALIDATION,
             messages=("upgrade requires a valid current install manifest",),
+        )
+    installed_major = load.manifest.payload_version.split(".", 1)[0]
+    new_major = payload_version.split(".", 1)[0]
+    if installed_major != new_major:
+        return _emit_upgrade_envelope_or_report(
+            stream,
+            as_json=as_json,
+            status="failed",
+            exit_code=EXIT_VALIDATION,
+            messages=(
+                "cross-major AEGIS upgrades are unsupported; deploy AEGIS 2.x "
+                "as a fresh installation with schema 3",
+            ),
         )
     try:
         plan = build_upgrade_plan(repo_path, new_payload_root=payload_root, load_result=load)

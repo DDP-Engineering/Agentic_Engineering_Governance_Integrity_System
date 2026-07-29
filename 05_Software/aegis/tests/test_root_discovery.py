@@ -233,7 +233,7 @@ def test_start_from_subdirectory_creates_run_at_root(
     subdirectory.mkdir()
     monkeypatch.chdir(subdirectory)
 
-    main(["start", "--kind", "fix", "--statement", "root discovery regression"])
+    main(["run", "start", "fix", "--json"])
 
     payload = json.loads(capsys.readouterr().out)
     assert (root / ".agentic" / "runs" / payload["run_id"] / "graph.json").is_file()
@@ -268,11 +268,11 @@ def test_status_from_subdirectory_finds_active_run(
     subdirectory = root / "src"
     subdirectory.mkdir()
     monkeypatch.chdir(root)
-    main(["start", "--kind", "fix", "--statement", "root discovery regression"])
+    main(["run", "start", "fix", "--json"])
     started = json.loads(capsys.readouterr().out)
 
     monkeypatch.chdir(subdirectory)
-    main(["status"])
+    main(["run", "status", "--json"])
 
     reported = json.loads(capsys.readouterr().out)
     assert reported["run_id"] == started["run_id"]

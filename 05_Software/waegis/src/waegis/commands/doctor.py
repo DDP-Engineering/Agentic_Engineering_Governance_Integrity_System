@@ -623,7 +623,7 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
             test_roots=test_roots,
             repo_root=repo,
         )
-        findings.append(_finding("workflow.invariants", "ok", "schema-version-2 policy contract is valid"))
+        findings.append(_finding("workflow.invariants", "ok", "schema-version-3 policy contract is valid"))
     except InvariantViolationError as exc:
         findings.append(
             _finding(
@@ -635,27 +635,19 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
         )
 
     gates = _table(document, "gates")
-    test_cmds = gates.get("test", [])
-    lint_cmds = gates.get("lint", [])
-    gates_disabled = gates.get("mode") == "disabled"
-    findings.append(
-        _finding(
-            "workflow.gates.test",
-            "ok",
-            "gate execution is disabled"
-            if gates_disabled
-            else f"gate 'test' has {len(test_cmds)} command(s)",
+    for name in ("build", "typecheck", "lint", "test", "security"):
+        group = _table(gates, name)
+        mode = group.get("mode")
+        commands = group.get("commands", [])
+        findings.append(
+            _finding(
+                f"workflow.gates.{name}",
+                "ok",
+                "disabled"
+                if mode == "disabled"
+                else f"enforced with {len(commands)} command(s)",
+            )
         )
-    )
-    findings.append(
-        _finding(
-            "workflow.gates.lint",
-            "ok",
-            "gate execution is disabled"
-            if gates_disabled
-            else f"gate 'lint' has {len(lint_cmds)} command(s)",
-        )
-    )
 
     components_path = _table(document, "components").get("manifest")
     baseline_mode = _table(_table(document, "components"), "baseline_guard").get("mode")

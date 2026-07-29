@@ -92,7 +92,7 @@ class ComponentIssue:
     @brief      Represent a component manifest audit issue.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.2.0
+    @version    0.3.0
     """
     code: str
     message: str
@@ -269,9 +269,11 @@ def audit_local_scope(
     @exception  tomllib.TOMLDecodeError Raised when the manifest TOML is invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.2.0
+    @version    0.3.0
     """
-    resolved_minimum = minimum or config.adoption_default_completion_level
+    resolved_minimum = (
+        minimum or config.component_baseline_guard.minimum_completion_level
+    )
     if resolved_minimum is None:
         return []
     manifest = load_components(repo_root, config.component_manifest)

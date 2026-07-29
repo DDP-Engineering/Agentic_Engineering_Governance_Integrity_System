@@ -20,7 +20,7 @@
          file whose own name contains that sequence is no longer misparsed.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-24
-@version 0.5.0
+@version 0.6.0
 """
 
 # IMPORTS
@@ -62,7 +62,7 @@ def audit_working_tree(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    0.4.0
+    @version    0.5.0
     """
     entries, status_error = _git_status(repo_root)
     findings = []
@@ -93,9 +93,9 @@ def audit_working_tree(
             and _matches_any(path, config.protected_paths.patterns)
         ):
             findings.append(_finding("protected-path", path, "Protected path is present in the working tree."))
-        if _matches_any(path, config.working_tree_blocked_patterns):
+        if _matches_any(path, config.working_tree.blocked_patterns):
             findings.append(_finding("blocked-pattern", path, "Path matches a configured working-tree blocker."))
-        secret = _secret_match(repo_root / path, config.secret_patterns)
+        secret = _secret_match(repo_root / path, config.secrets.patterns)
         if secret:
             findings.append(_finding("secret-pattern", path, f"Configured secret pattern matched: {secret}"))
     return {
@@ -188,7 +188,7 @@ def _unquote_git_path(path: str) -> str:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-18
-    @version    0.1.0
+    @version    0.2.0
     """
     if len(path) < 2 or path[0] != '"' or path[-1] != '"':
         return path
@@ -279,11 +279,11 @@ def _is_blocked_adoption_source_change(path: str, config: WorkflowConfig, graph:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.1.0
+    @version    0.2.0
     """
     if graph is None or getattr(getattr(graph, "intent", None), "kind", None) != "adoption":
         return False
-    if config.adoption_behavior_changes_allowed:
+    if config.adoption_source_changes.mode == "unrestricted":
         return False
     normalized = path.replace("\\", "/").strip("/")
     return any(_path_is_under_root(normalized, root) for root in config.source_roots)

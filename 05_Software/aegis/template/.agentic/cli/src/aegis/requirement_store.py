@@ -10,10 +10,11 @@
 @file requirement_store.py
 @brief Canonical TOML persistence for durable requirement snapshots.
 @details Validates the hard-break UUID identity and complete schema before
-         exposing records to traceability consumers.
+         exposing records to traceability consumers. Stage imports validate a
+         complete collection before publishing any snapshot.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -430,6 +431,77 @@ def write_requirement_record(
         raise RequirementValidationError(normalized.source_file, "path", "existing requirement file is missing")
     _atomic_replace(target, render_requirement_toml(normalized))
     return normalized
+
+
+def publish_requirement_records(
+    repo_root: Path,
+    records: list[RequirementRecord],
+    config: WorkflowConfig,
+) -> list[RequirementRecord]:
+    """
+    @brief      Validate and publish a complete requirement-stage collection.
+    @param[in]  repo_root Repository root.
+    @param[in]  records Candidate snapshots carrying CLI-generated IDs.
+    @param[in]  config Validated workspace configuration.
+    @return     Normalized records in deterministic ID order.
+    @exception  RequirementValidationError If any record or identity is invalid.
+    @details    Every record is validated before temporary files are created.
+                Existing snapshots are restored if publication fails.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-29
+    @version    0.1.0
+    """
+    normalized_records: list[RequirementRecord] = []
+    seen: set[str] = set()
+    for candidate in records:
+        if candidate.id in seen:
+            raise RequirementValidationError(
+                "<requirement-stage>", "id", f"duplicate requirement ID {candidate.id}"
+            )
+        seen.add(candidate.id)
+        normalized = validate_requirement_record(candidate, config)
+        directory = CATEGORY_IDENTITIES[normalized.category][0]
+        source = (
+            Path(config.requirement_roots[0])
+            / directory
+            / f"{normalized.id}.toml"
+        ).as_posix()
+        normalized_records.append(
+            RequirementRecord(
+                **{
+                    **normalized.to_dict(),
+                    "affected_paths": normalized.affected_paths,
+                    "linked_tests": normalized.linked_tests,
+                    "source_file": source,
+                }
+            )
+        )
+
+    targets: list[tuple[Path, Path, str | None]] = []
+    try:
+        for record in sorted(normalized_records, key=lambda item: item.id):
+            target = repo_root / str(record.source_file)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            previous = (
+                target.read_text(encoding="utf-8") if target.is_file() else None
+            )
+            temporary = _write_temporary(target, render_requirement_toml(record))
+            targets.append((target, temporary, previous))
+        for target, temporary, _previous in targets:
+            os.replace(temporary, target)
+    except OSError as exc:
+        for target, temporary, previous in reversed(targets):
+            if temporary.exists():
+                temporary.unlink()
+            if previous is None:
+                if target.exists():
+                    target.unlink()
+            else:
+                _atomic_replace(target, previous)
+        raise RequirementValidationError(
+            "<requirement-stage>", "publish", f"atomic import failed: {exc}"
+        ) from exc
+    return sorted(normalized_records, key=lambda item: item.id)
 
 
 def validate_requirement_record(

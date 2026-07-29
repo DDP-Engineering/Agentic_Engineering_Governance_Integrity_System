@@ -16,7 +16,7 @@
          metadata is written to the install manifest last.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -122,8 +122,14 @@ def _analysis_defaults(analysis: RepoAnalysis | None) -> dict[str, Any]:
         "source_roots": [item.path for item in analysis.source_roots],
         "test_roots": [item.path for item in analysis.test_roots],
         "language": analysis.language or "python",
-        "gate_test_cmds": [list(item.argv) for item in analysis.gate_test_cmds if item.argv and not item.needs_review],
-        "gate_lint_cmds": [list(item.argv) for item in analysis.gate_lint_cmds if item.argv and not item.needs_review],
+        **{
+            f"gate_{name}_cmds": [
+                list(item.argv)
+                for item in getattr(analysis, f"gate_{name}_cmds")
+                if item.argv and not item.needs_review
+            ]
+            for name in ("build", "typecheck", "lint", "test", "security")
+        },
     }
 
 
@@ -133,7 +139,7 @@ def _stored_answers(configuration: Mapping[str, Any]) -> dict[str, Any]:
     @return     Stored answer mapping, possibly empty.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.1.0
+    @version    0.2.0
     """
     raw = configuration.get("answers")
     if not isinstance(raw, Mapping):
@@ -195,7 +201,13 @@ def _run_selected_gates(runner: CommandRunner, repo: Path, answers: Mapping[str,
     if not answers.get("run_gates", False):
         return []
     failures: list[str] = []
-    for gate in ("gate_test_cmds", "gate_lint_cmds"):
+    for gate in (
+        "gate_build_cmds",
+        "gate_typecheck_cmds",
+        "gate_lint_cmds",
+        "gate_test_cmds",
+        "gate_security_cmds",
+    ):
         for command in answers.get(gate, []):
             result = runner.run(tuple(command), timeout=600.0, cwd=repo)
             if not result.ok():

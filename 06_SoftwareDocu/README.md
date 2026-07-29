@@ -12,24 +12,25 @@ for the AEGIS and WAEGIS packages belong here. Canonical runnable-workflow
 documentation ships with the template:
 
 - `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md` - CLI
-  commands, evidence lifecycle, requirement activation, audits, and delivery
-  preflight.
+  command groups, stage-form lifecycle, evidence modes, verification, and
+  delivery handoff.
 - `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md` -
   intrinsic workflow contracts, repository-policy modes, external safety
   boundaries, and operator decisions.
 - `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md` -
   operator-ready prompts for each workflow gate.
 - `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md` -
-  complete schema-version-2 structure, validation, modes, traceability, gates,
-  and configured guardrails.
+  complete schema-3 structure, captured interface policy, five independent
+  optional deterministic gates, traceability, and guardrails.
 
-Presentation material maintained in this folder (WAEGIS 0.3.0):
+Presentation material maintained in this folder (AEGIS 2.0 / WAEGIS 1.0):
 
 - `WAEGIS_01_Setup_And_First_Adoption.pptx` - setup and first-adoption journey.
 - `WAEGIS_02_Architecture_Portability_And_MultiLanguage.pptx` - architecture,
   portability, and multi-language overview.
 - `WAEGIS_02_Safe_AEGIS_Upgrade.pptx` - moving an installed project to a new
-  AEGIS payload version without overwriting local work.
+  compatible AEGIS 2.x payload without overwriting local work; cross-major
+  upgrades are unsupported.
 
 Stakeholder architecture decks (split by scope, one shared visual system):
 
@@ -37,5 +38,5 @@ Stakeholder architecture decks (split by scope, one shared visual system):
   five-phase run, the configuration interview, `new` versus `adopt`, and the
   managed lifecycle.
 - `AEGIS_Governance_Workflow_Presentation.pptx` - AEGIS as the governance
-  workflow: the seven development stages (input, gate, and output for each), the
-  enforcement layers, and the adoption track.
+  workflow: the eight development stages, file-first approvals, deterministic
+  verification, enforcement layers, and adoption track.

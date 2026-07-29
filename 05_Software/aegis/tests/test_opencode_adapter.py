@@ -146,9 +146,9 @@ def test_opencode_commands_delegate_to_project_local_runner() -> None:
     @version    0.2.0
     """
     expected_targets = {
-        "workflow-status": "status",
-        "workflow-preflight": "delivery-preflight",
-        "workflow-report": "report",
+        "workflow-status": "run status",
+        "workflow-preflight": "verify run",
+        "workflow-report": "delivery report",
     }
     for command_name, workflow_command in expected_targets.items():
         text = (OPENCODE_DIR / "commands" / f"{command_name}.md").read_text(encoding="utf-8")

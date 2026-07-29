@@ -13,7 +13,7 @@
          wrapper invocation and health semantics cannot drift between commands.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.2.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -119,7 +119,7 @@ def smoke_reverify(
     @exception  None Subprocess failures become findings.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.2.0
+    @version    1.0.0
     """
     findings: list[ProbeFindingRecord] = []
     ok = True
@@ -139,7 +139,7 @@ def smoke_reverify(
             )
         )
 
-    status_argv = wrapper_invocation(repo, "status")
+    status_argv = wrapper_invocation(repo, "run", "status", "--json")
     status_result = runner.run(status_argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=repo)
     healthy = False
     if status_result.ok():

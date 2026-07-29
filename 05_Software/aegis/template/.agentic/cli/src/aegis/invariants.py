@@ -20,9 +20,11 @@
          closing a gap where a secret in a staged-but-never-committed file in a
          repository with no `HEAD` yet slipped past both `git diff HEAD` and the
          untracked-file listing.
+@details INV-10 blocks check and later standard stages unless the authoritative
+         solution design remains approved and digest-stable.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-24
-@version 0.7.0
+@version 1.0.1
 """
 
 # IMPORTS
@@ -30,13 +32,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 import re
 import subprocess
 from pathlib import Path
 
 from .components import audit_local_scope
 from .config import WorkflowConfig
-from .models import Graph
+from .models import STAGES, Graph
 from .paths import contained_relative_path, matches_pattern
 from .requirements import load_requirement_index
 from .working_tree import MAX_SECRET_SCAN_BYTES
@@ -74,11 +77,11 @@ def evaluate(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.3.0
+    @version    0.4.1
     """
     return [
-        _coverage(graph),
-        _citation(graph),
+        _coverage(repo_root, graph, config),
+        _citation(repo_root, graph, config),
         _red_before_green(graph),
         _no_regression(graph),
         _in_scope(repo_root, graph, config),
@@ -86,6 +89,7 @@ def evaluate(
         _clean_secrets(repo_root, config),
         _green_requirements_active(repo_root, graph, config),
         _component_baseline_scope(repo_root, graph, config),
+        _solution_design(repo_root, graph, config),
     ]
 
 
@@ -105,50 +109,78 @@ def blocking_failures(results: list[InvariantResult]) -> list[InvariantResult]:
 # HELPER FUNCTIONS
 
 
-def _coverage(graph: Graph) -> InvariantResult:
+def _coverage(
+    repo_root: Path,
+    graph: Graph,
+    config: WorkflowConfig,
+) -> InvariantResult:
     """
     @brief      Handle coverage workflow behavior.
+    @param[in]  repo_root Repository root.
     @param[in]  graph Input value used by the workflow helper.
+    @param[in]  config Validated workspace configuration.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    accepted = [item for item in graph.spec_items if item.status in {"accepted", "realized"}]
-    covered_ids = {spec for check in graph.checks for spec in check.cites_spec}
-    missing = [item.id for item in accepted if item.id not in covered_ids]
+    requirements = load_requirement_index(repo_root, config).by_id
+    covered_ids = {
+        requirement_id
+        for check in graph.checks
+        for requirement_id in check.cites_requirement
+    }
+    missing = [
+        item.id
+        for item in requirements.values()
+        if item.status != "Retired" and item.id not in covered_ids
+    ]
     return InvariantResult(
         "INV-1",
         "Coverage",
         not missing,
         "blocking",
-        "All accepted/realized spec items have checks." if not missing else f"Missing checks for: {', '.join(missing)}",
+        "All non-retired requirements have checks."
+        if not missing
+        else f"Missing checks for: {', '.join(missing)}",
     )
 
 
-def _citation(graph: Graph) -> InvariantResult:
+def _citation(
+    repo_root: Path,
+    graph: Graph,
+    config: WorkflowConfig,
+) -> InvariantResult:
     """
     @brief      Handle citation workflow behavior.
+    @param[in]  repo_root Repository root.
     @param[in]  graph Input value used by the workflow helper.
+    @param[in]  config Validated workspace configuration.
     @return     Result produced by the workflow helper.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
-    spec_ids = {item.id for item in graph.spec_items}
+    requirement_ids = set(load_requirement_index(repo_root, config).by_id)
     bad = [
         check.id
         for check in graph.checks
-        if not check.cites_spec or any(spec not in spec_ids for spec in check.cites_spec)
+        if not check.cites_requirement
+        or any(
+            requirement_id not in requirement_ids
+            for requirement_id in check.cites_requirement
+        )
     ]
     return InvariantResult(
         "INV-2",
         "Citation",
         not bad,
         "blocking",
-        "All checks cite existing spec items." if not bad else f"Bad check citations: {', '.join(bad)}",
+        "All checks cite existing requirements."
+        if not bad
+        else f"Bad check citations: {', '.join(bad)}",
     )
 
 
@@ -234,6 +266,62 @@ def _green_requirements_active(repo_root: Path, graph: Graph, cfg: WorkflowConfi
     return InvariantResult("INV-8", "Green requirements active", False, "blocking", "; ".join(parts))
 
 
+def _solution_design(
+    repo_root: Path,
+    graph: Graph,
+    config: WorkflowConfig,
+) -> InvariantResult:
+    """
+    @brief      Enforce approved digest-stable solution design from check onward.
+    @param[in]  repo_root Repository root.
+    @param[in]  graph Active workflow graph.
+    @param[in]  config Validated workspace configuration.
+    @return     INV-10 evaluation result.
+    @version    0.1.0
+    """
+    if graph.stage not in STAGES or STAGES.index(graph.stage) < STAGES.index("check"):
+        return InvariantResult(
+            "INV-10",
+            "Solution design",
+            True,
+            "blocking",
+            "Solution-design approval is not yet required.",
+        )
+    design = graph.design
+    if not design or design.status != "approved" or design.approval != "human":
+        return InvariantResult(
+            "INV-10",
+            "Solution design",
+            False,
+            "blocking",
+            "Check and later stages require explicit human design approval.",
+        )
+    failures: list[str] = []
+    document = repo_root / design.document_path
+    if not document.is_file() or sha256(document.read_bytes()).hexdigest() != design.document_digest:
+        failures.append("design.md digest changed")
+    requirements = load_requirement_index(repo_root, config).by_id
+    for requirement_id, digest in design.requirement_digests.items():
+        record = requirements.get(requirement_id)
+        path = repo_root / str(record.source_file) if record else None
+        if (
+            record is None
+            or path is None
+            or not path.is_file()
+            or sha256(path.read_bytes()).hexdigest() != digest
+        ):
+            failures.append(f"{requirement_id} snapshot changed")
+    return InvariantResult(
+        "INV-10",
+        "Solution design",
+        not failures,
+        "blocking",
+        "Approved solution design and cited requirements are digest-stable."
+        if not failures
+        else "; ".join(failures),
+    )
+
+
 def _component_baseline_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig) -> InvariantResult:
     """
     @brief      Verify behavior-changing runs only touch baseline-ready components.
@@ -290,14 +378,15 @@ def _in_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig) -> InvariantRe
                 its own finding instead of raising. Recording is validated at
                 the CLI boundary, but a graph written before that validation —
                 or edited by hand — must still be evaluable: an exception here
-                propagates out of `evaluate` and takes `status`, `invariants`,
-                `report`, and `delivery-preflight` down with it, leaving the run
-                unusable until the graph is repaired by hand. An escaping path
+                propagates out of `evaluate` and takes `run status`,
+                `verify invariants`, `delivery report`, and the outward-action
+                guard down with it, leaving the run unusable until the graph is
+                repaired by hand. An escaping path
                 is never inside a configured root, so it fails the invariant.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    0.3.0
+    @version    0.3.1
     """
     severity = "blocking" if cfg.scope.mode == "enforce" else "advisory"
     if cfg.scope.mode == "unrestricted":
@@ -376,7 +465,7 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-24
-    @version    0.4.0
+    @version    0.4.1
     """
     if cfg.secrets.mode == "disabled":
         return InvariantResult(
@@ -386,7 +475,7 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
             "non-waivable",
             "Secret scanning is disabled by workflow.toml.",
         )
-    patterns = cfg.secret_patterns
+    patterns = cfg.secrets.patterns
     if not patterns:
         return InvariantResult("INV-7", "Clean secrets", True, "non-waivable", "No secret patterns configured.")
     try:

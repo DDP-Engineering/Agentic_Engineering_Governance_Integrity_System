@@ -108,7 +108,7 @@ def _make_manifest(
     *,
     generated: tuple[str, ...] = (),
     skipped: tuple[str, ...] = (),
-    payload_version: str = "0.4.0",
+    payload_version: str = "2.0.0",
     installed_at: str = "2026-01-01T00:00:00Z",
     mode: str = "new",
     product: str = "aegis",
@@ -184,7 +184,10 @@ def _smoke_ok_runner(repo: Path) -> FakeCommandRunner:
             ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             _wrapper_invocation(repo, "--help"): ok_result(),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                exit_code=2,
+                stderr=NO_ACTIVE_RUN_MARKER,
+            ),
         }
     )
 
@@ -202,7 +205,10 @@ def _smoke_fail_runner(repo: Path) -> FakeCommandRunner:
             ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             _wrapper_invocation(repo, "--help"): failing_result(exit_code=1, stderr="boom"),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                exit_code=2,
+                stderr=NO_ACTIVE_RUN_MARKER,
+            ),
         }
     )
 
@@ -627,7 +633,7 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")  # would auto-apply
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")  # would auto-apply
 
     manifest_path = repo / ".agentic" / "install-manifest.json"
     before = manifest_path.read_bytes()
@@ -658,7 +664,7 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
 def test_smoke_failure_leaves_manifest_untouched(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
-    _make_manifest(repo, {"file.txt": "X"}, payload_version="0.4.0")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
     _make_payload(new, {"file.txt": "Y"})
 
     manifest_before = (repo / ".agentic" / "install-manifest.json").read_bytes()
@@ -674,7 +680,7 @@ def test_smoke_failure_leaves_manifest_untouched(tmp_path: Path) -> None:
     # Files and manifest are both restored by the transaction rollback.
     assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
     assert (repo / ".agentic" / "install-manifest.json").read_bytes() == manifest_before
-    assert read_manifest(repo).payload_version == "0.4.0"
+    assert read_manifest(repo).payload_version == "2.0.0"
     assert read_manifest(repo).files["file.txt"] == _entry("X")
 
 
@@ -688,8 +694,8 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
     _write(repo / "auto.txt", "X")  # -> AUTO_APPLY_NEW
     _write(repo / "removed.txt", "X")  # -> DELETE_REMOVED
     _write(repo / "conflict.txt", "Z")  # -> CONFLICT (take-payload)
-    _make_manifest(repo, {"auto.txt": "X", "removed.txt": "X", "conflict.txt": "X"}, payload_version="0.4.0")
-    _make_payload(new, {"auto.txt": "Y", "conflict.txt": "Y"}, version="0.4.1")  # removed.txt dropped upstream
+    _make_manifest(repo, {"auto.txt": "X", "removed.txt": "X", "conflict.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"auto.txt": "Y", "conflict.txt": "Y"}, version="2.0.1")  # removed.txt dropped upstream
 
     # First run "stops before step 3": apply happens, but the smoke re-verify
     # fails so the manifest is NOT rewritten (simulating an abort after step 1).
@@ -697,7 +703,7 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
     hook = make_resolution_hook({"conflict.txt": "take-payload"}, None)
     report1 = apply_upgrade(plan1, hook=hook, runner=_smoke_fail_runner(repo))
     assert report1.manifest_written is False
-    assert read_manifest(repo).payload_version == "0.4.0"  # old manifest intact
+    assert read_manifest(repo).payload_version == "2.0.0"  # old manifest intact
     # Disk is restored completely.
     assert report1.rolled_back is True
     assert (repo / "auto.txt").read_text(encoding="utf-8") == "X"
@@ -713,7 +719,7 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
     report2 = apply_upgrade(plan2, hook=hook, runner=_smoke_ok_runner(repo))
     assert report2.manifest_written is True
     final = read_manifest(repo)
-    assert final.payload_version == "0.4.1"
+    assert final.payload_version == "2.0.1"
     assert final.files["auto.txt"] == _entry("Y")
     assert final.files["conflict.txt"] == _entry("Y")
     assert "removed.txt" not in final.files
@@ -736,7 +742,7 @@ def test_no_manifest_is_rejected(tmp_path: Path) -> None:
     _make_payload(
         new,
         {".agentic/collide.txt": "UPSTREAM", ".agentic/new-only.txt": "NEW", ".agentic/workflow.toml": "UP CONFIG"},
-        version="0.4.1",
+        version="2.0.1",
     )
 
     with pytest.raises(UpgradeError, match="valid current install manifest"):
@@ -762,7 +768,7 @@ def test_json_healthy_upgrade(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
 
     stream = io.StringIO()
     answers = _upgrade_answers(tmp_path / "answers.json")
@@ -782,7 +788,7 @@ def test_json_healthy_upgrade(tmp_path: Path) -> None:
     assert data["command"] == "upgrade"
     assert data["exit_code"] == EXIT_OK
     assert data["plan"]["repo"] == str(repo.resolve())
-    assert data["plan"]["new_payload_version"] == "0.4.1"
+    assert data["plan"]["new_payload_version"] == "2.0.1"
     assert "file.txt" in data["plan"]["actions"]["auto-apply-new"]
     report = data["result"]
     assert report["applied"] is True
@@ -808,8 +814,8 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
-    branch = "waegis/upgrade-0.4.1"
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    branch = "waegis/upgrade-2.0.1"
     answers = tmp_path / "answers.json"
     _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
     runner = FakeCommandRunner(
@@ -818,9 +824,12 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             ("git", "-C", str(repo), "checkout", "-b", branch): ok_result(),
             _wrapper_invocation(repo, "--help"): ok_result(),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
+                _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                    exit_code=2,
+                    stderr=NO_ACTIVE_RUN_MARKER,
+                ),
             ("git", "-C", str(repo), "add", "-A"): ok_result(),
-            ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1"): ok_result(),
+            ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 2.0.1"): ok_result(),
         }
     )
 
@@ -840,7 +849,7 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
     assert code == EXIT_OK
     assert ("git", "-C", str(repo), "checkout", "-b", branch) in runner.calls
     assert ("git", "-C", str(repo), "add", "-A") in runner.calls
-    assert ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1") in runner.calls
+    assert ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 2.0.1") in runner.calls
 
 
 def test_branch_commit_upgrade_reports_branch_creation_failure(tmp_path: Path) -> None:
@@ -858,8 +867,8 @@ def test_branch_commit_upgrade_reports_branch_creation_failure(tmp_path: Path) -
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
-    branch = "waegis/upgrade-0.4.1"
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    branch = "waegis/upgrade-2.0.1"
     answers = tmp_path / "answers.json"
     _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
     runner = FakeCommandRunner(
@@ -893,7 +902,7 @@ def test_json_conflict_stop_and_report(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "Z")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
 
     manifest_before = (repo / ".agentic" / "install-manifest.json").read_bytes()
 
@@ -925,7 +934,7 @@ def test_run_upgrade_resolutions_seam_applies(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "Z")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
 
     stream = io.StringIO()
     answers = _upgrade_answers(tmp_path / "answers.json")

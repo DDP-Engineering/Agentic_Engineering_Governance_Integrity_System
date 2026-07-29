@@ -62,7 +62,7 @@ def test_default_documentation_config(tmp_path: Path) -> None:
     assert cfg.alignment_pause_on_open_questions is True
     assert cfg.alignment_risk_threshold == "medium"
     assert cfg.alignment_allow_recommended_responses is True
-    assert cfg.alignment_protected_scope_patterns == ()
+    assert cfg.alignment_protected_scope.patterns == ()
 
 
 def test_alignment_config_reads_policy(
@@ -96,7 +96,7 @@ def test_alignment_config_reads_policy(
     assert cfg.alignment_pause_on_open_questions is False
     assert cfg.alignment_risk_threshold == "high"
     assert cfg.alignment_allow_recommended_responses is False
-    assert cfg.alignment_protected_scope_patterns == ("src/security/**",)
+    assert cfg.alignment_protected_scope.patterns == ("src/security/**",)
 
 
 def test_documentation_config_reads_roots_and_template(
@@ -233,8 +233,9 @@ def test_template_declares_alignment_workflow_contract() -> None:
     assert "[alignment]" in workflow_toml
     assert "risk_threshold = \"medium\"" in workflow_toml
     assert "`alignment`" in agents_md
-    assert "Before any `add-spec` call" in development
-    assert "Before moving from `adoption-alignment` to discovery" in adoption
+    assert "requirement, design, check" in development
+    assert "<workflow> stage apply" in development
+    assert "<workflow> stage close" in adoption
 
 
 def test_installable_template_includes_bundled_skills() -> None:
@@ -298,26 +299,28 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
     # The neutral source carries the full procedures, now in per-stage reference
     # modules dispatched from the router, not just adapter pointers.
     development = (skills_root / "agentic-development" / "SKILL.md").read_text(encoding="utf-8")
-    assert "Stage Modules" in development
+    assert "Stage Lifecycle" in development
     assert "reference/requirement.md" in development
+    assert "reference/design.md" in development
     reference_dir = skills_root / "agentic-development" / "reference"
     for module in (
         "intake.md",
         "alignment.md",
         "requirement.md",
+        "design.md",
         "check.md",
         "implementation.md",
         "validation.md",
     ):
         assert (reference_dir / module).is_file()
     requirement_module = (reference_dir / "requirement.md").read_text(encoding="utf-8")
-    assert "One requirement, one behavior" in requirement_module
-    assert "Requirement Stage Review" in requirement_module
-    assert "spec_ref" in requirement_module
+    assert "one independently observable contract" in requirement_module
+    assert "stage apply" in requirement_module
+    assert "companion Markdown" in requirement_module
     documentation = (skills_root / "documentation-audit" / "SKILL.md").read_text(encoding="utf-8")
     assert "Manual review checklist" in documentation
     adoption = (skills_root / "agentic-adoption" / "SKILL.md").read_text(encoding="utf-8")
-    assert "No application behavior changes during adoption" in adoption
+    assert "must not change runtime product behavior" in adoption
     assert "repo-discovery" in adoption
     assert "component-map" in adoption
     assert "component-adoption" in adoption
@@ -538,7 +541,7 @@ def test_template_text_files_have_legal_header() -> None:
     """
     template_root = PACKAGE_ROOT / "template"
     exempt_suffixes = {".json"}
-    exempt_names = {".gitkeep"}
+    exempt_names = {".gitkeep", "CHANGELOG.md"}
     missing = []
 
     for path in template_root.rglob("*"):
@@ -581,15 +584,17 @@ def test_agent_instructions_require_effective_configuration_bootstrap() -> None:
         "write-component-documentation",
     }
 
+    agents = (template_root / "AGENTS.md").read_text(encoding="utf-8")
+    assert "<workflow> config validate --json" in agents
+    assert "<workflow> config show --json" in agents
+    assert "--run <run-id>" in agents
+
     for name in skill_names:
         canonical = (
             template_root / ".agentic" / "skills" / name / "SKILL.md"
         ).read_text(encoding="utf-8")
         assert "<workflow> config validate" in canonical
-        assert "<workflow> config show --effective" in canonical
-        assert "selected" in canonical.lower()
-        assert "run" in canonical.lower()
-        assert "external" in canonical.lower()
+        assert "<workflow> config show --json" in canonical
 
         for adapter in (".codex", ".claude", ".opencode", ".qwen"):
             wrapper = (
@@ -597,12 +602,12 @@ def test_agent_instructions_require_effective_configuration_bootstrap() -> None:
             ).read_text(encoding="utf-8")
             assert "Before invoking the shared procedure" in wrapper
             assert "<workflow> config validate" in wrapper
-            assert "<workflow> config show --effective" in wrapper
+            assert "<workflow> config show --json" in wrapper
 
 
 def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     """
-    @brief      Verify maintained operator documents expose the schema-2 contract.
+    @brief      Verify maintained operator documents expose the schema-3 contract.
     @return     None.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
@@ -622,11 +627,11 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
         (documents_root / name).read_text(encoding="utf-8")
         for name in maintained
     )
-    assert "schema_version = 2" in combined
+    assert "schema_version = 3" in combined
     assert "<workflow> config validate" in combined
-    assert "<workflow> config show --effective" in combined
+    assert "<workflow> config show --json" in combined
     assert ".agentic/.workspace/state/current_run" in combined
-    assert "UUIDv4" in combined
+    assert "AEGIS generates" in combined
     assert "requirements/registry" not in combined
     assert "write_zones" not in combined
 

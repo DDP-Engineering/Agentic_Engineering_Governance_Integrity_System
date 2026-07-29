@@ -54,14 +54,17 @@ pytestmark = [
     pytest.mark.skipif(shutil.which(_REQUIRED_SHELL) is None, reason=f"{_REQUIRED_SHELL} not available"),
 ]
 
-# @brief Complete scripted answer set: local init, python preset, empty gates
-#        (exercising the loud empty-gate warning path), hermetic git identity.
+# @brief Complete scripted answer set: local init, Python preset, five disabled
+#        gates, file-first interface defaults, and hermetic Git identity.
 _ANSWERS: dict = {
     "source_roots": ["src"],
     "test_roots": ["tests"],
     "language": "python",
-    "gate_test_cmds": [],
+    "gate_build_cmds": [],
+    "gate_typecheck_cmds": [],
     "gate_lint_cmds": [],
+    "gate_test_cmds": [],
+    "gate_security_cmds": [],
     "alignment_enabled": True,
     "baseline_guard_mode": "disabled",
     "baseline_minimum_completion_level": "baseline-usable",
@@ -71,7 +74,13 @@ _ANSWERS: dict = {
     "source_changes_mode": "unrestricted",
     "alignment_protected_scope_mode": "disabled",
     "alignment_protected_scope_patterns": [],
-    "gates_mode": "disabled",
+    "stage_form_retention": "discard",
+    "check_execution": "external",
+    "gate_build_mode": "disabled",
+    "gate_typecheck_mode": "disabled",
+    "gate_lint_mode": "disabled",
+    "gate_test_mode": "disabled",
+    "gate_security_mode": "disabled",
     "secrets_mode": "disabled",
     "secret_patterns": [],
     "protected_paths_mode": "disabled",
@@ -169,7 +178,10 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     # workflow.toml: parses and satisfies the plan §7 invariants for the answers.
     document = tomllib.loads((target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8"))
     verify_workflow_invariants(document, source_roots=["src"], test_roots=["tests"])
-    assert document["gates"]["test"] == [] and document["gates"]["lint"] == []
+    assert all(
+        document["gates"][name] == {"mode": "disabled", "commands": []}
+        for name in ("build", "typecheck", "lint", "test", "security")
+    )
     assert (target / "src" / ".gitkeep").is_file() and (target / "tests" / ".gitkeep").is_file()
     gitignore_lines = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".agentic/.workspace/" in gitignore_lines
@@ -186,8 +198,8 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
 
     # Handoff: real first prompt and explicit disabled-gate status.
     assert "First prompt to try" in text
-    assert "config validate --json" in text
-    assert "config show --effective --json" in text
+    assert "aegis run start feature" in text
+    assert "config show --json" in text
     assert "gate execution is disabled explicitly" in text
 
     # Journal: completed run recorded under the isolated home.

@@ -23,7 +23,7 @@
          see ``test_gates_top_level_decline_defers_everything_without_further_prompts``).
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.3.0
+@version 1.0.0
 """
 
 # IMPORTS
@@ -97,20 +97,25 @@ def _ctx(
 
 def _write_workflow_toml(target: Path, *, test_cmds: str = "[]", lint_cmds: str = "[]") -> None:
     """
-    @brief      Write a minimal workflow.toml carrying only the [gates] table.
+    @brief      Write a minimal workflow.toml carrying five schema-3 gates.
     @param[in]  target Target repository root.
     @param[in]  test_cmds TOML literal for [gates].test.
     @param[in]  lint_cmds TOML literal for [gates].lint.
     @return     None
     @exception  OSError If the file cannot be written.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
+    @version    1.0.0
     """
     path = target / WORKFLOW_TOML_RELATIVE_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
-    mode = "enforce" if test_cmds != "[]" or lint_cmds != "[]" else "disabled"
+    test_mode = "enforce" if test_cmds != "[]" else "disabled"
+    lint_mode = "enforce" if lint_cmds != "[]" else "disabled"
     path.write_text(
-        f'[gates]\nmode = "{mode}"\ntest = {test_cmds}\nlint = {lint_cmds}\n',
+        "[gates.build]\nmode = \"disabled\"\ncommands = []\n\n"
+        "[gates.typecheck]\nmode = \"disabled\"\ncommands = []\n\n"
+        f"[gates.lint]\nmode = \"{lint_mode}\"\ncommands = {lint_cmds}\n\n"
+        f"[gates.test]\nmode = \"{test_mode}\"\ncommands = {test_cmds}\n\n"
+        "[gates.security]\nmode = \"disabled\"\ncommands = []\n",
         encoding="utf-8",
     )
 
@@ -204,7 +209,13 @@ def test_workflow_smoke_accepts_fresh_install_missing_pointer(tmp_path, monkeypa
     """
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path)
-    expected = ("bash", str(tmp_path / ".agentic" / "tools" / "run.sh"), "status")
+    expected = (
+        "bash",
+        str(tmp_path / ".agentic" / "tools" / "run.sh"),
+        "run",
+        "status",
+        "--json",
+    )
     runner = FakeCommandRunner(
         {expected: failing_result(exit_code=2, stderr="RUN-POINTER-MISSING: No active AEGIS run is selected")}
     )
@@ -231,7 +242,13 @@ def test_workflow_smoke_zero_exit_requires_parseable_json(tmp_path, monkeypatch)
     """
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path)
-    expected = ("bash", str(tmp_path / ".agentic" / "tools" / "run.sh"), "status")
+    expected = (
+        "bash",
+        str(tmp_path / ".agentic" / "tools" / "run.sh"),
+        "run",
+        "status",
+        "--json",
+    )
     spec = _CATALOG.get("verify.workflow-smoke")
 
     good = _ctx(tmp_path, FakeCommandRunner({expected: ok_result(stdout='{"run_id": "r1", "stage": "intake"}')}))
@@ -258,8 +275,8 @@ def test_workflow_smoke_runs_gates_only_when_configured_and_passed(tmp_path, mon
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     wrapper = str(tmp_path / ".agentic" / "tools" / "run.sh")
-    status_argv = ("bash", wrapper, "status")
-    gates_argv = ("bash", wrapper, "gates", "run")
+    status_argv = ("bash", wrapper, "run", "status", "--json")
+    gates_argv = ("bash", wrapper, "verify", "gates")
     responses = {
         status_argv: failing_result(exit_code=2, stderr="RUN-POINTER-MISSING"),
         gates_argv: ok_result(stdout="gates ok"),
@@ -430,7 +447,13 @@ def test_gates_records_pass_and_accepted_empty(tmp_path) -> None:  # type: ignor
 
     spec.act(ctx)
 
-    assert ctx.shared[SHARED_GATE_OUTCOMES] == {"echo hi": "pass", "lint (empty)": "accepted-empty"}
+    assert ctx.shared[SHARED_GATE_OUTCOMES] == {
+        "build": "disabled",
+        "typecheck": "disabled",
+        "lint": "disabled",
+        "echo hi": "pass",
+        "security": "disabled",
+    }
     assert ctx._current.answers["gate_outcomes"] == ctx.shared[SHARED_GATE_OUTCOMES]
     assert runner.cwds == [str(tmp_path)]
     assert spec.verify(ctx) is True
@@ -451,9 +474,8 @@ def test_gates_failing_command_must_be_explicitly_accepted(tmp_path) -> None:  #
     responses = {("false-cmd",): failing_result(exit_code=1, stderr="boom")}
     spec = _CATALOG.get("deploy.gates")
 
-    # confirms: proceed with gates? yes; run gate? yes; accept failing? yes;
-    # accept empty lint? yes.
-    accepted = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, True, True])
+    # confirms: proceed with gates, run test, accept the observed failure.
+    accepted = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, True])
     spec.act(accepted)
     assert accepted.shared[SHARED_GATE_OUTCOMES]["false-cmd"] == "accepted-failing"
     assert spec.verify(accepted) is True
@@ -478,9 +500,8 @@ def test_gates_deferred_execution_is_recorded(tmp_path) -> None:  # type: ignore
     """
     _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({})
-    # confirms: proceed with gates? yes; run test gate now? NO; accept empty
-    # lint? yes.
-    ctx = _ctx(tmp_path, runner, confirms=[True, False, True])
+    # confirms: proceed with gates, then defer the enforced test group.
+    ctx = _ctx(tmp_path, runner, confirms=[True, False])
     spec = _CATALOG.get("deploy.gates")
 
     spec.act(ctx)
@@ -515,7 +536,13 @@ def test_gates_top_level_decline_defers_everything_without_further_prompts(tmp_p
 
     spec.act(ctx)
 
-    assert ctx.shared[SHARED_GATE_OUTCOMES] == {"echo hi": "deferred", "lint (empty)": "accepted-empty"}
+    assert ctx.shared[SHARED_GATE_OUTCOMES] == {
+        "build": "disabled",
+        "typecheck": "disabled",
+        "lint": "disabled",
+        "echo hi": "deferred",
+        "security": "disabled",
+    }
     assert runner.calls == []
     assert spec.verify(ctx) is True
 

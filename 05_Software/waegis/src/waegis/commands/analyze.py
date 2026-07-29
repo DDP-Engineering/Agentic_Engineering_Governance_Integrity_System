@@ -312,8 +312,13 @@ def build_analyze_report(
             "source_roots": [item.to_dict() for item in analysis.source_roots],
             "test_roots": [item.to_dict() for item in analysis.test_roots],
             "language": analysis.language,
-            "gate_test_cmds": [item.to_dict() for item in analysis.gate_test_cmds],
-            "gate_lint_cmds": [item.to_dict() for item in analysis.gate_lint_cmds],
+            **{
+                f"gate_{name}_cmds": [
+                    item.to_dict()
+                    for item in getattr(analysis, f"gate_{name}_cmds")
+                ]
+                for name in ("build", "typecheck", "lint", "test", "security")
+            },
         }
     except Exception as exc:  # noqa: BLE001 - proposals are best-effort, report remains useful
         proposals = {"error": str(exc)}

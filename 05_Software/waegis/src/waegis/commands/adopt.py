@@ -389,32 +389,54 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
     if analysis is not None:
         source = [proposal.path for proposal in analysis.source_roots]
         tests = [proposal.path for proposal in analysis.test_roots]
-        gate_test = _proposed_gate_cmds(analysis.gate_test_cmds)
-        gate_lint = _proposed_gate_cmds(analysis.gate_lint_cmds)
+        gate_proposals = {
+            name: _proposed_gate_cmds(
+                getattr(analysis, f"gate_{name}_cmds")
+            )
+            for name in ("build", "typecheck", "lint", "test", "security")
+        }
         language = analysis.language
-        test_provenance = _gate_provenance(analysis.gate_test_cmds)
-        lint_provenance = _gate_provenance(analysis.gate_lint_cmds)
+        provenance = {
+            name: _gate_provenance(
+                getattr(analysis, f"gate_{name}_cmds")
+            )
+            for name in ("build", "typecheck", "lint", "test", "security")
+        }
     else:
-        source, tests, gate_test, gate_lint = [], [], [], []
-        language, test_provenance, lint_provenance = "other", "", ""
+        source, tests = [], []
+        gate_proposals = {
+            name: [] for name in ("build", "typecheck", "lint", "test", "security")
+        }
+        provenance = {
+            name: "" for name in ("build", "typecheck", "lint", "test", "security")
+        }
+        language = "other"
 
     proposals: dict[str, Any] = {
         "source_roots": source or None,
         "test_roots": tests or None,
         "language": language,
-        "gate_test_cmds": gate_test,
-        "gate_lint_cmds": gate_lint,
-        "gates_mode": "enforce" if gate_test or gate_lint else "disabled",
+        **{
+            f"gate_{name}_cmds": gate_proposals[name]
+            for name in ("build", "typecheck", "lint", "test", "security")
+        },
+        **{
+            f"gate_{name}_mode": (
+                "enforce" if gate_proposals[name] else "disabled"
+            )
+            for name in ("build", "typecheck", "lint", "test", "security")
+        },
+        "stage_form_retention": "discard",
+        "check_execution": "external",
         "alignment_enabled": True,
     }
     seeded: list[FieldSpec] = []
     for spec in WORKFLOW_FIELD_SPECS:
         proposed = proposals.get(spec.key, spec.default)
         description = spec.description
-        if spec.key == "gate_test_cmds" and test_provenance:
-            description = f"{description}\nProposed from: {test_provenance}"
-        elif spec.key == "gate_lint_cmds" and lint_provenance:
-            description = f"{description}\nProposed from: {lint_provenance}"
+        for name in ("build", "typecheck", "lint", "test", "security"):
+            if spec.key == f"gate_{name}_cmds" and provenance[name]:
+                description = f"{description}\nProposed from: {provenance[name]}"
         seeded.append(replace(spec, description=description, default=proposed))
     return seeded
 

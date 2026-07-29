@@ -283,7 +283,20 @@ def run_repair(
             regenerate.append(relative)
     if regenerate and (
         regenerate != [WORKFLOW_TOML_RELATIVE_PATH]
-        or not all(key in configuration_answers for key in ("source_roots", "test_roots", "language", "gate_test_cmds", "gate_lint_cmds", "alignment_enabled"))
+        or not all(
+            key in configuration_answers
+            for key in (
+                "source_roots",
+                "test_roots",
+                "language",
+                "gate_build_cmds",
+                "gate_typecheck_cmds",
+                "gate_lint_cmds",
+                "gate_test_cmds",
+                "gate_security_cmds",
+                "alignment_enabled",
+            )
+        )
     ):
         return _emit(
             stream,

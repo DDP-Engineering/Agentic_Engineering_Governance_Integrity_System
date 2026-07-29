@@ -18,11 +18,11 @@
 @details T5 regression coverage (0.5.0) verifies that ``gh pr merge`` reaches
          delivery preflight like PR creation and other outward actions.
 @details WP5 coverage verifies that write, read, secret, and delivery hooks
-         consume only the canonical schema-version-2 configuration and deny
+         consume only the canonical schema-version-3 configuration and deny
          pre-tool operations when that policy cannot be validated.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 1.1.0
+@version 2.0.0
 """
 
 # IMPORTS
@@ -40,7 +40,7 @@ from types import ModuleType
 import pytest
 
 from aegis import paths as paths_module
-from aegis.cli import main as cli_main
+from aegis.store import init_graph, save_graph
 
 
 # LOCAL HELPERS
@@ -95,33 +95,10 @@ def test_workflow_config_bootstrap_uses_canonical_parser() -> None:
 
     config = config_bootstrap.load_workflow_config(template_root)
 
-    assert config.schema_version == 2
+    assert config.schema_version == 3
     assert config.write_access.mode == "unrestricted"
     payload = config_bootstrap.configuration_error_payload(RuntimeError("missing parser"))
     assert payload["code"] == "CONFIG-BOOTSTRAP-FAILED"
-
-
-def run_cli(tmp_path: Path, *args: str) -> None:
-    """
-    @brief      Run CLI workflow behavior.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @param[in]  args Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
-    """
-    if args and args[0] == "start":
-        configure_stage_restricted_guardrails(tmp_path)
-    cwd = Path.cwd()
-    try:
-        import os
-
-        os.chdir(tmp_path)
-        cli_main(list(args))
-    finally:
-        os.chdir(cwd)
 
 
 def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
@@ -153,6 +130,7 @@ def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
         'intake = [".agentic/**"]\n'
         'alignment = [".agentic/**"]\n'
         'requirement = [".agentic/requirements/**"]\n'
+        'design = [".agentic/**"]\n'
         'check = ["tests/**", "test/**"]\n'
         'implementation = ["src/**", "app/**", "lib/**", ".agentic/knowledge/components/**"]\n'
         'validation = []\n'
@@ -166,6 +144,29 @@ def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
         'adoption-delivery = [".agentic/**"]',
     )
     path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def prepare_run(
+    tmp_path: Path,
+    stage: str,
+    *,
+    kind: str = "feature",
+    access_mode: str = "standard",
+) -> None:
+    """
+    @brief Create a selected schema-3 run at the stage needed by a hook test.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Stage whose write policy is under test.
+    @param[in] kind Intent kind for stage-specific policy.
+    @param[in] access_mode Captured run access mode.
+    @return None.
+    @version 0.1.0
+    """
+    configure_stage_restricted_guardrails(tmp_path)
+    graph = init_graph(tmp_path, kind, "Hook policy probe")
+    graph.stage = stage  # type: ignore[assignment]
+    graph.access_mode = access_mode  # type: ignore[assignment]
+    save_graph(tmp_path, graph)
 
 
 def replace_workflow_fragment(tmp_path: Path, old: str, new: str) -> None:
@@ -285,11 +286,7 @@ def advance_to_implementation(tmp_path: Path) -> None:
     @date       2026-06-20
     @version    0.2.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "implementation")
 
 
 # --- Shared path-policy matching -----------------------------------------------
@@ -357,7 +354,7 @@ def test_guard_write_zone_stage_restricted_missing_run_uses_resolver_error(tmp_p
     reason = decision["permissionDecisionReason"]
     assert decision["permissionDecision"] == "deny"
     assert reason.startswith("RUN-POINTER-MISSING:")
-    assert "--run-id <existing-run-id>" in reason
+    assert "--run <existing-run-id>" in reason
     assert ".agentic/.workspace/state/current_run" in reason
 
 
@@ -393,7 +390,7 @@ def test_guard_write_zone_active_intake_denial_message_unchanged(tmp_path: Path,
     @version    0.1.0
     """
     (tmp_path / ".agentic").mkdir(exist_ok=True)
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
+    prepare_run(tmp_path, "intake")
     payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "deny" in output
@@ -447,9 +444,7 @@ def test_guard_write_zone_allows_requirement_snapshot_edit(tmp_path: Path, monke
     @date       2026-07-22
     @version    0.2.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "requirement")
     payload = apply_patch_payload(
         tmp_path,
         ".agentic/requirements/functional/"
@@ -470,8 +465,7 @@ def test_guard_write_zone_allows_alignment_state_edit(tmp_path: Path, monkeypatc
     @date       2026-07-03
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "alignment")
     payload = apply_patch_payload(tmp_path, ".agentic/runs/RUN-1/note.md")
     output = run_hook(guard_main, payload, monkeypatch)
     assert output == ""
@@ -488,14 +482,7 @@ def test_guard_write_zone_repo_wide_allows_normal_repo_file(tmp_path: Path, monk
     @date       2026-06-20
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, "README.md")
     output = run_hook(guard_main, payload, monkeypatch)
     assert output == ""
@@ -512,14 +499,7 @@ def test_guard_write_zone_repo_wide_blocks_protected_path(tmp_path: Path, monkey
     @date       2026-06-20
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, ".git/config")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "permissionDecision" in output
@@ -550,14 +530,7 @@ def test_guard_write_zone_reads_patch_envelope_from_any_key(
     @date       2026-07-23
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, ".git/config")
     payload["tool_input"] = {envelope_key: payload["tool_input"]["command"]}
 
@@ -585,14 +558,7 @@ def test_guard_write_zone_reports_a_path_once_across_duplicate_keys(
     @date       2026-07-23
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, ".git/config")
     command = payload["tool_input"]["command"]
     payload["tool_input"] = {"command": command, "patch": command}
@@ -653,10 +619,7 @@ def test_guard_write_zone_denies_claude_source_edit_during_check(tmp_path: Path,
     @date       2026-06-20
     @version    0.2.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "check")
     payload = file_edit_payload(tmp_path, "Write", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "permissionDecision" in output
@@ -674,14 +637,7 @@ def test_guard_write_zone_repo_wide_blocks_claude_multiedit_protected_path(tmp_p
     @date       2026-06-20
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = file_edit_payload(tmp_path, "MultiEdit", "deploy/id_rsa")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "permissionDecision" in output
@@ -766,7 +722,7 @@ def test_post_tool_evidence_appends_only_to_selected_run(tmp_path: Path, monkeyp
     @date       2026-07-22
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Evidence state")
+    prepare_run(tmp_path, "intake")
     run_id = (tmp_path / ".agentic" / ".workspace" / "state" / "current_run").read_text(encoding="utf-8").strip()
     journal = tmp_path / ".agentic" / "runs" / run_id / "journal.jsonl"
     before = journal.read_text(encoding="utf-8")
@@ -1565,14 +1521,7 @@ def test_guard_shell_write_repo_wide_blocks_protected_path(tmp_path: Path, monke
     @date       2026-07-24
     @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     output = run_hook(shell_write_main, shell_payload(tmp_path, "cp key.pem deploy/id_rsa"), monkeypatch)
     assert "deny" in output
     assert "deploy/id_rsa" in output

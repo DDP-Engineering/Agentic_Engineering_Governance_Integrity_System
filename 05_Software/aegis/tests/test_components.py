@@ -476,10 +476,10 @@ def test_config_reads_adoption_component_knowledge_and_report_settings(
     cfg = load_config(tmp_path)
 
     assert cfg.component_manifest == ".agentic/custom-components.toml"
-    assert cfg.adoption_default_completion_level == "baseline-strict"
+    assert cfg.component_baseline_guard.minimum_completion_level == "baseline-strict"
     assert not cfg.adoption_allow_component_bundles
     assert cfg.adoption_max_bundle_components == 2
-    assert cfg.adoption_behavior_changes_allowed
+    assert cfg.adoption_source_changes.mode == "unrestricted"
     assert cfg.knowledge_roots == (".agentic/custom-knowledge", "docs/architecture")
     assert cfg.adoption_report_root == ".agentic/custom-reports/adoption"
 

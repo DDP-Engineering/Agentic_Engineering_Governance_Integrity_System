@@ -10,11 +10,11 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 Planning notes, requirements, architecture sketches, and future workflow design
 records for the standalone AEGIS project belong here.
 
-- `Agentic_Development_Architecture/` - the agentic development stack
-  architecture document, including the current feature/fix and
-  existing-project adoption execution models.
-- `Agentic_Development_Architecture_Examples/` - worked feature and bug-fix
-  examples of the workflow, including Intent Alignment before requirement work.
+- `Agentic_Development_Architecture/` - the AEGIS 2.0/WAEGIS 1.0 stack:
+  eight-stage file-first lifecycle, schema 3, design approval, check evidence,
+  deterministic verification, and deployment boundary.
+- `Agentic_Development_Architecture_Examples/` - worked feature, bug-fix, and
+  existing-repository adoption examples using prepare/apply/close.
 - Pi adapter behavior is documented by the stack architecture and the copied
   template assets under `05_Software/aegis/template/.pi/`.
 - WAEGIS implementation behavior is documented by
@@ -29,10 +29,8 @@ records for the standalone AEGIS project belong here.
   and `AEGIS_Governance_Workflow_Presentation.pptx`) live under
   `06_SoftwareDocu/`.
 - `PROMPT_CHEATSHEET.md` - planning reference copy of the operator prompt cheat
-  sheet; it leads with a stage-by-stage spine of the prompts a human gives the
-  agent to drive one change from intake through delivery. The canonical copy
-  ships at `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`
-  and is kept identical to this one.
+  sheet for the eight-stage workflow. The downstream operator copy ships at
+  `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`.
 - `AEGIS_Hard_Break_Modernization_Master_Plan_2026-07-22.md` - coordinated
   execution order and shared acceptance criteria for the requirement, workspace
   state, and policy-neutral configuration hard break.

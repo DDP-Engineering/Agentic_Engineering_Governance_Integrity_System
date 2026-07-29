@@ -1,4 +1,4 @@
-schema_version = 2
+schema_version = 3
 
 [source]
 roots = ["src", "app", "lib"]
@@ -52,10 +52,29 @@ allow_recommended_responses = true
 mode = "disabled"
 patterns = []
 
-[gates]
+[interface]
+stage_form_retention = "discard"
+check_execution = "external"
+
+[gates.build]
 mode = "disabled"
-test = []
-lint = []
+commands = []
+
+[gates.typecheck]
+mode = "disabled"
+commands = []
+
+[gates.lint]
+mode = "disabled"
+commands = []
+
+[gates.test]
+mode = "disabled"
+commands = []
+
+[gates.security]
+mode = "disabled"
+commands = []
 
 [guardrails.secrets]
 mode = "disabled"
