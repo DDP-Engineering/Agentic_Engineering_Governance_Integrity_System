@@ -26,6 +26,7 @@ from typing import Any
 import tomllib
 
 from .config import WorkflowConfig
+from .errors import CommandInputError
 from .paths import matches_pattern
 
 
@@ -121,15 +122,20 @@ def load_components(repo_root: Path, manifest_path: str) -> ComponentManifest:
     @param[in]  repo_root Repository root.
     @param[in]  manifest_path Repository-relative manifest path.
     @return     Loaded component manifest, or an empty manifest when missing.
-    @exception  tomllib.TOMLDecodeError Raised when the manifest TOML is invalid.
+    @exception  CommandInputError If the manifest TOML is invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.2.0
+    @version    0.3.0
     """
     path = repo_root / manifest_path
     if not path.exists():
         return ComponentManifest()
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        raise CommandInputError(
+            f"cannot load component manifest {manifest_path}: {exc}"
+        ) from exc
     component_data = data.get("components", {})
     bundle_data = data.get("bundles", {})
 
@@ -192,10 +198,10 @@ def audit_components(
     @param[in]  config Validated workflow configuration.
     @param[in]  manifest_path Optional repository-relative manifest path override.
     @return     List of component manifest audit issues.
-    @exception  tomllib.TOMLDecodeError Raised when the manifest TOML is invalid.
+    @exception  CommandInputError If the manifest TOML is invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.2.0
+    @version    0.3.0
     """
     resolved_manifest_path = (
         config.component_manifest if manifest_path is None else manifest_path
@@ -266,10 +272,10 @@ def audit_local_scope(
     @param[in]  config Validated workflow configuration.
     @param[in]  minimum Optional minimum adoption status override.
     @return     Blocking component scope issues.
-    @exception  tomllib.TOMLDecodeError Raised when the manifest TOML is invalid.
+    @exception  CommandInputError If the manifest TOML is invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-22
-    @version    0.3.0
+    @version    0.4.0
     """
     resolved_minimum = (
         minimum or config.component_baseline_guard.minimum_completion_level

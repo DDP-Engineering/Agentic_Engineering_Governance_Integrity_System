@@ -15,6 +15,8 @@ Integrity System. The runnable Python package is embedded under
 - file-first forms for intent, requirements, checks, evidence, and stage control;
 - authoritative run-local `design.md` and blocking design invariant;
 - external or managed red-before-green check evidence;
+- canonical, complete-document external evidence validation before graph
+  mutation, with immutable check identity and command matching;
 - deterministic build, typecheck, lint, test, and security gates, all optional;
 - consolidated impact/gates/invariants/traceability/coverage/working-tree
   verification before human diff review;
@@ -49,6 +51,14 @@ aegis stage close
 Repeat prepare/apply/close through delivery. Use `stage add` for requirement and
 check collections, `check prepare/record` or `check run` for evidence, and
 `verify run` at validation.
+
+External evidence is accepted only during check or implementation when the
+prepared stage captured external execution and imported at least one check.
+`check record` validates every row before mutation, trims permitted surrounding
+whitespace from result/summary/output-log fields, and persists canonical
+`pass`/`fail` results. Expected configuration, run, workflow, or command-input
+failures retain the stable blocked response; unexpected programming exceptions
+remain ordinary failures with diagnostic context.
 
 ## Template
 

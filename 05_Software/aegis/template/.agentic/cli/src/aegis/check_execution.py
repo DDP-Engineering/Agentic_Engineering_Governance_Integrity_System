@@ -14,7 +14,7 @@
          a complete selected check set.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.2.0
+@version 1.3.0
 """
 
 # IMPORTS
@@ -62,15 +62,9 @@ def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     @param[in]  graph Active workflow graph.
     @return     Path to the generated evidence TOML.
     @exception  StageOperationError If policy requires managed execution.
-    @version    0.3.0
+    @version    0.4.0
     """
-    _require_mode(graph, "external")
-    if graph.stage not in {"check", "implementation"}:
-        raise StageOperationError(
-            "check evidence is valid only during check or implementation"
-        )
-    if not graph.checks:
-        raise StageOperationError("no imported checks are available")
+    _require_external_evidence_preconditions(graph)
     path = stage_directory(repo_root, graph) / "evidence.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     expected = "fail" if graph.stage == "check" else "pass"
@@ -111,9 +105,9 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
     @param[in,out] graph Active workflow graph.
     @return     Imported evidence records.
     @exception  StageOperationError If identity, completeness, or result fails.
-    @version    0.2.0
+    @version    0.3.0
     """
-    _require_mode(graph, "external")
+    _require_external_evidence_preconditions(graph)
     path = stage_directory(repo_root, graph) / "evidence.toml"
     data = _load(path)
     expected_keys = {
@@ -152,7 +146,7 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
             f"{path}: result collection must contain every imported check exactly once"
         )
     checks = {check.id: check for check in graph.checks}
-    parsed: list[tuple[Check, dict[str, Any]]] = []
+    parsed: list[tuple[Check, str, int, str, str | None]] = []
     seen: set[str] = set()
     for row in rows:
         if not isinstance(row, dict):
@@ -190,23 +184,28 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
         summary = _string(row, "summary", path)
         if not summary:
             raise StageOperationError(f"{path}: summary must not be empty")
-        parsed.append((check, row))
+        output_log = _string(row, "output_log", path) or None
+        parsed.append((check, result, exit_status, summary, output_log))
 
     imported: list[Evidence] = []
-    for check, row in parsed:
+    for check, result, exit_status, summary, output_log in parsed:
         evidence = Evidence(
             id=_next_evidence_id(graph, len(imported)),
             kind="test-run",
-            result=row["result"],
-            summary=row["summary"].strip(),
+            result=result,
+            summary=summary,
             command=check.command,
             path=check.path,
             stage=graph.stage,
             check_id=check.id,
-            exit_status=row["exit_status"],
-            output_log=row["output_log"].strip() or None,
+            exit_status=exit_status,
+            output_log=output_log,
         )
         imported.append(evidence)
+    if not imported:
+        raise StageOperationError(
+            f"{path}: result collection must contain every imported check exactly once"
+        )
     graph.evidence.extend(imported)
     _update_check_states(graph, imported)
     save_graph(repo_root, graph)
@@ -303,6 +302,23 @@ def run_checks(
 
 
 # LOCAL HELPERS
+
+
+def _require_external_evidence_preconditions(graph: Graph) -> None:
+    """
+    @brief Enforce shared preparation and recording preconditions.
+    @param[in] graph Active workflow graph.
+    @return None.
+    @exception StageOperationError If stage, mode, or check state is invalid.
+    @version 0.1.0
+    """
+    _require_mode(graph, "external")
+    if graph.stage not in {"check", "implementation"}:
+        raise StageOperationError(
+            "check evidence is valid only during check or implementation"
+        )
+    if not graph.checks:
+        raise StageOperationError("no imported checks are available")
 
 
 def _require_mode(graph: Graph, requested: str) -> None:

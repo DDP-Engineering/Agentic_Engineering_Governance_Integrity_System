@@ -147,6 +147,15 @@ The captured workspace policy permits one path. The wrong path returns the
 configured mode and correct command. Check closure requires red evidence;
 implementation closure requires prior red and current green evidence.
 
+External preparation and recording are valid only during check or
+implementation, require a captured external mode and at least one imported
+check, and require exactly one result row per immutable check ID and command.
+Recording validates the complete document before graph mutation. Permitted
+surrounding whitespace in `result`, `summary`, and `output_log` is trimmed, and
+the persisted result is the canonical `pass` or `fail` value that was
+validated. Invalid or incomplete documents leave graph, journal, and form state
+unchanged.
+
 Manual evidence:
 
 ```text
@@ -200,3 +209,9 @@ schema-1 `.agentic/integrations/repowise.toml`. Absence means disabled. RepoWise
 execution intentionally has no AEGIS command: WAEGIS owns
 `waegis repowise status|sync`, while AEGIS consumes only validated structural
 artifacts during `repo-discovery`.
+
+Expected AEGIS configuration, run-resolution, workflow, command-input,
+requirement, persistence, and RepoWise integration failures produce the stable
+`blocked` response and exit code 1. Argparse errors retain parser output and
+exit code 2. Interrupts, explicit process exits, and unexpected programming
+exceptions are not reclassified as governance blocks.

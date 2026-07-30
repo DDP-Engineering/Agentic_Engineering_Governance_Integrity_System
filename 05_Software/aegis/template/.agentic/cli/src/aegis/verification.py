@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import GATE_ORDER, WorkflowConfig
+from .errors import CommandInputError
 from .gates import run_gates
 from .invariants import blocking_failures, evaluate
 from .models import Graph, now_iso
@@ -136,13 +137,18 @@ def validation_summary_path(repo_root: Path, graph: Graph) -> Path:
 def read_validation_summary(repo_root: Path, graph: Graph) -> dict[str, Any]:
     """
     @brief      Read the most recent validation summary.
-    @exception  ValueError If verification has not generated a summary.
-    @version    0.1.0
+    @exception  CommandInputError If the summary is missing or malformed.
+    @version    0.2.0
     """
     path = validation_summary_path(repo_root, graph)
     if not path.is_file():
-        raise ValueError("no validation summary; run `aegis verify run`")
-    return json.loads(path.read_text(encoding="utf-8"))
+        raise CommandInputError("no validation summary; run `aegis verify run`")
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise CommandInputError(
+            f"cannot load validation summary {path}: {exc}"
+        ) from exc
 
 
 # LOCAL HELPERS

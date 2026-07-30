@@ -23,6 +23,18 @@ All notable changes to this project will be documented in this file.
   files are cleaned safely, and parent-directory durability is attempted where
   supported.
 
+### Fixed
+
+- Normalize validated external check results, summaries, and output-log paths
+  before persistence; enforce the same stage, captured-mode, and non-empty
+  imported-check preconditions for preparation and recording; and reject an
+  incomplete, duplicate, unknown, malformed, command-mismatched, or
+  result/exit-status-inconsistent evidence document before graph mutation.
+- Restrict the AEGIS CLI blocked-response boundary to explicit configuration,
+  run-resolution, stage-operation, command-input, requirement, persistence, and
+  RepoWise integration errors so incidental `ValueError`, process-control
+  exceptions, and parser exits retain their normal diagnostic behavior.
+
 ## [2.1.0] - 2026-07-29
 
 Component versions in this release: AEGIS payload 2.1.0, WAEGIS 1.1.0, and

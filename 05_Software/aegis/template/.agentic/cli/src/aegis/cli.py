@@ -48,9 +48,11 @@ from .evidence_forms import (
     prepare_evidence_form,
     show_evidence,
 )
+from .errors import CommandInputError
 from .gates import run_gates
 from .invariants import blocking_failures, evaluate
 from .models import Graph
+from .persistence import PersistenceError
 from .report import render_report, write_report
 from .requirements import (
     audit_coverage,
@@ -59,7 +61,15 @@ from .requirements import (
     list_requirements,
     show_requirement,
 )
-from .repowise import effective_repowise_config, inspect_repowise
+from .repowise import (
+    RepoWiseIntegrationError,
+    effective_repowise_config,
+    inspect_repowise,
+)
+from .requirement_store import (
+    RequirementValidationError,
+    normalize_repository_path,
+)
 from .stage_forms import (
     StageOperationError,
     add_stage_item,
@@ -107,7 +117,7 @@ def main(argv: list[str] | None = None) -> None:
     @param[in]  argv Optional argument vector for tests and embedding.
     @return     None.
     @exception  SystemExit For parser, policy, validation, or command failures.
-    @version    2.1.0
+    @version    2.1.1
     """
     normalized = _normalize_global_options(list(argv) if argv is not None else sys.argv[1:])
     parser = _build_parser()
@@ -150,7 +160,15 @@ def main(argv: list[str] | None = None) -> None:
         _respond(payload, args.json)
         if exit_code:
             raise SystemExit(exit_code)
-    except (ConfigurationError, RunResolutionError, StageOperationError, ValueError) as exc:
+    except (
+        CommandInputError,
+        ConfigurationError,
+        PersistenceError,
+        RepoWiseIntegrationError,
+        RequirementValidationError,
+        RunResolutionError,
+        StageOperationError,
+    ) as exc:
         stage = graph.stage if graph else "none"
         artifact = _active_artifact(graph)
         payload = {
@@ -650,19 +668,40 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
 
 
 def _read_paths_file(root: Path, value: str) -> list[str]:
-    """@brief Read newline-delimited impact paths from a repository file."""
+    """
+    @brief Read newline-delimited impact paths from a repository file.
+    @param[in] root Repository root.
+    @param[in] value Parsed repository-relative paths-file value.
+    @return Non-comment, non-empty paths from the referenced file.
+    @exception CommandInputError If the file or one of its paths is invalid.
+    @version 0.2.0
+    """
     path = (root / value).resolve()
     try:
         path.relative_to(root.resolve())
     except ValueError:
-        raise ValueError("paths file must be repository-relative") from None
+        raise CommandInputError(
+            "paths file must be repository-relative"
+        ) from None
     if not path.is_file():
-        raise ValueError(f"paths file does not exist: {value}")
-    return [
-        line.strip()
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
+        raise CommandInputError(f"paths file does not exist: {value}")
+    paths: list[str] = []
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        try:
+            paths.append(
+                normalize_repository_path(stripped, allow_glob=False)
+            )
+        except ValueError as exc:
+            raise CommandInputError(
+                f"invalid path in {value} at line {line_number}: {exc}"
+            ) from exc
+    return paths
 
 
 def _active_artifact(graph: Graph | None) -> str:
