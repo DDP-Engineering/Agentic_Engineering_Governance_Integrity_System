@@ -11,7 +11,7 @@
 @brief Lifecycle acceptance tests for transactional configure and repair.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -334,7 +334,10 @@ def test_repair_smoke_failure_rolls_back(tmp_path: Path) -> None:
 
 
 def test_repair_recovers_interrupted_transaction_before_detection(tmp_path: Path) -> None:
-    """@brief A later repair invocation restores an interrupted transaction first."""
+    """
+    @brief A later repair invocation restores an interrupted transaction first.
+    @version 0.2.0
+    """
     repo = tmp_path / "repo"
     payload = _install(repo)
     managed = repo / "AGENTS.md"
@@ -342,6 +345,7 @@ def test_repair_recovers_interrupted_transaction_before_detection(tmp_path: Path
     transaction = FileTransaction.begin(repo, command="test", paths=("AGENTS.md",))
     transaction.mark("applying")
     managed.write_text("interrupted bytes\n", encoding="utf-8")
+    transaction.abandon()
     stream = io.StringIO()
     assert run_repair(
         repo,
@@ -357,6 +361,99 @@ def test_repair_recovers_interrupted_transaction_before_detection(tmp_path: Path
     assert document["result"]["no_op"] is True
     assert transaction.state["id"] in document["plan"]["recovered_transactions"]
     assert managed.read_bytes() == original
+
+
+def test_configure_dry_run_reports_pending_recovery_without_mutation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    """@brief JSON and human dry runs report authenticated pending recovery read-only."""
+    monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis-home"))
+    repo = tmp_path / "repo"
+    payload = _install(repo)
+    managed = repo / "AGENTS.md"
+    original = managed.read_bytes()
+    transaction = FileTransaction.begin(repo, command="test", paths=("AGENTS.md",))
+    transaction.mark("applying")
+    managed.write_bytes(b"interrupted")
+    transaction.abandon()
+    state_before = (transaction.directory / "state.json").read_bytes()
+    answers = _write_answers(
+        tmp_path / "configure.json",
+        {"source_roots": ["src"], "run_smoke": False},
+    )
+
+    json_stream = io.StringIO()
+    assert run_configure(
+        repo,
+        stream=json_stream,
+        answers_path=answers,
+        non_interactive=True,
+        dry_run=True,
+        as_json=True,
+        payload=payload,
+        runner=FakeCommandRunner({}),
+    ) == 0
+    document = _json(json_stream)
+    assert document["plan"]["pending_recovery"] == [transaction.state["id"]]
+
+    human_stream = io.StringIO()
+    assert run_configure(
+        repo,
+        stream=human_stream,
+        answers_path=answers,
+        non_interactive=True,
+        dry_run=True,
+        payload=payload,
+        runner=FakeCommandRunner({}),
+    ) == 0
+    assert "Pending transaction recovery not applied in dry-run" in human_stream.getvalue()
+    assert managed.read_bytes() == b"interrupted"
+    assert original != managed.read_bytes()
+    assert (transaction.directory / "state.json").read_bytes() == state_before
+
+
+def test_configure_reports_untrusted_recovery_state_in_json_and_human_modes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    """@brief Recovery validation failures are actionable and never expose content."""
+    monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis-home"))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    managed = repo / "managed.txt"
+    managed.write_bytes(b"operator-secret-content")
+    transaction = FileTransaction.begin(repo, command="test", paths=("managed.txt",))
+    transaction.mark("applying")
+    transaction.abandon()
+    state_path = transaction.directory / "state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["entries"][0]["path"] = "../forged"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    json_stream = io.StringIO()
+    assert run_configure(
+        repo,
+        stream=json_stream,
+        non_interactive=True,
+        dry_run=True,
+        as_json=True,
+    ) != 0
+    document = _json(json_stream)
+    assert document["status"] == "error"
+    assert "unsafe destination" in document["messages"][0]
+    assert "operator-secret-content" not in json_stream.getvalue()
+
+    human_stream = io.StringIO()
+    assert run_configure(
+        repo,
+        stream=human_stream,
+        non_interactive=True,
+        dry_run=True,
+    ) != 0
+    assert "could not recover" in human_stream.getvalue()
+    assert "operator-secret-content" not in human_stream.getvalue()
+    assert managed.read_bytes() == b"operator-secret-content"
 
 
 # END OF FILE

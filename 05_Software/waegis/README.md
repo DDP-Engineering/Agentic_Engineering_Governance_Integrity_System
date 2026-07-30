@@ -77,6 +77,54 @@ configuration, Make targets, or CI commands. It does not invent a security
 command. Analyze/configure/doctor/new/adopt can inspect, configure, optionally
 execute, and report the five groups in fixed order.
 
+## Transaction and Recovery Contract
+
+WAEGIS repository mutations use transaction state version 2 beneath
+`.agentic/.waegis-transactions/`. The state schema is closed: version, ID,
+command, UTC creation time, phase, entries, key identifier, and MAC are the
+only top-level fields. Each entry binds one canonical portable
+repository-relative destination to whether it existed and, when applicable, a
+generated backup basename, byte size, and SHA-256 digest. Supported phases are
+`staged`, `applying`, `verified`, `committed`, and `rolled-back`; transitions
+outside the documented sequence are rejected.
+
+The state MAC uses a random 256-bit key stored outside the repository as
+`transaction-auth.key` under `WAEGIS_HOME` (or the platform WAEGIS home).
+A separately authenticated ownership record under
+`transaction-ownership/<repository-id>/` binds the transaction ID and immutable
+operation digest to the resolved repository and records terminal outcome before
+repository state becomes terminal, preventing replay of an older valid phase.
+Recovery requires both records,
+the expected key, exact schemas, matching IDs, contained real directories,
+regular state/backup files, and matching backup sizes/digests before changing
+any destination. Repository-scoped process locks under `transaction-locks/`
+serialize recovery and apply operations. Backup references are generated
+basenames; state never supplies an absolute backup source.
+
+Version-1 transaction state is not automatically migrated because it lacks
+authenticated ownership and backup-content metadata. WAEGIS leaves such state
+in place and reports that manual review is required. Likewise, malformed,
+altered, unowned, link-directed, or incomplete state is retained as evidence
+and fails closed. Make a repository copy, inspect the reported transaction
+directory and its backups, restore only verified intended paths, then remove
+the repository transaction directory and matching WAEGIS-home ownership record
+only after the repository is known good. Re-running without remediation
+intentionally reports the same failure.
+
+`--dry-run` validates and reports pending transaction IDs but never takes the
+repository lock, rolls state back, cleans transaction storage, or changes a
+target. A mutating invocation requires explicit recovery approval. Successful
+rollback is idempotent: once `rolled-back` is durable, later recovery performs
+cleanup only. A `committed` transaction is also cleanup-only and is never
+rolled back.
+
+The HMAC and external ownership record protect against forged repository-local
+state when the WAEGIS home remains protected. They are not a security boundary
+against an administrator or process running as the same OS account that can
+read or replace the key and ownership records. Standard-library code cannot
+portably verify Windows ACL ownership; WAEGIS uses non-following regular-file
+checks and restrictive creation modes where the platform exposes them.
+
 ## RepoWise Lifecycle
 
 Interactive `new`, `adopt`, and `upgrade` offer bundled RepoWise when running
@@ -114,6 +162,16 @@ external RepoWise, WAEGIS records the mutable policy and its install-manifest
 digest in a second, narrow `Configure RepoWise via WAEGIS 1.1.0` commit. Runtime,
 receipt, index, and tool files remain ignored. An adoption deliberately left
 uncommitted keeps this policy change with the operator's other pending changes.
+
+RepoWise configuration itself is one persistent WAEGIS transaction covering
+the policy, runtime metadata, and install manifest. WAEGIS validates and gains
+approval first, stages authenticated backups, marks `applying`, atomically
+writes and verifies policy/runtime data, writes and verifies the install
+manifest last, marks `verified`, then commits. Ordinary failures report whether
+rollback really completed. Failed rollback retains recoverable state; cleanup
+failure after a durable commit is reported as committed cleanup pending. An
+abrupt exit after any uncommitted write is rolled back on the next approved
+mutating invocation, while an exit after `committed` only retries cleanup.
 
 ## Release Packaging
 
@@ -158,5 +216,6 @@ uv run --group dev python -m pytest -q tests
 ```
 
 The install manifest and checkpoint journal retain their current version-1
-layouts. Payload mutation is planned, previewed, journaled, verified, and
-rollback-aware. WAEGIS remains independent from AEGIS runtime graph state.
+layouts; the separate repository transaction format is version 2. Payload
+mutation is planned, previewed, journaled, verified, and rollback-aware. WAEGIS
+remains independent from AEGIS runtime graph state.

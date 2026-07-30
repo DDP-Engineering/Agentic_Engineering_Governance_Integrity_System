@@ -386,7 +386,7 @@ def test_a_killed_run_is_rolled_back_by_the_next_command(tmp_path: Path) -> None
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    0.1.0
+    @version    0.2.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -398,6 +398,7 @@ def test_a_killed_run_is_rolled_back_by_the_next_command(tmp_path: Path) -> None
     (repo / "AGENTS.md").write_text("payload\n", encoding="utf-8")
     (repo / "src").mkdir()
     (repo / "src" / "app.py").write_text("payload\n", encoding="utf-8")
+    transaction.abandon()
 
     recovered = recover_incomplete_transactions(repo)
 
@@ -464,13 +465,14 @@ def _stage_interrupted_transaction(repo: Path) -> FileTransaction:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    0.1.0
+    @version    0.2.0
     """
     repo.mkdir(parents=True, exist_ok=True)
     (repo / "AGENTS.md").write_text("original\n", encoding="utf-8")
     transaction = FileTransaction.begin(repo, command="adopt", paths=("AGENTS.md",))
     transaction.mark("applying")
     (repo / "AGENTS.md").write_text("half-applied\n", encoding="utf-8")
+    transaction.abandon()
     return transaction
 
 

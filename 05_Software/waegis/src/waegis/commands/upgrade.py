@@ -149,7 +149,12 @@ from ..repowise import (
     lifecycle_repowise,
     repowise_status,
 )
-from ..transaction import FileTransaction, pending_transaction_ids, recover_incomplete_transactions
+from ..transaction import (
+    FileTransaction,
+    TransactionError,
+    pending_transaction_ids,
+    recover_incomplete_transactions,
+)
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from ..verification import (
     HASH_TRUSTED_HOOK_CONFIGS,
@@ -1167,7 +1172,7 @@ def _apply_upgrade_transactional(
     @exception  BaseException Re-raised only after automatic rollback.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.1.0
+    @version    0.2.0
     """
     active_runner = runner or SubprocessCommandRunner()
     if decisions is None:
@@ -1229,9 +1234,16 @@ def _apply_upgrade_transactional(
         manifest = _build_new_manifest(plan, resolved)
         write_manifest(plan.repo, manifest)
         transaction.commit()
-    except BaseException:
-        if transaction.directory.exists():
-            transaction.rollback()
+    except BaseException as exc:
+        if transaction.directory.exists() and transaction.phase != "committed":
+            try:
+                transaction.rollback()
+            except Exception as rollback_exc:
+                if hasattr(exc, "add_note"):
+                    exc.add_note(
+                        "upgrade rollback failed; authenticated recovery state "
+                        f"was retained: {rollback_exc}"
+                    )
         raise
     return UpgradeReport(
         plan=plan,
@@ -1578,7 +1590,7 @@ def _run_upgrade_hardened(
     @return     Standardized exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    1.1.0
+    @version    1.2.0
     """
     if as_json:
         non_interactive = True
@@ -1593,24 +1605,25 @@ def _run_upgrade_hardened(
             messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
         )
     try:
-        pending = () if dry_run else pending_transaction_ids(repo_path)
-        recovery_consent = mutation_consent(
-            mutation_planned=bool(pending),
-            yes=yes,
-            asker=asker,
-            prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
-        )
-        if recovery_consent is not ConsentDecision.APPROVED:
-            return _emit_upgrade_envelope_or_report(
-                stream,
-                as_json=as_json,
-                status="needs-input",
-                exit_code=EXIT_NEEDS_INPUT,
-                plan_data={"recovery": list(pending)},
-                messages=("transaction recovery requires explicit approval",),
+        pending = pending_transaction_ids(repo_path)
+        if not dry_run:
+            recovery_consent = mutation_consent(
+                mutation_planned=bool(pending),
+                yes=yes,
+                asker=asker,
+                prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
             )
+            if recovery_consent is not ConsentDecision.APPROVED:
+                return _emit_upgrade_envelope_or_report(
+                    stream,
+                    as_json=as_json,
+                    status="needs-input",
+                    exit_code=EXIT_NEEDS_INPUT,
+                    plan_data={"recovery": list(pending)},
+                    messages=("transaction recovery requires explicit approval",),
+                )
         recovered = () if dry_run else recover_incomplete_transactions(repo_path)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, TransactionError) as exc:
         return _emit_upgrade_envelope_or_report(
             stream,
             as_json=as_json,
@@ -1799,10 +1812,14 @@ def _run_upgrade_hardened(
 
     if dry_run:
         preview = _upgrade_plan_dict(plan, (), git_mode=git_mode, git_branch=git_branch)
+        preview["pending_recovery"] = list(pending)
         preview["repowise"] = {
             key: supplied[key] for key in sorted(REPOWISE_ANSWER_KEYS.intersection(supplied))
         }
-        messages = [f"recovered interrupted transaction {item}" for item in recovered]
+        messages = [
+            f"pending transaction recovery not applied in dry-run: {item}"
+            for item in pending
+        ]
         messages.append("Dry run: no changes were made.")
         return _emit_upgrade_envelope_or_report(
             stream,

@@ -28,6 +28,10 @@ documentation ships with the template:
 - `AEGIS_PERSISTENCE_AND_CONCURRENCY.md` - graph, journal, requirement, and
   sibling-JSON atomicity, process-locking, stale-update, and durability
   contracts.
+- `WAEGIS_TRANSACTION_RECOVERY.md` - authenticated transaction state, external
+  ownership binding, strict recovery validation, repository-scoped
+  serialization, RepoWise manifest-last crash recovery, dry-run behavior,
+  legacy-state refusal, and manual remediation.
 
 Presentation material maintained in this folder (AEGIS 2.1 / WAEGIS 1.1):
 

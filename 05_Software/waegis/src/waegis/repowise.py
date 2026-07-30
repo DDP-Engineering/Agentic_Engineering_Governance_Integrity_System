@@ -15,7 +15,7 @@
          validates without importing or executing RepoWise.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.4.0
+@version 1.5.0
 """
 
 # IMPORTS
@@ -32,6 +32,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import tomllib
@@ -41,20 +42,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO, Any, Mapping, Sequence
 
-from .consent import ConsentDecision, mutation_consent
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from .consent import ConsentDecision, mutation_consent
 from .engine.journal import waegis_home
 from .payload.manifest import (
     MANIFEST_RELATIVE_PATH,
+    Manifest,
     ManifestState,
     hash_file,
     load_manifest,
+    resolve_managed_path,
     write_manifest,
 )
 from .probes.runner import CommandRunner
+from .transaction import (
+    FileTransaction,
+    TransactionCleanupError,
+    TransactionError,
+)
 
 # CONSTANTS
 
@@ -181,19 +189,45 @@ def _sha256(path: Path) -> str:
 
 
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
-    """@brief Atomically write one formatted JSON document."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
-    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    """
+    @brief Atomically write one formatted JSON document through an exclusive temp.
+    @version 1.1.0
+    """
+    _write_bytes(path, (json.dumps(payload, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
 
 
 def _write_text(path: Path, text: str) -> None:
-    """@brief Atomically write one UTF-8 text document."""
+    """
+    @brief Atomically write one UTF-8 text document through an exclusive temp.
+    @version 1.1.0
+    """
+    _write_bytes(path, text.encode("utf-8"))
+
+
+def _write_bytes(path: Path, data: bytes) -> None:
+    """
+    @brief Exclusively create, flush, and atomically replace a sibling file.
+    @param[in] path Exact destination pathname.
+    @param[in] data Complete replacement bytes.
+    @return None.
+    @exception OSError If the write or replacement fails.
+    @version 1.0.0
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
-    temporary.write_text(text, encoding="utf-8")
-    os.replace(temporary, path)
+    descriptor, raw_temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary = Path(raw_temporary)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -274,6 +308,52 @@ def _integration_text(settings: RepoWiseSettings) -> str:
     )
 
 
+def _updated_install_manifest(
+    repo: Path,
+    settings: RepoWiseSettings,
+    *,
+    policy_sha256: str,
+) -> Manifest | None:
+    """
+    @brief Build the RepoWise-owned install manifest without writing it.
+    @param[in] repo Target AEGIS repository.
+    @param[in] settings Validated RepoWise settings.
+    @param[in] policy_sha256 Digest of the planned policy bytes.
+    @return Updated manifest, or ``None`` when no install manifest exists.
+    @exception RepoWiseError If an existing install manifest is invalid.
+    @version 1.0.0
+    """
+    load = load_manifest(repo)
+    if load.state is ManifestState.ABSENT:
+        return None
+    if load.state is not ManifestState.VALID or load.manifest is None:
+        raise RepoWiseError("cannot configure RepoWise with an invalid WAEGIS install manifest")
+    manifest = load.manifest
+    files = dict(manifest.files)
+    files.pop(INTEGRATION_RELATIVE_PATH, None)
+    generated = tuple(sorted(set(manifest.generated) | {INTEGRATION_RELATIVE_PATH}))
+    configuration = dict(manifest.configuration)
+    raw_generated = configuration.get("generated_files")
+    generated_files = dict(raw_generated) if isinstance(raw_generated, Mapping) else {}
+    generated_files[INTEGRATION_RELATIVE_PATH] = {"sha256": policy_sha256}
+    configuration["generated_files"] = generated_files
+    configuration["repowise"] = {
+        "schema_version": INTEGRATION_SCHEMA,
+        "source": settings.source,
+        "profile": settings.profile,
+        "ollama_url": settings.ollama_url,
+        "model": settings.model,
+        "embedding_model": settings.embedding_model,
+        "enforcement": settings.enforcement,
+    }
+    return replace(
+        manifest,
+        files=files,
+        generated=generated,
+        configuration=configuration,
+    )
+
+
 def _amend_install_manifest(repo: Path, settings: RepoWiseSettings) -> None:
     """
     @brief Record the RepoWise policy as generated project-local configuration.
@@ -289,42 +369,17 @@ def _amend_install_manifest(repo: Path, settings: RepoWiseSettings) -> None:
     @exception OSError If the manifest cannot be written.
     @author Eng. Dan Dumitru Pasare
     @date 2026-07-29
-    @version 1.0.0
+    @version 1.1.0
     """
-    load = load_manifest(repo)
-    if load.state is ManifestState.ABSENT:
-        return
-    if load.state is not ManifestState.VALID or load.manifest is None:
-        raise RepoWiseError("cannot configure RepoWise with an invalid WAEGIS install manifest")
-    manifest = load.manifest
-    files = dict(manifest.files)
-    files.pop(INTEGRATION_RELATIVE_PATH, None)
-    generated = tuple(sorted(set(manifest.generated) | {INTEGRATION_RELATIVE_PATH}))
-    configuration = dict(manifest.configuration)
-    raw_generated = configuration.get("generated_files")
-    generated_files = dict(raw_generated) if isinstance(raw_generated, Mapping) else {}
-    generated_files[INTEGRATION_RELATIVE_PATH] = {
-        "sha256": hash_file(repo / INTEGRATION_PATH).sha256
-    }
-    configuration["generated_files"] = generated_files
-    configuration["repowise"] = {
-        "schema_version": INTEGRATION_SCHEMA,
-        "source": settings.source,
-        "profile": settings.profile,
-        "ollama_url": settings.ollama_url,
-        "model": settings.model,
-        "embedding_model": settings.embedding_model,
-        "enforcement": settings.enforcement,
-    }
-    write_manifest(
+    policy = resolve_managed_path(repo, INTEGRATION_RELATIVE_PATH)
+    updated = _updated_install_manifest(
         repo,
-        replace(
-            manifest,
-            files=files,
-            generated=generated,
-            configuration=configuration,
-        ),
+        settings,
+        policy_sha256=hash_file(policy).sha256,
     )
+    if updated is None:
+        return
+    write_manifest(repo, updated)
 
 
 def _tree_digest(root: Path) -> tuple[str, int]:
@@ -1174,10 +1229,12 @@ def configure_repowise(
     @param[in] settings Validated settings.
     @param[in] home Optional WAEGIS journal root override.
     @return Configuration and installation summary.
-    @exception RepoWiseError On invalid configuration or sidecar installation.
+    @exception RepoWiseError On invalid configuration, apply, rollback, or cleanup.
+    @exception KeyboardInterrupt Re-raised after rollback handling.
+    @exception SystemExit Re-raised after rollback handling.
     @author Eng. Dan Dumitru Pasare
     @date 2026-07-29
-    @version 1.4.0
+    @version 1.5.0
     """
     repo = _ensure_repo(repo)
     _validate_settings(settings)
@@ -1198,7 +1255,7 @@ def configure_repowise(
             home=home,
         )
         command = list(settings.external_command)
-    runtime = {
+    runtime_base = {
         "schema_version": RUNTIME_SCHEMA,
         "source": settings.source,
         "command": command,
@@ -1206,40 +1263,135 @@ def configure_repowise(
         "ollama_url": settings.ollama_url,
         "model": settings.model,
         "embedding_model": settings.embedding_model,
-        "configured_at": _utc_now(),
     }
-    policy_path = repo / INTEGRATION_PATH
-    runtime_path = repo / RUNTIME_PATH
-    manifest_path = repo / MANIFEST_RELATIVE_PATH
+    policy_path = resolve_managed_path(repo, INTEGRATION_RELATIVE_PATH)
+    runtime_path = resolve_managed_path(repo, RUNTIME_PATH.as_posix())
+    manifest_path = resolve_managed_path(repo, MANIFEST_RELATIVE_PATH)
     old_policy = policy_path.read_bytes() if policy_path.is_file() else None
     old_runtime = runtime_path.read_bytes() if runtime_path.is_file() else None
     old_manifest = manifest_path.read_bytes() if manifest_path.is_file() else None
-    try:
-        _write_text(policy_path, _integration_text(settings))
-        _write_json(runtime_path, runtime)
-        _amend_install_manifest(repo, settings)
-    except BaseException:
-        if old_policy is None:
-            policy_path.unlink(missing_ok=True)
-        else:
-            policy_path.write_bytes(old_policy)
-        if old_runtime is None:
-            runtime_path.unlink(missing_ok=True)
-        else:
-            runtime_path.write_bytes(old_runtime)
-        if old_manifest is None:
-            manifest_path.unlink(missing_ok=True)
-        else:
-            manifest_path.write_bytes(old_manifest)
-        raise
-    changed = (
-        old_policy != policy_path.read_bytes()
-        or old_runtime != runtime_path.read_bytes()
-        or (
-            old_manifest
-            != (manifest_path.read_bytes() if manifest_path.is_file() else None)
-        )
+    prior_runtime: dict[str, Any] | None = None
+    if old_runtime is not None:
+        try:
+            candidate = json.loads(old_runtime.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError):
+            candidate = None
+        if isinstance(candidate, dict):
+            prior_runtime = candidate
+    configured_at = _utc_now()
+    if prior_runtime is not None and all(
+        prior_runtime.get(key) == value for key, value in runtime_base.items()
+    ):
+        prior_timestamp = prior_runtime.get("configured_at")
+        if isinstance(prior_timestamp, str):
+            configured_at = prior_timestamp
+    runtime = {**runtime_base, "configured_at": configured_at}
+    policy_text = _integration_text(settings)
+    policy_bytes = policy_text.encode("utf-8")
+    runtime_bytes = (
+        json.dumps(runtime, indent=2, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    updated_manifest = _updated_install_manifest(
+        repo,
+        settings,
+        policy_sha256=hashlib.sha256(policy_bytes).hexdigest(),
     )
+    manifest_bytes = (
+        None
+        if updated_manifest is None
+        else (
+            json.dumps(updated_manifest.to_dict(), indent=2, ensure_ascii=False)
+            + "\n"
+        ).encode("utf-8")
+    )
+    changed = (
+        old_policy != policy_bytes
+        or old_runtime != runtime_bytes
+        or old_manifest != manifest_bytes
+    )
+    if not changed:
+        return {
+            "source": settings.source,
+            "mode": settings.enforcement if settings.source != "disabled" else "disabled",
+            "profile": settings.profile,
+            "installation": installation,
+            "policy": str(policy_path),
+            "runtime": str(runtime_path),
+            "changed": False,
+        }
+    transaction: FileTransaction | None = None
+    try:
+        transaction = FileTransaction.begin(
+            repo,
+            command="configure-repowise",
+            paths=(
+                INTEGRATION_RELATIVE_PATH,
+                RUNTIME_PATH.as_posix(),
+                MANIFEST_RELATIVE_PATH,
+            ),
+        )
+        transaction.mark("applying")
+        if old_policy != policy_bytes:
+            _write_text(policy_path, policy_text)
+        if policy_path.read_bytes() != policy_bytes:
+            raise RepoWiseError("RepoWise policy verification failed after write")
+        try:
+            policy_document = tomllib.loads(policy_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+            raise RepoWiseError("RepoWise policy verification failed after write") from exc
+        if (
+            policy_document.get("provider") != "repowise"
+            or policy_document.get("schema_version") != INTEGRATION_SCHEMA
+        ):
+            raise RepoWiseError("RepoWise policy verification returned unexpected metadata")
+        if old_runtime != runtime_bytes:
+            _write_json(runtime_path, runtime)
+        if runtime_path.read_bytes() != runtime_bytes or _load_json(runtime_path) != runtime:
+            raise RepoWiseError("RepoWise runtime verification failed after write")
+        if updated_manifest is not None and old_manifest != manifest_bytes:
+            write_manifest(repo, updated_manifest)
+        if manifest_bytes is not None and manifest_path.read_bytes() != manifest_bytes:
+            raise RepoWiseError("RepoWise install-manifest verification failed after write")
+        transaction.mark("verified")
+        transaction.commit()
+    except BaseException as exc:
+        if transaction is not None and transaction.phase != "committed":
+            try:
+                transaction.rollback()
+            except Exception as rollback_exc:
+                note = (
+                    "RepoWise configuration rollback failed; authenticated transaction "
+                    f"{transaction.state['id']} was retained: {rollback_exc}"
+                )
+                if hasattr(exc, "add_note"):
+                    exc.add_note(note)
+                if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                    raise
+                raise RepoWiseError(note) from exc
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
+            raise RepoWiseError(
+                f"RepoWise configuration failed; rollback succeeded: {exc}"
+            ) from exc
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            if hasattr(exc, "add_note") and transaction is not None:
+                exc.add_note(
+                    "RepoWise configuration was committed; terminal transaction "
+                    "cleanup will be retried by recovery"
+                )
+            raise
+        if isinstance(exc, TransactionCleanupError) or (
+            transaction is not None and transaction.phase == "committed"
+        ):
+            raise RepoWiseError(
+                "RepoWise configuration committed successfully, but transaction "
+                "cleanup failed; the next mutating invocation will retry cleanup"
+            ) from exc
+        if isinstance(exc, RepoWiseError):
+            raise
+        if isinstance(exc, TransactionError):
+            raise RepoWiseError(f"RepoWise transaction could not begin: {exc}") from exc
+        raise
     return {
         "source": settings.source,
         "mode": settings.enforcement if settings.source != "disabled" else "disabled",
@@ -1247,7 +1399,7 @@ def configure_repowise(
         "installation": installation,
         "policy": str(policy_path),
         "runtime": str(runtime_path),
-        "changed": changed,
+        "changed": True,
     }
 
 

@@ -41,6 +41,22 @@ All notable changes to this project will be documented in this file.
   JSON, non-interactive, transaction-recovery, journal, Git, and RepoWise
   paths; preserve read-only dry runs/no-op plans, fail closed on EOF or an
   exhausted scripted confirmation queue, and retain process-control semantics.
+- Move RepoWise policy, runtime metadata, and install-manifest updates into one
+  persistent WAEGIS transaction with verified policy/runtime writes, a
+  manifest-last barrier, truthful rollback/cleanup reporting, idempotent crash
+  recovery, and no-op detection.
+
+### Security
+
+- Authenticate closed-schema WAEGIS transaction state with a protected
+  WAEGIS-home HMAC key and separately authenticated repository/operation
+  ownership records; bind backups by generated name, size, and SHA-256; reject
+  legacy or forged state, unowned storage, links, junctions, reparse points,
+  unsafe paths, and destination type substitution before target mutation.
+- Serialize WAEGIS recovery and transaction application with repository-scoped
+  cross-process locks, restore backups by exact-path atomic replacement, and
+  clean only individually validated transaction objects without recursive
+  deletion.
 
 ## [2.1.0] - 2026-07-29
 

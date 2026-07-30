@@ -59,7 +59,12 @@ from ..repo.workflow_toml import (
 from ..repowise import REPOWISE_ANSWER_KEYS, RepoWiseError, lifecycle_repowise
 from ..verification import smoke_reverify
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
-from ..transaction import FileTransaction, pending_transaction_ids, recover_incomplete_transactions
+from ..transaction import (
+    FileTransaction,
+    TransactionError,
+    pending_transaction_ids,
+    recover_incomplete_transactions,
+)
 from .new import OTHER_LANGUAGE_FIELD_SPECS, WORKFLOW_TOML_RELATIVE_PATH
 
 # CONSTANTS
@@ -86,7 +91,7 @@ def _emit(
     @return     ``exit_code``.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.1.0
+    @version    0.2.0
     """
     if as_json:
         return write_envelope(
@@ -101,6 +106,11 @@ def _emit(
     for message in messages:
         stream.write(message + "\n")
     if plan is not None:
+        for transaction_id in plan.get("pending_recovery", []):
+            stream.write(
+                "Pending transaction recovery not applied in dry-run: "
+                f"{transaction_id}\n"
+            )
         changes = plan.get("changes", [])
         stream.write(f"Configuration plan: {len(changes)} field change(s).\n")
         for change in changes:
@@ -239,7 +249,7 @@ def run_configure(
     @exception  None All failures are rendered through the selected surface.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.4.0
+    @version    0.5.0
     """
     repo_path = Path(repo).resolve()
     if as_json:
@@ -253,28 +263,29 @@ def run_configure(
             messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
         )
     try:
-        pending = () if dry_run else pending_transaction_ids(repo_path)
-        recovery_consent = mutation_consent(
-            mutation_planned=bool(pending),
-            yes=yes,
-            asker=(
-                ConsoleAsker(stdin=stdin, stdout=stream)
-                if not non_interactive and stdin is not None
-                else None
-            ),
-            prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
-        )
-        if recovery_consent is not ConsentDecision.APPROVED:
-            return _emit(
-                stream,
-                as_json=as_json,
-                status="needs-input",
-                exit_code=EXIT_NEEDS_INPUT,
-                plan={"recovery": list(pending)},
-                messages=("transaction recovery requires explicit approval",),
+        pending = pending_transaction_ids(repo_path)
+        if not dry_run:
+            recovery_consent = mutation_consent(
+                mutation_planned=bool(pending),
+                yes=yes,
+                asker=(
+                    ConsoleAsker(stdin=stdin, stdout=stream)
+                    if not non_interactive and stdin is not None
+                    else None
+                ),
+                prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
             )
+            if recovery_consent is not ConsentDecision.APPROVED:
+                return _emit(
+                    stream,
+                    as_json=as_json,
+                    status="needs-input",
+                    exit_code=EXIT_NEEDS_INPUT,
+                    plan={"recovery": list(pending)},
+                    messages=("transaction recovery requires explicit approval",),
+                )
         recovered = () if dry_run else recover_incomplete_transactions(repo_path)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, TransactionError) as exc:
         return _emit(
             stream,
             as_json=as_json,
@@ -376,6 +387,7 @@ def run_configure(
         "workflow_content_changed": content_changed,
         "warnings": [warning.message for warning in generated.warnings],
         "recovered_transactions": list(recovered),
+        "pending_recovery": list(pending) if dry_run else [],
         **controls,
         "repowise_requested": bool(REPOWISE_ANSWER_KEYS.intersection(supplied)),
         "repowise": {
@@ -450,20 +462,62 @@ def run_configure(
         )
         transaction.commit()
     except BaseException as exc:  # transaction must roll back every failure/interruption
+        cleanup_error: Exception | None = None
         if temporary.exists():
-            temporary.unlink()
-        if transaction is not None and transaction.directory.exists():
-            transaction.rollback()
+            try:
+                temporary.unlink()
+            except OSError as unlink_exc:
+                cleanup_error = unlink_exc
+        rollback_error: Exception | None = None
+        rolled_back = False
+        committed = transaction is not None and transaction.phase == "committed"
+        if (
+            transaction is not None
+            and transaction.directory.exists()
+            and not committed
+        ):
+            try:
+                transaction.rollback()
+                rolled_back = True
+            except Exception as rollback_exc:
+                rollback_error = rollback_exc
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            for note_error in (cleanup_error, rollback_error):
+                if note_error is not None and hasattr(exc, "add_note"):
+                    exc.add_note(f"transaction cleanup/rollback also failed: {note_error}")
             raise
+        if committed:
+            return _emit(
+                stream,
+                as_json=as_json,
+                status="error",
+                exit_code=EXIT_OPERATIONAL,
+                plan=plan,
+                result={
+                    "configured": True,
+                    "rolled_back": False,
+                    "cleanup_pending": True,
+                },
+                messages=(
+                    "configuration committed, but transaction cleanup failed; "
+                    f"recovery will retry cleanup: {exc}",
+                ),
+            )
+        if rollback_error is not None:
+            message = (
+                "configuration failed and rollback did not complete; authenticated "
+                f"recovery state was retained: {rollback_error}"
+            )
+        else:
+            message = f"configuration verification failed; rolled back: {exc}"
         return _emit(
             stream,
             as_json=as_json,
             status="failed",
             exit_code=EXIT_VALIDATION,
             plan=plan,
-            result={"configured": False, "rolled_back": True},
-            messages=(f"configuration verification failed; rolled back: {exc}",),
+            result={"configured": False, "rolled_back": rolled_back},
+            messages=(message,),
         )
 
     repowise_result: dict[str, Any] | None = None

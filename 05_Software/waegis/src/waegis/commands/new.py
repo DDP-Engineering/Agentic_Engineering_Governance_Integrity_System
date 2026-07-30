@@ -161,7 +161,12 @@ from ..repowise import (
     commit_repowise_configuration,
     lifecycle_repowise,
 )
-from ..transaction import payload_transaction, pending_transaction_ids, recover_incomplete_transactions
+from ..transaction import (
+    TransactionError,
+    payload_transaction,
+    pending_transaction_ids,
+    recover_incomplete_transactions,
+)
 from ..verification import (
     HOOK_FILES,
     NO_ACTIVE_RUN_MARKER,
@@ -2525,7 +2530,7 @@ def run_new(
                 encoded in the exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    1.3.0
+    @version    1.4.0
     """
     target_path = Path(target).resolve()
     if as_json:
@@ -2534,6 +2539,23 @@ def run_new(
 
     # --- roll back an interrupted prior run before touching TARGET ---
     # A dry run writes nothing, so it must not mutate the target either.
+    if dry_run:
+        try:
+            pending = pending_transaction_ids(target_path)
+        except (OSError, ValueError, TransactionError) as exc:
+            message = f"could not inspect interrupted transaction state: {exc}"
+            if as_json:
+                return write_envelope(
+                    stream, "new", status="error", exit_code=EXIT_OPERATIONAL, messages=(message,)
+                )
+            stream.write(f"waegis new: {message}\n")
+            return EXIT_OPERATIONAL
+        for item in pending:
+            message = f"pending transaction recovery not applied in dry-run: {item}"
+            if as_json:
+                json_messages.append(message)
+            else:
+                stream.write(f"waegis new: {message}\n")
     if not dry_run:
         try:
             pending = pending_transaction_ids(target_path)
@@ -2557,7 +2579,7 @@ def run_new(
                 stream.write(f"waegis new: {message}\n")
                 return EXIT_NEEDS_INPUT
             recovered = recover_incomplete_transactions(target_path)
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, TransactionError) as exc:
             message = f"could not recover an interrupted transaction: {exc}"
             if as_json:
                 return write_envelope(
