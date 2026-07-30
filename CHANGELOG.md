@@ -22,6 +22,12 @@ All notable changes to this project will be documented in this file.
   temporaries are flushed and fsynced before atomic replacement, unpublished
   files are cleaned safely, and parent-directory durability is attempted where
   supported.
+- Make the WAEGIS zipapp, Core/Complete ZIP and tar.gz archives, embedded
+  RepoWise source, normalized SBOM/manifests, release manifest, and checksums
+  byte-reproducible for identical declared source/runtime/wheel/epoch and
+  Python/uv/zlib toolchain inputs. One SOURCE_DATE_EPOCH/commit/fallback epoch
+  now drives explicit portable ordering, timestamps, modes, ownership, ZIP
+  creator/compression metadata, and the filename-free gzip header.
 
 ### Fixed
 
@@ -45,6 +51,12 @@ All notable changes to this project will be documented in this file.
   persistent WAEGIS transaction with verified policy/runtime writes, a
   manifest-last barrier, truthful rollback/cleanup reporting, idempotent crash
   recovery, and no-op detection.
+- Validate runtime locks as closed schemas; stream runtime downloads through
+  exclusive unique siblings with digest-before-replace cleanup; prevalidate and
+  deterministically materialize runtime link graphs; and verify exact internal
+  archive schema, target, safe membership, regular-file type, and digests while
+  rejecting duplicates, case collisions, undeclared files, encryption, links,
+  and special entries before atomic artifact publication.
 
 ### Security
 

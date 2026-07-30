@@ -195,14 +195,42 @@ WAEGIS Core retains its existing Python 3.13 runtime. This separation is
 required because RepoWise 0.37.0 locks NumPy 1.26.4, which has native Python
 3.12 wheels but no Python 3.13 wheels.
 
+All five binary artifacts, the embedded RepoWise source ZIP and generated
+Complete metadata, `release-manifest.json`, and `SHA256SUMS` are byte-
+reproducible when source, lock, runtime, wheel, epoch, target, Python patch,
+`uv`, and zlib/compression inputs are identical. The builder selects one
+canonical epoch from valid `SOURCE_DATE_EPOCH`, then the source Git commit
+timestamp, then the fixed ZIP epoch for an exported source tree. It clamps to
+1980, rounds down to ZIP's two-second precision, records the normalized value
+in the release manifest, and rejects malformed, negative, or overflowing
+explicit values.
+
+ZIP/zipapp and tar/gzip names, ordering, timestamps, modes, ownership, creator
+metadata, compression settings, and gzip filename are explicit. Internal
+manifests require exact payload membership and hashes; duplicates, case
+collisions, traversal/device names, undeclared files, encryption, links, and
+special archive types fail before atomic replacement. Runtime locks are
+closed-schema documents. Cache misses stream into unique exclusive siblings
+and publish only after digest validation; `--offline` performs no transport
+call and a failed refresh leaves the prior cache object intact.
+
+This is not a promise across different Python, `uv`, zlib, or compression
+implementations. Core target artifacts are intended to match across Windows and
+Linux builders only when that full toolchain matches. Complete remains a native
+same-target build. See
+`../../06_SoftwareDocu/WAEGIS_RELEASE_REPRODUCIBILITY.md` for the exact
+contract, upstream runtime filtering, adversarial verification rules, and
+two-build hash-comparison procedure.
+
 Build one native Complete artifact from a clean exact RepoWise 0.37.0 checkout:
 
 ```powershell
 python packaging/build_release.py --repowise-source D:\Source\repowise
 ```
 
-Run the builder natively on each target OS and combine the publication
-artifacts. Release production may populate pinned build caches; target
+Run the builder natively on each target OS with the same
+`SOURCE_DATE_EPOCH`, then combine and verify the publication artifacts. Release
+production may populate pinned build caches; target
 installation never compiles or resolves dependencies. Complete-to-Core use is
 refused while a project selects the bundled runtime; configure it to external
 or disabled first.

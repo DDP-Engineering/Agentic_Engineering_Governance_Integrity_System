@@ -344,11 +344,12 @@ def test_complete_companions_require_matching_repowise_source(tmp_path: Path) ->
                 silently included in a new release manifest.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-29
-    @version    0.1.0
+    @version    0.2.0
     """
     builder = _builder()
     document = {
         "schema_version": 1,
+        "build_epoch": 315532800,
         "edition": "complete",
         "repowise_version": builder.REPOWISE_VERSION,
         "platform": "windows-x64",
@@ -383,7 +384,15 @@ def test_complete_companions_require_matching_repowise_source(tmp_path: Path) ->
         linux,
         expected_platform="linux-x64",
         source_info={"tag": "v0.37.0", "commit": "a" * 40},
+        expected_epoch=315532800,
     )
+
+    with pytest.raises(builder.PackagingError, match="mismatched"):
+        builder._validate_complete_companion(
+            windows,
+            expected_platform="windows-x64",
+            expected_epoch=315532802,
+        )
 
     with pytest.raises(builder.PackagingError, match="stale Complete companion"):
         builder._validate_complete_companion(

@@ -27,6 +27,16 @@ on Windows x64 and Linux x64 on Linux x64, then combine the two fixed-name
 artifacts with the Core files and regenerate/verify publication checksums.
 Target projects never compile native dependencies.
 
+Set the same valid `SOURCE_DATE_EPOCH` on both native hosts. The builder
+normalizes the generated SBOM timestamp and removes its random serial number;
+the corresponding-source ZIP is rebuilt from committed blobs with the same
+canonical ZIP metadata. With identical RepoWise commit, `uv.lock`, cached
+wheels, runtime assets, Python patch, `uv`, zlib, and compression
+implementation, each same-target Complete artifact is expected to be
+byte-identical. Windows and Linux Complete archives contain different native
+inputs and are not expected to equal each other. Builds made by different
+Python/uv/zlib implementations are outside the byte-identity guarantee.
+
 When the second native build reuses the first platform's fixed-name artifact,
 the builder verifies that both bundle manifests identify the same RepoWise tag
 and commit. A stale cross-platform companion is rejected.
@@ -35,6 +45,13 @@ The source must identify as project `repowise` version `0.37.0`, be at the exact
 tag, and have no tracked or untracked changes. Release production may download
 only pinned inputs. Use `--offline` once the runtime and wheel caches are fully
 populated.
+
+Both runtime locks are closed-schema documents. Targets must be exactly
+`windows-x64` and `linux-x64`; assets are safe unique basenames; SHA-256 values
+are exact hexadecimal digests; optional sizes are positive integers. Offline
+cache hits perform no network call. Downloads use an exclusive unique sibling,
+stream and fsync content, validate size/digest, and atomically publish without
+removing an earlier cache object on failure.
 
 ## Required Complete Contents
 
@@ -62,6 +79,10 @@ Before publication, verify:
 
 - clean exact-tag source refusal;
 - archive path traversal rejection;
+- duplicate/case-colliding, undeclared, encrypted, linked, and special archive
+  member rejection;
+- exact internal manifest schema, target, membership, regular-file type, and
+  per-file digest verification;
 - disk-space failure before copy;
 - native launcher/import and `--version`;
 - install and deterministic indexing with non-loopback network denied;
@@ -82,3 +103,7 @@ Keep exact corresponding source and notices beside every Complete binary.
 
 The generated SBOM and third-party notices are build evidence, not a substitute
 for license or vulnerability review.
+
+The full epoch, archive, cache, link-materialization, and two-build reproduction
+contract is maintained in
+`../06_SoftwareDocu/WAEGIS_RELEASE_REPRODUCIBILITY.md`.

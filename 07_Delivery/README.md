@@ -38,12 +38,28 @@ Binaries are never tracked in Git. A fixed filename does not change that
 calculation — Git stores blobs rather than names, so committing them would grow
 history by the full artifact size on every release, permanently and
 irreversibly. `.gitignore` in this directory carries the measurements behind
-that decision. What is tracked is the publication record, and the binaries are
-reproducible from a source checkout at the recorded version:
+that decision. What is tracked is the publication record. The binaries and
+release metadata are byte-reproducible only with identical source, runtime
+locks/assets, target/edition, Complete RepoWise/wheel inputs, canonical epoch,
+Python patch version, `uv` version, and zlib/compression implementation.
 
 ```bash
-uv run python 05_Software/waegis/packaging/build_release.py
+SOURCE_DATE_EPOCH=1785425602 \
+  uv run python 05_Software/waegis/packaging/build_release.py --offline
 ```
+
+The canonical epoch is valid `SOURCE_DATE_EPOCH`, otherwise the source commit
+timestamp, otherwise the fixed 1980 ZIP epoch for a source export. Explicit
+invalid values fail. ZIP/tar/gzip metadata and generated Complete SBOM time use
+the normalized two-second epoch. Every archive is written to a unique exclusive
+sibling, verified for exact internal membership and digests, then atomically
+published. `release-manifest.json` records `build_epoch`; it and
+`SHA256SUMS` are deterministic release assets.
+
+Gitea publication timestamps and historical records are outside this contract.
+Different Python/uv/zlib implementations are not claimed to hash identically.
+See `../06_SoftwareDocu/WAEGIS_RELEASE_REPRODUCIBILITY.md` for supported
+cross-host expectations and the two-build mtime/hash smoke procedure.
 
 ## Releases
 

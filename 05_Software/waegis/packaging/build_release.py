@@ -11,12 +11,13 @@
 @brief Build the payload zipapp and self-contained Windows/Linux archives.
 @details Uses the standard library for archive orchestration and invokes uv only
          at release-build time for the locked Complete dependency export and
-         wheel installation. Embedded CPython inputs are pinned by filename and
-         SHA-256 in ``runtime-lock.json``. Each application archive
-         contains an internal file manifest; the output directory receives a
-         release manifest and ``SHA256SUMS`` for the final artifacts. Linux tar
-         modes are normalized explicitly so cross-builds from Windows retain
-         executable launchers, interpreters, and shell scripts.
+         wheel installation. Embedded CPython inputs are selected through
+         closed-schema filename/digest locks. Every final ZIP, zipapp, tar
+         member, and gzip header uses one normalized build epoch; portable
+         names, entry order, types, creator system, modes, ownership, and
+         compression settings are explicit. Each application archive contains
+         an exact internal file manifest; undeclared files and unsupported
+         member types are rejected before atomic publication.
 @details **Artifact names carry no version** (0.3.0). A build overwrites the
          previous one in a single output directory rather than accumulating a
          new set per release, and documentation, install scripts, and any
@@ -32,11 +33,13 @@
          delta-compressed at all (stream gzip: one early change shifts every
          following byte). The tracked publication record is
          ``07_Delivery/waegis-<version>/`` with ``RELEASE.md``, ``SHA256SUMS``,
-         and ``release-manifest.json``; the binaries are reproducible from a
-         source checkout at that version.
+         and ``release-manifest.json``. Byte reproduction requires identical
+         source/lock/runtime/wheel inputs, build epoch, Python/uv versions, and
+         compression implementation; it is not promised across different
+         Python or zlib implementations.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 0.8.0
+@version 0.9.0
 """
 
 # IMPORTS
@@ -44,9 +47,12 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -56,12 +62,11 @@ import tempfile
 import tomllib
 import urllib.error
 import urllib.request
-import zipapp
 import zipfile
 import zlib
 from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping
+from typing import Any, BinaryIO, Callable, Iterable, Mapping
 
 # CONSTANTS
 
@@ -101,6 +106,34 @@ COMPLETE_LINUX_ARCHIVE_NAME = "waegis-complete-linux-x64.tar.gz"
 REPOWISE_VERSION = "0.37.0"
 REPOWISE_TAG = "v0.37.0"
 REPOWISE_SOURCE_ARCHIVE = f"repowise-{REPOWISE_VERSION}-source.zip"
+SUPPORTED_RUNTIME_TARGETS = frozenset({"windows-x64", "linux-x64"})
+RUNTIME_LOCK_KEYS = frozenset(
+    {"schema_version", "provider", "release", "python_version", "targets", "reason"}
+)
+RUNTIME_LOCK_REQUIRED_KEYS = RUNTIME_LOCK_KEYS - {"reason"}
+RUNTIME_TARGET_KEYS = frozenset({"asset", "sha256", "size"})
+RUNTIME_TARGET_REQUIRED_KEYS = RUNTIME_TARGET_KEYS - {"size"}
+RUNTIME_PROVIDER = "astral-sh/python-build-standalone"
+SHA256_PATTERN = re.compile(r"[0-9a-fA-F]{64}")
+SAFE_ASSET_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,254}")
+SAFE_RELEASE_PATTERN = re.compile(r"[0-9]{8}")
+SAFE_VERSION_PATTERN = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+WINDOWS_DRIVE_PATTERN = re.compile(r"[A-Za-z]:")
+WINDOWS_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CLOCK$"}
+    | {f"COM{number}" for number in range(1, 10)}
+    | {f"LPT{number}" for number in range(1, 10)}
+)
+ZIP_MIN_EPOCH = 315532800
+MAX_BUILD_EPOCH = 4294967294
+DETERMINISTIC_FALLBACK_EPOCH = ZIP_MIN_EPOCH
+ZIP_COMPRESSION = zipfile.ZIP_DEFLATED
+ZIP_COMPRESSION_LEVEL = 9
+GZIP_COMPRESSION_LEVEL = 9
+ARCHIVE_MANIFEST_NAME = "archive-manifest.json"
+MAX_ARCHIVE_MEMBERS = 200_000
+MAX_MANIFEST_BYTES = 16 * 1024 * 1024
+RUNTIME_EXCLUDED_PREFIXES = ("python/share/terminfo/",)
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -108,6 +141,36 @@ REPOWISE_SOURCE_ARCHIVE = f"repowise-{REPOWISE_VERSION}-source.zip"
 
 class PackagingError(Exception):
     """@brief A release input or output failed validation."""
+
+
+class RuntimeTarget:
+    """@brief One strictly validated embedded-runtime asset."""
+
+    __slots__ = ("asset", "sha256", "size")
+
+    def __init__(self, *, asset: str, sha256: str, size: int | None = None) -> None:
+        self.asset = asset
+        self.sha256 = sha256
+        self.size = size
+
+
+class RuntimeLock:
+    """@brief Closed-schema runtime release and target selection."""
+
+    __slots__ = ("release", "python_version", "targets", "reason")
+
+    def __init__(
+        self,
+        *,
+        release: str,
+        python_version: str,
+        targets: Mapping[str, RuntimeTarget],
+        reason: str | None = None,
+    ) -> None:
+        self.release = release
+        self.python_version = python_version
+        self.targets = targets
+        self.reason = reason
 
 
 # HELPER FUNCTIONS
@@ -122,6 +185,350 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _strict_json_loads(content: str | bytes, *, context: str) -> Any:
+    """@brief Decode JSON while rejecting duplicate object keys."""
+
+    def object_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        """@brief Construct one JSON object without last-key-wins ambiguity."""
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise PackagingError(f"{context} contains duplicate key {key!r}")
+            result[key] = value
+        return result
+
+    return json.loads(content, object_pairs_hook=object_hook)
+
+
+def _canonical_relative_name(value: str) -> str:
+    """
+    @brief      Validate one portable, extraction-safe relative POSIX path.
+    @param[in]  value Candidate archive-relative path.
+    @return     The unchanged canonical POSIX path.
+    @exception  PackagingError If the path is ambiguous or unsafe on Windows
+                or POSIX.
+    @version    0.1.0
+    """
+    if not isinstance(value, str) or not value or value in {".", ".."}:
+        raise PackagingError(f"unsafe archive path: {value!r}")
+    if (
+        value.startswith(("/", "\\"))
+        or "\\" in value
+        or "\0" in value
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or WINDOWS_DRIVE_PATTERN.match(value)
+    ):
+        raise PackagingError(f"unsafe archive path: {value!r}")
+    relative = PurePosixPath(value)
+    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        raise PackagingError(f"unsafe archive path: {value!r}")
+    for part in relative.parts:
+        stem = part.split(".", 1)[0].upper()
+        if (
+            ":" in part
+            or part.endswith((" ", "."))
+            or stem in WINDOWS_RESERVED_NAMES
+        ):
+            raise PackagingError(f"unsafe archive path: {value!r}")
+    canonical = relative.as_posix()
+    if canonical != value:
+        raise PackagingError(f"non-canonical archive path: {value!r}")
+    return canonical
+
+
+def _reject_name_collisions(names: Iterable[str], *, context: str) -> tuple[str, ...]:
+    """@brief Reject duplicate and Windows-case-colliding portable names."""
+    ordered = tuple(names)
+    if len(ordered) > MAX_ARCHIVE_MEMBERS:
+        raise PackagingError(f"{context} has too many members")
+    exact: set[str] = set()
+    folded: dict[str, str] = {}
+    for name in ordered:
+        canonical = _canonical_relative_name(name.rstrip("/"))
+        normalized = canonical
+        if normalized in exact:
+            raise PackagingError(f"duplicate {context} member: {name!r}")
+        collision = folded.get(normalized.casefold())
+        if collision is not None and collision != normalized:
+            raise PackagingError(
+                f"case-colliding {context} members: {collision!r} and {normalized!r}"
+            )
+        exact.add(normalized)
+        folded[normalized.casefold()] = normalized
+    return ordered
+
+
+def _git_source_epoch(repository: Path = REPOSITORY_ROOT) -> str | None:
+    """@brief Read the source commit timestamp without consulting wall-clock time."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repository), "log", "-1", "--format=%ct", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    value = completed.stdout.strip()
+    return value if completed.returncode == 0 and value else None
+
+
+def _normalize_build_epoch(raw: str, *, source: str) -> int:
+    """
+    @brief      Validate, clamp, and ZIP-precision-normalize a build epoch.
+    @param[in]  raw Integer epoch text.
+    @param[in]  source Diagnostic name for the epoch source.
+    @return     An even epoch within ZIP and gzip representable bounds.
+    @exception  PackagingError If the value is malformed, negative, or too
+                large for all reproducible archive formats.
+    @version    0.1.0
+    """
+    if not isinstance(raw, str) or not re.fullmatch(r"[0-9]+", raw):
+        raise PackagingError(f"{source} must be a non-negative integer")
+    try:
+        epoch = int(raw, 10)
+    except ValueError as exc:
+        raise PackagingError(f"{source} must be a non-negative integer") from exc
+    if epoch > MAX_BUILD_EPOCH:
+        raise PackagingError(
+            f"{source} exceeds the supported gzip timestamp range ({MAX_BUILD_EPOCH})"
+        )
+    return max(epoch, ZIP_MIN_EPOCH) // 2 * 2
+
+
+def _canonical_build_epoch() -> int:
+    """
+    @brief      Select one deterministic epoch for every generated artifact.
+    @return     Normalized SOURCE_DATE_EPOCH, Git commit time, or fixed fallback.
+    @exception  PackagingError If explicit SOURCE_DATE_EPOCH is malformed.
+    @version    0.1.0
+    """
+    explicit = os.environ.get("SOURCE_DATE_EPOCH")
+    if explicit is not None:
+        return _normalize_build_epoch(explicit, source="SOURCE_DATE_EPOCH")
+    committed = _git_source_epoch()
+    if committed is not None:
+        try:
+            return _normalize_build_epoch(committed, source="Git commit timestamp")
+        except PackagingError:
+            pass
+    return DETERMINISTIC_FALLBACK_EPOCH
+
+
+def _wizard_version() -> str:
+    """@brief Read the canonical WAEGIS version without mutating import state."""
+    path = SOURCE_ROOT / "waegis" / "version.py"
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise PackagingError(f"cannot read WAEGIS version declaration: {path}") from exc
+    match = re.search(
+        r'^WIZARD_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"\s*$',
+        content,
+        flags=re.MULTILINE,
+    )
+    if match is None:
+        raise PackagingError(f"invalid WAEGIS version declaration: {path}")
+    return match.group(1)
+
+
+def _zip_datetime(epoch: int) -> tuple[int, int, int, int, int, int]:
+    """@brief Convert a normalized epoch to the ZIP UTC date tuple."""
+    value = dt.datetime.fromtimestamp(epoch, tz=dt.timezone.utc)
+    return (value.year, value.month, value.day, value.hour, value.minute, value.second)
+
+
+def _unique_temporary_path(destination: Path) -> tuple[int, Path]:
+    """@brief Exclusively create a unique sibling temporary publication path."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor, name = tempfile.mkstemp(
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            dir=destination.parent,
+        )
+    except OSError as exc:
+        raise PackagingError(f"cannot create temporary output for {destination.name}: {exc}") from exc
+    return descriptor, Path(name)
+
+
+def _flush_file(handle: BinaryIO) -> None:
+    """@brief Flush file content through the operating-system durability boundary."""
+    handle.flush()
+    os.fsync(handle.fileno())
+
+
+def _atomic_write_bytes(destination: Path, content: bytes) -> None:
+    """@brief Atomically publish deterministic generated metadata bytes."""
+    descriptor, temporary = _unique_temporary_path(destination)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(content)
+            _flush_file(handle)
+        os.replace(temporary, destination)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _tree_entries(
+    root: Path,
+    *,
+    archive_root: str,
+    executable_paths: frozenset[str],
+) -> list[tuple[str, Path, bool]]:
+    """@brief Return regular files sorted by their canonical POSIX archive name."""
+    archive_root = _canonical_relative_name(archive_root)
+    entries: list[tuple[str, Path, bool]] = []
+    source_names: list[str] = []
+    for path in root.rglob("*"):
+        relative = path.relative_to(root).as_posix()
+        canonical = _canonical_relative_name(relative)
+        source_names.append(canonical)
+        if path.is_symlink():
+            raise PackagingError(f"release staging contains a symlink: {relative!r}")
+        if path.is_file():
+            entries.append(
+                (
+                    f"{archive_root}/{canonical}",
+                    path,
+                    canonical in executable_paths or canonical.endswith(".sh"),
+                )
+            )
+        elif not path.is_dir():
+            raise PackagingError(f"release staging has unsupported entry: {relative!r}")
+    _reject_name_collisions(source_names, context="staging")
+    entries.sort(key=lambda entry: entry[0])
+    return entries
+
+
+def _write_deterministic_zip(
+    destination: Path,
+    entries: Iterable[tuple[str, Path | bytes, bool]],
+    *,
+    epoch: int,
+    verify: Callable[[Path], None] | None = None,
+) -> None:
+    """
+    @brief      Write one metadata-normalized deterministic ZIP.
+    @details    ZIP directory entries are deliberately omitted. Every member is
+                an explicit regular file with fixed UTC timestamp, POSIX mode,
+                creator system, compression method, and compression level.
+    @version    0.1.0
+    """
+    ordered = sorted(entries, key=lambda entry: entry[0])
+    _reject_name_collisions((entry[0] for entry in ordered), context="ZIP")
+    descriptor, temporary = _unique_temporary_path(destination)
+    os.close(descriptor)
+    try:
+        with zipfile.ZipFile(
+            temporary,
+            "w",
+            compression=ZIP_COMPRESSION,
+            compresslevel=ZIP_COMPRESSION_LEVEL,
+            strict_timestamps=True,
+        ) as bundle:
+            for name, source, executable in ordered:
+                info = zipfile.ZipInfo(name, date_time=_zip_datetime(epoch))
+                info.create_system = 3
+                info.compress_type = ZIP_COMPRESSION
+                info.external_attr = (
+                    stat.S_IFREG | (0o755 if executable else 0o644)
+                ) << 16
+                info.internal_attr = 0
+                content = source if isinstance(source, bytes) else source.read_bytes()
+                bundle.writestr(
+                    info,
+                    content,
+                    compress_type=ZIP_COMPRESSION,
+                    compresslevel=ZIP_COMPRESSION_LEVEL,
+                )
+        with open(temporary, "r+b") as handle:
+            os.fsync(handle.fileno())
+        if verify is not None:
+            verify(temporary)
+        os.replace(temporary, destination)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _write_deterministic_tar_gz(
+    destination: Path,
+    root: Path,
+    *,
+    archive_root: str,
+    executable_paths: frozenset[str],
+    epoch: int,
+    verify: Callable[[Path], None] | None = None,
+) -> None:
+    """
+    @brief      Write a GNU tar stream and gzip wrapper with normalized metadata.
+    @details    Root and source directories are explicit sorted entries; files
+                are regular entries. Links and special filesystem objects are
+                rejected before publication.
+    @version    0.1.0
+    """
+    archive_root = _canonical_relative_name(archive_root)
+    paths: list[tuple[str, Path | None]] = [(archive_root, None)]
+    source_names: list[str] = []
+    for path in root.rglob("*"):
+        relative = _canonical_relative_name(path.relative_to(root).as_posix())
+        source_names.append(relative)
+        if path.is_symlink():
+            raise PackagingError(f"release staging contains a symlink: {relative!r}")
+        if not path.is_file() and not path.is_dir():
+            raise PackagingError(f"release staging has unsupported entry: {relative!r}")
+        paths.append((f"{archive_root}/{relative}", path))
+    _reject_name_collisions(source_names, context="staging")
+    paths.sort(key=lambda item: item[0])
+    descriptor, temporary = _unique_temporary_path(destination)
+    try:
+        with os.fdopen(descriptor, "wb") as raw:
+            with gzip.GzipFile(
+                filename="",
+                mode="wb",
+                compresslevel=GZIP_COMPRESSION_LEVEL,
+                fileobj=raw,
+                mtime=epoch,
+            ) as compressed:
+                with tarfile.open(
+                    mode="w",
+                    fileobj=compressed,
+                    format=tarfile.GNU_FORMAT,
+                ) as bundle:
+                    for name, path in paths:
+                        info = tarfile.TarInfo(name)
+                        info.mtime = epoch
+                        info.uid = 0
+                        info.gid = 0
+                        info.uname = ""
+                        info.gname = ""
+                        if path is None or path.is_dir():
+                            info.type = tarfile.DIRTYPE
+                            info.mode = 0o755
+                            bundle.addfile(info)
+                            continue
+                        relative = path.relative_to(root).as_posix()
+                        info.type = tarfile.REGTYPE
+                        info.mode = (
+                            0o755
+                            if relative in executable_paths or relative.endswith(".sh")
+                            else 0o644
+                        )
+                        info.size = path.stat().st_size
+                        with open(path, "rb") as source:
+                            bundle.addfile(info, source)
+            _flush_file(raw)
+        if verify is not None:
+            verify(temporary)
+        os.replace(temporary, destination)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 def _copy_tree(source: Path, destination: Path) -> None:
     """
     @brief      Copy a source tree while rejecting links and generated state.
@@ -134,12 +541,15 @@ def _copy_tree(source: Path, destination: Path) -> None:
                 unsupported filesystem entry.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
     if not source.is_dir():
         raise PackagingError(f"release input directory does not exist: {source}")
     destination.mkdir(parents=True, exist_ok=True)
-    for path in sorted(source.rglob("*")):
+    for path in sorted(
+        source.rglob("*"),
+        key=lambda item: item.relative_to(source).as_posix(),
+    ):
         relative = path.relative_to(source)
         if (
             any(part in GENERATED_NAMES for part in relative.parts)
@@ -163,20 +573,117 @@ def _copy_tree(source: Path, destination: Path) -> None:
             raise PackagingError(f"release input is not a regular file: {path}")
 
 
-def _load_lock(path: Path = LOCK_FILE) -> dict[str, Any]:
+def _load_lock(path: Path = LOCK_FILE) -> RuntimeLock:
     """
-    @brief      Read and minimally validate one embedded-runtime lock.
+    @brief      Parse one closed-schema embedded-runtime lock.
     @param[in]  path Core or RepoWise sidecar runtime lock.
-    @return     Parsed runtime-lock document.
-    @exception  PackagingError If the lock schema or target table is invalid.
+    @return     Strictly validated runtime-lock model.
+    @exception  PackagingError If the file, JSON, schema, release, targets,
+                assets, digests, or optional sizes are invalid.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-30
-    @version    0.2.0
+    @version    0.3.0
     """
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if data.get("schema_version") != 1 or not isinstance(data.get("targets"), dict):
-        raise PackagingError(f"invalid runtime lock: {path}")
-    return data
+    try:
+        if not path.is_file() or path.is_symlink():
+            raise PackagingError(f"runtime lock is not a regular file: {path}")
+        data = _strict_json_loads(
+            path.read_text(encoding="utf-8"),
+            context=f"runtime lock {path}",
+        )
+    except PackagingError:
+        raise
+    except UnicodeDecodeError as exc:
+        raise PackagingError(f"runtime lock is not valid UTF-8: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise PackagingError(
+            f"runtime lock contains invalid JSON at line {exc.lineno}: {path}"
+        ) from exc
+    except OSError as exc:
+        raise PackagingError(f"cannot read runtime lock {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise PackagingError(f"runtime lock root must be an object: {path}")
+    keys = frozenset(data)
+    missing = sorted(RUNTIME_LOCK_REQUIRED_KEYS - keys)
+    unknown = sorted(keys - RUNTIME_LOCK_KEYS)
+    if missing or unknown:
+        raise PackagingError(
+            f"runtime lock keys are invalid ({'missing=' + repr(missing) if missing else ''}"
+            f"{'; ' if missing and unknown else ''}"
+            f"{'unknown=' + repr(unknown) if unknown else ''}): {path}"
+        )
+    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
+        raise PackagingError(f"runtime lock schema_version must be exactly 1: {path}")
+    if data["provider"] != RUNTIME_PROVIDER:
+        raise PackagingError(f"runtime lock provider is unsupported: {path}")
+    release = data["release"]
+    if not isinstance(release, str) or SAFE_RELEASE_PATTERN.fullmatch(release) is None:
+        raise PackagingError(f"runtime lock release must be an eight-digit identifier: {path}")
+    python_version = data["python_version"]
+    if (
+        not isinstance(python_version, str)
+        or SAFE_VERSION_PATTERN.fullmatch(python_version) is None
+    ):
+        raise PackagingError(f"runtime lock python_version is invalid: {path}")
+    reason = data.get("reason")
+    if reason is not None and (not isinstance(reason, str) or not reason.strip()):
+        raise PackagingError(f"runtime lock reason must be a non-empty string: {path}")
+    targets = data["targets"]
+    if not isinstance(targets, dict):
+        raise PackagingError(f"runtime lock targets must be an object: {path}")
+    target_names = frozenset(targets)
+    if target_names != SUPPORTED_RUNTIME_TARGETS:
+        raise PackagingError(
+            "runtime lock targets must be exactly "
+            f"{sorted(SUPPORTED_RUNTIME_TARGETS)}, found {sorted(str(item) for item in target_names)}"
+        )
+    validated: dict[str, RuntimeTarget] = {}
+    assets: dict[str, str] = {}
+    for target in sorted(SUPPORTED_RUNTIME_TARGETS):
+        entry = targets[target]
+        if not isinstance(entry, dict):
+            raise PackagingError(f"runtime lock target {target!r} must be an object")
+        entry_keys = frozenset(entry)
+        entry_missing = sorted(RUNTIME_TARGET_REQUIRED_KEYS - entry_keys)
+        entry_unknown = sorted(entry_keys - RUNTIME_TARGET_KEYS)
+        if entry_missing or entry_unknown:
+            raise PackagingError(
+                f"runtime lock target {target!r} keys are invalid "
+                f"(missing={entry_missing}, unknown={entry_unknown})"
+            )
+        asset = entry["asset"]
+        if (
+            not isinstance(asset, str)
+            or SAFE_ASSET_PATTERN.fullmatch(asset) is None
+            or Path(asset).name != asset
+            or PurePosixPath(asset).name != asset
+        ):
+            raise PackagingError(
+                f"runtime lock target {target!r} asset must be a safe basename"
+            )
+        prior = assets.get(asset.casefold())
+        if prior is not None:
+            raise PackagingError(
+                f"runtime lock assets must be unique: {prior!r} and {asset!r}"
+            )
+        assets[asset.casefold()] = asset
+        digest = entry["sha256"]
+        if not isinstance(digest, str) or SHA256_PATTERN.fullmatch(digest) is None:
+            raise PackagingError(
+                f"runtime lock target {target!r} sha256 must be 64 hexadecimal characters"
+            )
+        size = entry.get("size")
+        if size is not None and (type(size) is not int or size <= 0):
+            raise PackagingError(
+                f"runtime lock target {target!r} size must be a positive integer"
+            )
+        validated[target] = RuntimeTarget(asset=asset, sha256=digest.lower(), size=size)
+    return RuntimeLock(
+        release=release,
+        python_version=python_version,
+        targets=validated,
+        reason=reason,
+    )
 
 
 def _download_runtime(
@@ -197,41 +704,54 @@ def _download_runtime(
                 the wrong digest.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-30
-    @version    0.2.0
+    @version    0.3.0
     """
     lock = _load_lock(lock_file)
     try:
-        entry = lock["targets"][target]
-        asset = str(entry["asset"])
-        expected = str(entry["sha256"])
+        entry = lock.targets[target]
     except (KeyError, TypeError) as exc:
         raise PackagingError(f"runtime target is not pinned: {target}") from exc
+    asset = entry.asset
+    expected = entry.sha256
     archive = cache / asset
-    if archive.is_file() and sha256_file(archive) == expected:
-        return archive
-    archive.unlink(missing_ok=True)
+    try:
+        if archive.is_file() and not archive.is_symlink():
+            if (
+                (entry.size is None or archive.stat().st_size == entry.size)
+                and sha256_file(archive) == expected
+            ):
+                return archive
+    except OSError as exc:
+        raise PackagingError(f"cannot validate cached runtime {archive}: {exc}") from exc
     if offline:
         raise PackagingError(f"offline runtime cache miss for {asset}")
-    cache.mkdir(parents=True, exist_ok=True)
-    temporary = archive.with_name(archive.name + ".tmp")
-    url = f"{BASE_URL}/{lock['release']}/{asset}"
     try:
-        with urllib.request.urlopen(url, timeout=120) as response, open(temporary, "wb") as output:
-            shutil.copyfileobj(response, output)
+        cache.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise PackagingError(f"cannot create runtime cache {cache}: {exc}") from exc
+    descriptor, temporary = _unique_temporary_path(archive)
+    url = f"{BASE_URL}/{lock.release}/{asset}"
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            with urllib.request.urlopen(url, timeout=120) as response:
+                shutil.copyfileobj(response, output, length=1024 * 1024)
+            _flush_file(output)
+        if entry.size is not None and temporary.stat().st_size != entry.size:
+            raise PackagingError(f"size mismatch for downloaded runtime: {asset}")
         if sha256_file(temporary) != expected:
             raise PackagingError(f"SHA-256 mismatch for downloaded runtime: {asset}")
         os.replace(temporary, archive)
-    except (OSError, urllib.error.URLError) as exc:
+    except BaseException as exc:
         temporary.unlink(missing_ok=True)
+        if isinstance(exc, (KeyboardInterrupt, SystemExit, PackagingError)):
+            raise
         raise PackagingError(f"cannot download pinned runtime {url}: {exc}") from exc
     return archive
 
 
 def _safe_member_path(root: Path, name: str) -> Path:
     """@brief Convert one tar member name to a confined extraction path."""
-    relative = PurePosixPath(name)
-    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
-        raise PackagingError(f"unsafe runtime archive path: {name!r}")
+    relative = PurePosixPath(_canonical_relative_name(name.rstrip("/")))
     target = root.joinpath(*relative.parts)
     try:
         target.resolve().relative_to(root.resolve())
@@ -259,59 +779,173 @@ def _extract_runtime(archive_path: Path, destination: Path) -> frozenset[str]:
                 unsupported.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
-    links: list[tarfile.TarInfo] = []
+    try:
+        if destination.is_symlink() or (
+            destination.exists() and not destination.is_dir()
+        ):
+            raise PackagingError(
+                f"runtime destination is not a safe directory: {destination}"
+            )
+        destination.mkdir(parents=True, exist_ok=True)
+    except PackagingError:
+        raise
+    except OSError as exc:
+        raise PackagingError(
+            f"cannot create runtime destination {destination}: {exc}"
+        ) from exc
     executable_files: set[str] = set()
-    with tarfile.open(archive_path, "r:gz") as archive:
-        for member in archive.getmembers():
-            target = _safe_member_path(destination, member.name)
-            if member.isdir():
+    try:
+        with tarfile.open(archive_path, "r:gz") as archive:
+            raw_members = [
+                member
+                for member in archive.getmembers()
+                if not any(
+                    member.name.rstrip("/").startswith(prefix.rstrip("/"))
+                    for prefix in RUNTIME_EXCLUDED_PREFIXES
+                )
+            ]
+            if len(raw_members) > MAX_ARCHIVE_MEMBERS:
+                raise PackagingError("runtime archive has too many members")
+            names = [member.name.rstrip("/") for member in raw_members]
+            _reject_name_collisions(names, context="runtime archive")
+            members: dict[str, tarfile.TarInfo] = {}
+            link_targets: dict[str, str] = {}
+            for member, name in zip(raw_members, names, strict=True):
+                _safe_member_path(destination, name)
+                if not (member.isdir() or member.isfile() or member.issym() or member.islnk()):
+                    raise PackagingError(f"unsupported runtime archive entry: {name!r}")
+                members[name] = member
+            link_names = {
+                name for name, member in members.items() if member.issym() or member.islnk()
+            }
+            for name in members:
+                parent = PurePosixPath(name).parent
+                while parent != PurePosixPath("."):
+                    if parent.as_posix() in link_names:
+                        raise PackagingError(
+                            f"runtime member traverses link parent: {name!r}"
+                        )
+                    parent = parent.parent
+            for name in sorted(link_names):
+                member = members[name]
+                raw_target = member.linkname
+                if (
+                    not isinstance(raw_target, str)
+                    or not raw_target
+                    or raw_target.startswith(("/", "\\"))
+                    or "\\" in raw_target
+                    or WINDOWS_DRIVE_PATTERN.match(raw_target)
+                ):
+                    raise PackagingError(
+                        f"absolute or unsafe runtime link target: {raw_target!r}"
+                    )
+                base_parts = (
+                    []
+                    if member.islnk()
+                    else list(PurePosixPath(name).parent.parts)
+                )
+                for part in PurePosixPath(raw_target).parts:
+                    if part in {"", "."}:
+                        continue
+                    if part == "..":
+                        if not base_parts:
+                            raise PackagingError(
+                                f"escaping runtime link target: {raw_target!r}"
+                            )
+                        base_parts.pop()
+                    else:
+                        base_parts.append(part)
+                target_name = _canonical_relative_name(
+                    PurePosixPath(*base_parts).as_posix()
+                )
+                if target_name not in members:
+                    raise PackagingError(
+                        f"unresolved runtime link: {name!r} -> {raw_target!r}"
+                    )
+                link_targets[name] = target_name
+
+            resolved: dict[str, str] = {}
+
+            def resolve(name: str, stack: tuple[str, ...] = ()) -> str:
+                """@brief Resolve one validated runtime link graph node."""
+                if name in resolved:
+                    return resolved[name]
+                if name in stack:
+                    cycle = " -> ".join((*stack, name))
+                    raise PackagingError(f"runtime link cycle: {cycle}")
+                target_name = link_targets.get(name)
+                result = (
+                    name
+                    if target_name is None
+                    else resolve(target_name, (*stack, name))
+                )
+                resolved[name] = result
+                return result
+
+            for name in sorted(link_targets):
+                resolve(name)
+
+            for name in sorted(members):
+                member = members[name]
+                target = _safe_member_path(destination, name)
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                elif member.isfile():
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise PackagingError(f"cannot read runtime archive entry: {name!r}")
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with source, open(target, "wb") as output:
+                        shutil.copyfileobj(source, output, length=1024 * 1024)
+                    target.chmod(member.mode & 0o777)
+                    if member.mode & 0o111:
+                        executable_files.add(name)
+
+            def materialize(source_name: str, target_name: str) -> None:
+                """@brief Materialize one resolved file or directory graph node."""
+                ultimate_name = resolve(source_name)
+                ultimate = members[ultimate_name]
+                target = _safe_member_path(destination, target_name)
+                if ultimate.isfile():
+                    source = _safe_member_path(destination, ultimate_name)
+                    _copy_materialized_file(source, target)
+                    if ultimate.mode & 0o111 or members[source_name].mode & 0o111:
+                        executable_files.add(target_name)
+                    return
+                if not ultimate.isdir():
+                    raise PackagingError(
+                        f"runtime link has unsupported resolved type: {source_name!r}"
+                    )
                 target.mkdir(parents=True, exist_ok=True)
-                continue
-            if member.issym() or member.islnk():
-                links.append(member)
-                continue
-            if not member.isfile():
-                raise PackagingError(f"unsupported runtime archive entry: {member.name!r}")
-            source = archive.extractfile(member)
-            if source is None:
-                raise PackagingError(f"cannot read runtime archive entry: {member.name!r}")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with source, open(target, "wb") as output:
-                shutil.copyfileobj(source, output)
-            target.chmod(member.mode & 0o777)
-            if member.mode & 0o111:
-                executable_files.add(PurePosixPath(member.name).as_posix())
-    for member in links:
-        target = _safe_member_path(destination, member.name)
-        link_name = PurePosixPath(member.linkname)
-        if link_name.is_absolute():
-            raise PackagingError(f"absolute runtime link target: {member.linkname!r}")
-        source_base = destination if member.islnk() else target.parent
-        source = source_base.joinpath(*link_name.parts).resolve()
-        try:
-            source.relative_to(destination.resolve())
-        except ValueError as exc:
-            raise PackagingError(f"runtime link escapes staging: {member.linkname!r}") from exc
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if source.is_dir():
-            shutil.copytree(source, target, copy_function=_copy_materialized_file)
-            source_relative = PurePosixPath(source.relative_to(destination).as_posix())
-            target_relative = PurePosixPath(target.relative_to(destination).as_posix())
-            for executable in tuple(executable_files):
-                try:
-                    suffix = PurePosixPath(executable).relative_to(source_relative)
-                except ValueError:
-                    continue
-                executable_files.add((target_relative / suffix).as_posix())
-        elif source.is_file():
-            _copy_materialized_file(source, target)
-            source_relative = source.relative_to(destination).as_posix()
-            if source_relative in executable_files or member.mode & 0o111:
-                executable_files.add(target.relative_to(destination).as_posix())
-        else:
-            raise PackagingError(f"unresolved runtime link: {member.name!r} -> {member.linkname!r}")
+                prefix = f"{ultimate_name}/"
+                for candidate in sorted(members):
+                    if not candidate.startswith(prefix):
+                        continue
+                    relative = PurePosixPath(candidate).relative_to(
+                        PurePosixPath(ultimate_name)
+                    )
+                    ancestors = tuple(relative.parents)
+                    if any(
+                        (
+                            PurePosixPath(ultimate_name) / ancestor
+                        ).as_posix() in link_names
+                        for ancestor in ancestors
+                        if ancestor != PurePosixPath(".")
+                    ):
+                        continue
+                    materialize(
+                        candidate,
+                        (PurePosixPath(target_name) / relative).as_posix(),
+                    )
+
+            for name in sorted(link_targets):
+                materialize(name, name)
+    except PackagingError:
+        raise
+    except (OSError, tarfile.TarError, EOFError) as exc:
+        raise PackagingError(f"invalid runtime archive {archive_path.name}: {exc}") from exc
     return frozenset(executable_files)
 
 
@@ -320,9 +954,10 @@ def _linux_tar_filter(
     *,
     root_name: str,
     executable_paths: frozenset[str],
+    epoch: int = DETERMINISTIC_FALLBACK_EPOCH,
 ) -> tarfile.TarInfo:
     """
-    @brief      Normalize Linux archive modes independently of the build host.
+    @brief      Normalize Linux archive metadata independently of the build host.
     @param[in]  member Tar entry produced from the staged application tree.
     @param[in]  root_name Top-level application directory in the tar archive.
     @param[in]  executable_paths Root-relative files requiring execute bits.
@@ -330,7 +965,7 @@ def _linux_tar_filter(
     @exception  None.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
     prefix = f"{root_name}/"
     relative = member.name[len(prefix) :] if member.name.startswith(prefix) else ""
@@ -338,16 +973,30 @@ def _linux_tar_filter(
         member.mode = 0o755
     elif member.isfile():
         member.mode = 0o755 if relative in executable_paths or relative.endswith(".sh") else 0o644
+    member.mtime = epoch
+    member.uid = 0
+    member.gid = 0
+    member.uname = ""
+    member.gname = ""
+    member.pax_headers = {}
     return member
 
 
 def _find_interpreter(runtime_root: Path, target: str) -> Path:
-    """@brief Locate the embedded interpreter inside an extracted runtime."""
+    """@brief Locate the embedded interpreter inside an extracted runtime.
+    @version 0.2.0
+    """
     names = ("python.exe",) if target == "windows-x64" else ("python3", "python")
     candidates = [path for name in names for path in runtime_root.rglob(name) if path.is_file()]
     if not candidates:
         raise PackagingError(f"embedded interpreter not found for {target}")
-    candidates.sort(key=lambda path: ("bin" not in path.parts, len(path.parts), str(path)))
+    candidates.sort(
+        key=lambda path: (
+            "bin" not in path.parts,
+            len(path.parts),
+            path.relative_to(runtime_root).as_posix(),
+        )
+    )
     return candidates[0]
 
 
@@ -426,7 +1075,12 @@ def _validate_repowise_source(source: Path) -> dict[str, Any]:
     return {"root": source, "tag": tag, "commit": commit, "tracked": tracked}
 
 
-def _write_repowise_source_archive(source_info: Mapping[str, Any], output: Path) -> None:
+def _write_repowise_source_archive(
+    source_info: Mapping[str, Any],
+    output: Path,
+    *,
+    epoch: int | None = None,
+) -> None:
     """
     @brief      Write byte-identical RepoWise source from the pinned Git commit.
     @details    Reading the worktree would make Windows and Linux source ZIPs
@@ -438,17 +1092,60 @@ def _write_repowise_source_archive(source_info: Mapping[str, Any], output: Path)
     @exception  PackagingError If Git cannot archive the validated commit.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-30
-    @version    0.2.0
+    @version    0.3.0
     """
     source = Path(source_info["root"])
-    _git_repowise(
-        source,
-        "archive",
-        "--format=zip",
-        f"--prefix=repowise-{REPOWISE_VERSION}/",
-        f"--output={output}",
-        str(source_info["commit"]),
-    )
+    descriptor, raw_archive = _unique_temporary_path(output.with_suffix(".tar"))
+    os.close(descriptor)
+    try:
+        _git_repowise(
+            source,
+            "archive",
+            "--format=tar",
+            f"--output={raw_archive}",
+            str(source_info["commit"]),
+        )
+        entries: list[tuple[str, bytes, bool]] = []
+        try:
+            with tarfile.open(raw_archive, "r:") as bundle:
+                members = bundle.getmembers()
+                _reject_name_collisions(
+                    (member.name.rstrip("/") for member in members),
+                    context="RepoWise source",
+                )
+                for member in members:
+                    if member.isdir():
+                        continue
+                    if not member.isfile():
+                        raise PackagingError(
+                            f"RepoWise source contains unsupported entry: {member.name!r}"
+                        )
+                    source_file = bundle.extractfile(member)
+                    if source_file is None:
+                        raise PackagingError(
+                            f"cannot read RepoWise source entry: {member.name!r}"
+                        )
+                    with source_file:
+                        content = source_file.read()
+                    entries.append(
+                        (
+                            f"repowise-{REPOWISE_VERSION}/"
+                            f"{_canonical_relative_name(member.name)}",
+                            content,
+                            bool(member.mode & 0o111),
+                        )
+                    )
+        except PackagingError:
+            raise
+        except (OSError, tarfile.TarError, EOFError) as exc:
+            raise PackagingError(f"cannot inspect RepoWise Git archive: {exc}") from exc
+        _write_deterministic_zip(
+            output,
+            entries,
+            epoch=_canonical_build_epoch() if epoch is None else epoch,
+        )
+    finally:
+        raw_archive.unlink(missing_ok=True)
     if not output.is_file() or output.stat().st_size <= 0:
         raise PackagingError("RepoWise source archive was not created")
 
@@ -531,15 +1228,24 @@ def _repowise_launcher(target: str, relative_python: str) -> tuple[str, str]:
 
 
 def _repowise_file_table(root: Path) -> list[dict[str, Any]]:
-    """@brief Build the sidecar manifest's sorted file hash table."""
+    """@brief Build the sidecar manifest's sorted file hash table.
+    @version 0.2.0
+    """
+    paths = sorted(
+        (
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.name != "repowise-bundle-manifest.json"
+        ),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
     return [
         {
             "path": path.relative_to(root).as_posix(),
             "sha256": sha256_file(path),
             "size": path.stat().st_size,
         }
-        for path in sorted(root.rglob("*"))
-        if path.is_file() and path.name != "repowise-bundle-manifest.json"
+        for path in paths
     ]
 
 
@@ -571,9 +1277,14 @@ def _repowise_packaged_size(root: Path, files: list[dict[str, Any]]) -> int:
 
 
 def _third_party_notices(site_packages: Path) -> str:
-    """@brief Derive a compact installed-distribution license notice."""
+    """@brief Derive a compact installed-distribution license notice.
+    @version 0.2.0
+    """
     records = []
-    for metadata in sorted(site_packages.glob("*.dist-info/METADATA")):
+    for metadata in sorted(
+        site_packages.glob("*.dist-info/METADATA"),
+        key=lambda path: path.relative_to(site_packages).as_posix(),
+    ):
         name = ""
         version = ""
         license_value = "not declared"
@@ -598,6 +1309,45 @@ def _third_party_notices(site_packages: Path) -> str:
     )
 
 
+def _normalize_sbom(path: Path, *, epoch: int) -> None:
+    """@brief Replace uv's volatile SBOM identity and timestamp deterministically."""
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PackagingError(f"cannot normalize generated SBOM {path}: {exc}") from exc
+    if not isinstance(document, dict) or not isinstance(document.get("metadata"), dict):
+        raise PackagingError(f"generated SBOM has an invalid document shape: {path}")
+    document.pop("serialNumber", None)
+    timestamp = dt.datetime.fromtimestamp(epoch, tz=dt.timezone.utc)
+    document["metadata"]["timestamp"] = timestamp.isoformat().replace("+00:00", "Z")
+    path.write_text(
+        json.dumps(document, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="",
+    )
+
+
+def _normalize_requirements_export(path: Path) -> None:
+    """@brief Remove uv's temporary output path from its generated header."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise PackagingError(f"cannot normalize locked requirements {path}: {exc}") from exc
+    if (
+        len(lines) < 2
+        or lines[0] != "# This file was autogenerated by uv via the following command:"
+        or not lines[1].startswith("#    uv export ")
+    ):
+        raise PackagingError(f"generated locked requirements has an unexpected header: {path}")
+    path.write_text(
+        "# Locked requirements exported by WAEGIS Complete using uv.\n"
+        + "\n".join(lines[2:])
+        + "\n",
+        encoding="utf-8",
+        newline="",
+    )
+
+
 def _build_repowise_bundle(
     target: str,
     *,
@@ -605,8 +1355,11 @@ def _build_repowise_bundle(
     destination: Path,
     runtime_cache: Path,
     offline: bool,
+    epoch: int,
 ) -> frozenset[str]:
-    """@brief Assemble one locked, native-wheel-only RepoWise Complete sidecar."""
+    """@brief Assemble one locked, native-wheel-only RepoWise Complete sidecar.
+    @version 0.2.0
+    """
     current = (
         "windows-x64"
         if os.name == "nt"
@@ -638,6 +1391,8 @@ def _build_repowise_bundle(
     sbom = destination / "sbom.cdx.json"
     environment = dict(os.environ)
     environment["UV_NO_PROGRESS"] = "1"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["SOURCE_DATE_EPOCH"] = str(epoch)
     export_base = ["uv", "export", "--locked", "--no-dev", "--project", str(source)]
     if offline:
         export_base.append("--offline")
@@ -654,18 +1409,20 @@ def _build_repowise_bundle(
         description="RepoWise locked dependency export",
         environment=environment,
     )
+    _normalize_requirements_export(requirements)
     _run_build_command(
         [*export_base, "--format", "cyclonedx1.5", "--output-file", str(sbom)],
         cwd=source,
         description="RepoWise SBOM export",
         environment=environment,
     )
+    _normalize_sbom(sbom, epoch=epoch)
     platform_name = (
         "x86_64-pc-windows-msvc"
         if target == "windows-x64"
         else "x86_64-unknown-linux-gnu"
     )
-    python_version = ".".join(str(runtime_lock["python_version"]).split(".")[:2])
+    python_version = ".".join(runtime_lock.python_version.split(".")[:2])
     install = [
         "uv",
         "pip",
@@ -708,7 +1465,7 @@ def _build_repowise_bundle(
         newline="",
     )
     source_archive = destination / REPOWISE_SOURCE_ARCHIVE
-    _write_repowise_source_archive(source_info, source_archive)
+    _write_repowise_source_archive(source_info, source_archive, epoch=epoch)
     licenses = destination / "licenses"
     licenses.mkdir()
     shutil.copy2(source / "LICENSE", licenses / "REPOWISE-AGPL-3.0.txt")
@@ -727,6 +1484,7 @@ def _build_repowise_bundle(
     packaged_size = _repowise_packaged_size(destination, files)
     manifest = {
         "schema_version": 1,
+        "build_epoch": epoch,
         "edition": "complete",
         "repowise_version": REPOWISE_VERSION,
         "platform": target,
@@ -754,7 +1512,11 @@ def _build_repowise_bundle(
         probe,
         cwd=destination,
         description="RepoWise bundled native import/version smoke",
-        environment={**os.environ, "WAEGIS_REPOWISE_OFFLINE": "1"},
+        environment={
+            **os.environ,
+            "WAEGIS_REPOWISE_OFFLINE": "1",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
     )
     if REPOWISE_VERSION not in output:
         raise PackagingError(f"RepoWise bundled smoke reported an unexpected version: {output!r}")
@@ -765,68 +1527,246 @@ def _build_repowise_bundle(
 
 
 def _tree_manifest(root: Path) -> dict[str, str]:
-    """@brief Hash every regular staged file using portable relative names."""
+    """@brief Hash every regular staged file using portable relative names.
+    @version 0.2.0
+    """
+    paths = sorted(
+        (path for path in root.rglob("*") if path.is_file()),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
     return {
         path.relative_to(root).as_posix(): sha256_file(path)
-        for path in sorted(root.rglob("*"))
-        if path.is_file()
+        for path in paths
     }
 
 
 def _write_archive_manifest(root: Path, *, target: str) -> None:
-    """@brief Write the internal application-archive file manifest."""
+    """@brief Write the internal application-archive file manifest.
+    @version 0.2.0
+    """
+    if target not in SUPPORTED_RUNTIME_TARGETS:
+        raise PackagingError(f"unsupported internal archive target: {target!r}")
     payload = {"schema_version": 1, "target": target, "files": _tree_manifest(root)}
     (root / "archive-manifest.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+        newline="",
     )
 
 
-def _verify_internal_zip(path: Path) -> None:
-    """@brief Verify every file declared by a Windows archive manifest."""
-    with zipfile.ZipFile(path) as bundle:
-        manifest_name = next(
-            (
-                name
-                for name in bundle.namelist()
-                if name.endswith("/archive-manifest.json")
-            ),
-            None,
+def _manifest_file_table(
+    content: bytes,
+    *,
+    expected_target: str | None,
+    archive_name: str,
+) -> dict[str, str]:
+    """@brief Parse and strictly validate one internal archive manifest."""
+    if len(content) > MAX_MANIFEST_BYTES:
+        raise PackagingError(f"internal archive manifest is too large: {archive_name}")
+    try:
+        document = _strict_json_loads(
+            content.decode("utf-8"),
+            context=f"internal archive manifest {archive_name}",
         )
-        if manifest_name is None:
-            raise PackagingError(f"application archive has no internal manifest: {path.name}")
-        document = json.loads(bundle.read(manifest_name))
-        prefix = manifest_name[: -len("archive-manifest.json")]
-        for relative, expected in document.get("files", {}).items():
-            actual = hashlib.sha256(bundle.read(prefix + relative)).hexdigest()
-            if actual != expected:
-                raise PackagingError(f"archive member hash mismatch: {path.name}:{relative}")
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PackagingError(f"malformed internal archive manifest: {archive_name}") from exc
+    if not isinstance(document, dict) or frozenset(document) != {
+        "schema_version",
+        "target",
+        "files",
+    }:
+        raise PackagingError(f"invalid internal archive manifest schema: {archive_name}")
+    if type(document["schema_version"]) is not int or document["schema_version"] != 1:
+        raise PackagingError(f"unsupported internal archive manifest schema: {archive_name}")
+    target = document["target"]
+    if (
+        not isinstance(target, str)
+        or target not in SUPPORTED_RUNTIME_TARGETS
+        or (expected_target is not None and target != expected_target)
+    ):
+        raise PackagingError(f"wrong internal archive target: {archive_name}")
+    files = document["files"]
+    if not isinstance(files, dict) or not files or len(files) > MAX_ARCHIVE_MEMBERS:
+        raise PackagingError(f"invalid internal archive file table: {archive_name}")
+    normalized: dict[str, str] = {}
+    for relative, digest in files.items():
+        if not isinstance(relative, str) or relative == ARCHIVE_MANIFEST_NAME:
+            raise PackagingError(f"invalid declared archive path: {relative!r}")
+        canonical = _canonical_relative_name(relative)
+        if not isinstance(digest, str) or SHA256_PATTERN.fullmatch(digest) is None:
+            raise PackagingError(f"invalid declared archive digest: {relative!r}")
+        normalized[canonical] = digest.lower()
+    _reject_name_collisions(normalized, context="manifest")
+    return normalized
 
 
-def _verify_internal_tar(path: Path) -> None:
-    """@brief Verify every file declared by a Linux archive manifest."""
-    with tarfile.open(path, "r:gz") as bundle:
-        manifest = next(
-            (
+def _digest_stream(source: BinaryIO) -> str:
+    """@brief Hash one bounded archive stream without loading the payload wholly."""
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _manifest_prefix(name: str, *, archive_name: str) -> str:
+    """@brief Validate the single-root location of an internal manifest."""
+    canonical = _canonical_relative_name(name)
+    parts = PurePosixPath(canonical).parts
+    if len(parts) != 2 or parts[1] != ARCHIVE_MANIFEST_NAME:
+        raise PackagingError(
+            f"internal archive manifest must be directly below one root: {archive_name}"
+        )
+    return f"{parts[0]}/"
+
+
+def _verify_internal_zip(path: Path, *, expected_target: str | None = None) -> None:
+    """
+    @brief      Verify exact regular-file membership and digests in one ZIP.
+    @details    Safe directory entries are allowed and ignored. The manifest is
+                the sole regular member omitted from its own ``files`` table.
+    @version    0.2.0
+    """
+    try:
+        with zipfile.ZipFile(path) as bundle:
+            infos = bundle.infolist()
+            if len(infos) > MAX_ARCHIVE_MEMBERS:
+                raise PackagingError(f"application ZIP has too many members: {path.name}")
+            _reject_name_collisions(
+                (info.filename for info in infos),
+                context="ZIP",
+            )
+            manifests = [
+                info
+                for info in infos
+                if info.filename.endswith(f"/{ARCHIVE_MANIFEST_NAME}")
+            ]
+            if len(manifests) != 1:
+                raise PackagingError(
+                    f"application archive must have exactly one internal manifest: {path.name}"
+                )
+            manifest = manifests[0]
+            prefix = _manifest_prefix(manifest.filename, archive_name=path.name)
+            regular: dict[str, zipfile.ZipInfo] = {}
+            for info in infos:
+                name = info.filename
+                canonical = _canonical_relative_name(name.rstrip("/"))
+                if not canonical.startswith(prefix.rstrip("/") + "/") and canonical != prefix.rstrip("/"):
+                    raise PackagingError(f"ZIP member is outside the archive root: {name!r}")
+                if info.flag_bits & 0x1:
+                    raise PackagingError(f"encrypted ZIP member is unsupported: {name!r}")
+                mode = info.external_attr >> 16
+                file_type = stat.S_IFMT(mode)
+                is_directory = info.is_dir()
+                if is_directory:
+                    if file_type not in {0, stat.S_IFDIR}:
+                        raise PackagingError(f"unsupported ZIP directory type: {name!r}")
+                    continue
+                if file_type not in {0, stat.S_IFREG}:
+                    raise PackagingError(f"unsupported ZIP member type: {name!r}")
+                regular[name] = info
+            if manifest.filename not in regular:
+                raise PackagingError(f"internal ZIP manifest is not a regular file: {path.name}")
+            if manifest.file_size > MAX_MANIFEST_BYTES:
+                raise PackagingError(f"internal ZIP manifest is too large: {path.name}")
+            with bundle.open(manifest) as source:
+                files = _manifest_file_table(
+                    source.read(MAX_MANIFEST_BYTES + 1),
+                    expected_target=expected_target,
+                    archive_name=path.name,
+                )
+            expected_names = {f"{prefix}{relative}" for relative in files}
+            actual_payload = set(regular) - {manifest.filename}
+            missing = sorted(expected_names - actual_payload)
+            extra = sorted(actual_payload - expected_names)
+            if missing:
+                raise PackagingError(f"archive member missing: {path.name}:{missing[0]}")
+            if extra:
+                raise PackagingError(f"undeclared archive member: {path.name}:{extra[0]}")
+            for relative, expected in files.items():
+                member = regular[f"{prefix}{relative}"]
+                with bundle.open(member) as source:
+                    actual = _digest_stream(source)
+                if actual != expected:
+                    raise PackagingError(
+                        f"archive member hash mismatch: {path.name}:{relative}"
+                    )
+    except PackagingError:
+        raise
+    except (OSError, EOFError, RuntimeError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+        raise PackagingError(f"invalid application ZIP {path.name}: {exc}") from exc
+
+
+def _verify_internal_tar(path: Path, *, expected_target: str | None = None) -> None:
+    """
+    @brief      Verify exact regular-file membership and digests in one tar.gz.
+    @details    Safe directory entries are allowed and ignored. Links, devices,
+                FIFOs, and every other non-regular payload type are rejected.
+    @version    0.2.0
+    """
+    try:
+        with tarfile.open(path, "r:gz") as bundle:
+            members = bundle.getmembers()
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                raise PackagingError(f"application tar has too many members: {path.name}")
+            _reject_name_collisions(
+                (member.name.rstrip("/") for member in members),
+                context="tar",
+            )
+            manifests = [
                 member
-                for member in bundle.getmembers()
-                if member.name.endswith("/archive-manifest.json")
-            ),
-            None,
-        )
-        if manifest is None:
-            raise PackagingError(f"application archive has no internal manifest: {path.name}")
-        source = bundle.extractfile(manifest)
-        if source is None:
-            raise PackagingError(f"cannot read internal archive manifest: {path.name}")
-        document = json.loads(source.read())
-        prefix = manifest.name[: -len("archive-manifest.json")]
-        members = {member.name: member for member in bundle.getmembers()}
-        for relative, expected in document.get("files", {}).items():
-            member = members.get(prefix + relative)
-            source = bundle.extractfile(member) if member is not None else None
-            if source is None or hashlib.sha256(source.read()).hexdigest() != expected:
-                raise PackagingError(f"archive member hash mismatch: {path.name}:{relative}")
+                for member in members
+                if member.name.endswith(f"/{ARCHIVE_MANIFEST_NAME}")
+            ]
+            if len(manifests) != 1:
+                raise PackagingError(
+                    f"application archive must have exactly one internal manifest: {path.name}"
+                )
+            manifest = manifests[0]
+            prefix = _manifest_prefix(manifest.name, archive_name=path.name)
+            regular: dict[str, tarfile.TarInfo] = {}
+            for member in members:
+                name = member.name.rstrip("/")
+                canonical = _canonical_relative_name(name)
+                if not canonical.startswith(prefix.rstrip("/") + "/") and canonical != prefix.rstrip("/"):
+                    raise PackagingError(f"tar member is outside the archive root: {name!r}")
+                if member.isdir():
+                    continue
+                if not member.isfile():
+                    raise PackagingError(f"unsupported tar member type: {name!r}")
+                regular[name] = member
+            if not manifest.isfile() or manifest.size > MAX_MANIFEST_BYTES:
+                raise PackagingError(f"invalid internal tar manifest: {path.name}")
+            source = bundle.extractfile(manifest)
+            if source is None:
+                raise PackagingError(f"cannot read internal archive manifest: {path.name}")
+            with source:
+                files = _manifest_file_table(
+                    source.read(MAX_MANIFEST_BYTES + 1),
+                    expected_target=expected_target,
+                    archive_name=path.name,
+                )
+            expected_names = {f"{prefix}{relative}" for relative in files}
+            actual_payload = set(regular) - {manifest.name}
+            missing = sorted(expected_names - actual_payload)
+            extra = sorted(actual_payload - expected_names)
+            if missing:
+                raise PackagingError(f"archive member missing: {path.name}:{missing[0]}")
+            if extra:
+                raise PackagingError(f"undeclared archive member: {path.name}:{extra[0]}")
+            for relative, expected in files.items():
+                source = bundle.extractfile(regular[f"{prefix}{relative}"])
+                if source is None:
+                    raise PackagingError(f"archive member missing: {path.name}:{relative}")
+                with source:
+                    actual = _digest_stream(source)
+                if actual != expected:
+                    raise PackagingError(
+                        f"archive member hash mismatch: {path.name}:{relative}"
+                    )
+    except PackagingError:
+        raise
+    except (OSError, EOFError, ValueError, KeyError, tarfile.TarError) as exc:
+        raise PackagingError(f"invalid application tar {path.name}: {exc}") from exc
 
 
 def _read_complete_bundle_manifest(path: Path) -> dict[str, Any]:
@@ -887,18 +1827,20 @@ def _validate_complete_companion(
     *,
     expected_platform: str,
     source_info: Mapping[str, Any] | None = None,
+    expected_epoch: int | None = None,
 ) -> None:
     """
     @brief      Reject stale or mismatched cross-platform Complete companions.
     @param[in]  path Complete archive to validate.
     @param[in]  expected_platform Platform encoded by the artifact name.
     @param[in]  source_info Optional current RepoWise source identity.
+    @param[in]  expected_epoch Optional normalized release build epoch.
     @return     None.
     @exception  PackagingError If edition, version, platform, tag, or commit
                 differs from the current native build.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-29
-    @version    0.1.0
+    @version    0.2.0
     """
     document = _read_complete_bundle_manifest(path)
     if (
@@ -906,6 +1848,14 @@ def _validate_complete_companion(
         or document.get("edition") != "complete"
         or document.get("repowise_version") != REPOWISE_VERSION
         or document.get("platform") != expected_platform
+        or type(document.get("build_epoch")) is not int
+        or document["build_epoch"] < ZIP_MIN_EPOCH
+        or document["build_epoch"] > MAX_BUILD_EPOCH
+        or document["build_epoch"] % 2
+        or (
+            expected_epoch is not None
+            and document["build_epoch"] != expected_epoch
+        )
     ):
         raise PackagingError(f"mismatched Complete archive metadata: {path.name}")
     source = document.get("source")
@@ -930,15 +1880,66 @@ def _validate_complete_companion(
         )
 
 
-def _build_zipapp(output: Path) -> Path:
-    """@brief Build the standalone payload-bundled WAEGIS zipapp."""
+def _verify_zipapp(path: Path) -> None:
+    """@brief Validate one generated zipapp before atomic publication."""
+    try:
+        with zipfile.ZipFile(path) as bundle:
+            infos = bundle.infolist()
+            _reject_name_collisions(
+                (info.filename for info in infos),
+                context="zipapp",
+            )
+            if sum(info.filename == "__main__.py" for info in infos) != 1:
+                raise PackagingError("zipapp must contain exactly one __main__.py")
+            for info in infos:
+                if info.is_dir() or info.flag_bits & 0x1:
+                    raise PackagingError(
+                        f"zipapp contains an unsupported member: {info.filename!r}"
+                    )
+                mode = info.external_attr >> 16
+                if stat.S_IFMT(mode) not in {0, stat.S_IFREG}:
+                    raise PackagingError(
+                        f"zipapp contains an unsupported member type: {info.filename!r}"
+                    )
+                with bundle.open(info) as source:
+                    while source.read(1024 * 1024):
+                        pass
+    except PackagingError:
+        raise
+    except (OSError, EOFError, RuntimeError, ValueError, zipfile.BadZipFile) as exc:
+        raise PackagingError(f"invalid generated zipapp: {exc}") from exc
+
+
+def _build_zipapp(output: Path, *, epoch: int) -> Path:
+    """@brief Build the deterministic standalone payload-bundled WAEGIS zipapp.
+    @version 0.2.0
+    """
     with tempfile.TemporaryDirectory(prefix="waegis-pyz-") as temporary_text:
         staging = Path(temporary_text)
         _copy_tree(SOURCE_ROOT / "waegis", staging / "waegis")
         _copy_tree(PAYLOAD_ROOT, staging / "waegis" / "_bundled_payload")
-        temporary = output.with_name(output.name + ".tmp")
-        zipapp.create_archive(staging, target=temporary, main="waegis.cli:main")
-        os.replace(temporary, output)
+        (staging / "__main__.py").write_text(
+            "# -*- coding: utf-8 -*-\n"
+            "from waegis.cli import main\n"
+            "main()\n",
+            encoding="utf-8",
+            newline="",
+        )
+        entries = [
+            (
+                _canonical_relative_name(path.relative_to(staging).as_posix()),
+                path,
+                False,
+            )
+            for path in staging.rglob("*")
+            if path.is_file()
+        ]
+        _write_deterministic_zip(
+            output,
+            entries,
+            epoch=epoch,
+            verify=_verify_zipapp,
+        )
     return output
 
 
@@ -982,6 +1983,7 @@ def _build_application_archive(
     output: Path,
     runtime_cache: Path,
     offline: bool,
+    epoch: int,
     repowise_source: Mapping[str, Any] | None = None,
 ) -> Path:
     """
@@ -999,7 +2001,7 @@ def _build_application_archive(
                 validation inputs fail.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
     runtime_archive = _download_runtime(target, runtime_cache, offline=offline)
     with tempfile.TemporaryDirectory(prefix=f"waegis-{target}-") as temporary_text:
@@ -1019,6 +2021,7 @@ def _build_application_archive(
                 destination=staging / "repowise",
                 runtime_cache=runtime_cache,
                 offline=offline,
+                epoch=epoch,
             )
         if target == "windows-x64":
             (staging / "waegis.cmd").write_text(
@@ -1035,36 +2038,46 @@ def _build_application_archive(
             )
             launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         _write_archive_manifest(staging, target=target)
-        temporary = output.with_name(output.name + ".tmp")
-        if target == "windows-x64":
-            with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-                for path in sorted(staging.rglob("*")):
-                    if path.is_file():
-                        bundle.write(path, path.relative_to(staging.parent).as_posix())
-        else:
-            executable_paths = frozenset(
-                {"waegis", relative_python}
+        executable_paths = frozenset(
+            (
+                {"waegis.cmd" if target == "windows-x64" else "waegis", relative_python}
                 | {f"runtime/{path}" for path in runtime_executables}
                 | {f"repowise/{path}" for path in repowise_executables}
             )
-            with tarfile.open(temporary, "w:gz") as bundle:
-                bundle.add(
+        )
+        if target == "windows-x64":
+            _write_deterministic_zip(
+                output,
+                _tree_entries(
                     staging,
-                    arcname=staging.name,
-                    filter=lambda member: _linux_tar_filter(
-                        member,
-                        root_name=staging.name,
-                        executable_paths=executable_paths,
-                    ),
-                )
-        os.replace(temporary, output)
+                    archive_root=staging.name,
+                    executable_paths=executable_paths,
+                ),
+                epoch=epoch,
+                verify=lambda path: _verify_internal_zip(
+                    path,
+                    expected_target=target,
+                ),
+            )
+        else:
+            _write_deterministic_tar_gz(
+                output,
+                staging,
+                archive_root=staging.name,
+                executable_paths=executable_paths,
+                epoch=epoch,
+                verify=lambda path: _verify_internal_tar(
+                    path,
+                    expected_target=target,
+                ),
+            )
     return output
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
-def build_release(
+def _build_release_impl(
     output: Path,
     *,
     runtime_cache: Path,
@@ -1074,7 +2087,7 @@ def build_release(
     complete_target: str | None = None,
 ) -> list[Path]:
     """
-    @brief      Build Core artifacts and an optional native Complete artifact.
+    @brief      Implement Core and optional native Complete artifact assembly.
     @param[in]  output Release output directory.
     @param[in]  runtime_cache Pinned embedded-runtime and wheel cache.
     @param[in]  offline Refuse build-time downloads when true.
@@ -1082,18 +2095,18 @@ def build_release(
     @param[in]  repowise_source Optional clean RepoWise source checkout.
     @param[in]  complete_target Optional native Complete platform.
     @return     Paths to the release artifacts represented by the manifest.
-    @details    A previously built opposite-platform Complete companion is
+    @details    One normalized SOURCE_DATE_EPOCH, source-commit timestamp, or
+                fixed fallback drives every archive entry and gzip header. A
+                previously built opposite-platform Complete companion is
                 included only when its RepoWise tag and commit match the
                 source used for the current native build.
     @exception  PackagingError If source, native runtime, archive, or companion
                 validation fails.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-29
-    @version    0.6.0
+    @version    0.7.0
     """
-    sys.path.insert(0, str(SOURCE_ROOT))
-    from waegis.version import WIZARD_VERSION
-
+    wizard_version = _wizard_version()
     source_info = (
         _validate_repowise_source(repowise_source)
         if repowise_source is not None
@@ -1103,8 +2116,9 @@ def build_release(
         raise PackagingError("RepoWise Complete cannot be produced with --zipapp-only")
     if complete_target is not None and source_info is None:
         raise PackagingError("--complete-target requires --repowise-source")
+    epoch = _canonical_build_epoch()
     output.mkdir(parents=True, exist_ok=True)
-    pyz = _build_zipapp(output / ZIPAPP_NAME)
+    pyz = _build_zipapp(output / ZIPAPP_NAME, epoch=epoch)
     artifacts = [pyz]
     if not zipapp_only:
         artifacts.append(
@@ -1114,6 +2128,7 @@ def build_release(
                 output=output / WINDOWS_ARCHIVE_NAME,
                 runtime_cache=runtime_cache,
                 offline=offline,
+                epoch=epoch,
             )
         )
         artifacts.append(
@@ -1123,6 +2138,7 @@ def build_release(
                 output=output / LINUX_ARCHIVE_NAME,
                 runtime_cache=runtime_cache,
                 offline=offline,
+                epoch=epoch,
             )
         )
         if source_info is not None:
@@ -1147,6 +2163,7 @@ def build_release(
                     output=output / complete_name,
                     runtime_cache=runtime_cache,
                     offline=offline,
+                    epoch=epoch,
                     repowise_source=source_info,
                 )
             )
@@ -1163,6 +2180,7 @@ def build_release(
                     other_complete,
                     expected_platform=other_platform,
                     source_info=source_info,
+                    expected_epoch=epoch,
                 )
                 artifacts.append(other_complete)
     hashes = {path.name: sha256_file(path) for path in artifacts}
@@ -1181,11 +2199,12 @@ def build_release(
     # trailing carriage return and fail every entry, which reads as a corrupt
     # download rather than as a packaging bug. Building on Windows must not
     # produce different bytes here than building on Linux.
-    release_manifest.write_text(
+    manifest_content = (
         json.dumps(
             {
                 "schema_version": 1,
-                "waegis_version": WIZARD_VERSION,
+                "build_epoch": epoch,
+                "waegis_version": wizard_version,
                 "repowise_version": REPOWISE_VERSION if source_info is not None else None,
                 "artifacts": hashes,
                 "artifact_metadata": metadata,
@@ -1193,19 +2212,51 @@ def build_release(
             indent=2,
             sort_keys=True,
         )
-        + "\n",
-        encoding="utf-8",
-        newline="",
+        + "\n"
     )
-    (output / "SHA256SUMS").write_text(
-        "".join(f"{digest}  {name}\n" for name, digest in sorted(hashes.items())),
-        encoding="utf-8",
-        newline="",
+    _atomic_write_bytes(release_manifest, manifest_content.encode("utf-8"))
+    _atomic_write_bytes(
+        output / "SHA256SUMS",
+        "".join(
+            f"{digest}  {name}\n"
+            for name, digest in sorted(hashes.items(), key=lambda item: item[0])
+        ).encode("utf-8"),
     )
     return artifacts
 
 
-def verify_release(output: Path) -> None:
+def build_release(
+    output: Path,
+    *,
+    runtime_cache: Path,
+    offline: bool,
+    zipapp_only: bool,
+    repowise_source: Path | None = None,
+    complete_target: str | None = None,
+) -> list[Path]:
+    """
+    @brief      Build reproducible WAEGIS release artifacts.
+    @return     Paths represented by deterministic release metadata.
+    @exception  PackagingError For every ordinary input, filesystem, tool,
+                download, staging, archive, or publication failure.
+    @version    0.1.0
+    """
+    try:
+        return _build_release_impl(
+            output,
+            runtime_cache=runtime_cache,
+            offline=offline,
+            zipapp_only=zipapp_only,
+            repowise_source=repowise_source,
+            complete_target=complete_target,
+        )
+    except PackagingError:
+        raise
+    except Exception as exc:
+        raise PackagingError(f"release build failed: {exc}") from exc
+
+
+def _verify_release_impl(output: Path) -> None:
     """
     @brief      Verify release hashes, archive manifests, and Complete identity.
     @param[in]  output Release output directory.
@@ -1214,30 +2265,113 @@ def verify_release(output: Path) -> None:
                 Complete bundle identity validation fails.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-29
-    @version    0.6.0
+    @version    0.7.0
     """
     manifest_path = output / "release-manifest.json"
     try:
-        document = json.loads(manifest_path.read_text(encoding="utf-8"))
-        artifacts = document["artifacts"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        document = _strict_json_loads(
+            manifest_path.read_text(encoding="utf-8"),
+            context=f"release manifest {manifest_path}",
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise PackagingError(f"invalid release manifest: {manifest_path}") from exc
-    if not isinstance(artifacts, dict):
+    if not isinstance(document, dict) or frozenset(document) != {
+        "schema_version",
+        "build_epoch",
+        "waegis_version",
+        "repowise_version",
+        "artifacts",
+        "artifact_metadata",
+    }:
+        raise PackagingError(f"invalid release manifest schema: {manifest_path}")
+    if type(document["schema_version"]) is not int or document["schema_version"] != 1:
+        raise PackagingError(f"unsupported release manifest schema: {manifest_path}")
+    epoch = document["build_epoch"]
+    if (
+        type(epoch) is not int
+        or epoch < ZIP_MIN_EPOCH
+        or epoch > MAX_BUILD_EPOCH
+        or epoch % 2
+    ):
+        raise PackagingError(f"invalid release build epoch: {manifest_path}")
+    if (
+        not isinstance(document["waegis_version"], str)
+        or SAFE_VERSION_PATTERN.fullmatch(document["waegis_version"]) is None
+        or document["repowise_version"] not in {None, REPOWISE_VERSION}
+    ):
+        raise PackagingError(f"invalid release version metadata: {manifest_path}")
+    artifacts = document["artifacts"]
+    artifact_metadata = document["artifact_metadata"]
+    if not isinstance(artifacts, dict) or not artifacts:
         raise PackagingError(f"invalid artifact table: {manifest_path}")
+    if not isinstance(artifact_metadata, dict) or set(artifact_metadata) != set(artifacts):
+        raise PackagingError(f"invalid artifact metadata table: {manifest_path}")
+    allowed_names = {
+        ZIPAPP_NAME,
+        WINDOWS_ARCHIVE_NAME,
+        LINUX_ARCHIVE_NAME,
+        COMPLETE_WINDOWS_ARCHIVE_NAME,
+        COMPLETE_LINUX_ARCHIVE_NAME,
+    }
+    names: list[str] = []
+    for name, expected in artifacts.items():
+        if (
+            not isinstance(name, str)
+            or name not in allowed_names
+            or Path(name).name != name
+            or not isinstance(expected, str)
+            or SHA256_PATTERN.fullmatch(expected) is None
+        ):
+            raise PackagingError(f"invalid release artifact entry: {name!r}")
+        metadata = artifact_metadata[name]
+        if (
+            not isinstance(metadata, dict)
+            or frozenset(metadata) != {"sha256", "size", "edition"}
+            or metadata["sha256"] != expected
+            or type(metadata["size"]) is not int
+            or metadata["size"] <= 0
+            or metadata["edition"] not in {"core", "complete"}
+            or (
+                metadata["edition"] == "complete"
+                and not name.startswith("waegis-complete-")
+            )
+            or (
+                metadata["edition"] == "core"
+                and name.startswith("waegis-complete-")
+            )
+        ):
+            raise PackagingError(f"invalid release artifact metadata: {name!r}")
+        names.append(name)
+    _reject_name_collisions(names, context="release")
     expected_sum_lines: list[str] = []
-    for name, expected in sorted(artifacts.items()):
+    for name, expected in sorted(artifacts.items(), key=lambda item: str(item[0])):
         path = output / str(name)
-        if not path.is_file() or sha256_file(path) != expected:
+        if (
+            not path.is_file()
+            or path.is_symlink()
+            or path.stat().st_size != artifact_metadata[name]["size"]
+            or sha256_file(path) != expected.lower()
+        ):
             raise PackagingError(f"release artifact hash mismatch: {name}")
         expected_sum_lines.append(f"{expected}  {name}\n")
-        if str(name).endswith("-windows-x64.zip"):
-            _verify_internal_zip(path)
+        if name == ZIPAPP_NAME:
+            _verify_zipapp(path)
+        elif str(name).endswith("-windows-x64.zip"):
+            _verify_internal_zip(path, expected_target="windows-x64")
             if str(name).startswith("waegis-complete-"):
-                _validate_complete_companion(path, expected_platform="windows-x64")
+                _validate_complete_companion(
+                    path,
+                    expected_platform="windows-x64",
+                    expected_epoch=epoch,
+                )
         elif str(name).endswith("-linux-x64.tar.gz"):
-            _verify_internal_tar(path)
+            _verify_internal_tar(path, expected_target="linux-x64")
             if str(name).startswith("waegis-complete-"):
-                _validate_complete_companion(path, expected_platform="linux-x64")
+                _validate_complete_companion(
+                    path,
+                    expected_platform="linux-x64",
+                    expected_epoch=epoch,
+                )
     sums = output / "SHA256SUMS"
     try:
         actual_sums = sums.read_text(encoding="utf-8")
@@ -1245,6 +2379,21 @@ def verify_release(output: Path) -> None:
         raise PackagingError(f"missing release checksum file: {sums}") from exc
     if actual_sums != "".join(expected_sum_lines):
         raise PackagingError(f"release checksum file does not match manifest: {sums}")
+
+
+def verify_release(output: Path) -> None:
+    """
+    @brief      Verify release metadata and every represented artifact.
+    @exception  PackagingError For every ordinary metadata, filesystem, or
+                archive failure.
+    @version    0.1.0
+    """
+    try:
+        _verify_release_impl(output)
+    except PackagingError:
+        raise
+    except Exception as exc:
+        raise PackagingError(f"release verification failed: {exc}") from exc
 
 
 def main(argv: list[str] | None = None) -> int:

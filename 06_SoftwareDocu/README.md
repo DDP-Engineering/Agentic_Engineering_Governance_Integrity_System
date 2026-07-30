@@ -32,6 +32,10 @@ documentation ships with the template:
   ownership binding, strict recovery validation, repository-scoped
   serialization, RepoWise manifest-last crash recovery, dry-run behavior,
   legacy-state refusal, and manual remediation.
+- `WAEGIS_RELEASE_REPRODUCIBILITY.md` - canonical build epoch, byte-identity
+  inputs and toolchain limits, deterministic ZIP/tar/gzip metadata, strict
+  runtime locks/downloads, exact internal verification, link graphs, atomic
+  publication, and the real-artifact reproduction procedure.
 
 Presentation material maintained in this folder (AEGIS 2.1 / WAEGIS 1.1):
 
