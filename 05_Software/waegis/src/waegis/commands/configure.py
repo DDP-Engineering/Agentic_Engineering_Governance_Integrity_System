@@ -16,7 +16,7 @@
          metadata is written to the install manifest last.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.3.1
+@version 0.4.0
 """
 
 # IMPORTS
@@ -29,6 +29,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import IO, Any, Mapping
 
+from ..consent import ConsentDecision, mutation_consent
 from ..io.answers import AnswersFileError, load_answers_file
 from ..io.envelope import (
     EXIT_NEEDS_INPUT,
@@ -58,7 +59,7 @@ from ..repo.workflow_toml import (
 from ..repowise import REPOWISE_ANSWER_KEYS, RepoWiseError, lifecycle_repowise
 from ..verification import smoke_reverify
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
-from ..transaction import FileTransaction, recover_incomplete_transactions
+from ..transaction import FileTransaction, pending_transaction_ids, recover_incomplete_transactions
 from .new import OTHER_LANGUAGE_FIELD_SPECS, WORKFLOW_TOML_RELATIVE_PATH
 
 # CONSTANTS
@@ -238,7 +239,7 @@ def run_configure(
     @exception  None All failures are rendered through the selected surface.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.3.1
+    @version    0.4.0
     """
     repo_path = Path(repo).resolve()
     if as_json:
@@ -252,7 +253,27 @@ def run_configure(
             messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
         )
     try:
-        recovered = recover_incomplete_transactions(repo_path)
+        pending = () if dry_run else pending_transaction_ids(repo_path)
+        recovery_consent = mutation_consent(
+            mutation_planned=bool(pending),
+            yes=yes,
+            asker=(
+                ConsoleAsker(stdin=stdin, stdout=stream)
+                if not non_interactive and stdin is not None
+                else None
+            ),
+            prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
+        )
+        if recovery_consent is not ConsentDecision.APPROVED:
+            return _emit(
+                stream,
+                as_json=as_json,
+                status="needs-input",
+                exit_code=EXIT_NEEDS_INPUT,
+                plan={"recovery": list(pending)},
+                messages=("transaction recovery requires explicit approval",),
+            )
+        recovered = () if dry_run else recover_incomplete_transactions(repo_path)
     except (OSError, ValueError) as exc:
         return _emit(
             stream,
@@ -314,7 +335,7 @@ def run_configure(
         analysis = analyze_repo(repo_path, runner=active_runner)
     except Exception:  # noqa: BLE001 - proposals are optional
         analysis = None
-    asker = None if non_interactive else ConsoleAsker(stdin=stdin or sys.stdin, stdout=stream)
+    asker = None if non_interactive or stdin is None else ConsoleAsker(stdin=stdin, stdout=stream)
     stored = _stored_answers(manifest.configuration)
     try:
         resolved = _resolve_answers(
@@ -356,7 +377,10 @@ def run_configure(
         "warnings": [warning.message for warning in generated.warnings],
         "recovered_transactions": list(recovered),
         **controls,
-        "repowise_requested": bool(REPOWISE_ANSWER_KEYS.intersection(supplied)) or not non_interactive,
+        "repowise_requested": bool(REPOWISE_ANSWER_KEYS.intersection(supplied)),
+        "repowise": {
+            key: supplied[key] for key in sorted(REPOWISE_ANSWER_KEYS.intersection(supplied))
+        },
     }
     if dry_run:
         return _emit(stream, as_json=as_json, status="ok", exit_code=EXIT_OK, plan=plan)
@@ -370,23 +394,21 @@ def run_configure(
             plan=plan,
             result={"configured": False, "no_op": True},
         )
-    if non_interactive and not yes:
+    consent = mutation_consent(
+        mutation_planned=True, yes=yes, asker=asker, prompt="Apply this configuration plan?"
+    )
+    if consent is not ConsentDecision.APPROVED:
         return _emit(
             stream,
             as_json=as_json,
             status="needs-input",
             exit_code=EXIT_NEEDS_INPUT,
             plan=plan,
-            messages=("non-interactive mutation requires --yes",),
-        )
-    if not yes and asker is not None and not asker.confirm("Apply this configuration plan?", default=True):
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan=plan,
-            messages=("configuration plan was not approved",),
+            messages=(
+                "configuration plan was not approved"
+                if consent is ConsentDecision.DECLINED
+                else "configuration mutation requires explicit --yes or an interactive approval",
+            ),
         )
 
     temporary = workflow_path.with_name(workflow_path.name + ".waegis-tmp")
@@ -432,6 +454,8 @@ def run_configure(
             temporary.unlink()
         if transaction is not None and transaction.directory.exists():
             transaction.rollback()
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
         return _emit(
             stream,
             as_json=as_json,
@@ -453,6 +477,7 @@ def run_configure(
                 interactive=not non_interactive,
                 asker=asker,
                 stream=None if as_json else stream,
+                yes=yes,
             )
         except (OSError, RepoWiseError) as exc:
             repowise_error = str(exc)

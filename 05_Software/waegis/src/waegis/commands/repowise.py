@@ -11,7 +11,7 @@
 @brief Public WAEGIS RepoWise status and synchronization command handlers.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.0.0
+@version 1.1.0
 """
 
 # IMPORTS
@@ -21,7 +21,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import IO
 
-from ..io.envelope import EXIT_OK, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
+from ..consent import ConfirmationAsker, ConsentDecision, mutation_consent
+from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OK, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
 from ..repowise import RepoWiseError, repowise_status, sync_repowise
 
 
@@ -77,7 +78,14 @@ def run_repowise_status(repo: Path, *, as_json: bool, stream: IO[str]) -> int:
     return EXIT_OK
 
 
-def run_repowise_sync(repo: Path, *, as_json: bool, stream: IO[str]) -> int:
+def run_repowise_sync(
+    repo: Path,
+    *,
+    as_json: bool,
+    stream: IO[str],
+    yes: bool = False,
+    asker: ConfirmationAsker | None = None,
+) -> int:
     """
     @brief Run managed RepoWise synchronization and artifact validation.
     @param[in] repo Target repository.
@@ -89,6 +97,42 @@ def run_repowise_sync(repo: Path, *, as_json: bool, stream: IO[str]) -> int:
     @date 2026-07-29
     @version 1.0.0
     """
+    try:
+        status_report = repowise_status(repo)
+    except RepoWiseError as exc:
+        if as_json:
+            return write_envelope(
+                stream, "repowise sync", status="failed", exit_code=EXIT_VALIDATION, messages=(str(exc),)
+            )
+        stream.write(f"error: {exc}\n")
+        return EXIT_VALIDATION
+    if status_report.get("current") is True:
+        plan = {"repo": str(repo.resolve()), "action": "no-op"}
+    else:
+        plan = {"repo": str(repo.resolve()), "action": "synchronize-index"}
+    consent = mutation_consent(
+        mutation_planned=plan["action"] != "no-op",
+        yes=yes,
+        asker=None if as_json else asker,
+        prompt="Synchronize the RepoWise index?",
+    )
+    if consent is not ConsentDecision.APPROVED:
+        message = (
+            "RepoWise synchronization was not approved"
+            if consent is ConsentDecision.DECLINED
+            else "RepoWise synchronization requires explicit --yes or an interactive approval"
+        )
+        if as_json:
+            return write_envelope(
+                stream,
+                "repowise sync",
+                status="needs-input",
+                exit_code=EXIT_NEEDS_INPUT,
+                plan=plan,
+                messages=(message,),
+            )
+        stream.write(message + "\n")
+        return EXIT_NEEDS_INPUT
     try:
         result = sync_repowise(repo, stream=None if as_json else stream)
     except RepoWiseError as exc:

@@ -40,9 +40,23 @@ waegis repowise sync --repo PATH
 waegis version [--json]
 ```
 
-Mutating commands support the existing dry-run, answers, non-interactive,
-confirmation, JSON, and payload selection controls shown by `--help`. WAEGIS is
-offline-first; subprocess access uses injectable runners.
+Every mutating invocation uses one approval contract. `--yes` explicitly
+approves the displayed mutation plan. Without it, a human command may ask
+through its live console; programmatic calls without an asker, `--json`, and
+`--non-interactive` return `needs-input` before transaction recovery, journal
+creation, target creation, branch creation, or file writes. A no-op plan and
+`--dry-run` need no approval; dry runs remain read-only. Standalone
+`repowise sync` follows the same rule and accepts `--yes` and
+`--non-interactive`. WAEGIS is offline-first; subprocess access uses injectable
+runners.
+
+`clone_url` accepts the existing HTTPS, SSH, SCP-style, `file://`, and local
+path forms, but rejects empty non-optional values, control characters, and any
+value whose first non-whitespace character is `-`. Clone execution uses
+`git clone -- <repo> <dir>`, and credential-bearing URLs are sanitized before
+reporting. Adoption and upgrade branch names share Git-compatible ref
+validation: empty, option-like, control-character, traversal-like, reserved,
+and otherwise invalid ref names are rejected before branch creation.
 
 ## Schema-3 Configuration
 
@@ -65,10 +79,14 @@ execute, and report the five groups in fixed order.
 
 ## RepoWise Lifecycle
 
-Interactive `new`, `adopt`, `upgrade`, and `configure` offer bundled RepoWise
-when running Complete, otherwise an external link. `--yes` approves the WAEGIS
-plan but never opts into RepoWise or a long synchronization. Non-interactive
-execution defaults to disabled unless the answers file explicitly supplies:
+Interactive `new`, `adopt`, and `upgrade` offer bundled RepoWise when running
+Complete, otherwise an external link; `configure` changes RepoWise only when
+RepoWise answers are explicitly supplied. `--yes` never chooses a RepoWise
+source or indexing action: those choices must be interactive or present in the
+answers file. Any resulting RepoWise configuration plan is displayed and
+covered by explicit approval, while indexing remains a separate decision.
+Non-interactive execution defaults to disabled unless the answers file
+explicitly supplies:
 
 ```toml
 repowise_source = "disabled" # disabled | bundled | external

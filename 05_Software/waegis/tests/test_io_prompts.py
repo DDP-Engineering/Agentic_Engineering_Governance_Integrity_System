@@ -285,4 +285,20 @@ def test_field_spec_normalize_raises_without_default() -> None:
         spec.normalize("")
 
 
+def test_console_confirmation_distinguishes_eof_from_blank_default_yes() -> None:
+    """@brief EOF declines while a real blank line may accept the stated default."""
+    eof_asker, _ = _console("")
+    blank_asker, _ = _console("\n")
+    assert eof_asker.confirm("Mutate?", default=True) is False
+    assert blank_asker.confirm("Mutate?", default=True) is True
+
+
+def test_scripted_confirmation_queue_exhaustion_fails_closed() -> None:
+    """@brief A finite scripted queue never turns exhaustion into approval."""
+    asker = ScriptedAsker(confirms=[False])
+    assert asker.confirm("first") is False
+    with pytest.raises(MissingAnswerError):
+        asker.confirm("second")
+
+
 # END OF FILE

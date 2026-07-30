@@ -40,6 +40,8 @@ from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO, Any, Mapping, Sequence
+
+from .consent import ConsentDecision, mutation_consent
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -972,6 +974,7 @@ def lifecycle_repowise(
     asker: Any | None,
     stream: IO[str] | None,
     home: Path | None = None,
+    yes: bool = False,
 ) -> dict[str, Any]:
     """
     @brief Resolve, configure, and optionally synchronize RepoWise after lifecycle success.
@@ -993,6 +996,8 @@ def lifecycle_repowise(
     """
     from .io.prompts import FieldSpec
 
+    if interactive and asker is None:
+        raise RepoWiseError("interactive RepoWise planning requires an asker")
     edition = distribution_edition()
     explicit_source = answers.get("repowise_source")
     source: str
@@ -1084,6 +1089,27 @@ def lifecycle_repowise(
             )
     settings = settings_from_answers(resolved)
     current = repowise_status(repo)
+    configuration_planned = not (
+        settings.source == "disabled" and current["mode"] == "disabled"
+    )
+    if configuration_planned and stream is not None:
+        stream.write(
+            "RepoWise plan: configure "
+            f"source={settings.source}, enforcement={settings.enforcement}; "
+            "indexing remains a separate decision.\n"
+        )
+    consent = mutation_consent(
+        mutation_planned=configuration_planned,
+        yes=yes,
+        asker=asker if interactive else None,
+        prompt="Apply this RepoWise configuration plan?",
+    )
+    if consent is not ConsentDecision.APPROVED:
+        raise RepoWiseError(
+            "RepoWise configuration was not approved"
+            if consent is ConsentDecision.DECLINED
+            else "RepoWise configuration requires explicit approval"
+        )
     if settings.source == "disabled" and current["mode"] == "disabled":
         configured = {
             "source": "disabled",

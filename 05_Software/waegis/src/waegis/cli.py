@@ -15,7 +15,7 @@
          existing-install commands use their documented ``--repo`` contracts.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.8.0
+@version 0.9.0
 """
 
 # IMPORTS
@@ -108,6 +108,7 @@ def _handle_new(args: argparse.Namespace) -> int:
         yes=args.yes,
         as_json=args.json,
         payload=args.payload,
+        stdin=sys.stdin,
     )
 
 
@@ -156,6 +157,7 @@ def _handle_adopt(args: argparse.Namespace) -> int:
         yes=args.yes,
         as_json=args.json,
         payload=args.payload,
+        stdin=sys.stdin,
     )
 
 
@@ -285,7 +287,14 @@ def _handle_repowise(args: argparse.Namespace) -> int:
     repo = Path(args.repo)
     if args.repowise_action == "status":
         return run_repowise_status(repo, as_json=args.json, stream=sys.stdout)
-    return run_repowise_sync(repo, as_json=args.json, stream=sys.stdout)
+    asker = None if args.json or args.non_interactive else ConsoleAsker(stdin=sys.stdin, stdout=sys.stdout)
+    return run_repowise_sync(
+        repo,
+        as_json=args.json,
+        stream=sys.stdout,
+        yes=args.yes,
+        asker=asker,
+    )
 
 
 def _add_repowise_parser(sub: argparse._SubParsersAction) -> None:
@@ -307,6 +316,8 @@ def _add_repowise_parser(sub: argparse._SubParsersAction) -> None:
     sync = actions.add_parser("sync", help="Initialize, resume, update, or verify the index")
     sync.add_argument("--repo", required=True, help="Repository root to index")
     sync.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
+    sync.add_argument("--non-interactive", action="store_true", help="Never prompt; mutation requires --yes")
+    sync.add_argument("--yes", action="store_true", help="Approve the displayed synchronization plan")
     sync.set_defaults(handler=_handle_repowise)
 
 

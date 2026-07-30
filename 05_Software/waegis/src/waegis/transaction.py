@@ -18,7 +18,7 @@
          wrap their payload writes without restating the protocol.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-23
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -257,6 +257,29 @@ def recover_incomplete_transactions(repo: Path) -> tuple[str, ...]:
         elif directory.exists():
             transaction.cleanup()
     return tuple(recovered)
+
+
+def pending_transaction_ids(repo: Path) -> tuple[str, ...]:
+    """
+    @brief List non-terminal transactions without changing repository state.
+    @param[in] repo Repository root to inspect.
+    @return Stable transaction identifiers in directory order.
+    @exception OSError If transaction state cannot be read.
+    @exception ValueError If a present transaction state document is malformed.
+    @author Eng. Dan Dumitru Pasare
+    @version 0.1.0
+    """
+    root = resolve_managed_path(repo.resolve(), TRANSACTION_DIRECTORY)
+    if not root.is_dir():
+        return ()
+    pending: list[str] = []
+    for directory in sorted(path for path in root.iterdir() if path.is_dir()):
+        if not (directory / "state.json").is_file():
+            continue
+        transaction = FileTransaction.load(repo, directory)
+        if transaction.state.get("phase") not in _TERMINAL_PHASES:
+            pending.append(str(transaction.state.get("id", directory.name)))
+    return tuple(pending)
 
 
 # END OF FILE

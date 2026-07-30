@@ -81,7 +81,7 @@
          through Node, which nothing checked for before this step existed.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 1.1.0
+@version 1.2.0
 """
 
 # IMPORTS
@@ -99,6 +99,7 @@ from pathlib import Path
 from typing import IO, Any, Mapping, Sequence
 from urllib.parse import urlsplit
 
+from ..consent import ConsentDecision, mutation_consent
 from ..engine import (
     Automation,
     Catalog,
@@ -160,7 +161,7 @@ from ..repowise import (
     commit_repowise_configuration,
     lifecycle_repowise,
 )
-from ..transaction import payload_transaction, recover_incomplete_transactions
+from ..transaction import payload_transaction, pending_transaction_ids, recover_incomplete_transactions
 from ..verification import (
     HOOK_FILES,
     NO_ACTIVE_RUN_MARKER,
@@ -298,6 +299,7 @@ NEW_EXTRA_FIELD_SPECS: tuple[FieldSpec, ...] = (
         description="Remote URL to clone instead of a local 'git init' (leave empty for a new local repository).",
         example="https://forge.example.com/org/repo.git",
         default="",
+        validator=lambda value: gitops.validate_clone_url(value, allow_empty=True),
     ),
     FieldSpec(
         key="git_user_name",
@@ -525,15 +527,7 @@ def _sanitize_url(url: str) -> str:
     @date       2026-07-13
     @version    0.1.0
     """
-    if "://" not in url:
-        return url
-    parsed = urlsplit(url)
-    if parsed.password is None:
-        return url
-    credential = f"{parsed.username}@" if parsed.username else ""
-    host = parsed.hostname or ""
-    port = f":{parsed.port}" if parsed.port else ""
-    return f"{parsed.scheme}://{credential}{host}{port}{parsed.path}"
+    return gitops.sanitize_clone_url(url)
 
 
 def _clone_host_port(url: str) -> tuple[str, int] | None:
@@ -2486,7 +2480,7 @@ def run_new(
     answers_path: str | os.PathLike[str] | None = None,
     dry_run: bool = False,
     non_interactive: bool = False,
-    yes: bool | None = None,
+    yes: bool = False,
     as_json: bool = False,
     payload: str | os.PathLike[str] | None = None,
     stdin: IO[str] | None = None,
@@ -2531,28 +2525,37 @@ def run_new(
                 encoded in the exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    1.2.0
+    @version    1.3.0
     """
     target_path = Path(target).resolve()
     if as_json:
         non_interactive = True
-    if non_interactive and yes is False and not dry_run:
-        if as_json:
-            return write_envelope(
-                stream,
-                "new",
-                status="needs-input",
-                exit_code=EXIT_NEEDS_INPUT,
-                messages=("non-interactive mutation requires --yes",),
-            )
-        stream.write("waegis new: non-interactive mutation requires --yes\n")
-        return EXIT_NEEDS_INPUT
     json_messages: list[str] = []
 
     # --- roll back an interrupted prior run before touching TARGET ---
     # A dry run writes nothing, so it must not mutate the target either.
     if not dry_run:
         try:
+            pending = pending_transaction_ids(target_path)
+            recovery_asker = (
+                ConsoleAsker(stdin=stdin, stdout=stream)
+                if not non_interactive and stdin is not None
+                else None
+            )
+            recovery_consent = mutation_consent(
+                mutation_planned=bool(pending),
+                yes=yes,
+                asker=recovery_asker,
+                prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
+            )
+            if recovery_consent is not ConsentDecision.APPROVED:
+                message = "transaction recovery requires explicit approval"
+                if as_json:
+                    return write_envelope(
+                        stream, "new", status="needs-input", exit_code=EXIT_NEEDS_INPUT, messages=(message,)
+                    )
+                stream.write(f"waegis new: {message}\n")
+                return EXIT_NEEDS_INPUT
             recovered = recover_incomplete_transactions(target_path)
         except (OSError, ValueError) as exc:
             message = f"could not recover an interrupted transaction: {exc}"
@@ -2586,6 +2589,17 @@ def run_new(
             json_messages.append(warning)
         else:
             stream.write(f"waegis new: warning: {warning}\n")
+    if "clone_url" in answers:
+        try:
+            answers["clone_url"] = gitops.validate_clone_url(answers["clone_url"], allow_empty=True)
+        except ValueError as exc:
+            message = f"invalid clone_url: {exc}"
+            if as_json:
+                return write_envelope(
+                    stream, "new", status="failed", exit_code=EXIT_VALIDATION, messages=(message,)
+                )
+            stream.write(f"waegis new: {message}\n")
+            return EXIT_VALIDATION
     # --- payload validated and fingerprinted up front ---
     try:
         payload_root = locate_payload(payload)
@@ -2636,15 +2650,21 @@ def run_new(
     # --- asker selection (plan §4 item 6) ---
     if non_interactive:
         asker: Any = ScriptedAsker(answers, confirms=True)
+        approval_asker = None
     else:
-        console = ConsoleAsker(stdin=stdin if stdin is not None else sys.stdin, stdout=stream)
-        asker = _HybridAsker(answers, console) if answers else console
+        console = ConsoleAsker(stdin=stdin, stdout=stream) if stdin is not None else None
+        asker = (
+            _HybridAsker(answers, console)
+            if answers and console is not None
+            else console
+            if console is not None
+            else ScriptedAsker(answers, confirms=False)
+        )
+        approval_asker = console
     repowise_asker = asker
-    if yes is True:
-        asker = _AutoConfirmAsker(asker)
 
     # --- shared contract ---
-    clone_url = str(answers.get("clone_url") or "").strip()
+    clone_url = str(answers.get("clone_url") or "")
     if runner is None:
         runner = SubprocessCommandRunner()
     if transport is None and clone_url:
@@ -2665,11 +2685,12 @@ def run_new(
     sink: _ConsoleRunSink | _JsonRunSink = _JsonRunSink() if as_json else _ConsoleRunSink(stream)
     ctx = EngineContext(mode="new", asker=asker, events=sink, shared=shared)
     # --- journal + resume (never on dry-run: Journal.begin writes immediately) ---
-    journal: Journal | None = None
-    if not dry_run:
-        if resume is not None and not as_json:
-            stream.write(f"resuming compatible incomplete run {resume.run_id}; green steps will be re-detected\n")
-        journal = Journal.begin(
+    if not dry_run and resume is not None and not as_json:
+        stream.write(f"resuming compatible incomplete run {resume.run_id}; green steps will be re-detected\n")
+
+    def begin_journal() -> Journal:
+        """@brief Create the mutation journal only after plan approval."""
+        return Journal.begin(
             mode="new",
             wizard_version=WIZARD_VERSION,
             target=str(target_path),
@@ -2678,7 +2699,28 @@ def run_new(
             fingerprints=fingerprints,
         )
 
-    summary = engine_run(catalog, ctx, dry_run=dry_run, journal=journal, resume=resume)
+    summary = engine_run(
+        catalog,
+        ctx,
+        dry_run=dry_run,
+        resume=resume,
+        yes=yes,
+        approval_asker=approval_asker,
+        journal_factory=None if dry_run else begin_journal,
+        additional_mutations=(
+            (
+                "configure RepoWise "
+                f"source={answers.get('repowise_source')}; "
+                f"sync={bool(answers.get('repowise_sync', False))}"
+            ),
+        )
+        if REPOWISE_ANSWER_KEYS.intersection(answers)
+        and (
+            answers.get("repowise_source") != "disabled"
+            or bool(answers.get("repowise_sync", False))
+        )
+        else (),
+    )
     repowise_result: dict[str, Any] | None = None
     repowise_error: str | None = None
     if summary.ok and not dry_run:
@@ -2691,6 +2733,7 @@ def run_new(
                 asker=repowise_asker,
                 stream=None if as_json else stream,
                 home=state_home,
+                yes=yes,
             )
             initial_commit = next(
                 (

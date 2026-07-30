@@ -113,7 +113,7 @@ def _run(target: Path, home: Path, answers_file: Path, *, as_json: bool = False)
     @return     ``(exit_code, captured_output)``.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
+    @version    0.3.0
     """
     out = io.StringIO()
     code = run_new(
@@ -121,6 +121,7 @@ def _run(target: Path, home: Path, answers_file: Path, *, as_json: bool = False)
         stream=out,
         answers_path=answers_file,
         non_interactive=True,
+        yes=True,
         as_json=as_json,
         runner=SubprocessCommandRunner(),
         home=home,

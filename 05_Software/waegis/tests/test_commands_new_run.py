@@ -31,6 +31,7 @@ import json
 from pathlib import Path
 
 from waegis.commands.new import EXIT_FAILURE, EXIT_OK, NEW_STEP_IDS, run_new
+from waegis.io.envelope import EXIT_NEEDS_INPUT
 from waegis.repo.workflow_toml import ALL_STAGES
 
 from _fake_command_runner import FakeCommandRunner
@@ -351,6 +352,49 @@ def test_incompatible_payload_is_rejected_before_planning(tmp_path: Path) -> Non
     document = json.loads(out.getvalue())
     assert document["status"] == "failed"
     assert "incompatible" in " ".join(document["messages"])
+
+
+def test_json_new_without_yes_stops_before_target_or_journal_creation(tmp_path) -> None:
+    """@brief A complete machine-driven plan still needs explicit mutation approval."""
+    target = tmp_path / "project"
+    home = tmp_path / "home"
+    answers = _write_answers(tmp_path / "answers.json", _FULL_ANSWERS)
+    stream = io.StringIO()
+    code = run_new(
+        target,
+        stream=stream,
+        answers_path=answers,
+        as_json=True,
+        runner=FakeCommandRunner({}),
+        home=home,
+    )
+    assert code == EXIT_NEEDS_INPUT
+    assert json.loads(stream.getvalue())["status"] == "needs-input"
+    assert not target.exists()
+    assert not home.exists()
+
+
+def test_new_rejects_option_like_clone_answer_before_runner_or_target(tmp_path) -> None:
+    """@brief Answers-file clone option injection is rejected during validation."""
+    target = tmp_path / "project"
+    answers_data = dict(_FULL_ANSWERS)
+    answers_data["clone_url"] = " \t--upload-pack=attacker"
+    answers = _write_answers(tmp_path / "answers.json", answers_data)
+    runner = FakeCommandRunner({})
+    stream = io.StringIO()
+    code = run_new(
+        target,
+        stream=stream,
+        answers_path=answers,
+        as_json=True,
+        yes=True,
+        runner=runner,
+        home=tmp_path / "home",
+    )
+    assert code != EXIT_OK
+    assert "invalid clone_url" in stream.getvalue()
+    assert runner.calls == []
+    assert not target.exists()
 
 
 # END OF FILE

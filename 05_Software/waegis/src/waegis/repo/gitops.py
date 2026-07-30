@@ -41,7 +41,7 @@
          prints.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-14
-@version 0.5.0
+@version 0.6.0
 """
 
 # IMPORTS
@@ -51,6 +51,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from waegis.probes.runner import CommandResult, CommandRunner
 
@@ -148,6 +149,97 @@ def _failure_detail(result: CommandResult, *, not_found_message: str) -> str:
     return f"git exited with code {result.exit_code}"
 
 
+def _placeholder_result() -> CommandResult:
+    """@brief Build a command result for validation failures before execution."""
+    return CommandResult(found=False, exit_code=None, stdout="", stderr="")
+
+
+def sanitize_clone_url(url: str) -> str:
+    """
+    @brief Remove an embedded URL password before reporting or persistence.
+    @param[in] url Candidate clone location.
+    @return A credential-safe representation of the clone location.
+    @exception None
+    @author Eng. Dan Dumitru Pasare
+    @version 0.1.0
+    """
+    if "://" not in url:
+        return url
+    try:
+        parsed = urlsplit(url)
+        if parsed.password is None:
+            return url
+        username = f"{parsed.username}@" if parsed.username else ""
+        host = parsed.hostname or ""
+        port = f":{parsed.port}" if parsed.port is not None else ""
+        return urlunsplit((parsed.scheme, f"{username}{host}{port}", parsed.path, parsed.query, parsed.fragment))
+    except (TypeError, ValueError):
+        return "<invalid clone URL>"
+
+
+def validate_clone_url(value: object, *, allow_empty: bool = False) -> str:
+    """
+    @brief Validate a Git clone location without narrowing supported URL forms.
+    @param[in] value Candidate HTTPS, SSH, SCP-style, file, or local location.
+    @param[in] allow_empty Whether the optional empty answer is accepted.
+    @return The original string, preserving significant path characters.
+    @exception ValueError If empty, option-like, or control-character-bearing.
+    @author Eng. Dan Dumitru Pasare
+    @version 0.1.0
+    """
+    if not isinstance(value, str):
+        raise ValueError("clone_url must be a string")
+    if value == "":
+        if allow_empty:
+            return value
+        raise ValueError("clone_url must not be empty")
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise ValueError("clone_url contains a control character")
+    if value.lstrip().startswith("-"):
+        raise ValueError("clone_url must not begin with a dash")
+    if not value.strip():
+        raise ValueError("clone_url must not be blank")
+    return value
+
+
+def validate_branch_name(value: object) -> str:
+    """
+    @brief Enforce the ``git check-ref-format --branch`` naming contract.
+    @param[in] value Candidate branch name.
+    @return The unchanged validated name.
+    @exception ValueError If Git would reject the branch name.
+    @author Eng. Dan Dumitru Pasare
+    @version 0.1.0
+    """
+    if not isinstance(value, str) or not value:
+        raise ValueError("branch name must not be empty")
+    if value.startswith("-"):
+        raise ValueError("branch name must not begin with a dash")
+    if value == "HEAD":
+        raise ValueError("branch name is reserved")
+    forbidden = {" ", "~", "^", ":", "?", "*", "[", "\\"}
+    if any(ord(character) < 32 or ord(character) == 127 or character in forbidden for character in value):
+        raise ValueError("branch name contains a character Git does not allow")
+    if (
+        value.startswith("/")
+        or value.endswith("/")
+        or value.endswith(".")
+        or "//" in value
+        or ".." in value
+        or "@{" in value
+    ):
+        raise ValueError("branch name is not a valid Git ref")
+    components = value.split("/")
+    if any(
+        component in {"", ".", ".."}
+        or component.startswith(".")
+        or component.endswith(".lock")
+        for component in components
+    ):
+        raise ValueError("branch name contains an invalid ref component")
+    return value
+
+
 # PUBLIC API
 
 
@@ -198,6 +290,10 @@ def init_repo(
     @date       2026-07-13
     @version    0.1.0
     """
+    try:
+        validate_branch_name(initial_branch)
+    except ValueError as exc:
+        return GitOpResult(False, str(exc), _placeholder_result())
     result = runner.run(("git", "init", "-b", initial_branch, str(path)))
     if result.ok():
         return GitOpResult(ok=True, detail=result.combined_output().strip(), raw=result)
@@ -251,22 +347,33 @@ def clone_repo(runner: CommandRunner, url: str, path: str | os.PathLike[str]) ->
     @date       2026-07-13
     @version    0.1.0
     """
+    try:
+        validate_clone_url(url)
+    except ValueError as exc:
+        return GitOpResult(False, str(exc), _placeholder_result())
     target = Path(path)
     if target.exists() and target.is_dir() and any(target.iterdir()):
-        placeholder = CommandResult(found=False, exit_code=None, stdout="", stderr="")
         return GitOpResult(
             ok=False,
             detail=f"target already exists and is not empty: {path}",
-            raw=placeholder,
+            raw=_placeholder_result(),
         )
 
-    result = runner.run(("git", "clone", url, str(path)))
-    if result.ok():
-        return GitOpResult(ok=True, detail=result.combined_output().strip(), raw=result)
+    result = runner.run(("git", "clone", "--", url, str(path)))
+    safe_url = sanitize_clone_url(url)
+    safe_result = CommandResult(
+        found=result.found,
+        exit_code=result.exit_code,
+        stdout=result.stdout.replace(url, safe_url),
+        stderr=result.stderr.replace(url, safe_url),
+        timed_out=result.timed_out,
+    )
+    if safe_result.ok():
+        return GitOpResult(ok=True, detail=safe_result.combined_output().strip(), raw=safe_result)
     return GitOpResult(
         ok=False,
-        detail=_failure_detail(result, not_found_message="git was not found"),
-        raw=result,
+        detail=_failure_detail(safe_result, not_found_message="git was not found"),
+        raw=safe_result,
     )
 
 
@@ -528,6 +635,10 @@ def create_branch(
     """
     if not name:
         raise ValueError("create_branch requires a non-empty branch name")
+    try:
+        validate_branch_name(name)
+    except ValueError as exc:
+        return GitOpResult(False, str(exc), _placeholder_result())
 
     if checkout:
         result = runner.run(_git_c(path, "checkout", "-b", name))

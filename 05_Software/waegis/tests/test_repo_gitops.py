@@ -168,7 +168,7 @@ def test_clone_repo_success() -> None:
     """
     runner = FakeCommandRunner(
         {
-            ("git", "clone", "https://example.test/repo.git", "/dest"): ok_result(
+            ("git", "clone", "--", "https://example.test/repo.git", "/dest"): ok_result(
                 stderr="Cloning into '/dest'..."
             )
         }
@@ -177,6 +177,9 @@ def test_clone_repo_success() -> None:
     result = gitops.clone_repo(runner, "https://example.test/repo.git", "/dest")
 
     assert result.ok is True
+    assert runner.calls == [
+        ("git", "clone", "--", "https://example.test/repo.git", "/dest")
+    ]
 
 
 def test_clone_repo_target_already_exists_non_empty_short_circuits(tmp_path) -> None:
@@ -213,7 +216,7 @@ def test_clone_repo_git_failure_passes_through_stderr() -> None:
     """
     runner = FakeCommandRunner(
         {
-            ("git", "clone", "https://example.test/missing.git", "/dest"): failing_result(
+            ("git", "clone", "--", "https://example.test/missing.git", "/dest"): failing_result(
                 exit_code=128, stderr="fatal: repository 'https://example.test/missing.git' not found"
             )
         }
@@ -223,6 +226,41 @@ def test_clone_repo_git_failure_passes_through_stderr() -> None:
 
     assert result.ok is False
     assert "not found" in result.detail
+
+
+def test_clone_repo_rejects_option_like_and_control_values_before_execution() -> None:
+    """@brief Unsafe clone locations fail closed without invoking the runner."""
+    for value in ("--upload-pack=attacker", "-uattacker", " \t--upload-pack=attacker", "https://x/\x00"):
+        runner = FakeCommandRunner({})
+        result = gitops.clone_repo(runner, value, "/dest")
+        assert result.ok is False
+        assert runner.calls == []
+
+
+def test_clone_repo_preserves_supported_location_forms() -> None:
+    """@brief URL validation preserves supported remote and local Git forms."""
+    values = (
+        "https://example.test/repo.git",
+        "ssh://git@example.test/repo.git",
+        "git@example.test:org/repo.git",
+        "../local/repo",
+        "file:///srv/git/repo.git",
+    )
+    for value in values:
+        argv = ("git", "clone", "--", value, "/dest")
+        runner = FakeCommandRunner({argv: ok_result()})
+        assert gitops.clone_repo(runner, value, "/dest").ok is True
+        assert runner.calls == [argv]
+
+
+def test_clone_repo_scrubs_embedded_credentials_from_failure() -> None:
+    """@brief Clone errors and raw output never retain an embedded password."""
+    value = "https://alice:secret@example.test/repo.git"
+    argv = ("git", "clone", "--", value, "/dest")
+    runner = FakeCommandRunner({argv: failing_result(stderr=f"fatal: {value} failed")})
+    result = gitops.clone_repo(runner, value, "/dest")
+    assert "secret" not in result.detail
+    assert "secret" not in result.raw.stderr
 
 
 # --- get_identity -----------------------------------------------------------
@@ -503,6 +541,21 @@ def test_create_branch_empty_name_raises_value_error() -> None:
 
     assert raised is True
     assert runner.calls == []
+
+
+def test_create_branch_rejects_unsafe_git_refs_before_execution() -> None:
+    """@brief Option-like, traversal-like, reserved, and malformed refs fail closed."""
+    for value in ("-force", "HEAD", "feature/../escape", "feature//x", ".hidden", "x.lock", "x\x1f"):
+        runner = FakeCommandRunner({})
+        result = gitops.create_branch(runner, "/repo", value)
+        assert result.ok is False
+        assert runner.calls == []
+
+
+def test_validate_branch_name_accepts_git_compatible_edge_cases() -> None:
+    """@brief Unicode, nested, at-sign, and dotted branch names remain valid."""
+    for value in ("feature/x", "release/v2.1", "topic@name", "δοκιμή/κλάδος", "refs/heads/topic"):
+        assert gitops.validate_branch_name(value) == value
 
 
 # --- Windows/POSIX path safety -----------------------------------------------

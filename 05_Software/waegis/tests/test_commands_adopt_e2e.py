@@ -69,7 +69,7 @@ def _make_python_repo(target: Path, *, extra_files: dict[str, str] | None = None
     @return     None
     @exception  RuntimeError If a git operation fails.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     runner = SubprocessCommandRunner()
     target.mkdir(parents=True, exist_ok=True)
@@ -110,6 +110,7 @@ def _run(target: Path, home: Path, *, answers_path: Path | None = None, as_json:
         stream=out,
         answers_path=answers_path,
         non_interactive=True,
+        yes=True,
         as_json=as_json,
         runner=SubprocessCommandRunner(),
         home=home,

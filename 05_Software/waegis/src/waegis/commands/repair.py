@@ -16,7 +16,7 @@
          the manifest-last commit, and every failure rolls back.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -30,6 +30,7 @@ from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from typing import IO, Any, Mapping
 
+from ..consent import ConsentDecision, mutation_consent
 from ..io.answers import AnswersFileError, load_answers_file
 from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OK, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
 from ..io.prompts import ConsoleAsker, FieldSpec
@@ -51,7 +52,7 @@ from ..repowise import (
     RepoWiseSettings,
     _integration_text,
 )
-from ..transaction import FileTransaction, recover_incomplete_transactions
+from ..transaction import FileTransaction, pending_transaction_ids, recover_incomplete_transactions
 from ..verification import smoke_reverify
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from .configure import _CONFIG_KEYS, _stored_answers
@@ -153,7 +154,7 @@ def run_repair(
     @exception  None All errors are rendered.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-18
-    @version    0.2.0
+    @version    0.3.0
     """
     repo_path = Path(repo).resolve()
     if as_json:
@@ -167,7 +168,27 @@ def run_repair(
             messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
         )
     try:
-        recovered = recover_incomplete_transactions(repo_path)
+        pending = () if dry_run else pending_transaction_ids(repo_path)
+        recovery_consent = mutation_consent(
+            mutation_planned=bool(pending),
+            yes=yes,
+            asker=(
+                ConsoleAsker(stdin=stdin, stdout=stream)
+                if not non_interactive and stdin is not None
+                else None
+            ),
+            prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
+        )
+        if recovery_consent is not ConsentDecision.APPROVED:
+            return _emit(
+                stream,
+                as_json=as_json,
+                status="needs-input",
+                exit_code=EXIT_NEEDS_INPUT,
+                plan={"recovery": list(pending)},
+                messages=("transaction recovery requires explicit approval",),
+            )
+        recovered = () if dry_run else recover_incomplete_transactions(repo_path)
     except (OSError, ValueError) as exc:
         return _emit(
             stream,
@@ -238,7 +259,7 @@ def run_repair(
             messages=("repair_conflicts must be a path-to-decision mapping",),
         )
     decisions: dict[str, str] = {}
-    asker = None if non_interactive else ConsoleAsker(stdin=stdin or sys.stdin, stdout=stream)
+    asker = None if non_interactive or stdin is None else ConsoleAsker(stdin=stdin, stdout=stream)
     try:
         for relative in drift.modified:
             if relative in raw_table:
@@ -359,23 +380,21 @@ def run_repair(
             plan=plan,
             result={"repaired": False, "no_op": True},
         )
-    if non_interactive and not yes:
+    consent = mutation_consent(
+        mutation_planned=True, yes=yes, asker=asker, prompt="Apply this repair plan?"
+    )
+    if consent is not ConsentDecision.APPROVED:
         return _emit(
             stream,
             as_json=as_json,
             status="needs-input",
             exit_code=EXIT_NEEDS_INPUT,
             plan=plan,
-            messages=("non-interactive mutation requires --yes",),
-        )
-    if not yes and asker is not None and not asker.confirm("Apply this repair plan?", default=True):
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan=plan,
-            messages=("repair plan was not approved",),
+            messages=(
+                "repair plan was not approved"
+                if consent is ConsentDecision.DECLINED
+                else "repair mutation requires explicit --yes or an interactive approval",
+            ),
         )
 
     affected = set(drift.missing) | set(regenerate) | {MANIFEST_RELATIVE_PATH}
@@ -484,6 +503,8 @@ def run_repair(
     except BaseException as exc:
         if transaction is not None and transaction.directory.exists():
             transaction.rollback()
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
         return _emit(
             stream,
             as_json=as_json,

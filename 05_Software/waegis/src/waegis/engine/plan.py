@@ -16,7 +16,7 @@
          the JSON/`--json` seam.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-12
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -82,6 +82,7 @@ class Plan:
     mode: str
     dry_run: bool
     steps: tuple[PlannedStep, ...]
+    additional_mutations: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -92,14 +93,24 @@ class Plan:
         @date       2026-07-12
         @version    0.1.0
         """
-        return {
+        result = {
             "mode": self.mode,
             "dry_run": self.dry_run,
             "steps": [step.to_dict() for step in self.steps],
         }
+        if self.additional_mutations:
+            result["additional_mutations"] = list(self.additional_mutations)
+        return result
 
 
-def build_plan(mode: str, dry_run: bool, steps: list[StepSpec], ctx: EngineContext) -> Plan:
+def build_plan(
+    mode: str,
+    dry_run: bool,
+    steps: list[StepSpec],
+    ctx: EngineContext,
+    *,
+    additional_mutations: tuple[str, ...] = (),
+) -> Plan:
     """
     @brief      Build a :class:`Plan` preview from the ordered, applicable steps.
     @param[in]  mode Wizard mode label carried into the preview.
@@ -124,7 +135,12 @@ def build_plan(mode: str, dry_run: bool, steps: list[StepSpec], ctx: EngineConte
         )
         for spec in steps
     )
-    return Plan(mode=mode, dry_run=dry_run, steps=planned)
+    return Plan(
+        mode=mode,
+        dry_run=dry_run,
+        steps=planned,
+        additional_mutations=additional_mutations,
+    )
 
 
 # END OF FILE

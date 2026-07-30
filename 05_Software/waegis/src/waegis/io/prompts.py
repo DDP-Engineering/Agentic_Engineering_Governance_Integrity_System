@@ -34,7 +34,7 @@
          under Windows ``cmd.exe``, unlike a real TTY or PowerShell).
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -86,7 +86,7 @@ class MissingAnswerError(PromptsError):
         @param[in]  key The ``FieldSpec.key`` that had no answer.
         @return     None
         @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
+        @version    0.2.0
         """
         super().__init__(f"missing answer for required field {key!r}")
         self.key = key
@@ -309,12 +309,15 @@ class ConsoleAsker:
         @exception  None
         @author     Eng. Dan Dumitru Pasare
         @date       2026-07-12
-        @version    0.1.0
+        @version    0.2.0
         """
         suffix = "[Y/n]" if default else "[y/N]"
         while True:
             self._write(f"{prompt} {suffix}: ")
-            raw = self._stdin.readline().strip().lower()
+            line = self._stdin.readline()
+            if line == "":
+                return False
+            raw = line.strip().lower()
             if raw == "":
                 return default
             if raw in ("y", "yes"):
@@ -416,8 +419,7 @@ class ScriptedAsker:
         @param[in]  answers Flat ``FieldSpec.key`` to value mapping (as produced
                     by ``io/answers.py``).
         @param[in]  confirms A fixed boolean used for every ``confirm`` call, or
-                    a queue of booleans consumed in order (falling back to
-                    ``True`` once exhausted).
+                    a finite queue of booleans consumed in order.
         @return     None
         @author     Eng. Dan Dumitru Pasare
         @date       2026-07-12
@@ -437,15 +439,15 @@ class ScriptedAsker:
         @param[in]  prompt Question text (unused; scripted answers ignore it).
         @param[in]  default Ignored: scripted confirms are explicit, not defaulted.
         @return     The next scripted boolean.
-        @exception  None
+        @exception  MissingAnswerError If a finite confirmation queue is empty.
         @author     Eng. Dan Dumitru Pasare
         @date       2026-07-12
-        @version    0.1.0
+        @version    0.2.0
         """
         if self._confirm_queue is not None:
             if self._confirm_queue:
                 return self._confirm_queue.pop(0)
-            return True
+            raise MissingAnswerError("confirmation")
         return self._fixed_confirm
 
     def ask(self, key: str, prompt: str, *, default: str | None = None) -> str:

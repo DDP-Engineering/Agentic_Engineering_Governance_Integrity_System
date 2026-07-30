@@ -23,7 +23,7 @@
          checkpoint.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-12
-@version 0.3.0
+@version 0.4.0
 """
 
 # IMPORTS
@@ -31,8 +31,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable
+from typing import Callable, Iterable
 
+from ..consent import ConfirmationAsker, ConsentDecision, mutation_consent
 from .catalog import Catalog
 from .journal import (
     STATUS_COMPLETED,
@@ -66,6 +67,7 @@ from .step import (
 
 # @brief Prompt shown at the plan-preview approval gate.
 _APPROVAL_PROMPT = "Apply this plan?"
+_CONTEXT_ASKER = object()
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -265,6 +267,10 @@ def run(
     dry_run: bool = False,
     journal: Journal | None = None,
     resume: "Journal | Iterable[str] | None" = None,
+    yes: bool = False,
+    approval_asker: ConfirmationAsker | None | object = _CONTEXT_ASKER,
+    journal_factory: Callable[[], Journal] | None = None,
+    additional_mutations: tuple[str, ...] = (),
 ) -> RunSummary:
     """
     @brief      Execute a catalog: plan preview, approval gate, then the per-step
@@ -295,7 +301,13 @@ def run(
     step_ids = tuple(spec.id for spec in steps)
 
     ctx.events.emit(RunStarted(ctx.mode, dry_run, step_ids))
-    plan = build_plan(ctx.mode, dry_run, steps, ctx)
+    plan = build_plan(
+        ctx.mode,
+        dry_run,
+        steps,
+        ctx,
+        additional_mutations=additional_mutations,
+    )
     ctx.events.emit(PlanReady(plan))
 
     # Dry run: preview only, no approval prompt, no mutation, no journal writes.
@@ -304,12 +316,30 @@ def run(
         ctx.events.emit(RunFinished(summary))
         return summary
 
-    # Plan-preview approval gate.
-    if not ctx.asker.confirm(_APPROVAL_PROMPT, default=True):
+    # Read-only detects make genuinely green reruns no-op plans.
+    mutation_planned = bool(additional_mutations)
+    for spec in steps:
+        try:
+            if not bool(spec.detect(ctx)):
+                mutation_planned = True
+                break
+        except Exception:  # noqa: BLE001 - the normal run reports the typed step failure
+            mutation_planned = True
+            break
+
+    consent = mutation_consent(
+        mutation_planned=mutation_planned,
+        yes=yes,
+        asker=ctx.asker if approval_asker is _CONTEXT_ASKER else approval_asker,  # type: ignore[arg-type]
+        prompt=_APPROVAL_PROMPT,
+    )
+    if consent is not ConsentDecision.APPROVED:
         ctx.events.emit(PlanRejected())
         summary = RunSummary(mode=ctx.mode, dry_run=False, results=[], ok=False)
-        return _finish(ctx, journal, summary, STATUS_STOPPED, None)
+        return _finish(ctx, None, summary, STATUS_STOPPED, None)
     ctx.events.emit(PlanApproved())
+    if mutation_planned and journal is None and journal_factory is not None:
+        journal = journal_factory()
 
     green: set[str] = set()
     results: list[StepResult] = []

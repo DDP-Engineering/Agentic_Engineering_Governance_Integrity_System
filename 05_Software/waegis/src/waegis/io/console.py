@@ -219,6 +219,8 @@ def render_plan_preview(plan: Plan, stream: IO[str]) -> None:
         for step in plan.steps
     ]
     _write_table(stream, _PLAN_COLUMNS, rows)
+    for mutation in plan.additional_mutations:
+        stream.write(f"Additional mutation: {mutation}\n")
     stream.write(f"{len(plan.steps)} step(s) planned.\n\n")
 
 

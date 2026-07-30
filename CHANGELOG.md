@@ -34,6 +34,13 @@ All notable changes to this project will be documented in this file.
   run-resolution, stage-operation, command-input, requirement, persistence, and
   RepoWise integration errors so incidental `ValueError`, process-control
   exceptions, and parser exits retain their normal diagnostic behavior.
+- Reject option-like, control-character, and invalid Git clone/branch inputs
+  before execution, use the documented clone option terminator, and scrub
+  embedded clone credentials from Git failure results.
+- Require explicit approval for every WAEGIS mutation, including programmatic,
+  JSON, non-interactive, transaction-recovery, journal, Git, and RepoWise
+  paths; preserve read-only dry runs/no-op plans, fail closed on EOF or an
+  exhausted scripted confirmation queue, and retain process-control semantics.
 
 ## [2.1.0] - 2026-07-29
 

@@ -118,6 +118,7 @@ from os import PathLike
 from pathlib import Path, PurePosixPath
 from typing import IO, Any, Callable, Mapping
 
+from ..consent import ConsentDecision, mutation_consent
 from ..engine import STATUS_COMPLETED, STATUS_FAILED, Journal, StepResult, StepStatus, waegis_home
 from ..io.answers import AnswersFileError, load_answers_file
 from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
@@ -148,7 +149,7 @@ from ..repowise import (
     lifecycle_repowise,
     repowise_status,
 )
-from ..transaction import FileTransaction, recover_incomplete_transactions
+from ..transaction import FileTransaction, pending_transaction_ids, recover_incomplete_transactions
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from ..verification import (
     HASH_TRUSTED_HOOK_CONFIGS,
@@ -1592,7 +1593,23 @@ def _run_upgrade_hardened(
             messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
         )
     try:
-        recovered = recover_incomplete_transactions(repo_path)
+        pending = () if dry_run else pending_transaction_ids(repo_path)
+        recovery_consent = mutation_consent(
+            mutation_planned=bool(pending),
+            yes=yes,
+            asker=asker,
+            prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
+        )
+        if recovery_consent is not ConsentDecision.APPROVED:
+            return _emit_upgrade_envelope_or_report(
+                stream,
+                as_json=as_json,
+                status="needs-input",
+                exit_code=EXIT_NEEDS_INPUT,
+                plan_data={"recovery": list(pending)},
+                messages=("transaction recovery requires explicit approval",),
+            )
+        recovered = () if dry_run else recover_incomplete_transactions(repo_path)
     except (OSError, ValueError) as exc:
         return _emit_upgrade_envelope_or_report(
             stream,
@@ -1742,6 +1759,16 @@ def _run_upgrade_hardened(
     git_branch = None
     if git_mode == "branch-commit":
         git_branch = str(supplied.get("git_branch") or f"waegis/upgrade-{plan.new_payload_version}").strip()
+        try:
+            git_branch = gitops.validate_branch_name(git_branch)
+        except ValueError as exc:
+            return _emit_upgrade_envelope_or_report(
+                stream,
+                as_json=as_json,
+                status="failed",
+                exit_code=EXIT_VALIDATION,
+                messages=(f"invalid git_branch: {exc}",),
+            )
 
     fingerprints = {
         "command": stable_fingerprint("upgrade"),
@@ -1772,6 +1799,9 @@ def _run_upgrade_hardened(
 
     if dry_run:
         preview = _upgrade_plan_dict(plan, (), git_mode=git_mode, git_branch=git_branch)
+        preview["repowise"] = {
+            key: supplied[key] for key in sorted(REPOWISE_ANSWER_KEYS.intersection(supplied))
+        }
         messages = [f"recovered interrupted transaction {item}" for item in recovered]
         messages.append("Dry run: no changes were made.")
         return _emit_upgrade_envelope_or_report(
@@ -1799,15 +1829,9 @@ def _run_upgrade_hardened(
             messages=(str(exc),),
         )
     plan_data = _upgrade_plan_dict(plan, outcomes, git_mode=git_mode, git_branch=git_branch)
-    if non_interactive and not yes:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan_data=plan_data,
-            messages=("non-interactive mutation requires --yes",),
-        )
+    plan_data["repowise"] = {
+        key: supplied[key] for key in sorted(REPOWISE_ANSWER_KEYS.intersection(supplied))
+    }
     if not as_json:
         _emit_upgrade_envelope_or_report(
             stream,
@@ -1816,14 +1840,24 @@ def _run_upgrade_hardened(
             exit_code=EXIT_OK,
             plan_data=plan_data,
         )
-    if not yes and asker is not None and not asker.confirm("Apply this fully resolved upgrade plan?", default=True):
+    consent = mutation_consent(
+        mutation_planned=True,
+        yes=yes,
+        asker=asker,
+        prompt="Apply this fully resolved upgrade plan?",
+    )
+    if consent is not ConsentDecision.APPROVED:
         return _emit_upgrade_envelope_or_report(
             stream,
             as_json=as_json,
             status="needs-input",
             exit_code=EXIT_NEEDS_INPUT,
             plan_data=plan_data if as_json else None,
-            messages=("upgrade plan was not approved",),
+            messages=(
+                "upgrade plan was not approved"
+                if consent is ConsentDecision.DECLINED
+                else "upgrade mutation requires explicit --yes or an interactive approval",
+            ),
         )
     if git_mode == "branch-commit":
         assert git_branch is not None
@@ -1906,6 +1940,7 @@ def _run_upgrade_hardened(
                 interactive=not non_interactive,
                 asker=asker,
                 stream=None if as_json else stream,
+                yes=yes,
             )
         except (OSError, RepoWiseError) as exc:
             repowise_error = str(exc)
