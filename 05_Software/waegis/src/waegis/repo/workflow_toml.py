@@ -334,7 +334,7 @@ def normalize_gate_commands(raw: Any) -> list[str]:
     @exception  ValueError If the value is not a supported command list.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-13
-    @version    0.3.0
+    @version    0.3.1
     """
     if isinstance(raw, str):
         try:
@@ -1239,7 +1239,7 @@ def verify_workflow_schema(
     if type(document.get("schema_version")) is not int or document.get("schema_version") != SCHEMA_VERSION:
         raise InvariantViolationError(
             1,
-            "schema_version must be integer 3; WAEGIS 1.0 does not migrate schema 2",
+            "schema_version must be integer 3; WAEGIS does not migrate schema 2",
         )
 
     source = _schema_table(document, "source", ("roots",))
@@ -1428,7 +1428,7 @@ def verify_workflow_schema(
         "interface.check_execution",
         ("external", "managed"),
     )
-    gates = _schema_table(document, "gates", GATE_ORDER)
+    _schema_table(document, "gates", GATE_ORDER)
     for name in GATE_ORDER:
         key_path = f"gates.{name}"
         group = _schema_table(document, key_path, ("mode", "commands"))
@@ -1558,8 +1558,9 @@ def verify_workflow_invariants(
 ) -> None:
     """
     @brief      Compatibility entry point for complete schema validation.
-    @details    Source/test roots are accepted for existing callers, but schema
-                version 2 no longer derives write or coverage policy from them.
+    @details    Source/test roots are accepted for existing callers, but the
+                current schema 3 policy is validated from the complete document;
+                unsupported schema-2 documents are not migrated.
     @param[in]  document Parsed workflow.toml mapping.
     @param[in]  source_roots Optional expected structural source roots.
     @param[in]  test_roots Optional expected structural test roots.
@@ -1569,7 +1570,7 @@ def verify_workflow_invariants(
     @exception  InvariantViolationError If schema validation fails.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    1.1.0
+    @version    1.1.1
     """
     verify_workflow_schema(document, repo_root=repo_root)
     if source_roots is not None and list(document["source"]["roots"]) != list(source_roots):

@@ -47,7 +47,7 @@
          never entered on a dry run or a refusal because neither writes.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-23
-@version 0.4.0
+@version 0.4.1
 """
 
 # IMPORTS
@@ -82,14 +82,27 @@ from .manifest import (
 # @brief Directory-name parts never copied into a target (generated or
 #        dependency state; `node_modules`/`.vitest` belong to the `.pi/`
 #        adapter's isolated vitest setup).
-EXCLUDED_PARTS = frozenset({"__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".vitest"})
+EXCLUDED_PARTS = frozenset(
+    {
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".hypothesis",
+        ".tox",
+        ".nox",
+        "htmlcov",
+        "node_modules",
+        ".vitest",
+    }
+)
 
 # @brief File suffixes never copied into a target.
-EXCLUDED_SUFFIXES = frozenset({".pyc"})
+EXCLUDED_SUFFIXES = frozenset({".pyc", ".pyo"})
 
 # @brief Glob patterns (matched against the payload-relative path) never
 #        copied into a target.
-EXCLUDED_PATTERNS = ("*.egg-info", ".uv-cache*")
+EXCLUDED_PATTERNS = ("*.egg-info", ".uv-cache*", ".uv_cache*", ".coverage*", "coverage.xml")
 
 # @brief Fallback recorded as the manifest payload_version when the payload
 #        ships no readable version declaration.
@@ -313,6 +326,25 @@ def _force_take_payload(conflict: PayloadConflict) -> ConflictDecision:
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
+def normalize_conflict_decision_value(raw: Any) -> str:
+    """
+    @brief      Normalize one payload-conflict decision to its canonical value.
+    @param[in]  raw Candidate decision value from a prompt or answers mapping.
+    @return     One of ``keep-local``, ``take-payload``, or ``write-new``.
+    @exception  ValueError If the value is not a supported decision.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-30
+    @version    0.1.1
+    """
+    if isinstance(raw, ConflictDecision):
+        return raw.value
+    text = str(raw).strip().lower()
+    try:
+        return ConflictDecision(text).value
+    except ValueError as exc:
+        raise ValueError("choose one of: keep-local, take-payload, write-new") from exc
+
+
 def ensure_executable(destination: Path) -> None:
     """
     @brief      Grant the POSIX owner/group/other execute bits on a just-copied
@@ -360,7 +392,7 @@ def should_exclude(path: PurePath) -> bool:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-12
-    @version    0.2.0
+    @version    0.3.0
     """
     if any(part in EXCLUDED_PARTS for part in path.parts):
         return True

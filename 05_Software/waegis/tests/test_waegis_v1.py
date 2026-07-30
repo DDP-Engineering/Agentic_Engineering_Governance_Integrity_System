@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file test_waegis_v1.py
-@brief WAEGIS 1.0 and AEGIS schema-3 integration tests.
+@brief WAEGIS 1.x and AEGIS schema-3 integration tests.
 @details Covers version compatibility, all five independently configured gates,
          interface defaults, and explicit security-script analysis.
 @author Eng. Dan Dumitru Pasare

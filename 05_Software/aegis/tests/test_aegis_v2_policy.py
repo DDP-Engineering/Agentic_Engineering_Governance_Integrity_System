@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file test_aegis_v2_policy.py
-@brief Policy and deterministic-execution tests for AEGIS 2.0.
+@brief Policy and deterministic-execution tests for AEGIS 2.
 @details Covers strict schema rejection, versioned form retention, captured
          check modes, managed red/green evidence, five-group gate ordering,
          execute-all failure behavior, and launch/timeout evidence semantics.

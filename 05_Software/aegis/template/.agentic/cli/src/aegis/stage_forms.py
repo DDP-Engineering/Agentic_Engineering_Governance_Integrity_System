@@ -34,13 +34,11 @@ from .config import GATE_ORDER, WorkflowConfig, load_config
 from .models import (
     ADOPTION_STAGES,
     STAGES,
-    AccessMode,
     ChangeUnit,
     Check,
     Graph,
     IntentAlignment,
     SolutionDesign,
-    Stage,
     StageRecord,
     now_iso,
 )

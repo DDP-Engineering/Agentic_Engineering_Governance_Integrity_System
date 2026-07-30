@@ -511,14 +511,27 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.2.0
+    @version    0.3.0
     """
     template = tmp_path / "template"
     target = tmp_path / "new-project"
-    (template / "pkg" / "__pycache__").mkdir(parents=True)
-    (template / "pkg" / "__pycache__" / "module.pyc").write_bytes(b"cache")
-    (template / ".pytest_cache").mkdir()
-    (template / ".pytest_cache" / "README.md").write_text("cache\n", encoding="utf-8")
+    excluded_files = (
+        template / "pkg" / "__pycache__" / "module.pyc",
+        template / "pkg" / "optimized.pyo",
+        template / ".pytest_cache" / "README.md",
+        template / ".mypy_cache" / "state.json",
+        template / ".ruff_cache" / "state",
+        template / ".hypothesis" / "examples",
+        template / ".tox" / "state",
+        template / ".nox" / "state",
+        template / ".uv_cache" / "archive.bin",
+        template / ".coverage",
+        template / "coverage.xml",
+        template / "htmlcov" / "index.html",
+    )
+    for path in excluded_files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"generated")
     (template / "src").mkdir()
     (template / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
 
@@ -526,8 +539,8 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
 
     assert result.copied == ("src/app.py",)
     assert (target / "src" / "app.py").exists()
-    assert not (target / "pkg" / "__pycache__").exists()
-    assert not (target / ".pytest_cache").exists()
+    for path in excluded_files:
+        assert not (target / path.relative_to(template)).exists()
 
 
 # END OF FILE

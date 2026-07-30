@@ -80,6 +80,13 @@ The optional `.agentic/integrations/repowise.toml` remains separate from schema
 `repo-discovery`; it never imports RepoWise Python code or executes its CLI.
 Disabled and absent integration are equivalent.
 
+The template itself must contain source and durable starter material only.
+Structural tests reject `__pycache__/`, `.pyc`, `.pyo`, obsolete current-version
+branding, divergent adapter versions, and release content in the empty
+downstream `template/CHANGELOG.md`. WAEGIS payload copying and release staging
+independently exclude interpreter, test, coverage, package-manager, and adapter
+dependency caches instead of relying on Git ignore rules.
+
 Graph mutations serialize the complete authoritative reload, validation,
 mutation, and save operation per run. Same-requirement updates serialize per
 requirement and verify the loaded source digest before publication; requirement

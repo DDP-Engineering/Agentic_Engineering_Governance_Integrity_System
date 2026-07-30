@@ -27,7 +27,7 @@ import pytest
 import aegis.check_execution as check_execution_module
 from aegis.check_execution import prepare_check_evidence, record_check_evidence
 from aegis.models import Check, Evidence, Graph, StageRecord
-from aegis.stage_forms import StageOperationError, stage_directory
+from aegis.stage_forms import StageOperationError
 from aegis.store import (
     graph_path,
     init_graph,

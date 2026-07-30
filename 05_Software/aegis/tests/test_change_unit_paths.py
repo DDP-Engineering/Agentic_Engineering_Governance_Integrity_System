@@ -9,7 +9,7 @@
 """
 @file test_change_unit_paths.py
 @brief Containment tests for implementation-stage changed paths.
-@details AEGIS 2.0 records change units only through stage forms. These tests
+@details AEGIS 2 records change units only through stage forms. These tests
          cover both that input boundary and defensive invariant evaluation.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29

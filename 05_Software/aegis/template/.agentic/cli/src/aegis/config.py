@@ -498,7 +498,7 @@ class _Parser:
                 SCHEMA_VERSION,
                 "schema_version is missing, has the wrong type, or is unsupported.",
                 'Set `schema_version = 3` at the top of .agentic/workflow.toml. '
-                "AEGIS 2.0 does not migrate schema-version-2 configurations.",
+                "AEGIS does not migrate schema-version-2 configurations.",
             )
 
     def _baseline_guard(

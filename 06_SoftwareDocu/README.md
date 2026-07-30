@@ -36,6 +36,8 @@ documentation ships with the template:
   inputs and toolchain limits, deterministic ZIP/tar/gzip metadata, strict
   runtime locks/downloads, exact internal verification, link graphs, atomic
   publication, and the real-artifact reproduction procedure.
+- `SELF_GOVERNED_RELEASE.md` - prerequisites, proposed root adoption commands,
+  retained release-run evidence, and the current missing-installation blocker.
 
 Presentation material maintained in this folder (AEGIS 2.1 / WAEGIS 1.1):
 

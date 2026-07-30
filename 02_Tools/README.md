@@ -10,7 +10,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 Repository-level helper scripts and utilities for maintaining, validating, or
 packaging the standalone AEGIS project belong here.
 
-Regenerate the maintained AEGIS 2.0 start-guide PDF with the bundled
+Regenerate the maintained AEGIS 2.1 start-guide PDF with the bundled
 documentation runtime:
 
 ```powershell

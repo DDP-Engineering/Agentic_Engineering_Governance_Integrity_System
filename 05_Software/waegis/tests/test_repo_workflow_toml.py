@@ -13,7 +13,7 @@
          gate encoding, comment preservation, and never-save-invalid behavior.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 2.0.0
+@version 2.0.1
 """
 
 # IMPORTS
@@ -104,6 +104,23 @@ def test_real_template_is_complete_valid_schema_version_3(base_text: str) -> Non
     document = tomllib.loads(base_text)
     verify_workflow_schema(document)
     assert document["schema_version"] == 3
+
+
+def test_schema_rejection_diagnostic_is_version_neutral(base_text: str) -> None:
+    """
+    @brief      Keep schema guidance accurate when the wizard version changes.
+    @return     None.
+    @exception  AssertionError If the live diagnostic hardcodes an obsolete release.
+    """
+    document = tomllib.loads(base_text)
+    document["schema_version"] = 2
+
+    with pytest.raises(InvariantViolationError) as captured:
+        verify_workflow_schema(document)
+
+    message = str(captured.value)
+    assert "WAEGIS 1.0" not in message
+    assert "WAEGIS does not migrate schema 2" in message
 
 
 @pytest.mark.parametrize(

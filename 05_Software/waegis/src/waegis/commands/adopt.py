@@ -69,7 +69,6 @@ import io
 import json
 import os
 import re
-import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import IO, Any, Mapping
@@ -106,6 +105,7 @@ from ..payload.copier import (
     PayloadConflict,
     copy_payload,
     inspect_payload,
+    normalize_conflict_decision_value,
 )
 from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
 from ..payload.manifest import ManifestState, compute_drift, hash_file, load_manifest
@@ -251,7 +251,7 @@ def _normalize_conflict_table(raw: Any) -> dict[str, str]:
                 decision (the message names the offending path).
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-14
-    @version    0.1.0
+    @version    0.2.0
     """
     if isinstance(raw, str):
         try:
@@ -262,9 +262,8 @@ def _normalize_conflict_table(raw: Any) -> dict[str, str]:
         raise ValueError("adoption_conflicts must be a mapping of repo-relative path -> decision")
     table: dict[str, str] = {}
     for path, decision in raw.items():
-        text = str(decision).strip().lower()
         try:
-            ConflictDecision(text)
+            text = normalize_conflict_decision_value(decision)
         except ValueError as exc:
             raise ValueError(
                 f"invalid conflict decision {decision!r} for {path!r}; "
@@ -883,13 +882,9 @@ def _normalize_decision_value(raw: Any) -> str:
     @exception  ValueError If the value is not a known decision.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-14
-    @version    0.1.0
+    @version    0.2.0
     """
-    text = str(raw).strip().lower()
-    try:
-        return ConflictDecision(text).value
-    except ValueError as exc:
-        raise ValueError("choose one of: keep-local, take-payload, write-new") from exc
+    return normalize_conflict_decision_value(raw)
 
 
 def _prompt_conflict(ctx: EngineContext, conflict: PayloadConflict) -> ConflictDecision:
@@ -947,13 +942,13 @@ def _make_conflict_hook(ctx: EngineContext):
         @return     The chosen :class:`ConflictDecision`.
         @exception  EngineError If the table holds an invalid decision.
         @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
+        @version    0.2.0
         """
         path = conflict.relative_path
         raw = table.get(path)
         if raw is not None:
             try:
-                decision = ConflictDecision(str(raw).strip().lower())
+                decision = ConflictDecision(normalize_conflict_decision_value(raw))
             except ValueError as exc:
                 raise EngineError(f"invalid conflict decision {raw!r} for {path!r}") from exc
         else:
@@ -1493,13 +1488,15 @@ def run_adopt(
     @param[in]  transport Injectable network Transport (unused: adopt never clones).
     @param[in]  registry_reader Injectable proxy registry reader (unused: adopt never clones).
     @param[in]  home WAEGIS home override (default :func:`waegis_home`).
-    @return     ``EXIT_OK`` (0) on success/dry-run; ``EXIT_FAILURE`` (1) on a
-                validation failure, plan rejection, declined step, or failed step.
+    @return     ``EXIT_OK`` (0) on success/dry-run; ``EXIT_NEEDS_INPUT`` (1)
+                when input or approval is required; ``EXIT_VALIDATION`` (2) on
+                invalid input or a failed step; ``EXIT_OPERATIONAL`` (3) on an
+                operational failure.
     @exception  None Operational failures are reported on ``stream`` and encoded
                 in the exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    0.7.0
+    @version    0.7.1
     """
     target_path = Path(target).resolve()
     if as_json:

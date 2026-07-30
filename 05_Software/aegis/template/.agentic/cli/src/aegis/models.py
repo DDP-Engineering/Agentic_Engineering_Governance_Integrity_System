@@ -317,7 +317,7 @@ class Graph:
         @exception  ValueError If the graph is not an exact schema-3 document.
         @author     Eng. Dan Dumitru Pasare
         @date       2026-07-29
-        @version    1.0.0
+        @version    1.0.1
         """
         expected = {
             "run_id",
@@ -337,7 +337,7 @@ class Graph:
         }
         if data.get("schema_version") != 3:
             raise ValueError(
-                "unsupported run graph schema; AEGIS 2.0 requires schema_version 3"
+                "unsupported run graph schema; AEGIS requires schema_version 3"
             )
         unknown = sorted(set(data) - expected)
         missing = sorted(expected - set(data))

@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """@brief Build the complete hard-break AEGIS 2.0 parser."""
+    """@brief Build the complete hard-break AEGIS 2 parser."""
     parser = argparse.ArgumentParser(prog="aegis")
     parser.add_argument("--run", help="explicit run ID; selected run is the default")
     parser.add_argument("--json", action="store_true", help="emit stable JSON")

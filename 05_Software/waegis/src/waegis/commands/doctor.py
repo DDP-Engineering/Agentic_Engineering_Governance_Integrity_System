@@ -90,9 +90,9 @@
            predicate, which collapses both into one undifferentiated check.
          - **Journal** — the most recent
            :class:`waegis.engine.journal.Journal` recorded for this
-           ``--repo`` path (scanned the same way T4.3's
-           ``_find_prior_journal`` does, without the mode filter doctor has no
-           reason to apply): completed (``ok``), stopped mid-run (``warn``,
+           ``--repo`` path (scanned from the same journal directory and order
+           as :func:`waegis.lifecycle.find_resume_journal`, but without its
+           mode/fingerprint filters): completed (``ok``), stopped mid-run (``warn``,
            names the step), no prior journal at all (``ok`` — informational
            absence, not a failure).
 @details **Exit codes.** Every finding's verdict maps to a severity
@@ -867,18 +867,18 @@ def _latest_journal_for_repo(home: Path, repo: Path) -> Journal | None:
     """
     @brief      Find the latest recorded (non-dry-run) journal for this repo.
     @details    Scans ``<home>/journals/*.json`` newest-first (run ids are
-                lexicographically sortable timestamps), mirroring
-                ``commands/new.py``'s ``_find_prior_journal`` but without its
-                mode filter — doctor reports the last run regardless of
-                whether it was ``new`` or ``adopt``. Unreadable or corrupt
-                journals are skipped, never fatal.
+                lexicographically sortable timestamps), using the same journal
+                location and order as :func:`waegis.lifecycle.find_resume_journal`
+                but without mode/fingerprint filters. Doctor reports the last
+                run regardless of whether it was ``new`` or ``adopt``.
+                Unreadable or corrupt journals are skipped, never fatal.
     @param[in]  home WAEGIS home directory.
     @param[in]  repo Resolved repository path.
     @return     The loaded latest :class:`Journal`, or ``None``.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    0.2.0
     """
     journals_dir = home / "journals"
     if not journals_dir.is_dir():

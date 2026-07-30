@@ -56,9 +56,9 @@
          :data:`GATES_STEP`, all sliced from :func:`_build_new_steps`), plus the
          mode-agnostic helpers and the shared ``deploy.workflow-toml``
          detect/verify/on_fail — so the two catalogs share objects rather than
-         forking the logic. ``_find_prior_journal``/``_render_human_outcome``
-         carry mode/handoff parameters (defaulting to Wizard N's values) so
-         Wizard E reuses them too.
+         forking the logic. Journal discovery is shared through
+         :func:`waegis.lifecycle.find_resume_journal`; rendering helpers carry
+         mode/handoff parameters so Wizard E reuses them too.
 @details **``deploy.gates`` is optional (added 0.4.0).** Its ``automation``
          changed from ``ASSISTED`` to ``AUTO`` (shared with Wizard E via
          :data:`GATES_STEP`, so this applies to both catalogs): declining the
@@ -92,7 +92,6 @@ import json
 import os
 import re
 import shlex
-import sys
 import tomllib
 from dataclasses import replace
 from pathlib import Path
@@ -199,25 +198,19 @@ SHARED_WORKFLOW_SMOKE_GATES = "workflow_smoke_gates"
 # @brief Repo-relative path of the generated configuration surface.
 WORKFLOW_TOML_RELATIVE_PATH = ".agentic/workflow.toml"
 
-# @brief The hook files verify.hooks-present requires, read from the real
-#        template payload (05_Software/aegis/template/.agentic/hooks/).
 # @brief Minimum free disk space at the TARGET drive (plan §8.1 machine.disk).
 MIN_FREE_DISK_BYTES = 1024**3
 
-# @brief Timeout for wrapper-script smoke invocations (a cold python start on a
-#        corporate machine can take far longer than the probe default).
 # @brief Timeout for operator gate commands (a real test suite may be slow).
 GATE_TIMEOUT_SECONDS = 600.0
 
-# @brief The embedded workflow CLI reports actionable workspace-state guidance
-#        when ``status`` runs before any AEGIS run has been started.
 # @brief Templated initial-commit message (plan §8.1 repo.initial-commit).
 INITIAL_COMMIT_MESSAGE = f"Bootstrap AEGIS via WAEGIS {WIZARD_VERSION}"
 REPOWISE_COMMIT_MESSAGE = f"Configure RepoWise via WAEGIS {WIZARD_VERSION}"
 
 # @brief Exit codes (frozen per plan §5/§15 D13; matches analyze's 0/1 shape).
 EXIT_OK = 0
-EXIT_FAILURE = 1
+EXIT_FAILURE = EXIT_NEEDS_INPUT
 
 # @brief Matches the first fenced ```text block of PROMPT_CHEATSHEET.md — the
 #        first operator prompt the handoff step surfaces.
@@ -2524,13 +2517,15 @@ def run_new(
     @param[in]  home WAEGIS home override (default :func:`waegis_home`, which
                 honors ``WAEGIS_HOME``).
     @return     ``EXIT_OK`` (0) when the run (or dry run) succeeded;
-                ``EXIT_FAILURE`` (1) on validation failure, plan rejection,
-                a declined step, or a failed step.
+                ``EXIT_NEEDS_INPUT``/the compatible ``EXIT_FAILURE`` alias (1)
+                when input or approval is required; ``EXIT_VALIDATION`` (2) on
+                invalid input or a failed step; ``EXIT_OPERATIONAL`` (3) on an
+                operational failure.
     @exception  None Operational failures are reported on ``stream`` and
                 encoded in the exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    1.4.0
+    @version    1.4.1
     """
     target_path = Path(target).resolve()
     if as_json:

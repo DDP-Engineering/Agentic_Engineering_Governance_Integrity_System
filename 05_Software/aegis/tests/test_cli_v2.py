@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file test_cli_v2.py
-@brief Contract tests for the AEGIS 2.0 stage-oriented CLI.
+@brief Contract tests for the AEGIS 2 stage-oriented CLI.
 @details Covers the hard-break parser, stable response envelope, strict
          schema-3 graph, captured interface policy, form reconstruction, and
          prepare/apply/close lifecycle.

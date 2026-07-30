@@ -124,7 +124,7 @@ def test_release_artifact_names_carry_no_version(tmp_path: Path) -> None:
                 by the artifact itself.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-29
-    @version    0.1.0
+    @version    0.2.0
     """
     builder = _builder()
     sys.path.insert(0, str(PACKAGE_ROOT / "src"))
@@ -236,11 +236,19 @@ def test_release_copy_excludes_generated_payload_state(tmp_path: Path) -> None:
         source / ".pytest_cache" / "README.md",
         source / ".mypy_cache" / "state.json",
         source / ".ruff_cache" / "state",
+        source / ".hypothesis" / "examples",
+        source / ".tox" / "state",
+        source / ".nox" / "state",
+        source / "htmlcov" / "index.html",
         source / ".pi" / "node_modules" / "package" / "index.js",
         source / ".pi" / ".vitest" / "results.json",
         source / ".uv-cache-build" / "archive.bin",
+        source / ".uv_cache" / "archive.bin",
+        source / ".coverage",
+        source / "coverage.xml",
         source / "package.egg-info" / "PKG-INFO",
         source / "standalone.pyc",
+        source / "optimized.pyo",
     )
     for path in excluded_files:
         path.parent.mkdir(parents=True, exist_ok=True)

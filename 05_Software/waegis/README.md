@@ -58,6 +58,20 @@ reporting. Adoption and upgrade branch names share Git-compatible ref
 validation: empty, option-like, control-character, traversal-like, reserved,
 and otherwise invalid ref names are rejected before branch creation.
 
+Upgrade requires a valid current install manifest. Repositories without one
+must use `waegis adopt`; there is no selectable no-manifest conservative upgrade
+mode. The deprecated `conservative` report field remains present and is always
+`false` for compatibility. Upgrade decisions share the copier's canonical
+normalizer, apply through the persistent transaction, use the shared smoke
+verifier, roll back on smoke/interruption failure, and publish the manifest
+last.
+
+Payload enumeration and release staging exclude interpreter/test/dependency
+state even when it is physically present beneath the source tree:
+`__pycache__/`, `.pyc`, `.pyo`, pytest/mypy/ruff/Hypothesis/tox/nox/coverage
+caches, uv caches, Python package metadata, and adapter-local Node/Vitest
+dependencies.
+
 ## Schema-3 Configuration
 
 WAEGIS generates and validates:

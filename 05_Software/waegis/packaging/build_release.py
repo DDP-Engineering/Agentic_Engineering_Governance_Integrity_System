@@ -39,7 +39,7 @@
          Python or zlib implementations.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 0.9.0
+@version 0.9.1
 """
 
 # IMPORTS
@@ -82,11 +82,21 @@ GENERATED_NAMES = {
     ".pytest_cache",
     ".mypy_cache",
     ".ruff_cache",
+    ".hypothesis",
+    ".tox",
+    ".nox",
+    "htmlcov",
     "node_modules",
     ".vitest",
 }
-GENERATED_SUFFIXES = {".pyc"}
-GENERATED_PATTERNS = ("*.egg-info", ".uv-cache*")
+GENERATED_SUFFIXES = {".pyc", ".pyo"}
+GENERATED_PATTERNS = (
+    "*.egg-info",
+    ".uv-cache*",
+    ".uv_cache*",
+    ".coverage*",
+    "coverage.xml",
+)
 
 # @brief Default build output: the one directory delivery binaries live in.
 # @details A single, Git-ignored location (the repository's root `.gitignore`
@@ -535,13 +545,13 @@ def _copy_tree(source: Path, destination: Path) -> None:
     @param[in]  source Existing source directory.
     @param[in]  destination Destination directory created or extended.
     @return     None.
-    @details    Uses the same payload exclusions as the deployment copier and
-                additionally rejects the packaging-only ``.mypy_cache``.
+    @details    Uses the same interpreter, test, dependency, and coverage-state
+                exclusions as the deployment copier.
     @exception  PackagingError If the source is missing or contains a link or
                 unsupported filesystem entry.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.3.0
+    @version    0.4.0
     """
     if not source.is_dir():
         raise PackagingError(f"release input directory does not exist: {source}")

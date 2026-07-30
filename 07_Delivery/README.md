@@ -61,6 +61,29 @@ Different Python/uv/zlib implementations are not claimed to hash identically.
 See `../06_SoftwareDocu/WAEGIS_RELEASE_REPRODUCIBILITY.md` for supported
 cross-host expectations and the two-build mtime/hash smoke procedure.
 
+## Release Hygiene Checklist
+
+Before producing or recording a release:
+
+1. Run the AEGIS structural hygiene tests and both full package suites.
+2. Confirm the development AEGIS project, embedded CLI, embedded package, and
+   every versioned adapter manifest agree; confirm WAEGIS package metadata,
+   canonical `WIZARD_VERSION`, and the current delivery manifest agree.
+3. Confirm `template/AGENTS.md` names the current AEGIS line and
+   `template/CHANGELOG.md` is byte-empty.
+4. Run
+   `rg --files -uu 05_Software/aegis/template | rg "__pycache__|\.pyc$|\.pyo$"`
+   and require no output.
+5. Exercise payload copying and release staging with physically present cache
+   fixtures; Git ignore rules alone are insufficient because both builders walk
+   the filesystem directly.
+6. Build into `dist/`, run internal archive verification, and retain only the
+   publication manifest/checksums and reviewed release notes in Git.
+7. For a self-governed release, retain the complete approved AEGIS run described
+   in `../06_SoftwareDocu/SELF_GOVERNED_RELEASE.md`. Structural hygiene tests are
+   not a substitute for requirements, design, check, validation, and delivery
+   evidence.
+
 ## Releases
 
 AEGIS 2.1 / WAEGIS 1.1 defines two editions from one codebase. Core preserves

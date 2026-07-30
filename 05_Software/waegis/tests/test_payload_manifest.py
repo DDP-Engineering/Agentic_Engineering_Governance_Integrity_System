@@ -15,7 +15,7 @@
          never touches ``05_Software/aegis/template/`` directly.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-12
-@version 0.1.0
+@version 0.1.1
 """
 
 # IMPORTS
@@ -32,6 +32,7 @@ from waegis.payload.manifest import (
     MANIFEST_RELATIVE_PATH,
     DriftResult,
     FileEntry,
+    Manifest,
     ManifestError,
     ManifestState,
     build_manifest,
@@ -66,6 +67,18 @@ def _make_tree(root: Path) -> None:
 # TESTS
 
 # --- round-trip --------------------------------------------------------------
+
+
+def test_manifest_documentation_names_the_current_schema_and_complete_shape() -> None:
+    """
+    @brief      Keep the public manifest contract documentation aligned with code.
+    @return     None.
+    @exception  AssertionError If stale schema or result-field text returns.
+    """
+    assert "Schema-v1/v2" not in (Manifest.__doc__ or "")
+    assert "schema-v1" in (Manifest.__doc__ or "")
+    assert "payload_digest" in (Manifest.to_dict.__doc__ or "")
+    assert "configuration" in (Manifest.to_dict.__doc__ or "")
 
 
 def test_build_write_read_round_trip(tmp_path: Path) -> None:

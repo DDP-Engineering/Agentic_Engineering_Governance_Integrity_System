@@ -13,6 +13,12 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Canonicalize adoption and upgrade conflict decisions through one shared
+  payload normalizer while preserving the public upgrade exit aliases and the
+  deprecated always-false `conservative` report field.
+- Document the valid-manifest-only upgrade contract, release hygiene checklist,
+  and exact prerequisite/adoption workflow for retaining a future
+  self-governed AEGIS/WAEGIS release run.
 - Make AEGIS graph mutations, evidence-ID allocation, journal publication, and
   same-requirement updates concurrency-safe with bounded repository/run or
   requirement-scoped Windows/POSIX process locks, authoritative reloads, and
@@ -31,6 +37,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Synchronize current AEGIS 2.1.0 / WAEGIS 1.1.0 template branding and schema
+  documentation, enforce structural version parity and an empty downstream
+  changelog, and exclude Python bytecode plus interpreter/test/coverage caches
+  from payload copying and release staging.
 - Normalize validated external check results, summaries, and output-log paths
   before persistence; enforce the same stage, captured-mode, and non-empty
   imported-check preconditions for preparation and recording; and reject an
@@ -57,6 +67,13 @@ All notable changes to this project will be documented in this file.
   archive schema, target, safe membership, regular-file type, and digests while
   rejecting duplicates, case collisions, undeclared files, encryption, links,
   and special entries before atomic artifact publication.
+
+### Removed
+
+- Remove the two unreachable legacy upgrade implementations, the unused private
+  smoke verifier duplicate, dead conservative classification plumbing, stale
+  helper/exit documentation, confirmed unused imports/locals, and 75 ignored
+  Python bytecode files from the copied-verbatim template tree.
 
 ### Security
 

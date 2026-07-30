@@ -147,7 +147,7 @@ class FileEntry:
 @dataclass(frozen=True)
 class Manifest:
     """
-    @brief Schema-v1/v2 install manifest (plan §6 plus lifecycle hardening).
+    @brief Current schema-v1 install manifest (plan §6 plus lifecycle hardening).
     @details ``files`` is every payload file copied verbatim, keyed by
              repo-relative POSIX path, with its original as-shipped hash.
              ``generated`` lists files the wizard created/rewrote from answers
@@ -155,7 +155,7 @@ class Manifest:
              the operator chose to keep local during an adoption conflict.
     @author Eng. Dan Dumitru Pasare
     @date 2026-07-12
-    @version 0.1.0
+    @version 0.2.0
     """
 
     manifest_version: int
@@ -178,11 +178,11 @@ class Manifest:
                     order the caller built the mapping in.
         @return     Mapping keyed ``manifest_version, product, payload_version,
                     installed_at, installed_by, mode, files, generated,
-                    skipped``.
+                    skipped, payload_digest, configuration``.
         @exception  None
         @author     Eng. Dan Dumitru Pasare
         @date       2026-07-12
-        @version    0.1.0
+        @version    0.2.0
         """
         data: dict[str, Any] = {
             "manifest_version": self.manifest_version,

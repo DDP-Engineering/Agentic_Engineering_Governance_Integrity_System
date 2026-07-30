@@ -38,7 +38,7 @@ import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, BinaryIO, Iterable, Iterator, Mapping
 
 from .engine.journal import waegis_home

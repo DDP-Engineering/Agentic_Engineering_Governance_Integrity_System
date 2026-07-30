@@ -33,7 +33,6 @@ import pytest
 
 from waegis.transaction import (
     MAX_TRANSACTION_ENTRIES,
-    TRANSACTION_DIRECTORY,
     FileTransaction,
     TransactionCleanupError,
     TransactionRollbackError,

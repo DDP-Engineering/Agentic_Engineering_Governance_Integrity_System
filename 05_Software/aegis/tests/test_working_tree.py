@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file test_working_tree.py
-@brief Deterministic working-tree review tests for AEGIS 2.0.
+@brief Deterministic working-tree review tests for AEGIS 2.
 @details Covers untracked reporting, configured blockers, Unicode paths,
          adoption source protection, and fail-closed Git diagnostics.
 @author Eng. Dan Dumitru Pasare

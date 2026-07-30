@@ -21,7 +21,7 @@
          an aged/edited install.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.2.0
+@version 0.2.1
 """
 
 # IMPORTS
@@ -29,14 +29,16 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import io
+import inspect
+import json
 import re
 from pathlib import Path
 
 import pytest
 
 from waegis.cli import main
+import waegis.commands.upgrade as upgrade_module
 from waegis.version import WIZARD_VERSION
 from waegis.commands.new import NO_ACTIVE_RUN_MARKER, _amend_manifest_generated, _wrapper_invocation
 from waegis.commands.upgrade import (
@@ -172,12 +174,12 @@ def _smoke_ok_runner(repo: Path) -> FakeCommandRunner:
     @brief      A fake runner that makes the post-apply smoke re-verify pass.
     @details    ``run.* --help`` exits 0; ``run.* status`` exits non-zero with
                 the coherent fresh-install marker (:data:`NO_ACTIVE_RUN_MARKER`),
-                which :func:`waegis.commands.upgrade._smoke_reverify` treats as
+                which :func:`waegis.verification.smoke_reverify` treats as
                 healthy.
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner`.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
+    @version    0.2.1
     """
     return FakeCommandRunner(
         {
@@ -238,6 +240,19 @@ def _action_of(plan, path: str) -> FileAction:
     matches = [item.action for item in plan.items if item.path == path]
     assert len(matches) == 1, f"expected exactly one plan item for {path!r}, got {matches}"
     return matches[0]
+
+
+def test_upgrade_has_one_authoritative_smoke_verifier() -> None:
+    """
+    @brief      Prevent the removed private smoke implementation from returning.
+    @return     None.
+    @exception  AssertionError If upgrade ships a duplicate verifier or stale reference.
+    """
+    source = inspect.getsource(upgrade_module)
+
+    assert not hasattr(upgrade_module, "_smoke_reverify")
+    assert "_smoke_reverify" not in source
+    assert "smoke_reverify(" in source
 
 
 # ---------------------------------------------------------------------------
@@ -729,7 +744,7 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
 
 
 # ---------------------------------------------------------------------------
-# no-manifest conservative path
+# valid-manifest requirement
 # ---------------------------------------------------------------------------
 
 
@@ -791,6 +806,7 @@ def test_json_healthy_upgrade(tmp_path: Path) -> None:
     assert data["plan"]["new_payload_version"] == "2.0.1"
     assert "file.txt" in data["plan"]["actions"]["auto-apply-new"]
     report = data["result"]
+    assert report["conservative"] is False
     assert report["applied"] is True
     assert report["smoke_ok"] is True
     assert report["manifest_written"] is True

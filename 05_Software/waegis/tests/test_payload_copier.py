@@ -22,7 +22,7 @@
          any host OS, plus one real-filesystem proof skipped on Windows.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 0.2.0
+@version 0.2.1
 """
 
 # IMPORTS
@@ -46,6 +46,7 @@ from waegis.payload.copier import (
     TargetDirectoryMissingError,
     copy_payload,
     ensure_executable,
+    normalize_conflict_decision_value,
     should_exclude,
 )
 from waegis.payload.locate import read_payload_version
@@ -142,6 +143,39 @@ def _tree_snapshot(root: Path) -> dict[str, bytes]:
 
 
 # TESTS
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    (
+        (" keep-local ", "keep-local"),
+        ("TAKE-PAYLOAD", "take-payload"),
+        (ConflictDecision.WRITE_NEW, "write-new"),
+    ),
+)
+def test_conflict_decisions_share_one_canonical_normalizer(
+    raw: object,
+    expected: str,
+) -> None:
+    """
+    @brief      Normalize prompt, answers-file, and enum decision inputs identically.
+    @param[in]  raw Candidate input representation.
+    @param[in]  expected Canonical value.
+    @return     None.
+    @exception  AssertionError If normalization diverges.
+    """
+    assert normalize_conflict_decision_value(raw) == expected
+
+
+def test_conflict_decision_normalizer_rejects_unknown_values() -> None:
+    """
+    @brief      Keep one actionable error contract for every decision entry path.
+    @return     None.
+    @exception  AssertionError If invalid input is accepted or messaging drifts.
+    """
+    with pytest.raises(ValueError, match="choose one of"):
+        normalize_conflict_decision_value("overwrite")
+
 
 # --- new-project mode ---------------------------------------------------------
 
