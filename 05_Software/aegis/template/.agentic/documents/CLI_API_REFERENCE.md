@@ -5,7 +5,7 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 2.0 CLI Reference
+# AEGIS 2.1 CLI Reference
 
 AEGIS uses a file-first interface designed to remain tractable for small local
 models. Commands navigate work; generated schema-3 TOML and referenced Markdown
@@ -192,5 +192,11 @@ aegis config validate
 aegis config show
 ```
 
-Configuration and run graphs require schema 3. AEGIS 2.0 rejects schema 2 and
+Configuration and run graphs require schema 3. AEGIS 2.1 rejects schema 2 and
 legacy graphs without migration or fallback.
+
+`config validate` and `config show` also validate/display the optional
+schema-1 `.agentic/integrations/repowise.toml`. Absence means disabled. RepoWise
+execution intentionally has no AEGIS command: WAEGIS owns
+`waegis repowise status|sync`, while AEGIS consumes only validated structural
+artifacts during `repo-discovery`.

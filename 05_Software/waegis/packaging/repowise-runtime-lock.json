@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "provider": "astral-sh/python-build-standalone",
+  "release": "20260510",
+  "python_version": "3.12.13",
+  "reason": "RepoWise 0.37.0 locks numpy 1.26.4, whose native wheels support Python 3.12 but not Python 3.13.",
+  "targets": {
+    "windows-x64": {
+      "asset": "cpython-3.12.13+20260510-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "24168aff2e7d93784c6a436124c4ebb79b076a4e289bde4902c08333507b71d0"
+    },
+    "linux-x64": {
+      "asset": "cpython-3.12.13+20260510-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "d480f5d5878910ecbae212bf23bd7c25d7b209eb8cf5e98823c977384d272e88"
+    }
+  }
+}

@@ -10,9 +10,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 Planning notes, requirements, architecture sketches, and future workflow design
 records for the standalone AEGIS project belong here.
 
-- `Agentic_Development_Architecture/` - the AEGIS 2.0/WAEGIS 1.0 stack:
+- `Agentic_Development_Architecture/` - the AEGIS 2.1/WAEGIS 1.1 stack:
   eight-stage file-first lifecycle, schema 3, design approval, check evidence,
-  deterministic verification, and deployment boundary.
+  deterministic verification, deployment boundary, and optional RepoWise
+  0.37.0 discovery sidecar.
 - `Agentic_Development_Architecture_Examples/` - worked feature, bug-fix, and
   existing-repository adoption examples using prepare/apply/close.
 - Pi adapter behavior is documented by the stack architecture and the copied
@@ -29,7 +30,8 @@ records for the standalone AEGIS project belong here.
   and `AEGIS_Governance_Workflow_Presentation.pptx`) live under
   `06_SoftwareDocu/`.
 - `PROMPT_CHEATSHEET.md` - planning reference copy of the operator prompt cheat
-  sheet for the eight-stage workflow. The downstream operator copy ships at
+  sheet for the eight-stage workflow and optional adoption discovery. The
+  downstream operator copy ships at
   `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`.
 - `AEGIS_Hard_Break_Modernization_Master_Plan_2026-07-22.md` - coordinated
   execution order and shared acceptance criteria for the requirement, workspace

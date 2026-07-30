@@ -275,7 +275,7 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.1
+    @version    0.2.0
     """
     skills_root = PACKAGE_ROOT / "template" / ".agentic" / "skills"
     expected = {
@@ -621,6 +621,7 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
         "How_To_Start_A_New_Project.md",
         "CLI_API_REFERENCE.md",
         "PROMPT_CHEATSHEET.md",
+        "REPOWISE_INTEGRATION.md",
     }
 
     combined = "\n".join(
@@ -632,6 +633,8 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     assert "<workflow> config show --json" in combined
     assert ".agentic/.workspace/state/current_run" in combined
     assert "AEGIS generates" in combined
+    assert "schema_version = 1" in combined
+    assert "RepoWise 0.37.0" in combined
     assert "requirements/registry" not in combined
     assert "write_zones" not in combined
 

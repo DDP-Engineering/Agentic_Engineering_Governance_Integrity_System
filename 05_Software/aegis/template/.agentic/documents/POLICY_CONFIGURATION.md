@@ -2,7 +2,7 @@
 
 # Policy Configuration
 
-AEGIS 2.0 reads policy only from the mandatory schema-3
+AEGIS 2.1 reads workflow policy only from the mandatory schema-3
 `.agentic/workflow.toml`. Validate with `aegis config validate`; inspect with
 `aegis config show --json`.
 
@@ -26,3 +26,10 @@ configuration; AEGIS does not rewrite schema 2.
 
 Host sandbox, approval, and tool permissions remain separate from AEGIS policy
 and always apply.
+
+The optional schema-1 `.agentic/integrations/repowise.toml` is an integration
+policy, not workflow policy. Absence means disabled. Advisory mode may
+pre-populate repository-discovery fields only after evidence validation;
+required mode may block that stage when evidence is unavailable or stale.
+Neither mode grants RepoWise authority over requirements, design, checks,
+evidence, approvals, hooks, agent prompts, or graph state.

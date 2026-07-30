@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.0 Planning Prompt Cheat Sheet
+# AEGIS 2.1 Planning Prompt Cheat Sheet
 
 ## Session
 
@@ -60,3 +60,14 @@ Do not push, publish, merge, or create a PR.
 Routing and access changes go in the current form’s control section. Evidence
 addition/supersession uses generated `evidence prepare` forms. Models never
 invent IDs or edit the graph directly.
+
+## Existing-Repository Discovery
+
+```text
+Run `waegis repowise status --repo "<project>"`. If RepoWise is enabled and
+stale, ask before running `waegis repowise sync --repo "<project>"`. During
+AEGIS repo-discovery, report receipt freshness and provenance, use only
+validated structural proposals, and never overwrite human-entered discovery.
+Treat advisory unavailability as a warning and required unavailability as a
+blocker.
+```

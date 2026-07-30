@@ -8,13 +8,13 @@
 # -----------------------------------------------------------------------------
 """
 @file cli.py
-@brief Stage-oriented, file-first AEGIS 2.0 command-line interface.
+@brief Stage-oriented, file-first AEGIS 2.1 command-line interface.
 @details Exposes only nine grouped command families, two global options, stable
          concise/JSON response fields, and no AEGIS 1.x aliases or mutation
          flags.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 2.0.1
+@version 2.1.0
 """
 
 # IMPORTS
@@ -59,6 +59,7 @@ from .requirements import (
     list_requirements,
     show_requirement,
 )
+from .repowise import effective_repowise_config, inspect_repowise
 from .stage_forms import (
     StageOperationError,
     add_stage_item,
@@ -102,11 +103,11 @@ TOP_LEVEL_COMMANDS = (
 
 def main(argv: list[str] | None = None) -> None:
     """
-    @brief      Run the AEGIS 2.0 grouped CLI.
+    @brief      Run the AEGIS 2.1 grouped CLI.
     @param[in]  argv Optional argument vector for tests and embedding.
     @return     None.
     @exception  SystemExit For parser, policy, validation, or command failures.
-    @version    2.0.2
+    @version    2.1.0
     """
     normalized = _normalize_global_options(list(argv) if argv is not None else sys.argv[1:])
     parser = _build_parser()
@@ -525,15 +526,33 @@ def _adoption_command(
 
 
 def _config_command(root: Path, args: argparse.Namespace) -> dict[str, Any]:
-    """@brief Validate or show the complete schema-3 workspace policy."""
+    """@brief Validate schema-3 policy and optional integration configuration."""
     config = load_config(root)
     data = effective_config_dict(config)
+    integration = effective_repowise_config(root)
+    inspection = inspect_repowise(root)
     return {
         "status": "ok",
         "stage": "none",
         "artifact": ".agentic/workflow.toml",
         "next": "aegis run start feature",
-        **({"config": data} if args.action == "show" else {"schema_version": 3}),
+        **(
+            {
+                "config": data,
+                "integrations": {
+                    "repowise": {
+                        **integration,
+                        "status": inspection.status,
+                        "warnings": list(inspection.warnings),
+                    }
+                },
+            }
+            if args.action == "show"
+            else {
+                "schema_version": 3,
+                "integration_schema_versions": {"repowise": 1},
+            }
+        ),
     }
 
 

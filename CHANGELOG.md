@@ -11,6 +11,74 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Make AEGIS graph mutations, evidence-ID allocation, journal publication, and
+  same-requirement updates concurrency-safe with bounded repository/run or
+  requirement-scoped Windows/POSIX process locks, authoritative reloads, and
+  typed stale-update/lock-timeout failures.
+- Reuse one stdlib-only atomic writer for graph, journal, requirement,
+  active-run pointer, and AEGIS RepoWise JSON state: unique exclusive sibling
+  temporaries are flushed and fsynced before atomic replacement, unpublished
+  files are cleaned safely, and parent-directory durability is attempted where
+  supported.
+
+## [2.1.0] - 2026-07-29
+
+Component versions in this release: AEGIS payload 2.1.0, WAEGIS 1.1.0, and
+optional bundled RepoWise 0.37.0. Workflow and run-graph schema remain 3;
+the RepoWise integration file uses schema 1.
+
+### Added
+
+- Add an optional, process-isolated RepoWise discovery bridge. AEGIS validates
+  policy, receipts, graph/state schemas, hashes, Git HEAD, and worktree
+  fingerprints before copying normalized proposals into a durable
+  run-local repository-discovery snapshot.
+- Add WAEGIS `repowise status` and `repowise sync`, interactive and
+  answers-file lifecycle configuration, deterministic and loopback-only Ollama
+  profiles, advisory/required enforcement, progress journaling, interruption
+  handling, and exact resume commands.
+- Add Core and Complete WAEGIS delivery editions. Complete packages can carry a
+  native, locked RepoWise 0.37.0 sidecar, exact source archive and commit/tag
+  provenance, hashes, notices, SBOM, package manifest, and unpacked-size data.
+- Add native Complete packaging for Windows x64 and Linux x64, clean exact-tag
+  source validation, binary-wheel-only dependency installation, path traversal
+  protection, disk-space checks, project-local sidecar installation, and
+  offline network guards. Cross-platform companions must identify the same
+  RepoWise tag and commit; stale Complete artifacts are rejected.
+- Pin a separate Python 3.12.13 runtime for the RepoWise sidecar so the locked
+  NumPy 1.26.4 native wheels remain installable; WAEGIS Core stays on its
+  existing Python 3.13 runtime.
+- Generate the corresponding RepoWise source ZIP directly from the pinned Git
+  commit so Windows and Linux Complete artifacts remain byte-identical despite
+  host line-ending filters.
+
+### Changed
+
+- Release AEGIS 2.1.0 and WAEGIS 1.1.0 while retaining WAEGIS compatibility
+  `>=2.0.0,<3.0.0`.
+- Make RepoWise an optional advisory discovery provider rather than
+  authoritative AEGIS state. Human-entered adoption discovery is never
+  silently replaced, and only explicitly `required` stale/unavailable data
+  blocks repository discovery.
+- Keep target installation and managed bundled indexing fully offline: no pip,
+  uv, GitHub, PyPI, telemetry, editor registration, agent setup, or external
+  update service is invoked.
+- Treat the mutable RepoWise policy as generated project configuration in the
+  WAEGIS install manifest. Repair reconstructs it from non-secret metadata;
+  explicit `new` or committed `adopt` selection records it in a separate,
+  policy-only commit while the default disabled Core path remains unchanged.
+- Refuse Complete-to-Core use while a project selects the bundled sidecar;
+  reconfigure the project to external or disabled first.
+
+### Security
+
+- Constrain managed bundled RepoWise network access to loopback and reject
+  non-loopback Ollama endpoints.
+- Preserve RepoWise as a separately installed AGPL sidecar and require exact
+  corresponding source and notices in Complete delivery artifacts.
+
 ## [2.0.0] - 2026-07-29
 
 Component versions in this release: AEGIS payload 2.0.0, WAEGIS 1.0.0.

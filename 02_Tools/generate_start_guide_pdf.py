@@ -14,7 +14,7 @@
          distributable PDF without network access or host-office automation.
 @author  Eng. Dan Dumitru Pasare
 @date    2026-07-29
-@version 1.0.1
+@version 1.0.3
 """
 
 # -----------------------------------------------------------------------------
@@ -215,7 +215,7 @@ def _page_decoration(canvas, document: BaseDocTemplate) -> None:
     @param[in,out] canvas ReportLab page canvas.
     @param[in] document Active document state.
     @return None.
-    @version 1.0.0
+    @version 1.0.1
     """
 
     width, height = A4
@@ -230,7 +230,7 @@ def _page_decoration(canvas, document: BaseDocTemplate) -> None:
         canvas.rect(0, height - 17 * mm, width, 17 * mm, stroke=0, fill=1)
         canvas.setFont("AegisSansBold", 8)
         canvas.setFillColor(colors.white)
-        canvas.drawString(18 * mm, height - 10.5 * mm, "AEGIS 2.0  |  START GUIDE")
+        canvas.drawString(18 * mm, height - 10.5 * mm, "AEGIS 2.1  |  START GUIDE")
         canvas.setStrokeColor(LINE)
         canvas.line(18 * mm, 15 * mm, width - 18 * mm, 15 * mm)
         canvas.setFont("AegisSans", 7.5)
@@ -310,10 +310,10 @@ def _section_heading(text: str, style: ParagraphStyle) -> Flowable:
 
 def _cover(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     """
-    @brief Build the AEGIS 2.0 cover page.
+    @brief Build the AEGIS 2.1 cover page.
     @param[in] styles Semantic paragraph styles.
     @return Cover flowables ending with a page break.
-    @version 1.0.0
+    @version 1.0.1
     """
 
     eyebrow = ParagraphStyle(
@@ -386,12 +386,13 @@ def _cover(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     )
     return [
         Spacer(1, 41 * mm),
-        Paragraph("AEGIS 2.0", eyebrow),
+        Paragraph("AEGIS 2.1", eyebrow),
         Paragraph("How to Start and Adapt<br/>a New Project", styles["cover_title"]),
         Spacer(1, 10 * mm),
         Paragraph(
             "A file-first operating guide for the eight-stage workflow, "
-            "deterministic verification, and explicit human approval.",
+            "deterministic verification, explicit human approval, and optional "
+            "validated RepoWise discovery.",
             styles["cover_subtitle"],
         ),
         Spacer(1, 15 * mm),
@@ -420,7 +421,7 @@ def _content_flow(
     @param[in] source Markdown source path.
     @param[in] styles Semantic paragraph styles.
     @return Flowables for the guide body.
-    @version 1.0.0
+    @version 1.0.1
     """
 
     flowables: list[Flowable] = []
@@ -469,6 +470,12 @@ def _content_flow(
     while index < len(lines):
         raw = lines[index]
         stripped = raw.strip()
+        if stripped == "<!-- pdf-pagebreak -->":
+            flush_paragraph()
+            flush_list()
+            flowables.append(PageBreak())
+            index += 1
+            continue
         if stripped.startswith("<!--"):
             in_comment = True
         if in_comment:
@@ -541,7 +548,7 @@ def generate_pdf(source: Path, output: Path) -> None:
     @param[in] output Destination PDF path.
     @return None.
     @exception FileNotFoundError Raised when the source or fonts are unavailable.
-    @version 1.0.0
+    @version 1.0.1
     """
 
     if not source.is_file():
@@ -562,9 +569,9 @@ def generate_pdf(source: Path, output: Path) -> None:
         rightMargin=18 * mm,
         topMargin=22 * mm,
         bottomMargin=19 * mm,
-        title="How To Start and Adapt a New Project with AEGIS 2.0",
+        title="How To Start and Adapt a New Project with AEGIS 2.1",
         author="DDP Engineering",
-        subject="AEGIS 2.0 stage-oriented workflow and schema-3 workspace guide",
+        subject="AEGIS 2.1 stage workflow, schema 3, and optional RepoWise guide",
     )
     document.addPageTemplates(
         [
@@ -585,11 +592,11 @@ def _parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespa
     @brief Parse command-line arguments for the documentation generator.
     @param[in] arguments Optional argument sequence for tests or embedding.
     @return Parsed command-line namespace.
-    @version 1.0.0
+    @version 1.0.1
     """
 
     parser = argparse.ArgumentParser(
-        description="Generate the AEGIS 2.0 start-guide PDF.",
+        description="Generate the AEGIS 2.1 start-guide PDF.",
     )
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)

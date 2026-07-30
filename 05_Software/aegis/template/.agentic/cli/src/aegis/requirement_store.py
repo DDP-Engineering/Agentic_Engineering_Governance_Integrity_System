@@ -12,27 +12,38 @@
 @details Validates the hard-break UUID identity and complete schema before
          exposing records to traceability consumers. Stage imports validate a
          complete collection before publishing any snapshot.
+@details Existing-record updates use per-requirement locks and digest
+         preconditions so stale snapshots cannot silently replace newer files.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
 import re
-import tempfile
 import tomllib
 import uuid
 from typing import Any, Callable
 
 from .config import WorkflowConfig
+from .persistence import (
+    atomic_write_text,
+    create_temporary_text,
+    locked,
+    replace_temporary,
+    scoped_lock_path,
+    sync_directory,
+)
 
 # CONSTANTS
 
@@ -96,6 +107,37 @@ class RequirementValidationError(ValueError):
         self.key = key
         self.message = message
         super().__init__(f"{path}: {key}: {message}")
+
+
+class RequirementConflictError(RequirementValidationError):
+    """
+    @brief Report a stale requirement update without overwriting newer content.
+    @version 1.0.0
+    """
+
+    code = "REQUIREMENT-STALE-UPDATE"
+
+    def __init__(
+        self,
+        path: str,
+        expected_digest: str,
+        actual_digest: str,
+    ) -> None:
+        """
+        @brief Initialize one typed optimistic-concurrency conflict.
+        @param[in] path Repository-relative requirement path.
+        @param[in] expected_digest Digest captured when the record was loaded.
+        @param[in] actual_digest Digest present immediately before publication.
+        @version 1.0.0
+        """
+        self.expected_digest = expected_digest
+        self.actual_digest = actual_digest
+        super().__init__(
+            path,
+            "stale_update",
+            f"{self.code}: requirement changed after it was loaded; "
+            "reload it and retry the update",
+        )
 
 
 @dataclass(frozen=True)
@@ -399,18 +441,24 @@ def create_requirement_record(
 
 
 def write_requirement_record(
-    repo_root: Path, record: RequirementRecord, config: WorkflowConfig
+    repo_root: Path,
+    record: RequirementRecord,
+    config: WorkflowConfig,
+    *,
+    expected_digest: str | None = None,
 ) -> RequirementRecord:
     """
     @brief Validate and atomically replace one existing requirement snapshot.
     @param[in] repo_root Repository root.
     @param[in] record Complete replacement snapshot.
     @param[in] config Validated workflow configuration.
+    @param[in] expected_digest Optional digest captured when the source loaded.
     @return Normalized record persisted to its immutable source path.
     @exception RequirementValidationError If the record or target identity is invalid.
+    @exception RequirementConflictError If the source changed before publish.
     @author Eng. Dan Dumitru Pasare
     @date 2026-07-22
-    @version 0.1.0
+    @version 0.2.0
     """
     normalized = validate_requirement_record(record, config)
     if not normalized.source_file:
@@ -427,9 +475,22 @@ def write_requirement_record(
     if matching_root is None:
         raise RequirementValidationError(normalized.source_file, "path", "file is outside configured requirement roots")
     _validate_file_identity(normalized, target, repo_root, matching_root)
-    if not target.is_file():
-        raise RequirementValidationError(normalized.source_file, "path", "existing requirement file is missing")
-    _atomic_replace(target, render_requirement_toml(normalized))
+    with locked(requirement_lock_path(repo_root, normalized.id)):
+        if not target.is_file():
+            raise RequirementValidationError(
+                normalized.source_file,
+                "path",
+                "existing requirement file is missing",
+            )
+        if expected_digest is not None:
+            actual_digest = _file_digest(target)
+            if actual_digest != expected_digest:
+                raise RequirementConflictError(
+                    normalized.source_file,
+                    expected_digest,
+                    actual_digest,
+                )
+        _atomic_replace(target, render_requirement_toml(normalized))
     return normalized
 
 
@@ -449,7 +510,7 @@ def publish_requirement_records(
                 Existing snapshots are restored if publication fails.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-29
-    @version    0.1.0
+    @version    0.2.0
     """
     normalized_records: list[RequirementRecord] = []
     seen: set[str] = set()
@@ -477,31 +538,100 @@ def publish_requirement_records(
             )
         )
 
-    targets: list[tuple[Path, Path, str | None]] = []
+    targets: list[tuple[Path, Path, str | None, str | None]] = []
     try:
-        for record in sorted(normalized_records, key=lambda item: item.id):
-            target = repo_root / str(record.source_file)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            previous = (
-                target.read_text(encoding="utf-8") if target.is_file() else None
-            )
-            temporary = _write_temporary(target, render_requirement_toml(record))
-            targets.append((target, temporary, previous))
-        for target, temporary, _previous in targets:
-            os.replace(temporary, target)
+        with ExitStack() as locks:
+            for record in sorted(normalized_records, key=lambda item: item.id):
+                locks.enter_context(
+                    locked(requirement_lock_path(repo_root, record.id))
+                )
+            for record in sorted(normalized_records, key=lambda item: item.id):
+                target = repo_root / str(record.source_file)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                previous = (
+                    target.read_text(encoding="utf-8")
+                    if target.is_file()
+                    else None
+                )
+                previous_digest = (
+                    _file_digest(target) if target.is_file() else None
+                )
+                temporary = _write_temporary(
+                    target,
+                    render_requirement_toml(record),
+                )
+                targets.append(
+                    (target, temporary, previous, previous_digest)
+                )
+            for target, _temporary, _previous, previous_digest in targets:
+                actual_digest = (
+                    _file_digest(target) if target.is_file() else None
+                )
+                if actual_digest != previous_digest:
+                    raise RequirementConflictError(
+                        _relative(target, repo_root),
+                        previous_digest or "<absent>",
+                        actual_digest or "<absent>",
+                    )
+            for target, temporary, _previous, _digest in targets:
+                replace_temporary(temporary, target)
+    except RequirementConflictError:
+        for _target, temporary, _previous, _digest in targets:
+            temporary.unlink(missing_ok=True)
+        raise
     except OSError as exc:
-        for target, temporary, previous in reversed(targets):
-            if temporary.exists():
-                temporary.unlink()
+        for target, temporary, previous, _digest in reversed(targets):
+            temporary.unlink(missing_ok=True)
             if previous is None:
                 if target.exists():
                     target.unlink()
+                    sync_directory(target.parent)
             else:
                 _atomic_replace(target, previous)
         raise RequirementValidationError(
             "<requirement-stage>", "publish", f"atomic import failed: {exc}"
         ) from exc
     return sorted(normalized_records, key=lambda item: item.id)
+
+
+def requirement_lock_path(repo_root: Path, requirement_id: str) -> Path:
+    """
+    @brief Return the repository/requirement-scoped update lock.
+    @param[in] repo_root Repository root.
+    @param[in] requirement_id Canonical requirement identity.
+    @return Worktree-local persistent lock path.
+    @version 1.0.0
+    """
+    return scoped_lock_path(repo_root, "requirements", requirement_id)
+
+
+def requirement_source_digest(
+    repo_root: Path,
+    record: RequirementRecord,
+) -> str:
+    """
+    @brief Digest the exact source bytes for an already loaded requirement.
+    @param[in] repo_root Repository root.
+    @param[in] record Loaded record carrying diagnostic source_file metadata.
+    @return Lowercase SHA-256 digest.
+    @exception RequirementValidationError If the source is unavailable.
+    @version 1.0.0
+    """
+    if not record.source_file:
+        raise RequirementValidationError(
+            "<requirements>",
+            "source_file",
+            "source path is required for a freshness check",
+        )
+    path = repo_root / record.source_file
+    try:
+        return _file_digest(path)
+    except OSError as exc:
+        raise RequirementValidationError(
+            record.source_file,
+            "source_file",
+            f"cannot read source for freshness check: {exc}",
+        ) from exc
 
 
 def validate_requirement_record(
@@ -758,10 +888,14 @@ def _toml_string(value: str) -> str:
 
 
 def _publish_exclusive(path: Path, content: str) -> bool:
-    """@brief Atomically publish content only when the destination is absent."""
+    """
+    @brief Atomically publish content only when the destination is absent.
+    @version 0.2.0
+    """
     temporary = _write_temporary(path, content)
     try:
         os.link(temporary, path)
+        sync_directory(path.parent)
     except FileExistsError:
         return False
     finally:
@@ -770,28 +904,27 @@ def _publish_exclusive(path: Path, content: str) -> bool:
 
 
 def _atomic_replace(path: Path, content: str) -> None:
-    """@brief Atomically replace one sibling file after complete serialization."""
-    temporary = _write_temporary(path, content)
-    try:
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    """
+    @brief Atomically replace one sibling file after complete serialization.
+    @version 0.2.0
+    """
+    atomic_write_text(path, content)
 
 
 def _write_temporary(path: Path, content: str) -> Path:
-    """@brief Persist and flush a temporary sibling for atomic publication."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    temporary = Path(name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
-            stream.write(content)
-            stream.flush()
-            os.fsync(stream.fileno())
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise
-    return temporary
+    """
+    @brief Persist and flush a temporary sibling for atomic publication.
+    @version 0.2.0
+    """
+    return create_temporary_text(path, content)
+
+
+def _file_digest(path: Path) -> str:
+    """
+    @brief Return the SHA-256 digest of one file's exact bytes.
+    @version 1.0.0
+    """
+    return sha256(path.read_bytes()).hexdigest()
 
 
 def _relative(path: Path, repo_root: Path) -> str:

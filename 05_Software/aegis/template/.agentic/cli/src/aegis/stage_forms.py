@@ -14,14 +14,14 @@
          deterministic routing for standard and adoption workflows.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.4.0
+@version 1.6.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -52,9 +52,16 @@ from .requirement_store import (
     load_all_requirement_records,
     publish_requirement_records,
     utc_timestamp,
-    write_requirement_record,
 )
-from .store import append_journal, run_dir, save_graph, set_access_mode
+from .requirements import update_requirement
+from .repowise import inspect_repowise
+from .store import (
+    append_journal,
+    run_dir,
+    save_graph,
+    serialized_graph_mutation,
+    set_access_mode,
+)
 
 # CONSTANTS
 
@@ -121,11 +128,12 @@ def stage_directory(repo_root: Path, graph: Graph) -> Path:
     @param[in]  repo_root Repository root.
     @param[in]  graph Active workflow graph.
     @return     `.agentic/runs/<run-id>/stages/<stage>`.
-    @version    0.1.0
+    @version    0.2.0
     """
     return run_dir(repo_root, graph.run_id) / "stages" / graph.stage
 
 
+@serialized_graph_mutation
 def prepare_stage(
     repo_root: Path,
     graph: Graph,
@@ -141,7 +149,7 @@ def prepare_stage(
     @details    Interface policy is captured only when a new prepared revision
                 is created. Repeated calls for an unimported revision preserve
                 that captured policy.
-    @version    0.1.0
+    @version    0.2.0
     """
     if graph.complete:
         raise StageOperationError("run is complete; no stage can be prepared")
@@ -171,18 +179,20 @@ def prepare_stage(
         artifact="",
         payload=preserved_payload,
     )
-    if graph.stage == "repo-discovery" and not record.payload:
-        record.payload = {
-            "source_roots": list(config.source_roots),
-            "test_roots": list(config.test_roots),
-            "requirement_roots": list(config.requirement_roots),
-            "documentation_roots": list(config.documentation_roots),
-            "gate_commands": [
-                f"{name}: {command}"
-                for name in GATE_ORDER
-                for command in getattr(config.gates, name).commands
-            ],
-        }
+    if graph.stage == "repo-discovery":
+        if not record.payload:
+            record.payload = {
+                "source_roots": list(config.source_roots),
+                "test_roots": list(config.test_roots),
+                "requirement_roots": list(config.requirement_roots),
+                "documentation_roots": list(config.documentation_roots),
+                "gate_commands": [
+                    f"{name}: {command}"
+                    for name in GATE_ORDER
+                    for command in getattr(config.gates, name).commands
+                ],
+            }
+        _merge_repowise_discovery(repo_root, graph, record)
     graph.stage_records[graph.stage] = record
 
     if graph.stage == "requirement":
@@ -210,6 +220,7 @@ def prepare_stage(
     return _artifact_path(repo_root, graph, directory, primary)
 
 
+@serialized_graph_mutation
 def add_stage_item(repo_root: Path, graph: Graph) -> Path:
     """
     @brief      Generate another CLI-identified requirement or check form.
@@ -217,7 +228,7 @@ def add_stage_item(repo_root: Path, graph: Graph) -> Path:
     @param[in,out] graph Active workflow graph.
     @return     Newly generated item form.
     @exception  StageOperationError If the current stage is not a collection.
-    @version    0.1.0
+    @version    0.3.0
     """
     if graph.stage not in COLLECTION_STAGES:
         raise StageOperationError(
@@ -286,6 +297,11 @@ def show_stage(repo_root: Path, graph: Graph) -> dict[str, Any]:
         else []
     )
     blockers = stage_blockers(repo_root, graph)
+    warnings: list[str] = []
+    if graph.stage == "repo-discovery":
+        inspection = inspect_repowise(repo_root)
+        if inspection.mode == "advisory":
+            warnings.extend(inspection.warnings)
     return {
         "run_id": graph.run_id,
         "stage": graph.stage,
@@ -297,10 +313,12 @@ def show_stage(repo_root: Path, graph: Graph) -> dict[str, Any]:
         "files": files,
         "ready": not blockers,
         "blockers": blockers,
+        "warnings": sorted(set(warnings)),
         "artifact": record.artifact if record else "",
     }
 
 
+@serialized_graph_mutation
 def apply_stage(
     repo_root: Path,
     graph: Graph,
@@ -313,7 +331,7 @@ def apply_stage(
     @param[in]  config Validated workspace configuration.
     @return     Updated authoritative stage record.
     @exception  StageOperationError If forms are absent, stale, or invalid.
-    @version    0.1.0
+    @version    0.3.0
     """
     record = graph.stage_records.get(graph.stage)
     if not record or record.status != "prepared":
@@ -363,6 +381,7 @@ def apply_stage(
     return record
 
 
+@serialized_graph_mutation
 def close_stage(
     repo_root: Path,
     graph: Graph,
@@ -376,7 +395,7 @@ def close_stage(
     @return     Updated graph and next prepared artifact, or `None` on completion.
     @exception  StageOperationError If authoritative readiness blockers remain.
     @note       Invoking this command is the explicit human approval action.
-    @version    0.1.0
+    @version    0.2.0
     """
     record = graph.stage_records.get(graph.stage)
     if not record or record.status != "applied":
@@ -507,6 +526,10 @@ def stage_blockers(repo_root: Path, graph: Graph) -> list[str]:
     if graph.stage == "repo-discovery":
         if not record.payload.get("candidate_components"):
             blockers.append("repository discovery has no candidate components")
+        inspection = inspect_repowise(repo_root)
+        if inspection.mode == "required" and not inspection.current:
+            detail = "; ".join(inspection.warnings) or inspection.status
+            blockers.append(f"required RepoWise discovery is not current: {detail}")
     if graph.stage == "component-map":
         if not record.payload.get("components"):
             blockers.append("component map has no components")
@@ -909,8 +932,13 @@ def _single_form_text(
             "external_dependencies",
             "entry_points",
             "existing_tests",
+            "discovery_evidence",
+            "repowise_warnings",
         ):
             lines.append(f"{key} = {_array(values.get(key, []))}")
+        lines.append(
+            f"repowise_status = {_q(values.get('repowise_status', 'disabled'))}"
+        )
     elif stage == "component-map":
         lines.extend(
             [
@@ -1034,6 +1062,9 @@ def _load_single_stage_form(
             "external_dependencies",
             "entry_points",
             "existing_tests",
+            "discovery_evidence",
+            "repowise_warnings",
+            "repowise_status",
         ),
         "component-map": (
             "manifest",
@@ -1399,7 +1430,10 @@ def _activate_green_requirements(
     graph: Graph,
     config: WorkflowConfig,
 ) -> None:
-    """@brief Activate Planned requirements whose cited checks are green."""
+    """
+    @brief Activate cited green requirements through serialized stale-safe updates.
+    @version 0.2.0
+    """
     for requirement in load_all_requirement_records(repo_root, config):
         if requirement.status != "Planned":
             continue
@@ -1410,14 +1444,12 @@ def _activate_green_requirements(
             not _has_check_evidence(graph, check.id, "pass") for check in cited
         ):
             continue
-        write_requirement_record(
+        update_requirement(
             repo_root,
-            replace(
-                requirement,
-                status="Active",
-                last_updated=utc_timestamp(),
-            ),
-            config,
+            requirement.id,
+            status="Active",
+            config=config,
+            timestamp=utc_timestamp(),
         )
         append_journal(
             repo_root,
@@ -1532,6 +1564,8 @@ def _validate_stage_values(
             "external_dependencies",
             "entry_points",
             "existing_tests",
+            "discovery_evidence",
+            "repowise_warnings",
         ),
         "component-map": ("components", "approved_slice"),
         "component-adoption": (
@@ -1562,6 +1596,7 @@ def _validate_stage_values(
             "bundle_rationale",
             "access_mode",
         ),
+        "repo-discovery": ("repowise_status",),
         "component-map": ("manifest", "approval_decision"),
         "baseline-review": ("decision",),
         "adoption-delivery": ("preflight", "report", "decision"),
@@ -1572,6 +1607,61 @@ def _validate_stage_values(
         data[key] = _string(data, key, path)
     if stage == "component-adoption" and type(data["behavior_changed"]) is not bool:
         raise StageOperationError(f"{path}: behavior_changed must be a boolean")
+
+
+def _merge_repowise_discovery(
+    repo_root: Path,
+    graph: Graph,
+    record: StageRecord,
+) -> None:
+    """
+    @brief Merge validated RepoWise proposals without replacing existing values.
+    @param[in] repo_root Repository root.
+    @param[in] graph Active adoption graph.
+    @param[in,out] record Prepared repo-discovery record.
+    @return None.
+    @version 0.1.1
+    """
+    inspection = inspect_repowise(
+        repo_root,
+        run_id=graph.run_id,
+        write_snapshot=True,
+    )
+    for key in (
+        "source_roots",
+        "candidate_components",
+        "external_dependencies",
+        "entry_points",
+        "existing_tests",
+    ):
+        existing = record.payload.get(key, [])
+        if not isinstance(existing, list):
+            existing = []
+        additions = inspection.proposals.get(key, []) if inspection.current else []
+        record.payload[key] = sorted(
+            {
+                item
+                for item in [*existing, *additions]
+                if isinstance(item, str) and item
+            }
+        )
+    for key in (
+        "test_roots",
+        "requirement_roots",
+        "documentation_roots",
+        "gate_commands",
+    ):
+        record.payload.setdefault(key, [])
+    evidence = [
+        item
+        for item in record.payload.get("discovery_evidence", [])
+        if isinstance(item, str) and item
+    ]
+    if inspection.snapshot:
+        evidence.append(inspection.snapshot)
+    record.payload["discovery_evidence"] = sorted(set(evidence))
+    record.payload["repowise_warnings"] = list(inspection.warnings)
+    record.payload["repowise_status"] = inspection.status
 
 
 def _validate_identity(

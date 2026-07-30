@@ -16,7 +16,7 @@
          the manifest-last commit, and every failure rolls back.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -46,6 +46,11 @@ from ..payload.manifest import (
 )
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo.workflow_toml import generate_workflow_toml
+from ..repowise import (
+    INTEGRATION_RELATIVE_PATH,
+    RepoWiseSettings,
+    _integration_text,
+)
 from ..transaction import FileTransaction, recover_incomplete_transactions
 from ..verification import smoke_reverify
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
@@ -148,7 +153,7 @@ def run_repair(
     @exception  None All errors are rendered.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-18
-    @version    0.1.2
+    @version    0.2.0
     """
     repo_path = Path(repo).resolve()
     if as_json:
@@ -281,9 +286,14 @@ def run_repair(
         expected = metadata.get("sha256") if isinstance(metadata, Mapping) else None
         if not target.is_file() or not isinstance(expected, str) or hash_file(target).sha256 != expected:
             regenerate.append(relative)
-    if regenerate and (
-        regenerate != [WORKFLOW_TOML_RELATIVE_PATH]
-        or not all(
+    supported_generated = {
+        WORKFLOW_TOML_RELATIVE_PATH,
+        INTEGRATION_RELATIVE_PATH,
+    }
+    repowise_configuration = manifest.configuration.get("repowise")
+    workflow_incomplete = (
+        WORKFLOW_TOML_RELATIVE_PATH in regenerate
+        and not all(
             key in configuration_answers
             for key in (
                 "source_roots",
@@ -297,6 +307,21 @@ def run_repair(
                 "alignment_enabled",
             )
         )
+    )
+    repowise_incomplete = (
+        INTEGRATION_RELATIVE_PATH in regenerate
+        and (
+            not isinstance(repowise_configuration, Mapping)
+            or repowise_configuration.get("source")
+            not in {"disabled", "bundled", "external"}
+            or repowise_configuration.get("enforcement")
+            not in {"advisory", "required"}
+        )
+    )
+    if (
+        set(regenerate) - supported_generated
+        or workflow_incomplete
+        or repowise_incomplete
     ):
         return _emit(
             stream,
@@ -385,7 +410,9 @@ def run_repair(
                     shutil.copy2(resolve_managed_path(payload_root, relative), sidecar)
                     ensure_executable(sidecar)
         configuration = dict(manifest.configuration)
-        if regenerate:
+        raw_generated = configuration.get("generated_files")
+        generated_files = dict(raw_generated) if isinstance(raw_generated, Mapping) else {}
+        if WORKFLOW_TOML_RELATIVE_PATH in regenerate:
             workflow = resolve_managed_path(repo_path, WORKFLOW_TOML_RELATIVE_PATH)
             base = (
                 workflow.read_text(encoding="utf-8")
@@ -396,13 +423,45 @@ def run_repair(
             temporary = workflow.with_name(workflow.name + ".waegis-tmp")
             temporary.write_text(generated.text, encoding="utf-8", newline="")
             os.replace(temporary, workflow)
-            configuration = {
-                "answers": {key: configuration_answers[key] for key in sorted(configuration_answers)},
-                "generator_version": WIZARD_VERSION,
-                "generated_files": {
-                    WORKFLOW_TOML_RELATIVE_PATH: {"sha256": hash_file(workflow).sha256}
-                },
+            configuration["answers"] = {
+                key: configuration_answers[key]
+                for key in sorted(configuration_answers)
             }
+            configuration["generator_version"] = WIZARD_VERSION
+            generated_files[WORKFLOW_TOML_RELATIVE_PATH] = {
+                "sha256": hash_file(workflow).sha256
+            }
+        if INTEGRATION_RELATIVE_PATH in regenerate:
+            assert isinstance(repowise_configuration, Mapping)
+            policy = resolve_managed_path(repo_path, INTEGRATION_RELATIVE_PATH)
+            settings = RepoWiseSettings(
+                source=str(repowise_configuration["source"]),
+                profile=str(repowise_configuration.get("profile", "deterministic")),
+                ollama_url=str(
+                    repowise_configuration.get(
+                        "ollama_url",
+                        "http://127.0.0.1:11434",
+                    )
+                ),
+                model=str(repowise_configuration.get("model", "")),
+                embedding_model=str(
+                    repowise_configuration.get("embedding_model", "")
+                ),
+                enforcement=str(repowise_configuration["enforcement"]),
+            )
+            temporary = policy.with_name(policy.name + ".waegis-tmp")
+            temporary.parent.mkdir(parents=True, exist_ok=True)
+            temporary.write_text(
+                _integration_text(settings),
+                encoding="utf-8",
+                newline="",
+            )
+            os.replace(temporary, policy)
+            generated_files[INTEGRATION_RELATIVE_PATH] = {
+                "sha256": hash_file(policy).sha256
+            }
+        if regenerate:
+            configuration["generated_files"] = generated_files
         expected_manifest = replace(
             manifest,
             files=files,

@@ -16,7 +16,7 @@
          metadata is written to the install manifest last.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-16
-@version 0.2.0
+@version 0.3.1
 """
 
 # IMPORTS
@@ -55,6 +55,7 @@ from ..repo.workflow_toml import (
     WorkflowTomlError,
     generate_workflow_toml,
 )
+from ..repowise import REPOWISE_ANSWER_KEYS, RepoWiseError, lifecycle_repowise
 from ..verification import smoke_reverify
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from ..transaction import FileTransaction, recover_incomplete_transactions
@@ -237,7 +238,7 @@ def run_configure(
     @exception  None All failures are rendered through the selected surface.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-16
-    @version    0.1.0
+    @version    0.3.1
     """
     repo_path = Path(repo).resolve()
     if as_json:
@@ -282,7 +283,7 @@ def run_configure(
                 exit_code=EXIT_VALIDATION,
                 messages=(str(exc),),
             )
-    unknown = sorted(set(supplied) - _CONFIG_KEYS - _CONTROL_KEYS)
+    unknown = sorted(set(supplied) - _CONFIG_KEYS - _CONTROL_KEYS - REPOWISE_ANSWER_KEYS)
     if unknown:
         return _emit(
             stream,
@@ -355,10 +356,12 @@ def run_configure(
         "warnings": [warning.message for warning in generated.warnings],
         "recovered_transactions": list(recovered),
         **controls,
+        "repowise_requested": bool(REPOWISE_ANSWER_KEYS.intersection(supplied)) or not non_interactive,
     }
     if dry_run:
         return _emit(stream, as_json=as_json, status="ok", exit_code=EXIT_OK, plan=plan)
-    if not content_changed and not changes:
+    repowise_requested = bool(plan["repowise_requested"])
+    if not content_changed and not changes and not repowise_requested:
         return _emit(
             stream,
             as_json=as_json,
@@ -406,13 +409,17 @@ def run_configure(
             failures.extend(f"{item.name}: {item.detail}" for item in smoke if item.status == "fail")
         if not smoke_ok or failures:
             raise RuntimeError("; ".join(failures))
-        configuration = {
-            "answers": {key: resolved[key] for key in sorted(resolved)},
-            "generator_version": WIZARD_VERSION,
-            "generated_files": {
-                WORKFLOW_TOML_RELATIVE_PATH: {"sha256": hash_file(workflow_path).sha256}
-            },
+        configuration = dict(manifest.configuration)
+        raw_generated = configuration.get("generated_files")
+        generated_files = dict(raw_generated) if isinstance(raw_generated, Mapping) else {}
+        generated_files[WORKFLOW_TOML_RELATIVE_PATH] = {
+            "sha256": hash_file(workflow_path).sha256
         }
+        configuration["answers"] = {
+            key: resolved[key] for key in sorted(resolved)
+        }
+        configuration["generator_version"] = WIZARD_VERSION
+        configuration["generated_files"] = generated_files
         generated_paths = tuple(sorted(set(manifest.generated) | {WORKFLOW_TOML_RELATIVE_PATH}))
         transaction.mark("verified")
         write_manifest(
@@ -435,6 +442,38 @@ def run_configure(
             messages=(f"configuration verification failed; rolled back: {exc}",),
         )
 
+    repowise_result: dict[str, Any] | None = None
+    repowise_error: str | None = None
+    if repowise_requested:
+        try:
+            repowise_result = lifecycle_repowise(
+                repo_path,
+                supplied,
+                lifecycle="configure",
+                interactive=not non_interactive,
+                asker=asker,
+                stream=None if as_json else stream,
+            )
+        except (OSError, RepoWiseError) as exc:
+            repowise_error = str(exc)
+    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
+        return _emit(
+            stream,
+            as_json=as_json,
+            status="error",
+            exit_code=EXIT_OPERATIONAL,
+            plan=plan,
+            result={
+                "configured": True,
+                "no_op": False,
+                "rolled_back": False,
+                "aegis": {"ok": True},
+                "repowise": repowise_result
+                or {"aegis": "ok", "sync": {"ok": False, "error": repowise_error}},
+            },
+            messages=((repowise_error,) if repowise_error else ()),
+        )
+
     warning_messages = tuple(warning.message for warning in generated.warnings)
     exit_code = EXIT_NEEDS_INPUT if warning_messages else EXIT_OK
     status = "warning" if warning_messages else "ok"
@@ -444,7 +483,13 @@ def run_configure(
         status=status,
         exit_code=exit_code,
         plan=plan,
-        result={"configured": True, "no_op": False, "rolled_back": False},
+        result={
+            "configured": True,
+            "no_op": False,
+            "rolled_back": False,
+            "aegis": {"ok": True},
+            "repowise": repowise_result,
+        },
         messages=warning_messages,
     )
 

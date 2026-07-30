@@ -2,7 +2,7 @@
 
 # Workflow Configuration
 
-Every AEGIS 2.0 workspace begins with:
+Every AEGIS 2.1 workspace begins with:
 
 ```toml
 schema_version = 3
@@ -14,6 +14,35 @@ Inspect it with `<workflow> config validate --json` and
 The selected run is worktree-local state at
 `.agentic/.workspace/state/current_run`; use global `--run <run-id>` to pin a
 different existing run without rewriting that pointer.
+
+## Persistence and Concurrency
+
+AEGIS publishes graph, journal, requirement, active-run pointer, and normalized
+RepoWise JSON through uniquely named, exclusively created sibling temporary
+files. Each completed temporary file is flushed and fsynced before atomic
+replacement; parent-directory metadata is fsynced where the operating system
+supports it. A failed replacement leaves the previous complete file in place
+and cleans the unpublished temporary file.
+
+Graph mutation holds one repository/run-scoped Windows or POSIX process lock
+across authoritative reload, validation, mutation, graph publication, and its
+journal calls. Journal publication has its own run-scoped lock and preserves
+one complete UTF-8 JSON object per line. Evidence IDs retain the `E-NNNN`
+format and are allocated monotonically from the locked authoritative graph.
+
+Same-requirement updates use a requirement-scoped lock and compare the exact
+source digest captured at load with the file present immediately before
+publication. A stale graph or requirement update fails closed with
+`GRAPH-STALE-UPDATE` or `REQUIREMENT-STALE-UPDATE`; it never silently replaces
+the newer state. Requirement reads remain lock-free, UUID-per-file creation
+remains exclusive, and edits on different branches retain the normal Git
+conflict model.
+
+Lock acquisition waits for at most 15 seconds, then returns
+`PERSISTENCE-LOCK-TIMEOUT` with the lock path and retry guidance. Lock files
+under `.agentic/.workspace/locks/` persist deliberately. The operating system
+releases a lock when its process exits, so an unlocked stale file is reused
+safely and must not be deleted based on uncertain ownership.
 
 `.agentic/workflow.toml` is a strict, closed schema-3 document. Missing,
 unknown, malformed, schema-2, or inconsistent configuration blocks before state
@@ -71,3 +100,10 @@ tool evidence only—not a general security assurance.
 All remaining source, tests, requirements, documentation, component,
 traceability, adoption, alignment, and guardrail tables remain required. Use
 `aegis config show --json` to inspect the normalized effective policy.
+
+## Optional Integrations
+
+Optional discovery integration is deliberately outside `.agentic/workflow.toml`
+and does not change schema 3. `aegis config validate/show` also inspects the
+strict schema-1 `.agentic/integrations/repowise.toml`; absence means disabled.
+See `REPOWISE_INTEGRATION.md`.

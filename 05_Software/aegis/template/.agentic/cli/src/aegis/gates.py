@@ -24,7 +24,7 @@
          124 respectively), so they end as recorded failing gate evidence.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 1.0.0
+@version 1.1.0
 """
 
 # IMPORTS
@@ -37,7 +37,15 @@ from pathlib import Path
 
 from .config import GATE_ORDER, WorkflowConfig
 from .models import Evidence
-from .store import add_evidence, append_journal, load_graph, save_graph
+from .persistence import locked
+from .store import (
+    add_evidence,
+    append_journal,
+    load_graph,
+    next_evidence_id,
+    run_lock_path,
+    save_graph,
+)
 
 # PUBLIC API
 
@@ -60,7 +68,7 @@ def run_gates(
     @exception  ValueError If a requested gate name is unsupported.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    1.0.0
+    @version    1.1.0
     """
     unknown = sorted(set(names or ()) - set(GATE_ORDER))
     if unknown:
@@ -68,6 +76,27 @@ def run_gates(
             f"Unknown gate name(s): {', '.join(unknown)}. "
             f"Expected one or more of {', '.join(GATE_ORDER)}."
         )
+    with locked(run_lock_path(repo_root, run_id)):
+        return _run_gates_locked(repo_root, run_id, config, names, timeout)
+
+
+def _run_gates_locked(
+    repo_root: Path,
+    run_id: str,
+    config: WorkflowConfig,
+    names: list[str] | None,
+    timeout: int,
+) -> int:
+    """
+    @brief Execute gate commands while holding the complete graph transaction.
+    @param[in] repo_root Repository root.
+    @param[in] run_id Selected run identity.
+    @param[in] config Validated workflow configuration.
+    @param[in] names Optional gate selection.
+    @param[in] timeout Per-command timeout.
+    @return Aggregate gate exit code.
+    @version 1.1.0
+    """
     graph = load_graph(repo_root, run_id)
     selected = [name for name in GATE_ORDER if not names or name in names]
 
@@ -86,7 +115,7 @@ def run_gates(
         for command in commands:
             result = _run_command(repo_root, command, timeout)
             evidence = Evidence(
-                id=f"E-{len(graph.evidence) + 1:04d}",
+                id=next_evidence_id(graph),
                 kind="gate",
                 result="pass" if result.returncode == 0 else "fail",
                 summary=f"{name}: {command}",

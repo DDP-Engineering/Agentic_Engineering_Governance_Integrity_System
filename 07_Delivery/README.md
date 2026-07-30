@@ -18,6 +18,8 @@ publication records for the standalone AEGIS project belong here.
     waegis.pyz
     waegis-windows-x64.zip
     waegis-linux-x64.tar.gz
+    waegis-complete-windows-x64.zip
+    waegis-complete-linux-x64.tar.gz
     SHA256SUMS
     release-manifest.json
   waegis-<version>/         publication record - tracked, one per release
@@ -45,6 +47,16 @@ uv run python 05_Software/waegis/packaging/build_release.py
 
 ## Releases
 
+AEGIS 2.1 / WAEGIS 1.1 defines two editions from one codebase. Core preserves
+the three existing artifacts and defaults RepoWise to disabled. Complete adds
+native RepoWise 0.37.0 artifacts built separately on Windows x64 and Linux x64.
+See `REPOWISE_COMPLETE_DELIVERY.md` for native build, offline, manifest, SBOM,
+notice, and AGPL review requirements.
+
+AEGIS 2.1.0 / WAEGIS 1.1.0 is the current release. All three Core and both
+Complete artifacts were built in `dist/`; the Complete archives passed native
+Windows x64 and Linux x64 builds and full internal-manifest verification.
+
 > **Every release before 0.6.0 ships a payload with no Codex enforcement.**
 > Their `.codex/hooks.json` carries annotation keys that Codex's strict parser
 > rejects, and a rejected file registers *zero* hooks — the read, write-zone,
@@ -53,7 +65,11 @@ uv run python 05_Software/waegis/packaging/build_release.py
 > and 0.5.0. Other adapters are unaffected. Upgrade any install to 0.6.0 with
 > `waegis upgrade --repo <path>`, then re-review the hooks in Codex.
 
-- `waegis-0.6.0/` - WAEGIS 0.6.0 with bundled AEGIS payload 1.4.1 (current).
+- `waegis-1.1.0/` - WAEGIS 1.1.0 with bundled AEGIS payload 2.1.0 and optional
+  RepoWise 0.37.0 Complete sidecars (current). Contains the five-artifact
+  publication manifest and checksums. See `waegis-1.1.0/RELEASE.md`.
+- `waegis-0.6.0/` - WAEGIS 0.6.0 with bundled AEGIS payload 1.4.1
+  (latest prior tracked publication record).
   Fixes the rejected Codex hook configuration described above, and adds the
   `waegis doctor` adapter-config check plus the post-upgrade hook re-trust
   notice. **First release with version-free artifact names**; releases up to
@@ -88,6 +104,11 @@ WAEGIS deploys the template as copied files plus a bundled Python CLI:
 
 WAEGIS is the deployment/lifecycle tool and is never copied into the target
 AEGIS payload.
+
+Complete carries RepoWise as a separate release sidecar. WAEGIS installs it
+only when selected under
+`.agentic/tools/repowise/0.37.0/<platform>/`; AEGIS reads only validated
+artifacts and receipts. Target installation/indexing never downloads packages.
 
 The current CLI has no third-party runtime dependencies. Python 3.11 or newer
 is required. The install scripts prefer `uv` when available and otherwise use

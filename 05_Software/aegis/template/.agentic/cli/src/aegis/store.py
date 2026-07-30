@@ -33,24 +33,38 @@
          graph has been saved successfully.
 @details ``resolve_run_id`` and ``load_graph`` (0.1.0) implement the strict
          explicit-first active-run contract with typed, actionable failures.
+@details Graph mutations now reload under a repository/run-scoped OS lock,
+         reject stale direct saves, publish through atomic sibling replacement,
+         and serialize crash-safe journal replacement.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.7.0
+@version 0.8.0
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from functools import wraps
+from hashlib import sha256
 import json
-import os
+import os  # noqa: F401 - retained for the established fault-injection seam
 from pathlib import Path
 import re
+from typing import Any, Callable, Concatenate, Iterator, ParamSpec, TypeVar
 from uuid import uuid4
 
 from .models import ADOPTION_STAGES, AccessMode, Evidence, Graph, Intent, RunKind, Stage, now_iso
+from .persistence import (
+    PersistenceError,
+    atomic_write_bytes,
+    atomic_write_text,
+    locked,
+    scoped_lock_path,
+)
 
 # CONSTANTS
 
@@ -66,6 +80,8 @@ RUN_ID_PATTERN = re.compile(
     r"(?P<timestamp>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{6}Z)-"
     r"[0-9a-f]{8}$"
 )
+_GRAPH_PARAMETERS = ParamSpec("_GRAPH_PARAMETERS")
+_GRAPH_RESULT = TypeVar("_GRAPH_RESULT")
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -115,6 +131,27 @@ class RunResolutionError(Exception):
             "message": self.message,
             "remediation": self.remediation,
         }
+
+
+class GraphConflictError(PersistenceError):
+    """
+    @brief Reject a stale in-memory graph before it can overwrite newer state.
+    @version 1.0.0
+    """
+
+    code = "GRAPH-STALE-UPDATE"
+
+    def __init__(self, run_id: str) -> None:
+        """
+        @brief Initialize an actionable stale-graph conflict.
+        @param[in] run_id Conflicting run identity.
+        @version 1.0.0
+        """
+        self.run_id = run_id
+        super().__init__(
+            f"{self.code}: graph {run_id} changed after it was loaded. "
+            "Reload the run and retry the operation."
+        )
 
 # PUBLIC API
 
@@ -330,22 +367,11 @@ def write_current_run(repo_root: Path, run_id: str) -> None:
     @exception  OSError If the state directory or pointer cannot be written.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
     if not _is_valid_run_id(run_id):
         raise _explicit_run_error(None, received=run_id)
-    state_root = workspace_state_root(repo_root)
-    state_root.mkdir(parents=True, exist_ok=True)
-    destination = current_run_path(repo_root)
-    temporary = destination.with_name(f".{CURRENT_RUN}.{uuid4().hex}.tmp")
-    try:
-        with temporary.open("xb") as handle:
-            handle.write(f"{run_id}\n".encode("utf-8"))
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, destination)
-    finally:
-        temporary.unlink(missing_ok=True)
+    atomic_write_text(current_run_path(repo_root), f"{run_id}\n")
 
 
 def resolve_run_id(repo_root: Path, explicit_run_id: str | None = None) -> str:
@@ -514,7 +540,7 @@ def _load_selected_graph(repo_root: Path, run_id: str, *, explicit: bool) -> Gra
                 or graph identity validation fails.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-22
-    @version    0.2.0
+    @version    0.3.0
     """
     error = _explicit_run_error(run_id) if explicit else _stale_pointer_error(run_id)
     root = runs_root(repo_root).resolve()
@@ -527,7 +553,8 @@ def _load_selected_graph(repo_root: Path, run_id: str, *, explicit: bool) -> Gra
     if not resolved.is_file():
         raise error
     try:
-        payload = json.loads(resolved.read_text(encoding="utf-8"))
+        raw = resolved.read_bytes()
+        payload = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("graph JSON must be an object")
         graph = Graph.from_dict(payload)
@@ -543,6 +570,8 @@ def _load_selected_graph(repo_root: Path, run_id: str, *, explicit: bool) -> Gra
         raise error from None
     if graph.run_id != run_id:
         raise error
+    graph._source_digest = sha256(raw).hexdigest()
+    graph._source_state_digest = sha256(_serialize_graph(graph)).hexdigest()
     return graph
 
 
@@ -564,7 +593,7 @@ def init_graph(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.5.0
+    @version    0.6.0
     """
     run_id = new_run_id(kind)
     starting_stage: Stage = ADOPTION_STAGES[0] if kind == "adoption" else "intake"
@@ -616,43 +645,189 @@ def load_graph(repo_root: Path, run_id: str) -> Graph:
 
 def save_graph(repo_root: Path, graph: Graph) -> None:
     """
-    @brief      Save graph workflow behavior.
-    @param[in]  repo_root Input value used by the workflow helper.
-    @param[in]  graph Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @brief Atomically publish a graph unless its loaded source is stale.
+    @param[in] repo_root Repository root.
+    @param[in,out] graph Complete graph carrying its last loaded digest.
+    @return None.
+    @exception GraphConflictError If a newer graph is already on disk.
+    @exception OSError If persistence or replacement fails.
+    @version 0.2.0
     """
     path = graph_path(repo_root, graph.run_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(graph.to_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    content = _serialize_graph(graph)
+    with locked(run_lock_path(repo_root, graph.run_id)):
+        expected = getattr(graph, "_source_digest", None)
+        if path.is_file() and expected is not None:
+            current = sha256(path.read_bytes()).hexdigest()
+            if current != expected:
+                raise GraphConflictError(graph.run_id)
+        atomic_write_bytes(path, content)
+        graph._source_digest = sha256(content).hexdigest()
+        graph._source_state_digest = sha256(content).hexdigest()
 
 
-def append_journal(repo_root: Path, run_id: str, event: str, data: dict) -> None:
+def append_journal(
+    repo_root: Path,
+    run_id: str,
+    event: str,
+    data: dict[str, Any],
+) -> None:
     """
-    @brief      Append journal workflow behavior.
-    @param[in]  repo_root Input value used by the workflow helper.
-    @param[in]  run_id Input value used by the workflow helper.
-    @param[in]  event Input value used by the workflow helper.
-    @param[in]  data Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @brief Serialize one complete UTF-8 JSON line through atomic replacement.
+    @param[in] repo_root Repository root.
+    @param[in] run_id Run identity selecting the journal.
+    @param[in] event Stable event name.
+    @param[in] data JSON-compatible event data.
+    @return None.
+    @exception PersistenceError If the existing journal ends in a partial line.
+    @exception OSError If persistence or replacement fails.
+    @version 0.2.0
     """
     path = journal_path(repo_root, run_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
     entry = {"time": now_iso(), "event": event, "data": data}
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+    line = (json.dumps(entry, sort_keys=True) + "\n").encode("utf-8")
+    with locked(journal_lock_path(repo_root, run_id)):
+        existing = path.read_bytes() if path.is_file() else b""
+        if existing and not existing.endswith(b"\n"):
+            raise PersistenceError(
+                f"journal {path} ends with an incomplete record; "
+                "restore a valid journal before appending"
+            )
+        atomic_write_bytes(path, existing + line)
 
 
+def run_lock_path(repo_root: Path, run_id: str) -> Path:
+    """
+    @brief Return the repository/run-scoped graph mutation lock.
+    @param[in] repo_root Repository root.
+    @param[in] run_id Run identity.
+    @return Worktree-local persistent lock path.
+    @version 1.0.0
+    """
+    return scoped_lock_path(repo_root, "runs", run_id)
+
+
+def journal_lock_path(repo_root: Path, run_id: str) -> Path:
+    """
+    @brief Return the repository/run-scoped journal append lock.
+    @param[in] repo_root Repository root.
+    @param[in] run_id Run identity.
+    @return Worktree-local persistent lock path.
+    @version 1.0.0
+    """
+    return scoped_lock_path(repo_root, "journals", run_id)
+
+
+def next_evidence_id(graph: Graph, offset: int = 0) -> str:
+    """
+    @brief Allocate the next collision-safe monotonic evidence identifier.
+    @param[in] graph Authoritative graph held by the current run transaction.
+    @param[in] offset Additional identifier offset for a validated batch.
+    @return Existing-compatible `E-NNNN` identifier.
+    @version 1.0.0
+    """
+    numbers = [
+        int(item.id[2:])
+        for item in graph.evidence
+        if re.fullmatch(r"E-[0-9]+", item.id)
+    ]
+    number = max(numbers, default=0) + offset + 1
+    identifiers = {item.id for item in graph.evidence}
+    candidate = f"E-{number:04d}"
+    while candidate in identifiers:
+        number += 1
+        candidate = f"E-{number:04d}"
+    return candidate
+
+
+@contextmanager
+def graph_transaction(repo_root: Path, graph: Graph) -> Iterator[Graph]:
+    """
+    @brief Reload and hold the authoritative graph for one complete mutation.
+    @param[in] repo_root Repository root.
+    @param[in,out] graph Caller graph refreshed in place under the run lock.
+    @return Iterator yielding the refreshed graph.
+    @exception RunResolutionError If the authoritative graph is invalid.
+    @version 1.0.0
+    """
+    with locked(run_lock_path(repo_root, graph.run_id)) as lock:
+        persisted = graph_path(repo_root, graph.run_id)
+        if not lock.reentrant and persisted.is_file():
+            current_digest = sha256(persisted.read_bytes()).hexdigest()
+            expected_digest = getattr(graph, "_source_digest", None)
+            if expected_digest != current_digest:
+                source_state_digest = getattr(
+                    graph,
+                    "_source_state_digest",
+                    None,
+                )
+                current_state_digest = sha256(
+                    _serialize_graph(graph)
+                ).hexdigest()
+                if (
+                    source_state_digest is not None
+                    and current_state_digest != source_state_digest
+                ):
+                    raise GraphConflictError(graph.run_id)
+                _replace_graph_state(
+                    graph,
+                    _load_selected_graph(
+                        repo_root,
+                        graph.run_id,
+                        explicit=True,
+                    ),
+                )
+        try:
+            yield graph
+        except BaseException:
+            if not lock.reentrant:
+                try:
+                    _replace_graph_state(
+                        graph,
+                        _load_selected_graph(
+                            repo_root,
+                            graph.run_id,
+                            explicit=True,
+                        ),
+                    )
+                except (OSError, RunResolutionError, ValueError):
+                    pass
+            raise
+
+
+def serialized_graph_mutation(
+    function: Callable[
+        Concatenate[Path, Graph, _GRAPH_PARAMETERS],
+        _GRAPH_RESULT,
+    ],
+) -> Callable[
+    Concatenate[Path, Graph, _GRAPH_PARAMETERS],
+    _GRAPH_RESULT,
+]:
+    """
+    @brief Decorate a graph mutator with authoritative reload and run locking.
+    @param[in] function Mutator whose first arguments are repository and graph.
+    @return Wrapped mutator with the same public signature.
+    @version 1.0.0
+    """
+    @wraps(function)
+    def wrapper(
+        repo_root: Path,
+        graph: Graph,
+        *args: _GRAPH_PARAMETERS.args,
+        **kwargs: _GRAPH_PARAMETERS.kwargs,
+    ) -> _GRAPH_RESULT:
+        """
+        @brief Run one graph mutation inside its serialized transaction.
+        @version 1.0.0
+        """
+        with graph_transaction(repo_root, graph):
+            return function(repo_root, graph, *args, **kwargs)
+
+    return wrapper
+
+
+@serialized_graph_mutation
 def add_evidence(repo_root: Path, graph: Graph, evidence: Evidence) -> Graph:
     """
     @brief      Add evidence workflow behavior.
@@ -663,14 +838,19 @@ def add_evidence(repo_root: Path, graph: Graph, evidence: Evidence) -> Graph:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.3.0
     """
+    if any(item.id == evidence.id for item in graph.evidence):
+        raise PersistenceError(
+            f"evidence identifier already exists: {evidence.id}"
+        )
     graph.evidence.append(evidence)
     save_graph(repo_root, graph)
     append_journal(repo_root, graph.run_id, "evidence.recorded", evidence.__dict__)
     return graph
 
 
+@serialized_graph_mutation
 def set_stage(repo_root: Path, graph: Graph, stage: Stage) -> Graph:
     """
     @brief      Set stage workflow behavior.
@@ -681,7 +861,7 @@ def set_stage(repo_root: Path, graph: Graph, stage: Stage) -> Graph:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     graph.stage = stage
     save_graph(repo_root, graph)
@@ -689,6 +869,7 @@ def set_stage(repo_root: Path, graph: Graph, stage: Stage) -> Graph:
     return graph
 
 
+@serialized_graph_mutation
 def set_access_mode(
     repo_root: Path,
     graph: Graph,
@@ -705,7 +886,7 @@ def set_access_mode(
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-06-20
-    @version    0.1.0
+    @version    0.2.0
     """
     graph.access_mode = access_mode
     save_graph(repo_root, graph)
@@ -716,6 +897,30 @@ def set_access_mode(
         {"access_mode": access_mode, "reason": reason},
     )
     return graph
+
+
+def _replace_graph_state(target: Graph, source: Graph) -> None:
+    """
+    @brief Refresh one caller-held graph object without changing its identity.
+    @param[in,out] target Graph instance retained by the caller.
+    @param[in] source Newly loaded authoritative graph.
+    @return None.
+    @version 1.0.0
+    """
+    target.__dict__.clear()
+    target.__dict__.update(source.__dict__)
+
+
+def _serialize_graph(graph: Graph) -> bytes:
+    """
+    @brief Serialize one graph using the canonical persisted JSON format.
+    @param[in] graph Complete graph state.
+    @return UTF-8 bytes ending in one newline.
+    @version 1.0.0
+    """
+    return (
+        json.dumps(graph.to_dict(), indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
 
 
 # END OF FILE

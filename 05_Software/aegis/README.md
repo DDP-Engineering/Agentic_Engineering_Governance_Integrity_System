@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.0
+# AEGIS 2.1
 
 AEGIS is the offline-first, project-local Agentic Engineering Governance &
 Integrity System. The runnable Python package is embedded under
@@ -19,6 +19,10 @@ Integrity System. The runnable Python package is embedded under
 - consolidated impact/gates/invariants/traceability/coverage/working-tree
   verification before human diff review;
 - no outward Git/publication action when delivery closes.
+- atomic, flushed graph/journal/requirement/RepoWise state publication with
+  bounded Windows/POSIX process locks and typed stale-update conflicts;
+- optional schema-1 RepoWise discovery integration, with validated receipts,
+  artifact hashes, repository fingerprints, and advisory/required policy.
 
 The top-level CLI groups are exactly `run`, `stage`, `requirement`, `check`,
 `evidence`, `verify`, `delivery`, `adoption`, and `config`. Global options are
@@ -61,8 +65,22 @@ Project-specific policy belongs in schema-3 `.agentic/workflow.toml`. The
 default interface is `discard` retention plus `external` check execution; all
 five gates ship disabled.
 
-WAEGIS 1.0 is the recommended deployment/configuration tool and supports AEGIS
-`>=2.0.0,<3.0.0`. It remains outside the copied payload.
+The optional `.agentic/integrations/repowise.toml` remains separate from schema
+3. AEGIS reads and normalizes current RepoWise artifacts during
+`repo-discovery`; it never imports RepoWise Python code or executes its CLI.
+Disabled and absent integration are equivalent.
+
+Graph mutations serialize the complete authoritative reload, validation,
+mutation, and save operation per run. Same-requirement updates serialize per
+requirement and verify the loaded source digest before publication; requirement
+reads and UUID-backed creation retain their existing behavior. Lock files under
+`.agentic/.workspace/locks/` are persistent worktree-local coordination files:
+process exit releases the operating-system lock, so operators must not delete a
+file to bypass a live owner.
+
+WAEGIS 1.1 is the recommended deployment/configuration tool and supports AEGIS
+`>=2.0.0,<3.0.0`. Its Core and Complete editions remain outside the copied
+payload; Complete can install RepoWise 0.37.0 as a project-local sidecar.
 
 See `template/.agentic/documents/CLI_API_REFERENCE.md` and
-`template/.agentic/documents/How_To_Start_A_New_Project.md`.
+`template/.agentic/documents/WORKFLOW_CONFIGURATION.md`.

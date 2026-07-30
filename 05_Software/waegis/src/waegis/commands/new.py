@@ -81,7 +81,7 @@
          through Node, which nothing checked for before this step existed.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-18
-@version 1.0.0
+@version 1.1.0
 """
 
 # IMPORTS
@@ -154,6 +154,12 @@ from ..repo.workflow_toml import (
     generate_workflow_toml,
     verify_workflow_invariants,
 )
+from ..repowise import (
+    REPOWISE_ANSWER_KEYS,
+    RepoWiseError,
+    commit_repowise_configuration,
+    lifecycle_repowise,
+)
 from ..transaction import payload_transaction, recover_incomplete_transactions
 from ..verification import (
     HOOK_FILES,
@@ -201,6 +207,7 @@ GATE_TIMEOUT_SECONDS = 600.0
 #        when ``status`` runs before any AEGIS run has been started.
 # @brief Templated initial-commit message (plan §8.1 repo.initial-commit).
 INITIAL_COMMIT_MESSAGE = f"Bootstrap AEGIS via WAEGIS {WIZARD_VERSION}"
+REPOWISE_COMMIT_MESSAGE = f"Configure RepoWise via WAEGIS {WIZARD_VERSION}"
 
 # @brief Exit codes (frozen per plan §5/§15 D13; matches analyze's 0/1 shape).
 EXIT_OK = 0
@@ -2524,7 +2531,7 @@ def run_new(
                 encoded in the exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-23
-    @version    0.2.0
+    @version    1.2.0
     """
     target_path = Path(target).resolve()
     if as_json:
@@ -2572,7 +2579,7 @@ def run_new(
                 return write_envelope(stream, "new", status="failed", exit_code=EXIT_VALIDATION, messages=(str(exc),))
             stream.write(f"waegis new: {exc}\n")
             return EXIT_VALIDATION
-    unknown = unknown_keys(answers, NEW_FIELD_SPECS)
+    unknown = sorted(set(unknown_keys(answers, NEW_FIELD_SPECS)) - REPOWISE_ANSWER_KEYS)
     if unknown:
         warning = f"unrecognized answer key(s): {', '.join(unknown)}"
         if as_json:
@@ -2605,7 +2612,10 @@ def run_new(
     state_home = home if home is not None else waegis_home()
     resume = None if dry_run else find_resume_journal(state_home, expected_fingerprints=fingerprints)
     if resume is not None:
-        prior_answers = replay_answers(resume, allowed_keys=(spec.key for spec in NEW_FIELD_SPECS))
+        prior_answers = replay_answers(
+            resume,
+            allowed_keys=(*(spec.key for spec in NEW_FIELD_SPECS), *REPOWISE_ANSWER_KEYS),
+        )
         answers = {**prior_answers, **answers}
 
     if non_interactive:
@@ -2629,6 +2639,7 @@ def run_new(
     else:
         console = ConsoleAsker(stdin=stdin if stdin is not None else sys.stdin, stdout=stream)
         asker = _HybridAsker(answers, console) if answers else console
+    repowise_asker = asker
     if yes is True:
         asker = _AutoConfirmAsker(asker)
 
@@ -2668,6 +2679,35 @@ def run_new(
         )
 
     summary = engine_run(catalog, ctx, dry_run=dry_run, journal=journal, resume=resume)
+    repowise_result: dict[str, Any] | None = None
+    repowise_error: str | None = None
+    if summary.ok and not dry_run:
+        try:
+            repowise_result = lifecycle_repowise(
+                target_path,
+                answers,
+                lifecycle="new",
+                interactive=not non_interactive,
+                asker=repowise_asker,
+                stream=None if as_json else stream,
+                home=state_home,
+            )
+            initial_commit = next(
+                (
+                    result
+                    for result in summary.results
+                    if result.step_id == "repo.initial-commit"
+                ),
+                None,
+            )
+            if initial_commit is not None and initial_commit.acted:
+                commit_repowise_configuration(
+                    target_path,
+                    runner,
+                    message=REPOWISE_COMMIT_MESSAGE,
+                )
+        except (OSError, RepoWiseError) as exc:
+            repowise_error = str(exc)
 
     # --- output ---
     if as_json:
@@ -2684,19 +2724,50 @@ def run_new(
                 messages=json_messages,
             )
         else:
-            exit_code = EXIT_OK if summary.ok else (EXIT_NEEDS_INPUT if not summary.results else EXIT_VALIDATION)
-            status = "ok" if summary.ok else ("needs-input" if exit_code == EXIT_NEEDS_INPUT else "failed")
+            exit_code = (
+                EXIT_OPERATIONAL
+                if repowise_error or (repowise_result and not repowise_result["sync"]["ok"])
+                else EXIT_OK
+                if summary.ok
+                else EXIT_NEEDS_INPUT
+                if not summary.results
+                else EXIT_VALIDATION
+            )
+            status = (
+                "error"
+                if exit_code == EXIT_OPERATIONAL
+                else "ok"
+                if summary.ok
+                else "needs-input"
+                if exit_code == EXIT_NEEDS_INPUT
+                else "failed"
+            )
+            result_data = json.loads(run_summary_json(summary))
+            result_data["aegis"] = {"ok": summary.ok}
+            result_data["repowise"] = repowise_result or {
+                "aegis": "ok" if summary.ok else "failed",
+                "sync": {"ok": False, "error": repowise_error},
+            }
             return write_envelope(
                 stream,
                 "new",
                 status=status,
                 exit_code=exit_code,
                 plan=plan_data,
-                result=json.loads(run_summary_json(summary)),
-                messages=json_messages,
+                result=result_data,
+                messages=(*json_messages, *((repowise_error,) if repowise_error else ())),
             )
     else:
         _render_human_outcome(summary, target_path, stream)
+        if repowise_error:
+            stream.write(f"RepoWise integration failed after AEGIS deployment: {repowise_error}\n")
+        elif repowise_result and not repowise_result["sync"]["ok"]:
+            stream.write(
+                "RepoWise indexing failed after AEGIS deployment; "
+                f"resume with: {repowise_result['sync']['resume_command']}\n"
+            )
+    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
+        return EXIT_OPERATIONAL
     if summary.ok:
         return EXIT_OK
     return EXIT_NEEDS_INPUT if not summary.results else EXIT_VALIDATION

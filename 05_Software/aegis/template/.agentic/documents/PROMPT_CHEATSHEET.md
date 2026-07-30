@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.0 Prompt Cheat Sheet
+# AEGIS 2.1 Prompt Cheat Sheet
 
 This is a human operator flyer, not an authoritative workflow source and not an agentic delivery contract.
 It is not an evidence source. Generated forms, imported graph state, journals,
@@ -99,4 +99,14 @@ rationale, then apply it. Do not edit graph.json directly.
 ```text
 Show the schema-3 interface policy and all five gate groups. Report disabled
 groups as disabled, not passed. Do not invent a security command.
+```
+
+## Adoption Discovery
+
+```text
+Run `waegis repowise status --repo "<project>"`. If configured RepoWise is
+stale, ask before synchronizing it. During repo-discovery, report validation
+status and provenance, use only current structural proposals, preserve every
+human-entered field, warn for advisory unavailability, and block only when the
+integration is explicitly required.
 ```

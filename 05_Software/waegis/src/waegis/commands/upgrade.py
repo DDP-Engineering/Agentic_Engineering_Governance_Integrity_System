@@ -102,7 +102,7 @@
          changing those names is a wizard MAJOR version bump.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-15
-@version 1.0.0
+@version 1.1.0
 """
 
 # IMPORTS
@@ -141,6 +141,13 @@ from ..payload.manifest import (
 )
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo import gitops
+from ..repowise import (
+    REPOWISE_ANSWER_KEYS,
+    RepoWiseError,
+    distribution_edition,
+    lifecycle_repowise,
+    repowise_status,
+)
 from ..transaction import FileTransaction, recover_incomplete_transactions
 from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from ..verification import (
@@ -1398,7 +1405,7 @@ def run_upgrade(
                 code rather than raised.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-15
-    @version    0.1.0
+    @version    1.1.0
     """
     return _run_upgrade_hardened(
         repo,
@@ -1508,17 +1515,23 @@ def _emit_upgrade_envelope_or_report(
     exit_code: int,
     plan_data: Mapping[str, Any] | None = None,
     report: UpgradeReport | None = None,
+    result_extra: Mapping[str, Any] | None = None,
     messages: tuple[str, ...] = (),
 ) -> int:
-    """@brief Emit one hardened upgrade result."""
+    """@brief Emit one hardened upgrade result.
+    @version 1.1.0
+    """
     if as_json:
+        result = report.to_dict() if report is not None else {}
+        if result_extra is not None:
+            result.update(result_extra)
         return write_envelope(
             stream,
             "upgrade",
             status=status,
             exit_code=exit_code,
             plan=plan_data,
-            result=report.to_dict() if report is not None else {},
+            result=result,
             messages=messages,
         )
     for message in messages:
@@ -1564,7 +1577,7 @@ def _run_upgrade_hardened(
     @return     Standardized exit code.
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.2.0
+    @version    1.1.0
     """
     if as_json:
         non_interactive = True
@@ -1600,7 +1613,7 @@ def _run_upgrade_hardened(
                 exit_code=EXIT_VALIDATION,
                 messages=(str(exc),),
             )
-    allowed = {"upgrade_conflicts", "git_mode", "git_branch"}
+    allowed = {"upgrade_conflicts", "git_mode", "git_branch"} | REPOWISE_ANSWER_KEYS
     unknown = sorted(set(supplied) - allowed)
     if unknown:
         return _emit_upgrade_envelope_or_report(
@@ -1634,6 +1647,27 @@ def _run_upgrade_hardened(
             status="failed",
             exit_code=EXIT_VALIDATION,
             messages=("upgrade requires a valid current install manifest",),
+        )
+    try:
+        installed_repowise = repowise_status(repo_path)
+        if installed_repowise.get("source") == "bundled" and distribution_edition() == "core":
+            return _emit_upgrade_envelope_or_report(
+                stream,
+                as_json=as_json,
+                status="failed",
+                exit_code=EXIT_VALIDATION,
+                messages=(
+                    "Complete to Core is refused while RepoWise uses the bundled runtime; "
+                    "run waegis configure to select external or disabled first",
+                ),
+            )
+    except RepoWiseError as exc:
+        return _emit_upgrade_envelope_or_report(
+            stream,
+            as_json=as_json,
+            status="failed",
+            exit_code=EXIT_VALIDATION,
+            messages=(f"cannot validate installed RepoWise integration: {exc}",),
         )
     installed_major = load.manifest.payload_version.split(".", 1)[0]
     new_major = payload_version.split(".", 1)[0]
@@ -1858,6 +1892,38 @@ def _run_upgrade_hardened(
                 report=report,
                 messages=("upgrade applied but Git commit failed; changes remain on the dedicated branch",),
             )
+    repowise_result: dict[str, Any] | None = None
+    repowise_error: str | None = None
+    repowise_requested = bool(REPOWISE_ANSWER_KEYS.intersection(supplied)) or (
+        asker is not None and not non_interactive
+    )
+    if report.exit_code == EXIT_OK and repowise_requested:
+        try:
+            repowise_result = lifecycle_repowise(
+                repo_path,
+                supplied,
+                lifecycle="upgrade",
+                interactive=not non_interactive,
+                asker=asker,
+                stream=None if as_json else stream,
+            )
+        except (OSError, RepoWiseError) as exc:
+            repowise_error = str(exc)
+    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
+        return _emit_upgrade_envelope_or_report(
+            stream,
+            as_json=as_json,
+            status="error",
+            exit_code=EXIT_OPERATIONAL,
+            plan_data=plan_data if as_json else None,
+            report=report,
+            result_extra={
+                "aegis": {"ok": True},
+                "repowise": repowise_result
+                or {"aegis": "ok", "sync": {"ok": False, "error": repowise_error}},
+            },
+            messages=((repowise_error,) if repowise_error else ()),
+        )
     status = "ok" if report.exit_code == EXIT_OK else "failed"
     return _emit_upgrade_envelope_or_report(
         stream,
@@ -1866,6 +1932,7 @@ def _run_upgrade_hardened(
         exit_code=report.exit_code,
         plan_data=plan_data if as_json else None,
         report=report,
+        result_extra={"aegis": {"ok": report.exit_code == EXIT_OK}, "repowise": repowise_result},
     )
 
 

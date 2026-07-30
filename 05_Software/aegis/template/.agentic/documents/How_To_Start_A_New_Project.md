@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# How To Start and Adapt a New Project with AEGIS 2.0
+# How To Start and Adapt a New Project with AEGIS 2.1
 
 ## 1. Prerequisites
 
@@ -108,17 +108,17 @@ Use `stage add` for each additional requirement or check.
 
 ## 6. Understand the Eight Stages
 
-1. Intake — statement, scope hints, access mode.
-2. Alignment — shared understanding, scope, assumptions, acceptance, questions,
+1. Intake - statement, scope hints, access mode.
+2. Alignment - shared understanding, scope, assumptions, acceptance, questions,
    risk, planned paths, decision.
-3. Requirement — atomic observable contracts and companion specifications.
-4. Design — alternatives, internal architecture, interfaces/data, selected
+3. Requirement - atomic observable contracts and companion specifications.
+4. Design - alternatives, internal architecture, interfaces/data, selected
    option, sequence, validation, risks.
-5. Check — deterministic requirement-linked checks and red evidence.
-6. Implementation — approved design changes and green evidence.
-7. Validation — deterministic verification first, then human diff,
+5. Check - deterministic requirement-linked checks and red evidence.
+6. Implementation - approved design changes and green evidence.
+7. Validation - deterministic verification first, then human diff,
    documentation, style, and manual evidence review.
-8. Delivery — preflight/report references and final handoff decision.
+8. Delivery - preflight/report references and final handoff decision.
 
 Host plan mode can help the conversation, but the imported design and
 `stage close` journal are authoritative.
@@ -169,7 +169,31 @@ publication. Those actions require a separate explicit request.
 
 ## 10. WAEGIS Version Boundary
 
-WAEGIS 1.0 supports AEGIS `>=2.0.0,<3.0.0`. It can generate, inspect,
+WAEGIS 1.1 supports AEGIS `>=2.0.0,<3.0.0`. It can generate, inspect,
 configure, optionally execute, and report all five gate groups. Upgrading an
 AEGIS 1.x installation across the major boundary is unsupported; make a fresh
 AEGIS 2.x deployment after preserving project-owned artifacts deliberately.
+
+<!-- pdf-pagebreak -->
+
+## 11. Optional RepoWise Discovery
+
+WAEGIS Core defaults RepoWise to disabled. WAEGIS Complete can install a pinned
+offline RepoWise 0.37.0 sidecar; either edition can link an external compatible
+0.37.x command. During `new`, initial indexing defaults to No. During `adopt`,
+it defaults to Yes. `--yes` never selects RepoWise or starts a long index.
+
+Inspect or synchronize explicitly:
+
+```text
+waegis repowise status --repo "<project>"
+waegis repowise sync --repo "<project>"
+```
+
+AEGIS validates the resulting receipt, graph/state schemas, hashes, Git HEAD,
+and worktree fingerprint during repository discovery. Valid proposals can fill
+empty discovery fields but never replace human content. Advisory failures warn;
+only explicitly required RepoWise evidence blocks.
+
+See `REPOWISE_INTEGRATION.md` for policy, provenance, offline, and licensing
+details.

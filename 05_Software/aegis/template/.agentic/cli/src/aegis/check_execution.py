@@ -14,7 +14,7 @@
          a complete selected check set.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.1.0
+@version 1.2.0
 """
 
 # IMPORTS
@@ -31,7 +31,13 @@ from typing import Any
 from .gates import _run_command
 from .models import Check, Evidence, Graph
 from .stage_forms import StageOperationError, stage_directory
-from .store import append_journal, run_dir, save_graph
+from .store import (
+    append_journal,
+    next_evidence_id,
+    run_dir,
+    save_graph,
+    serialized_graph_mutation,
+)
 
 # CONSTANTS
 
@@ -48,6 +54,7 @@ RESULT_KEYS = (
 # PUBLIC API
 
 
+@serialized_graph_mutation
 def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     """
     @brief      Generate the external check evidence form.
@@ -55,7 +62,7 @@ def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     @param[in]  graph Active workflow graph.
     @return     Path to the generated evidence TOML.
     @exception  StageOperationError If policy requires managed execution.
-    @version    0.2.0
+    @version    0.3.0
     """
     _require_mode(graph, "external")
     if graph.stage not in {"check", "implementation"}:
@@ -96,6 +103,7 @@ def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     return path
 
 
+@serialized_graph_mutation
 def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
     """
     @brief      Validate and atomically import every external check result.
@@ -103,7 +111,7 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
     @param[in,out] graph Active workflow graph.
     @return     Imported evidence records.
     @exception  StageOperationError If identity, completeness, or result fails.
-    @version    0.1.0
+    @version    0.2.0
     """
     _require_mode(graph, "external")
     path = stage_directory(repo_root, graph) / "evidence.toml"
@@ -216,6 +224,7 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
     return imported
 
 
+@serialized_graph_mutation
 def run_checks(
     repo_root: Path,
     graph: Graph,
@@ -230,7 +239,7 @@ def run_checks(
     @param[in]  timeout Per-command timeout in seconds.
     @return     Evidence created for every selected check.
     @exception  StageOperationError If policy, stage, or selection is invalid.
-    @version    0.1.0
+    @version    0.2.0
     """
     _require_mode(graph, "managed")
     if graph.stage not in {"check", "implementation"}:
@@ -328,8 +337,11 @@ def _update_check_states(graph: Graph, evidence: list[Evidence]) -> None:
 
 
 def _next_evidence_id(graph: Graph, offset: int) -> str:
-    """@brief Generate the next durable sequence ID without model input."""
-    return f"E-{len(graph.evidence) + offset + 1:04d}"
+    """
+    @brief Generate the next durable sequence ID without model input.
+    @version 0.2.0
+    """
+    return next_evidence_id(graph, offset)
 
 
 def _load(path: Path) -> dict[str, Any]:

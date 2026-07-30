@@ -15,7 +15,7 @@
          existing-install commands use their documented ``--repo`` contracts.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-20
-@version 0.7.0
+@version 0.8.0
 """
 
 # IMPORTS
@@ -33,6 +33,7 @@ from .commands.configure import run_configure
 from .commands.doctor import run_doctor
 from .commands.new import run_new
 from .commands.repair import run_repair
+from .commands.repowise import run_repowise_status, run_repowise_sync
 from .commands.upgrade import run_upgrade
 from .commands.version import run_version
 from .io.envelope import EXIT_OPERATIONAL, EXIT_VALIDATION, command_envelope, write_envelope
@@ -51,6 +52,7 @@ SUBCOMMANDS: tuple[tuple[str, str], ...] = (
     ("configure", "Regenerate owned workflow configuration fields"),
     ("doctor", "Diagnose an AEGIS install and report health (exit 0/1/2)"),
     ("repair", "Repair missing or damaged managed AEGIS files"),
+    ("repowise", "Inspect or synchronize the optional offline RepoWise index"),
     ("upgrade", "Move a repository to a newer AEGIS payload"),
     ("version", "Print the wizard version and bundled payload version"),
 )
@@ -270,6 +272,44 @@ def _add_repair_parser(sub: argparse._SubParsersAction) -> None:
     parser.set_defaults(handler=_handle_repair)
 
 
+def _handle_repowise(args: argparse.Namespace) -> int:
+    """
+    @brief Adapt parsed ``repowise status|sync`` arguments to their handlers.
+    @param[in] args Parsed namespace containing action, repo, and json.
+    @return Standard WAEGIS exit code.
+    @exception None
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-29
+    @version 1.0.0
+    """
+    repo = Path(args.repo)
+    if args.repowise_action == "status":
+        return run_repowise_status(repo, as_json=args.json, stream=sys.stdout)
+    return run_repowise_sync(repo, as_json=args.json, stream=sys.stdout)
+
+
+def _add_repowise_parser(sub: argparse._SubParsersAction) -> None:
+    """
+    @brief Register the optional RepoWise status and sync command group.
+    @param[in] sub The top-level subparsers action to register under.
+    @return None
+    @exception None
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-29
+    @version 1.0.0
+    """
+    parser = sub.add_parser("repowise", help=dict(SUBCOMMANDS)["repowise"])
+    actions = parser.add_subparsers(dest="repowise_action", required=True)
+    status = actions.add_parser("status", help="Show configuration and index freshness")
+    status.add_argument("--repo", required=True, help="Repository root to inspect")
+    status.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
+    status.set_defaults(handler=_handle_repowise)
+    sync = actions.add_parser("sync", help="Initialize, resume, update, or verify the index")
+    sync.add_argument("--repo", required=True, help="Repository root to index")
+    sync.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
+    sync.set_defaults(handler=_handle_repowise)
+
+
 def _handle_doctor(args: argparse.Namespace) -> int:
     """
     @brief      Adapt parsed ``waegis doctor`` arguments to :func:`run_doctor`.
@@ -373,7 +413,7 @@ def build_parser() -> argparse.ArgumentParser:
     @exception  None
     @author     Eng. Dan Dumitru Pasare
     @date       2026-07-20
-    @version    0.7.0
+    @version    0.8.0
     """
     parser = _WaegisArgumentParser(
         prog="waegis",
@@ -389,6 +429,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_configure_parser(sub)
     _add_doctor_parser(sub)
     _add_repair_parser(sub)
+    _add_repowise_parser(sub)
     _add_upgrade_parser(sub)
     _add_version_parser(sub)
     return parser

@@ -17,6 +17,17 @@ __pycache__/
 # transient: it is rolled back or removed when the transaction terminates.
 .agentic/.waegis-transactions/
 
+# Project-local optional tool runtimes are installed by WAEGIS and verified
+# from their sidecar manifests. They are never repository source material.
+.agentic/tools/repowise/
+
+# RepoWise indexes, execution metadata, and freshness receipts are local,
+# reproducible discovery inputs. AEGIS persists only their validated,
+# normalized run snapshot as durable workflow state.
+.repowise/
+.agentic/integrations/repowise-runtime.json
+.agentic/integrations/repowise-receipt.json
+
 # Adapter dependencies are installed on demand.
 node_modules/
 .vitest/

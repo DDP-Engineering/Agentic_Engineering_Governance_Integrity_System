@@ -22,8 +22,14 @@ documentation ships with the template:
 - `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md` -
   complete schema-3 structure, captured interface policy, five independent
   optional deterministic gates, traceability, and guardrails.
+- `05_Software/aegis/template/.agentic/documents/REPOWISE_INTEGRATION.md` -
+  optional schema-1 RepoWise discovery policy, evidence freshness, offline
+  boundary, and authority model.
+- `AEGIS_PERSISTENCE_AND_CONCURRENCY.md` - graph, journal, requirement, and
+  sibling-JSON atomicity, process-locking, stale-update, and durability
+  contracts.
 
-Presentation material maintained in this folder (AEGIS 2.0 / WAEGIS 1.0):
+Presentation material maintained in this folder (AEGIS 2.1 / WAEGIS 1.1):
 
 - `WAEGIS_01_Setup_And_First_Adoption.pptx` - setup and first-adoption journey.
 - `WAEGIS_02_Architecture_Portability_And_MultiLanguage.pptx` - architecture,
@@ -36,7 +42,8 @@ Stakeholder architecture decks (split by scope, one shared visual system):
 
 - `WAEGIS_Architecture_Presentation.pptx` - WAEGIS as the deployment wizard: the
   five-phase run, the configuration interview, `new` versus `adopt`, and the
-  managed lifecycle.
+  managed lifecycle, including optional Core/Complete RepoWise discovery.
 - `AEGIS_Governance_Workflow_Presentation.pptx` - AEGIS as the governance
   workflow: the eight development stages, file-first approvals, deterministic
-  verification, enforcement layers, and adoption track.
+  verification, enforcement layers, and adoption track with validated
+  advisory discovery.

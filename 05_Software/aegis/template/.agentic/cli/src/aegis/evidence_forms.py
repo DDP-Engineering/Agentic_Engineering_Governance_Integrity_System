@@ -13,7 +13,7 @@
          CLI-generated identities, durable journals, and atomic graph updates.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.1.0
+@version 1.2.0
 """
 
 # IMPORTS
@@ -29,11 +29,17 @@ from typing import Any
 
 from .models import Evidence, Graph
 from .stage_forms import StageOperationError, stage_directory
-from .store import append_journal, save_graph
+from .store import (
+    append_journal,
+    next_evidence_id,
+    save_graph,
+    serialized_graph_mutation,
+)
 
 # PUBLIC API
 
 
+@serialized_graph_mutation
 def prepare_evidence_form(repo_root: Path, graph: Graph, action: str) -> Path:
     """
     @brief      Generate an add or supersede evidence form.
@@ -41,7 +47,7 @@ def prepare_evidence_form(repo_root: Path, graph: Graph, action: str) -> Path:
     @param[in]  graph Active graph.
     @param[in]  action `add` or `supersede`.
     @return     Generated form path.
-    @version    0.2.0
+    @version    0.3.0
     """
     path = stage_directory(repo_root, graph) / "manual-evidence.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -80,13 +86,14 @@ def prepare_evidence_form(repo_root: Path, graph: Graph, action: str) -> Path:
     return path
 
 
+@serialized_graph_mutation
 def apply_evidence_form(repo_root: Path, graph: Graph) -> dict[str, Any]:
     """
     @brief      Validate and apply one generated manual evidence form.
     @param[in]  repo_root Repository root.
     @param[in,out] graph Active graph.
     @return     Applied action summary.
-    @version    0.1.0
+    @version    0.2.0
     """
     path = stage_directory(repo_root, graph) / "manual-evidence.toml"
     data = _load(path)
@@ -257,8 +264,11 @@ def _optional(data: dict[str, Any], key: str, path: Path) -> str | None:
 
 
 def _next_evidence_id(graph: Graph) -> str:
-    """@brief Return the next CLI-controlled evidence sequence ID."""
-    return f"E-{len(graph.evidence) + 1:04d}"
+    """
+    @brief Return the next CLI-controlled evidence sequence ID.
+    @version 0.2.0
+    """
+    return next_evidence_id(graph)
 
 
 def _q(value: str) -> str:

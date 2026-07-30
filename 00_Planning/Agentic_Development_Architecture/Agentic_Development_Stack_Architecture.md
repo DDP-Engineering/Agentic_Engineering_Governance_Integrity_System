@@ -3,8 +3,9 @@
 # Agentic Development Stack Architecture
 
 > Date: July 29, 2026
-> Status: AEGIS 2.0 / WAEGIS 1.0 architecture
+> Status: AEGIS 2.1 / WAEGIS 1.1 architecture
 > Configuration and run graph: schema 3
+> Optional RepoWise integration: schema 1
 
 ## Purpose
 
@@ -26,8 +27,11 @@ flowchart TB
   F --> G["Schema-3 graph, requirements, evidence, journals"]
   G --> V["Deterministic verification"]
   V --> H
-  W["WAEGIS 1.0"] --> P["AEGIS 2.x payload"]
+  W["WAEGIS 1.1 Core or Complete"] --> P["AEGIS 2.x payload"]
   P --> C
+  W --> R["Optional RepoWise 0.37.0 sidecar"]
+  R --> S["Validated discovery receipt and structural graph"]
+  S --> F
   A["Codex / Claude / Pi / OpenCode / Qwen adapters"] --> C
   A --> K["Shared guard hooks and skills"]
 ```
@@ -59,6 +63,33 @@ human-approved earlier routing. Delivery close records completion without an
 outward Git or publication action.
 
 Adoption retains its specialized seven stages but uses the same form lifecycle.
+
+## Optional Repository Discovery Provider
+
+WAEGIS has one codebase and two delivery editions. Core ships without RepoWise
+and defaults it to disabled. Complete additionally carries a native, locked
+RepoWise 0.37.0 runtime, exact source/provenance, notices, SBOM, hashes, and size
+metadata. Either edition can link a validated external RepoWise 0.37.x command.
+
+The target policy is the separate strict
+`.agentic/integrations/repowise.toml` schema-1 file. Absence means disabled and
+does not alter workflow/run-graph schema 3. WAEGIS owns installation and process
+execution. AEGIS never imports RepoWise code or invokes its CLI.
+
+After a successful sync, WAEGIS records version, source, profile, completion,
+Git HEAD, worktree fingerprint, and graph/state digests. During
+`repo-discovery`, AEGIS independently validates the policy, receipt, JSON
+schemas, hashes, and fingerprints before writing normalized proposals to:
+
+```text
+.agentic/runs/<run-id>/discovery/repowise.json
+```
+
+Source roots, components, dependencies, entry points, and existing tests can
+pre-populate empty discovery fields. Human-entered values are never silently
+replaced. Advisory mode warns when data is missing/stale; required mode blocks.
+RepoWise evidence remains provenance-bearing discovery input, not authoritative
+workflow state.
 
 ## Persistence
 
@@ -122,11 +153,17 @@ claim.
 
 ## Deployment Boundary
 
-AEGIS is version 2.0.0. WAEGIS is 1.0.0 and supports AEGIS
+AEGIS is version 2.1.0. WAEGIS is 1.1.0 and supports AEGIS
 `>=2.0.0,<3.0.0`. WAEGIS generates, inspects, configures, optionally executes,
 and reports all five gates. Schema 2, old graphs, AEGIS 1.x payload upgrades,
 and cross-major WAEGIS upgrades are rejected before mutation. A fresh 2.x
 deployment is required.
+
+Core-to-Complete is supported. Complete-to-Core is refused while a project
+selects the bundled RepoWise runtime; reconfigure the project to external or
+disabled first. Target-side install and indexing are offline. Complete artifacts
+are built and tested natively per OS so targets never compile native
+dependencies.
 
 ## Adapter Contract
 
