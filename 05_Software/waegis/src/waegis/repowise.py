@@ -81,6 +81,24 @@ VALID_SOURCES = frozenset({"disabled", "bundled", "external"})
 VALID_PROFILES = frozenset({"deterministic", "ollama"})
 VALID_ENFORCEMENT = frozenset({"advisory", "required"})
 SUPPORTED_EDITIONS = frozenset({"core", "complete"})
+REPOWISE_EXCLUDE_PATTERNS = (
+    ".agentic/tools/**",
+    ".agentic/runs/**",
+)
+_REPOWISE_PROJECT_SETUP_PATHS = (
+    Path(".mcp.json"),
+    Path(".vscode/mcp.json"),
+    Path(".vscode/extensions.json"),
+)
+_BUNDLED_WINDOWS_INTERPRETER = Path("runtime/python/python.exe")
+_BUNDLED_SITE_PACKAGES = Path("site-packages")
+_BUNDLED_BOOTSTRAP = _BUNDLED_SITE_PACKAGES / "waegis_repowise_bootstrap.py"
+_BUNDLED_WINDOWS_ENTRYPOINT = (
+    "import runpy,sys; "
+    "sys.path.insert(0,sys.argv.pop(1)); "
+    "import sitecustomize; "
+    "runpy.run_module('waegis_repowise_bootstrap',run_name='__main__')"
+)
 # Matches any dotted release so an unsupported version is parsed first and
 # then rejected with the explicit "outside >=0.37.0,<0.38.0" message, rather
 # than misreported as a missing --version capability.
@@ -476,6 +494,37 @@ def _load_bundle_manifest(root: Path) -> dict[str, Any]:
     return manifest
 
 
+def _bundled_windows_command(launcher: Path) -> list[str]:
+    """
+    @brief Build the shell-free command for an installed Windows sidecar.
+    @details The packaged ``.cmd`` remains a human-facing launcher, but managed
+             execution bypasses ``cmd.exe`` so repository paths containing
+             spaces and shell metacharacters remain ordinary argv values. The
+             static entry point explicitly loads the bundled socket guard before
+             running the isolated RepoWise bootstrap.
+    @param[in] launcher Absolute packaged launcher path.
+    @return Direct pinned-Python command array.
+    @exception RepoWiseError If the expected locked runtime files are missing.
+    """
+    root = launcher.parent
+    interpreter = root / _BUNDLED_WINDOWS_INTERPRETER
+    site_packages = root / _BUNDLED_SITE_PACKAGES
+    bootstrap = root / _BUNDLED_BOOTSTRAP
+    sitecustomize = site_packages / "sitecustomize.py"
+    required = (interpreter, bootstrap, sitecustomize)
+    missing = [str(path) for path in required if not path.is_file() or path.is_symlink()]
+    if missing:
+        raise RepoWiseError(
+            "bundled RepoWise Windows runtime is incomplete: " + ", ".join(missing)
+        )
+    return [
+        str(interpreter),
+        "-c",
+        _BUNDLED_WINDOWS_ENTRYPOINT,
+        str(site_packages),
+    ]
+
+
 def _runtime_command(repo: Path, runtime: Mapping[str, Any]) -> list[str]:
     """@brief Resolve the configured RepoWise command for execution.
     """
@@ -498,6 +547,8 @@ def _runtime_command(repo: Path, runtime: Mapping[str, Any]) -> list[str]:
     if os.name == "nt" and launcher.suffix.lower() in {".bat", ".cmd"}:
         if not launcher.is_file():
             raise RepoWiseError(f"RepoWise command is missing: {launcher}")
+        if runtime.get("source") == "bundled":
+            return _bundled_windows_command(launcher)
         return ["cmd.exe", "/d", "/c", *resolved]
     return resolved
 
@@ -761,6 +812,31 @@ def _action_for(repo: Path) -> str:
     return "init"
 
 
+def _click_option_arguments(
+    option: str,
+    values: Sequence[str],
+    *,
+    os_name: str,
+) -> list[str]:
+    """
+    @brief Render repeatable Click option values without Windows glob expansion.
+    @details Click expands matching ``*`` and ``?`` arguments on Windows before
+             option parsing. Binding each value to its option with ``=`` makes
+             the token ineligible for a filesystem match. POSIX keeps the exact
+             historical two-token command shape.
+    @param[in] option Long Click option name.
+    @param[in] values Literal option values.
+    @param[in] os_name ``os.name`` value for the execution platform.
+    @return Flat argument list preserving every value exactly.
+    """
+    if os_name == "nt":
+        return [f"{option}={value}" for value in values]
+    result: list[str] = []
+    for value in values:
+        result.extend((option, value))
+    return result
+
+
 def _command_for(
     command: Sequence[str],
     repo: Path,
@@ -775,7 +851,9 @@ def _command_for(
         if profile == "ollama":
             result.extend(["--provider", "ollama"])
             if settings.model:
-                result.extend(["--model", settings.model])
+                result.extend(
+                    _click_option_arguments("--model", (settings.model,), os_name=os.name)
+                )
         else:
             result.append("--index-only")
         return result
@@ -789,10 +867,11 @@ def _command_for(
             "--yes",
             "--progress",
             "json",
-            "--exclude",
-            ".agentic/tools/**",
-            "--exclude",
-            ".agentic/runs/**",
+            *_click_option_arguments(
+                "--exclude",
+                REPOWISE_EXCLUDE_PATTERNS,
+                os_name=os.name,
+            ),
             "--no-claude-md",
             "--no-agents",
             "--no-codex",
@@ -803,11 +882,72 @@ def _command_for(
     if profile == "ollama":
         result.extend(["--prose", "--provider", "ollama"])
         if settings.model:
-            result.extend(["--model", settings.model])
+            result.extend(
+                _click_option_arguments("--model", (settings.model,), os_name=os.name)
+            )
         result.extend(["--embedder", "ollama" if settings.embedding_model else "mock"])
     else:
         result.extend(["--no-prose", "--embedder", "mock"])
     return result
+
+
+def _snapshot_project_setup(repo: Path) -> tuple[dict[Path, bytes | None], bool]:
+    """
+    @brief Capture project-local editor/MCP files that RepoWise writes on init.
+    @param[in] repo Target repository.
+    @return Exact prior bytes plus whether ``.vscode`` already existed.
+    @exception RepoWiseError If a managed path is not a regular non-link file.
+    """
+    vscode = repo / ".vscode"
+    if vscode.is_symlink() or (vscode.exists() and not vscode.is_dir()):
+        raise RepoWiseError(
+            f"cannot preserve RepoWise project setup directory safely: {vscode}"
+        )
+    snapshot: dict[Path, bytes | None] = {}
+    for relative in _REPOWISE_PROJECT_SETUP_PATHS:
+        target = repo / relative
+        if target.is_symlink() or (target.exists() and not target.is_file()):
+            raise RepoWiseError(
+                f"cannot preserve RepoWise project setup path safely: {target}"
+            )
+        snapshot[relative] = target.read_bytes() if target.is_file() else None
+    return snapshot, vscode.exists()
+
+
+def _restore_project_setup(
+    repo: Path,
+    snapshot: Mapping[Path, bytes | None],
+    vscode_existed: bool,
+) -> None:
+    """
+    @brief Restore project-local editor/MCP files after isolated indexing.
+    @param[in] repo Target repository.
+    @param[in] snapshot Exact prior bytes or absence for each managed path.
+    @param[in] vscode_existed Whether ``.vscode`` existed before indexing.
+    @exception RepoWiseError If restoration cannot be completed safely.
+    """
+    try:
+        vscode = repo / ".vscode"
+        if vscode.is_symlink() or (vscode.exists() and not vscode.is_dir()):
+            raise RepoWiseError(
+                f"cannot restore RepoWise project setup directory safely: {vscode}"
+            )
+        for relative, original in snapshot.items():
+            target = repo / relative
+            if target.is_symlink() or (target.exists() and not target.is_file()):
+                raise RepoWiseError(
+                    f"cannot restore RepoWise project setup path safely: {target}"
+                )
+            if original is None:
+                target.unlink(missing_ok=True)
+            elif not target.is_file() or target.read_bytes() != original:
+                _write_bytes(target, original)
+        if not vscode_existed and vscode.exists():
+            vscode.rmdir()
+    except OSError as exc:
+        raise RepoWiseError(
+            f"could not restore project-local editor/MCP configuration: {exc}"
+        ) from exc
 
 
 def _progress_message(line: str, elapsed: float) -> str | None:
@@ -1648,72 +1788,93 @@ def sync_repowise(
     log_path = log_directory / f"{stamp}-{uuid.uuid4().hex[:6]}.jsonl"
     started = time.monotonic()
     process: subprocess.Popen[str] | None = None
+    execution_failure: RepoWiseSyncResult | None = None
+    return_code: int | None = None
+    setup_snapshot, vscode_existed = _snapshot_project_setup(repo)
     try:
-        process = subprocess.Popen(
-            arguments,
-            cwd=repo,
-            env=_offline_environment(settings, profile, home=home),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        assert process.stdout is not None, "Popen(stdout=PIPE) guarantees a stream"
-        events: queue.Queue[str | None] = queue.Queue()
-        reader = threading.Thread(
-            target=_pump_process_output,
-            args=(process.stdout, events),
-            daemon=True,
-        )
-        reader.start()
-        with log_path.open("w", encoding="utf-8") as log:
-            while True:
-                try:
-                    line = events.get(timeout=15)
-                except queue.Empty:
-                    if stream is not None:
-                        stream.write(
-                            f"repowise: heartbeat elapsed={int(time.monotonic() - started)}s\n"
-                        )
-                    if process.poll() is not None and not reader.is_alive():
+        try:
+            process = subprocess.Popen(
+                arguments,
+                cwd=repo,
+                env=_offline_environment(settings, profile, home=home),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            assert process.stdout is not None, "Popen(stdout=PIPE) guarantees a stream"
+            events: queue.Queue[str | None] = queue.Queue()
+            reader = threading.Thread(
+                target=_pump_process_output,
+                args=(process.stdout, events),
+                daemon=True,
+            )
+            reader.start()
+            with log_path.open("w", encoding="utf-8") as log:
+                while True:
+                    try:
+                        line = events.get(timeout=15)
+                    except queue.Empty:
+                        if stream is not None:
+                            stream.write(
+                                "repowise: heartbeat "
+                                f"elapsed={int(time.monotonic() - started)}s\n"
+                            )
+                        if process.poll() is not None and not reader.is_alive():
+                            break
+                        continue
+                    if line is None:
                         break
-                    continue
-                if line is None:
-                    break
-                log.write(line)
-                log.flush()
-                message = _progress_message(line, time.monotonic() - started)
-                if message and stream is not None:
-                    stream.write(message + "\n")
-            return_code = process.wait()
-    except KeyboardInterrupt:
-        if process is not None:
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
-        return RepoWiseSyncResult(
-            ok=False,
-            action=action,
-            message="RepoWise synchronization was interrupted",
-            log=str(log_path),
-            resume_command=_resume_command(repo),
-            profile=profile,
-            fallback=fallback,
-        )
-    except OSError as exc:
-        return RepoWiseSyncResult(
-            ok=False,
-            action=action,
-            message=f"cannot run RepoWise: {exc}",
-            log=str(log_path),
-            resume_command=_resume_command(repo),
-            profile=profile,
-            fallback=fallback,
-        )
+                    log.write(line)
+                    log.flush()
+                    message = _progress_message(line, time.monotonic() - started)
+                    if message and stream is not None:
+                        stream.write(message + "\n")
+                return_code = process.wait()
+        except KeyboardInterrupt:
+            if process is not None:
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            execution_failure = RepoWiseSyncResult(
+                ok=False,
+                action=action,
+                message="RepoWise synchronization was interrupted",
+                log=str(log_path),
+                resume_command=_resume_command(repo),
+                profile=profile,
+                fallback=fallback,
+            )
+        except OSError as exc:
+            execution_failure = RepoWiseSyncResult(
+                ok=False,
+                action=action,
+                message=f"cannot run RepoWise: {exc}",
+                log=str(log_path),
+                resume_command=_resume_command(repo),
+                profile=profile,
+                fallback=fallback,
+            )
+    finally:
+        try:
+            _restore_project_setup(repo, setup_snapshot, vscode_existed)
+        except RepoWiseError as exc:
+            execution_failure = RepoWiseSyncResult(
+                ok=False,
+                action=action,
+                message=str(exc),
+                log=str(log_path),
+                resume_command=_resume_command(repo),
+                profile=profile,
+                fallback=fallback,
+            )
+    if execution_failure is not None:
+        return execution_failure
+    assert return_code is not None, "a completed RepoWise process has an exit status"
     if return_code != 0:
         return RepoWiseSyncResult(
             ok=False,

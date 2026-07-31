@@ -9,9 +9,6 @@
 """
 @file test_repowise.py
 @brief Contract tests for optional offline RepoWise configuration and indexing.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.3.0
 """
 
 # IMPORTS
@@ -21,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -30,13 +28,18 @@ import pytest
 import waegis.repowise as repowise_module
 from waegis.cli import build_parser
 from waegis.commands.repair import run_repair
+from waegis.commands.repowise import run_repowise_sync
+from waegis.io.envelope import EXIT_OPERATIONAL
 from waegis.payload.copier import copy_payload
 from waegis.payload.locate import locate_payload
 from waegis.payload.manifest import hash_file, read_manifest
 from waegis.probes.runner import SubprocessCommandRunner
 from waegis.repowise import (
+    ARTIFACT_PATH,
     INTEGRATION_RELATIVE_PATH,
     RECEIPT_PATH,
+    RUNTIME_PATH,
+    STATE_PATH,
     RepoWiseError,
     RepoWiseSettings,
     commit_repowise_configuration,
@@ -51,12 +54,33 @@ from waegis.repowise import (
 # LOCAL HELPERS
 
 
-def _write_fake_repowise(path: Path, *, version: str = "0.37.0") -> None:
-    """@brief Write a deterministic fake that implements required CLI capabilities."""
+def _write_fake_repowise(
+    path: Path,
+    *,
+    version: str = "0.37.0",
+    failure_status: int = 0,
+) -> None:
+    """
+    @brief Write a deterministic fake with Click-compatible Windows expansion.
+    @details The fake expands matching standalone wildcard tokens on Windows,
+             matching Click's pre-parser, and writes the project-local setup
+             files that managed WAEGIS execution must restore.
+    """
     path.write_text(
         (
-            "import json, pathlib, sys\n"
+            "import glob, json, os, pathlib, sys\n"
             f"VERSION = {version!r}\n"
+            f"FAILURE_STATUS = {failure_status!r}\n"
+            "if os.name == 'nt':\n"
+            "    expanded = []\n"
+            "    for argument in sys.argv[1:]:\n"
+            "        matches = (\n"
+            "            glob.glob(argument, recursive=True)\n"
+            "            if '*' in argument or '?' in argument\n"
+            "            else []\n"
+            "        )\n"
+            "        expanded.extend(matches or [argument])\n"
+            "    sys.argv[1:] = expanded\n"
             "if '--version' in sys.argv:\n"
             "    print('repowise ' + VERSION)\n"
             "    raise SystemExit(0)\n"
@@ -69,6 +93,19 @@ def _write_fake_repowise(path: Path, *, version: str = "0.37.0") -> None:
             "        print('--progress --index-only --no-agents')\n"
             "    raise SystemExit(0)\n"
             "repo = pathlib.Path(sys.argv[2]).resolve()\n"
+            "(repo / '.repowise-invocation.json').write_text(\n"
+            "    json.dumps(sys.argv[1:]), encoding='utf-8'\n"
+            ")\n"
+            "(repo / '.mcp.json').write_text('repowise setup', encoding='utf-8')\n"
+            "vscode = repo / '.vscode'\n"
+            "vscode.mkdir(parents=True, exist_ok=True)\n"
+            "(vscode / 'mcp.json').write_text('repowise setup', encoding='utf-8')\n"
+            "(vscode / 'extensions.json').write_text(\n"
+            "    'repowise setup', encoding='utf-8'\n"
+            ")\n"
+            "if FAILURE_STATUS:\n"
+            "    print('intentional RepoWise failure')\n"
+            "    raise SystemExit(FAILURE_STATUS)\n"
             "root = repo / '.repowise'\n"
             "root.mkdir(parents=True, exist_ok=True)\n"
             "(root / 'knowledge-graph.json').write_text(json.dumps({\n"
@@ -184,6 +221,21 @@ def test_external_sync_writes_current_receipt_and_detects_worktree_staleness(
     repo = tmp_path / "project"
     repo.mkdir()
     _git_init(repo)
+    tools = repo / ".agentic" / "tools"
+    runs = repo / ".agentic" / "runs" / "adoption-fixture"
+    tools.mkdir(parents=True)
+    runs.mkdir(parents=True)
+    (tools / "install.ps1").write_text("fixture\n", encoding="utf-8")
+    (runs / "journal.jsonl").write_text("{}\n", encoding="utf-8")
+    existing_setup = {
+        Path(".mcp.json"): b'{"existing": true}\n',
+        Path(".vscode/mcp.json"): b'{"servers": {}}\n',
+        Path(".vscode/extensions.json"): b'{"recommendations": []}\n',
+    }
+    for relative, content in existing_setup.items():
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
     script = tmp_path / "fake_repowise.py"
     _write_fake_repowise(script)
     monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis-home"))
@@ -196,8 +248,29 @@ def test_external_sync_writes_current_receipt_and_detects_worktree_staleness(
     assert result.ok is True
     assert result.action == "init"
     receipt = json.loads((repo / RECEIPT_PATH).read_text(encoding="utf-8"))
+    invocation = json.loads(
+        (repo / ".repowise-invocation.json").read_text(encoding="utf-8")
+    )
+    assert invocation.count("--exclude=.agentic/tools/**") == 1
+    assert invocation.count("--exclude=.agentic/runs/**") == 1
+    assert not any("install.ps1" in argument for argument in invocation)
+    assert not any("adoption-fixture" in argument for argument in invocation)
+    assert (repo / ARTIFACT_PATH).is_file()
+    assert (repo / STATE_PATH).is_file()
     assert receipt["repowise_version"] == "0.37.0"
+    assert receipt["source"] == "external"
     assert receipt["profile"] == "deterministic"
+    head, worktree = repowise_module._repository_fingerprints(repo)
+    assert receipt["head"] == head
+    assert receipt["worktree_fingerprint"] == worktree
+    assert receipt["artifact_sha256"] == hashlib.sha256(
+        (repo / ARTIFACT_PATH).read_bytes()
+    ).hexdigest()
+    assert receipt["state_sha256"] == hashlib.sha256(
+        (repo / STATE_PATH).read_bytes()
+    ).hexdigest()
+    for relative, content in existing_setup.items():
+        assert (repo / relative).read_bytes() == content
     assert repowise_status(repo)["current"] is True
 
     (repo / "new-input.py").write_text("print('changed')\n", encoding="utf-8")
@@ -205,6 +278,189 @@ def test_external_sync_writes_current_receipt_and_detects_worktree_staleness(
     assert stale["current"] is False
     assert stale["index"] == "stale"
     assert stale["next"].startswith("waegis repowise sync")
+
+
+def test_failed_sync_keeps_configuration_and_reports_exact_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief A genuine index failure stays resumable and cannot mint a receipt."""
+    repo = tmp_path / "failed project"
+    repo.mkdir()
+    _git_init(repo)
+    script = tmp_path / "failing repowise.py"
+    _write_fake_repowise(script, failure_status=9)
+    home = tmp_path / "waegis home"
+    monkeypatch.setenv("WAEGIS_HOME", str(home))
+    configure_repowise(repo, _external_settings(script))
+    stream = io.StringIO()
+
+    code = run_repowise_sync(
+        repo,
+        as_json=False,
+        stream=stream,
+        yes=True,
+    )
+
+    output = stream.getvalue()
+    status = repowise_status(repo)
+    assert code == EXIT_OPERATIONAL
+    assert status["configured"] is True
+    assert status["source"] == "external"
+    assert status["mode"] == "advisory"
+    assert status["index"] == "missing"
+    assert (repo / INTEGRATION_RELATIVE_PATH).is_file()
+    assert (repo / RUNTIME_PATH).is_file()
+    assert not (repo / RECEIPT_PATH).exists()
+    assert not (repo / ".mcp.json").exists()
+    assert not (repo / ".vscode").exists()
+    log_line = next(line for line in output.splitlines() if line.startswith("log: "))
+    log_path = Path(log_line.removeprefix("log: "))
+    assert log_path.is_file()
+    assert "intentional RepoWise failure" in log_path.read_text(encoding="utf-8")
+    assert (
+        f'resume: waegis repowise sync --repo "{repo.resolve()}"'
+        in output
+    )
+
+
+def test_click_option_serialization_is_literal_on_windows_and_stable_on_posix() -> None:
+    """@brief Windows binds glob values while POSIX retains the prior argv shape."""
+    patterns = repowise_module.REPOWISE_EXCLUDE_PATTERNS
+    assert repowise_module._click_option_arguments(
+        "--exclude",
+        patterns,
+        os_name="nt",
+    ) == [
+        "--exclude=.agentic/tools/**",
+        "--exclude=.agentic/runs/**",
+    ]
+    assert repowise_module._click_option_arguments(
+        "--exclude",
+        patterns,
+        os_name="posix",
+    ) == [
+        "--exclude",
+        ".agentic/tools/**",
+        "--exclude",
+        ".agentic/runs/**",
+    ]
+    special_model = 'model (zăpadă) "quoted" *?'
+    assert repowise_module._click_option_arguments(
+        "--model",
+        (special_model,),
+        os_name="nt",
+    ) == [f"--model={special_model}"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows subprocess contract")
+def test_windows_external_command_script_in_space_path_passes_capability_checks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief External array commands preserve spaced, Unicode repository paths."""
+    repo = tmp_path / "project (zăpadă)"
+    repo.mkdir()
+    _git_init(repo)
+    command_directory = tmp_path / "external command with spaces"
+    command_directory.mkdir()
+    script = command_directory / "repowise command.py"
+    _write_fake_repowise(script)
+    monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis home"))
+
+    configured = configure_repowise(repo, _external_settings(script))
+    result = sync_repowise(repo)
+
+    assert configured["source"] == "external"
+    assert result.ok is True
+    assert repowise_status(repo)["current"] is True
+    invocation = json.loads(
+        (repo / ".repowise-invocation.json").read_text(encoding="utf-8")
+    )
+    assert invocation[1] == str(repo.resolve())
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Complete launcher contract")
+def test_windows_bundled_runtime_bypasses_cmd_launcher_with_real_subprocess(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Managed Complete execution bypasses ``cmd`` and preserves glob values.
+    @details A real child process runs from a sidecar and repository path that
+             contain spaces. The bootstrap emulates Click's Windows expansion,
+             so the regression fails if exclusions return to standalone tokens.
+    """
+    repo = tmp_path / "bundled project with spaces"
+    repo.mkdir()
+    _git_init(repo)
+    (repo / ".agentic" / "tools" / "fixture").mkdir(parents=True)
+    (repo / ".agentic" / "tools" / "fixture" / "install.ps1").write_text(
+        "fixture\n",
+        encoding="utf-8",
+    )
+    (repo / ".agentic" / "runs" / "fixture").mkdir(parents=True)
+    (repo / ".agentic" / "runs" / "fixture" / "journal.jsonl").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+    sidecar = repo / ".agentic" / "tools" / "repowise" / "0.37.0" / "windows-x64"
+    site_packages = sidecar / "site-packages"
+    site_packages.mkdir(parents=True)
+    launcher = sidecar / "repowise.cmd"
+    launcher.write_text("@echo off\r\nexit /b 99\r\n", encoding="ascii")
+    _write_fake_repowise(site_packages / "waegis_repowise_bootstrap.py")
+    (site_packages / "sitecustomize.py").write_text(
+        '"""Test socket-guard placeholder."""\n',
+        encoding="utf-8",
+    )
+    test_interpreter = Path(sys.executable)
+    monkeypatch.setattr(
+        repowise_module,
+        "_BUNDLED_WINDOWS_INTERPRETER",
+        test_interpreter,
+    )
+    settings = RepoWiseSettings(
+        source="bundled",
+        profile="deterministic",
+        enforcement="advisory",
+    )
+    repowise_module._write_text(
+        repo / INTEGRATION_RELATIVE_PATH,
+        repowise_module._integration_text(settings),
+    )
+    repowise_module._write_json(
+        repo / RUNTIME_PATH,
+        {
+            "schema_version": 1,
+            "source": "bundled",
+            "command": [launcher.relative_to(repo).as_posix()],
+            "profile": "deterministic",
+            "ollama_url": "http://127.0.0.1:11434",
+            "model": "",
+            "embedding_model": "",
+        },
+    )
+    monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis home"))
+
+    command = repowise_module._runtime_command(
+        repo,
+        repowise_module._load_json(repo / RUNTIME_PATH),
+    )
+    result = sync_repowise(repo)
+
+    assert command[0] == str(test_interpreter)
+    assert "cmd.exe" not in command
+    assert result.ok is True
+    invocation = json.loads(
+        (repo / ".repowise-invocation.json").read_text(encoding="utf-8")
+    )
+    assert invocation.count("--exclude=.agentic/tools/**") == 1
+    assert invocation.count("--exclude=.agentic/runs/**") == 1
+    assert not any("install.ps1" in argument for argument in invocation)
+    assert not any("journal.jsonl" in argument for argument in invocation)
+    assert not (repo / ".mcp.json").exists()
+    assert not (repo / ".vscode").exists()
 
 
 def test_external_version_outside_supported_minor_is_rejected(tmp_path: Path) -> None:

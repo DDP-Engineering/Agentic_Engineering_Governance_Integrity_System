@@ -36,6 +36,9 @@ documentation ships with the template:
   inputs and toolchain limits, deterministic ZIP/tar/gzip metadata, strict
   runtime locks/downloads, exact internal verification, link graphs, atomic
   publication, and the real-artifact reproduction procedure.
+- `WAEGIS_REPOWISE_WINDOWS_EXECUTION.md` - Click wildcard expansion on Windows,
+  literal option serialization, shell-free Complete execution, project-local
+  setup restoration, and receipt/failure ordering.
 - `SELF_GOVERNED_RELEASE.md` - prerequisites, proposed root adoption commands,
   retained release-run evidence, and the current missing-installation blocker.
 

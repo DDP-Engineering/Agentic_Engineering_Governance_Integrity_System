@@ -166,6 +166,22 @@ a warning and deterministic fallback. A failed index does not roll back the
 successful AEGIS deployment or sidecar configuration; output includes the log
 and exact `waegis repowise sync --repo "<project>"` resume command.
 
+Managed synchronization remains an argument-array subprocess on every
+platform. On Windows, WAEGIS binds wildcard-bearing Click option values to
+their option (`--exclude=PATTERN`) so Click cannot expand matching repository
+paths before parsing them. POSIX command construction retains its prior
+two-argument option form. Complete uses the pinned sidecar interpreter directly
+for managed Windows runs rather than forwarding through `cmd.exe`; this keeps
+repository paths with spaces and shell metacharacters as ordinary arguments.
+
+RepoWise 0.37 writes common project-local MCP and VS Code files during `init`
+even when global editor setup and the named agent integrations are disabled.
+WAEGIS snapshots `.mcp.json`, `.vscode/mcp.json`, and
+`.vscode/extensions.json`, restores their exact prior bytes or absence after
+every managed run, and refuses to issue a successful receipt if restoration
+fails. RepoWise remains process-isolated, and its validated graph/state files
+are the only synchronization outputs consumed by AEGIS.
+
 RepoWise is advisory discovery input, never authoritative AEGIS workflow state.
 WAEGIS writes a versioned receipt; AEGIS independently validates the graph,
 state, hashes, Git HEAD, and worktree fingerprint before using proposals.

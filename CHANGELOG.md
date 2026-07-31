@@ -65,6 +65,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Prevent Click's Windows-only pre-parser from expanding WAEGIS-managed
+  RepoWise exclusion globs into surplus positional paths when matches exist;
+  use literal option binding for wildcard-capable values, bypass the Complete
+  batch launcher during managed execution, preserve paths with spaces, and
+  restore RepoWise's unsolicited project-local MCP/VS Code setup before
+  artifact validation and receipt creation.
 - Synchronize current AEGIS 2.1.0 / WAEGIS 1.1.0 template branding and schema
   documentation, enforce structural version parity and an empty downstream
   changelog, and exclude Python bytecode plus interpreter/test/coverage caches
