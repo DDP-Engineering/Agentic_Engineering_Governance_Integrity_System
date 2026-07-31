@@ -9,9 +9,6 @@
 """
 @file repowise.py
 @brief Public WAEGIS RepoWise status and synchronization command handlers.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.1.0
 """
 
 # IMPORTS
@@ -37,9 +34,6 @@ def run_repowise_status(repo: Path, *, as_json: bool, stream: IO[str]) -> int:
     @param[in] stream Output stream.
     @return Standard WAEGIS exit code.
     @exception None
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     try:
         result = repowise_status(repo)
@@ -91,11 +85,13 @@ def run_repowise_sync(
     @param[in] repo Target repository.
     @param[in] as_json Emit one stable JSON envelope when true.
     @param[in] stream Output stream.
-    @return Zero on success, three on operational failure, or two on config error.
+    @param[in] yes Explicit approval to skip interactive confirmation.
+    @param[in] asker Interactive confirmation seam used when ``yes`` is false and
+               ``as_json`` is false.
+    @return Zero on success, one when consent is declined or requires interactive
+            input, two on a RepoWise config/status error, or three on operational
+            failure.
     @exception None
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     try:
         status_report = repowise_status(repo)

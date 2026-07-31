@@ -9,12 +9,9 @@
 """
 @file cli.py
 @brief Stage-oriented, file-first AEGIS 2.1 command-line interface.
-@details Exposes only nine grouped command families, two global options, stable
+@details Exposes only ten grouped command families, two global options, stable
          concise/JSON response fields, and no AEGIS 1.x aliases or mutation
          flags.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 2.1.0
 """
 
 # IMPORTS
@@ -40,6 +37,7 @@ from .components import (
 from .config import (
     ConfigurationError,
     GATE_ORDER,
+    WorkflowConfig,
     effective_config_dict,
     load_config,
 )
@@ -49,7 +47,7 @@ from .evidence_forms import (
     show_evidence,
 )
 from .errors import CommandInputError
-from .gates import run_gates
+from .gates import gate_failure_blockers, run_gates
 from .invariants import blocking_failures, evaluate
 from .models import Graph
 from .persistence import PersistenceError
@@ -74,20 +72,31 @@ from .stage_forms import (
     StageOperationError,
     add_stage_item,
     apply_stage,
+    bypassed_stages,
     close_stage,
     next_command,
     prepare_stage,
+    quick_scope_advisory,
     show_stage,
 )
 from .store import (
     RunResolutionError,
+    add_waiver,
     init_graph,
     load_graph,
     repo_root_from,
     resolve_run_id,
     write_current_run,
 )
+from .waiver_targets import (
+    annotate_audit_issues,
+    annotate_working_tree,
+    collect_waiver_targets,
+    waiver_record_statuses,
+)
+from .waivers import active_waiver, blocker_to_dict
 from .verification import (
+    quick_bypass_committed,
     read_validation_summary,
     run_verification,
     validation_summary_path,
@@ -102,6 +111,7 @@ TOP_LEVEL_COMMANDS = (
     "requirement",
     "check",
     "evidence",
+    "waive",
     "verify",
     "delivery",
     "adoption",
@@ -117,7 +127,8 @@ def main(argv: list[str] | None = None) -> None:
     @param[in]  argv Optional argument vector for tests and embedding.
     @return     None.
     @exception  SystemExit For parser, policy, validation, or command failures.
-    @version    2.1.1
+    @exception  OSError If persistence or file I/O fails outside the handled
+                policy exceptions.
     """
     normalized = _normalize_global_options(list(argv) if argv is not None else sys.argv[1:])
     parser = _build_parser()
@@ -132,15 +143,21 @@ def main(argv: list[str] | None = None) -> None:
 
         config = load_config(root)
         if args.group == "run" and args.action == "start":
-            graph = init_graph(root, args.kind, "")
+            profile = "quick" if args.quick else "full"
+            graph = init_graph(root, args.kind, "", profile=profile)
             artifact = prepare_stage(root, graph, config)
+            details: dict[str, Any] = {
+                "run_id": graph.run_id,
+                "kind": graph.intent.kind,
+            }
+            if graph.profile == "quick":
+                details["run_profile"] = graph.profile
             _respond(
                 _payload(
                     graph,
                     artifact.relative_to(root).as_posix(),
-                    next_command(graph),
-                    run_id=graph.run_id,
-                    kind=graph.intent.kind,
+                    next_command(graph, root),
+                    **details,
                 ),
                 args.json,
             )
@@ -175,7 +192,7 @@ def main(argv: list[str] | None = None) -> None:
             "status": "blocked",
             "stage": stage,
             "artifact": artifact,
-            "next": next_command(graph) if graph else "aegis config validate",
+            "next": next_command(graph, root) if graph else "aegis config validate",
             "error": str(exc),
         }
         if isinstance(exc, ConfigurationError):
@@ -188,7 +205,9 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """@brief Build the complete hard-break AEGIS 2 parser."""
+    """
+    @brief Build the complete hard-break AEGIS 2 parser.
+    """
     parser = argparse.ArgumentParser(prog="aegis")
     parser.add_argument("--run", help="explicit run ID; selected run is the default")
     parser.add_argument("--json", action="store_true", help="emit stable JSON")
@@ -198,6 +217,11 @@ def _build_parser() -> argparse.ArgumentParser:
     run_sub = run.add_subparsers(dest="action", required=True)
     start = run_sub.add_parser("start")
     start.add_argument("kind", choices=("feature", "fix", "change", "adoption"))
+    start.add_argument(
+        "--quick",
+        action="store_true",
+        help="use the proportional four-stage profile for fix/change runs",
+    )
     run_sub.add_parser("status")
     run_sub.add_parser("resume")
     select = run_sub.add_parser("select")
@@ -227,6 +251,13 @@ def _build_parser() -> argparse.ArgumentParser:
     evidence_prepare.add_argument("evidence_action", choices=("add", "supersede"))
     evidence_sub.add_parser("apply")
     evidence_sub.add_parser("show")
+
+    waive = groups.add_parser("waive", help="record exact run-local waivers")
+    waive_sub = waive.add_subparsers(dest="action", required=True)
+    waive_add = waive_sub.add_parser("add")
+    waive_add.add_argument("blocker_id")
+    waive_add.add_argument("--reason", required=True)
+    waive_sub.add_parser("list")
 
     verify = groups.add_parser("verify", help="run deterministic verification")
     verify_sub = verify.add_subparsers(dest="action", required=True)
@@ -266,10 +297,12 @@ def _build_parser() -> argparse.ArgumentParser:
 def _dispatch(
     root: Path,
     graph: Graph,
-    config: Any,
+    config: WorkflowConfig,
     args: argparse.Namespace,
 ) -> tuple[dict[str, Any], int]:
-    """@brief Dispatch one parsed grouped command."""
+    """
+    @brief Dispatch one parsed grouped command.
+    """
     if args.group == "run":
         return _run_status(root, graph), 0
     if args.group == "stage":
@@ -289,7 +322,7 @@ def _dispatch(
             _payload(
                 graph,
                 artifact or "none",
-                next_command(graph),
+                next_command(graph, root),
                 requirements=[item.to_dict() for item in records],
             ),
             0,
@@ -298,6 +331,8 @@ def _dispatch(
         return _check_command(root, graph, args), 0
     if args.group == "evidence":
         return _evidence_command(root, graph, args), 0
+    if args.group == "waive":
+        return _waive_command(root, graph, config, args), 0
     if args.group == "verify":
         return _verify_command(root, graph, config, args)
     if args.group == "delivery":
@@ -307,7 +342,7 @@ def _dispatch(
                 _payload(
                     graph,
                     path.relative_to(root).as_posix(),
-                    next_command(graph),
+                    next_command(graph, root),
                     report=path.relative_to(root).as_posix(),
                 ),
                 0,
@@ -319,16 +354,18 @@ def _dispatch(
 def _stage_command(
     root: Path,
     graph: Graph,
-    config: Any,
+    config: WorkflowConfig,
     args: argparse.Namespace,
 ) -> dict[str, Any]:
-    """@brief Execute one stage lifecycle action."""
+    """
+    @brief Execute one stage lifecycle action.
+    """
     if args.action == "prepare":
         artifact = prepare_stage(root, graph, config)
         return _payload(
             graph,
             artifact.relative_to(root).as_posix(),
-            next_command(graph),
+            next_command(graph, root),
         )
     if args.action == "add":
         artifact = add_stage_item(root, graph)
@@ -342,7 +379,7 @@ def _stage_command(
         return _payload(
             graph,
             shown.get("artifact") or "none",
-            next_command(graph),
+            next_command(graph, root),
             **shown,
         )
     if args.action == "apply":
@@ -350,16 +387,25 @@ def _stage_command(
         return _payload(
             graph,
             record.artifact or "none",
-            next_command(graph),
+            next_command(graph, root),
             revision=record.revision,
             digest=record.digest,
         )
+    closing_stage = graph.stage
     graph, artifact = close_stage(root, graph, config)
+    details: dict[str, Any] = {
+        "complete": graph.complete,
+        **_quick_run_details(graph),
+    }
+    if closing_stage == "implementation":
+        advisory = quick_scope_advisory(graph, config)
+        if advisory is not None:
+            details["advisories"] = [advisory]
     return _payload(
         graph,
         artifact.relative_to(root).as_posix() if artifact else "none",
-        next_command(graph),
-        complete=graph.complete,
+        next_command(graph, root),
+        **details,
     )
 
 
@@ -368,7 +414,9 @@ def _check_command(
     graph: Graph,
     args: argparse.Namespace,
 ) -> dict[str, Any]:
-    """@brief Execute one external or managed check command."""
+    """
+    @brief Execute one external or managed check command.
+    """
     if args.action == "prepare":
         path = prepare_check_evidence(root, graph)
         return _payload(
@@ -383,7 +431,7 @@ def _check_command(
     return _payload(
         graph,
         "none",
-        next_command(graph),
+        next_command(graph, root),
         evidence=[asdict(item) for item in evidence],
     )
 
@@ -393,7 +441,9 @@ def _evidence_command(
     graph: Graph,
     args: argparse.Namespace,
 ) -> dict[str, Any]:
-    """@brief Execute one manual evidence form action."""
+    """
+    @brief Execute one manual evidence form action.
+    """
     if args.action == "prepare":
         path = prepare_evidence_form(root, graph, args.evidence_action)
         return _payload(
@@ -403,30 +453,105 @@ def _evidence_command(
         )
     if args.action == "apply":
         result = apply_evidence_form(root, graph)
-        return _payload(graph, "none", next_command(graph), result=result)
+        return _payload(graph, "none", next_command(graph, root), result=result)
     result = show_evidence(root, graph)
     return _payload(
         graph,
         result["form"] or "none",
-        next_command(graph),
+        next_command(graph, root),
         **result,
+    )
+
+
+def _waive_command(
+    root: Path,
+    graph: Graph,
+    config: WorkflowConfig,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    """
+    @brief List or record one exact human-approved run-local waiver.
+    @param[in] root Repository root.
+    @param[in,out] graph Active graph that owns the waiver record.
+    @param[in] config Validated workflow policy used to discover blockers.
+    @param[in] args Parsed waiver action and values.
+    @return Stable waiver response payload.
+    @exception CommandInputError If the reason/target is invalid or inactive.
+    @exception ValueError If the target already gained an active waiver of the
+               same state underneath this call.
+    @exception GraphConflictError If the graph changed underneath this call.
+    @exception PersistenceError If journal integrity prevents a complete record.
+    @exception OSError If persistence fails.
+    """
+    expected_source_digest = getattr(graph, "_source_digest", None)
+    targets = collect_waiver_targets(root, graph, config)
+    if args.action == "list":
+        history = waiver_record_statuses(graph, targets)
+        return _payload(
+            graph,
+            "none",
+            next_command(graph, root),
+            active_waivers=[
+                item for item in history if item["status"] == "active"
+            ],
+            waiver_history=history,
+            eligible_blockers=[
+                blocker_to_dict(blocker, graph) for blocker in targets
+            ],
+        )
+
+    reason = args.reason.strip()
+    if not reason:
+        raise CommandInputError("waiver reason must not be empty")
+    blocker_id = args.blocker_id.strip()
+    if not blocker_id:
+        raise CommandInputError("waiver blocker ID must be one exact non-empty ID")
+    target = next(
+        (item for item in targets if item.id == blocker_id),
+        None,
+    )
+    if target is None:
+        raise CommandInputError(
+            "blocker is not currently active or is not waivable: "
+            f"{blocker_id}"
+        )
+    if active_waiver(graph, target) is not None:
+        raise CommandInputError(
+            f"blocker already has an active waiver: {blocker_id}"
+        )
+    waiver = add_waiver(
+        root,
+        graph,
+        target.id,
+        reason,
+        target.state_digests,
+        expected_source_digest=expected_source_digest,
+    )
+    return _payload(
+        graph,
+        "none",
+        next_command(graph, root),
+        waiver=asdict(waiver),
+        blocker=blocker_to_dict(target, graph),
     )
 
 
 def _verify_command(
     root: Path,
     graph: Graph,
-    config: Any,
+    config: WorkflowConfig,
     args: argparse.Namespace,
 ) -> tuple[dict[str, Any], int]:
-    """@brief Execute one deterministic verification action."""
+    """
+    @brief Execute one deterministic verification action.
+    """
     if args.action == "run":
         summary, code = run_verification(root, graph, config)
         return (
             _payload(
                 graph,
                 validation_summary_path(root, graph).relative_to(root).as_posix(),
-                next_command(graph),
+                next_command(graph, root),
                 verification=summary,
             ),
             code,
@@ -437,19 +562,32 @@ def _verify_command(
             _payload(
                 graph,
                 validation_summary_path(root, graph).relative_to(root).as_posix(),
-                next_command(graph),
+                next_command(graph, root),
                 verification=summary,
             ),
             0,
         )
     if args.action == "gates":
         code = run_gates(root, graph.run_id, config, args.gate_names or None)
+        graph = load_graph(root, graph.run_id)
         modes = {
             name: getattr(config.gates, name).mode
             for name in (args.gate_names or GATE_ORDER)
         }
+        waived_gates = [
+            blocker_to_dict(blocker, graph)
+            for blocker in gate_failure_blockers(
+                graph,
+                config,
+                args.gate_names or None,
+            )
+            if active_waiver(graph, blocker) is not None
+        ]
+        details: dict[str, Any] = {"gates": modes}
+        if waived_gates:
+            details["waived_gates"] = waived_gates
         return (
-            _payload(graph, "none", next_command(graph), gates=modes),
+            _payload(graph, "none", next_command(graph, root), **details),
             1 if code else 0,
         )
     if args.action == "invariants":
@@ -458,46 +596,70 @@ def _verify_command(
             _payload(
                 graph,
                 "none",
-                next_command(graph),
-                invariants=[asdict(item) for item in results],
+                next_command(graph, root),
+                invariants=[item.to_dict() for item in results],
             ),
             1 if blocking_failures(results) else 0,
         )
     if args.action in {"traceability", "coverage"}:
+        if graph.profile == "quick":
+            return (
+                _payload(
+                    graph,
+                    "none",
+                    next_command(graph, root),
+                    audit_status="not-applicable",
+                    issues=[
+                        {
+                            "status": "not-applicable",
+                            "message": "Not applicable - quick run.",
+                        }
+                    ],
+                ),
+                0,
+            )
         issues = (
             audit_traceability(root, config)
             if args.action == "traceability"
             else audit_coverage(root, config)
         )
+        serialized, blockers = annotate_audit_issues(
+            args.action,
+            issues,
+            graph,
+        )
         return (
             _payload(
                 graph,
                 "none",
-                next_command(graph),
-                issues=[asdict(item) for item in issues],
+                next_command(graph, root),
+                issues=serialized,
             ),
-            1 if issues else 0,
+            1 if blockers else 0,
         )
     if args.action == "impact":
         paths = _read_paths_file(root, args.paths_file) if args.paths_file else None
         report = impact(root, paths, config=config)
-        return _payload(graph, "none", next_command(graph), impact=report), 0
-    report = audit_working_tree(root, config, graph)
+        return _payload(graph, "none", next_command(graph, root), impact=report), 0
+    report, blockers = annotate_working_tree(
+        audit_working_tree(root, config, graph),
+        graph,
+        root,
+    )
     return (
-        _payload(graph, "none", next_command(graph), working_tree=report),
-        1 if report["blocking_findings"] else 0,
+        _payload(graph, "none", next_command(graph, root), working_tree=report),
+        1 if blockers else 0,
     )
 
 
 def _adoption_command(
     root: Path,
     graph: Graph,
-    config: Any,
+    config: WorkflowConfig,
     args: argparse.Namespace,
 ) -> tuple[dict[str, Any], int]:
     """
     @brief Preserve adoption inspection commands under the grouped surface.
-    @version 2.0.0
     """
     manifest = load_components(root, config.component_manifest)
     if args.action == "component-status":
@@ -509,7 +671,7 @@ def _adoption_command(
             _payload(
                 graph,
                 config.component_manifest,
-                next_command(graph),
+                next_command(graph, root),
                 components=components,
             ),
             0,
@@ -520,7 +682,7 @@ def _adoption_command(
             _payload(
                 graph,
                 config.component_manifest,
-                next_command(graph),
+                next_command(graph, root),
                 issues=[asdict(item) for item in issues],
             ),
             1 if any(item.blocking for item in issues) else 0,
@@ -536,7 +698,7 @@ def _adoption_command(
         _payload(
             graph,
             config.component_manifest,
-            next_command(graph),
+            next_command(graph, root),
             baseline=baseline,
         ),
         0,
@@ -578,7 +740,9 @@ def _config_command(root: Path, args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _run_status(root: Path, graph: Graph) -> dict[str, Any]:
-    """@brief Build status/resume output from authoritative run state."""
+    """
+    @brief Build status/resume output from authoritative run state.
+    """
     shown = show_stage(root, graph) if not graph.complete else {}
     evidence = [
         {
@@ -593,12 +757,32 @@ def _run_status(root: Path, graph: Graph) -> dict[str, Any]:
     return _payload(
         graph,
         shown.get("artifact") or "none",
-        next_command(graph),
+        next_command(graph, root),
         run_id=graph.run_id,
         complete=graph.complete,
         readiness=shown,
         evidence=evidence,
+        **_quick_run_details(graph),
     )
+
+
+def _quick_run_details(graph: Graph) -> dict[str, Any]:
+    """
+    @brief Build quick-only status fields after human intake approval.
+    @param[in] graph Active run graph.
+    @return Empty mapping for full runs, otherwise profile and bypass state.
+    """
+    if graph.profile != "quick":
+        return {}
+    details: dict[str, Any] = {"run_profile": "quick"}
+    if quick_bypass_committed(graph):
+        details.update(
+            {
+                "bypass_status": "bypassed",
+                "bypassed_stages": bypassed_stages(graph),
+            }
+        )
+    return details
 
 
 def _load_active_graph(root: Path, explicit: str | None) -> Graph:
@@ -646,7 +830,6 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
     @brief      Accept the two global options before or after grouped commands.
     @param[in]  argv Raw argument vector.
     @return     Equivalent vector with global options moved before the group.
-    @version    0.1.0
     """
     globals_: list[str] = []
     command: list[str] = []
@@ -661,6 +844,8 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
             else:
                 globals_.extend((token, argv[index + 1]))
                 index += 1
+        elif token.startswith("--run="):
+            globals_.append(token)
         else:
             command.append(token)
         index += 1
@@ -674,7 +859,7 @@ def _read_paths_file(root: Path, value: str) -> list[str]:
     @param[in] value Parsed repository-relative paths-file value.
     @return Non-comment, non-empty paths from the referenced file.
     @exception CommandInputError If the file or one of its paths is invalid.
-    @version 0.2.0
+    @exception OSError If the paths file cannot be read.
     """
     path = (root / value).resolve()
     try:

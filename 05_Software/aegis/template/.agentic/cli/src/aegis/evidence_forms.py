@@ -11,9 +11,6 @@
 @brief Generated forms for manual evidence addition and supersession.
 @details Removes evidence mutation flags while retaining strict validation,
          CLI-generated identities, durable journals, and atomic graph updates.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.2.0
 """
 
 # IMPORTS
@@ -47,7 +44,7 @@ def prepare_evidence_form(repo_root: Path, graph: Graph, action: str) -> Path:
     @param[in]  graph Active graph.
     @param[in]  action `add` or `supersede`.
     @return     Generated form path.
-    @version    0.3.0
+    @exception  StageOperationError If action is not `add` or `supersede`.
     """
     path = stage_directory(repo_root, graph) / "manual-evidence.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,8 +90,13 @@ def apply_evidence_form(repo_root: Path, graph: Graph) -> dict[str, Any]:
     @param[in]  repo_root Repository root.
     @param[in,out] graph Active graph.
     @return     Applied action summary.
-    @version    0.2.0
+    @exception  StageOperationError If the current stage was not prepared.
     """
+    record = graph.stage_records.get(graph.stage)
+    if record is None:
+        raise StageOperationError(
+            "prepare the current stage before applying manual evidence"
+        )
     path = stage_directory(repo_root, graph) / "manual-evidence.toml"
     data = _load(path)
     identity = {
@@ -192,7 +194,7 @@ def apply_evidence_form(repo_root: Path, graph: Graph) -> dict[str, Any]:
     append_journal(repo_root, graph.run_id, f"evidence.{action}", summary_data)
     _retire_form(
         path,
-        graph.stage_records[graph.stage].retention,
+        record.retention,
         (
             f"manual-evidence-{action}-"
             f"{summary_data.get('evidence_id') or summary_data.get('target_id')}"
@@ -204,8 +206,9 @@ def apply_evidence_form(repo_root: Path, graph: Graph) -> dict[str, Any]:
 def show_evidence(repo_root: Path, graph: Graph) -> dict[str, Any]:
     """
     @brief      Report the generated form and durable evidence collection.
+    @param[in]  repo_root Repository root.
+    @param[in]  graph Active graph.
     @return     Stable evidence summary.
-    @version    0.1.0
     """
     path = stage_directory(repo_root, graph) / "manual-evidence.toml"
     return {
@@ -266,7 +269,6 @@ def _optional(data: dict[str, Any], key: str, path: Path) -> str | None:
 def _next_evidence_id(graph: Graph) -> str:
     """
     @brief Return the next CLI-controlled evidence sequence ID.
-    @version 0.2.0
     """
     return next_evidence_id(graph)
 
@@ -279,7 +281,6 @@ def _q(value: str) -> str:
 def _retire_form(path: Path, retention: str, revision_name: str) -> None:
     """
     @brief Apply captured retention to one imported manual-evidence form.
-    @version 0.1.0
     """
     if retention == "versioned":
         destination = path.parent / "revisions" / revision_name

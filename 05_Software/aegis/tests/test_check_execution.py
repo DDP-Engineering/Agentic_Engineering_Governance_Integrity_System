@@ -10,10 +10,11 @@
 @file test_check_execution.py
 @brief Behavioral tests for external deterministic check evidence.
 @details Covers canonical field storage, complete-document validation,
-         preparation preconditions, mutation isolation, and form retention.
+         preparation preconditions, mutation isolation, form retention, and
+         managed-execution stale-state rejection.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-30
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -21,14 +22,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 import pytest
 
 import aegis.check_execution as check_execution_module
-from aegis.check_execution import prepare_check_evidence, record_check_evidence
+from aegis.check_execution import (
+    prepare_check_evidence,
+    record_check_evidence,
+    run_checks,
+)
 from aegis.models import Check, Evidence, Graph, StageRecord
 from aegis.stage_forms import StageOperationError
 from aegis.store import (
+    GraphConflictError,
     graph_path,
     init_graph,
     journal_path,
@@ -234,6 +241,65 @@ def test_form_is_not_retired_when_journal_persistence_fails(
         record_check_evidence(tmp_path, graph)
 
     assert form.is_file()
+
+
+def test_managed_results_reject_changed_checks_before_recording(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Reject Phase C when check definitions change during execution.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @version 0.1.0
+    """
+    graph = _external_graph(
+        tmp_path,
+        stage="implementation",
+        mode="managed",
+        check_count=1,
+    )
+
+    def change_check_while_running(
+        _repo_root: Path,
+        command: str,
+        _timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        """
+        @brief Simulate a concurrent check-definition mutation in Phase B.
+        @version 0.1.0
+        """
+        current = load_graph(tmp_path, graph.run_id)
+        current.checks[0].command = "python -m pytest tests/replacement.py"
+        save_graph(tmp_path, current)
+        return subprocess.CompletedProcess(command, 0, "passed", "")
+
+    monkeypatch.setattr(
+        check_execution_module,
+        "_run_command",
+        change_check_while_running,
+    )
+
+    with pytest.raises(GraphConflictError) as raised:
+        run_checks(tmp_path, graph)
+
+    assert raised.value.code == "GRAPH-STALE-UPDATE"
+    persisted = load_graph(tmp_path, graph.run_id)
+    assert persisted.evidence == []
+    assert persisted.checks[0].state == "unknown"
+    assert not (
+        tmp_path
+        / ".agentic"
+        / "runs"
+        / graph.run_id
+        / "evidence"
+        / "logs"
+    ).exists()
+    assert '"event": "check.output"' not in journal_path(
+        tmp_path,
+        graph.run_id,
+    ).read_text(encoding="utf-8")
 
 
 # LOCAL HELPERS

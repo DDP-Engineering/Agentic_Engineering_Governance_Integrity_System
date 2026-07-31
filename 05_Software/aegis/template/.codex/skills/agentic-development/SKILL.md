@@ -1,6 +1,6 @@
 ---
 name: agentic-development
-description: Manual agentic development workflow for implementing features, fixing bugs, or changing behavior with requirement/spec creation, clarification asks, red-before-green checks, implementation, validation, and evidence capture. Use when the user asks to implement a feature, fix a defect, change behavior, add tests for a planned change, or continue an agentic development run.
+description: Manual AEGIS workflow for full feature, fix, and change runs or proportional quick runs for genuinely small fixes and changes, with human-approved stages, validation, and evidence capture. Use when the user asks to implement a feature, fix a defect, change behavior, add tests for a planned change, or continue an agentic development run.
 ---
 
 <!--

@@ -12,9 +12,6 @@
 @details Keeps command-input failures independent from CLI orchestration so
          lower-level readers can report actionable operator errors without
          broad exception handling or circular imports.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -26,7 +23,6 @@ class CommandInputError(ValueError):
     @details Argparse retains responsibility for parser syntax and choices.
              This type covers validly parsed values whose referenced local
              artifact or workflow input cannot be used.
-    @version 0.1.0
     """
 
 

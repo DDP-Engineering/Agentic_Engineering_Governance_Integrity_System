@@ -26,9 +26,6 @@
          :class:`waegis.io.reports.BlockingPointReport` via
          :func:`to_blocking_point_report`, so a blocked network probe is
          immediately IT-forwardable.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -46,6 +43,9 @@ from urllib.parse import urlsplit
 from waegis.io.reports import BlockingPointReport, ProbeFindingRecord
 
 # CONSTANTS
+
+# @brief Shared default for every probe's subprocess/socket timeout.
+DEFAULT_PROBE_TIMEOUT = 5.0
 
 # @brief Env vars checked for a configured proxy, in lookup precedence order
 #        (plan T2.2: HTTP_PROXY/HTTPS_PROXY and lowercase variants). HTTPS
@@ -88,7 +88,18 @@ _DEFAULT_ALTERNATIVES: tuple[str, ...] = (
 # DATA MODELS / TYPEDEFINITIONS
 
 # @brief Outcome of one :class:`Transport` connect attempt.
-ConnectOutcome = Literal["connected", "timed_out", "refused", "dns_failure"]
+# @details ``cert_untrusted`` means the TCP connect succeeded but the TLS
+#          certificate chain failed local verification — the primary symptom
+#          of corporate TLS interception with an untrusted root.
+#          ``tls_failure`` covers any other TLS handshake failure.
+ConnectOutcome = Literal[
+    "connected",
+    "timed_out",
+    "refused",
+    "dns_failure",
+    "cert_untrusted",
+    "tls_failure",
+]
 
 
 @dataclass(frozen=True)
@@ -96,9 +107,6 @@ class CertificateInfo:
     """
     @brief Issuer/subject of a peer TLS certificate, as plain distinguished
            names.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     issuer: str
@@ -112,9 +120,6 @@ class ConnectResult:
     @details ``certificate`` is populated only when the attempt used TLS and
              succeeded; it is ``None`` for a plain TCP connect or any
              non-``"connected"`` outcome.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     outcome: ConnectOutcome
@@ -129,12 +134,16 @@ class Transport(Protocol):
     @details No probe function in this module calls ``socket``/``ssl``
              directly; every one accepts a :class:`Transport` so tests
              substitute a fake and never touch a real socket.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
-    def connect(self, host: str, port: int, *, use_tls: bool, timeout: float = 5.0) -> ConnectResult:
+    def connect(
+        self,
+        host: str,
+        port: int,
+        *,
+        use_tls: bool,
+        timeout: float = DEFAULT_PROBE_TIMEOUT,
+    ) -> ConnectResult:
         """
         @brief      Attempt a TCP (optionally TLS) connect to ``host:port``.
         @param[in]  host Target hostname or address.
@@ -145,8 +154,6 @@ class Transport(Protocol):
         @param[in]  timeout Seconds to allow the attempt before it is
                     reported as ``"timed_out"``.
         @return     A :class:`ConnectResult` describing what happened.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         ...
 
@@ -155,9 +162,6 @@ class Transport(Protocol):
 class WindowsProxySetting:
     """
     @brief Best-effort read of the WinINet system proxy setting.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     enabled: bool
@@ -172,9 +176,6 @@ class RegistryReader(Protocol):
              synchronous read rather than network I/O, but it is subject to
              the same offline-testing discipline: no probe calls ``winreg``
              directly.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def read_wininet_proxy(self) -> WindowsProxySetting | None:
@@ -184,8 +185,6 @@ class RegistryReader(Protocol):
         @return     A :class:`WindowsProxySetting`, or ``None`` when the
                     setting could not be read (not Windows, key absent,
                     permission denied, etc.) — never raises.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         ...
 
@@ -203,9 +202,6 @@ def _env_proxy_lookup(env: Mapping[str, str]) -> tuple[str, str] | None:
     @return     ``(var_name, value)`` for the first non-empty match in
                 :data:`_PROXY_ENV_PRECEDENCE`, or ``None`` if none are set.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     for key in _PROXY_ENV_PRECEDENCE:
         value = env.get(key)
@@ -224,9 +220,6 @@ def _parse_proxy_authority(proxy_url: str) -> tuple[str, int] | None:
                 ``https://`` scheme and 80 otherwise; ``None`` if no hostname
                 could be parsed.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     candidate = proxy_url if "://" in proxy_url else f"//{proxy_url}"
     parsed = urlsplit(candidate)
@@ -250,9 +243,6 @@ def _outcome_text(host: str, port: int, outcome: ConnectOutcome, *, use_tls: boo
                 copyable IT request.
     @exception  ValueError If ``outcome`` is ``"connected"`` (not a failure
                 kind this helper handles).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     protocol = "TLS" if use_tls else "TCP"
     endpoint = f"{host}:{port}"
@@ -275,6 +265,18 @@ def _outcome_text(host: str, port: int, outcome: ConnectOutcome, *, use_tls: boo
             f"please confirm '{host}' resolves via corporate DNS from this workstation, or provide "
             "the correct internal hostname or IP address",
         )
+    if outcome == "cert_untrusted":
+        return (
+            f"TLS certificate presented by {endpoint} is not trusted by this workstation",
+            f"this usually indicates TLS interception — please provide the corporate root CA "
+            f"certificate so it can be trusted, or confirm {endpoint} presents a valid chain",
+        )
+    if outcome == "tls_failure":
+        return (
+            f"TLS handshake with {endpoint} failed",
+            f"please confirm {endpoint} speaks TLS on this port and that no proxy is "
+            "terminating the connection mid-handshake",
+        )
     raise ValueError(f"_outcome_text does not handle a 'connected' outcome: {outcome!r}")
 
 
@@ -295,9 +297,6 @@ def _reachability_finding(
     @return     A ``"fail"`` :class:`ProbeFindingRecord` with failure-kind
                 detail and guidance.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     detail, guidance = _outcome_text(host, port, outcome, use_tls=use_tls)
     return ProbeFindingRecord(name=name, status="fail", detail=detail, guidance=guidance)
@@ -313,9 +312,6 @@ def _format_rdn_sequence(rdn_sequence: Sequence[Sequence[tuple[str, str]]]) -> s
                 CN=DigiCert Global Root CA"``; empty string for an empty
                 sequence.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     parts: list[str] = []
     for rdn in rdn_sequence:
@@ -332,9 +328,6 @@ def _certificate_info(peer_cert: Mapping[str, Any] | None) -> CertificateInfo | 
     @return     A :class:`CertificateInfo`, or ``None`` when no certificate
                 data was available.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if not peer_cert:
         return None
@@ -354,12 +347,16 @@ class SocketTransport:
              ``SubprocessCommandRunner``). Never instantiated by any probe
              function in this module — callers must construct and pass it
              explicitly, which is what keeps the module offline by default.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
-    def connect(self, host: str, port: int, *, use_tls: bool, timeout: float = 5.0) -> ConnectResult:
+    def connect(
+        self,
+        host: str,
+        port: int,
+        *,
+        use_tls: bool,
+        timeout: float = DEFAULT_PROBE_TIMEOUT,
+    ) -> ConnectResult:
         """
         @brief      Attempt a real TCP (optionally TLS) connect to
                     ``host:port``.
@@ -373,9 +370,6 @@ class SocketTransport:
         @exception  OSError Propagated for connection failures other than the
                     ones this method maps to a :data:`ConnectOutcome`
                     (timeout, DNS failure, connection refused).
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         try:
             raw_socket = socket.create_connection((host, port), timeout=timeout)
@@ -393,8 +387,15 @@ class SocketTransport:
             if not use_tls:
                 return ConnectResult(outcome="connected")
             context = ssl.create_default_context()
-            with context.wrap_socket(raw_socket, server_hostname=host) as tls_socket:
-                peer_cert = tls_socket.getpeercert()
+            try:
+                with context.wrap_socket(raw_socket, server_hostname=host) as tls_socket:
+                    peer_cert = tls_socket.getpeercert()
+            except ssl.SSLCertVerificationError:
+                return ConnectResult(outcome="cert_untrusted")
+            except socket.timeout:
+                return ConnectResult(outcome="timed_out")
+            except (ssl.SSLError, OSError):
+                return ConnectResult(outcome="tls_failure")
             return ConnectResult(outcome="connected", certificate=_certificate_info(peer_cert))
         finally:
             raw_socket.close()
@@ -408,9 +409,6 @@ class WinInetRegistryReader:
              non-Windows, key/value absent, permission denied) is caught and
              reported as ``None`` rather than raised, per the plan's "optional
              / best-effort" constraint.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def read_wininet_proxy(self) -> WindowsProxySetting | None:
@@ -421,9 +419,6 @@ class WinInetRegistryReader:
                     is unavailable or the read fails for any reason.
         @exception  None All failure modes are swallowed and reported as
                     ``None``.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         try:
             import winreg
@@ -451,7 +446,7 @@ def probe_proxy_configuration(
     registry: RegistryReader | None = None,
     transport: Transport | None = None,
     target: tuple[str, int] | None = None,
-    timeout: float = 5.0,
+    timeout: float = DEFAULT_PROBE_TIMEOUT,
 ) -> ProbeFindingRecord:
     """
     @brief      Detect a configured proxy from env vars, falling back to the
@@ -480,10 +475,11 @@ def probe_proxy_configuration(
                 and either no connectivity check was requested or the check
                 found a working path, ``"fail"`` when a connectivity check
                 was requested and both the direct and proxied paths failed.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @exception  OSError Propagated from the injected ``transport`` if its
+                ``connect`` implementation raises for a failure kind it does
+                not map to a :data:`ConnectOutcome` (see
+                :meth:`SocketTransport.connect`); this function itself never
+                raises.
     """
     proxy_url: str | None = None
     source: str | None = None
@@ -538,7 +534,7 @@ def probe_tls_interception(
     port: int = 443,
     *,
     expected_issuer_markers: Sequence[str] = _DEFAULT_PUBLIC_CA_ISSUER_MARKERS,
-    timeout: float = 5.0,
+    timeout: float = DEFAULT_PROBE_TIMEOUT,
 ) -> ProbeFindingRecord:
     """
     @brief      TLS-interception heuristic: connect to an operator-supplied
@@ -556,18 +552,30 @@ def probe_tls_interception(
                 identify a trusted public (or approved internal) CA;
                 overridable by the caller.
     @param[in]  timeout Seconds to allow the connect attempt.
-    @return     A ``net.tls-interception`` :class:`ProbeFindingRecord``:
-                ``"ok"`` when the issuer matches a known marker, ``"warn"``
-                ("possible TLS interception") naming the unrecognized issuer
-                when it does not, or ``"fail"`` when the connect itself did
-                not succeed (delegates to the same failure-kind text as
-                :func:`probe_host_reachability`).
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @return     A ``net.tls-interception`` :class:`ProbeFindingRecord`:
+                ``"ok"`` when the certificate connects and the issuer matches
+                a known marker; ``"warn"`` when the certificate is untrusted
+                (possible TLS interception), when the connect succeeds but no
+                peer certificate details are available, or when the issuer
+                does not match a known marker; ``"fail"`` for any other
+                non-``"connected"`` outcome (delegates to the same
+                failure-kind text as :func:`probe_host_reachability`).
+    @exception  OSError Propagated from the injected ``transport`` if its
+                ``connect`` implementation raises for a failure kind it does
+                not map to a :data:`ConnectOutcome` (see
+                :meth:`SocketTransport.connect`); this function itself never
+                raises.
     """
     result = transport.connect(host, port, use_tls=True, timeout=timeout)
+    if result.outcome == "cert_untrusted":
+        return ProbeFindingRecord(
+            name="net.tls-interception",
+            status="warn",
+            detail=f"possible TLS interception: certificate presented by {host}:{port} "
+            "is not trusted by this workstation",
+            guidance="please provide the corporate TLS interception root CA certificate so "
+            "WAEGIS can trust it, or confirm the endpoint presents a valid public chain",
+        )
     if result.outcome != "connected":
         return _reachability_finding(name="net.tls-interception", host=host, port=port, outcome=result.outcome, use_tls=True)
 
@@ -603,7 +611,7 @@ def probe_host_reachability(
     port: int,
     *,
     use_tls: bool = True,
-    timeout: float = 5.0,
+    timeout: float = DEFAULT_PROBE_TIMEOUT,
 ) -> ProbeFindingRecord:
     """
     @brief      Generic reachability probe for an operator-supplied
@@ -616,13 +624,16 @@ def probe_host_reachability(
     @param[in]  use_tls Whether to attempt a TLS handshake after the TCP
                 connect.
     @param[in]  timeout Seconds to allow the connect attempt.
-    @return     A ``net.reachability`` :class:`ProbeFindingRecord``: ``"ok"``
+    @return     A ``net.reachability`` :class:`ProbeFindingRecord`: ``"ok"``
                 when connected, ``"fail"`` for each distinct failure kind
-                (timeout, refused, DNS failure), with matching guidance text.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+                (timeout, refused, DNS failure, and, when ``use_tls`` is
+                ``True``, an untrusted certificate or other TLS handshake
+                failure), with matching guidance text.
+    @exception  OSError Propagated from the injected ``transport`` if its
+                ``connect`` implementation raises for a failure kind it does
+                not map to a :data:`ConnectOutcome` (see
+                :meth:`SocketTransport.connect`); this function itself never
+                raises.
     """
     result = transport.connect(host, port, use_tls=use_tls, timeout=timeout)
     if result.outcome == "connected":
@@ -660,9 +671,6 @@ def to_blocking_point_report(
                 allowlist-proxy, pre-provisioned image, different host).
     @return     A fully populated :class:`BlockingPointReport`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return BlockingPointReport(
         step_id=step_id,

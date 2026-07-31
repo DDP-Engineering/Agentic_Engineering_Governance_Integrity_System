@@ -13,7 +13,7 @@
          reverse indexes, audits, coverage, impact, and INV-8 integration.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-22
-@version 0.10.0
+@version 0.11.0
 """
 
 # IMPORTS
@@ -266,6 +266,36 @@ def test_uuid_collision_retries_without_overwrite(tmp_path: Path) -> None:
     assert second.id == REQ_TWO
     assert (tmp_path / first.source_file).read_text(encoding="utf-8") == original
     assert len(load_all_requirements(tmp_path, config)) == 2
+
+
+def test_uuid_collision_retry_limit_reports_clear_error(tmp_path: Path) -> None:
+    """
+    @brief Stop deterministic UUID collisions after the bounded retry limit.
+    @return None.
+    @version 0.1.0
+    """
+    config = configure_repository(tmp_path)
+    first = create_fixed_record(tmp_path, config, linked_tests=())
+    original = (tmp_path / first.source_file).read_text(encoding="utf-8")
+
+    with pytest.raises(
+        RequirementValidationError,
+        match="could not allocate a unique requirement ID after 5 attempts",
+    ):
+        create_requirement_record(
+            tmp_path,
+            config=config,
+            category="functional",
+            priority="Could",
+            requirement="A colliding behavior.",
+            rationale="Retry exhaustion coverage.",
+            verification="Manual: inspect collision exhaustion",
+            timestamp=CREATED,
+            uuid_factory=lambda: UUID_ONE,
+        )
+
+    assert (tmp_path / first.source_file).read_text(encoding="utf-8") == original
+    assert len(load_all_requirements(tmp_path, config)) == 1
 
 
 @pytest.mark.parametrize(

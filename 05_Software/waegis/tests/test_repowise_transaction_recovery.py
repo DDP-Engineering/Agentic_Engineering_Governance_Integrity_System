@@ -69,7 +69,10 @@ def _snapshot(repo: Path) -> dict[str, bytes | None]:
 
 
 def _run_crashing_configuration(repo: Path, stage: str) -> subprocess.CompletedProcess[str]:
-    """@brief Run RepoWise configuration in a child that exits at one barrier."""
+    """
+    @brief Run RepoWise configuration in a child that exits at one barrier.
+    @version 0.2.0
+    """
     script = r"""
 import os
 import sys
@@ -111,12 +114,17 @@ elif stage == "after-commit":
 
 configure_repowise(repo, RepoWiseSettings())
 """
+    # The pytest `pythonpath = ["src"]` wiring is process-local; the child
+    # needs an explicit PYTHONPATH to import the uninstalled waegis package.
+    env = os.environ.copy()
+    package_root = str(Path(repowise_module.__file__).resolve().parents[1])
+    env["PYTHONPATH"] = package_root + os.pathsep + env.get("PYTHONPATH", "")
     return subprocess.run(
         (sys.executable, "-c", script, str(repo), stage),
         capture_output=True,
         text=True,
         check=False,
-        env=os.environ.copy(),
+        env=env,
     )
 
 

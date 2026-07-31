@@ -27,9 +27,12 @@ import tomllib
 
 import pytest
 
+from waegis.commands.adopt import ADOPT_EXTRA_FIELD_SPECS
+from waegis.io.prompts import ConsoleAsker, guard_answers
 from waegis.repo.workflow_toml import (
     ALL_STAGES,
     BaseFileMismatchError,
+    GATE_ORDER,
     InvariantViolationError,
     WORKFLOW_FIELD_SPECS,
     generate_workflow_toml,
@@ -329,6 +332,128 @@ def test_questionnaire_exposes_every_policy_mode_and_rule_collection() -> None:
         "delivery_command_patterns",
     }
     assert required <= keys
+
+
+def test_v1_answers_file_still_satisfies_the_interview_unchanged() -> None:
+    """
+    @brief      A V1-shaped ``--answers`` mapping (every key present, ship-open
+                values) still satisfies :func:`guard_answers` against
+                ``WORKFLOW_FIELD_SPECS`` after the consequence-style rendering
+                change (0.9.0): keys, choices, validators, and defaults are
+                untouched by adding ``FieldSpec.question``/rewriting
+                ``description``.
+    @return     None
+    @exception  AssertionError If the fixture answers no longer validate, or if
+                a normalized value silently changed.
+    """
+    answers: dict[str, object] = {
+        "source_roots": ["src"],
+        "test_roots": ["tests"],
+        "language": "python",
+        "alignment_enabled": True,
+        "baseline_guard_mode": "disabled",
+        "baseline_minimum_completion_level": "baseline-usable",
+        "coverage_mode": "disabled",
+        "coverage_roots": [],
+        "coverage_exclude": [],
+        "source_changes_mode": "unrestricted",
+        "alignment_protected_scope_mode": "disabled",
+        "alignment_protected_scope_patterns": [],
+        "stage_form_retention": "discard",
+        "check_execution": "external",
+        "secrets_mode": "disabled",
+        "secret_patterns": [],
+        "protected_paths_mode": "disabled",
+        "protected_path_patterns": [],
+        "protected_path_operations": [],
+        "working_tree_mode": "unrestricted",
+        "working_tree_blocked_patterns": [],
+        "write_access_mode": "unrestricted",
+        "write_access_stages": {stage: [] for stage in ALL_STAGES},
+        "scope_mode": "unrestricted",
+        "scope_allowed_roots": [],
+        "delivery_mode": "disabled",
+        "delivery_command_patterns": [],
+    }
+    for name in GATE_ORDER:
+        answers[f"gate_{name}_cmds"] = []
+        answers[f"gate_{name}_mode"] = "disabled"
+    normalized = guard_answers(WORKFLOW_FIELD_SPECS, answers)
+    assert normalized["language"] == "python"
+    assert normalized["source_roots"] == ["src"]
+    assert normalized["write_access_stages"] == {stage: [] for stage in ALL_STAGES}
+    assert normalized["gate_test_mode"] == "disabled"
+
+
+def test_golden_question_rendering_for_representative_fields() -> None:
+    """
+    @brief      Golden transcript: rendering the interview text for six
+                representative fields (one gate mode, ``secrets_mode``,
+                ``write_access_mode``, ``language``, ``adoption_conflicts``,
+                ``stage_form_retention``) through a scripted-stdin
+                :class:`ConsoleAsker` shows the new question-line-plus-
+                consequence rendering verbatim, with the operator taking every
+                default (newline-only stdin).
+    @return     None
+    @exception  AssertionError If any expected question or consequence line is
+                missing from the captured console output.
+    """
+    import io
+
+    specs_by_key = {spec.key: spec for spec in WORKFLOW_FIELD_SPECS}
+    adopt_specs_by_key = {spec.key: spec for spec in ADOPT_EXTRA_FIELD_SPECS}
+    selected = [
+        specs_by_key["gate_test_mode"],
+        specs_by_key["secrets_mode"],
+        specs_by_key["write_access_mode"],
+        specs_by_key["language"],
+        adopt_specs_by_key["adoption_conflicts"],
+        specs_by_key["stage_form_retention"],
+    ]
+    stdin = io.StringIO("\n" * len(selected))
+    stdout = io.StringIO()
+    asker = ConsoleAsker(stdin=stdin, stdout=stdout)
+    for spec in selected:
+        asker.ask_field(spec)
+    output = stdout.getvalue()
+
+    assert "Enable the test gate? (e.g. disabled; default: disabled): " in output
+    assert (
+        "When enforced, verification runs the test commands below and a "
+        "failure blocks validation until fixed or explicitly waived with a "
+        "recorded reason. When disabled, reports honestly say 'disabled' — "
+        "never 'passed'."
+    ) in output
+
+    assert "Scan for secrets before validation? (e.g. disabled; default: disabled): " in output
+    assert (
+        "When enforced, tool input matching the patterns below is blocked "
+        "live during the session, and the working tree is scanned again at "
+        "validation (waivable with a recorded reason). Disabled means no "
+        "scanning."
+    ) in output
+
+    assert "Restrict which folders may be written during each stage? (e.g. unrestricted; default: unrestricted): " in output
+    assert (
+        "When stage_restricted, the agent hooks deny writes outside the "
+        "folders allowed for the current stage below" in output
+    )
+
+    assert "Which language is this project mainly written in? (e.g. python; default: python): " in output
+    assert "Selects which file extensions count as source code" in output
+
+    assert (
+        "Per-file conflict decisions for payload files that already exist and differ? "
+        '(e.g. {"CLAUDE.md": "keep-local"}; default: {}): ' in output
+    )
+    assert "Nothing you own is ever silently overwritten" in output
+
+    assert "Keep, version, or discard stage forms after import? (e.g. discard; default: discard): " in output
+    assert (
+        "versioned keeps every revision of a transient stage input form under "
+        "the run folder (full audit trail); latest keeps only the newest; "
+        "discard deletes the form after import (leanest repo)."
+    ) in output
 
 
 # END OF FILE

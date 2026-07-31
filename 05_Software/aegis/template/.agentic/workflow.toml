@@ -7,6 +7,13 @@
 # shipped template is unrestricted/disabled until an operator opts into rules.
 schema_version = 3
 
+# Optional AEGIS quick-run advisory. Omission is equivalent to disabled mode
+# with max_paths = 10 and preserves compatibility with schema-3 deployment
+# tooling that recognizes only the original tables. Uncomment to opt in:
+# [quick.changed_paths]
+# mode = "advise"
+# max_paths = 10
+
 [source]
 roots = ["src", "app", "lib"]
 

@@ -14,9 +14,6 @@
          before any mutation. Contains no formatting — the console frontend
          (T1.3) and the GUI (M8) render these structures; ``to_dict`` provides
          the JSON/`--json` seam.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.3.0
 """
 
 # IMPORTS
@@ -38,9 +35,6 @@ class PlannedStep:
     @details Snapshots the static contract fields plus the ``change_summary``
              the step computed for the current context, so the preview can be
              rendered (or serialized) without re-invoking any step callable.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     id: str
@@ -56,9 +50,6 @@ class PlannedStep:
         @return     Mapping keyed ``id, title, why, phase, automation,
                     change_summary``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return {
             "id": self.id,
@@ -74,9 +65,6 @@ class PlannedStep:
 class Plan:
     """
     @brief Ordered, immutable preview of a run approved before any mutation.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     mode: str
@@ -87,11 +75,9 @@ class Plan:
     def to_dict(self) -> dict[str, Any]:
         """
         @brief      Serialize the plan to a JSON-safe mapping.
-        @return     Mapping keyed ``mode, dry_run, steps``.
+        @return     Mapping keyed ``mode, dry_run, steps``, plus
+                    ``additional_mutations`` when the plan has any.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         result = {
             "mode": self.mode,
@@ -120,9 +106,6 @@ def build_plan(
     @return     The immutable :class:`Plan` for the run.
     @exception  Exception Propagates any error raised by a step's
                 ``change_summary`` callable.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     planned = tuple(
         PlannedStep(

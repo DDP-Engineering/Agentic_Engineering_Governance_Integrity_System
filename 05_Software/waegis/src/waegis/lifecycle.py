@@ -14,9 +14,6 @@
          incomplete journal whose command, catalog, target, initial-answer,
          and payload fingerprints all match is eligible. A completed run is
          never a resume candidate; callers perform a fresh detection pass.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.1.0
 """
 
 # IMPORTS
@@ -57,9 +54,6 @@ def stable_fingerprint(value: Any) -> str:
     @param[in]  value Value to canonicalize and hash.
     @return     Lowercase sha256 digest.
     @exception  TypeError If ``value`` is not JSON serializable.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     encoded = json.dumps(
         value,
@@ -87,9 +81,6 @@ def build_journal_fingerprints(
     @param[in]  payload_digest Validated payload inventory digest.
     @return     Five-key fingerprint mapping.
     @exception  TypeError If answers are not JSON serializable.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     return {
         "command": stable_fingerprint(command),
@@ -111,9 +102,6 @@ def find_resume_journal(
     @param[in]  expected_fingerprints Current operation fingerprints.
     @return     Matching journal or ``None``.
     @exception  None Corrupt/unreadable journals are ignored.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if set(expected_fingerprints) != FINGERPRINT_KEYS:
         return None
@@ -139,9 +127,6 @@ def replay_answers(journal: Journal, *, allowed_keys: Iterable[str]) -> dict[str
     @param[in]  allowed_keys Explicit field allowlist.
     @return     Last recorded value for each allowed key.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     allowed = set(allowed_keys)
     replayed: dict[str, Any] = {}

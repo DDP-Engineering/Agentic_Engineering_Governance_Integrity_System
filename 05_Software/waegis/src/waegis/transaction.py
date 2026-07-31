@@ -18,9 +18,6 @@
          application and recovery. Cleanup removes only individually validated
          transaction files and directories; it never recursively deletes a
          state-provided path.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 1.1.0
 """
 
 # IMPORTS
@@ -100,7 +97,6 @@ _OWNERSHIP_KEYS = frozenset(
 )
 _TRANSACTION_ID_RE = re.compile(r"\A\d{8}T\d{6}Z-[0-9a-f]{8}\Z")
 _COMMAND_RE = re.compile(r"\A[a-z][a-z0-9-]{0,63}\Z")
-_BACKUP_RE = re.compile(r"\A\d{6}\.bak\Z")
 _SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 _KEY_ID_RE = re.compile(r"\A[0-9a-f]{16}\Z")
 
@@ -111,36 +107,24 @@ _KEY_ID_RE = re.compile(r"\A[0-9a-f]{16}\Z")
 class TransactionError(RuntimeError):
     """
     @brief Base class for transaction integrity and lifecycle failures.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
 
 class TransactionStateError(TransactionError, ValueError):
     """
     @brief Persisted transaction state cannot be safely trusted.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
 
 class TransactionRollbackError(TransactionError):
     """
     @brief Rollback did not completely restore the declared operation set.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
 
 class TransactionCleanupError(TransactionError):
     """
     @brief Terminal state is durable but transaction storage cleanup failed.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
 
@@ -148,9 +132,6 @@ class TransactionCleanupError(TransactionError):
 class TransactionEntry:
     """
     @brief One authenticated destination and its original-content backup.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
     path: str
@@ -174,9 +155,6 @@ class TransactionEntry:
 class TransactionState:
     """
     @brief Fully validated and authenticated transaction state.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
     transaction_version: int
@@ -220,9 +198,6 @@ class TransactionState:
 class OwnershipRecord:
     """
     @brief Separately protected binding between a repository and operation set.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
     ownership_version: int
@@ -252,9 +227,6 @@ class OwnershipRecord:
 class _RepositoryLock:
     """
     @brief Cross-platform advisory lock held for one repository transaction.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
     def __init__(self, repo: Path, auth_home: Path | None = None) -> None:
@@ -272,7 +244,6 @@ class _RepositoryLock:
         @brief Acquire the repository lock, blocking competing WAEGIS writers.
         @return This acquired lock.
         @exception OSError If the lock cannot be created or acquired.
-        @version 1.1.0
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
         flags = os.O_CREAT | os.O_RDWR
@@ -304,7 +275,6 @@ class _RepositoryLock:
         """
         @brief Release the repository lock if held.
         @return None.
-        @version 1.0.0
         """
         handle = self.handle
         if handle is None:
@@ -371,7 +341,6 @@ def _auth_key(home: Path | None, *, create: bool) -> bytes:
     @brief Load or exclusively create the WAEGIS transaction HMAC key.
     @return Exactly 32 random bytes.
     @exception TransactionStateError If the key is absent or unsafe.
-    @version 1.0.0
     """
     base = _auth_home(home)
     path = base / _AUTH_KEY_NAME
@@ -431,7 +400,6 @@ def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
     @brief Exclusively create and atomically replace one JSON document.
     @return None.
     @exception OSError If persistence fails.
-    @version 1.0.0
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, raw_temporary = tempfile.mkstemp(
@@ -471,7 +439,6 @@ def _is_link_like(path: Path) -> bool:
     @brief Detect a symbolic link, junction, or other Windows reparse point.
     @return True when the object must not be followed.
     @exception OSError If metadata cannot be read.
-    @version 1.0.0
     """
     if path.is_symlink():
         return True
@@ -544,7 +511,9 @@ def _parse_created_at(value: Any) -> str:
 
 
 def _parse_entry(raw: Any, *, index: int) -> TransactionEntry:
-    """@brief Parse one exact transaction-entry mapping."""
+    """
+    @brief Parse one exact transaction-entry mapping.
+    """
     if type(raw) is not dict or set(raw) != _ENTRY_KEYS:
         raise TransactionStateError(f"entry {index} does not use the exact supported keys")
     path_value = raw["path"]
@@ -560,7 +529,8 @@ def _parse_entry(raw: Any, *, index: int) -> TransactionEntry:
         raise TransactionStateError(f"entry {index} existed must be a boolean")
     existed = raw["existed"]
     if existed:
-        backup = _strict_string(raw["backup"], label=f"entry {index} backup", pattern=_BACKUP_RE)
+        # The exact-equality check below subsumes any pattern match.
+        backup = _strict_string(raw["backup"], label=f"entry {index} backup")
         if backup != f"{index:06d}.bak":
             raise TransactionStateError(f"entry {index} backup is not the generated reference")
         backup_size = _strict_int(raw["backup_size"], label=f"entry {index} backup_size")
@@ -975,9 +945,6 @@ def _scan_transaction_directories(repo: Path) -> tuple[Path, ...]:
 class FileTransaction:
     """
     @brief One persistent authenticated repository-local file transaction.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-30
-    @version 1.0.0
     """
 
     def __init__(
@@ -993,7 +960,6 @@ class FileTransaction:
         """
         @brief Construct from already validated transaction components.
         @return None.
-        @version 1.0.0
         """
         self.repo = repo.resolve()
         self.directory = directory
@@ -1026,7 +992,8 @@ class FileTransaction:
         @return Ready transaction in ``staged`` phase holding the repository lock.
         @exception TransactionError If staging or authentication fails.
         @exception OSError If persistence fails.
-        @version 1.0.0
+        @exception ManifestError If a destination path escapes or crosses a
+                   symlink into the repository root while resolving entries.
         """
         repo = repo.resolve()
         if _COMMAND_RE.fullmatch(command) is None:
@@ -1132,7 +1099,7 @@ class FileTransaction:
                 auth_home=auth_home,
                 lock=lock,
             )
-        except BaseException:
+        except BaseException as begin_error:
             if directory is not None and directory.exists():
                 try:
                     for backup in reversed(staged_backups):
@@ -1145,13 +1112,19 @@ class FileTransaction:
                     if backups_path.exists():
                         backups_path.rmdir()
                     directory.rmdir()
-                except OSError:
-                    pass
+                except OSError as cleanup_error:
+                    begin_error.add_note(
+                        "transaction begin cleanup left residue under "
+                        f"{directory}: {cleanup_error}"
+                    )
             if ownership_path is not None:
                 try:
-                    ownership_path.unlink()
-                except OSError:
-                    pass
+                    ownership_path.unlink(missing_ok=True)
+                except OSError as cleanup_error:
+                    begin_error.add_note(
+                        "transaction begin cleanup could not remove ownership "
+                        f"record {ownership_path}: {cleanup_error}"
+                    )
             lock.release()
             raise
 
@@ -1168,7 +1141,6 @@ class FileTransaction:
         @return Loaded transaction without acquiring a mutation lock.
         @exception TransactionStateError If any trust check fails.
         @exception OSError If trusted local state cannot be read.
-        @version 1.0.0
         """
         repo = repo.resolve()
         safe_directory, state_path, _backups = _validate_location(repo, directory)
@@ -1224,7 +1196,7 @@ class FileTransaction:
         @brief Persist an authenticated legal transaction phase transition.
         @return None.
         @exception TransactionStateError On an unknown or illegal transition.
-        @version 1.1.0
+        @exception OSError If persisting the new phase fails.
         """
         if phase not in _PHASES:
             raise TransactionStateError(f"invalid transaction phase: {phase!r}")
@@ -1245,7 +1217,6 @@ class FileTransaction:
         @param[in] phase Either ``committed`` or ``rolled-back``.
         @return None.
         @exception TransactionStateError If ownership is invalid or conflicting.
-        @version 1.0.0
         """
         ownership_path = _ownership_path(
             self.repo,
@@ -1278,8 +1249,9 @@ class FileTransaction:
         @return None after complete restoration and cleanup.
         @exception TransactionRollbackError If restoration is unsafe or incomplete.
         @exception TransactionCleanupError If rollback is durable but cleanup fails.
+        @exception TransactionStateError If reloading state fails authentication or
+                   binding before restoration is attempted.
         @param[in] _release_lock Internal recovery coordination flag.
-        @version 1.1.0
         """
         acquired_here = False
         if self._lock is None:
@@ -1340,7 +1312,7 @@ class FileTransaction:
         @brief Mark committed, then remove only validated transaction storage.
         @return None.
         @exception TransactionCleanupError If commit is durable but cleanup fails.
-        @version 1.1.0
+        @exception TransactionStateError If marking the state committed fails.
         """
         try:
             self.mark("committed")
@@ -1359,7 +1331,6 @@ class FileTransaction:
         @return None.
         @exception TransactionStateError If storage identity changed.
         @exception OSError If exact non-recursive cleanup fails.
-        @version 1.0.0
         """
         validated = FileTransaction.load(
             self.repo,
@@ -1400,7 +1371,7 @@ class FileTransaction:
         @details Embedders and deterministic crash tests may use this immediately
                  before terminating or handing recovery to another process.
         @return None.
-        @version 1.0.0
+        @exception OSError If releasing the underlying lock fails.
         """
         self._release_lock()
 
@@ -1434,8 +1405,13 @@ def payload_transaction(
     @param[in] paths Every repository-relative path the block may write.
     @param[in] auth_home Optional protected WAEGIS-home override.
     @return Context manager yielding the staged transaction.
-    @exception BaseException Re-raised after rollback handling.
-    @version 1.0.0
+    @exception TransactionError If beginning, marking, or committing fails.
+    @exception OSError If persisting transaction state fails.
+    @exception ManifestError If a managed destination path is unsafe.
+    @exception BaseException Whatever the wrapped block raises, re-raised
+               after rollback (wrapped as :class:`TransactionRollbackError`
+               if rollback itself fails, except for a
+               :class:`KeyboardInterrupt`/:class:`SystemExit`).
     """
     transaction = FileTransaction.begin(
         repo,
@@ -1478,7 +1454,9 @@ def recover_incomplete_transactions(
     @exception TransactionStateError If ownership, integrity, schema, or
                containment cannot be established.
     @exception TransactionRollbackError If a destination cannot be restored.
-    @version 1.0.0
+    @exception TransactionCleanupError If a recovered transaction's terminal
+               state is durable but cleanup of its storage fails.
+    @exception OSError If removing validated terminal transaction storage fails.
     """
     repo = repo.resolve()
     directories = _scan_transaction_directories(repo)
@@ -1513,7 +1491,6 @@ def pending_transaction_ids(
     @param[in] auth_home Optional protected WAEGIS-home override.
     @return Stable non-terminal transaction identifiers in directory order.
     @exception TransactionStateError If any discovered state is untrusted.
-    @version 1.0.0
     """
     repo = repo.resolve()
     transactions = tuple(

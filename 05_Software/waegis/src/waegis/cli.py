@@ -13,9 +13,6 @@
          supported command through its dedicated subparser and real handler.
          New-project and adoption commands use a positional target, while
          existing-install commands use their documented ``--repo`` contracts.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.9.0
 """
 
 # IMPORTS
@@ -26,6 +23,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 from .commands.adopt import run_adopt
 from .commands.analyze import run_analyze
@@ -57,6 +55,9 @@ SUBCOMMANDS: tuple[tuple[str, str], ...] = (
     ("version", "Print the wizard version and bundled payload version"),
 )
 
+# @brief Name-to-help lookup materialized once instead of per parser call.
+SUBCOMMAND_HELP: dict[str, str] = dict(SUBCOMMANDS)
+
 # @brief Parse context used only to preserve the one-envelope ``--json`` rule
 #        for errors raised before a command handler exists.
 _PARSE_ARGV: tuple[str, ...] = ()
@@ -65,15 +66,19 @@ _PARSE_ARGV: tuple[str, ...] = ()
 class _WaegisArgumentParser(argparse.ArgumentParser):
     """
     @brief Argument parser that renders syntax failures as JSON when requested.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-16
-    @version 0.1.0
     """
 
-    def error(self, message: str) -> None:
-        """@brief Emit one JSON envelope or delegate to argparse's human error."""
+    def error(self, message: str) -> NoReturn:
+        """
+        @brief Emit one JSON envelope or delegate to argparse's human error.
+        @exception SystemExit Always raised: directly with the JSON envelope's
+                   exit code, or via ``argparse``'s own error handling.
+        """
         if "--json" in _PARSE_ARGV:
-            command = next((item for item in _PARSE_ARGV if item in dict(SUBCOMMANDS)), "waegis")
+            command = next(
+                (item for item in _PARSE_ARGV if item in SUBCOMMAND_HELP),
+                "waegis",
+            )
             payload = command_envelope(
                 command,
                 status="failed",
@@ -95,9 +100,6 @@ def _handle_new(args: argparse.Namespace) -> int:
                 ``non_interactive``, ``json``, and ``payload``.
     @return     The exit code from :func:`run_new`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return run_new(
         Path(args.target),
@@ -118,11 +120,8 @@ def _add_new_parser(sub: argparse._SubParsersAction) -> None:
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
-    parser = sub.add_parser("new", help=dict(SUBCOMMANDS)["new"])
+    parser = sub.add_parser("new", help=SUBCOMMAND_HELP["new"])
     parser.add_argument("target", metavar="TARGET", help="Directory to create the new AEGIS project in")
     parser.add_argument("--answers", help="TOML or JSON answers file pre-supplying interview answers")
     parser.add_argument("--dry-run", action="store_true", help="Show the plan preview and stop; change nothing")
@@ -144,9 +143,6 @@ def _handle_adopt(args: argparse.Namespace) -> int:
                 ``non_interactive``, ``json``, and ``payload``.
     @return     The exit code from :func:`run_adopt`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return run_adopt(
         Path(args.target),
@@ -169,11 +165,8 @@ def _add_adopt_parser(sub: argparse._SubParsersAction) -> None:
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
     """
-    parser = sub.add_parser("adopt", help=dict(SUBCOMMANDS)["adopt"])
+    parser = sub.add_parser("adopt", help=SUBCOMMAND_HELP["adopt"])
     parser.add_argument("target", metavar="TARGET", help="Existing repository to adopt AEGIS into")
     parser.add_argument("--answers", help="TOML or JSON answers file pre-supplying interview answers")
     parser.add_argument("--dry-run", action="store_true", help="Show the plan preview and stop; change nothing")
@@ -194,9 +187,6 @@ def _handle_analyze(args: argparse.Namespace) -> int:
     @param[in]  args Parsed namespace with ``repo`` (str) and ``json`` (bool).
     @return     The exit code from :func:`run_analyze`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return run_analyze(Path(args.repo), as_json=args.json, stream=sys.stdout)
 
@@ -208,11 +198,8 @@ def _add_analyze_parser(sub: argparse._SubParsersAction) -> None:
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
-    parser = sub.add_parser("analyze", help=dict(SUBCOMMANDS)["analyze"])
+    parser = sub.add_parser("analyze", help=SUBCOMMAND_HELP["analyze"])
     parser.add_argument("--repo", required=True, help="Repository root to analyze")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a human report")
     parser.set_defaults(handler=_handle_analyze)
@@ -234,8 +221,10 @@ def _handle_configure(args: argparse.Namespace) -> int:
 
 
 def _add_configure_parser(sub: argparse._SubParsersAction) -> None:
-    """@brief Register the post-install configuration command."""
-    parser = sub.add_parser("configure", help=dict(SUBCOMMANDS)["configure"])
+    """
+    @brief Register the post-install configuration command.
+    """
+    parser = sub.add_parser("configure", help=SUBCOMMAND_HELP["configure"])
     parser.add_argument("--repo", required=True, help="Repository root to configure")
     parser.add_argument("--answers", help="TOML or JSON configuration answers")
     parser.add_argument("--dry-run", action="store_true", help="Render the resolved field changes only")
@@ -262,8 +251,10 @@ def _handle_repair(args: argparse.Namespace) -> int:
 
 
 def _add_repair_parser(sub: argparse._SubParsersAction) -> None:
-    """@brief Register the transactional repair command."""
-    parser = sub.add_parser("repair", help=dict(SUBCOMMANDS)["repair"])
+    """
+    @brief Register the transactional repair command.
+    """
+    parser = sub.add_parser("repair", help=SUBCOMMAND_HELP["repair"])
     parser.add_argument("--repo", required=True, help="Repository root to repair")
     parser.add_argument("--answers", help="TOML or JSON repair decisions/configuration answers")
     parser.add_argument("--dry-run", action="store_true", help="Render the resolved repair plan only")
@@ -280,9 +271,6 @@ def _handle_repowise(args: argparse.Namespace) -> int:
     @param[in] args Parsed namespace containing action, repo, and json.
     @return Standard WAEGIS exit code.
     @exception None
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     repo = Path(args.repo)
     if args.repowise_action == "status":
@@ -303,11 +291,12 @@ def _add_repowise_parser(sub: argparse._SubParsersAction) -> None:
     @param[in] sub The top-level subparsers action to register under.
     @return None
     @exception None
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
-    parser = sub.add_parser("repowise", help=dict(SUBCOMMANDS)["repowise"])
+    parser = sub.add_parser("repowise", help=SUBCOMMAND_HELP["repowise"])
+    # The nested actions re-set the same handler; this default keeps the
+    # "every command parser has a dedicated handler" contract observable at
+    # the top level too.
+    parser.set_defaults(handler=_handle_repowise)
     actions = parser.add_subparsers(dest="repowise_action", required=True)
     status = actions.add_parser("status", help="Show configuration and index freshness")
     status.add_argument("--repo", required=True, help="Repository root to inspect")
@@ -328,9 +317,6 @@ def _handle_doctor(args: argparse.Namespace) -> int:
     @return     The exit code from :func:`run_doctor` (0/1/2 health verdict,
                 or 3 for a ``--repo`` operational failure).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return run_doctor(Path(args.repo), as_json=args.json, stream=sys.stdout)
 
@@ -342,11 +328,8 @@ def _add_doctor_parser(sub: argparse._SubParsersAction) -> None:
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.2.0
     """
-    parser = sub.add_parser("doctor", help=dict(SUBCOMMANDS)["doctor"])
+    parser = sub.add_parser("doctor", help=SUBCOMMAND_HELP["doctor"])
     parser.add_argument("--repo", required=True, help="Repository root to diagnose")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a human report")
     parser.set_defaults(handler=_handle_doctor)
@@ -363,9 +346,6 @@ def _handle_upgrade(args: argparse.Namespace) -> int:
     @return     The exit code from :func:`run_upgrade` (0 ok / 1 conflicts /
                 2 smoke-failed / 3 operational).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.2.0
     """
     asker = None if args.json else ConsoleAsker(stdin=sys.stdin, stdout=sys.stdout)
     return run_upgrade(
@@ -389,11 +369,8 @@ def _add_upgrade_parser(sub: argparse._SubParsersAction) -> None:
     @param[in]  sub The top-level subparsers action to register under.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.2.0
     """
-    parser = sub.add_parser("upgrade", help=dict(SUBCOMMANDS)["upgrade"])
+    parser = sub.add_parser("upgrade", help=SUBCOMMAND_HELP["upgrade"])
     parser.add_argument("--repo", required=True, help="Repository root to upgrade to a newer AEGIS payload")
     parser.add_argument("--dry-run", action="store_true", help="Show the upgrade plan and stop; change nothing")
     parser.add_argument("--answers", help="TOML or JSON conflict decisions and Git-mode answers")
@@ -410,8 +387,10 @@ def _handle_version(args: argparse.Namespace) -> int:
 
 
 def _add_version_parser(sub: argparse._SubParsersAction) -> None:
-    """@brief Register the real version command."""
-    parser = sub.add_parser("version", help=dict(SUBCOMMANDS)["version"])
+    """
+    @brief Register the real version command.
+    """
+    parser = sub.add_parser("version", help=SUBCOMMAND_HELP["version"])
     parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
     parser.set_defaults(handler=_handle_version)
 
@@ -422,9 +401,6 @@ def build_parser() -> argparse.ArgumentParser:
                 handler for every supported WAEGIS command.
     @return     Configured :class:`argparse.ArgumentParser`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.8.0
     """
     parser = _WaegisArgumentParser(
         prog="waegis",
@@ -456,16 +432,13 @@ def main(argv: list[str] | None = None) -> int:
     @return     Integer process exit code produced by the subcommand handler.
     @exception  SystemExit Raised by argparse for ``--help`` (code 0) or for a
                            missing/invalid subcommand (code 2).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     global _PARSE_ARGV  # noqa: PLW0603 - parser error hook needs the active argv
     active_argv = tuple(sys.argv[1:] if argv is None else argv)
     try:
         register_packaged_runtime()
     except RuntimeRegistrationError as exc:
-        command = next((item for item in active_argv if item in dict(SUBCOMMANDS)), "waegis")
+        command = next((item for item in active_argv if item in SUBCOMMAND_HELP), "waegis")
         if "--json" in active_argv:
             return write_envelope(
                 sys.stdout,

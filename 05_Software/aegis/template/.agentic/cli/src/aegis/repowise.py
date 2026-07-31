@@ -12,9 +12,6 @@
 @details Keeps RepoWise outside the AEGIS runtime boundary. AEGIS reads only a
          strict policy, WAEGIS receipt, RepoWise state, and knowledge-graph JSON,
          then writes a normalized run-local discovery snapshot.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.0.2
 """
 
 # IMPORTS
@@ -79,9 +76,6 @@ _FINGERPRINT_EXCLUSIONS = (
 class RepoWiseIntegrationError(ValueError):
     """
     @brief Describe an invalid RepoWise policy or unsafe artifact path.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 0.1.0
     """
 
 
@@ -89,9 +83,6 @@ class RepoWiseIntegrationError(ValueError):
 class RepoWiseIntegration:
     """
     @brief Immutable schema-version-1 RepoWise integration policy.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 0.1.0
     """
 
     schema_version: int = 1
@@ -109,9 +100,6 @@ class RepoWiseIntegration:
 class RepoWiseInspection:
     """
     @brief Stable RepoWise availability, freshness, and proposal report.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 0.1.0
     """
 
     status: str
@@ -128,7 +116,6 @@ class RepoWiseInspection:
         """
         @brief Serialize the inspection into stable JSON-compatible fields.
         @return Inspection mapping.
-        @version 0.1.0
         """
         return asdict(self)
 
@@ -142,7 +129,6 @@ def load_repowise_integration(repo_root: Path) -> RepoWiseIntegration:
     @param[in] repo_root Repository root.
     @return Validated integration; absent files resolve to disabled policy.
     @exception RepoWiseIntegrationError If the policy is malformed or unsafe.
-    @version 0.1.0
     """
     path = repo_root / INTEGRATION_RELATIVE_PATH
     if not path.exists():
@@ -206,7 +192,7 @@ def effective_repowise_config(repo_root: Path) -> dict[str, Any]:
     @brief Return the effective optional integration policy.
     @param[in] repo_root Repository root.
     @return JSON-compatible policy with its configuration path.
-    @version 0.1.0
+    @exception RepoWiseIntegrationError If the policy is malformed or unsafe.
     """
     config = load_repowise_integration(repo_root)
     return {
@@ -228,8 +214,8 @@ def inspect_repowise(
     @param[in] run_id Optional AEGIS run ID for a durable snapshot.
     @param[in] write_snapshot Whether to persist the normalized snapshot.
     @return Stable inspection with current/stale/invalid state.
-    @exception RepoWiseIntegrationError If snapshot writing lacks a run ID.
-    @version 0.1.1
+    @exception RepoWiseIntegrationError If the integration policy itself is
+               malformed or unsafe, or a snapshot is requested without a run ID.
     """
     config = load_repowise_integration(repo_root)
     if config.mode == "disabled":
@@ -350,7 +336,6 @@ def repository_head(repo_root: Path) -> str:
     @brief Return the current Git HEAD, or an empty string outside Git.
     @param[in] repo_root Repository root.
     @return Lowercase commit identifier or empty string.
-    @version 0.1.0
     """
     result = _git(repo_root, "rev-parse", "--verify", "HEAD")
     if result.returncode != 0:
@@ -365,7 +350,6 @@ def worktree_fingerprint(repo_root: Path) -> str:
     @return SHA-256 fingerprint stable across AEGIS/RepoWise runtime changes.
     @details Excludes `.agentic` and `.repowise` so creating runs, receipts, or
              provider state cannot immediately invalidate a successful sync.
-    @version 0.1.0
     """
     result = _git(
         repo_root,
@@ -380,11 +364,21 @@ def worktree_fingerprint(repo_root: Path) -> str:
     if result.returncode != 0:
         return sha256(b"non-git").hexdigest()
     digest = sha256(result.stdout)
-    for record in result.stdout.split(b"\0"):
+    records = result.stdout.split(b"\0")
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
         if len(record) < 4:
             continue
-        text = record[3:].decode("utf-8", errors="surrogateescape")
-        candidate = text.rsplit(" -> ", 1)[-1]
+        status = record[:2].decode("ascii", errors="replace")
+        if "R" in status or "C" in status:
+            # In `-z` mode the original path of a rename or copy arrives as
+            # the following NUL-separated record with no status prefix; the
+            # raw stdout already feeds the digest, so consume it whole and
+            # hash only the current path below.
+            index += 1
+        candidate = record[3:].decode("utf-8", errors="surrogateescape")
         path = repo_root / candidate
         try:
             resolved = path.resolve()
@@ -631,7 +625,6 @@ def _sha256_file(path: Path) -> str:
 def _atomic_json(path: Path, data: dict[str, Any]) -> None:
     """
     @brief Atomically write one normalized, flushed JSON document.
-    @version 0.2.0
     """
     atomic_write_json(path, data)
 

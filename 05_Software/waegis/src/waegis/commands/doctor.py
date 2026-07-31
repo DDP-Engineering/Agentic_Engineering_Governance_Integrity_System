@@ -109,16 +109,14 @@
          [str, ...], "missing": [str, ...]}, "workflow_toml": [Finding, ...],
          "runnability": [Finding, ...], "journal": [Finding, ...]}}`` where
          ``Finding`` is ``{"name": str, "status": "ok"|"warn"|"fail",
-         "detail": str, "guidance": str|null}`` — the same shape as
+         "detail": str, "guidance": str|null, "repair_action": object|null}``
+         — the same shape (plus ``repair_action``) as
          :class:`waegis.io.reports.ProbeFindingRecord`, reused directly rather
          than inventing a parallel type. ``drift`` is the one group whose
          JSON carries structured data beyond a finding list (the full
          modified/missing file lists), a deliberate, documented exception.
          These field names are a public, frozen integration contract;
          changing them is a wizard MAJOR version bump.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.1.0
 """
 
 # IMPORTS
@@ -147,7 +145,7 @@ from ..payload.manifest import (
 from ..probes.machine import probe_disk_space, probe_os_support
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..probes.tools import probe_git, probe_python, probe_uv
-from ..repo.workflow_toml import InvariantViolationError, verify_workflow_invariants
+from ..repo.workflow_toml import GATE_ORDER, InvariantViolationError, verify_workflow_invariants
 from ..version import _parse_version
 from ..verification import (
     HOOK_FILES,
@@ -155,16 +153,11 @@ from ..verification import (
     STRICT_ADAPTER_CONFIG_KEYS,
     wrapper_invocation,
 )
+from ._shared import AGENTIC_DIR_RELATIVE_PATH, WORKFLOW_TOML_RELATIVE_PATH
 from .analyze import ADAPTER_DIR_NAMES
 from .new import MIN_FREE_DISK_BYTES
 
 # CONSTANTS
-
-# @brief Repo-relative path of the generated configuration surface.
-WORKFLOW_TOML_RELATIVE_PATH = ".agentic/workflow.toml"
-
-# @brief Repo-relative directory whose presence marks a prior/legacy install.
-AGENTIC_DIR_RELATIVE_PATH = ".agentic"
 
 # @brief Severity rank for aggregating findings into one worst-case verdict;
 #        doubles as the exit code for that severity (plan §10.1: 0/1/2).
@@ -187,9 +180,6 @@ class DoctorReport:
     @details ``drift_detail`` carries the full modified/missing lists
              (``--json``-only, per the human-counts/json-lists split); it is
              ``None`` exactly when drift was not computed (no valid manifest).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     repo: str
@@ -208,9 +198,6 @@ class DoctorReport:
         @brief      Every finding across every group, in group order.
         @return     Flattened tuple of every :class:`ProbeFindingRecord`.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         return (
             self.machine
@@ -227,9 +214,6 @@ class DoctorReport:
         @return     Mapping keyed ``repo, overall_status, exit_code, groups``
                     (see module docstring for the full field-name contract).
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         drift_json: dict[str, Any] = {"findings": _findings_to_dicts(self.drift)}
         if self.drift_detail is not None:
@@ -260,11 +244,9 @@ def _findings_to_dicts(findings: tuple[ProbeFindingRecord, ...]) -> list[dict[st
     """
     @brief      Serialize a tuple of findings to the frozen JSON-safe list shape.
     @param[in]  findings Findings to serialize, in order.
-    @return     List of ``{name, status, detail, guidance}`` mappings.
+    @return     List of ``{name, status, detail, guidance, repair_action}``
+                mappings.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return [
         {
@@ -281,10 +263,8 @@ def _findings_to_dicts(findings: tuple[ProbeFindingRecord, ...]) -> list[dict[st
 def _repair_action(finding: ProbeFindingRecord) -> dict[str, Any] | None:
     """
     @brief      Map one unhealthy finding to a typed lifecycle action.
+    @param[in]  finding The finding to map (checked by ``name``/``status``).
     @return     Action mapping or ``None`` when no mutation is appropriate.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if finding.status == "ok":
         return None
@@ -313,9 +293,6 @@ def _finding(name: str, status: str, detail: str, guidance: str | None = None) -
     @param[in]  guidance Optional fix-it text.
     @return     The built :class:`ProbeFindingRecord`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     normalized = "ok" if status == "info" else status
     return ProbeFindingRecord(name=name, status=normalized, detail=detail, guidance=guidance)
@@ -328,9 +305,6 @@ def _from_probe(finding: ProbeFindingRecord) -> ProbeFindingRecord:
     @param[in]  finding A finding returned directly by a ``probes/*`` function.
     @return     The normalized :class:`ProbeFindingRecord`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return _finding(finding.name, finding.status, finding.detail, finding.guidance)
 
@@ -344,9 +318,6 @@ def _table(document: Mapping[str, Any], key: str) -> Mapping[str, Any]:
     @param[in]  key Top-level section name.
     @return     ``document[key]`` when it is a mapping, else ``{}``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     value = document.get(key)
     return value if isinstance(value, Mapping) else {}
@@ -360,9 +331,6 @@ def _aggregate(*groups: tuple[ProbeFindingRecord, ...]) -> tuple[int, str]:
     @return     ``(exit_code, overall_status)``; ``(0, "ok")`` when no findings
                 were produced at all.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     worst = 0
     for group in groups:
@@ -385,9 +353,6 @@ def _build_machine_findings(repo: Path, runner: CommandRunner) -> tuple[ProbeFin
                 ``prereq.python``, ``prereq.git``, ``prereq.uv``.
     @exception  OSError If no ancestor of ``repo`` is accessible for the
                 disk-space probe.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return (
         _from_probe(probe_os_support()),
@@ -413,9 +378,6 @@ def _build_update_available_finding(repo: Path, manifest: Manifest, payload_root
     @return     ``"warn"`` when the bundled payload is strictly newer,
                 ``"ok"`` otherwise (including "cannot determine").
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     if payload_root is None:
         return _finding("manifest.update-available", "ok", "bundled payload location unknown; update check skipped")
@@ -457,9 +419,6 @@ def _build_manifest_findings(
     @return     One ``manifest.state`` finding, plus ``manifest.update-available``
                 only when the manifest is valid.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     if load_result.state is ManifestState.VALID and load_result.manifest is not None:
         manifest = load_result.manifest
@@ -518,9 +477,8 @@ def _build_drift_findings(
     @return     ``(findings, drift_detail)``; ``drift_detail`` is ``None``
                 when no valid manifest exists to compare against.
     @exception  OSError If a manifest-recorded file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
+    @exception  waegis.payload.manifest.ManifestError If a manifest-recorded
+                path now crosses a symlink or escapes the resolved root.
     """
     if load_result.state is not ManifestState.VALID or load_result.manifest is None:
         return (
@@ -564,9 +522,6 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
                 ``workflow.invariants``, ``workflow.gates.test``,
                 ``workflow.gates.lint``, ``workflow.components-manifest``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.3.0
     """
     path = repo / WORKFLOW_TOML_RELATIVE_PATH
     if not path.is_file():
@@ -635,7 +590,7 @@ def _build_workflow_toml_findings(repo: Path) -> tuple[ProbeFindingRecord, ...]:
         )
 
     gates = _table(document, "gates")
-    for name in ("build", "typecheck", "lint", "test", "security"):
+    for name in GATE_ORDER:
         group = _table(gates, name)
         mode = group.get("mode")
         commands = group.get("commands", [])
@@ -693,9 +648,6 @@ def _build_adapter_config_finding(repo: Path) -> ProbeFindingRecord:
     @param[in]  repo Repository root.
     @return     One ``runnability.adapter-configs`` finding.
     @exception  None Read and parse failures become the finding.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     problems: list[str] = []
     checked = 0
@@ -770,9 +722,6 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
                 guards were entirely absent. See
                 :func:`_build_adapter_config_finding`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.3.0
     """
     findings: list[ProbeFindingRecord] = []
 
@@ -863,7 +812,7 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
 # --- group: Journal ----------------------------------------------------------------
 
 
-def _latest_journal_for_repo(home: Path, repo: Path) -> Journal | None:
+def _latest_journal_for_repo(home: Path, repo: Path) -> tuple[Journal | None, tuple[str, ...]]:
     """
     @brief      Find the latest recorded (non-dry-run) journal for this repo.
     @details    Scans ``<home>/journals/*.json`` newest-first (run ids are
@@ -871,27 +820,30 @@ def _latest_journal_for_repo(home: Path, repo: Path) -> Journal | None:
                 location and order as :func:`waegis.lifecycle.find_resume_journal`
                 but without mode/fingerprint filters. Doctor reports the last
                 run regardless of whether it was ``new`` or ``adopt``.
-                Unreadable or corrupt journals are skipped, never fatal.
+                Unreadable or corrupt journals are skipped (never fatal) but
+                their names are reported so the corruption itself surfaces as
+                a health datum.
     @param[in]  home WAEGIS home directory.
     @param[in]  repo Resolved repository path.
-    @return     The loaded latest :class:`Journal`, or ``None``.
+    @return     ``(journal, corrupt)``: the loaded latest :class:`Journal` (or
+                ``None``) and the file names of journals that failed to load.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.2.0
     """
     journals_dir = home / "journals"
     if not journals_dir.is_dir():
-        return None
+        return None, ()
     target = str(repo)
+    corrupt: list[str] = []
+    latest: Journal | None = None
     for path in sorted(journals_dir.glob("*.json"), reverse=True):
         try:
             journal = Journal.load(path)
         except Exception:  # noqa: BLE001 - a corrupt journal must never block doctor
+            corrupt.append(path.name)
             continue
-        if not journal.dry_run and journal.target == target:
-            return journal
-    return None
+        if latest is None and not journal.dry_run and journal.target == target:
+            latest = journal
+    return latest, tuple(corrupt)
 
 
 def _build_journal_findings(repo: Path, home: Path) -> tuple[ProbeFindingRecord, ...]:
@@ -900,17 +852,27 @@ def _build_journal_findings(repo: Path, home: Path) -> tuple[ProbeFindingRecord,
                 completed, or names the step it stopped at (plan §10.1).
     @param[in]  repo Resolved repository path.
     @param[in]  home WAEGIS home directory.
-    @return     One ``journal.last-run`` finding.
+    @return     One ``journal.last-run`` finding, plus one
+                ``journal.corrupt`` warn finding when unreadable journals
+                were skipped during the scan.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
-    journal = _latest_journal_for_repo(home, repo)
+    journal, corrupt = _latest_journal_for_repo(home, repo)
+    extra: tuple[ProbeFindingRecord, ...] = ()
+    if corrupt:
+        extra = (
+            _finding(
+                "journal.corrupt",
+                "warn",
+                f"{len(corrupt)} journal file(s) could not be read and were skipped: "
+                + ", ".join(corrupt),
+                guidance="inspect or delete the unreadable files under <home>/journals",
+            ),
+        )
     if journal is None:
-        return (_finding("journal.last-run", "ok", "no prior wizard run journal found for this repository"),)
+        return (_finding("journal.last-run", "ok", "no prior wizard run journal found for this repository"),) + extra
     if journal.status == STATUS_COMPLETED:
-        return (_finding("journal.last-run", "ok", f"last run ({journal.run_id}, mode={journal.mode}) completed"),)
+        return (_finding("journal.last-run", "ok", f"last run ({journal.run_id}, mode={journal.mode}) completed"),) + extra
     stopped = f", stopped at step '{journal.stopped_at_step}'" if journal.stopped_at_step else ""
     return (
         _finding(
@@ -919,7 +881,7 @@ def _build_journal_findings(repo: Path, home: Path) -> tuple[ProbeFindingRecord,
             f"last run ({journal.run_id}, mode={journal.mode}) did not complete (status={journal.status}{stopped})",
             guidance="re-run the wizard to finish the interrupted install",
         ),
-    )
+    ) + extra
 
 
 # --- rendering -----------------------------------------------------------------
@@ -934,9 +896,6 @@ def _render_group(stream: IO[str], title: str, findings: tuple[ProbeFindingRecor
     @param[in]  findings The group's findings, in order.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     stream.write(f"{title}:\n")
     for finding in findings:
@@ -971,9 +930,9 @@ def build_doctor_report(
     @exception  OSError If a manifest-recorded file cannot be hashed during
                 drift computation, or no ancestor of ``repo`` is accessible
                 for the disk-space probe.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
+    @exception  waegis.payload.manifest.ManifestError If a manifest-recorded
+                path now crosses a symlink or escapes the resolved root
+                during drift computation.
     """
     repo_path = Path(repo).resolve()
     active_runner = runner if runner is not None else SubprocessCommandRunner()
@@ -1019,9 +978,6 @@ def render_doctor_report(report: DoctorReport, stream: IO[str]) -> None:
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     stream.write(f"WAEGIS doctor - {report.repo}\n\n")
     _render_group(stream, "Machine", report.machine)
@@ -1043,9 +999,6 @@ def doctor_report_json(report: DoctorReport) -> str:
     @param[in]  report The report to serialize.
     @return     JSON text, 2-space indent.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
 
@@ -1074,9 +1027,6 @@ def run_doctor(
                 is not a directory; otherwise the report's aggregated exit
                 code (0/1/2).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     repo_path = Path(repo)
     if not repo_path.is_dir():

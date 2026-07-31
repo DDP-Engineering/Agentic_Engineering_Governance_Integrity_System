@@ -32,9 +32,6 @@
          every prompt write, so the prompt text is guaranteed to render before
          the following blocking read under a fully-buffered stream (observed
          under Windows ``cmd.exe``, unlike a real TTY or PowerShell).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.3.0
 """
 
 # IMPORTS
@@ -51,9 +48,6 @@ from typing import IO, Any, Callable, Mapping, Sequence
 class PromptsError(Exception):
     """
     @brief Base class for every error raised by the prompt primitives.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -63,9 +57,6 @@ class ValidationError(PromptsError):
     @details The exception message is the novice-readable re-prompt text. A
              validator may also raise a plain ``ValueError``; ``FieldSpec``
              normalizes it to this type so callers only ever catch one class.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -75,9 +66,6 @@ class MissingAnswerError(PromptsError):
     @details This is what ``--non-interactive`` surfaces (plan §4/§5): the
              ``key`` attribute names the missing field so the operator's error
              message is actionable.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, key: str) -> None:
@@ -85,8 +73,6 @@ class MissingAnswerError(PromptsError):
         @brief      Construct the error for one missing field.
         @param[in]  key The ``FieldSpec.key`` that had no answer.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.2.0
         """
         super().__init__(f"missing answer for required field {key!r}")
         self.key = key
@@ -98,9 +84,6 @@ class ScriptedAnswerError(PromptsError):
     @details ``ScriptedAsker`` never re-prompts (there is no operator to ask),
              so an invalid scripted answer fails loudly with this error instead
              of looping.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, key: str, message: str) -> None:
@@ -109,8 +92,6 @@ class ScriptedAnswerError(PromptsError):
         @param[in]  key The ``FieldSpec.key`` whose scripted value was invalid.
         @param[in]  message The validator's rejection message.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         super().__init__(f"scripted answer for {key!r} is invalid: {message}")
         self.key = key
@@ -123,9 +104,6 @@ class InvalidAnswersError(PromptsError):
     @details This is the "never-save-invalid" guard: it carries every failing
              key and message so a caller can report all of them at once, never
              persisting a partially-invalid answer set.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, errors: Mapping[str, str]) -> None:
@@ -133,8 +111,6 @@ class InvalidAnswersError(PromptsError):
         @brief      Construct the error from every failing key/message pair.
         @param[in]  errors Mapping of ``FieldSpec.key`` to rejection message.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         detail = "; ".join(f"{key}: {message}" for key, message in errors.items())
         super().__init__(f"refusing to proceed: invalid answers ({detail})")
@@ -157,10 +133,10 @@ class FieldSpec:
              ``ConsoleAsker.ask_field`` renders it as a numbered menu and
              accepts either the number or the literal value, while
              ``ScriptedAsker``/``--answers`` files are unaffected (they always
-             take the literal value).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-18
-    @version 0.2.0
+             take the literal value). ``question``, when set, is a
+             plain-language question rendered as the prompt line in place of
+             the ``key``-based line (``ConsoleAsker`` only); it never affects
+             ``ScriptedAsker`` or answers-file compatibility.
     """
 
     key: str
@@ -170,6 +146,21 @@ class FieldSpec:
     validator: Callable[[Any], Any] | None = None
     secret: bool = False
     choices: tuple[str, ...] | None = None
+    question: str | None = None
+
+    def default_value(self) -> Any:
+        """
+        @brief      Return the default in a caller-safe, serializable form.
+        @details    Immutable mapping defaults (e.g. ``MappingProxyType``) are
+                    returned as a fresh ``dict`` copy so every consumer —
+                    including journal JSON serialization — receives a plain,
+                    mutable-by-them value.
+        @return     The default, copied when it is a non-``dict`` mapping.
+        @exception  None
+        """
+        if isinstance(self.default, Mapping) and not isinstance(self.default, dict):
+            return dict(self.default)
+        return self.default
 
     def normalize(self, raw: Any) -> Any:
         """
@@ -183,13 +174,10 @@ class FieldSpec:
         @return     The normalized value.
         @exception  ValidationError If no default applies and the value is
                     empty, or if the validator rejects a non-empty value.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         if raw is None or raw == "":
             if self.default is not None:
-                return self.default
+                return self.default_value()
             raise ValidationError(f"{self.key} has no default; a value is required")
         if self.validator is None:
             return raw
@@ -206,9 +194,6 @@ class FieldSpec:
         @return     The parenthesized hint, or ``""`` when neither an example
                     nor a default is set.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         bits: list[str] = []
         if self.example is not None:
@@ -227,9 +212,6 @@ def _default_secret_reader(prompt: str) -> str:
     @param[in]  prompt Prompt text ``getpass`` displays before reading.
     @return     The line the operator typed, without echoing it to the console.
     @exception  EOFError If stdin is closed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return getpass.getpass(prompt)
 
@@ -250,9 +232,6 @@ class ConsoleAsker:
              their raw value is never written to ``stdout`` or otherwise
              returned except as the normalized answer. ``stdin``/``stdout`` are
              injected so tests never touch a real terminal.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(
@@ -271,9 +250,6 @@ class ConsoleAsker:
         @param[in]  secret_reader No-echo reader taking a prompt and returning
                     the typed line; defaults to ``getpass.getpass``.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         self._stdin = stdin
         self._stdout = stdout
@@ -292,8 +268,6 @@ class ConsoleAsker:
                     hung with no visible question to answer.
         @param[in]  text Text to write (no trailing newline is added).
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.2.0
         """
         self._stdout.write(text)
         flush = getattr(self._stdout, "flush", None)
@@ -307,9 +281,6 @@ class ConsoleAsker:
         @param[in]  default Value assumed when the operator presses enter.
         @return     The operator's boolean choice.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.2.0
         """
         suffix = "[Y/n]" if default else "[y/N]"
         while True:
@@ -338,9 +309,6 @@ class ConsoleAsker:
         @param[in]  default Suggested default answer, if any.
         @return     The operator's answer, or ``default`` on empty input.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         hint = f" [{default}]" if default is not None else ""
         self._write(f"{prompt}{hint}: ")
@@ -353,8 +321,10 @@ class ConsoleAsker:
         @details    Prints ``spec.description`` unless terse, then — when
                     ``spec.choices`` is set — a numbered menu of the valid
                     values (the one matching ``spec.default`` marked), then
-                    the prompt line with the ``(e.g. ...; default: ...)``
-                    hint. Secret fields are read with the injected no-echo
+                    the prompt line: ``spec.question`` when set, else the
+                    ``key``-based line, followed by the
+                    ``(e.g. ...; default: ...)`` hint. Secret fields are read
+                    with the injected no-echo
                     reader; other fields are read from ``stdin``. When
                     ``spec.choices`` is set and the operator types a bare
                     number in range, it is resolved to the corresponding
@@ -364,10 +334,8 @@ class ConsoleAsker:
                     without validation.
         @param[in]  spec The field to prompt for.
         @return     The normalized answer.
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.2.0
+        @exception  MissingAnswerError If ``stdin`` reaches EOF before a valid
+                    answer is provided.
         """
         if not self._terse and spec.description:
             self._write(f"{spec.description}\n")
@@ -375,13 +343,19 @@ class ConsoleAsker:
             for index, choice in enumerate(spec.choices, start=1):
                 marker = " (default)" if choice == spec.default else ""
                 self._write(f"  {index}) {choice}{marker}\n")
-        prompt_text = f"{spec.key}{spec.hint()}: "
+        if spec.question is not None:
+            prompt_text = f"{spec.question}{spec.hint()}: "
+        else:
+            prompt_text = f"{spec.key}{spec.hint()}: "
         while True:
             if spec.secret:
                 raw = self._secret_reader(prompt_text)
             else:
                 self._write(prompt_text)
-                raw = self._stdin.readline().rstrip("\n")
+                line = self._stdin.readline()
+                if line == "":
+                    raise MissingAnswerError(spec.key)
+                raw = line.rstrip("\n")
             candidate = raw
             if spec.choices and raw.strip().isdigit():
                 index = int(raw.strip())
@@ -403,9 +377,6 @@ class ScriptedAsker:
              :class:`MissingAnswerError` naming the key (what
              ``--non-interactive`` surfaces) and an invalid scripted answer
              raises :class:`ScriptedAnswerError` instead of looping.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(
@@ -421,9 +392,6 @@ class ScriptedAsker:
         @param[in]  confirms A fixed boolean used for every ``confirm`` call, or
                     a finite queue of booleans consumed in order.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         self._answers: dict[str, Any] = dict(answers) if answers else {}
         if isinstance(confirms, bool):
@@ -440,9 +408,6 @@ class ScriptedAsker:
         @param[in]  default Ignored: scripted confirms are explicit, not defaulted.
         @return     The next scripted boolean.
         @exception  MissingAnswerError If a finite confirmation queue is empty.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.2.0
         """
         if self._confirm_queue is not None:
             if self._confirm_queue:
@@ -459,9 +424,6 @@ class ScriptedAsker:
         @return     The scripted answer, or ``default`` when absent.
         @exception  MissingAnswerError If ``key`` is absent and ``default`` is
                     ``None``.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         if key in self._answers:
             return str(self._answers[key])
@@ -477,13 +439,10 @@ class ScriptedAsker:
         @exception  MissingAnswerError If ``spec.key`` has no scripted answer
                     and ``spec.default`` is ``None``.
         @exception  ScriptedAnswerError If the scripted value fails validation.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         if spec.key not in self._answers:
             if spec.default is not None:
-                return spec.default
+                return spec.default_value()
             raise MissingAnswerError(spec.key)
         raw = self._answers[spec.key]
         try:
@@ -507,16 +466,13 @@ def guard_answers(specs: Sequence[FieldSpec], answers: Mapping[str, Any]) -> dic
                 every field is valid.
     @exception  InvalidAnswersError If one or more fields are missing (with no
                 default) or fail validation; carries every offending key.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     errors: dict[str, str] = {}
     normalized: dict[str, Any] = {}
     for spec in specs:
         if spec.key not in answers:
             if spec.default is not None:
-                normalized[spec.key] = spec.default
+                normalized[spec.key] = spec.default_value()
                 continue
             errors[spec.key] = "missing and no default is set"
             continue

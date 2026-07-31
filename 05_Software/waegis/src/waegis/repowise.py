@@ -13,9 +13,6 @@
          the bundled 0.37.0 runtime or an external 0.37.x command, runs indexing
          with machine-readable progress, and writes artifacts that AEGIS later
          validates without importing or executing RepoWise.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.5.0
 """
 
 # IMPORTS
@@ -84,7 +81,10 @@ VALID_SOURCES = frozenset({"disabled", "bundled", "external"})
 VALID_PROFILES = frozenset({"deterministic", "ollama"})
 VALID_ENFORCEMENT = frozenset({"advisory", "required"})
 SUPPORTED_EDITIONS = frozenset({"core", "complete"})
-VERSION_PATTERN = re.compile(r"(?<!\d)(0\.37\.\d+)(?!\d)")
+# Matches any dotted release so an unsupported version is parsed first and
+# then rejected with the explicit "outside >=0.37.0,<0.38.0" message, rather
+# than misreported as a missing --version capability.
+VERSION_PATTERN = re.compile(r"(?<!\d)(\d+\.\d+\.\d+)(?!\d)")
 _CLOUD_ENV_MARKERS = (
     "OPENAI",
     "ANTHROPIC",
@@ -119,9 +119,6 @@ REPOWISE_ANSWER_KEYS = frozenset(
 class RepoWiseSettings:
     """
     @brief Validated WAEGIS-side RepoWise configuration.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
 
     source: str = "disabled"
@@ -144,9 +141,6 @@ class RepoWiseSettings:
 class RepoWiseSyncResult:
     """
     @brief Result of one managed RepoWise synchronization.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
 
     ok: bool
@@ -165,9 +159,6 @@ class RepoWiseSyncResult:
 class RepoWiseError(RuntimeError):
     """
     @brief Validation or operational failure in RepoWise integration handling.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
 
 
@@ -191,7 +182,6 @@ def _sha256(path: Path) -> str:
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     """
     @brief Atomically write one formatted JSON document through an exclusive temp.
-    @version 1.1.0
     """
     _write_bytes(path, (json.dumps(payload, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
 
@@ -199,7 +189,6 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 def _write_text(path: Path, text: str) -> None:
     """
     @brief Atomically write one UTF-8 text document through an exclusive temp.
-    @version 1.1.0
     """
     _write_bytes(path, text.encode("utf-8"))
 
@@ -211,7 +200,6 @@ def _write_bytes(path: Path, data: bytes) -> None:
     @param[in] data Complete replacement bytes.
     @return None.
     @exception OSError If the write or replacement fails.
-    @version 1.0.0
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, raw_temporary = tempfile.mkstemp(
@@ -321,7 +309,6 @@ def _updated_install_manifest(
     @param[in] policy_sha256 Digest of the planned policy bytes.
     @return Updated manifest, or ``None`` when no install manifest exists.
     @exception RepoWiseError If an existing install manifest is invalid.
-    @version 1.0.0
     """
     load = load_manifest(repo)
     if load.state is ManifestState.ABSENT:
@@ -367,9 +354,6 @@ def _amend_install_manifest(repo: Path, settings: RepoWiseSettings) -> None:
     @return None
     @exception RepoWiseError If an existing install manifest is invalid.
     @exception OSError If the manifest cannot be written.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.1.0
     """
     policy = resolve_managed_path(repo, INTEGRATION_RELATIVE_PATH)
     updated = _updated_install_manifest(
@@ -426,7 +410,6 @@ def _manifest_files_valid(root: Path, manifest: Mapping[str, Any]) -> None:
 
 def _load_bundle_manifest(root: Path) -> dict[str, Any]:
     """@brief Load and strictly validate the native RepoWise bundle manifest.
-    @version 1.0.1
     """
     manifest = _load_json(root / BUNDLE_MANIFEST)
     required = {
@@ -495,7 +478,6 @@ def _load_bundle_manifest(root: Path) -> dict[str, Any]:
 
 def _runtime_command(repo: Path, runtime: Mapping[str, Any]) -> list[str]:
     """@brief Resolve the configured RepoWise command for execution.
-    @version 1.0.1
     """
     command = runtime.get("command")
     if (
@@ -527,7 +509,6 @@ def _command_version(
     home: Path | None = None,
 ) -> str:
     """@brief Run a RepoWise version capability probe and return its version.
-    @version 1.1.0
     """
     try:
         completed = subprocess.run(
@@ -559,7 +540,6 @@ def _validate_command_capabilities(
     home: Path | None = None,
 ) -> None:
     """@brief Confirm the RepoWise 0.37 CLI surfaces used by managed sync.
-    @version 1.1.0
     """
     required = {
         "init": (
@@ -620,7 +600,6 @@ def _git_output(repo: Path, *args: str) -> str:
 
 def _repository_fingerprints(repo: Path) -> tuple[str, str]:
     """@brief Return Git HEAD and the byte-sensitive AEGIS worktree digest.
-    @version 1.0.1
     """
     head = _git_output(repo, "rev-parse", "--verify", "HEAD").lower()
     try:
@@ -665,7 +644,6 @@ def _repository_fingerprints(repo: Path) -> tuple[str, str]:
 
 def _receipt_current(repo: Path) -> bool:
     """@brief Return whether the generated receipt matches current artifacts.
-    @version 1.0.1
     """
     receipt_file = repo / RECEIPT_PATH
     artifact = repo / ARTIFACT_PATH
@@ -701,7 +679,6 @@ def _resume_command(repo: Path) -> str:
 
 def _ollama_available(url: str, required_models: Sequence[str]) -> bool:
     """@brief Confirm the loopback Ollama endpoint and requested local models.
-    @version 1.0.1
     """
     endpoint = url.rstrip("/") + "/api/tags"
     try:
@@ -730,7 +707,6 @@ def _offline_environment(
     home: Path | None = None,
 ) -> dict[str, str]:
     """@brief Build a cloud-scrubbed, user-config-isolated managed environment.
-    @version 1.3.0
     """
     environment = {
         key: value
@@ -772,7 +748,6 @@ def _offline_environment(
 
 def _action_for(repo: Path) -> str:
     """@brief Select init, resume, update, or no-op from current index state.
-    @version 1.0.1
     """
     if _receipt_current(repo):
         return "no-op"
@@ -794,7 +769,6 @@ def _command_for(
     profile: str,
 ) -> list[str]:
     """@brief Construct the fixed, non-interactive RepoWise command.
-    @version 1.0.1
     """
     if action == "update":
         result = [*command, "update", str(repo), "--progress", "json", "--no-agents"]
@@ -855,7 +829,6 @@ def _progress_message(line: str, elapsed: float) -> str | None:
 
 def _pump_process_output(source: IO[str], events: queue.Queue[str | None]) -> None:
     """@brief Forward process output to a queue so monitoring can heartbeat.
-    @version 1.0.0
     """
     try:
         for line in source:
@@ -866,7 +839,6 @@ def _pump_process_output(source: IO[str], events: queue.Queue[str | None]) -> No
 
 def _validate_generated_artifacts(repo: Path) -> None:
     """@brief Validate the RepoWise graph and state schemas consumed by AEGIS.
-    @version 1.0.1
     """
     graph = _load_json(repo / ARTIFACT_PATH)
     state = _load_json(repo / STATE_PATH)
@@ -918,9 +890,6 @@ def runtime_platform() -> str:
     @brief Return the supported native package platform identifier.
     @return ``windows-x64`` or ``linux-x64``.
     @exception RepoWiseError If the host is unsupported.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     machine = platform.machine().lower()
     if machine not in {"amd64", "x86_64"}:
@@ -937,9 +906,6 @@ def distribution_edition() -> str:
     @brief Detect whether this WAEGIS distribution is Core or Complete.
     @return ``core`` or ``complete``.
     @exception RepoWiseError On an invalid edition override.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     edition = os.environ.get("WAEGIS_EDITION", "").strip().lower()
     if not edition:
@@ -955,9 +921,6 @@ def locate_bundled_repowise(*, required: bool = True) -> Path | None:
     @param[in] required Raise when no bundle is found.
     @return Bundle root or ``None``.
     @exception RepoWiseError If required and unavailable.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     candidates = []
     override = os.environ.get("WAEGIS_REPOWISE_BUNDLE")
@@ -991,9 +954,6 @@ def settings_from_answers(
     @param[in] default_sync Synchronization default.
     @return Validated settings.
     @exception RepoWiseError On invalid types, values, or endpoints.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     command_value = answers.get("repowise_external_command", [])
     if command_value:
@@ -1045,9 +1005,6 @@ def lifecycle_repowise(
     @param[in] home Optional WAEGIS journal root override.
     @return Separate configuration and synchronization outcome.
     @exception RepoWiseError On invalid answers, configuration, or installation.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.2.0
     """
     from .io.prompts import FieldSpec
 
@@ -1062,7 +1019,11 @@ def lifecycle_repowise(
         source = "disabled"
     elif edition == "complete":
         bundle = locate_bundled_repowise()
-        assert bundle is not None
+        if bundle is None:
+            raise RepoWiseError(
+                "the complete edition should bundle RepoWise, but no bundled "
+                "payload could be located"
+            )
         manifest = _load_bundle_manifest(bundle)
         if stream is not None:
             stream.write(
@@ -1070,13 +1031,12 @@ def lifecycle_repowise(
                 f"The bundled payload is about {manifest['packaged_size']} bytes and "
                 f"uses {manifest['unpacked_size']} bytes unpacked.\n"
             )
-        source = (
-            "bundled"
-            if asker.confirm("Install the built-in RepoWise 0.37.0 sidecar?", default=True)
-            else "external"
-            if asker.confirm("Link an existing external RepoWise installation?", default=False)
-            else "disabled"
-        )
+        if asker.confirm("Install the bundled offline RepoWise structural index?", default=True):
+            source = "bundled"
+        elif asker.confirm("Link to an external RepoWise installation instead?", default=False):
+            source = "external"
+        else:
+            source = "disabled"
     else:
         if stream is not None:
             stream.write(
@@ -1085,7 +1045,7 @@ def lifecycle_repowise(
             )
         source = (
             "external"
-            if asker.confirm("Link an existing external RepoWise installation?", default=False)
+            if asker.confirm("Link to an external RepoWise installation?", default=False)
             else "disabled"
         )
     if source == "bundled" and edition != "complete":
@@ -1232,9 +1192,6 @@ def configure_repowise(
     @exception RepoWiseError On invalid configuration, apply, rollback, or cleanup.
     @exception KeyboardInterrupt Re-raised after rollback handling.
     @exception SystemExit Re-raised after rollback handling.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.5.0
     """
     repo = _ensure_repo(repo)
     _validate_settings(settings)
@@ -1420,9 +1377,6 @@ def commit_repowise_configuration(
     @param[in] message Commit message.
     @return True when a commit was created; false when both paths were clean.
     @exception RepoWiseError If Git cannot inspect or commit the paths.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.0
     """
     paths = (INTEGRATION_RELATIVE_PATH, MANIFEST_RELATIVE_PATH)
     status = runner.run(
@@ -1466,13 +1420,13 @@ def install_bundled_repowise(repo: Path) -> dict[str, Any]:
     @param[in] repo Target repository.
     @return Installation summary including the project-relative command.
     @exception RepoWiseError On missing bundle, insufficient space, or drift.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.0.1
     """
     repo = _ensure_repo(repo)
     bundle = locate_bundled_repowise()
-    assert bundle is not None
+    if bundle is None:
+        raise RepoWiseError(
+            "no bundled RepoWise payload could be located for installation"
+        )
     manifest = _load_bundle_manifest(bundle)
     target = repo / TOOLS_PATH / runtime_platform()
     needed = int(manifest["unpacked_size"])
@@ -1499,8 +1453,15 @@ def install_bundled_repowise(repo: Path) -> dict[str, Any]:
                     "tree_sha256": digest,
                     "command": [(TOOLS_PATH / runtime_platform() / launcher).as_posix()],
                 }
-        except (OSError, KeyError, RepoWiseError):
-            pass
+        except (OSError, KeyError, RepoWiseError) as verify_error:
+            # A digest mismatch means drift and a re-install is intended; an
+            # OSError here (e.g. permissions) would otherwise resurface later
+            # as a confusing staging failure, so keep the reason.
+            reinstall_reason = f"{type(verify_error).__name__}: {verify_error}"
+        else:
+            reinstall_reason = "installed tree does not match bundle manifest"
+    else:
+        reinstall_reason = None
     staging = target.with_name(f"{target.name}.partial-{uuid.uuid4().hex}")
     backup = target.with_name(f"{target.name}.backup-{uuid.uuid4().hex}")
     try:
@@ -1517,7 +1478,10 @@ def install_bundled_repowise(repo: Path) -> dict[str, Any]:
             shutil.rmtree(staging, ignore_errors=True)
         if backup.exists() and not target.exists():
             os.replace(backup, target)
-        raise RepoWiseError(f"failed to install bundled RepoWise: {exc}") from exc
+        detail = f"failed to install bundled RepoWise: {exc}"
+        if reinstall_reason is not None:
+            detail += f" (re-install triggered by: {reinstall_reason})"
+        raise RepoWiseError(detail) from exc
     launcher = Path(str(staged_manifest["launcher"]))
     return {
         "status": "installed",
@@ -1535,9 +1499,6 @@ def repowise_status(repo: Path) -> dict[str, Any]:
     @param[in] repo Target repository.
     @return JSON-safe status mapping.
     @exception RepoWiseError On malformed configuration.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.1.0
     """
     repo = _ensure_repo(repo)
     policy_file = repo / INTEGRATION_PATH
@@ -1551,8 +1512,13 @@ def repowise_status(repo: Path) -> dict[str, Any]:
             "index": "missing",
             "current": False,
         }
-    with policy_file.open("rb") as handle:
-        policy = tomllib.load(handle)
+    try:
+        with policy_file.open("rb") as handle:
+            policy = tomllib.load(handle)
+    except (tomllib.TOMLDecodeError, OSError, UnicodeError) as exc:
+        raise RepoWiseError(
+            f"RepoWise integration policy is unreadable or invalid TOML: {exc}"
+        ) from exc
     expected = {
         "schema_version",
         "provider",
@@ -1629,9 +1595,6 @@ def sync_repowise(
     @param[in] home Optional WAEGIS journal root override.
     @return Synchronization result with log and resume command.
     @exception RepoWiseError On invalid or disabled configuration.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-29
-    @version 1.3.0
     """
     repo = _ensure_repo(repo)
     status = repowise_status(repo)
@@ -1696,7 +1659,7 @@ def sync_repowise(
             encoding="utf-8",
             errors="replace",
         )
-        assert process.stdout is not None
+        assert process.stdout is not None, "Popen(stdout=PIPE) guarantees a stream"
         events: queue.Queue[str | None] = queue.Queue()
         reader = threading.Thread(
             target=_pump_process_output,

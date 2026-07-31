@@ -13,9 +13,6 @@
          answers-file seam (T1.2), and the console/report renderers plus their
          ``--json`` twins (T1.3). As a sub-package of ``waegis`` this does not
          shadow the stdlib ``io`` module.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.3.0
 """
 
 # IMPORTS

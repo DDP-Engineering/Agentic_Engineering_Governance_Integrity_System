@@ -19,7 +19,7 @@
          the working directory a smoke/gate invocation would have used.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-13
-@version 0.2.0
+@version 0.3.0
 """
 
 # IMPORTS
@@ -48,11 +48,12 @@ class FakeCommandRunner:
         @param[in]  responses Mapping of exact argv tuples to the
                     :class:`CommandResult` the fake returns for that argv.
         @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
+        @version    0.2.0
         """
         self._responses = dict(responses)
         self.calls: list[tuple[str, ...]] = []
         self.cwds: list[str | None] = []
+        self.timeouts: list[float] = []
 
     def run(
         self,
@@ -65,18 +66,19 @@ class FakeCommandRunner:
         @brief      Return the scripted result for ``argv``, recording the call.
         @param[in]  argv Argument vector looked up verbatim in the scripted
                     mapping.
-        @param[in]  timeout Ignored (no real process runs).
+        @param[in]  timeout Recorded, but never acted on.
         @param[in]  cwd Recorded (as ``str`` or ``None``) in ``cwds``, aligned
                     index-for-index with ``calls``; never acted on.
         @return     The scripted :class:`CommandResult`, or a "not found"
                     result when ``argv`` was not scripted.
         @exception  None
         @author     Eng. Dan Dumitru Pasare
-        @version    0.2.0
+        @version    0.3.0
         """
         key = tuple(argv)
         self.calls.append(key)
         self.cwds.append(str(cwd) if cwd is not None else None)
+        self.timeouts.append(timeout)
         return self._responses.get(key, CommandResult(found=False, exit_code=None, stdout="", stderr=""))
 
 

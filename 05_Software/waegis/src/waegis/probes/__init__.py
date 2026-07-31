@@ -26,9 +26,6 @@
 
          Every probe returns a :class:`waegis.io.reports.ProbeFindingRecord`
          and never prints; rendering is the ``io/`` layer's job.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.3.0
 """
 
 # END OF FILE

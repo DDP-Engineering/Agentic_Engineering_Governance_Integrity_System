@@ -24,7 +24,9 @@
          - ``language`` answer = ``analysis.language`` — always an exact
            :data:`waegis.repo.workflow_toml.LANGUAGE_PRESETS` key, or
            ``"other"`` when no known code extension was found;
-         - ``gate_test_cmds`` / ``gate_lint_cmds`` answers =
+         - ``gate_build_cmds`` / ``gate_typecheck_cmds`` / ``gate_lint_cmds`` /
+           ``gate_test_cmds`` / ``gate_security_cmds`` answers (one per
+           :data:`waegis.repo.workflow_toml.GATE_ORDER` entry) =
            ``[list(c.argv) for c in ... if c.argv is not None]``;
            ``needs_review`` candidates are surfaced to the operator instead of
            auto-converted.
@@ -36,9 +38,10 @@
          score}], "build_systems": [{name, path, language_hint}],
          "source_roots": [{path, confidence, reason}], "test_roots": [{path,
          confidence, reason}], "colocated_tests": {detected, patterns, note},
-         "gate_test_cmds": [{gate, argv, raw, source_file, source_detail,
-         needs_review}], "gate_lint_cmds": [same], "risk_flags": [{name,
-         status, detail, guidance}]}``
+         "gate_build_cmds": [{gate, argv, raw, source_file, source_detail,
+         needs_review}], "gate_typecheck_cmds": [same], "gate_lint_cmds":
+         [same], "gate_test_cmds": [same], "gate_security_cmds": [same],
+         "risk_flags": [{name, status, detail, guidance}]}``
 
          Risk flags reuse the :class:`waegis.io.reports.ProbeFindingRecord`
          shape. Statuses: ``"warn"`` for heuristic risks and ``"conflict"``
@@ -56,19 +59,18 @@
          - CI files are **line-scanned, not YAML-parsed** (stdlib has no YAML
            parser): GitHub workflow ``run:`` values and GitLab ``script:`` /
            ``before_script:`` list items. Block scalars (``run: |``) are
-           skipped. Extracted lines are classified into test/lint gates by a
-           keyword scan; lines matching neither keyword set (installs,
-           checkouts, deploys) are dropped — they are not gates.
-         - Makefile detection is a line-scan for ``test:``/``lint:`` targets;
-           the proposed command is ``make <target>`` (invoking make IS the
-           gate) — recipe lines are never parsed.
+           skipped. Extracted lines are classified into build/typecheck/lint/
+           test/security gates by a keyword scan; lines matching none of
+           those keyword sets (installs, checkouts, deploys) are dropped —
+           they are not gates.
+         - Makefile detection is a line-scan for ``build:``/``typecheck:``/
+           ``type-check:``/``lint:``/``test:``/``security:`` targets; the
+           proposed command is ``make <target>`` (invoking make IS the gate)
+           — recipe lines are never parsed.
          - A shell-syntax candidate line that cannot be safely split into an
            argv list (shell metacharacters, ``shlex`` errors) is emitted with
            ``argv=None`` and ``needs_review=True`` ("manual review required")
            instead of a wrong argv split.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.2.0
 """
 
 # IMPORTS
@@ -90,7 +92,7 @@ from ..io.reports import ProbeFindingRecord
 from ..payload.manifest import MANIFEST_RELATIVE_PATH
 from ..probes.runner import CommandRunner
 from .gitops import ls_files
-from .workflow_toml import LANGUAGE_PRESETS
+from .workflow_toml import GATE_ORDER, LANGUAGE_PRESETS
 
 # CONSTANTS
 
@@ -129,6 +131,7 @@ _EXTENSION_LANGUAGE: dict[str, str] = {}
 for _key, _preset in LANGUAGE_PRESETS.items():
     for _ext in _preset.source_extensions:
         _EXTENSION_LANGUAGE.setdefault(_ext, _key)
+del _key, _preset, _ext
 
 # @brief Root-level build-system marker files: (family name, filename,
 #        language hint). The hint boosts that language's ranking score once
@@ -231,9 +234,6 @@ def _is_workflow_infrastructure(path: str) -> bool:
 class FileRecord:
     """
     @brief One inventoried file: repo-relative forward-slash path plus size.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     path: str
@@ -249,9 +249,6 @@ class Inventory:
              top-level ``.gitignore``). Injectable into
              :func:`analyze_inventory` so tests can synthesize very large
              inventories without materializing files.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     source: str
@@ -268,9 +265,6 @@ class LanguageScore:
              byte share over code files (0.5 each) plus
              :data:`_MARKER_LANGUAGE_BOOST` per detected marker family
              hinting at this language, rounded to 4 decimals.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     language: str
@@ -283,8 +277,6 @@ class LanguageScore:
         @brief      Serialize to the frozen JSON-safe mapping.
         @return     Mapping keyed ``language, file_count, total_bytes, score``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return {
             "language": self.language,
@@ -298,9 +290,6 @@ class LanguageScore:
 class BuildSystemMarker:
     """
     @brief One detected build-system marker file.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     name: str
@@ -312,8 +301,6 @@ class BuildSystemMarker:
         @brief      Serialize to the frozen JSON-safe mapping.
         @return     Mapping keyed ``name, path, language_hint``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return {"name": self.name, "path": self.path, "language_hint": self.language_hint}
 
@@ -327,9 +314,6 @@ class RootProposal:
              characters, no ``.``/``..`` segments, never absolute).
              ``confidence`` is ``"high"`` (named convention), ``"medium"``
              (structural evidence), or ``"low"`` (coverage fallback).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     path: str
@@ -341,8 +325,6 @@ class RootProposal:
         @brief      Serialize to the frozen JSON-safe mapping.
         @return     Mapping keyed ``path, confidence, reason``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return {"path": self.path, "confidence": self.confidence, "reason": self.reason}
 
@@ -356,9 +338,6 @@ class ColocatedTests:
              patterns would have to be file-pattern-based rather than
              directory-based. Detection only: acting on it is a T5.2/operator
              decision.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     detected: bool
@@ -370,8 +349,6 @@ class ColocatedTests:
         @brief      Serialize to the frozen JSON-safe mapping.
         @return     Mapping keyed ``detected, patterns, note``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return {"detected": self.detected, "patterns": list(self.patterns), "note": self.note}
 
@@ -390,9 +367,6 @@ class GateCandidate:
              ``gate_test_cmds``/``gate_lint_cmds`` element shape; it is
              ``None`` with ``needs_review=True`` when a safe split was
              impossible (manual review required).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     gate: str
@@ -409,8 +383,6 @@ class GateCandidate:
                     source_detail, needs_review`` (``argv`` is ``null`` for a
                     manual-review candidate).
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return {
             "gate": self.gate,
@@ -432,9 +404,6 @@ class RepoAnalysis:
              ``gate_test_cmds``/``gate_lint_cmds`` are named after the plan §7
              answers they feed (see module docstring for the extraction
              mapping T5.2 uses).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     repo: str
@@ -459,11 +428,10 @@ class RepoAnalysis:
                     shape (see module docstring for the field-name contract).
         @return     JSON-safe mapping keyed ``repo, inventory_source,
                     file_count, language, languages, build_systems,
-                    source_roots, test_roots, colocated_tests, gate_test_cmds,
-                    gate_lint_cmds, risk_flags``.
+                    source_roots, test_roots, colocated_tests,
+                    gate_build_cmds, gate_typecheck_cmds, gate_lint_cmds,
+                    gate_test_cmds, gate_security_cmds, risk_flags``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return {
             "repo": self.repo,
@@ -494,8 +462,6 @@ def _flag_to_dict(flag: ProbeFindingRecord) -> dict[str, Any]:
     @return     Mapping keyed ``name, status, detail, guidance`` (the same
                 field names ``io/reports.py`` uses for probe findings).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return {"name": flag.name, "status": flag.status, "detail": flag.detail, "guidance": flag.guidance}
 
@@ -508,8 +474,6 @@ def _read_text(path: Path) -> str | None:
                 when the file does not exist or cannot be read — analysis
                 heuristics always degrade gracefully instead of raising.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     try:
         return path.read_text(encoding="utf-8", errors="replace")
@@ -526,8 +490,6 @@ def _gitignore_patterns(repo: Path) -> list[str]:
                 (``!pattern``, unsupported by design) removed; leading and
                 trailing slashes stripped.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     text = _read_text(repo / ".gitignore")
     if text is None:
@@ -555,8 +517,6 @@ def _is_ignored(rel_path: str, patterns: Sequence[str]) -> bool:
     @param[in]  patterns Cleaned patterns from :func:`_gitignore_patterns`.
     @return     ``True`` when any pattern matches.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     segments = rel_path.split("/")
     for pattern in patterns:
@@ -577,8 +537,6 @@ def _walk_paths(repo: Path) -> list[str]:
     @param[in]  repo Repository root.
     @return     Sorted repo-relative forward-slash file paths.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     patterns = _gitignore_patterns(repo)
     collected: list[str] = []
@@ -603,8 +561,6 @@ def _stat_size(repo: Path, rel_path: str) -> int:
     @return     ``st_size``, or ``0`` when the file cannot be stat'ed (e.g. a
                 tracked-but-deleted file in a dirty work tree).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     try:
         return (repo / rel_path).stat().st_size
@@ -621,8 +577,6 @@ def _detect_build_systems(inventory: Inventory) -> tuple[BuildSystemMarker, ...]
     @param[in]  inventory The file inventory.
     @return     Detected markers in stable spec-then-path order.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     paths = {record.path for record in inventory.files}
     markers: list[BuildSystemMarker] = []
@@ -652,8 +606,6 @@ def _rank_languages(
     @return     Ranked :class:`LanguageScore` tuple (descending score); empty
                 when no code extension and no hinting marker was found.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     counts: Counter[str] = Counter()
     sizes: Counter[str] = Counter()
@@ -701,8 +653,6 @@ def _propose_test_roots(inventory: Inventory) -> tuple[RootProposal, ...]:
     @param[in]  inventory The file inventory.
     @return     Test-root proposals, each tagged with confidence + reason.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     paths = [record.path for record in inventory.files]
     proposals: list[RootProposal] = []
@@ -715,8 +665,6 @@ def _propose_test_roots(inventory: Inventory) -> tuple[RootProposal, ...]:
         @param[in]  confidence Confidence tag.
         @param[in]  reason Provenance note.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         if path not in seen:
             seen.add(path)
@@ -765,8 +713,6 @@ def _propose_source_roots(
     @param[in]  test_root_paths Paths already proposed as test roots.
     @return     Source-root proposals, each tagged with confidence + reason.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     all_paths = [
         record.path
@@ -787,8 +733,6 @@ def _propose_source_roots(
         @param[in]  confidence Confidence tag.
         @param[in]  reason Provenance note.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         if path not in seen and path not in test_root_paths:
             seen.add(path)
@@ -846,8 +790,6 @@ def _detect_colocated_tests(
     @return     The :class:`ColocatedTests` flag; ``note`` explains the
                 write-zone implication when detected, empty otherwise.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     preset = LANGUAGE_PRESETS.get(language)
     if preset is None:
@@ -882,8 +824,6 @@ def _strip_quotes(text: str) -> str:
     @return     The unquoted text when it was wrapped in matching single or
                 double quotes, otherwise the input unchanged.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
         return text[1:-1]
@@ -898,12 +838,11 @@ def _classify_gate(text: str) -> str | None:
                 (plus ``_``/``-``), so ``go test ./...`` and ``npm run lint``
                 both classify by whole words, not substrings.
     @param[in]  text The extracted command string.
-    @return     ``"lint"``, ``"test"``, or ``None`` when the line names
-                neither (installs/checkouts/deploys are not gates — dropped
-                by design, module docstring).
+    @return     ``"security"``, ``"typecheck"``, ``"lint"``, ``"test"``,
+                ``"build"`` (checked in that order), or ``None`` when the
+                line names none of those (installs/checkouts/deploys are not
+                gates — dropped by design, module docstring).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     tokens = set(_TOKEN_SPLIT_RE.split(text.lower()))
     if tokens & _SECURITY_KEYWORDS:
@@ -934,8 +873,6 @@ def _string_candidate(gate: str, text: str, source_file: str, source_detail: str
     @param[in]  source_detail Locator inside the provenance file.
     @return     The candidate, or ``None`` for an empty/whitespace string.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     if not text.strip():
         return None
@@ -972,10 +909,9 @@ def _package_json_candidates(repo: Path) -> list[GateCandidate]:
                 placeholder is skipped. Root ``package.json`` only (workspace
                 packages are a monorepo risk flag, not a gate source).
     @param[in]  repo Repository root.
-    @return     Zero, one, or two candidates.
+    @return     Zero to five candidates, one per populated ``scripts.<gate>``
+                entry (build, typecheck, lint, test, security).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     text = _read_text(repo / "package.json")
     if text is None:
@@ -1036,8 +972,6 @@ def _pyproject_candidates(repo: Path) -> list[GateCandidate]:
     @param[in]  repo Repository root.
     @return     Zero, one, or two candidates.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     text = _read_text(repo / "pyproject.toml")
     if text is None:
@@ -1077,10 +1011,9 @@ def _makefile_candidates(repo: Path) -> list[GateCandidate]:
                 the gate; recipe lines are never parsed. ``:=`` assignments do
                 not match. First occurrence of each target wins.
     @param[in]  repo Repository root.
-    @return     Zero, one, or two candidates.
+    @return     Zero to six candidates, one per matched target (build,
+                typecheck, type-check, lint, test, security).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     text = _read_text(repo / "Makefile")
     if text is None:
@@ -1117,8 +1050,6 @@ def _github_workflow_candidates(repo: Path) -> list[GateCandidate]:
     @param[in]  repo Repository root.
     @return     Extracted candidates with per-line provenance.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     workflows_dir = repo / ".github" / "workflows"
     if not workflows_dir.is_dir():
@@ -1161,8 +1092,6 @@ def _gitlab_ci_candidates(repo: Path) -> list[GateCandidate]:
     @param[in]  repo Repository root.
     @return     Extracted candidates with per-line provenance.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     text = _read_text(repo / ".gitlab-ci.yml")
     if text is None:
@@ -1178,8 +1107,6 @@ def _gitlab_ci_candidates(repo: Path) -> list[GateCandidate]:
         @param[in]  value The extracted command string.
         @param[in]  lineno 1-based line number for provenance.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         gate = _classify_gate(value)
         if gate is None:
@@ -1224,10 +1151,10 @@ def _extract_gate_candidates(
                 one command) keep only their first occurrence — distinct
                 source files always stay distinct provenance.
     @param[in]  repo Repository root.
-    @return     ``(test candidates, lint candidates)`` tuples.
+    @return     A tuple of candidate tuples, one per :data:`GATE_ORDER` entry
+                (``build``, ``typecheck``, ``lint``, ``test``, ``security``,
+                in that order).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     collected: list[GateCandidate] = []
     collected.extend(_package_json_candidates(repo))
@@ -1246,7 +1173,7 @@ def _extract_gate_candidates(
         deduped.append(candidate)
     return tuple(
         tuple(candidate for candidate in deduped if candidate.gate == gate)
-        for gate in ("build", "typecheck", "lint", "test", "security")
+        for gate in GATE_ORDER
     )
 
 
@@ -1265,8 +1192,6 @@ def _collect_risk_flags(repo: Path, inventory: Inventory) -> tuple[ProbeFindingR
                 empty). Statuses: ``"warn"``, or ``"conflict"`` for the
                 guaranteed conflicts.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     flags: list[ProbeFindingRecord] = []
 
@@ -1383,9 +1308,6 @@ def collect_inventory(repo: str | os.PathLike[str], *, runner: CommandRunner) ->
     @return     The :class:`Inventory` with ``source`` recording which path
                 produced it (``"git"`` or ``"walk"``).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     repo_path = Path(repo)
     tracked = ls_files(runner, repo_path)
@@ -1417,9 +1339,6 @@ def analyze_inventory(repo: str | os.PathLike[str], inventory: Inventory) -> Rep
     @return     The assembled :class:`RepoAnalysis` — proposals only, nothing
                 auto-applied.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     repo_path = Path(repo)
     markers = _detect_build_systems(inventory)
@@ -1465,9 +1384,6 @@ def analyze_repo(repo: str | os.PathLike[str], *, runner: CommandRunner) -> Repo
                 inventory path.
     @return     The assembled :class:`RepoAnalysis`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return analyze_inventory(repo, collect_inventory(repo, runner=runner))
 
@@ -1484,9 +1400,6 @@ def render_repo_analysis(analysis: RepoAnalysis, stream: IO[str]) -> None:
                 tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     stream.write(f"WAEGIS repo analysis - {analysis.repo}\n")
     stream.write("\n")
@@ -1538,7 +1451,7 @@ def render_repo_analysis(analysis: RepoAnalysis, stream: IO[str]) -> None:
         stream.write("  none detected\n")
     stream.write("\n")
 
-    for label in ("build", "typecheck", "lint", "test", "security"):
+    for label in GATE_ORDER:
         candidates = getattr(analysis, f"gate_{label}_cmds")
         stream.write(f"Gate command candidates ({label}):\n")
         if candidates:
@@ -1575,9 +1488,6 @@ def repo_analysis_json(analysis: RepoAnalysis) -> str:
     @param[in]  analysis The analysis to serialize.
     @return     JSON text, 2-space indent.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return json.dumps(analysis.to_dict(), indent=2, ensure_ascii=False)
 

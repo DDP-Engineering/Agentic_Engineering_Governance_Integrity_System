@@ -40,7 +40,7 @@ import pytest
 from waegis.cli import main
 import waegis.commands.upgrade as upgrade_module
 from waegis.version import WIZARD_VERSION
-from waegis.commands.new import NO_ACTIVE_RUN_MARKER, _amend_manifest_generated, _wrapper_invocation
+from waegis.commands.new import NO_ACTIVE_RUN_MARKER, amend_manifest_generated, _wrapper_invocation
 from waegis.commands.upgrade import (
     EXIT_CONFLICTS,
     EXIT_ERROR,
@@ -55,8 +55,11 @@ from waegis.commands.upgrade import (
     run_upgrade,
     UpgradeError,
 )
+from waegis.io.envelope import EXIT_NEEDS_INPUT
+from waegis.io.prompts import ConsoleAsker
 from waegis.payload.copier import SIDECAR_SUFFIX, ConflictDecision, copy_payload
 from waegis.payload.locate import locate_payload
+from waegis.transaction import FileTransaction, pending_transaction_ids
 from waegis.payload.manifest import (
     FileEntry,
     Manifest,
@@ -976,6 +979,128 @@ def test_run_upgrade_missing_repo_is_operational_error(tmp_path: Path) -> None:
     assert code == EXIT_ERROR
 
 
+def _abandon_pending_transaction(repo: Path) -> str:
+    """
+    @brief      Leave one interrupted (non-terminal) transaction in ``repo``.
+    @param[in]  repo Repository root (created if absent).
+    @return     The pending transaction's id.
+    @exception  None
+    @author     Eng. Dan Dumitru Pasare
+    @version    0.1.0
+    """
+    repo.mkdir(parents=True, exist_ok=True)
+    managed = repo / "managed.txt"
+    managed.write_text("original\n", encoding="utf-8")
+    transaction = FileTransaction.begin(repo, command="test", paths=("managed.txt",))
+    transaction.mark("applying")
+    managed.write_text("interrupted\n", encoding="utf-8")
+    transaction.abandon()
+    return str(transaction.state["id"])
+
+
+def test_recovery_decline_renders_recovery_only_plan_in_human_mode(tmp_path: Path) -> None:
+    """
+    @brief      Declining the transaction-recovery consent interactively must
+                render the recovery-only plan, not crash.
+    @details    Regression for the pre-existing latent crash (2026-07-31 review,
+                batch 13): the decline path emits ``{"recovery": [...]}`` as the
+                plan, and the human renderer read ``plan_data['repo']`` ->
+                ``KeyError``. The decline must stop with needs-input and leave
+                the interrupted transaction untouched for a later consent.
+    @param[in]  tmp_path Isolated repository root.
+    @return     None
+    @exception  AssertionError If the decline crashes, recovers, or mislabels.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-31
+    @version    0.1.0
+    """
+    repo = tmp_path / "repo"
+    transaction_id = _abandon_pending_transaction(repo)
+
+    stream = io.StringIO()
+    asker = ConsoleAsker(stdin=io.StringIO("no\n"), stdout=stream)
+    code = run_upgrade(repo, as_json=False, dry_run=False, stream=stream, asker=asker)
+
+    assert code == EXIT_NEEDS_INPUT
+    output = stream.getvalue()
+    assert "transaction recovery requires explicit approval" in output
+    assert transaction_id in output
+    # Nothing was recovered: the interrupted bytes and state are untouched.
+    assert (repo / "managed.txt").read_text(encoding="utf-8") == "interrupted\n"
+    assert len(pending_transaction_ids(repo)) == 1
+
+
+class _KeyboardInterruptRunner:
+    """
+    @brief Runner that raises ``KeyboardInterrupt`` at the smoke re-verify,
+           i.e. mid-apply: after the file writes, before the manifest rewrite.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-31
+    @version 0.1.0
+    """
+
+    def __init__(self, repo: Path) -> None:
+        """@brief Wrap the healthy scripted runner for ``repo``."""
+        self._inner = _smoke_ok_runner(repo)
+        self._interrupt_argv = _wrapper_invocation(repo, "--help")
+
+    def run(self, argv, *, timeout: float = 5.0, cwd=None):  # type: ignore[no-untyped-def]
+        """@brief Interrupt the smoke ``--help`` call; pass everything else."""
+        if tuple(argv) == self._interrupt_argv:
+            raise KeyboardInterrupt()
+        return self._inner.run(argv, timeout=timeout, cwd=cwd)
+
+
+def test_keyboard_interrupt_mid_apply_journals_rolls_back_and_reraises(tmp_path: Path) -> None:
+    """
+    @brief      A ``KeyboardInterrupt`` during apply must journal the step as
+                FAILED, finalize the journal, roll the transaction back, and
+                re-raise (the intended post-decomposition semantics).
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @return     None
+    @exception  AssertionError If the interrupt is swallowed, the journal is
+                left open, or the rollback leaves partial writes behind.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-31
+    @version    0.1.0
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"})
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    manifest_before = (repo / ".agentic" / "install-manifest.json").read_bytes()
+    home = tmp_path / "home"
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    with pytest.raises(KeyboardInterrupt):
+        run_upgrade(
+            repo,
+            as_json=True,
+            dry_run=False,
+            stream=io.StringIO(),
+            payload=str(new),
+            answers_path=answers,
+            non_interactive=True,
+            yes=True,
+            runner=_KeyboardInterruptRunner(repo),
+            home=home,
+        )
+
+    # The transaction rolled back: applied bytes restored, manifest untouched,
+    # and no pending recovery is left behind.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
+    assert (repo / ".agentic" / "install-manifest.json").read_bytes() == manifest_before
+    assert pending_transaction_ids(repo) == ()
+    # The journal recorded the FAILED apply step and was finalized.
+    journals = sorted((home / "journals").glob("*.json"))
+    assert len(journals) == 1
+    document = json.loads(journals[0].read_text(encoding="utf-8"))
+    assert document["status"] == "failed"
+    assert document["stopped_at_step"] == "upgrade.apply"
+    steps = {step["id"]: step["status"] for step in document["steps"]}
+    assert steps["upgrade.apply"] == "failed"
+
+
 # ---------------------------------------------------------------------------
 # realism: drive the REAL template as the "new" payload against an aged install
 # ---------------------------------------------------------------------------
@@ -994,7 +1119,7 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
     real = locate_payload()  # the repo-checkout template
     repo = tmp_path / "repo"
     copy_payload(real, repo, mode="new")  # manifest O == real template hashes
-    _amend_manifest_generated(repo)  # move workflow.toml -> generated (as new.py does)
+    amend_manifest_generated(repo)  # move workflow.toml -> generated (as new.py does)
 
     # Build a NEW payload = a copy of the real template with realistic edits.
     new = tmp_path / "new"
@@ -1062,6 +1187,56 @@ def test_upgrade_help_exits_zero() -> None:
 
 def test_upgrade_missing_repo_via_cli(tmp_path: Path) -> None:
     assert main(["upgrade", "--repo", str(tmp_path / "nope")]) == EXIT_ERROR
+
+
+def test_interactive_consent_transcript_is_frozen(tmp_path: Path) -> None:
+    """
+    @brief Golden test: the exact human transcript up to a declined consent.
+    @details The operator's decision context — plan summary lines, their
+             order, the consent prompt wording, and the decline message — is
+             a de-facto contract. A refactor that reorders or rewords what
+             the operator sees before consenting must fail here, not ship
+             silently. The payload digest is deterministic because every
+             fixture byte is fixed.
+    @param[in] tmp_path Pytest temporary directory.
+    @return None
+    @exception AssertionError If the rendered transcript drifts.
+    @author Eng. Dan Dumitru Pasare
+    @date 2026-07-31
+    @version 0.1.0
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"})
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=False,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        runner=_smoke_ok_runner(repo),
+        home=tmp_path / "home",
+        answers_path=str(answers),
+        asker=ConsoleAsker(stdin=io.StringIO("n\n"), stdout=stream),
+    )
+
+    assert code == EXIT_NEEDS_INPUT
+    transcript = stream.getvalue().replace(str(repo), "<REPO>")
+    assert transcript == (
+        "Resolved upgrade plan for <REPO>\n"
+        "  payload: 2.0.1 (85c486276778)\n"
+        "  git mode: require-clean\n"
+        "  auto-apply-new: 1 file(s)\n"
+        "  add-new: 2 file(s)\n"
+        "Apply this fully resolved upgrade plan? [y/N]: "
+        "waegis upgrade: upgrade plan was not approved\n"
+    )
+    # Declined consent must leave the repository untouched.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
 
 
 # END OF FILE

@@ -13,9 +13,6 @@
          validates it deterministically, and exposes immutable typed records.
          Missing, malformed, incomplete, and inconsistent configuration is an
          actionable error; no repository paths, patterns, or modes are inferred.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 2.1.0
 """
 
 # IMPORTS
@@ -27,7 +24,8 @@ import json
 from pathlib import Path
 import re
 from types import MappingProxyType
-from typing import Any, Mapping, NoReturn
+from collections.abc import Mapping
+from typing import Any, NoReturn
 import tomllib
 
 from .models import ALL_STAGES
@@ -45,6 +43,7 @@ COMPLETION_LEVELS = (
     "baseline-usable",
     "baseline-strict",
 )
+DEFAULT_QUICK_CHANGED_PATHS_MAX = 10
 
 _TOP_LEVEL_KEYS = (
     "schema_version",
@@ -58,6 +57,7 @@ _TOP_LEVEL_KEYS = (
     "traceability",
     "adoption",
     "alignment",
+    "quick",
     "interface",
     "gates",
     "guardrails",
@@ -76,9 +76,6 @@ class ConfigurationError(ValueError):
     @param[in] expected Human-readable expected value or shape.
     @param[in] message Concise description of the failure.
     @param[in] remediation Concrete repair instruction for an agent or operator.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
 
     def __init__(
@@ -102,9 +99,6 @@ class ConfigurationError(ValueError):
         @param[in]  message Failure description.
         @param[in]  remediation Concrete repair instruction.
         @return     None.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-22
-        @version    0.1.0
         """
         super().__init__(message)
         self.code = code
@@ -119,9 +113,6 @@ class ConfigurationError(ValueError):
         """
         @brief      Render the stable text error contract.
         @return     Error code and message followed by remediation.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-22
-        @version    0.1.0
         """
         return f"{self.code}: {self.message}\n{self.remediation}"
 
@@ -129,9 +120,6 @@ class ConfigurationError(ValueError):
         """
         @brief      Serialize the error for JSON-capable callers.
         @return     Stable configuration-error field mapping.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-22
-        @version    0.1.0
         """
         return {
             "code": self.code,
@@ -245,15 +233,20 @@ class DeliveryPolicy:
 
 
 @dataclass(frozen=True)
+class QuickChangedPathsPolicy:
+    """@brief Immutable proportional-run changed-path advisory policy."""
+
+    mode: str
+    max_paths: int
+
+
+@dataclass(frozen=True)
 class WorkflowConfig:
     """
     @brief Complete immutable schema-version-3 workflow configuration.
     @details Every field is required from the validated TOML document. Consumers
              use the schema-3 nested policy records directly; no schema-2 flat
              property aliases are exposed.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 2.1.0
     """
 
     schema_version: int
@@ -278,6 +271,7 @@ class WorkflowConfig:
     alignment_risk_threshold: str
     alignment_allow_recommended_responses: bool
     alignment_protected_scope: RuleSetPolicy
+    quick_changed_paths: QuickChangedPathsPolicy
     interface: InterfacePolicy
     gates: GatePolicy
     secrets: RuleSetPolicy
@@ -299,7 +293,9 @@ class _Parser:
         self.data = data
 
     def parse(self) -> WorkflowConfig:
-        """@brief Validate the complete document and build its immutable model."""
+        """
+        @brief Validate the complete document and build its immutable model.
+        """
         self._closed(self.data, "", _TOP_LEVEL_KEYS)
         self._schema_version()
 
@@ -426,6 +422,7 @@ class _Parser:
             "alignment.allow_recommended_responses",
         )
         protected_scope = self._alignment_scope(alignment, alignment_enabled)
+        quick_changed_paths = self._quick_changed_paths()
 
         interface = self._interface_policy()
         gates = self._gate_policy()
@@ -478,6 +475,7 @@ class _Parser:
             alignment_risk_threshold=risk_threshold,
             alignment_allow_recommended_responses=recommended_responses,
             alignment_protected_scope=protected_scope,
+            quick_changed_paths=quick_changed_paths,
             interface=interface,
             gates=gates,
             secrets=secrets,
@@ -487,6 +485,47 @@ class _Parser:
             scope=scope,
             delivery=delivery,
         )
+
+    def _quick_changed_paths(self) -> QuickChangedPathsPolicy:
+        """
+        @brief Parse the optional proportional-run changed-path advisory.
+        @return Validated explicit policy, or disabled when the table is absent.
+        """
+        if "quick" not in self.data:
+            return QuickChangedPathsPolicy(
+                mode="disabled",
+                max_paths=DEFAULT_QUICK_CHANGED_PATHS_MAX,
+            )
+        quick = self._table(
+            self.data,
+            "quick",
+            "quick",
+            ("changed_paths",),
+        )
+        changed_paths = self._table(
+            quick,
+            "changed_paths",
+            "quick.changed_paths",
+            ("mode", "max_paths"),
+        )
+        mode = self._choice(
+            changed_paths,
+            "mode",
+            "quick.changed_paths.mode",
+            ("disabled", "advise"),
+        )
+        max_paths = self._integer(
+            changed_paths,
+            "max_paths",
+            "quick.changed_paths.max_paths",
+        )
+        if max_paths <= 0:
+            self._rule_invalid(
+                "quick.changed_paths.max_paths",
+                max_paths,
+                "an integer greater than zero",
+            )
+        return QuickChangedPathsPolicy(mode=mode, max_paths=max_paths)
 
     def _schema_version(self) -> None:
         value = self.data.get("schema_version")
@@ -504,6 +543,9 @@ class _Parser:
     def _baseline_guard(
         self, components: dict[str, Any], manifest: str
     ) -> BaselineGuardPolicy:
+        """
+        @brief Parse and validate the component baseline-guard policy.
+        """
         table = self._table(
             components,
             "baseline_guard",
@@ -553,9 +595,12 @@ class _Parser:
             )
         try:
             parsed = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
             self._rule_invalid(
-                "components.manifest", manifest, "a valid readable TOML manifest"
+                "components.manifest",
+                manifest,
+                "a valid readable TOML manifest "
+                f"({type(exc).__name__}: {exc})",
             )
         if not isinstance(parsed, dict):
             self._rule_invalid("components.manifest", manifest, "a TOML table document")
@@ -1124,9 +1169,6 @@ def load_config(repo_root: Path) -> WorkflowConfig:
     @param[in]  repo_root Repository root containing `.agentic`.
     @return     Complete immutable schema-version-3 configuration.
     @exception  ConfigurationError If the file is unavailable or invalid.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    2.0.0
     """
     root = repo_root.resolve()
     path = root / CONFIG_RELATIVE_PATH
@@ -1181,9 +1223,6 @@ def effective_config_dict(config: WorkflowConfig) -> dict[str, object]:
     @brief      Serialize the complete normalized effective configuration.
     @param[in]  config Validated workflow configuration.
     @return     Deterministically ordered JSON-compatible mapping.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.3.0
     """
 
     def policy(mode: str, **rules: object) -> dict[str, object]:
@@ -1192,7 +1231,6 @@ def effective_config_dict(config: WorkflowConfig) -> dict[str, object]:
         @param[in]  mode Explicit policy mode.
         @param[in]  rules JSON-compatible rule collections and scalar details.
         @return     Policy mapping with a recursively counted active rule total.
-        @version    0.2.0
         """
         active_count = sum(
             len(value)
@@ -1248,6 +1286,12 @@ def effective_config_dict(config: WorkflowConfig) -> dict[str, object]:
                 patterns=list(config.alignment_protected_scope.patterns),
             ),
         },
+        "quick": {
+            "changed_paths": policy(
+                config.quick_changed_paths.mode,
+                max_paths=config.quick_changed_paths.max_paths,
+            ),
+        },
         "interface": {
             "stage_form_retention": config.interface.stage_form_retention,
             "check_execution": config.interface.check_execution,
@@ -1287,9 +1331,6 @@ def configuration_error_json(error: ConfigurationError) -> str:
     @brief      Render one configuration error as deterministic JSON.
     @param[in]  error Typed configuration failure.
     @return     Pretty-printed JSON object with one trailing newline omitted.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     return json.dumps(error.to_dict(), indent=2, ensure_ascii=False)
 

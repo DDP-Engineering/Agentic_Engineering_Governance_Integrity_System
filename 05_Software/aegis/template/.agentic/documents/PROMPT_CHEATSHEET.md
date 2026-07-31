@@ -6,6 +6,10 @@ This is a human operator flyer, not an authoritative workflow source and not an 
 It is not an evidence source. Generated forms, imported graph state, journals,
 and durable records are authoritative.
 
+If the workflow is unfamiliar, read [WHY_AEGIS.md](WHY_AEGIS.md) first. Use
+[GLOSSARY.md](GLOSSARY.md) for terms and [INVARIANTS.md](INVARIANTS.md) for
+the checks reported by verification.
+
 Use short prompts that tell the agent to open the artifact returned by AEGIS.
 Detailed feature content belongs in generated files, not CLI arguments.
 

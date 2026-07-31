@@ -39,9 +39,6 @@
          Raised exceptions are reserved for programmer errors (e.g.
          :func:`create_branch` with an empty branch name). This module never
          prints.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.6.0
 """
 
 # IMPORTS
@@ -56,6 +53,13 @@ from urllib.parse import urlsplit, urlunsplit
 from waegis.probes.runner import CommandResult, CommandRunner
 
 # CONSTANTS
+
+# @brief Explicit subprocess timeouts: the runner default (5 s) is far too
+#        short for clone/add/commit, and relying on it left a dead-network
+#        `git clone` to time out misleadingly fast.
+GIT_PLUMBING_TIMEOUT = 30.0
+GIT_MUTATION_TIMEOUT = 120.0
+GIT_CLONE_TIMEOUT = 600.0
 
 # @brief Substrings identifying an older-git "-b not supported" failure on
 #        `git init -b <branch>`, matched against the real (lower-cased)
@@ -81,9 +85,6 @@ class GitOpResult:
              before git was even invoked, e.g. a non-empty clone target).
              ``raw`` is the underlying :class:`CommandResult` for callers
              that need the exit code or full output.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     ok: bool
@@ -99,9 +100,6 @@ class GitIdentity:
              ``prereq.git-identity``'s ``detect()``) distinguish three
              states -- both set, one set, neither set -- rather than
              collapsing "identity missing" into a single boolean.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     name: str | None
@@ -118,8 +116,6 @@ def _git_c(path: str | os.PathLike[str], *args: str) -> tuple[str, ...]:
     @param[in]  args Remaining git subcommand arguments, in order.
     @return     The full argv tuple starting with ``"git"``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return ("git", "-C", str(path), *args)
 
@@ -136,8 +132,6 @@ def _failure_detail(result: CommandResult, *, not_found_message: str) -> str:
                 combined stdout/stderr, stripped (falling back to a generic
                 exit-code note when git produced no output at all).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     if not result.found:
         return not_found_message
@@ -160,8 +154,6 @@ def sanitize_clone_url(url: str) -> str:
     @param[in] url Candidate clone location.
     @return A credential-safe representation of the clone location.
     @exception None
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
     if "://" not in url:
         return url
@@ -184,8 +176,6 @@ def validate_clone_url(value: object, *, allow_empty: bool = False) -> str:
     @param[in] allow_empty Whether the optional empty answer is accepted.
     @return The original string, preserving significant path characters.
     @exception ValueError If empty, option-like, or control-character-bearing.
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
     if not isinstance(value, str):
         raise ValueError("clone_url must be a string")
@@ -208,8 +198,6 @@ def validate_branch_name(value: object) -> str:
     @param[in] value Candidate branch name.
     @return The unchanged validated name.
     @exception ValueError If Git would reject the branch name.
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
     if not isinstance(value, str) or not value:
         raise ValueError("branch name must not be empty")
@@ -253,11 +241,11 @@ def is_work_tree(runner: CommandRunner, path: str | os.PathLike[str]) -> bool:
                 ``"true"``. Any other outcome (not found, non-zero exit,
                 unexpected output) is reported as ``False``, never raised.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "rev-parse", "--is-inside-work-tree"))
+    result = runner.run(
+        _git_c(path, "rev-parse", "--is-inside-work-tree"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not result.ok():
         return False
     return result.stdout.strip() == "true"
@@ -286,15 +274,15 @@ def init_repo(
                 failure (permissions, path issues) is surfaced as
                 ``ok=False`` with git's stderr in ``detail``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     try:
         validate_branch_name(initial_branch)
     except ValueError as exc:
         return GitOpResult(False, str(exc), _placeholder_result())
-    result = runner.run(("git", "init", "-b", initial_branch, str(path)))
+    result = runner.run(
+        ("git", "init", "-b", initial_branch, str(path)),
+        timeout=GIT_MUTATION_TIMEOUT,
+    )
     if result.ok():
         return GitOpResult(ok=True, detail=result.combined_output().strip(), raw=result)
 
@@ -307,14 +295,20 @@ def init_repo(
             raw=result,
         )
 
-    plain_init = runner.run(("git", "init", str(path)))
+    plain_init = runner.run(
+        ("git", "init", str(path)),
+        timeout=GIT_MUTATION_TIMEOUT,
+    )
     if not plain_init.ok():
         return GitOpResult(
             ok=False,
             detail=_failure_detail(plain_init, not_found_message="git was not found"),
             raw=plain_init,
         )
-    symbolic_ref = runner.run(_git_c(path, "symbolic-ref", "HEAD", f"refs/heads/{initial_branch}"))
+    symbolic_ref = runner.run(
+        _git_c(path, "symbolic-ref", "HEAD", f"refs/heads/{initial_branch}"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not symbolic_ref.ok():
         return GitOpResult(
             ok=False,
@@ -343,9 +337,6 @@ def clone_repo(runner: CommandRunner, url: str, path: str | os.PathLike[str]) ->
                 bad URL) is reported as ``ok=False`` with git's own stderr
                 passed through in ``detail``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     try:
         validate_clone_url(url)
@@ -359,7 +350,10 @@ def clone_repo(runner: CommandRunner, url: str, path: str | os.PathLike[str]) ->
             raw=_placeholder_result(),
         )
 
-    result = runner.run(("git", "clone", "--", url, str(path)))
+    result = runner.run(
+        ("git", "clone", "--", url, str(path)),
+        timeout=GIT_CLONE_TIMEOUT,
+    )
     safe_url = sanitize_clone_url(url)
     safe_result = CommandResult(
         found=result.found,
@@ -391,12 +385,15 @@ def get_identity(runner: CommandRunner, path: str | os.PathLike[str]) -> GitIden
                 forcing ``--local``. Never raises: an unset key simply
                 yields ``None`` for that field.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    name_result = runner.run(_git_c(path, "config", "user.name"))
-    email_result = runner.run(_git_c(path, "config", "user.email"))
+    name_result = runner.run(
+        _git_c(path, "config", "user.name"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
+    email_result = runner.run(
+        _git_c(path, "config", "user.email"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     name = name_result.stdout.strip() if name_result.ok() and name_result.stdout.strip() else None
     email = email_result.stdout.strip() if email_result.ok() and email_result.stdout.strip() else None
     return GitIdentity(name=name, email=email)
@@ -424,19 +421,22 @@ def set_identity(
     @return     A :class:`GitOpResult`; ``ok=False`` with git's stderr in
                 ``detail`` if either write fails.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     scope_flag = "--local" if local else "--global"
-    name_result = runner.run(_git_c(path, "config", scope_flag, "user.name", name))
+    name_result = runner.run(
+        _git_c(path, "config", scope_flag, "user.name", name),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not name_result.ok():
         return GitOpResult(
             ok=False,
             detail=_failure_detail(name_result, not_found_message="git was not found"),
             raw=name_result,
         )
-    email_result = runner.run(_git_c(path, "config", scope_flag, "user.email", email))
+    email_result = runner.run(
+        _git_c(path, "config", scope_flag, "user.email", email),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not email_result.ok():
         return GitOpResult(
             ok=False,
@@ -460,11 +460,11 @@ def head_commit(runner: CommandRunner, path: str | os.PathLike[str]) -> str | No
                 missing) — never raised, matching this module's convention for
                 expected git failures.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "rev-parse", "HEAD"))
+    result = runner.run(
+        _git_c(path, "rev-parse", "HEAD"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not result.ok():
         return None
     text = result.stdout.strip()
@@ -485,11 +485,11 @@ def status_porcelain(runner: CommandRunner, path: str | os.PathLike[str]) -> lis
                 parser would be speculative machinery this task does not
                 need -- documented here rather than silently assumed.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "status", "--porcelain"))
+    result = runner.run(
+        _git_c(path, "status", "--porcelain"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not result.ok():
         return []
     return [line for line in result.stdout.split("\n") if line]
@@ -511,11 +511,11 @@ def current_branch(runner: CommandRunner, path: str | os.PathLike[str]) -> str |
     @return     The current branch name, ``"HEAD"`` when detached, or ``None``
                 for any expected failure.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "rev-parse", "--abbrev-ref", "HEAD"))
+    result = runner.run(
+        _git_c(path, "rev-parse", "--abbrev-ref", "HEAD"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not result.ok():
         return None
     text = result.stdout.strip()
@@ -540,11 +540,11 @@ def ls_files(runner: CommandRunner, path: str | os.PathLike[str]) -> list[str] |
                 which the T5.1 inventory needs to decide whether to fall back
                 to a filesystem walk.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "ls-files", "-z"))
+    result = runner.run(
+        _git_c(path, "ls-files", "-z"),
+        timeout=GIT_PLUMBING_TIMEOUT,
+    )
     if not result.ok():
         return None
     return [entry for entry in result.stdout.split("\0") if entry]
@@ -563,11 +563,11 @@ def add_all(runner: CommandRunner, path: str | os.PathLike[str]) -> GitOpResult:
                 it stages whatever the working tree currently holds and
                 makes no policy decision about what "should" be staged.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "add", "-A"))
+    result = runner.run(
+        _git_c(path, "add", "-A"),
+        timeout=GIT_MUTATION_TIMEOUT,
+    )
     if result.ok():
         return GitOpResult(ok=True, detail="", raw=result)
     return GitOpResult(
@@ -592,11 +592,11 @@ def commit(runner: CommandRunner, path: str | os.PathLike[str], message: str) ->
                 comes back as ``ok=False`` with git's own message in
                 ``detail``, never as a raised exception.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    result = runner.run(_git_c(path, "commit", "-m", message))
+    result = runner.run(
+        _git_c(path, "commit", "-m", message),
+        timeout=GIT_MUTATION_TIMEOUT,
+    )
     if result.ok():
         return GitOpResult(ok=True, detail=result.combined_output().strip(), raw=result)
     return GitOpResult(
@@ -629,9 +629,6 @@ def create_branch(
                 ``detail``.
     @exception  ValueError If ``name`` is empty -- a programmer error, not an
                 expected git failure.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if not name:
         raise ValueError("create_branch requires a non-empty branch name")
@@ -641,9 +638,15 @@ def create_branch(
         return GitOpResult(False, str(exc), _placeholder_result())
 
     if checkout:
-        result = runner.run(_git_c(path, "checkout", "-b", name))
+        result = runner.run(
+            _git_c(path, "checkout", "-b", name),
+            timeout=GIT_PLUMBING_TIMEOUT,
+        )
     else:
-        result = runner.run(_git_c(path, "branch", name))
+        result = runner.run(
+            _git_c(path, "branch", name),
+            timeout=GIT_PLUMBING_TIMEOUT,
+        )
     if result.ok():
         return GitOpResult(ok=True, detail=result.combined_output().strip(), raw=result)
     return GitOpResult(

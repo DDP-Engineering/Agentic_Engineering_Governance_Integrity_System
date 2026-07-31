@@ -10,6 +10,11 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 This repository uses AEGIS 2.1, a human-approved, file-first engineering
 workflow. Treat `.agentic/workflow.toml` as the only AEGIS policy source.
 
+New to AEGIS? Read `.agentic/documents/WHY_AEGIS.md` first, then use
+`.agentic/documents/GLOSSARY.md` and `.agentic/documents/INVARIANTS.md` as
+references. When integrating another branch's AEGIS state, follow
+`.agentic/documents/MERGE_AND_REBASE.md` before resolving or validating it.
+
 ## Mandatory Bootstrap
 
 Before repository work:
@@ -17,7 +22,7 @@ Before repository work:
 1. Run `<workflow> config validate --json`.
 2. Run `<workflow> config show --json`.
 3. Report the captured interface policy, five gate modes, guardrails,
-   traceability policy, and selected run.
+   traceability policy, quick changed-path policy, and selected run.
 4. Use `--run <run-id>` only when an operation must pin a run explicitly.
 
 Do not infer fallback policy when configuration is missing or invalid. AEGIS
@@ -34,7 +39,7 @@ An installed `aegis` or `python -m aegis` is also valid.
 
 ## Standard Lifecycle
 
-The required order is:
+The full-run order is:
 
 `intake → alignment → requirement → design → check → implementation → validation → delivery`
 
@@ -61,8 +66,46 @@ requirements, checks, design, and evidence belong in generated forms, not flags.
 `stage close` is the authoritative approval boundary. Host plan mode may help
 the design conversation but cannot approve AEGIS state.
 
+## Proportional Quick Lifecycle
+
+When the human describes a genuinely small fix or change, offer the
+proportional route explicitly:
+`small scope - suggest: aegis run start fix --quick`. Use `change --quick` for
+a small non-fix behavior change. The quick modifier is invalid for feature and
+adoption runs.
+
+A quick run retains four real stages and an explicit human close at each one:
+
+`intake -> implementation -> validation -> delivery`
+
+Closing intake journals one `run.stages_bypassed` record that marks alignment,
+requirement, design, and check as `bypassed` by the quick run type. Run status,
+the validation summary, and `report.md` repeat that state; bypassed never means
+passed or waived.
+
+Because a quick run has no requirement, check, or design collection stage,
+INV-1, INV-2, INV-3 (red-before-green), INV-8, and INV-10, plus the standalone
+traceability and coverage audits, report `not-applicable` for the quick run.
+Intake, implementation changed paths and evidence, enabled gates, secrets and
+working-tree review, scope analysis, validation, delivery reporting, and all
+four human closes still execute normally.
+
+At quick implementation, follow the returned `aegis evidence prepare add`
+command, complete and apply the manual-evidence form, and place its CLI-minted
+active ID in `linked_check_evidence` before applying the implementation form.
+Invented, missing, superseded, or other-stage evidence does not satisfy close.
+
+Quick runs cannot route into a bypassed stage. If scope grows, preserve the
+recorded context and restart as a full run with `aegis run start <fix|change>`.
+The optional `[quick.changed_paths]` policy can emit this guidance after
+implementation closes when the unique changed-path count exceeds `max_paths`.
+Its modes are `disabled` and `advise`; absence means `disabled` with a retained
+default threshold of 10, and an advisory never blocks or changes the run.
+
 ## Stage Contracts
 
+- The alignment, requirement, design, and check contracts below apply only
+  when those stages are present in the selected run profile.
 - Intake captures intent, scope hints, and access mode.
 - Alignment captures understanding, scope, assumptions, observable acceptance
   criteria, questions and recommendations, risks, and planned paths.
@@ -102,9 +145,33 @@ Gate order is build, typecheck, lint, test, security. Each group is independentl
 only explicitly configured deterministic tooling and is not an authoritative
 security-assurance claim.
 
+An exact active waiver neutralizes only its named blocker for the selected run
+and current digest-pinned state. The underlying check still failed: summaries
+and reports must show `WAIVED`, with the reason and timestamp, never `passed`.
+
 Run linked checks first. Use full regression for shared, cross-cutting, or
 untraced changes. Cover relevant variants, response shapes, stale-state cleanup,
 rollback, errors, boundaries, concurrency, and idempotency.
+
+## Recorded Waivers
+
+When a process blocker should be overcome once, show the human the exact
+blocker ID from `<workflow> waive list` and offer:
+
+```text
+<workflow> waive add <blocker-id> --reason "<human-approved reason>"
+```
+
+Adding a waiver is an explicit human approval act, like `stage close`. Do not
+invoke it autonomously. Reasons are mandatory; IDs are exact and CLI-discovered;
+there are no wildcard, bulk, or force forms. Waivers belong to one run, are
+minted and journaled by AEGIS, and become stale when their digest-pinned blocker
+state changes.
+
+Structural integrity failures are never waiver targets: malformed or
+closed-schema state, persistence-lock conflicts, and stale-update conflicts
+must be corrected or retried. A waiver does not skip importing a stage or
+create a shortened lifecycle; only the declared quick profile shortens one.
 
 ## Adoption
 
@@ -144,6 +211,6 @@ Artifact: <path or none>
 Imported revision: <number or none>
 Evidence: <ids/results or none>
 Blockers: <none or exact blockers>
-Needs human: approve close, revise, route earlier, or abort
+Needs human: approve close, revise, route earlier, add a recorded waiver for <blocker-id> where offered, or abort
 Next command: <exact command>
 ```

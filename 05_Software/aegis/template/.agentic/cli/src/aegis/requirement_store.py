@@ -14,9 +14,6 @@
          complete collection before publishing any snapshot.
 @details Existing-record updates use per-requirement locks and digest
          preconditions so stale snapshots cannot silently replace newer files.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 0.3.0
 """
 
 # IMPORTS
@@ -61,6 +58,7 @@ CATEGORY_IDENTITIES = {
 CATEGORY_BY_CODE = {code: category for category, (_, code) in CATEGORY_IDENTITIES.items()}
 VALID_STATUS = ("Planned", "Active", "Retired")
 VALID_PRIORITY = ("Must", "Should", "Could")
+REQUIREMENT_ID_RETRY_LIMIT = 5
 REQUIREMENT_KEYS = (
     "schema_version",
     "id",
@@ -88,9 +86,6 @@ TIMESTAMP_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 class RequirementValidationError(ValueError):
     """
     @brief Describe one invalid canonical requirement snapshot.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
 
     def __init__(self, path: str, key: str, message: str) -> None:
@@ -99,9 +94,6 @@ class RequirementValidationError(ValueError):
         @param[in] path Repository-relative source path or target location.
         @param[in] key Offending schema key or identity property.
         @param[in] message Concrete validation failure.
-        @author Eng. Dan Dumitru Pasare
-        @date 2026-07-22
-        @version 0.1.0
         """
         self.path = path
         self.key = key
@@ -112,7 +104,6 @@ class RequirementValidationError(ValueError):
 class RequirementConflictError(RequirementValidationError):
     """
     @brief Report a stale requirement update without overwriting newer content.
-    @version 1.0.0
     """
 
     code = "REQUIREMENT-STALE-UPDATE"
@@ -128,7 +119,6 @@ class RequirementConflictError(RequirementValidationError):
         @param[in] path Repository-relative requirement path.
         @param[in] expected_digest Digest captured when the record was loaded.
         @param[in] actual_digest Digest present immediately before publication.
-        @version 1.0.0
         """
         self.expected_digest = expected_digest
         self.actual_digest = actual_digest
@@ -145,9 +135,6 @@ class RequirementRecord:
     """
     @brief Represent one complete current requirement snapshot.
     @details source_file is diagnostic metadata and is never serialized.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
 
     schema_version: int
@@ -174,9 +161,6 @@ class RequirementRecord:
         """
         @brief Return the complete persisted record in normative key order.
         @return JSON-compatible snapshot without diagnostic source metadata.
-        @author Eng. Dan Dumitru Pasare
-        @date 2026-07-22
-        @version 0.1.0
         """
         return {
             "schema_version": self.schema_version,
@@ -204,9 +188,6 @@ def requirement_id_category(requirement_id: str) -> str:
     @param[in] requirement_id Candidate hard-break requirement ID.
     @return Ratified category value encoded by the ID.
     @exception RequirementValidationError If syntax or UUIDv4 identity is invalid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     match = ID_PATTERN.fullmatch(requirement_id)
     if not match:
@@ -236,9 +217,6 @@ def normalize_repository_path(value: str, *, allow_glob: bool) -> str:
     @param[in] allow_glob Whether supported glob metacharacters are permitted.
     @return Normalized slash-separated repository-relative value.
     @exception ValueError If the value is empty, escaping, absolute, or malformed.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     if not isinstance(value, str):
         raise ValueError("must be a string")
@@ -267,9 +245,6 @@ def normalize_linked_test(value: str, test_roots: tuple[str, ...]) -> str:
     @param[in] test_roots Configured repository test roots.
     @return Normalized exact selector.
     @exception ValueError If the selector shape or root is invalid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     if not isinstance(value, str) or "::" not in value:
         raise ValueError("must use <repo-relative-test-path>::<identifier>")
@@ -302,9 +277,6 @@ def load_requirement_file(
     @param[in] config Validated workflow configuration.
     @return Complete validated requirement record.
     @exception RequirementValidationError If TOML, schema, or identity is invalid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     source = _relative(path, repo_root)
     try:
@@ -334,9 +306,6 @@ def load_all_requirement_records(
     @param[in] config Validated workflow configuration.
     @return Records sorted deterministically by ID and source path.
     @exception RequirementValidationError If any record is invalid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     records: list[RequirementRecord] = []
     for root_name in config.requirement_roots:
@@ -358,9 +327,6 @@ def find_requirement_record(
     @param[in] config Validated workflow configuration.
     @return Matching current requirement snapshot.
     @exception RequirementValidationError If the ID is invalid, absent, or duplicated.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     category = requirement_id_category(requirement_id)
     directory = CATEGORY_IDENTITIES[category][0]
@@ -399,10 +365,8 @@ def create_requirement_record(
     """
     @brief Create one Planned snapshot with exclusive collision-safe publication.
     @return Newly persisted requirement record.
-    @exception RequirementValidationError If any field is invalid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
+    @exception RequirementValidationError If a field is invalid or no unique
+               identifier can be allocated within the bounded retry limit.
     """
     if category not in CATEGORY_IDENTITIES:
         raise RequirementValidationError(
@@ -412,7 +376,7 @@ def create_requirement_record(
     directory, code = CATEGORY_IDENTITIES[category]
     target_root = repo_root / config.requirement_roots[0] / directory
     target_root.mkdir(parents=True, exist_ok=True)
-    while True:
+    for _attempt in range(REQUIREMENT_ID_RETRY_LIMIT):
         candidate_uuid = uuid_factory()
         requirement_id = f"REQ-{code}-{candidate_uuid}"
         source = _relative(target_root / f"{requirement_id}.toml", repo_root)
@@ -438,6 +402,12 @@ def create_requirement_record(
         target = repo_root / source
         if _publish_exclusive(target, render_requirement_toml(record)):
             return record
+    raise RequirementValidationError(
+        "<new-requirement>",
+        "id",
+        "could not allocate a unique requirement ID after "
+        f"{REQUIREMENT_ID_RETRY_LIMIT} attempts",
+    )
 
 
 def write_requirement_record(
@@ -456,9 +426,6 @@ def write_requirement_record(
     @return Normalized record persisted to its immutable source path.
     @exception RequirementValidationError If the record or target identity is invalid.
     @exception RequirementConflictError If the source changed before publish.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     normalized = validate_requirement_record(record, config)
     if not normalized.source_file:
@@ -505,12 +472,12 @@ def publish_requirement_records(
     @param[in]  records Candidate snapshots carrying CLI-generated IDs.
     @param[in]  config Validated workspace configuration.
     @return     Normalized records in deterministic ID order.
-    @exception  RequirementValidationError If any record or identity is invalid.
+    @exception  RequirementValidationError If any record or identity is invalid,
+                or if an OSError occurs during publication (wrapped).
+    @exception  RequirementConflictError If any target file changed underneath
+                the held locks between the pre-write digest check and publish.
     @details    Every record is validated before temporary files are created.
                 Existing snapshots are restored if publication fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.2.0
     """
     normalized_records: list[RequirementRecord] = []
     seen: set[str] = set()
@@ -580,16 +547,27 @@ def publish_requirement_records(
             temporary.unlink(missing_ok=True)
         raise
     except OSError as exc:
+        unrestored: list[str] = []
         for target, temporary, previous, _digest in reversed(targets):
-            temporary.unlink(missing_ok=True)
-            if previous is None:
-                if target.exists():
-                    target.unlink()
-                    sync_directory(target.parent)
-            else:
-                _atomic_replace(target, previous)
+            try:
+                temporary.unlink(missing_ok=True)
+                if previous is None:
+                    if target.exists():
+                        target.unlink()
+                        sync_directory(target.parent)
+                else:
+                    _atomic_replace(target, previous)
+            except OSError as restore_error:
+                unrestored.append(
+                    f"{_relative(target, repo_root)} ({restore_error})"
+                )
+        message = f"atomic import failed: {exc}"
+        if unrestored:
+            message += (
+                "; rollback could not restore: " + ", ".join(unrestored)
+            )
         raise RequirementValidationError(
-            "<requirement-stage>", "publish", f"atomic import failed: {exc}"
+            "<requirement-stage>", "publish", message
         ) from exc
     return sorted(normalized_records, key=lambda item: item.id)
 
@@ -600,7 +578,6 @@ def requirement_lock_path(repo_root: Path, requirement_id: str) -> Path:
     @param[in] repo_root Repository root.
     @param[in] requirement_id Canonical requirement identity.
     @return Worktree-local persistent lock path.
-    @version 1.0.0
     """
     return scoped_lock_path(repo_root, "requirements", requirement_id)
 
@@ -615,7 +592,6 @@ def requirement_source_digest(
     @param[in] record Loaded record carrying diagnostic source_file metadata.
     @return Lowercase SHA-256 digest.
     @exception RequirementValidationError If the source is unavailable.
-    @version 1.0.0
     """
     if not record.source_file:
         raise RequirementValidationError(
@@ -643,9 +619,6 @@ def validate_requirement_record(
     @param[in] config Validated workflow configuration.
     @return Normalized immutable record.
     @exception RequirementValidationError If any field violates the schema.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     source = record.source_file or "<requirement>"
     if type(record.schema_version) is not int or record.schema_version != SCHEMA_VERSION:
@@ -727,9 +700,6 @@ def render_requirement_toml(record: RequirementRecord) -> str:
     @brief Render a requirement snapshot in normative deterministic TOML order.
     @param[in] record Validated requirement record.
     @return UTF-8 text with LF-compatible line endings and final newline.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     lines = [
         f"schema_version = {record.schema_version}",
@@ -758,9 +728,11 @@ def utc_timestamp() -> str:
 
 
 def manual_verification(value: str) -> bool:
-    """@brief Return whether text is an explicit non-empty manual method."""
+    """
+    @brief Return whether text is an explicit non-empty manual method.
+    """
     return any(
-        bool(value.startswith(prefix) and value[len(prefix) :].strip())
+        value.startswith(prefix) and bool(value[len(prefix) :].strip())
         for prefix in ("Manual:", "Inspection:")
     )
 
@@ -890,7 +862,6 @@ def _toml_string(value: str) -> str:
 def _publish_exclusive(path: Path, content: str) -> bool:
     """
     @brief Atomically publish content only when the destination is absent.
-    @version 0.2.0
     """
     temporary = _write_temporary(path, content)
     try:
@@ -906,7 +877,6 @@ def _publish_exclusive(path: Path, content: str) -> bool:
 def _atomic_replace(path: Path, content: str) -> None:
     """
     @brief Atomically replace one sibling file after complete serialization.
-    @version 0.2.0
     """
     atomic_write_text(path, content)
 
@@ -914,7 +884,6 @@ def _atomic_replace(path: Path, content: str) -> None:
 def _write_temporary(path: Path, content: str) -> Path:
     """
     @brief Persist and flush a temporary sibling for atomic publication.
-    @version 0.2.0
     """
     return create_temporary_text(path, content)
 
@@ -922,7 +891,6 @@ def _write_temporary(path: Path, content: str) -> Path:
 def _file_digest(path: Path) -> str:
     """
     @brief Return the SHA-256 digest of one file's exact bytes.
-    @version 1.0.0
     """
     return sha256(path.read_bytes()).hexdigest()
 

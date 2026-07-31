@@ -33,15 +33,20 @@
          "file_count": int|null, "generated_count": int|null,
          "skipped_count": int|null}, "drift": {"modified": [str, ...],
          "missing": [str, ...]} | null, "inventory": {"agentic_present": bool,
-         "adapters": {<adapter-name>: bool, ...}}}``
+         "adapters": {<adapter-name>: bool, ...}}, "configuration_proposals":
+         {"language": str|null, "source_roots": [{"path": str, "confidence":
+         "high"|"medium"|"low", "reason": str}, ...], "test_roots": [<same
+         shape as source_roots>, ...], "gate_<name>_cmds": [{"gate": str,
+         "argv": [str, ...]|null, "raw": str, "source_file": str,
+         "source_detail": str, "needs_review": bool}, ...] for each gate name
+         in :data:`waegis.repo.workflow_toml.GATE_ORDER`} | {"error": str}}``
 
          ``drift`` is ``null`` unless ``manifest.state == "valid"`` (drift is
          only computable against a valid manifest). ``inventory.adapters`` is
          keyed by adapter directory name with the leading dot stripped (e.g.
-         ``"claude"`` for ``.claude/``).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.2.0
+         ``"claude"`` for ``.claude/``). ``configuration_proposals`` collapses
+         to a single ``{"error": str}`` mapping when the underlying repo
+         analysis raises (best-effort: the rest of the report is unaffected).
 """
 
 # IMPORTS
@@ -58,12 +63,10 @@ from ..io.envelope import EXIT_OPERATIONAL, write_envelope
 from ..payload.manifest import DriftResult, ManifestState, compute_drift, load_manifest
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo.analyze import ADAPTER_DIR_NAMES, analyze_repo
+from ..repo.workflow_toml import GATE_ORDER
+from ._shared import AGENTIC_DIR_RELATIVE_PATH
 
 # CONSTANTS
-
-# @brief Repo-relative path whose presence marks a legacy/current AEGIS
-#        install, independent of whether an install manifest exists.
-AGENTIC_DIR_RELATIVE_PATH = ".agentic"
 
 # @brief Known agent adapter directory names shipped by the template payload
 #        (plan §2 grounding list). Re-exported from :mod:`waegis.repo.analyze`,
@@ -93,9 +96,6 @@ class ManifestSummary:
     @details Every field other than ``state`` is ``None`` unless
              ``state == "valid"``, except ``error`` which is set only for
              ``state == "invalid"``.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     state: str
@@ -116,9 +116,6 @@ class ManifestSummary:
                     installed_at, installed_by, mode, file_count,
                     generated_count, skipped_count``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-13
-        @version    0.1.0
         """
         return {
             "state": self.state,
@@ -139,9 +136,6 @@ class AdapterInventory:
     """
     @brief "Which workflows installed" inventory: ``.agentic/`` presence plus
            per-adapter presence.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     agentic_present: bool
@@ -152,9 +146,6 @@ class AdapterInventory:
         @brief      Serialize to the frozen ``inventory`` JSON-safe mapping.
         @return     Mapping keyed ``agentic_present, adapters``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-13
-        @version    0.1.0
         """
         return {"agentic_present": self.agentic_present, "adapters": dict(self.adapters)}
 
@@ -164,9 +155,6 @@ class AnalyzeReport:
     """
     @brief Full ``waegis analyze`` report: manifest inventory, drift, and
            workflow inventory for one repo root.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     repo: str
@@ -178,12 +166,10 @@ class AnalyzeReport:
     def to_dict(self) -> dict[str, Any]:
         """
         @brief      Serialize the whole report to the frozen ``--json`` shape.
-        @return     Mapping keyed ``repo, manifest, drift, inventory`` (see
-                    module docstring for the full field-name contract).
+        @return     Mapping keyed ``repo, manifest, drift, inventory,
+                    configuration_proposals`` (see module docstring for the
+                    full field-name contract).
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-13
-        @version    0.1.0
         """
         drift_dict = None
         if self.drift is not None:
@@ -207,9 +193,6 @@ def _build_adapter_inventory(repo: Path) -> AdapterInventory:
     @param[in]  repo Repository root directory.
     @return     The built :class:`AdapterInventory`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     agentic_present = (repo / AGENTIC_DIR_RELATIVE_PATH).is_dir()
     adapters = {name.lstrip("."): (repo / name).is_dir() for name in ADAPTER_DIR_NAMES}
@@ -221,9 +204,6 @@ def _manifest_summary_for_absent() -> ManifestSummary:
     @brief      Build the manifest summary for the "no manifest found" state.
     @return     A :class:`ManifestSummary` with ``state="absent"``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ManifestSummary(state=ManifestState.ABSENT.value)
 
@@ -235,9 +215,6 @@ def _manifest_summary_for_invalid(error: str | None) -> ManifestSummary:
     @return     A :class:`ManifestSummary` with ``state="invalid"`` and the
                 error message preserved verbatim.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ManifestSummary(state=ManifestState.INVALID.value, error=error)
 
@@ -249,9 +226,6 @@ def _manifest_summary_for_valid(manifest) -> ManifestSummary:  # noqa: ANN001 - 
     @return     A :class:`ManifestSummary` with ``state="valid"`` and every
                 reportable field populated.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ManifestSummary(
         state=ManifestState.VALID.value,
@@ -278,17 +252,23 @@ def build_analyze_report(
     @brief      Compute the ``waegis analyze`` report for a repo root.
     @details    Pure data computation, separable from rendering: calls
                 ``load_manifest`` to distinguish absent/invalid/valid, calls
-                ``compute_drift`` only when the manifest is valid, and
-                inspects ``.agentic/`` plus each known adapter directory.
-                Assumes ``repo`` already exists and is a directory — callers
-                (``run_analyze``) validate that first.
+                ``compute_drift`` only when the manifest is valid, inspects
+                ``.agentic/`` plus each known adapter directory, and runs
+                ``analyze_repo`` to build the ``configuration_proposals``
+                (source/test roots, language, per-gate command candidates).
+                The ``analyze_repo`` call is best-effort: any exception it
+                raises is caught and reported as
+                ``configuration_proposals = {"error": str(exc)}`` rather than
+                failing the whole report. Assumes ``repo`` already exists and
+                is a directory — callers (``run_analyze``) validate that
+                first.
     @param[in]  repo Repository root directory to analyze.
+    @param[in]  runner Injectable :class:`CommandRunner` used by
+                ``analyze_repo``; defaults to a real
+                :class:`SubprocessCommandRunner` when omitted.
     @return     The computed :class:`AnalyzeReport`.
     @exception  OSError If a manifest-recorded file cannot be hashed during
                 drift computation.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     repo_path = Path(repo)
     load_result = load_manifest(repo_path)
@@ -317,7 +297,7 @@ def build_analyze_report(
                     item.to_dict()
                     for item in getattr(analysis, f"gate_{name}_cmds")
                 ]
-                for name in ("build", "typecheck", "lint", "test", "security")
+                for name in GATE_ORDER
             },
         }
     except Exception as exc:  # noqa: BLE001 - proposals are best-effort, report remains useful
@@ -343,9 +323,6 @@ def render_analyze_report(report: AnalyzeReport, stream: IO[str]) -> None:
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     stream.write(f"WAEGIS analyze - {report.repo}\n")
     stream.write("\n")
@@ -402,9 +379,6 @@ def analyze_report_json(report: AnalyzeReport) -> str:
     @param[in]  report The report to serialize.
     @return     JSON text, 2-space indent.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
 
@@ -426,9 +400,6 @@ def run_analyze(repo: str | PathLike[str], *, as_json: bool, stream: IO[str]) ->
                 :data:`EXIT_REPO_NOT_FOUND` (1) when ``repo`` does not exist or
                 is not a directory.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     repo_path = Path(repo)
     if not repo_path.is_dir():

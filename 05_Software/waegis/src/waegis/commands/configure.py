@@ -14,9 +14,6 @@
          and every non-owned field remain byte-for-byte unchanged. Writes are
          atomic, smoke/gate failures restore the prior file, and configuration
          metadata is written to the install manifest last.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.4.0
 """
 
 # IMPORTS
@@ -24,22 +21,14 @@
 from __future__ import annotations
 
 import os
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import IO, Any, Mapping
 
 from ..consent import ConsentDecision, mutation_consent
 from ..io.answers import AnswersFileError, load_answers_file
-from ..io.envelope import (
-    EXIT_NEEDS_INPUT,
-    EXIT_OK,
-    EXIT_OPERATIONAL,
-    EXIT_VALIDATION,
-    write_envelope,
-)
+from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OK, EXIT_OPERATIONAL, EXIT_VALIDATION
 from ..io.prompts import ConsoleAsker, PromptsError
-from ..payload.copier import CopierError, inspect_payload
-from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
 from ..payload.manifest import (
     MANIFEST_RELATIVE_PATH,
     ManifestState,
@@ -51,28 +40,60 @@ from ..payload.manifest import (
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo.analyze import RepoAnalysis, analyze_repo
 from ..repo.workflow_toml import (
+    GATE_ORDER,
     WORKFLOW_FIELD_SPECS,
     WorkflowTomlError,
     generate_workflow_toml,
 )
 from ..repowise import REPOWISE_ANSWER_KEYS, RepoWiseError, lifecycle_repowise
 from ..verification import smoke_reverify
-from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
-from ..transaction import (
-    FileTransaction,
-    TransactionError,
-    pending_transaction_ids,
-    recover_incomplete_transactions,
+from ..version import WIZARD_VERSION
+from ..transaction import FileTransaction
+from ._shared import (
+    CommandOptions,
+    PAYLOAD_VALIDATION_ERRORS,
+    WORKFLOW_TOML_RELATIVE_PATH,
+    emit_command_output,
+    locate_validated_payload,
+    recover_transactions_or_emit,
+    render_pending_recovery,
 )
-from .new import OTHER_LANGUAGE_FIELD_SPECS, WORKFLOW_TOML_RELATIVE_PATH
+from .new import OTHER_LANGUAGE_FIELD_SPECS
 
 # CONSTANTS
 
 _CONTROL_KEYS = frozenset({"run_gates", "run_smoke"})
-_CONFIG_KEYS = frozenset(spec.key for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS))
+CONFIG_KEYS = frozenset(spec.key for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS))
 
 
 # HELPER FUNCTIONS
+
+
+def _render_configure_human(
+    stream: IO[str],
+    plan: Mapping[str, Any] | None,
+    result: Mapping[str, Any] | None,
+) -> None:
+    """
+    @brief      Render configure's command-specific human plan/result lines.
+    @details    Deliberately configure-only (the shared core lives in
+                :func:`waegis.commands._shared.emit_command_output`): the plan
+                is summarized as per-field before/after changes and the result
+                as the configuration verdict, which no other command emits.
+    @param[in]  stream Output stream.
+    @param[in]  plan Optional frozen plan payload.
+    @param[in]  result Optional frozen result payload.
+    @return     None
+    @exception  None
+    """
+    if plan is not None:
+        render_pending_recovery(stream, plan)
+        changes = plan.get("changes", [])
+        stream.write(f"Configuration plan: {len(changes)} field change(s).\n")
+        for change in changes:
+            stream.write(f"  {change['field']}: {change['before']!r} -> {change['after']!r}\n")
+    if result is not None and result.get("configured"):
+        stream.write("Configuration updated and verified.\n")
 
 
 def _emit(
@@ -88,44 +109,24 @@ def _emit(
     """
     @brief      Emit configure output through the human or JSON surface.
     @return     ``exit_code``.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.2.0
     """
-    if as_json:
-        return write_envelope(
-            stream,
-            "configure",
-            status=status,
-            exit_code=exit_code,
-            plan=plan,
-            result=result,
-            messages=messages,
-        )
-    for message in messages:
-        stream.write(message + "\n")
-    if plan is not None:
-        for transaction_id in plan.get("pending_recovery", []):
-            stream.write(
-                "Pending transaction recovery not applied in dry-run: "
-                f"{transaction_id}\n"
-            )
-        changes = plan.get("changes", [])
-        stream.write(f"Configuration plan: {len(changes)} field change(s).\n")
-        for change in changes:
-            stream.write(f"  {change['field']}: {change['before']!r} -> {change['after']!r}\n")
-    if result is not None and result.get("configured"):
-        stream.write("Configuration updated and verified.\n")
-    return exit_code
+    return emit_command_output(
+        stream,
+        "configure",
+        as_json=as_json,
+        status=status,
+        exit_code=exit_code,
+        plan=plan,
+        result=result,
+        messages=messages,
+        render_human=_render_configure_human,
+    )
 
 
 def _analysis_defaults(analysis: RepoAnalysis | None) -> dict[str, Any]:
     """
     @brief      Convert read-only repository proposals into field defaults.
     @return     Proposed configuration mapping.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if analysis is None:
         return {}
@@ -139,23 +140,20 @@ def _analysis_defaults(analysis: RepoAnalysis | None) -> dict[str, Any]:
                 for item in getattr(analysis, f"gate_{name}_cmds")
                 if item.argv and not item.needs_review
             ]
-            for name in ("build", "typecheck", "lint", "test", "security")
+            for name in GATE_ORDER
         },
     }
 
 
-def _stored_answers(configuration: Mapping[str, Any]) -> dict[str, Any]:
+def stored_answers(configuration: Mapping[str, Any]) -> dict[str, Any]:
     """
     @brief      Extract allowlisted generator answers from manifest metadata.
     @return     Stored answer mapping, possibly empty.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.2.0
     """
     raw = configuration.get("answers")
     if not isinstance(raw, Mapping):
         return {}
-    return {str(key): value for key, value in raw.items() if str(key) in _CONFIG_KEYS}
+    return {str(key): value for key, value in raw.items() if str(key) in CONFIG_KEYS}
 
 
 def _resolve_answers(
@@ -170,9 +168,6 @@ def _resolve_answers(
     @brief      Resolve and normalize configuration answers by precedence.
     @return     Complete normalized generator answer mapping.
     @exception  PromptsError If a required/invalid value is encountered.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     resolved: dict[str, Any] = {}
     for spec in WORKFLOW_FIELD_SPECS:
@@ -183,7 +178,11 @@ def _resolve_answers(
         elif non_interactive:
             resolved[spec.key] = dynamic.normalize(default)
         else:
-            assert asker is not None
+            if asker is None:
+                raise PromptsError(
+                    f"missing required answer: {spec.key} "
+                    "(no interactive console is available)"
+                )
             resolved[spec.key] = asker.ask_field(dynamic)
     if resolved["language"] == "other":
         for spec in OTHER_LANGUAGE_FIELD_SPECS:
@@ -196,7 +195,11 @@ def _resolve_answers(
                     raise PromptsError(f"missing required answer: {spec.key}")
                 resolved[spec.key] = dynamic.normalize(default)
             else:
-                assert asker is not None
+                if asker is None:
+                    raise PromptsError(
+                        f"missing required answer: {spec.key} "
+                        "(no interactive console is available)"
+                    )
                 resolved[spec.key] = asker.ask_field(dynamic)
     return resolved
 
@@ -205,9 +208,6 @@ def _run_selected_gates(runner: CommandRunner, repo: Path, answers: Mapping[str,
     """
     @brief      Run configured gate commands when ``run_gates`` was selected.
     @return     Failure messages; empty means all selected gates passed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if not answers.get("run_gates", False):
         return []
@@ -229,6 +229,409 @@ def _run_selected_gates(runner: CommandRunner, repo: Path, answers: Mapping[str,
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
+@dataclass(frozen=True)
+class ConfigureContext:
+    """@brief Resolved public boundary for configure command phases."""
+    repo_path: Path
+    options: CommandOptions
+
+
+@dataclass(frozen=True)
+class ConfigureResolved:
+    """@brief Validated configure inputs before answer planning."""
+    context: ConfigureContext
+    pending: tuple[str, ...]
+    recovered: tuple[str, ...]
+    manifest: Any
+    supplied: dict[str, Any]
+    payload_root: Path
+    runner: CommandRunner
+    analysis: RepoAnalysis | None
+    asker: ConsoleAsker | None
+    stored: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ConfigurePlan:
+    """@brief Fully rendered configuration plan awaiting consent."""
+    resolved: ConfigureResolved
+    answers: dict[str, Any]
+    controls: dict[str, bool]
+    workflow_path: Path
+    generated: Any
+    content_changed: bool
+    plan_data: dict[str, Any]
+    repowise_requested: bool
+
+
+@dataclass(frozen=True)
+class ConfigureOutcome:
+    """@brief Applied AEGIS configuration awaiting RepoWise/reporting."""
+    plan: ConfigurePlan
+
+
+def _configure_emit(context: ConfigureContext, **kwargs: Any) -> int:
+    """@brief Bind configure output options for phase-local early returns."""
+    return _emit(
+        context.options.stream, as_json=context.options.as_json, **kwargs
+    )
+
+
+def _validate_configure(context: ConfigureContext) -> int | ConfigureResolved:
+    """@brief Validate repository, recovery, manifest, answers, and payload."""
+    options = context.options
+    if not context.repo_path.is_dir():
+        return _configure_emit(
+            context, status="error", exit_code=EXIT_OPERATIONAL,
+            messages=(f"--repo path does not exist or is not a directory: {context.repo_path}",),
+        )
+    recovery = recover_transactions_or_emit(
+        context.repo_path, dry_run=options.dry_run, yes=options.yes,
+        recovery_asker=ConsoleAsker(stdin=options.stdin, stdout=options.stream)
+        if not options.non_interactive and options.stdin is not None else None,
+        emit=lambda **kwargs: _configure_emit(context, **kwargs),
+    )
+    if isinstance(recovery, int):
+        return recovery
+    pending, recovered = recovery
+    load = load_manifest(context.repo_path)
+    if load.state is not ManifestState.VALID or load.manifest is None:
+        return _configure_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("a valid current install manifest is required before configuration",),
+        )
+    supplied: dict[str, Any] = {}
+    if options.answers_path is not None:
+        try:
+            supplied = load_answers_file(options.answers_path)
+        except AnswersFileError as exc:
+            return _configure_emit(
+                context, status="failed", exit_code=EXIT_VALIDATION,
+                messages=(str(exc),),
+            )
+    unknown = sorted(set(supplied) - CONFIG_KEYS - _CONTROL_KEYS - REPOWISE_ANSWER_KEYS)
+    if unknown:
+        return _configure_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("unrecognized answer key(s): " + ", ".join(unknown),),
+        )
+    try:
+        payload_root, _inventory, _payload_version = locate_validated_payload(options.payload)
+    except PAYLOAD_VALIDATION_ERRORS as exc:
+        return _configure_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=(str(exc),),
+        )
+    return _resolve_configure_environment(
+        context, tuple(pending), tuple(recovered), load.manifest,
+        supplied, payload_root,
+    )
+
+
+def _resolve_configure_environment(
+    context: ConfigureContext, pending: tuple[str, ...],
+    recovered: tuple[str, ...], manifest: Any,
+    supplied: dict[str, Any], payload_root: Path,
+) -> ConfigureResolved:
+    """@brief Resolve runner, analysis, asker, and stored configuration."""
+    options = context.options
+    runner = options.runner or SubprocessCommandRunner()
+    try:
+        analysis = analyze_repo(context.repo_path, runner=runner)
+    except Exception as exc:  # noqa: BLE001 - proposals are optional
+        analysis = None
+        if not options.as_json:
+            # Human mode only: --json must stay a single parseable envelope.
+            options.stream.write(
+                f"warning: repository analysis failed ({exc}); "
+                "analysis-derived defaults will be empty\n"
+            )
+    asker = (
+        None if options.non_interactive or options.stdin is None
+        else ConsoleAsker(stdin=options.stdin, stdout=options.stream)
+    )
+    return ConfigureResolved(
+        context, pending, recovered, manifest, supplied, payload_root, runner,
+        analysis, asker, stored_answers(manifest.configuration),
+    )
+
+
+def _plan_configure(resolved: ConfigureResolved) -> int | ConfigurePlan:
+    """@brief Resolve answers and build the frozen configuration preview."""
+    context = resolved.context
+    options = context.options
+    try:
+        answers = _resolve_answers(
+            resolved.supplied, resolved.stored,
+            _analysis_defaults(resolved.analysis),
+            non_interactive=options.non_interactive, asker=resolved.asker,
+        )
+        controls = {
+            "run_gates": bool(resolved.supplied.get("run_gates", False)),
+            "run_smoke": bool(resolved.supplied.get("run_smoke", True)),
+        }
+        workflow_path = resolve_managed_path(
+            context.repo_path, WORKFLOW_TOML_RELATIVE_PATH
+        )
+        base_text = (
+            workflow_path.read_text(encoding="utf-8") if workflow_path.is_file()
+            else resolve_managed_path(
+                resolved.payload_root, WORKFLOW_TOML_RELATIVE_PATH
+            ).read_text(encoding="utf-8")
+        )
+        generated = generate_workflow_toml(base_text, **answers)
+    except (PromptsError, WorkflowTomlError, ValueError, OSError) as exc:
+        return _configure_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=(str(exc),),
+        )
+    changes = [
+        {"field": key, "before": resolved.stored.get(key), "after": answers[key]}
+        for key in sorted(answers) if resolved.stored.get(key) != answers[key]
+    ]
+    content_changed = (
+        not workflow_path.is_file()
+        or workflow_path.read_text(encoding="utf-8") != generated.text
+    )
+    plan_data = _configure_plan_data(
+        resolved, changes, content_changed, controls, generated
+    )
+    return ConfigurePlan(
+        resolved, answers, controls, workflow_path, generated, content_changed,
+        plan_data, bool(plan_data["repowise_requested"]),
+    )
+
+
+def _configure_plan_data(
+    resolved: ConfigureResolved, changes: list[dict[str, Any]],
+    content_changed: bool, controls: Mapping[str, bool], generated: Any,
+) -> dict[str, Any]:
+    """@brief Build the byte-compatible configure plan mapping."""
+    options = resolved.context.options
+    requested = REPOWISE_ANSWER_KEYS.intersection(resolved.supplied)
+    return {
+        "repo": str(resolved.context.repo_path), "changes": changes,
+        "workflow_content_changed": content_changed,
+        "warnings": [warning.message for warning in generated.warnings],
+        "recovered_transactions": list(resolved.recovered),
+        "pending_recovery": list(resolved.pending) if options.dry_run else [],
+        **controls, "repowise_requested": bool(requested),
+        "repowise": {key: resolved.supplied[key] for key in sorted(requested)},
+    }
+
+
+def _consent_configure(plan: ConfigurePlan) -> int | ConfigurePlan:
+    """@brief Handle dry-run, no-op, and explicit configuration consent."""
+    context = plan.resolved.context
+    options = context.options
+    if options.dry_run:
+        return _configure_emit(
+            context, status="ok", exit_code=EXIT_OK, plan=plan.plan_data
+        )
+    if not plan.content_changed and not plan.plan_data["changes"] and not plan.repowise_requested:
+        return _configure_emit(
+            context, status="ok", exit_code=EXIT_OK, plan=plan.plan_data,
+            result={"configured": False, "no_op": True},
+        )
+    consent = mutation_consent(
+        mutation_planned=True, yes=options.yes, asker=plan.resolved.asker,
+        prompt="Apply this configuration plan?",
+    )
+    if consent is ConsentDecision.APPROVED:
+        return plan
+    return _configure_emit(
+        context, status="needs-input", exit_code=EXIT_NEEDS_INPUT,
+        plan=plan.plan_data,
+        messages=(
+            "configuration plan was not approved"
+            if consent is ConsentDecision.DECLINED
+            else "configuration mutation requires explicit --yes or an interactive approval",
+        ),
+    )
+
+
+def _write_configured_workflow(
+    plan: ConfigurePlan, transaction: FileTransaction, temporary: Path,
+) -> None:
+    """@brief Write, verify, and journal the configured workflow before manifest."""
+    repo_path = plan.resolved.context.repo_path
+    transaction.mark("applying")
+    plan.workflow_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary.write_text(plan.generated.text, encoding="utf-8", newline="")
+    os.replace(temporary, plan.workflow_path)
+    failures = _run_selected_gates(
+        plan.resolved.runner, repo_path, {**plan.answers, **plan.controls}
+    )
+    smoke: tuple[Any, ...] = ()
+    smoke_ok = True
+    if plan.controls["run_smoke"]:
+        smoke, smoke_ok = smoke_reverify(plan.resolved.runner, repo_path)
+        failures.extend(
+            f"{item.name}: {item.detail}" for item in smoke if item.status == "fail"
+        )
+    if not smoke_ok or failures:
+        raise RuntimeError("; ".join(failures))
+
+
+def _commit_configure_manifest(
+    plan: ConfigurePlan, transaction: FileTransaction,
+) -> None:
+    """@brief Publish configuration metadata last and commit the transaction."""
+    manifest = plan.resolved.manifest
+    configuration = dict(manifest.configuration)
+    raw_generated = configuration.get("generated_files")
+    generated_files = dict(raw_generated) if isinstance(raw_generated, Mapping) else {}
+    generated_files[WORKFLOW_TOML_RELATIVE_PATH] = {
+        "sha256": hash_file(plan.workflow_path).sha256
+    }
+    configuration["answers"] = {
+        key: plan.answers[key] for key in sorted(plan.answers)
+    }
+    configuration["generator_version"] = WIZARD_VERSION
+    configuration["generated_files"] = generated_files
+    generated_paths = tuple(
+        sorted(set(manifest.generated) | {WORKFLOW_TOML_RELATIVE_PATH})
+    )
+    transaction.mark("verified")
+    write_manifest(
+        plan.resolved.context.repo_path,
+        replace(manifest, generated=generated_paths, configuration=configuration),
+    )
+    transaction.commit()
+
+
+def _configure_apply_failure(
+    plan: ConfigurePlan, temporary: Path,
+    transaction: FileTransaction | None, exc: BaseException,
+) -> int:
+    """@brief Clean up, roll back, and report one configure apply failure."""
+    cleanup_error: Exception | None = None
+    if temporary.exists():
+        try:
+            temporary.unlink()
+        except OSError as unlink_exc:
+            cleanup_error = unlink_exc
+    rollback_error: Exception | None = None
+    rolled_back = False
+    committed = transaction is not None and transaction.phase == "committed"
+    if transaction is not None and transaction.directory.exists() and not committed:
+        try:
+            transaction.rollback()
+            rolled_back = True
+        except Exception as rollback_exc:
+            rollback_error = rollback_exc
+    if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        for note_error in (cleanup_error, rollback_error):
+            if note_error is not None:
+                exc.add_note(f"transaction cleanup/rollback also failed: {note_error}")
+        raise exc
+    if committed:
+        return _configure_emit(
+            plan.resolved.context, status="error", exit_code=EXIT_OPERATIONAL,
+            plan=plan.plan_data,
+            result={"configured": True, "rolled_back": False, "cleanup_pending": True},
+            messages=("configuration committed, but transaction cleanup failed; "
+                      f"recovery will retry cleanup: {exc}",),
+        )
+    message = (
+        "configuration failed and rollback did not complete; authenticated "
+        f"recovery state was retained: {rollback_error}"
+        if rollback_error is not None
+        else f"configuration verification failed; rolled back: {exc}"
+    )
+    return _configure_emit(
+        plan.resolved.context, status="failed", exit_code=EXIT_VALIDATION,
+        plan=plan.plan_data,
+        result={"configured": False, "rolled_back": rolled_back},
+        messages=(message,),
+    )
+
+
+def _apply_configure(plan: ConfigurePlan) -> int | ConfigureOutcome:
+    """@brief Apply the approved configuration with unchanged rollback ordering."""
+    context = plan.resolved.context
+    temporary = plan.workflow_path.with_name(plan.workflow_path.name + ".waegis-tmp")
+    transaction: FileTransaction | None = None
+    try:
+        transaction = FileTransaction.begin(
+            context.repo_path, command="configure",
+            paths=(WORKFLOW_TOML_RELATIVE_PATH, MANIFEST_RELATIVE_PATH),
+        )
+        _write_configured_workflow(plan, transaction, temporary)
+        _commit_configure_manifest(plan, transaction)
+    except BaseException as exc:
+        return _configure_apply_failure(plan, temporary, transaction, exc)
+    return ConfigureOutcome(plan)
+
+
+def _report_configure(outcome: ConfigureOutcome) -> int:
+    """@brief Run RepoWise post-processing and emit the configure outcome."""
+    plan = outcome.plan
+    resolved = plan.resolved
+    context = resolved.context
+    options = context.options
+    repowise_result: dict[str, Any] | None = None
+    repowise_error: str | None = None
+    if plan.repowise_requested:
+        try:
+            repowise_result = lifecycle_repowise(
+                context.repo_path, resolved.supplied, lifecycle="configure",
+                interactive=not options.non_interactive, asker=resolved.asker,
+                stream=None if options.as_json else options.stream, yes=options.yes,
+            )
+        except (OSError, RepoWiseError) as exc:
+            repowise_error = str(exc)
+    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
+        return _configure_emit(
+            context, status="error", exit_code=EXIT_OPERATIONAL,
+            plan=plan.plan_data,
+            result={
+                "configured": True, "no_op": False, "rolled_back": False,
+                "aegis": {"ok": True},
+                "repowise": repowise_result or {
+                    "aegis": "ok", "sync": {"ok": False, "error": repowise_error}
+                },
+            },
+            messages=((repowise_error,) if repowise_error else ()),
+        )
+    warning_messages = tuple(warning.message for warning in plan.generated.warnings)
+    return _configure_emit(
+        context, status="warning" if warning_messages else "ok",
+        exit_code=EXIT_NEEDS_INPUT if warning_messages else EXIT_OK,
+        plan=plan.plan_data,
+        result={
+            "configured": True, "no_op": False, "rolled_back": False,
+            "aegis": {"ok": True}, "repowise": repowise_result,
+        },
+        messages=warning_messages,
+    )
+
+
+def _run_configure_phases(
+    repo: str | os.PathLike[str],
+    *,
+    options: CommandOptions,
+) -> int:
+    """@brief Orchestrate validate, plan, consent, apply, and report phases."""
+    normalized = replace(
+        options, non_interactive=options.non_interactive or options.as_json
+    )
+    context = ConfigureContext(Path(repo).resolve(), normalized)
+    resolved = _validate_configure(context)
+    if isinstance(resolved, int):
+        return resolved
+    plan = _plan_configure(resolved)
+    if isinstance(plan, int):
+        return plan
+    approved = _consent_configure(plan)
+    if isinstance(approved, int):
+        return approved
+    outcome = _apply_configure(approved)
+    if isinstance(outcome, int):
+        return outcome
+    return _report_configure(outcome)
+
+
 def run_configure(
     repo: str | os.PathLike[str],
     *,
@@ -243,332 +646,17 @@ def run_configure(
     runner: CommandRunner | None = None,
 ) -> int:
     """
-    @brief      Configure an installed repository transactionally.
-    @return     Standardized exit code 0/1/2/3.
-    @exception  None All failures are rendered through the selected surface.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.5.0
+    @brief      Run transactional configuration through its lifecycle phases.
+    @details    Preserves the public CLI/test injection seam while packaging
+                recurring arguments in :class:`CommandOptions`.
+    @return     Standardized command exit code 0/1/2/3.
     """
-    repo_path = Path(repo).resolve()
-    if as_json:
-        non_interactive = True
-    if not repo_path.is_dir():
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="error",
-            exit_code=EXIT_OPERATIONAL,
-            messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
-        )
-    try:
-        pending = pending_transaction_ids(repo_path)
-        if not dry_run:
-            recovery_consent = mutation_consent(
-                mutation_planned=bool(pending),
-                yes=yes,
-                asker=(
-                    ConsoleAsker(stdin=stdin, stdout=stream)
-                    if not non_interactive and stdin is not None
-                    else None
-                ),
-                prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
-            )
-            if recovery_consent is not ConsentDecision.APPROVED:
-                return _emit(
-                    stream,
-                    as_json=as_json,
-                    status="needs-input",
-                    exit_code=EXIT_NEEDS_INPUT,
-                    plan={"recovery": list(pending)},
-                    messages=("transaction recovery requires explicit approval",),
-                )
-        recovered = () if dry_run else recover_incomplete_transactions(repo_path)
-    except (OSError, ValueError, TransactionError) as exc:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="error",
-            exit_code=EXIT_OPERATIONAL,
-            messages=(f"could not recover an interrupted transaction: {exc}",),
-        )
-    load = load_manifest(repo_path)
-    if load.state is not ManifestState.VALID or load.manifest is None:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("a valid current install manifest is required before configuration",),
-        )
-    manifest = load.manifest
-    supplied: dict[str, Any] = {}
-    if answers_path is not None:
-        try:
-            supplied = load_answers_file(answers_path)
-        except AnswersFileError as exc:
-            return _emit(
-                stream,
-                as_json=as_json,
-                status="failed",
-                exit_code=EXIT_VALIDATION,
-                messages=(str(exc),),
-            )
-    unknown = sorted(set(supplied) - _CONFIG_KEYS - _CONTROL_KEYS - REPOWISE_ANSWER_KEYS)
-    if unknown:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("unrecognized answer key(s): " + ", ".join(unknown),),
-        )
-    try:
-        payload_root = locate_payload(payload)
-        inspect_payload(payload_root)
-        payload_version = read_payload_version(payload_root)
-        if payload_version is None or not is_payload_compatible(payload_version):
-            raise ValueError(
-                f"payload version {payload_version or 'unknown'!r} is incompatible; expected {PAYLOAD_COMPAT_SPEC}"
-            )
-    except (PayloadLocateError, CopierError, ValueError, OSError) as exc:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=(str(exc),),
-        )
-
-    active_runner = runner or SubprocessCommandRunner()
-    try:
-        analysis = analyze_repo(repo_path, runner=active_runner)
-    except Exception:  # noqa: BLE001 - proposals are optional
-        analysis = None
-    asker = None if non_interactive or stdin is None else ConsoleAsker(stdin=stdin, stdout=stream)
-    stored = _stored_answers(manifest.configuration)
-    try:
-        resolved = _resolve_answers(
-            supplied,
-            stored,
-            _analysis_defaults(analysis),
-            non_interactive=non_interactive,
-            asker=asker,
-        )
-        controls = {
-            "run_gates": bool(supplied.get("run_gates", False)),
-            "run_smoke": bool(supplied.get("run_smoke", True)),
-        }
-        workflow_path = resolve_managed_path(repo_path, WORKFLOW_TOML_RELATIVE_PATH)
-        if workflow_path.is_file():
-            base_text = workflow_path.read_text(encoding="utf-8")
-        else:
-            base_text = resolve_managed_path(payload_root, WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
-        generated = generate_workflow_toml(base_text, **resolved)
-    except (PromptsError, WorkflowTomlError, ValueError, OSError) as exc:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=(str(exc),),
-        )
-
-    changes = [
-        {"field": key, "before": stored.get(key), "after": resolved[key]}
-        for key in sorted(resolved)
-        if stored.get(key) != resolved[key]
-    ]
-    content_changed = not workflow_path.is_file() or workflow_path.read_text(encoding="utf-8") != generated.text
-    plan = {
-        "repo": str(repo_path),
-        "changes": changes,
-        "workflow_content_changed": content_changed,
-        "warnings": [warning.message for warning in generated.warnings],
-        "recovered_transactions": list(recovered),
-        "pending_recovery": list(pending) if dry_run else [],
-        **controls,
-        "repowise_requested": bool(REPOWISE_ANSWER_KEYS.intersection(supplied)),
-        "repowise": {
-            key: supplied[key] for key in sorted(REPOWISE_ANSWER_KEYS.intersection(supplied))
-        },
-    }
-    if dry_run:
-        return _emit(stream, as_json=as_json, status="ok", exit_code=EXIT_OK, plan=plan)
-    repowise_requested = bool(plan["repowise_requested"])
-    if not content_changed and not changes and not repowise_requested:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="ok",
-            exit_code=EXIT_OK,
-            plan=plan,
-            result={"configured": False, "no_op": True},
-        )
-    consent = mutation_consent(
-        mutation_planned=True, yes=yes, asker=asker, prompt="Apply this configuration plan?"
-    )
-    if consent is not ConsentDecision.APPROVED:
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan=plan,
-            messages=(
-                "configuration plan was not approved"
-                if consent is ConsentDecision.DECLINED
-                else "configuration mutation requires explicit --yes or an interactive approval",
-            ),
-        )
-
-    temporary = workflow_path.with_name(workflow_path.name + ".waegis-tmp")
-    transaction: FileTransaction | None = None
-    try:
-        transaction = FileTransaction.begin(
-            repo_path,
-            command="configure",
-            paths=(WORKFLOW_TOML_RELATIVE_PATH, MANIFEST_RELATIVE_PATH),
-        )
-        transaction.mark("applying")
-        workflow_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary.write_text(generated.text, encoding="utf-8", newline="")
-        os.replace(temporary, workflow_path)
-        failures = _run_selected_gates(active_runner, repo_path, {**resolved, **controls})
-        smoke: tuple[Any, ...] = ()
-        smoke_ok = True
-        if controls["run_smoke"]:
-            smoke, smoke_ok = smoke_reverify(active_runner, repo_path)
-            failures.extend(f"{item.name}: {item.detail}" for item in smoke if item.status == "fail")
-        if not smoke_ok or failures:
-            raise RuntimeError("; ".join(failures))
-        configuration = dict(manifest.configuration)
-        raw_generated = configuration.get("generated_files")
-        generated_files = dict(raw_generated) if isinstance(raw_generated, Mapping) else {}
-        generated_files[WORKFLOW_TOML_RELATIVE_PATH] = {
-            "sha256": hash_file(workflow_path).sha256
-        }
-        configuration["answers"] = {
-            key: resolved[key] for key in sorted(resolved)
-        }
-        configuration["generator_version"] = WIZARD_VERSION
-        configuration["generated_files"] = generated_files
-        generated_paths = tuple(sorted(set(manifest.generated) | {WORKFLOW_TOML_RELATIVE_PATH}))
-        transaction.mark("verified")
-        write_manifest(
-            repo_path,
-            replace(manifest, generated=generated_paths, configuration=configuration),
-        )
-        transaction.commit()
-    except BaseException as exc:  # transaction must roll back every failure/interruption
-        cleanup_error: Exception | None = None
-        if temporary.exists():
-            try:
-                temporary.unlink()
-            except OSError as unlink_exc:
-                cleanup_error = unlink_exc
-        rollback_error: Exception | None = None
-        rolled_back = False
-        committed = transaction is not None and transaction.phase == "committed"
-        if (
-            transaction is not None
-            and transaction.directory.exists()
-            and not committed
-        ):
-            try:
-                transaction.rollback()
-                rolled_back = True
-            except Exception as rollback_exc:
-                rollback_error = rollback_exc
-        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
-            for note_error in (cleanup_error, rollback_error):
-                if note_error is not None and hasattr(exc, "add_note"):
-                    exc.add_note(f"transaction cleanup/rollback also failed: {note_error}")
-            raise
-        if committed:
-            return _emit(
-                stream,
-                as_json=as_json,
-                status="error",
-                exit_code=EXIT_OPERATIONAL,
-                plan=plan,
-                result={
-                    "configured": True,
-                    "rolled_back": False,
-                    "cleanup_pending": True,
-                },
-                messages=(
-                    "configuration committed, but transaction cleanup failed; "
-                    f"recovery will retry cleanup: {exc}",
-                ),
-            )
-        if rollback_error is not None:
-            message = (
-                "configuration failed and rollback did not complete; authenticated "
-                f"recovery state was retained: {rollback_error}"
-            )
-        else:
-            message = f"configuration verification failed; rolled back: {exc}"
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            plan=plan,
-            result={"configured": False, "rolled_back": rolled_back},
-            messages=(message,),
-        )
-
-    repowise_result: dict[str, Any] | None = None
-    repowise_error: str | None = None
-    if repowise_requested:
-        try:
-            repowise_result = lifecycle_repowise(
-                repo_path,
-                supplied,
-                lifecycle="configure",
-                interactive=not non_interactive,
-                asker=asker,
-                stream=None if as_json else stream,
-                yes=yes,
-            )
-        except (OSError, RepoWiseError) as exc:
-            repowise_error = str(exc)
-    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
-        return _emit(
-            stream,
-            as_json=as_json,
-            status="error",
-            exit_code=EXIT_OPERATIONAL,
-            plan=plan,
-            result={
-                "configured": True,
-                "no_op": False,
-                "rolled_back": False,
-                "aegis": {"ok": True},
-                "repowise": repowise_result
-                or {"aegis": "ok", "sync": {"ok": False, "error": repowise_error}},
-            },
-            messages=((repowise_error,) if repowise_error else ()),
-        )
-
-    warning_messages = tuple(warning.message for warning in generated.warnings)
-    exit_code = EXIT_NEEDS_INPUT if warning_messages else EXIT_OK
-    status = "warning" if warning_messages else "ok"
-    return _emit(
-        stream,
-        as_json=as_json,
-        status=status,
-        exit_code=exit_code,
-        plan=plan,
-        result={
-            "configured": True,
-            "no_op": False,
-            "rolled_back": False,
-            "aegis": {"ok": True},
-            "repowise": repowise_result,
-        },
-        messages=warning_messages,
+    return _run_configure_phases(
+        repo,
+        options=CommandOptions(
+            stream, stdin, runner, None, yes, dry_run, non_interactive,
+            as_json, answers_path, payload,
+        ),
     )
 
 

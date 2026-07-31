@@ -52,6 +52,7 @@ from aegis.store import (
     GraphConflictError,
     append_journal,
     graph_path,
+    graph_transaction,
     journal_path,
     load_graph,
     save_graph,
@@ -329,6 +330,65 @@ def test_stale_direct_graph_save_is_rejected_without_overwrite(
     with pytest.raises(GraphConflictError):
         save_graph(tmp_path, stale)
 
+    persisted = load_graph(tmp_path, RUN_ID)
+    assert persisted.access_mode == "elevated"
+    assert persisted.stage == "check"
+
+
+def test_graph_transaction_refreshes_unmodified_stale_copy_in_place(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief An unmodified in-memory copy is refreshed in place when the disk
+           digest moved, so the mutation applies on top of the newer state.
+    @details Pins the refresh side of the graph_transaction fork — the
+             load-bearing mechanism behind the gates/checks three-phase split
+             and mid-flight waivers: an external update between load and
+             transaction entry must merge, not conflict, when the held copy
+             carries no local mutation.
+    @version 1.0.0
+    """
+    save_graph(tmp_path, _base_graph())
+    held = load_graph(tmp_path, RUN_ID)
+    external = load_graph(tmp_path, RUN_ID)
+    external.access_mode = "elevated"
+    save_graph(tmp_path, external)
+
+    with graph_transaction(tmp_path, held) as graph:
+        assert graph is held
+        assert graph.access_mode == "elevated"
+        graph.stage = "implementation"
+        save_graph(tmp_path, graph)
+
+    persisted = load_graph(tmp_path, RUN_ID)
+    assert persisted.access_mode == "elevated"
+    assert persisted.stage == "implementation"
+
+
+def test_graph_transaction_rejects_stale_modified_copy(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief A locally modified stale copy raises the typed GRAPH-STALE-UPDATE
+           conflict instead of silently discarding either side's mutation.
+    @details Pins the reject side of the graph_transaction fork: when both the
+             disk digest and the in-memory state digest moved, neither state
+             can win without losing the other, so the transaction refuses and
+             the persisted graph keeps only the external update.
+    @version 1.0.0
+    """
+    save_graph(tmp_path, _base_graph())
+    held = load_graph(tmp_path, RUN_ID)
+    external = load_graph(tmp_path, RUN_ID)
+    external.access_mode = "elevated"
+    save_graph(tmp_path, external)
+    held.stage = "implementation"
+
+    with pytest.raises(GraphConflictError) as conflict:
+        with graph_transaction(tmp_path, held):
+            raise AssertionError("a stale modified copy must not enter the transaction")
+
+    assert conflict.value.code == "GRAPH-STALE-UPDATE"
     persisted = load_graph(tmp_path, RUN_ID)
     assert persisted.access_mode == "elevated"
     assert persisted.stage == "check"

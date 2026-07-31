@@ -66,6 +66,28 @@ the next prepared revision, never the current one.
 Check execution is `external` or `managed`. External mode generates immutable
 evidence forms. Managed mode executes imported commands.
 
+## Quick Run Proportionality
+
+The optional quick-run changed-path advisory is configured with:
+
+```toml
+[quick.changed_paths]
+mode = "advise"
+max_paths = 10
+```
+
+Modes are `disabled` and `advise`, and `max_paths` must be a positive integer.
+When this table is absent, AEGIS normalizes the ship-open default to
+`mode = "disabled"` and `max_paths = 10`; the starter file therefore omits the
+active table. In advise mode, a quick implementation that closes with more
+than the configured number of unique changed paths receives guidance to carry
+its context into a new full run. This is a soft response only: it does not
+block, route, or change the current run.
+
+Current WAEGIS `new`/`adopt` interviews and doctor/configuration parsing do not
+yet manage this optional AEGIS table. That cross-tool awareness is a deliberate
+follow-up; use AEGIS `config validate/show` as the authority for the key.
+
 ## Deterministic Gates
 
 Every group has its own mode and commands:

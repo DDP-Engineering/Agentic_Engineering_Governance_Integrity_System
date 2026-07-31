@@ -796,7 +796,7 @@ def test_real_template_end_to_end_copy_and_manifest(tmp_path: Path) -> None:
     @return     None
     @exception  AssertionError If the real payload surprises the copier.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.1.1
     """
     assert REAL_TEMPLATE.is_dir()
     target = tmp_path / "target"
@@ -818,6 +818,7 @@ def test_real_template_end_to_end_copy_and_manifest(tmp_path: Path) -> None:
     assert manifest.payload_version == read_payload_version(REAL_TEMPLATE)
     assert manifest.payload_version not in (None, "unknown")
     assert result.copied == tuple(sorted(expected_files))
+    assert ".agentic/documents/MERGE_AND_REBASE.md" in result.copied
     assert manifest_path(target).is_file()
 
 

@@ -11,11 +11,11 @@
 @brief CommandRunner primitive tests for the WAEGIS probe layer (T2.1).
 @details Covers the fake runner's found/not-found/exit-code behavior (used by
          every other probe test in this suite) and the real
-         ``SubprocessCommandRunner`` against a definitely-missing executable
-         name, which stays offline since no such binary can exist.
+         ``SubprocessCommandRunner`` against missing and unlaunchable process
+         inputs.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-12
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -23,6 +23,9 @@
 from __future__ import annotations
 
 import sys
+from unittest.mock import Mock
+
+import pytest
 
 from waegis.probes.runner import CommandResult, SubprocessCommandRunner
 
@@ -100,6 +103,37 @@ def test_subprocess_command_runner_reports_not_found_for_missing_executable() ->
     assert result.exit_code is None
     assert result.stdout == ""
     assert result.stderr == ""
+
+
+@pytest.mark.parametrize(
+    "launch_error",
+    (
+        PermissionError("executable is not permitted"),
+        NotADirectoryError("working directory is invalid"),
+    ),
+)
+def test_subprocess_command_runner_captures_other_launch_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    launch_error: OSError,
+) -> None:
+    """
+    @brief Map non-missing OS launch failures to diagnostic result values.
+    @param[in] monkeypatch Pytest patching fixture.
+    @param[in] launch_error Spawn failure raised by ``subprocess.run``.
+    @return None.
+    @version 0.1.0
+    """
+    monkeypatch.setattr(
+        "waegis.probes.runner.subprocess.run",
+        Mock(side_effect=launch_error),
+    )
+
+    result = SubprocessCommandRunner().run(("present-but-unlaunchable",))
+
+    assert result.found is False
+    assert result.exit_code is None
+    assert result.stdout == ""
+    assert str(launch_error) in result.stderr
 
 
 def test_subprocess_command_runner_decodes_non_ascii_output_as_utf8() -> None:

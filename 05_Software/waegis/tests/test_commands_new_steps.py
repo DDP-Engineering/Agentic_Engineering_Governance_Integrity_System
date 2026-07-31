@@ -43,7 +43,7 @@ from waegis.commands.new import (
     SHARED_RUNNER,
     SHARED_TARGET,
     WORKFLOW_TOML_RELATIVE_PATH,
-    _amend_manifest_generated,
+    amend_manifest_generated,
     build_new_catalog,
 )
 from waegis.commands.analyze import ADAPTER_DIR_NAMES
@@ -638,8 +638,8 @@ def test_amend_manifest_moves_workflow_toml_to_generated(tmp_path) -> None:  # t
         ),
     )
 
-    _amend_manifest_generated(tmp_path)
-    _amend_manifest_generated(tmp_path)  # idempotent
+    amend_manifest_generated(tmp_path)
+    amend_manifest_generated(tmp_path)  # idempotent
 
     manifest = read_manifest(tmp_path)
     assert WORKFLOW_TOML_RELATIVE_PATH not in manifest.files

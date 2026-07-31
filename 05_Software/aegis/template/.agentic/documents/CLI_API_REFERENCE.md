@@ -46,18 +46,19 @@ aegis stage ...
 aegis requirement ...
 aegis check ...
 aegis evidence ...
+aegis waive ...
 aegis verify ...
 aegis delivery ...
 aegis adoption ...
 aegis config ...
 ```
 
-AEGIS 1.x commands and mutation flags do not exist.
+Legacy AEGIS 1.x commands and mutation flags do not exist.
 
 ## Run
 
 ```text
-aegis run start <feature|fix|change|adoption>
+aegis run start <feature|fix|change|adoption> [--quick]
 aegis run status
 aegis run resume
 aegis run select <run-id>
@@ -65,6 +66,15 @@ aegis run select <run-id>
 
 `run start` creates and selects a draft run, prepares the intake form, and
 returns its path. Put the statement, scope hints, and access mode in the form.
+`--quick` selects the proportional profile and is valid only for `fix` and
+`change`; feature and adoption starts return a typed blocked response before
+run state is created.
+
+After quick-run intake closes, `run status` reports `run_profile="quick"`,
+`bypass_status="bypassed"`, and the four bypassed stages. The intake approval
+also creates one `run.stages_bypassed` journal event with the human approver,
+intake revision, reason, and stage list. The validation summary and delivery
+report repeat this state; no surface reports bypassed work as passed.
 
 ## Stage Lifecycle
 
@@ -90,6 +100,16 @@ The standard stages are:
 intake → alignment → requirement → design → check → implementation → validation → delivery
 ```
 
+The quick `fix`/`change` profile declares a separate four-stage sequence:
+
+```text
+intake -> implementation -> validation -> delivery
+```
+
+Alignment, requirement, design, and check are absent from the executable
+sequence and are explicitly journaled as `bypassed` when intake closes. Every
+remaining stage still requires prepare, apply, and explicit human close.
+
 Adoption retains its seven specialized stages and uses the same lifecycle.
 Delivery closure marks the run complete; it never pushes, publishes, merges, or
 creates a pull request.
@@ -114,6 +134,10 @@ aegis requirement show <id>
 Requirement commands are read-only. Mutations occur only through requirement
 stage forms. AEGIS generates UUID-backed IDs and durable companion specs.
 Successful validation closure activates eligible Planned requirements.
+
+Quick runs have no requirement or design collection stage. INV-1, INV-2,
+INV-8, and INV-10 therefore report `not-applicable` with `holds=null`; this is
+an explicit quick-run state, not a pass or waiver.
 
 The authoritative design is:
 
@@ -147,6 +171,15 @@ The captured workspace policy permits one path. The wrong path returns the
 configured mode and correct command. Check closure requires red evidence;
 implementation closure requires prior red and current green evidence.
 
+Quick runs have no check collection stage. Red-before-green (INV-3) is
+`not-applicable` for that profile, but implementation changed paths and linked
+manual evidence remain required and are validated normally.
+
+On entry to quick implementation, the exact next command is
+`aegis evidence prepare add`. Apply that form, copy its CLI-minted active ID
+into `linked_check_evidence`, then apply the implementation form. Missing,
+invented, superseded, or non-implementation evidence is rejected.
+
 External preparation and recording are valid only during check or
 implementation, require a captured external mode and at least one imported
 check, and require exactly one result row per immutable check ID and command.
@@ -163,6 +196,57 @@ aegis evidence prepare <add|supersede>
 aegis evidence apply
 aegis evidence show
 ```
+
+## Run-Local Waivers
+
+```text
+aegis waive add <blocker-id> --reason "<human-approved reason>"
+aegis waive list
+```
+
+`waive list` reports the currently eligible exact blocker IDs, active waivers,
+and the complete run-local waiver history classified as `active`, `stale`, or
+`inactive`. Eligible IDs include failing invariants such as `INV-10`, enforced
+gate failures such as `gate:test`, per-check red-before-green failures such as
+`red-before-green:<check-id>`, and exact stage, traceability, coverage, and
+working-tree findings.
+
+For zero-waiver output compatibility, an ordinary unwaived `INV-7` retains its
+legacy `non-waivable` policy label. Its failing process blocker is nevertheless
+eligible in `waive list`; when covered, its effective policy is reported
+`blocking` alongside `waived=true`, never as `WAIVED (non-waivable)`.
+
+`waive add` records one explicit human approval. The reason must contain
+non-whitespace text, the blocker must be currently eligible, and the ID must be
+exact; wildcard, bulk, and force forms do not exist. The CLI mints a
+`WVR-<uuid>` ID, appends the schema-3 waiver record to the selected run graph,
+and appends a separate `waiver.added` journal event.
+
+Every waiver is scoped to the selected run. It also stores the current blocker
+state digests, so a later change to pinned content makes the record stale and
+the blocker returns. For example, an `INV-10` waiver no longer applies after
+the approved design or one of its cited requirement snapshots changes.
+
+A waiver neutralizes blocking behavior without rewriting history. The
+invariant still has `holds=false`, a gate still has failed evidence, and audit
+findings remain present. Machine summaries and `report.md` render the item as
+`WAIVED` and include its reason and timestamp; they never render it as passed.
+Disabled gates remain `disabled`, not passed or waived.
+
+The exact non-waivable integrity floor is:
+
+- malformed, unsupported, or closed-schema workflow, graph, stage, evidence,
+  requirement, or integration state, including corrupted run identity or
+  selection data;
+- live persistence-lock conflicts (`PERSISTENCE-LOCK-TIMEOUT`);
+- stale graph mutations (`GRAPH-STALE-UPDATE`);
+- stale requirement mutations (`REQUIREMENT-STALE-UPDATE`); and
+- atomic-publication or journal-integrity failures.
+
+These failures protect data rather than process and therefore never appear as
+eligible blocker IDs. Correct the state or retry the operation. A waiver also
+does not synthesize an applied stage or shorten the lifecycle. Only an eligible
+run started explicitly with `--quick` uses the declared shorter lifecycle.
 
 ## Deterministic Verification
 
@@ -181,7 +265,15 @@ aegis verify working-tree
 fixed order shown above, invariants, traceability, coverage, working-tree review,
 and then writes a validation summary for the human diff review. Every enabled
 group executes even if an earlier group fails. Disabled groups are reported
-`disabled`, never `passed`.
+`disabled`, never `passed`. Waived failures are reported `waived` with their
+original failed state, reason, and timestamp; they are never reported `passed`.
+
+For a quick run, requirement/check traceability and coverage audits, plus
+INV-1, INV-2, INV-3, INV-8, and INV-10, report `not-applicable - quick run` and
+cannot become pass results or waiver targets. Impact analysis, enabled gates,
+the secrets scan, remaining invariants, scope advisory, and working-tree review
+still execute. The summary includes the quick profile and the explicit
+bypassed-stage list.
 
 The security group runs only explicitly configured deterministic tooling. Its
 result is evidence from that tooling, not an authoritative security-assurance
@@ -202,7 +294,27 @@ aegis config show
 ```
 
 Configuration and run graphs require schema 3. AEGIS 2.1 rejects schema 2 and
-legacy graphs without migration or fallback.
+earlier legacy graphs without migration or fallback.
+
+The schema-3 run graph has an additive `profile` field: its absence means
+`full`, preserving existing graphs and full-run serialization; `quick` is valid
+only with `fix` or `change`. Hand-edited kind/profile/stage mismatches return a
+typed stage-operation block.
+
+The optional proportionality policy is:
+
+```toml
+[quick.changed_paths]
+mode = "advise"
+max_paths = 10
+```
+
+Modes are `disabled` and `advise`; `max_paths` is a positive integer. If the
+table is absent, the effective ship-open default is `disabled` with threshold
+10. In `advise` mode, closing quick-run implementation with more than the
+configured number of unique changed paths returns `QUICK-SCOPE-ADVISORY` and
+guidance to carry the context into `aegis run start <fix|change>`. It never
+blocks, routes, or mutates the current run.
 
 `config validate` and `config show` also validate/display the optional
 schema-1 `.agentic/integrations/repowise.toml`. Absence means disabled. RepoWise

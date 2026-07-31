@@ -45,7 +45,7 @@ from waegis.commands.doctor import (
     render_doctor_report,
     run_doctor,
 )
-from waegis.commands.new import _amend_manifest_generated, _wrapper_invocation
+from waegis.commands.new import amend_manifest_generated, _wrapper_invocation
 from waegis.engine import STATUS_COMPLETED, STATUS_FAILED, Journal
 from waegis.io.reports import ProbeFindingRecord
 from waegis.payload.copier import copy_payload
@@ -96,7 +96,7 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
         alignment_enabled=True,
     )
     (repo / WORKFLOW_TOML_RELATIVE_PATH).write_text(generated.text, encoding="utf-8", newline="")
-    _amend_manifest_generated(repo)
+    amend_manifest_generated(repo)
 
 
 def _healthy_runner(repo: Path) -> FakeCommandRunner:

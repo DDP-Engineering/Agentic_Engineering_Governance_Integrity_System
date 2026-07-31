@@ -301,4 +301,40 @@ def test_scripted_confirmation_queue_exhaustion_fails_closed() -> None:
         asker.confirm("second")
 
 
+def test_question_renders_as_the_prompt_line_when_set() -> None:
+    """
+    @brief      A ``FieldSpec.question`` renders as the prompt line in place of
+                the ``key``-based line, with the hint suffix unchanged.
+    @return     None
+    @exception  AssertionError If the plain-language question is not rendered,
+                or the raw key-based line leaks in alongside it.
+    """
+    spec = FieldSpec(
+        key="secrets_mode",
+        description="Consequence sentence.",
+        question="Scan for secrets before validation?",
+        example="disabled",
+        default="disabled",
+    )
+    asker, stdout = _console("\n")
+    asker.ask_field(spec)
+    output = stdout.getvalue()
+    assert "Scan for secrets before validation? (e.g. disabled; default: disabled): " in output
+    assert "secrets_mode (e.g. disabled; default: disabled): " not in output
+
+
+def test_question_none_falls_back_to_key_based_prompt_line() -> None:
+    """
+    @brief      Backward compatibility: a ``FieldSpec`` that never sets
+                ``question`` renders exactly the historical ``key``-based
+                prompt line.
+    @return     None
+    @exception  AssertionError If the key-based line is not rendered verbatim.
+    """
+    spec = FieldSpec(key="port", description="Port to bind.", example="8080", default="8000")
+    asker, stdout = _console("\n")
+    asker.ask_field(spec)
+    assert "port (e.g. 8080; default: 8000): " in stdout.getvalue()
+
+
 # END OF FILE

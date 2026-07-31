@@ -27,9 +27,6 @@
          what it can verify (the kernel string) and does not claim to confirm
          an Ubuntu major version it cannot see; only a Windows release clearly
          below the supported line is downgraded to ``warn``.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -66,9 +63,6 @@ def _os_guidance(system: str) -> str:
     @return     A short explanation of the supported matrix and the risk of
                 continuing anyway.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return (
         f"WAEGIS is verified on Windows 11 and Ubuntu 22.04+; {system or 'this operating system'} "
@@ -88,9 +82,6 @@ def probe_os_support() -> ProbeFindingRecord:
                 the matrix, ``"warn"`` (never ``"fail"``) outside it, always
                 naming the detected system and release in ``detail``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     system = platform.system()
     release = platform.release()
@@ -114,9 +105,6 @@ def probe_architecture() -> ProbeFindingRecord:
                 ``"ok"`` — architecture is informational, not verified against
                 a support matrix.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     machine = platform.machine() or "unknown"
     return ProbeFindingRecord(name="machine.arch", status="ok", detail=machine, guidance=None)
@@ -138,9 +126,6 @@ def probe_disk_space(path: str | PathLike[str], *, minimum_bytes: int) -> ProbeF
                 ``machine.os``, insufficient disk genuinely blocks deployment).
     @exception  OSError Propagated from ``shutil.disk_usage`` if ``path`` and
                 every ancestor are inaccessible.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     usage = shutil.disk_usage(path)
     free_gib = usage.free / _GIBIBYTE

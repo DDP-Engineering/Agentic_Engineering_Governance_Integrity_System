@@ -224,7 +224,7 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     @return     None
     @exception  AssertionError If any step re-ran or the summary shape drifted.
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     target = tmp_path / "proj"
     home = tmp_path / "home"
@@ -238,7 +238,15 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     envelope = json.loads(second_text)
     assert envelope["command"] == "new" and envelope["status"] == "ok"
     summary = envelope["result"]
-    assert set(summary) == {"mode", "dry_run", "ok", "stopped_at", "results"}
+    assert set(summary) == {
+        "mode",
+        "dry_run",
+        "ok",
+        "stopped_at",
+        "results",
+        "aegis",
+        "repowise",
+    }
     assert summary["mode"] == "new" and summary["ok"] is True and summary["stopped_at"] is None
     # One result per catalog step; net.proxy is filtered out (no clone URL).
     expected_steps = sum(1 for spec in build_new_catalog().ordered() if spec.id != "net.proxy")

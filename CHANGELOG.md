@@ -11,6 +11,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add the copied AEGIS merge/rebase playbook for concurrent `.agentic/` state,
+  including conflict resolution, post-merge staleness remediation, rebase
+  guidance, entry-point links, and an explicit WAEGIS payload-inventory check.
+- Add proportional `--quick` profiles for small fix/change runs. The declared
+  intake, implementation, validation, and delivery sequence preserves all four
+  human closes, journals the collapsed middle stages as `bypassed`, reports
+  absent-stage invariants/audits as not applicable, requires real
+  implementation evidence, and retains full verification for machinery that
+  still runs.
+- Add the optional `[quick.changed_paths]` soft advisory with closed
+  `disabled|advise` modes and a positive threshold. It ships disabled with an
+  effective default of 10 and only recommends restarting a full run when scope
+  grows; it never blocks or routes the active run.
+- Add exact per-step AEGIS waivers through `waive add` and `waive list`.
+  Human-approved reasons, CLI-minted IDs, run-local graph records, separate
+  journal events, and blocker-state digests make each exception visible,
+  auditable, and stale after relevant content changes.
+- Apply active waivers to stage readiness, red-before-green, blocking
+  invariants, enforced gates, traceability, coverage, and working-tree
+  findings while retaining the underlying failure and rendering it as
+  `WAIVED`, never passed. Schema corruption, persistence locks, and stale
+  updates remain non-waivable.
+
 ### Changed
 
 - Canonicalize adoption and upgrade conflict decisions through one shared
@@ -34,6 +59,9 @@ All notable changes to this project will be documented in this file.
   Python/uv/zlib toolchain inputs. One SOURCE_DATE_EPOCH/commit/fallback epoch
   now drives explicit portable ordering, timestamps, modes, ownership, ZIP
   creator/compression metadata, and the filename-free gzip header.
+- Assign explicit plumbing, mutation, and clone timeouts to all WAEGIS Git
+  operations, and centralize repeated probe timeout defaults within their
+  owning modules.
 
 ### Fixed
 
@@ -67,6 +95,12 @@ All notable changes to this project will be documented in this file.
   archive schema, target, safe membership, regular-file type, and digests while
   rejecting duplicates, case collisions, undeclared files, encryption, links,
   and special entries before atomic artifact publication.
+- Reject manual-evidence import before a current AEGIS stage is prepared, bound
+  requirement-ID collision retries, and normalize malformed nested graph
+  records to the graph loader's typed schema-error contract.
+- Preserve the missing-executable probe response while capturing other process
+  launch `OSError` variants, and require the stable AEGIS JSON response keys
+  during WAEGIS smoke verification.
 
 ### Removed
 

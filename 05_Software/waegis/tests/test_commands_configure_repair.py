@@ -26,7 +26,7 @@ from waegis.commands.configure import run_configure
 from waegis.commands.new import (
     NO_ACTIVE_RUN_MARKER,
     WORKFLOW_TOML_RELATIVE_PATH,
-    _amend_manifest_generated,
+    amend_manifest_generated,
     _wrapper_invocation,
 )
 from waegis.commands.repair import run_repair
@@ -95,7 +95,7 @@ def _install(repo: Path) -> Path:
     """@brief Install the current payload with complete generated metadata."""
     payload = locate_payload()
     copy_payload(payload, repo, mode="new")
-    _amend_manifest_generated(repo, answers=_ANSWERS)
+    amend_manifest_generated(repo, answers=_ANSWERS)
     return payload
 
 
@@ -287,7 +287,7 @@ def test_repair_missing_configuration_metadata_routes_to_configure(tmp_path: Pat
     repo = tmp_path / "repo"
     payload = locate_payload()
     copy_payload(payload, repo, mode="new")
-    _amend_manifest_generated(repo)
+    amend_manifest_generated(repo)
     (repo / WORKFLOW_TOML_RELATIVE_PATH).unlink()
     answers = _write_answers(tmp_path / "repair.json", {"run_smoke": False})
     stream = io.StringIO()
@@ -411,6 +411,42 @@ def test_configure_dry_run_reports_pending_recovery_without_mutation(
     assert managed.read_bytes() == b"interrupted"
     assert original != managed.read_bytes()
     assert (transaction.directory / "state.json").read_bytes() == state_before
+
+
+def test_recovery_decline_is_needs_input_in_human_mode_for_repair_and_configure(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief      An interactive human "no" to the transaction-recovery consent
+                stops repair and configure with needs-input and mutates nothing.
+    @details    Pins the shared ``_shared.recover_transactions_or_emit`` decline
+                seam for both maintenance renderers (the third consumer,
+                upgrade's renderer, crashed on this recovery-only plan — see
+                test_commands_upgrade.py's decline regression).
+    @param[in]  tmp_path Isolated repository roots.
+    @return     None
+    @exception  AssertionError If a decline crashes, recovers, or exits wrong.
+    @author     Eng. Dan Dumitru Pasare
+    @date       2026-07-31
+    @version    0.1.0
+    """
+    for run_command in (run_repair, run_configure):
+        repo = tmp_path / f"repo-{run_command.__name__}"
+        repo.mkdir()
+        managed = repo / "managed.txt"
+        managed.write_text("original\n", encoding="utf-8")
+        transaction = FileTransaction.begin(repo, command="test", paths=("managed.txt",))
+        transaction.mark("applying")
+        managed.write_text("interrupted\n", encoding="utf-8")
+        transaction.abandon()
+
+        stream = io.StringIO()
+        code = run_command(repo, stream=stream, stdin=io.StringIO("no\n"))
+
+        assert code == 1, run_command.__name__
+        assert "transaction recovery requires explicit approval" in stream.getvalue()
+        # Nothing was recovered: the interrupted bytes are untouched.
+        assert managed.read_text(encoding="utf-8") == "interrupted\n"
 
 
 def test_configure_reports_untrusted_recovery_state_in_json_and_human_modes(

@@ -37,9 +37,6 @@
          source/lock/runtime/wheel inputs, build epoch, Python/uv versions, and
          compression implementation; it is not promised across different
          Python or zlib implementations.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 0.9.1
 """
 
 # IMPORTS
@@ -187,7 +184,12 @@ class RuntimeLock:
 
 
 def sha256_file(path: Path) -> str:
-    """@brief Calculate the SHA-256 digest of one file without loading it wholly."""
+    """
+    @brief      Calculate the SHA-256 digest of one file without loading it wholly.
+    @param[in]  path File to digest.
+    @return     Lowercase hexadecimal SHA-256 digest.
+    @exception  OSError If the file cannot be opened or read.
+    """
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -217,7 +219,6 @@ def _canonical_relative_name(value: str) -> str:
     @return     The unchanged canonical POSIX path.
     @exception  PackagingError If the path is ambiguous or unsafe on Windows
                 or POSIX.
-    @version    0.1.0
     """
     if not isinstance(value, str) or not value or value in {".", ".."}:
         raise PackagingError(f"unsafe archive path: {value!r}")
@@ -292,7 +293,6 @@ def _normalize_build_epoch(raw: str, *, source: str) -> int:
     @return     An even epoch within ZIP and gzip representable bounds.
     @exception  PackagingError If the value is malformed, negative, or too
                 large for all reproducible archive formats.
-    @version    0.1.0
     """
     if not isinstance(raw, str) or not re.fullmatch(r"[0-9]+", raw):
         raise PackagingError(f"{source} must be a non-negative integer")
@@ -312,7 +312,6 @@ def _canonical_build_epoch() -> int:
     @brief      Select one deterministic epoch for every generated artifact.
     @return     Normalized SOURCE_DATE_EPOCH, Git commit time, or fixed fallback.
     @exception  PackagingError If explicit SOURCE_DATE_EPOCH is malformed.
-    @version    0.1.0
     """
     explicit = os.environ.get("SOURCE_DATE_EPOCH")
     if explicit is not None:
@@ -425,7 +424,6 @@ def _write_deterministic_zip(
     @details    ZIP directory entries are deliberately omitted. Every member is
                 an explicit regular file with fixed UTC timestamp, POSIX mode,
                 creator system, compression method, and compression level.
-    @version    0.1.0
     """
     ordered = sorted(entries, key=lambda entry: entry[0])
     _reject_name_collisions((entry[0] for entry in ordered), context="ZIP")
@@ -478,7 +476,6 @@ def _write_deterministic_tar_gz(
     @details    Root and source directories are explicit sorted entries; files
                 are regular entries. Links and special filesystem objects are
                 rejected before publication.
-    @version    0.1.0
     """
     archive_root = _canonical_relative_name(archive_root)
     paths: list[tuple[str, Path | None]] = [(archive_root, None)]
@@ -549,9 +546,6 @@ def _copy_tree(source: Path, destination: Path) -> None:
                 exclusions as the deployment copier.
     @exception  PackagingError If the source is missing or contains a link or
                 unsupported filesystem entry.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.4.0
     """
     if not source.is_dir():
         raise PackagingError(f"release input directory does not exist: {source}")
@@ -590,9 +584,6 @@ def _load_lock(path: Path = LOCK_FILE) -> RuntimeLock:
     @return     Strictly validated runtime-lock model.
     @exception  PackagingError If the file, JSON, schema, release, targets,
                 assets, digests, or optional sizes are invalid.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-30
-    @version    0.3.0
     """
     try:
         if not path.is_file() or path.is_symlink():
@@ -712,9 +703,6 @@ def _download_runtime(
     @return     Verified runtime archive.
     @exception  PackagingError If the target is unpinned, unavailable, or has
                 the wrong digest.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-30
-    @version    0.3.0
     """
     lock = _load_lock(lock_file)
     try:
@@ -787,9 +775,6 @@ def _extract_runtime(archive_path: Path, destination: Path) -> frozenset[str]:
     @return     Runtime-relative POSIX paths that require execute permission.
     @exception  PackagingError If an archive entry or link is unsafe or
                 unsupported.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.3.0
     """
     try:
         if destination.is_symlink() or (
@@ -971,11 +956,9 @@ def _linux_tar_filter(
     @param[in]  member Tar entry produced from the staged application tree.
     @param[in]  root_name Top-level application directory in the tar archive.
     @param[in]  executable_paths Root-relative files requiring execute bits.
+    @param[in]  epoch Normalized build epoch applied as the entry mtime.
     @return     The same tar entry with a deterministic POSIX mode.
     @exception  None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.3.0
     """
     prefix = f"{root_name}/"
     relative = member.name[len(prefix) :] if member.name.startswith(prefix) else ""
@@ -993,9 +976,7 @@ def _linux_tar_filter(
 
 
 def _find_interpreter(runtime_root: Path, target: str) -> Path:
-    """@brief Locate the embedded interpreter inside an extracted runtime.
-    @version 0.2.0
-    """
+    """@brief Locate the embedded interpreter inside an extracted runtime."""
     names = ("python.exe",) if target == "windows-x64" else ("python3", "python")
     candidates = [path for name in names for path in runtime_root.rglob(name) if path.is_file()]
     if not candidates:
@@ -1098,11 +1079,11 @@ def _write_repowise_source_archive(
                 reads repository blobs and preserves tracked executable modes.
     @param[in]  source_info Validated source root, tag, commit, and tracked set.
     @param[in]  output Destination source ZIP.
+    @param[in]  epoch Normalized build epoch; derived automatically if omitted.
     @return     None.
-    @exception  PackagingError If Git cannot archive the validated commit.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-30
-    @version    0.3.0
+    @exception  PackagingError If Git cannot archive the validated commit, the
+                archive contains an unsupported entry, or the resulting source
+                archive is not created.
     """
     source = Path(source_info["root"])
     descriptor, raw_archive = _unique_temporary_path(output.with_suffix(".tar"))
@@ -1238,9 +1219,7 @@ def _repowise_launcher(target: str, relative_python: str) -> tuple[str, str]:
 
 
 def _repowise_file_table(root: Path) -> list[dict[str, Any]]:
-    """@brief Build the sidecar manifest's sorted file hash table.
-    @version 0.2.0
-    """
+    """@brief Build the sidecar manifest's sorted file hash table."""
     paths = sorted(
         (
             path
@@ -1275,9 +1254,7 @@ def _repowise_tree_digest(files: list[dict[str, Any]]) -> tuple[str, int]:
 
 
 def _repowise_packaged_size(root: Path, files: list[dict[str, Any]]) -> int:
-    """@brief Estimate compressed sidecar bytes without archive-header overhead.
-    @version 1.0.0
-    """
+    """@brief Estimate compressed sidecar bytes without archive-header overhead."""
     compressed = sum(
         len(zlib.compress((root / str(item["path"])).read_bytes(), level=9))
         for item in files
@@ -1287,9 +1264,7 @@ def _repowise_packaged_size(root: Path, files: list[dict[str, Any]]) -> int:
 
 
 def _third_party_notices(site_packages: Path) -> str:
-    """@brief Derive a compact installed-distribution license notice.
-    @version 0.2.0
-    """
+    """@brief Derive a compact installed-distribution license notice."""
     records = []
     for metadata in sorted(
         site_packages.glob("*.dist-info/METADATA"),
@@ -1367,9 +1342,7 @@ def _build_repowise_bundle(
     offline: bool,
     epoch: int,
 ) -> frozenset[str]:
-    """@brief Assemble one locked, native-wheel-only RepoWise Complete sidecar.
-    @version 0.2.0
-    """
+    """@brief Assemble one locked, native-wheel-only RepoWise Complete sidecar."""
     current = (
         "windows-x64"
         if os.name == "nt"
@@ -1537,9 +1510,7 @@ def _build_repowise_bundle(
 
 
 def _tree_manifest(root: Path) -> dict[str, str]:
-    """@brief Hash every regular staged file using portable relative names.
-    @version 0.2.0
-    """
+    """@brief Hash every regular staged file using portable relative names."""
     paths = sorted(
         (path for path in root.rglob("*") if path.is_file()),
         key=lambda path: path.relative_to(root).as_posix(),
@@ -1551,9 +1522,7 @@ def _tree_manifest(root: Path) -> dict[str, str]:
 
 
 def _write_archive_manifest(root: Path, *, target: str) -> None:
-    """@brief Write the internal application-archive file manifest.
-    @version 0.2.0
-    """
+    """@brief Write the internal application-archive file manifest."""
     if target not in SUPPORTED_RUNTIME_TARGETS:
         raise PackagingError(f"unsupported internal archive target: {target!r}")
     payload = {"schema_version": 1, "target": target, "files": _tree_manifest(root)}
@@ -1634,7 +1603,6 @@ def _verify_internal_zip(path: Path, *, expected_target: str | None = None) -> N
     @brief      Verify exact regular-file membership and digests in one ZIP.
     @details    Safe directory entries are allowed and ignored. The manifest is
                 the sole regular member omitted from its own ``files`` table.
-    @version    0.2.0
     """
     try:
         with zipfile.ZipFile(path) as bundle:
@@ -1711,7 +1679,6 @@ def _verify_internal_tar(path: Path, *, expected_target: str | None = None) -> N
     @brief      Verify exact regular-file membership and digests in one tar.gz.
     @details    Safe directory entries are allowed and ignored. Links, devices,
                 FIFOs, and every other non-regular payload type are rejected.
-    @version    0.2.0
     """
     try:
         with tarfile.open(path, "r:gz") as bundle:
@@ -1786,9 +1753,6 @@ def _read_complete_bundle_manifest(path: Path) -> dict[str, Any]:
     @return     Parsed RepoWise bundle manifest.
     @exception  PackagingError If the archive or sidecar manifest is missing
                 or malformed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.1.0
     """
     suffix = path.name
     try:
@@ -1806,7 +1770,14 @@ def _read_complete_bundle_manifest(path: Path) -> dict[str, Any]:
                     raise PackagingError(
                         f"Complete archive has no RepoWise bundle manifest: {path.name}"
                     )
-                document = json.loads(bundle.read(member))
+                if bundle.getinfo(member).file_size > MAX_MANIFEST_BYTES:
+                    raise PackagingError(
+                        f"RepoWise bundle manifest exceeds size bound: {path.name}"
+                    )
+                document = _strict_json_loads(
+                    bundle.read(member),
+                    context=f"{path.name}:{member}",
+                )
         elif suffix.endswith("-linux-x64.tar.gz"):
             with tarfile.open(path, "r:gz") as bundle:
                 member = next(
@@ -1822,7 +1793,14 @@ def _read_complete_bundle_manifest(path: Path) -> dict[str, Any]:
                     raise PackagingError(
                         f"Complete archive has no RepoWise bundle manifest: {path.name}"
                     )
-                document = json.loads(source.read())
+                if member is not None and member.size > MAX_MANIFEST_BYTES:
+                    raise PackagingError(
+                        f"RepoWise bundle manifest exceeds size bound: {path.name}"
+                    )
+                document = _strict_json_loads(
+                    source.read(MAX_MANIFEST_BYTES + 1),
+                    context=f"{path.name}:{member.name}",
+                )
         else:
             raise PackagingError(f"unsupported Complete archive: {path.name}")
     except (OSError, tarfile.TarError, zipfile.BadZipFile, json.JSONDecodeError) as exc:
@@ -1848,9 +1826,6 @@ def _validate_complete_companion(
     @return     None.
     @exception  PackagingError If edition, version, platform, tag, or commit
                 differs from the current native build.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.2.0
     """
     document = _read_complete_bundle_manifest(path)
     if (
@@ -1921,9 +1896,7 @@ def _verify_zipapp(path: Path) -> None:
 
 
 def _build_zipapp(output: Path, *, epoch: int) -> Path:
-    """@brief Build the deterministic standalone payload-bundled WAEGIS zipapp.
-    @version 0.2.0
-    """
+    """@brief Build the deterministic standalone payload-bundled WAEGIS zipapp."""
     with tempfile.TemporaryDirectory(prefix="waegis-pyz-") as temporary_text:
         staging = Path(temporary_text)
         _copy_tree(SOURCE_ROOT / "waegis", staging / "waegis")
@@ -2003,15 +1976,15 @@ def _build_application_archive(
     @param[in]  output Final application archive path.
     @param[in]  runtime_cache Cache containing or receiving pinned runtimes.
     @param[in]  offline Refuse network access when true.
+    @param[in]  epoch Normalized ``SOURCE_DATE_EPOCH`` applied to every entry.
+    @param[in]  repowise_source Optional validated RepoWise source identity;
+                when present, a RepoWise Complete sidecar is embedded.
     @return     Final archive path.
     @details    Launcher text preserves its declared newline convention on
                 every host; Linux tar modes are normalized independently of
                 Windows filesystem semantics.
     @exception  PackagingError If runtime acquisition, staging, or archive
                 validation inputs fail.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.3.0
     """
     runtime_archive = _download_runtime(target, runtime_cache, offline=offline)
     with tempfile.TemporaryDirectory(prefix=f"waegis-{target}-") as temporary_text:
@@ -2112,9 +2085,6 @@ def _build_release_impl(
                 source used for the current native build.
     @exception  PackagingError If source, native runtime, archive, or companion
                 validation fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.7.0
     """
     wizard_version = _wizard_version()
     source_info = (
@@ -2249,7 +2219,6 @@ def build_release(
     @return     Paths represented by deterministic release metadata.
     @exception  PackagingError For every ordinary input, filesystem, tool,
                 download, staging, archive, or publication failure.
-    @version    0.1.0
     """
     try:
         return _build_release_impl(
@@ -2273,9 +2242,6 @@ def _verify_release_impl(output: Path) -> None:
     @return     None.
     @exception  PackagingError If metadata, hashes, archive contents, or
                 Complete bundle identity validation fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.7.0
     """
     manifest_path = output / "release-manifest.json"
     try:
@@ -2396,7 +2362,6 @@ def verify_release(output: Path) -> None:
     @brief      Verify release metadata and every represented artifact.
     @exception  PackagingError For every ordinary metadata, filesystem, or
                 archive failure.
-    @version    0.1.0
     """
     try:
         _verify_release_impl(output)

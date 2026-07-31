@@ -11,9 +11,6 @@
 @brief Shared fail-closed mutation approval contract.
 @details Mutating public entry points use this helper after validation and plan
          construction but before journals, transactions, branches, or writes.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 from __future__ import annotations
@@ -53,8 +50,6 @@ def mutation_consent(
     @param[in] prompt Mutation-specific confirmation text.
     @return Approved, declined, or needs-input.
     @exception None
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
     if not mutation_planned:
         return ConsentDecision.APPROVED

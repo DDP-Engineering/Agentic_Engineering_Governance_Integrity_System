@@ -11,9 +11,6 @@
 @brief Cross-platform atomic file replacement and cooperative process locking.
 @details Provides the small stdlib-only persistence contract shared by AEGIS
          graph, journal, requirement, and integration state writers.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 1.0.0
 """
 
 # IMPORTS
@@ -23,6 +20,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from hashlib import sha256
+import errno
 import json
 import os
 from pathlib import Path
@@ -48,14 +46,12 @@ LOCK_ROOT = Path(".agentic") / ".workspace" / "locks"
 class PersistenceError(ValueError):
     """
     @brief Base class for actionable AEGIS persistence failures.
-    @version 1.0.0
     """
 
 
 class LockTimeoutError(PersistenceError):
     """
     @brief Report a bounded wait that could not acquire a live OS file lock.
-    @version 1.0.0
     """
 
     code = "PERSISTENCE-LOCK-TIMEOUT"
@@ -65,7 +61,6 @@ class LockTimeoutError(PersistenceError):
         @brief Initialize one actionable lock-timeout result.
         @param[in] path Persistent lock-file path.
         @param[in] timeout Maximum wait in seconds.
-        @version 1.0.0
         """
         self.path = path
         self.timeout = timeout
@@ -80,7 +75,6 @@ class LockTimeoutError(PersistenceError):
 class _HeldLock:
     """
     @brief Track one outer OS lock and its same-thread nesting depth.
-    @version 1.0.0
     """
 
     handle: BinaryIO
@@ -94,7 +88,6 @@ class FileLock:
              releases the operating-system lock, so an unlocked stale file is
              acquired normally and is never deleted based on uncertain owner
              metadata.
-    @version 1.0.0
     """
 
     def __init__(
@@ -107,7 +100,6 @@ class FileLock:
         @brief Configure one bounded, reentrant lock acquisition.
         @param[in] path Lock-file path.
         @param[in] timeout Maximum wait in seconds.
-        @version 1.0.0
         """
         self.path = path.resolve()
         self.timeout = timeout
@@ -118,7 +110,6 @@ class FileLock:
     def __enter__(self) -> "FileLock":
         """
         @brief Acquire the configured lock and return this lock object.
-        @version 1.0.0
         """
         self.acquire()
         return self
@@ -131,7 +122,6 @@ class FileLock:
     ) -> None:
         """
         @brief Release one acquisition depth.
-        @version 1.0.0
         """
         self.release()
 
@@ -140,7 +130,6 @@ class FileLock:
         @brief Acquire a process-local mutex and operating-system file lock.
         @exception LockTimeoutError If the bounded wait expires.
         @exception PersistenceError If the operating-system lock fails.
-        @version 1.0.0
         """
         if self._acquired:
             return
@@ -196,7 +185,6 @@ class FileLock:
     def release(self) -> None:
         """
         @brief Release one nesting depth and the outer OS lock when appropriate.
-        @version 1.0.0
         """
         if not self._acquired:
             return
@@ -226,7 +214,6 @@ def scoped_lock_path(repo_root: Path, namespace: str, identity: str) -> Path:
     @param[in] namespace Stable state category such as runs or requirements.
     @param[in] identity Run or record identity scoped within the category.
     @return Persistent worktree-local lock-file path.
-    @version 1.0.0
     """
     digest = sha256(identity.encode("utf-8")).hexdigest()
     return repo_root / LOCK_ROOT / namespace / f"{digest}.lock"
@@ -244,7 +231,6 @@ def locked(
     @param[in] timeout Maximum wait in seconds.
     @return Iterator yielding the acquired lock.
     @exception LockTimeoutError If the bounded wait expires.
-    @version 1.0.0
     """
     lock = FileLock(path, timeout=timeout)
     with lock:
@@ -258,7 +244,6 @@ def create_temporary_bytes(path: Path, content: bytes) -> Path:
     @param[in] content Complete bytes to persist.
     @return Created temporary path ready for publication.
     @exception OSError If creation or persistence fails.
-    @version 1.0.0
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, name = tempfile.mkstemp(
@@ -284,7 +269,7 @@ def create_temporary_text(path: Path, content: str) -> Path:
     @param[in] path Final destination.
     @param[in] content Complete text to persist with caller-selected newlines.
     @return Created temporary path ready for publication.
-    @version 1.0.0
+    @exception OSError If creation or persistence fails.
     """
     return create_temporary_bytes(path, content.encode("utf-8"))
 
@@ -296,7 +281,6 @@ def replace_temporary(temporary: Path, path: Path) -> None:
     @param[in] path Final destination.
     @return None.
     @exception OSError If atomic replacement fails.
-    @version 1.0.0
     """
     os.replace(temporary, path)
     sync_directory(path.parent)
@@ -309,7 +293,6 @@ def atomic_write_bytes(path: Path, content: bytes) -> None:
     @param[in] content Complete bytes to persist.
     @return None.
     @exception OSError If persistence or replacement fails.
-    @version 1.0.0
     """
     temporary = create_temporary_bytes(path, content)
     try:
@@ -324,7 +307,7 @@ def atomic_write_text(path: Path, content: str) -> None:
     @param[in] path Final destination.
     @param[in] content Complete text to persist.
     @return None.
-    @version 1.0.0
+    @exception OSError If persistence or replacement fails.
     """
     atomic_write_bytes(path, content.encode("utf-8"))
 
@@ -335,7 +318,7 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     @param[in] path Final destination.
     @param[in] data JSON-compatible mapping.
     @return None.
-    @version 1.0.0
+    @exception OSError If persistence or replacement fails.
     """
     atomic_write_text(
         path,
@@ -350,7 +333,6 @@ def sync_directory(directory: Path) -> None:
     @return None.
     @details Windows does not expose a portable stdlib directory-fsync path;
              unsupported filesystems are tolerated after file fsync and replace.
-    @version 1.0.0
     """
     if os.name == "nt":
         return
@@ -378,7 +360,6 @@ _THREAD_STATE = threading.local()
 def _thread_lock_for(path: Path) -> threading.RLock:
     """
     @brief Return the process-local reentrant mutex for one lock path.
-    @version 1.0.0
     """
     key = str(path)
     with _THREAD_LOCKS_GUARD:
@@ -388,7 +369,6 @@ def _thread_lock_for(path: Path) -> threading.RLock:
 def _held_locks() -> dict[str, _HeldLock]:
     """
     @brief Return same-thread OS lock state.
-    @version 1.0.0
     """
     held = getattr(_THREAD_STATE, "held", None)
     if held is None:
@@ -400,7 +380,6 @@ def _held_locks() -> dict[str, _HeldLock]:
 def _ensure_lock_byte(handle: BinaryIO) -> None:
     """
     @brief Ensure Windows can lock the first byte of a new lock file.
-    @version 1.0.0
     """
     handle.seek(0, os.SEEK_END)
     if handle.tell() == 0:
@@ -413,7 +392,6 @@ def _ensure_lock_byte(handle: BinaryIO) -> None:
 def _acquire_os_lock(handle: BinaryIO) -> None:
     """
     @brief Attempt one non-blocking platform lock acquisition.
-    @version 1.0.0
     """
     handle.seek(0)
     if os.name == "nt":
@@ -425,7 +403,6 @@ def _acquire_os_lock(handle: BinaryIO) -> None:
 def _release_os_lock(handle: BinaryIO) -> None:
     """
     @brief Release one platform lock.
-    @version 1.0.0
     """
     handle.seek(0)
     if os.name == "nt":
@@ -437,9 +414,16 @@ def _release_os_lock(handle: BinaryIO) -> None:
 def _lock_is_busy(exc: OSError) -> bool:
     """
     @brief Identify platform error codes used for non-blocking contention.
-    @version 1.0.0
+    @details ``EACCES`` is included because Windows reports lock contention as
+             a permission error; a genuine permission problem therefore spins
+             until the lock timeout before surfacing. Documented trade-off.
     """
-    return exc.errno in {11, 13, 35, 36}
+    return exc.errno in {
+        errno.EAGAIN,
+        errno.EACCES,
+        errno.EDEADLK,
+        getattr(errno, "EWOULDBLOCK", errno.EAGAIN),
+    }
 
 
 # END OF FILE

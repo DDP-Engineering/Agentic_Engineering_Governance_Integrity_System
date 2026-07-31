@@ -18,7 +18,7 @@
          prefix and the three ``verify.*`` smoke steps are reused as the *same*
          StepSpec objects imported from :mod:`waegis.commands.new`
          (``COMMON_PREFIX_STEPS``, ``VERIFY_STEPS``, ``GATES_STEP``), as are the
-         mode-agnostic helpers (``_target``/``_runner``/``_ask_field``/…), the
+         mode-agnostic helpers (``get_target``/``get_runner``/``ask_field``/…), the
          shared ``deploy.workflow-toml`` detect/verify/on_fail, the
          manifest-amendment helper, and the console/journal command
          infrastructure. Only the repo-analysis, conflict-copy, and
@@ -56,9 +56,6 @@
          :data:`waegis.commands.new.COMMON_PREFIX_STEPS`, so ``ADOPT_STEP_IDS``
          gains it automatically between ``prereq.git`` and
          ``prereq.git-identity`` with no new code here.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.5.0
 """
 
 # IMPORTS
@@ -67,47 +64,33 @@ from __future__ import annotations
 
 import io
 import json
+from types import MappingProxyType
 import os
 import re
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import IO, Any, Mapping
 
-from ..consent import ConsentDecision, mutation_consent
 from ..engine import (
     Automation,
     Catalog,
     EngineContext,
     EngineError,
-    Journal,
     Phase,
     Remediation,
     StepSpec,
     run as engine_run,
-    waegis_home,
 )
-from ..io.answers import AnswersFileError, load_answers_file, unknown_keys
-from ..io.console import plan_preview_json, run_summary_json
-from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
-from ..io.prompts import (
-    ConsoleAsker,
-    FieldSpec,
-    PromptsError,
-    ScriptedAnswerError,
-    ScriptedAsker,
-    ValidationError,
-)
-from ..lifecycle import build_journal_fingerprints, find_resume_journal, replay_answers
+from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_VALIDATION
+from ..io.prompts import FieldSpec, PromptsError, ScriptedAnswerError, ValidationError
 from ..payload.copier import (
     SIDECAR_SUFFIX,
-    CopierError,
     ConflictDecision,
     PayloadConflict,
     copy_payload,
-    inspect_payload,
     normalize_conflict_decision_value,
 )
-from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
+from ..payload.locate import read_payload_version
 from ..payload.manifest import ManifestState, compute_drift, hash_file, load_manifest
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo.analyze import (
@@ -126,23 +109,30 @@ from ..repo.gitops import (
     status_porcelain,
     validate_branch_name,
 )
-from ..repo.workflow_toml import WORKFLOW_FIELD_SPECS, generate_workflow_toml
-from ..repowise import (
-    REPOWISE_ANSWER_KEYS,
-    RepoWiseError,
-    commit_repowise_configuration,
-    lifecycle_repowise,
+from ..repo.workflow_toml import GATE_ORDER, WORKFLOW_FIELD_SPECS, generate_workflow_toml
+from ..transaction import payload_transaction
+from ..version import WIZARD_VERSION
+from ._shared import (
+    CommandOptions,
+    AGENTIC_DIR_RELATIVE_PATH,
+    PAYLOAD_VALIDATION_ERRORS,
+    WORKFLOW_TOML_RELATIVE_PATH,
+    ConsoleRunSink,
+    JsonRunSink,
+    load_wizard_answers,
+    locate_validated_payload,
+    repowise_additional_mutations,
+    select_wizard_askers,
+    warn_unknown_wizard_keys,
+    wizard_fail,
+    wizard_journal_factory,
+    wizard_note,
+    wizard_postrun_and_emit,
+    wizard_recovery_preamble,
+    wizard_resume_setup,
 )
-from ..transaction import (
-    TransactionError,
-    payload_transaction,
-    pending_transaction_ids,
-    recover_incomplete_transactions,
-)
-from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
 from .new import (
     COMMON_PREFIX_STEPS,
-    EXIT_OK,
     GATES_STEP,
     OTHER_LANGUAGE_FIELD_SPECS,
     SHARED_ANSWERS,
@@ -155,20 +145,15 @@ from .new import (
     SHARED_TRANSPORT,
     SHARED_WORKFLOW_ROOTS,
     VERIFY_STEPS,
-    WORKFLOW_TOML_RELATIVE_PATH,
-    _amend_manifest_generated,
-    _answers,
-    _ask_field,
-    _ConsoleRunSink,
-    _detect_workflow_toml,
-    _HybridAsker,
-    _JsonRunSink,
-    _on_fail_workflow_toml,
-    _payload_root,
-    _render_human_outcome,
-    _runner,
-    _target,
-    _verify_workflow_toml,
+    amend_manifest_generated,
+    ask_field,
+    detect_workflow_toml,
+    get_answers,
+    get_payload_root,
+    get_runner,
+    get_target,
+    on_fail_workflow_toml,
+    verify_workflow_toml,
 )
 
 # CONSTANTS
@@ -189,16 +174,12 @@ SHARED_ADOPTION_COPY_RESULT = "adoption_copy_result"
 #        requirement — the payload is already on disk either way).
 SHARED_ADOPTION_COMMIT_SKIPPED = "adoption_commit_skipped"
 
-# @brief Repo-relative directory whose presence marks a prior/legacy install.
-AGENTIC_DIR_NAME = ".agentic"
-
 # @brief Default adoption branch (plan §8.2; override via the adoption_branch
 #        answer).
 DEFAULT_ADOPTION_BRANCH = "chore/aegis-adoption"
 
 # @brief Templated adoption-commit message (plan §8.2 repo.adoption-commit).
 ADOPTION_COMMIT_MESSAGE = f"Adopt AEGIS via WAEGIS {WIZARD_VERSION}"
-REPOWISE_COMMIT_MESSAGE = f"Configure RepoWise via WAEGIS {WIZARD_VERSION}"
 
 # @brief The four distinct routes repo.prior-install can take (plan §8.2).
 PRIOR_INSTALL_ROUTES: frozenset[str] = frozenset({"none", "current", "older", "legacy"})
@@ -249,9 +230,6 @@ def _normalize_conflict_table(raw: Any) -> dict[str, str]:
                 ``write-new``).
     @exception  ValueError If the value is not a mapping or holds an unknown
                 decision (the message names the offending path).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
     """
     if isinstance(raw, str):
         try:
@@ -278,19 +256,26 @@ def _normalize_conflict_table(raw: Any) -> dict[str, str]:
 ADOPT_EXTRA_FIELD_SPECS: tuple[FieldSpec, ...] = (
     FieldSpec(
         key="adoption_branch",
-        description="Branch the adoption changes are committed on.",
+        question="Which branch should the adoption changes be committed on?",
+        description="The AEGIS payload and generated config are committed on this branch, kept separable from your own work.",
         example=DEFAULT_ADOPTION_BRANCH,
         default=DEFAULT_ADOPTION_BRANCH,
         validator=validate_branch_name,
     ),
     FieldSpec(
         key="adoption_conflicts",
+        question="Per-file conflict decisions for payload files that already exist and differ?",
         description=(
-            "Per-file decisions for payload files that already exist and differ, "
-            "as a mapping of repo-relative path to keep-local/take-payload/write-new."
+            "Nothing you own is ever silently overwritten: supply keep-local "
+            "(keep yours), take-payload (overwrite with the payload), or "
+            "write-new (keep yours and write the payload beside it as a .new "
+            "file) per repo-relative path; unlisted conflicts are still asked "
+            "interactively."
         ),
         example='{"CLAUDE.md": "keep-local"}',
-        default={},
+        # Immutable so the shared spec's default can never be mutated in place;
+        # the validator returns a fresh dict on every normalize.
+        default=MappingProxyType({}),
         validator=_normalize_conflict_table,
     ),
 )
@@ -319,14 +304,11 @@ def _analysis(ctx: EngineContext) -> RepoAnalysis:
     @param[in]  ctx Active engine context.
     @return     The :class:`RepoAnalysis`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     cached = ctx.shared.get(SHARED_ANALYSIS)
     if cached is not None:
         return cached
-    analysis = analyze_repo(_target(ctx), runner=_runner(ctx))
+    analysis = analyze_repo(get_target(ctx), runner=get_runner(ctx))
     ctx.shared[SHARED_ANALYSIS] = analysis
     return analysis
 
@@ -338,11 +320,8 @@ def _current_head(ctx: EngineContext) -> str:
     @return     The HEAD hash, or ``""`` (no commits / not a work tree) — used as
                 the analysis cache key.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    return head_commit(_runner(ctx), _target(ctx)) or ""
+    return head_commit(get_runner(ctx), get_target(ctx)) or ""
 
 
 def _proposed_gate_cmds(candidates: Any) -> list[list[str]]:
@@ -353,9 +332,6 @@ def _proposed_gate_cmds(candidates: Any) -> list[list[str]]:
                 manual-review candidates (``argv is None``) are dropped (their
                 provenance is still surfaced in the seeded field description).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return [list(candidate.argv) for candidate in candidates if candidate.argv is not None]
 
@@ -367,9 +343,6 @@ def _gate_provenance(candidates: Any) -> str:
     @return     A ``"file (detail); …"`` string (with a manual-review marker
                 where applicable), or ``""`` when there are no candidates.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     parts: list[str] = []
     for candidate in candidates:
@@ -395,9 +368,6 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
     @param[in]  analysis The repo analysis, or ``None``.
     @return     The seeded FieldSpec list, in ``WORKFLOW_FIELD_SPECS`` order.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
     """
     if analysis is not None:
         source = [proposal.path for proposal in analysis.source_roots]
@@ -406,22 +376,22 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
             name: _proposed_gate_cmds(
                 getattr(analysis, f"gate_{name}_cmds")
             )
-            for name in ("build", "typecheck", "lint", "test", "security")
+            for name in GATE_ORDER
         }
         language = analysis.language
         provenance = {
             name: _gate_provenance(
                 getattr(analysis, f"gate_{name}_cmds")
             )
-            for name in ("build", "typecheck", "lint", "test", "security")
+            for name in GATE_ORDER
         }
     else:
         source, tests = [], []
         gate_proposals = {
-            name: [] for name in ("build", "typecheck", "lint", "test", "security")
+            name: [] for name in GATE_ORDER
         }
         provenance = {
-            name: "" for name in ("build", "typecheck", "lint", "test", "security")
+            name: "" for name in GATE_ORDER
         }
         language = "other"
 
@@ -431,13 +401,13 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
         "language": language,
         **{
             f"gate_{name}_cmds": gate_proposals[name]
-            for name in ("build", "typecheck", "lint", "test", "security")
+            for name in GATE_ORDER
         },
         **{
             f"gate_{name}_mode": (
                 "enforce" if gate_proposals[name] else "disabled"
             )
-            for name in ("build", "typecheck", "lint", "test", "security")
+            for name in GATE_ORDER
         },
         "stage_form_retention": "discard",
         "check_execution": "external",
@@ -447,7 +417,7 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
     for spec in WORKFLOW_FIELD_SPECS:
         proposed = proposals.get(spec.key, spec.default)
         description = spec.description
-        for name in ("build", "typecheck", "lint", "test", "security"):
+        for name in GATE_ORDER:
             if spec.key == f"gate_{name}_cmds" and provenance[name]:
                 description = f"{description}\nProposed from: {provenance[name]}"
         seeded.append(replace(spec, description=description, default=proposed))
@@ -468,9 +438,6 @@ def _missing_required_adopt_keys(analysis: RepoAnalysis | None, answers: Mapping
     @param[in]  answers Supplied answers (drives the ``other`` branch).
     @return     Missing required keys, in FieldSpec order.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     missing = [
         spec.key
@@ -492,9 +459,6 @@ def _validate_supplied_adopt_answers(answers: Mapping[str, Any]) -> None:
     @return     None
     @exception  ScriptedAnswerError If one or more supplied values fail their
                 FieldSpec validator; the message names every offending key.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     errors: dict[str, str] = {}
     for spec in ADOPT_FIELD_SPECS:
@@ -522,9 +486,6 @@ def _resolved_analysis_answers(ctx: EngineContext) -> dict[str, Any]:
                 ``other`` extras, ``None`` when unused).
     @exception  EngineError If a required field has neither a confirmed answer
                 nor a proposal.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     answers = ctx.shared.get(SHARED_ANALYSIS_ANSWERS)
     if answers:
@@ -547,11 +508,8 @@ def _adoption_branch(ctx: EngineContext) -> str:
     @param[in]  ctx Active engine context.
     @return     The ``adoption_branch`` answer, or :data:`DEFAULT_ADOPTION_BRANCH`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    return str(_answers(ctx).get("adoption_branch") or "").strip() or DEFAULT_ADOPTION_BRANCH
+    return str(get_answers(ctx).get("adoption_branch") or "").strip() or DEFAULT_ADOPTION_BRANCH
 
 
 def _adoption_operator_prompt(target: Path) -> str | None:
@@ -565,9 +523,6 @@ def _adoption_operator_prompt(target: Path) -> str | None:
     @param[in]  target Target repository root.
     @return     The prompt text, or ``None`` when the file or block is absent.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     cheatsheet = target / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md"
     try:
@@ -592,12 +547,9 @@ def _act_validate_existing(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If the operator declines to adopt.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     if not is_work_tree(runner, target):
         ctx.note(f"{target} is not a git work tree")
         return
@@ -623,11 +575,8 @@ def _verify_validate_existing(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when ``git rev-parse --is-inside-work-tree`` confirms it.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    return is_work_tree(_runner(ctx), _target(ctx))
+    return is_work_tree(get_runner(ctx), get_target(ctx))
 
 
 def _on_fail_validate_existing(ctx: EngineContext) -> Remediation:
@@ -636,9 +585,6 @@ def _on_fail_validate_existing(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="TARGET is not an existing git repository (or the operator declined to adopt it).",
@@ -658,9 +604,6 @@ def _record_route(ctx: EngineContext, route: str) -> None:
     @param[in]  route One of :data:`PRIOR_INSTALL_ROUTES`.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     ctx.shared[SHARED_PRIOR_INSTALL_ROUTE] = route
     ctx.record_answer("prior_install_route", route)
@@ -683,14 +626,11 @@ def _act_prior_install(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If the operator chooses to stop.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    target = _target(ctx)
-    agentic_present = (target / AGENTIC_DIR_NAME).is_dir()
+    target = get_target(ctx)
+    agentic_present = (target / AGENTIC_DIR_RELATIVE_PATH).is_dir()
     load = load_manifest(target)
-    current_version = read_payload_version(_payload_root(ctx))
+    current_version = read_payload_version(get_payload_root(ctx))
 
     if load.state is ManifestState.VALID and load.manifest is not None:
         installed = load.manifest.payload_version
@@ -741,9 +681,6 @@ def _verify_prior_install(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the recorded route is one of the four known values.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return ctx.shared.get(SHARED_PRIOR_INSTALL_ROUTE) in PRIOR_INSTALL_ROUTES
 
@@ -754,9 +691,6 @@ def _on_fail_prior_install(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text, pointing at doctor/upgrade per the route.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     route = ctx.shared.get(SHARED_PRIOR_INSTALL_ROUTE)
     if route == "current":
@@ -782,9 +716,6 @@ def _detect_analyze_repo(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when confirmed answers exist for the current HEAD.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     if not ctx.shared.get(SHARED_ANALYSIS_ANSWERS):
         return False
@@ -805,9 +736,6 @@ def _act_analyze_repo(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  waegis.io.prompts.PromptsError On a missing/invalid scripted answer.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     analysis = _analysis(ctx)
     buffer = io.StringIO()
@@ -818,13 +746,13 @@ def _act_analyze_repo(ctx: EngineContext) -> None:
 
     collected: dict[str, Any] = {}
     for spec in _seeded_workflow_specs(analysis):
-        collected[spec.key] = _ask_field(ctx, spec)
+        collected[spec.key] = ask_field(ctx, spec)
         ctx.record_answer(spec.key, collected[spec.key])
     collected["source_extensions"] = None
     collected["test_file_patterns"] = None
     if collected["language"] == "other":
         for spec in OTHER_LANGUAGE_FIELD_SPECS:
-            collected[spec.key] = _ask_field(ctx, spec)
+            collected[spec.key] = ask_field(ctx, spec)
             ctx.record_answer(spec.key, collected[spec.key])
 
     ctx.shared[SHARED_ANALYSIS_ANSWERS] = collected
@@ -838,9 +766,6 @@ def _verify_analyze_repo(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the confirmed answers include a language.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     answers = ctx.shared.get(SHARED_ANALYSIS_ANSWERS)
     return bool(answers) and "language" in answers
@@ -859,32 +784,16 @@ def _detect_adoption_copy(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when a valid manifest is present with clean drift.
     @exception  OSError If a recorded file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    load = load_manifest(_target(ctx))
+    load = load_manifest(get_target(ctx))
     if load.state is not ManifestState.VALID or load.manifest is None:
         return False
-    drift = compute_drift(_target(ctx), load.manifest)
+    drift = compute_drift(get_target(ctx), load.manifest)
     if drift.modified or drift.missing:
         ctx.note(f"manifest present but drifted: {len(drift.modified)} modified, {len(drift.missing)} missing")
         return False
     ctx.note("install manifest present and every recorded file hash-matches (already adopted)")
     return True
-
-
-def _normalize_decision_value(raw: Any) -> str:
-    """
-    @brief      Validate a single conflict-decision answer string.
-    @param[in]  raw Candidate decision value.
-    @return     The canonical decision value.
-    @exception  ValueError If the value is not a known decision.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
-    """
-    return normalize_conflict_decision_value(raw)
 
 
 def _prompt_conflict(ctx: EngineContext, conflict: PayloadConflict) -> ConflictDecision:
@@ -895,9 +804,6 @@ def _prompt_conflict(ctx: EngineContext, conflict: PayloadConflict) -> ConflictD
     @param[in]  conflict The exists-and-different conflict to resolve.
     @return     The chosen :class:`ConflictDecision`.
     @exception  waegis.io.prompts.PromptsError On a missing/invalid scripted answer.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     ctx.note(
         f"conflict on {conflict.relative_path}: local {conflict.target_entry.size} bytes / "
@@ -906,17 +812,19 @@ def _prompt_conflict(ctx: EngineContext, conflict: PayloadConflict) -> ConflictD
     )
     spec = FieldSpec(
         key=f"conflict:{conflict.relative_path}",
+        question=f"{conflict.relative_path} already exists and differs from the payload — keep yours, take payload, or write payload beside yours?",
         description=(
-            f"{conflict.relative_path} already exists and differs from the payload. Choose "
-            "keep-local (keep yours), take-payload (overwrite with the payload), or write-new "
-            "(keep yours and write the payload as a .new file beside it)."
+            "Nothing you own is ever silently overwritten: keep-local keeps "
+            "yours untouched, take-payload overwrites it with the payload, "
+            "write-new keeps yours and writes the payload as a .new file "
+            "beside it."
         ),
         example="keep-local",
         default="keep-local",
-        validator=_normalize_decision_value,
+        validator=normalize_conflict_decision_value,
         choices=("keep-local", "take-payload", "write-new"),
     )
-    return ConflictDecision(_ask_field(ctx, spec))
+    return ConflictDecision(ask_field(ctx, spec))
 
 
 def _make_conflict_hook(ctx: EngineContext):
@@ -929,9 +837,6 @@ def _make_conflict_hook(ctx: EngineContext):
     @param[in]  ctx Active engine context.
     @return     A :data:`waegis.payload.copier.ConflictDecisionHook`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     table: Mapping[str, str] = ctx.shared.get(SHARED_CONFLICT_DECISIONS) or {}
 
@@ -941,8 +846,6 @@ def _make_conflict_hook(ctx: EngineContext):
         @param[in]  conflict The conflict to resolve.
         @return     The chosen :class:`ConflictDecision`.
         @exception  EngineError If the table holds an invalid decision.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.2.0
         """
         path = conflict.relative_path
         raw = table.get(path)
@@ -968,12 +871,9 @@ def _act_adoption_copy(ctx: EngineContext) -> None:
     @return     None
     @exception  waegis.payload.locate.PayloadLocateError If no payload resolves.
     @exception  waegis.payload.copier.CopierError On a copy failure.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.2.0
     """
-    payload = _payload_root(ctx)
-    target = _target(ctx)
+    payload = get_payload_root(ctx)
+    target = get_target(ctx)
     result = copy_payload(
         payload,
         target,
@@ -988,7 +888,9 @@ def _act_adoption_copy(ctx: EngineContext) -> None:
         # half-converted with no manifest.
         on_apply=lambda paths: payload_transaction(target, command="adopt", paths=paths),
     )
-    assert result.manifest is not None and result.manifest_file is not None
+    assert (
+        result.manifest is not None and result.manifest_file is not None
+    ), "copy_payload must produce a manifest on a non-dry-run apply"
     ctx.shared[SHARED_ADOPTION_COPY_RESULT] = result
     ctx.record_answer("payload_version", result.manifest.payload_version)
     ctx.record_answer("copied_count", len(result.copied))
@@ -1007,11 +909,8 @@ def _verify_adoption_copy(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when drift is clean and every resolution matches.
     @exception  OSError If a file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     load = load_manifest(target)
     if load.state is not ManifestState.VALID or load.manifest is None:
         return False
@@ -1052,9 +951,6 @@ def _on_fail_adoption_copy(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="The payload could not be copied into the existing repository, or a conflict "
@@ -1079,18 +975,15 @@ def _act_adopt_workflow_toml(ctx: EngineContext) -> None:
                 manifest amendment (``.agentic/workflow.toml`` moved from
                 ``files`` to ``generated`` after generation) reuse Wizard N's
                 exact machinery (:func:`generate_workflow_toml`,
-                :func:`_amend_manifest_generated`).
+                :func:`amend_manifest_generated`).
     @param[in]  ctx Active engine context.
     @return     None
     @exception  waegis.repo.workflow_toml.WorkflowTomlError On generation/invariant failure.
     @exception  OSError If the file or roots cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     answers = _resolved_analysis_answers(ctx)
-    base_text = (_payload_root(ctx) / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
+    base_text = (get_payload_root(ctx) / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
     generator_answers = {spec.key: answers[spec.key] for spec in WORKFLOW_FIELD_SPECS}
     generated = generate_workflow_toml(
         base_text,
@@ -1124,7 +1017,7 @@ def _act_adopt_workflow_toml(ctx: EngineContext) -> None:
         else:
             ctx.note("operator declined creating missing roots - verification requires them to exist")
 
-    _amend_manifest_generated(target)
+    amend_manifest_generated(target)
     ctx.note("install manifest amended: .agentic/workflow.toml moved from files to generated")
 
 
@@ -1138,12 +1031,9 @@ def _detect_adoption_commit(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when committed and clean on the adoption branch.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     if current_branch(runner, target) != _adoption_branch(ctx):
         return False
     if status_porcelain(runner, target):
@@ -1170,9 +1060,6 @@ def _act_adoption_commit(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If branching, staging, or committing fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     ctx.shared.pop(SHARED_ADOPTION_COMMIT_SKIPPED, None)
     if not ctx.asker.confirm(
@@ -1181,8 +1068,8 @@ def _act_adoption_commit(ctx: EngineContext) -> None:
         ctx.shared[SHARED_ADOPTION_COMMIT_SKIPPED] = True
         ctx.note("operator chose to commit the adoption manually later; nothing was committed")
         return
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     branch = _adoption_branch(ctx)
     if current_branch(runner, target) != branch:
         branch_result = create_branch(runner, target, branch)
@@ -1210,14 +1097,11 @@ def _verify_adoption_commit(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when skipped, or when all three re-checks pass.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     if ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED):
         return True
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     if current_branch(runner, target) != _adoption_branch(ctx):
         return False
     if status_porcelain(runner, target):
@@ -1231,9 +1115,6 @@ def _on_fail_adoption_commit(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="The adoption branch or commit could not be created.",
@@ -1261,11 +1142,8 @@ def _act_handoff_adoption(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     load = load_manifest(target)
     payload_version = (
         load.manifest.payload_version if load.state is ManifestState.VALID and load.manifest else "unknown"
@@ -1315,9 +1193,6 @@ def _build_adopt_steps() -> list[StepSpec]:
                 detect/verify/on_fail with an adopt-specific ``act``.
     @return     The ordered list of Wizard E :class:`StepSpec` objects.
     @exception  waegis.engine.StepContractError If a step were ever malformed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return [
         *COMMON_PREFIX_STEPS,
@@ -1389,10 +1264,10 @@ def _build_adopt_steps() -> list[StepSpec]:
             phase=Phase.P4_DEPLOY,
             automation=Automation.ASSISTED,
             preconditions=("deploy.adoption-copy",),
-            detect=_detect_workflow_toml,
+            detect=detect_workflow_toml,
             act=_act_adopt_workflow_toml,
-            verify=_verify_workflow_toml,
-            on_fail=_on_fail_workflow_toml,
+            verify=verify_workflow_toml,
+            on_fail=on_fail_workflow_toml,
             change_summary=lambda ctx: "generate .agentic/workflow.toml from the confirmed settings, create missing roots",
         ),
         GATES_STEP,
@@ -1439,14 +1314,256 @@ def build_adopt_catalog() -> Catalog:
     @return     The validated :class:`Catalog`.
     @exception  waegis.engine.CatalogError If the catalog were ever inconsistent
                 (duplicate ids, unknown preconditions, cycles).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     return Catalog(_build_adopt_steps())
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
+
+
+@dataclass(frozen=True)
+class AdoptContext:
+    """@brief Resolved public boundary for the adopt command phases."""
+    target_path: Path
+    options: CommandOptions
+    transport: Any | None
+    registry_reader: Any | None
+    json_messages: list[str]
+
+
+@dataclass(frozen=True)
+class AdoptResolved:
+    """@brief Validated adopt inputs before repository analysis."""
+    context: AdoptContext
+    answers: dict[str, Any]
+    payload_root: Path
+    catalog: Catalog
+    fingerprints: Mapping[str, str]
+    state_home: Path
+    resume: Any
+
+
+@dataclass(frozen=True)
+class AdoptPlan:
+    """@brief Adopt engine plan with explicit command dependencies."""
+    resolved: AdoptResolved
+    runner: CommandRunner
+    analysis: RepoAnalysis | None
+    asker: Any
+    approval_asker: Any
+    sink: ConsoleRunSink | JsonRunSink
+    engine_context: EngineContext
+
+
+@dataclass(frozen=True)
+class AdoptOutcome:
+    """@brief Completed adopt engine run awaiting reporting."""
+    plan: AdoptPlan
+    summary: Any
+
+
+def _validate_adopt(context: AdoptContext) -> int | AdoptResolved:
+    """@brief Validate and resolve every read-only adopt-command input."""
+    options = context.options
+    if not context.target_path.is_dir():
+        return wizard_fail(
+            options.stream, "adopt", as_json=options.as_json, status="failed",
+            exit_code=EXIT_VALIDATION,
+            message=f"TARGET does not exist or is not a directory: {context.target_path}",
+        )
+    early_exit = wizard_recovery_preamble(
+        context.target_path, command="adopt", stream=options.stream,
+        as_json=options.as_json, dry_run=options.dry_run,
+        non_interactive=options.non_interactive, yes=options.yes,
+        stdin=options.stdin, json_messages=context.json_messages,
+    )
+    if early_exit is not None:
+        return early_exit
+    loaded = load_wizard_answers(
+        options.answers_path, command="adopt",
+        stream=options.stream, as_json=options.as_json,
+    )
+    if isinstance(loaded, int):
+        return loaded
+    answers: dict[str, Any] = loaded
+    warn_unknown_wizard_keys(
+        answers, ADOPT_FIELD_SPECS, command="adopt", stream=options.stream,
+        as_json=options.as_json, json_messages=context.json_messages,
+    )
+    try:
+        _validate_supplied_adopt_answers(answers)
+    except PromptsError as exc:
+        return wizard_fail(
+            options.stream, "adopt", as_json=options.as_json, status="failed",
+            exit_code=EXIT_VALIDATION, message=f"invalid answer: {exc}",
+        )
+    try:
+        payload_root, inventory, _payload_version = locate_validated_payload(options.payload)
+    except PAYLOAD_VALIDATION_ERRORS as exc:
+        return wizard_fail(
+            options.stream, "adopt", as_json=options.as_json, status="failed",
+            exit_code=EXIT_VALIDATION, message=str(exc),
+        )
+    catalog = build_adopt_catalog()
+    fingerprints, state_home, resume, answers = wizard_resume_setup(
+        command="adopt", catalog=catalog, target_path=context.target_path,
+        answers=answers, payload_digest=inventory.digest, home=options.home,
+        dry_run=options.dry_run, field_specs=ADOPT_FIELD_SPECS,
+    )
+    return AdoptResolved(
+        context, answers, payload_root, catalog, fingerprints, state_home, resume
+    )
+
+
+def _analyze_adopt(resolved: AdoptResolved, runner: CommandRunner) -> RepoAnalysis | None:
+    """@brief Run the existing best-effort adopt analysis at its original point."""
+    options = resolved.context.options
+    try:
+        return analyze_repo(resolved.context.target_path, runner=runner)
+    except Exception as exc:  # noqa: BLE001 - analysis is best-effort
+        wizard_note(
+            options.stream, "adopt", as_json=options.as_json,
+            json_messages=resolved.context.json_messages,
+            message=f"repository analysis failed ({exc}); proposals will be empty",
+            warning=True,
+        )
+        return None
+
+
+def _plan_adopt(resolved: AdoptResolved) -> int | AdoptPlan:
+    """@brief Build the adopt engine plan without mutating the target."""
+    options = resolved.context.options
+    runner = options.runner or SubprocessCommandRunner()
+    analysis = _analyze_adopt(resolved, runner)
+    if options.non_interactive:
+        missing = _missing_required_adopt_keys(analysis, resolved.answers)
+        if missing:
+            return wizard_fail(
+                options.stream, "adopt", as_json=options.as_json,
+                status="needs-input", exit_code=EXIT_NEEDS_INPUT,
+                message="--non-interactive requires a complete answer set; missing: " + ", ".join(missing),
+            )
+        try:
+            _validate_supplied_adopt_answers(resolved.answers)
+        except PromptsError as exc:
+            return wizard_fail(
+                options.stream, "adopt", as_json=options.as_json, status="failed",
+                exit_code=EXIT_VALIDATION, message=f"invalid answer: {exc}",
+            )
+    asker, approval_asker = select_wizard_askers(
+        resolved.answers, non_interactive=options.non_interactive,
+        stdin=options.stdin, stream=options.stream,
+    )
+    conflict_table: dict[str, str] = {}
+    if resolved.answers.get("adoption_conflicts"):
+        try:
+            conflict_table = _normalize_conflict_table(
+                resolved.answers["adoption_conflicts"]
+            )
+        except ValueError as exc:
+            return wizard_fail(
+                options.stream, "adopt", as_json=options.as_json, status="failed",
+                exit_code=EXIT_VALIDATION,
+                message=f"invalid adoption_conflicts answer: {exc}",
+            )
+    shared = _adopt_shared(resolved, runner, analysis, conflict_table)
+    sink: ConsoleRunSink | JsonRunSink = (
+        JsonRunSink() if options.as_json else ConsoleRunSink(options.stream)
+    )
+    engine_context = EngineContext(mode="adopt", asker=asker, events=sink, shared=shared)
+    return AdoptPlan(resolved, runner, analysis, asker, approval_asker, sink, engine_context)
+
+
+def _adopt_shared(
+    resolved: AdoptResolved,
+    runner: CommandRunner,
+    analysis: RepoAnalysis | None,
+    conflict_table: Mapping[str, str],
+) -> dict[str, Any]:
+    """@brief Build the frozen adopt EngineContext shared mapping."""
+    context = resolved.context
+    shared: dict[str, Any] = {
+        SHARED_TARGET: context.target_path,
+        SHARED_PAYLOAD_OVERRIDE: resolved.payload_root,
+        SHARED_RUNNER: runner, SHARED_TRANSPORT: context.transport,
+        SHARED_REGISTRY_READER: context.registry_reader,
+        SHARED_ANSWERS: resolved.answers, SHARED_CLONE_URL: "",
+        SHARED_HOME: context.options.home,
+        SHARED_CONFLICT_DECISIONS: dict(conflict_table),
+    }
+    if analysis is not None:
+        shared[SHARED_ANALYSIS] = analysis
+    return shared
+
+
+def _consent_adopt(plan: AdoptPlan) -> AdoptPlan:
+    """@brief Preserve the engine-owned approval seam for the adopt plan."""
+    options = plan.resolved.context.options
+    if not options.dry_run and plan.resolved.resume is not None and not options.as_json:
+        options.stream.write(
+            f"resuming compatible incomplete run {plan.resolved.resume.run_id}; "
+            "green steps will be re-detected\n"
+        )
+    return plan
+
+
+def _apply_adopt(plan: AdoptPlan) -> AdoptOutcome:
+    """@brief Run the adopt plan through the engine consent/apply phases."""
+    resolved = plan.resolved
+    options = resolved.context.options
+    summary = engine_run(
+        resolved.catalog, plan.engine_context, dry_run=options.dry_run,
+        resume=resolved.resume, yes=options.yes,
+        approval_asker=plan.approval_asker,
+        journal_factory=None if options.dry_run else wizard_journal_factory(
+            command="adopt", target_path=resolved.context.target_path,
+            home=options.home, fingerprints=resolved.fingerprints,
+        ),
+        additional_mutations=repowise_additional_mutations(resolved.answers),
+    )
+    return AdoptOutcome(plan, summary)
+
+
+def _report_adopt(outcome: AdoptOutcome) -> int:
+    """@brief Emit the byte-compatible adopt report and exit code."""
+    plan = outcome.plan
+    resolved = plan.resolved
+    options = resolved.context.options
+    return wizard_postrun_and_emit(
+        outcome.summary, command="adopt", target_path=resolved.context.target_path,
+        answers=resolved.answers, non_interactive=options.non_interactive,
+        dry_run=options.dry_run, yes=options.yes, as_json=options.as_json,
+        stream=options.stream, sink=plan.sink,
+        json_messages=resolved.context.json_messages, repowise_asker=plan.asker,
+        runner=plan.runner, state_home=resolved.state_home,
+        commit_step_id="repo.adoption-commit", handoff_step_id="handoff.adoption",
+        commit_skipped=bool(
+            plan.engine_context.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED, False)
+        ),
+    )
+
+
+def _run_adopt_phases(
+    target: str | os.PathLike[str],
+    *,
+    options: CommandOptions,
+    transport: Any | None = None,
+    registry_reader: Any | None = None,
+) -> int:
+    """@brief Orchestrate validate, plan, consent, apply, and report phases."""
+    normalized = replace(
+        options, non_interactive=options.non_interactive or options.as_json
+    )
+    context = AdoptContext(
+        Path(target).resolve(), normalized, transport, registry_reader, []
+    )
+    resolved = _validate_adopt(context)
+    if isinstance(resolved, int):
+        return resolved
+    plan = _plan_adopt(resolved)
+    if isinstance(plan, int):
+        return plan
+    return _report_adopt(_apply_adopt(_consent_adopt(plan)))
 
 
 def run_adopt(
@@ -1466,376 +1583,20 @@ def run_adopt(
     home: Path | None = None,
 ) -> int:
     """
-    @brief      Entry point for ``waegis adopt TARGET`` (plan §5, T5.2).
-    @details    Validates the answers seam and payload override up front, then
-                pre-computes T5.1's repo analysis once (read-only) so
-                validate-existing (risk flags), the non-interactive required-key
-                check (seeded from proposals), and analyze.repo all share it.
-                ``--non-interactive`` fails loudly listing every missing required
-                key before the engine or journal is touched. Builds the Wizard E
-                catalog and context (``mode="adopt"``), wires the journal (never
-                on ``--dry-run``) and the auto-discovered resume seed, runs the
-                engine, and renders through the shared console/JSON surfaces.
-    @param[in]  target TARGET directory of the existing repository.
-    @param[in]  stream Output stream (real console or injected buffer).
-    @param[in]  answers_path Optional ``--answers`` TOML/JSON file.
-    @param[in]  dry_run Stop after the plan preview; change nothing, journal nothing.
-    @param[in]  non_interactive Never prompt; require a complete answer set.
-    @param[in]  as_json Emit exactly one frozen-shape JSON document.
-    @param[in]  payload Optional ``--payload`` root override (validated up front).
-    @param[in]  stdin Input stream for interactive prompting (default ``sys.stdin``).
-    @param[in]  runner Injectable CommandRunner (default the real subprocess runner).
-    @param[in]  transport Injectable network Transport (unused: adopt never clones).
-    @param[in]  registry_reader Injectable proxy registry reader (unused: adopt never clones).
-    @param[in]  home WAEGIS home override (default :func:`waegis_home`).
-    @return     ``EXIT_OK`` (0) on success/dry-run; ``EXIT_NEEDS_INPUT`` (1)
-                when input or approval is required; ``EXIT_VALIDATION`` (2) on
-                invalid input or a failed step; ``EXIT_OPERATIONAL`` (3) on an
-                operational failure.
-    @exception  None Operational failures are reported on ``stream`` and encoded
-                in the exit code.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.7.1
+    @brief      Run the adoption wizard through its five lifecycle phases.
+    @details    Preserves the public CLI/test injection seam while packaging
+                recurring arguments in :class:`CommandOptions`.
+    @return     Standardized command exit code 0/1/2/3.
     """
-    target_path = Path(target).resolve()
-    if as_json:
-        non_interactive = True
-    json_messages: list[str] = []
-    if not target_path.is_dir():
-        message = f"TARGET does not exist or is not a directory: {target_path}"
-        if as_json:
-            return write_envelope(stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(message,))
-        stream.write(f"waegis adopt: {message}\n")
-        return EXIT_VALIDATION
-
-    # --- roll back an interrupted prior run before touching TARGET ---
-    # A dry run writes nothing, so it must not mutate the target either.
-    if dry_run:
-        try:
-            pending = pending_transaction_ids(target_path)
-        except (OSError, ValueError, TransactionError) as exc:
-            message = f"could not inspect interrupted transaction state: {exc}"
-            if as_json:
-                return write_envelope(
-                    stream, "adopt", status="error", exit_code=EXIT_OPERATIONAL, messages=(message,)
-                )
-            stream.write(f"waegis adopt: {message}\n")
-            return EXIT_OPERATIONAL
-        for item in pending:
-            message = f"pending transaction recovery not applied in dry-run: {item}"
-            if as_json:
-                json_messages.append(message)
-            else:
-                stream.write(f"waegis adopt: {message}\n")
-    if not dry_run:
-        try:
-            pending = pending_transaction_ids(target_path)
-            recovery_asker = (
-                ConsoleAsker(stdin=stdin, stdout=stream)
-                if not non_interactive and stdin is not None
-                else None
-            )
-            recovery_consent = mutation_consent(
-                mutation_planned=bool(pending),
-                yes=yes,
-                asker=recovery_asker,
-                prompt=f"Roll back {len(pending)} interrupted transaction(s) before continuing?",
-            )
-            if recovery_consent is not ConsentDecision.APPROVED:
-                message = "transaction recovery requires explicit approval"
-                if as_json:
-                    return write_envelope(
-                        stream, "adopt", status="needs-input", exit_code=EXIT_NEEDS_INPUT, messages=(message,)
-                    )
-                stream.write(f"waegis adopt: {message}\n")
-                return EXIT_NEEDS_INPUT
-            recovered = recover_incomplete_transactions(target_path)
-        except (OSError, ValueError, TransactionError) as exc:
-            message = f"could not recover an interrupted transaction: {exc}"
-            if as_json:
-                return write_envelope(
-                    stream, "adopt", status="error", exit_code=EXIT_OPERATIONAL, messages=(message,)
-                )
-            stream.write(f"waegis adopt: {message}\n")
-            return EXIT_OPERATIONAL
-        if recovered:
-            message = f"rolled back {len(recovered)} interrupted transaction(s): {', '.join(recovered)}"
-            if as_json:
-                json_messages.append(message)
-            else:
-                stream.write(f"waegis adopt: {message}\n")
-
-    # --- answers seam (before any engine or journal work) ---
-    answers: dict[str, Any] = {}
-    if answers_path is not None:
-        try:
-            answers = load_answers_file(answers_path)
-        except AnswersFileError as exc:
-            if as_json:
-                return write_envelope(stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(str(exc),))
-            stream.write(f"waegis adopt: {exc}\n")
-            return EXIT_VALIDATION
-    unknown = sorted(set(unknown_keys(answers, ADOPT_FIELD_SPECS)) - REPOWISE_ANSWER_KEYS)
-    if unknown:
-        warning = f"unrecognized answer key(s): {', '.join(unknown)}"
-        if as_json:
-            json_messages.append(warning)
-        else:
-            stream.write(f"waegis adopt: warning: {warning}\n")
-    try:
-        _validate_supplied_adopt_answers(answers)
-    except PromptsError as exc:
-        message = f"invalid answer: {exc}"
-        if as_json:
-            return write_envelope(
-                stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(message,)
-            )
-        stream.write(f"waegis adopt: {message}\n")
-        return EXIT_VALIDATION
-
-    # --- payload validated and fingerprinted up front ---
-    try:
-        payload_root = locate_payload(payload)
-        payload_inventory = inspect_payload(payload_root)
-        payload_version = read_payload_version(payload_root)
-        if payload_version is None or not is_payload_compatible(payload_version):
-            raise PayloadLocateError(
-                f"payload version {payload_version or 'unknown'!r} is incompatible; expected {PAYLOAD_COMPAT_SPEC}"
-            )
-    except (PayloadLocateError, CopierError, ValueError, OSError) as exc:
-        if as_json:
-            return write_envelope(stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(str(exc),))
-        stream.write(f"waegis adopt: {exc}\n")
-        return EXIT_VALIDATION
-
-    catalog = build_adopt_catalog()
-    fingerprints = build_journal_fingerprints(
-        command="adopt",
-        catalog=catalog,
-        target=target_path,
-        answers=answers,
-        payload_digest=payload_inventory.digest,
+    return _run_adopt_phases(
+        target,
+        options=CommandOptions(
+            stream, stdin, runner, home, yes, dry_run, non_interactive,
+            as_json, answers_path, payload,
+        ),
+        transport=transport,
+        registry_reader=registry_reader,
     )
-    state_home = home if home is not None else waegis_home()
-    resume = None if dry_run else find_resume_journal(state_home, expected_fingerprints=fingerprints)
-    if resume is not None:
-        prior_answers = replay_answers(
-            resume,
-            allowed_keys=(*(spec.key for spec in ADOPT_FIELD_SPECS), *REPOWISE_ANSWER_KEYS),
-        )
-        answers = {**prior_answers, **answers}
-
-    if runner is None:
-        runner = SubprocessCommandRunner()
-
-    # --- pre-compute the read-only analysis once (shared by three consumers) ---
-    analysis: RepoAnalysis | None
-    try:
-        analysis = analyze_repo(target_path, runner=runner)
-    except Exception as exc:  # noqa: BLE001 - analysis is best-effort; never crash the command
-        analysis = None
-        warning = f"repository analysis failed ({exc}); proposals will be empty"
-        if as_json:
-            json_messages.append(warning)
-        else:
-            stream.write(f"waegis adopt: warning: {warning}\n")
-
-    # --- non-interactive contract (report every missing required key at once) ---
-    if non_interactive:
-        missing = _missing_required_adopt_keys(analysis, answers)
-        if missing:
-            message = "--non-interactive requires a complete answer set; missing: " + ", ".join(missing)
-            if as_json:
-                return write_envelope(stream, "adopt", status="needs-input", exit_code=EXIT_NEEDS_INPUT, messages=(message,))
-            stream.write("waegis adopt: " + message + "\n")
-            return EXIT_NEEDS_INPUT
-        try:
-            _validate_supplied_adopt_answers(answers)
-        except PromptsError as exc:
-            if as_json:
-                return write_envelope(stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(f"invalid answer: {exc}",))
-            stream.write(f"waegis adopt: invalid answer: {exc}\n")
-            return EXIT_VALIDATION
-
-    # --- asker selection (plan §4 item 6) ---
-    if non_interactive:
-        asker: Any = ScriptedAsker(answers, confirms=True)
-        approval_asker = None
-    else:
-        console = ConsoleAsker(stdin=stdin, stdout=stream) if stdin is not None else None
-        asker = (
-            _HybridAsker(answers, console)
-            if answers and console is not None
-            else console
-            if console is not None
-            else ScriptedAsker(answers, confirms=False)
-        )
-        approval_asker = console
-    repowise_asker = asker
-
-    # --- conflict decision table from the answers ---
-    conflict_table: dict[str, str] = {}
-    if answers.get("adoption_conflicts"):
-        try:
-            conflict_table = _normalize_conflict_table(answers["adoption_conflicts"])
-        except ValueError as exc:
-            if as_json:
-                return write_envelope(stream, "adopt", status="failed", exit_code=EXIT_VALIDATION, messages=(f"invalid adoption_conflicts answer: {exc}",))
-            stream.write(f"waegis adopt: invalid adoption_conflicts answer: {exc}\n")
-            return EXIT_VALIDATION
-
-    # --- shared contract ---
-    shared: dict[str, Any] = {
-        SHARED_TARGET: target_path,
-        SHARED_PAYLOAD_OVERRIDE: payload_root,
-        SHARED_RUNNER: runner,
-        SHARED_TRANSPORT: transport,
-        SHARED_REGISTRY_READER: registry_reader,
-        SHARED_ANSWERS: answers,
-        SHARED_CLONE_URL: "",
-        SHARED_HOME: home,
-        SHARED_CONFLICT_DECISIONS: conflict_table,
-    }
-    if analysis is not None:
-        shared[SHARED_ANALYSIS] = analysis
-
-    sink: _ConsoleRunSink | _JsonRunSink = _JsonRunSink() if as_json else _ConsoleRunSink(stream)
-    ctx = EngineContext(mode="adopt", asker=asker, events=sink, shared=shared)
-    # --- journal + resume (never on dry-run: Journal.begin writes immediately) ---
-    if not dry_run and resume is not None and not as_json:
-        stream.write(f"resuming compatible incomplete run {resume.run_id}; green steps will be re-detected\n")
-
-    def begin_journal() -> Journal:
-        """@brief Create the mutation journal only after plan approval."""
-        return Journal.begin(
-            mode="adopt",
-            wizard_version=WIZARD_VERSION,
-            target=str(target_path),
-            dry_run=False,
-            home=home,
-            fingerprints=fingerprints,
-        )
-
-    summary = engine_run(
-        catalog,
-        ctx,
-        dry_run=dry_run,
-        resume=resume,
-        yes=yes,
-        approval_asker=approval_asker,
-        journal_factory=None if dry_run else begin_journal,
-        additional_mutations=(
-            (
-                "configure RepoWise "
-                f"source={answers.get('repowise_source')}; "
-                f"sync={bool(answers.get('repowise_sync', False))}"
-            ),
-        )
-        if REPOWISE_ANSWER_KEYS.intersection(answers)
-        and (
-            answers.get("repowise_source") != "disabled"
-            or bool(answers.get("repowise_sync", False))
-        )
-        else (),
-    )
-    repowise_result: dict[str, Any] | None = None
-    repowise_error: str | None = None
-    if summary.ok and not dry_run:
-        try:
-            repowise_result = lifecycle_repowise(
-                target_path,
-                answers,
-                lifecycle="adopt",
-                interactive=not non_interactive,
-                asker=repowise_asker,
-                stream=None if as_json else stream,
-                home=state_home,
-                yes=yes,
-            )
-            adoption_commit = next(
-                (
-                    result
-                    for result in summary.results
-                    if result.step_id == "repo.adoption-commit"
-                ),
-                None,
-            )
-            if (
-                adoption_commit is not None
-                and adoption_commit.acted
-                and not ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED, False)
-            ):
-                commit_repowise_configuration(
-                    target_path,
-                    runner,
-                    message=REPOWISE_COMMIT_MESSAGE,
-                )
-        except (OSError, RepoWiseError) as exc:
-            repowise_error = str(exc)
-
-    # --- output ---
-    if as_json:
-        plan_data = None
-        if isinstance(sink, _JsonRunSink) and sink.plan is not None:
-            plan_data = json.loads(plan_preview_json(sink.plan))
-        if dry_run:
-            return write_envelope(
-                stream,
-                "adopt",
-                status="ok",
-                exit_code=EXIT_OK,
-                plan=plan_data,
-                messages=json_messages,
-            )
-        else:
-            exit_code = (
-                EXIT_OPERATIONAL
-                if repowise_error or (repowise_result and not repowise_result["sync"]["ok"])
-                else EXIT_OK
-                if summary.ok
-                else EXIT_NEEDS_INPUT
-                if not summary.results
-                else EXIT_VALIDATION
-            )
-            status = (
-                "error"
-                if exit_code == EXIT_OPERATIONAL
-                else "ok"
-                if summary.ok
-                else "needs-input"
-                if exit_code == EXIT_NEEDS_INPUT
-                else "failed"
-            )
-            result_data = json.loads(run_summary_json(summary))
-            result_data["aegis"] = {"ok": summary.ok}
-            result_data["repowise"] = repowise_result or {
-                "aegis": "ok" if summary.ok else "failed",
-                "sync": {"ok": False, "error": repowise_error},
-            }
-            return write_envelope(
-                stream,
-                "adopt",
-                status=status,
-                exit_code=exit_code,
-                plan=plan_data,
-                result=result_data,
-                messages=(*json_messages, *((repowise_error,) if repowise_error else ())),
-            )
-    else:
-        _render_human_outcome(summary, target_path, stream, handoff_step_id="handoff.adoption")
-        if repowise_error:
-            stream.write(f"RepoWise integration failed after AEGIS deployment: {repowise_error}\n")
-        elif repowise_result and not repowise_result["sync"]["ok"]:
-            stream.write(
-                "RepoWise indexing failed after AEGIS deployment; "
-                f"resume with: {repowise_result['sync']['resume_command']}\n"
-            )
-    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
-        return EXIT_OPERATIONAL
-    if summary.ok:
-        return EXIT_OK
-    return EXIT_NEEDS_INPUT if not summary.results else EXIT_VALIDATION
 
 
 # END OF FILE

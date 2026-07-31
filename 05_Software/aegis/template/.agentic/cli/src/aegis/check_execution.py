@@ -12,15 +12,17 @@
 @details Enforces the policy captured for the current prepared stage, generates
          immutable check identities in evidence forms, and imports or executes
          a complete selected check set.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.3.0
+@details Managed check subprocesses (1.4.0) execute outside the run-scoped
+         graph lock. A short publication transaction revalidates the captured
+         stage revision, execution mode, and check definitions before evidence
+         identifiers are allocated and results are recorded.
 """
 
 # IMPORTS
 
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from hashlib import sha256
 from pathlib import Path
@@ -32,7 +34,9 @@ from .gates import _run_command
 from .models import Check, Evidence, Graph
 from .stage_forms import StageOperationError, stage_directory
 from .store import (
+    GraphConflictError,
     append_journal,
+    graph_transaction,
     next_evidence_id,
     run_dir,
     save_graph,
@@ -61,8 +65,8 @@ def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     @param[in]  repo_root Repository root.
     @param[in]  graph Active workflow graph.
     @return     Path to the generated evidence TOML.
-    @exception  StageOperationError If policy requires managed execution.
-    @version    0.4.0
+    @exception  StageOperationError If check execution mode is not external, the
+                stage is not check or implementation, or no checks are imported.
     """
     _require_external_evidence_preconditions(graph)
     path = stage_directory(repo_root, graph) / "evidence.toml"
@@ -104,8 +108,8 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
     @param[in]  repo_root Repository root.
     @param[in,out] graph Active workflow graph.
     @return     Imported evidence records.
-    @exception  StageOperationError If identity, completeness, or result fails.
-    @version    0.3.0
+    @exception  StageOperationError If preconditions are unmet, or the evidence
+                form's identity, completeness, or result content fails validation.
     """
     _require_external_evidence_preconditions(graph)
     path = stage_directory(repo_root, graph) / "evidence.toml"
@@ -223,7 +227,6 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
     return imported
 
 
-@serialized_graph_mutation
 def run_checks(
     repo_root: Path,
     graph: Graph,
@@ -238,70 +241,122 @@ def run_checks(
     @param[in]  timeout Per-command timeout in seconds.
     @return     Evidence created for every selected check.
     @exception  StageOperationError If policy, stage, or selection is invalid.
-    @version    0.2.0
+    @exception  GraphConflictError If execution preconditions changed while
+                subprocesses were running.
     """
-    _require_mode(graph, "managed")
-    if graph.stage not in {"check", "implementation"}:
-        raise StageOperationError(
-            "managed checks are valid only during check or implementation"
-        )
-    by_id = {check.id: check for check in graph.checks}
-    unknown = sorted(set(check_ids or ()) - set(by_id))
-    if unknown:
-        raise StageOperationError(f"unknown check ID(s): {', '.join(unknown)}")
-    selected = [
-        check for check in graph.checks if not check_ids or check.id in check_ids
-    ]
-    if not selected:
-        raise StageOperationError("no checks selected")
-    expected = "fail" if graph.stage == "check" else "pass"
-    log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
-    log_root.mkdir(parents=True, exist_ok=True)
-    imported: list[Evidence] = []
+    with graph_transaction(repo_root, graph):
+        _require_mode(graph, "managed")
+        if graph.stage not in {"check", "implementation"}:
+            raise StageOperationError(
+                "managed checks are valid only during check or implementation"
+            )
+        by_id = {check.id: check for check in graph.checks}
+        unknown = sorted(set(check_ids or ()) - set(by_id))
+        if unknown:
+            raise StageOperationError(f"unknown check ID(s): {', '.join(unknown)}")
+        selected = [
+            deepcopy(check)
+            for check in graph.checks
+            if not check_ids or check.id in check_ids
+        ]
+        if not selected:
+            raise StageOperationError("no checks selected")
+        captured_stage = graph.stage
+        record = graph.stage_records[captured_stage]
+        captured_revision = (record.revision, record.digest)
+        captured_mode = record.check_execution
+        captured_checks = _check_definition_snapshot(graph.checks)
+
+    expected = "fail" if captured_stage == "check" else "pass"
+    completed = []
     for check in selected:
         if not check.command:
             raise StageOperationError(f"{check.id} has no executable command")
         result = _run_command(repo_root, check.command, timeout)
-        observed = "pass" if result.returncode == 0 else "fail"
-        log_path = log_root / f"{check.id}-{graph.stage}.log"
-        log_path.write_text(
-            f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}\n",
-            encoding="utf-8",
-        )
-        evidence = Evidence(
-            id=_next_evidence_id(graph, len(imported)),
-            kind="test-run",
-            result=observed,
-            summary=(
-                f"{check.id} observed {observed}; "
-                f"{'expected' if observed == expected else 'unexpected'} during {graph.stage}"
-            ),
-            command=check.command,
-            path=check.path,
-            stage=graph.stage,
-            check_id=check.id,
-            exit_status=result.returncode,
-            output_log=log_path.relative_to(repo_root).as_posix(),
-        )
-        imported.append(evidence)
-        append_journal(
-            repo_root,
-            graph.run_id,
-            "check.output",
-            {
-                "check_id": check.id,
-                "returncode": result.returncode,
-                "stdout_tail": result.stdout[-4000:],
-                "stderr_tail": result.stderr[-4000:],
-            },
-        )
-    graph.evidence.extend(imported)
-    _update_check_states(graph, imported)
-    save_graph(repo_root, graph)
-    return imported
+        completed.append((check, result))
+
+    with graph_transaction(repo_root, graph):
+        current_record = graph.stage_records.get(captured_stage)
+        if (
+            graph.stage != captured_stage
+            or current_record is None
+            or (current_record.revision, current_record.digest) != captured_revision
+            or current_record.check_execution != captured_mode
+            or _check_definition_snapshot(graph.checks) != captured_checks
+        ):
+            raise GraphConflictError(graph.run_id)
+
+        log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
+        log_root.mkdir(parents=True, exist_ok=True)
+        imported: list[Evidence] = []
+        for check, result in completed:
+            observed = "pass" if result.returncode == 0 else "fail"
+            log_path = log_root / f"{check.id}-{captured_stage}.log"
+            log_path.write_text(
+                f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}\n",
+                encoding="utf-8",
+            )
+            evidence = Evidence(
+                id=_next_evidence_id(graph, len(imported)),
+                kind="test-run",
+                result=observed,
+                summary=(
+                    f"{check.id} observed {observed}; "
+                    f"{'expected' if observed == expected else 'unexpected'} "
+                    f"during {captured_stage}"
+                ),
+                command=check.command,
+                path=check.path,
+                stage=captured_stage,
+                check_id=check.id,
+                exit_status=result.returncode,
+                output_log=log_path.relative_to(repo_root).as_posix(),
+            )
+            imported.append(evidence)
+            append_journal(
+                repo_root,
+                graph.run_id,
+                "check.output",
+                {
+                    "check_id": check.id,
+                    "returncode": result.returncode,
+                    "stdout_tail": result.stdout[-4000:],
+                    "stderr_tail": result.stderr[-4000:],
+                },
+            )
+        graph.evidence.extend(imported)
+        _update_check_states(graph, imported)
+        save_graph(repo_root, graph)
+        return imported
 
 
 # LOCAL HELPERS
+
+
+def _check_definition_snapshot(checks: list[Check]) -> tuple[tuple[object, ...], ...]:
+    """
+    @brief Capture immutable check definitions used by managed execution.
+    @param[in] checks Authoritative imported check collection.
+    @return Comparable definitions excluding evidence-derived state fields.
+    @details Red/green state and linked evidence may advance concurrently
+             without invalidating a command result; all fields that define the
+             check identity, executable, traceability, and variants must remain
+             unchanged through publication.
+    """
+    return tuple(
+        (
+            check.id,
+            check.level,
+            tuple(check.cites_spec),
+            tuple(check.cites_requirement),
+            check.command,
+            check.path,
+            tuple(check.contract_variants),
+            tuple(check.concerns),
+            tuple(check.parity_targets),
+        )
+        for check in checks
+    )
 
 
 def _require_external_evidence_preconditions(graph: Graph) -> None:
@@ -310,7 +365,6 @@ def _require_external_evidence_preconditions(graph: Graph) -> None:
     @param[in] graph Active workflow graph.
     @return None.
     @exception StageOperationError If stage, mode, or check state is invalid.
-    @version 0.1.0
     """
     _require_mode(graph, "external")
     if graph.stage not in {"check", "implementation"}:
@@ -355,7 +409,6 @@ def _update_check_states(graph: Graph, evidence: list[Evidence]) -> None:
 def _next_evidence_id(graph: Graph, offset: int) -> str:
     """
     @brief Generate the next durable sequence ID without model input.
-    @version 0.2.0
     """
     return next_evidence_id(graph, offset)
 
@@ -385,7 +438,6 @@ def _q(value: str) -> str:
 def _retire_form(path: Path, retention: str, revision_name: str) -> None:
     """
     @brief Apply captured retention to one imported check-evidence form.
-    @version 0.1.0
     """
     if retention == "versioned":
         destination = path.parent / "revisions" / revision_name

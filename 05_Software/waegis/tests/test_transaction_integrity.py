@@ -31,6 +31,7 @@ from typing import Any
 
 import pytest
 
+import waegis.transaction as transaction_module
 from waegis.transaction import (
     MAX_TRANSACTION_ENTRIES,
     FileTransaction,
@@ -594,7 +595,10 @@ def test_repository_lock_serializes_transactions_across_processes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """@brief A second process cannot begin while the first holds its transaction."""
+    """
+    @brief A second process cannot begin while the first holds its transaction.
+    @version 0.2.0
+    """
     monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis-home"))
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -622,6 +626,10 @@ print("ACQUIRED", flush=True)
 transaction.rollback()
 """
     environment = os.environ.copy()
+    # The pytest `pythonpath = ["src"]` wiring is process-local; the children
+    # need an explicit PYTHONPATH to import the uninstalled waegis package.
+    package_root = str(Path(transaction_module.__file__).resolve().parents[1])
+    environment["PYTHONPATH"] = package_root + os.pathsep + environment.get("PYTHONPATH", "")
     first = subprocess.Popen(
         (sys.executable, "-c", first_script, str(repo)),
         stdin=subprocess.PIPE,

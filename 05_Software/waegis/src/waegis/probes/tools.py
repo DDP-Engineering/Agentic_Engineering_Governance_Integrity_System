@@ -36,9 +36,6 @@
          returns ``"fail"``, only ``"ok"``/``"warn"``, so a machine without
          Node can still complete adoption/setup; the operator just sees a
          loud, actionable note that hooks will not run until it is installed.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.2.0
 """
 
 # IMPORTS
@@ -88,9 +85,6 @@ def _parse_version(text: str, pattern: re.Pattern[str]) -> tuple[int, int, int] 
                 third group is absent), or ``None`` if ``pattern`` does not
                 match anywhere in ``text``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     match = pattern.search(text)
     if match is None:
@@ -105,9 +99,6 @@ def _format_version(version: tuple[int, int, int]) -> str:
     @param[in]  version Parsed ``(major, minor, patch)`` tuple.
     @return     Dotted version string, e.g. ``"3.11.9"``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return ".".join(str(part) for part in version)
 
@@ -121,9 +112,6 @@ def _install_guidance(tool: str, system: str) -> str:
                 value falls back to generic guidance rather than raising.
     @return     One or two sentences: what to run, and why it is safe to run.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     table: dict[str, dict[str, str]] = {
         "python": {
@@ -176,9 +164,6 @@ def probe_python(runner: CommandRunner) -> ProbeFindingRecord:
                 ``"warn"`` when a candidate runs but its version text cannot
                 be parsed (degrades gracefully rather than crashing).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     system = platform.system()
     candidates = python_probe_candidates()
@@ -224,9 +209,6 @@ def probe_git(runner: CommandRunner) -> ProbeFindingRecord:
                 found and >= 2.30, ``"fail"`` when too old or not found, or
                 ``"warn"`` when found but the version text is unparseable.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     system = platform.system()
     result = runner.run(("git", "--version"))
@@ -291,9 +273,6 @@ def probe_node(runner: CommandRunner) -> ProbeFindingRecord:
     @return     A ``prereq.node`` :class:`ProbeFindingRecord`: ``"ok"`` when
                 found at or above :data:`_MIN_NODE`, otherwise ``"warn"``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.2.0
     """
     system = platform.system()
     guards_absent = (
@@ -342,9 +321,6 @@ def probe_uv(runner: CommandRunner) -> ProbeFindingRecord:
                 found with a parseable version, ``"info"`` when not found (not
                 a failure), or ``"warn"`` when found but unparseable.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     system = platform.system()
     result = runner.run(("uv", "--version"))

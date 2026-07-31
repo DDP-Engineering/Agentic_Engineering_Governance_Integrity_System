@@ -11,9 +11,6 @@
 @brief Module entry point for the WAEGIS wizard (``python -m waegis``).
 @details Delegates to :func:`waegis.cli.main` and propagates its integer exit
          code to the process.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS

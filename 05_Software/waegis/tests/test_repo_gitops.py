@@ -14,7 +14,7 @@
          recorded argv tuples. No test invokes a real ``git`` process.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-13
-@version 0.1.0
+@version 0.2.0
 """
 
 # IMPORTS
@@ -556,6 +556,56 @@ def test_validate_branch_name_accepts_git_compatible_edge_cases() -> None:
     """@brief Unicode, nested, at-sign, and dotted branch names remain valid."""
     for value in ("feature/x", "release/v2.1", "topic@name", "δοκιμή/κλάδος", "refs/heads/topic"):
         assert gitops.validate_branch_name(value) == value
+
+
+# --- explicit timeout policy -------------------------------------------------
+
+
+def test_git_operations_forward_explicit_timeout_classes(tmp_path) -> None:
+    """
+    @brief Forward plumbing, mutation, and clone timeout policies explicitly.
+    @param[in] tmp_path Temporary path used for argument construction.
+    @return None.
+    @version 0.1.0
+    """
+    repo = str(tmp_path / "repo")
+    clone_target = str(tmp_path / "clone")
+    worktree_argv = (
+        "git",
+        "-C",
+        repo,
+        "rev-parse",
+        "--is-inside-work-tree",
+    )
+    add_argv = ("git", "-C", repo, "add", "-A")
+    clone_argv = (
+        "git",
+        "clone",
+        "--",
+        "https://example.test/repo.git",
+        clone_target,
+    )
+    runner = FakeCommandRunner(
+        {
+            worktree_argv: ok_result(stdout="true\n"),
+            add_argv: ok_result(),
+            clone_argv: ok_result(),
+        }
+    )
+
+    assert gitops.is_work_tree(runner, repo) is True
+    assert gitops.add_all(runner, repo).ok is True
+    assert gitops.clone_repo(
+        runner,
+        "https://example.test/repo.git",
+        clone_target,
+    ).ok is True
+
+    assert runner.timeouts == [
+        gitops.GIT_PLUMBING_TIMEOUT,
+        gitops.GIT_MUTATION_TIMEOUT,
+        gitops.GIT_CLONE_TIMEOUT,
+    ]
 
 
 # --- Windows/POSIX path safety -----------------------------------------------

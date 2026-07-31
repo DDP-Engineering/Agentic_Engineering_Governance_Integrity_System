@@ -12,9 +12,6 @@
 @details Re-exports the step contract, catalog, plan-preview model, journal, and
          runner so both wizard journeys import a single stable name (T1.1). The
          engine imports only the standard library and itself.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.2.0
 """
 
 # IMPORTS

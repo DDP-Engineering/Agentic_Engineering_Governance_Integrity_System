@@ -14,7 +14,7 @@
          prepare/apply/close lifecycle.
 @author Eng. Dan Dumitru Pasare
 @date 2026-07-29
-@version 1.1.0
+@version 1.2.0
 """
 
 # IMPORTS
@@ -50,6 +50,7 @@ def test_hard_break_parser_exposes_only_grouped_interface(
         "requirement",
         "check",
         "evidence",
+        "waive",
         "verify",
         "delivery",
         "adoption",
@@ -123,6 +124,23 @@ def test_schema_two_graph_is_rejected() -> None:
     """@brief Verify the graph reader has no schema-2 fallback."""
     with pytest.raises(ValueError, match="requires schema_version 3"):
         Graph.from_dict({"schema_version": 2})
+
+
+def test_nested_graph_schema_errors_are_reported_as_value_errors() -> None:
+    """
+    @brief Wrap unknown nested record keys in the graph schema contract.
+    @version 0.1.0
+    """
+    graph = Graph(
+        run_id="fix-20260730T120000Z-1234abcd",
+        stage="intake",
+        intent=Intent(id="I-1", kind="fix", statement="Validate graph schema"),
+    )
+    data = graph.to_dict()
+    data["intent"]["unexpected"] = "value"
+
+    with pytest.raises(ValueError, match="graph record does not match schema 3"):
+        Graph.from_dict(data)
 
 
 def test_discarded_collections_reconstruct_authoritative_ids(

@@ -11,9 +11,6 @@
 @brief Shared AEGIS wrapper resolution and lifecycle smoke verification.
 @details New, adopt, configure, repair, doctor, and upgrade use this module so
          wrapper invocation and health semantics cannot drift between commands.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 1.0.0
 """
 
 # IMPORTS
@@ -84,6 +81,7 @@ HASH_TRUSTED_HOOK_CONFIGS: tuple[str, ...] = (".codex/hooks.json",)
 
 SMOKE_TIMEOUT_SECONDS = 120.0
 NO_ACTIVE_RUN_MARKER = "RUN-POINTER-MISSING"
+SMOKE_RESPONSE_KEYS = frozenset({"status", "stage", "artifact", "next"})
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
@@ -96,9 +94,6 @@ def wrapper_invocation(target: Path, *cli_args: str) -> tuple[str, ...]:
     @param[in]  cli_args Arguments forwarded to the embedded CLI.
     @return     Complete subprocess argv.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if os.name == "nt":
         script = target / ".agentic" / "tools" / "run.ps1"
@@ -117,9 +112,6 @@ def smoke_reverify(
     @param[in]  repo Repository root.
     @return     ``(findings, ok)``.
     @exception  None Subprocess failures become findings.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    1.0.0
     """
     findings: list[ProbeFindingRecord] = []
     ok = True
@@ -144,8 +136,10 @@ def smoke_reverify(
     healthy = False
     if status_result.ok():
         try:
-            json.loads(status_result.stdout)
-            healthy = True
+            payload = json.loads(status_result.stdout)
+            healthy = isinstance(payload, dict) and SMOKE_RESPONSE_KEYS.issubset(
+                payload
+            )
         except json.JSONDecodeError:
             healthy = False
     elif NO_ACTIVE_RUN_MARKER in status_result.combined_output():
