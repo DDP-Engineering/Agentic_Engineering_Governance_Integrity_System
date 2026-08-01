@@ -61,6 +61,12 @@ All notable changes to this project will be documented in this file.
   a completed run instead of a failed one. The `--json` `result` mapping gained
   `applied`, `rolled_back`, and `cleanup_pending`; upgrade exit codes are
   unchanged.
+- Fix `SocketTransport.connect` (WAEGIS network probes) hanging well past its
+  `timeout` against a stalled DNS server: `socket.create_connection` resolves
+  the address before the socket carrying that timeout exists, so `getaddrinfo`
+  was unbounded. The TCP attempt now runs on a worker thread awaited for at
+  most `timeout`, and a resolver stall is reported as `timed_out`. The
+  `gaierror` -> `dns_failure`, refused, and TLS classifications are unchanged.
 - Fix `Graph.from_dict` (AEGIS core) to raise the documented `ValueError` when
   `stage_records` is not an object, instead of leaking a raw `AttributeError`.
 

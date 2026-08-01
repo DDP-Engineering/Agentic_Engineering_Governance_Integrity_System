@@ -25,6 +25,8 @@
 from __future__ import annotations
 
 import socket
+import threading
+import time
 
 import pytest
 
@@ -542,6 +544,94 @@ def test_no_host_argument_never_opens_a_real_socket(monkeypatch: pytest.MonkeyPa
     )
 
     assert finding.status == "info"
+
+
+# --- SocketTransport: every attempt is bounded by the caller's timeout --------
+
+
+def test_a_stalled_resolver_still_returns_within_the_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief      A DNS server that never answers must not outlast the caller's
+                ``timeout``; the attempt is reported as ``timed_out``.
+    @details    ``socket.create_connection`` resolves the address before the
+                socket carrying ``timeout`` exists, so the timeout argument
+                alone does not bound ``getaddrinfo``. This is the corporate
+                misconfiguration the network probes exist to diagnose, and the
+                one case that used to hang them.
+    @param[in]  monkeypatch Used to stall the resolver without any real DNS.
+    @return     None
+    @exception  AssertionError If the probe blocks past its timeout or reports
+                an outcome other than ``timed_out``.
+    """
+    resolver_released = threading.Event()
+
+    def stalled_getaddrinfo(*_args: object, **_kwargs: object) -> None:
+        """@brief Block like a non-responding resolver until the test releases it."""
+        resolver_released.wait(30.0)
+        raise socket.gaierror("resolver released by the test")
+
+    monkeypatch.setattr(socket, "getaddrinfo", stalled_getaddrinfo)
+    started = time.monotonic()
+    try:
+        result = network.SocketTransport().connect(
+            "stalled.invalid", 443, use_tls=True, timeout=0.25
+        )
+        elapsed = time.monotonic() - started
+    finally:
+        resolver_released.set()
+
+    assert result.outcome == "timed_out"
+    assert elapsed < 5.0, f"probe blocked for {elapsed:.1f}s on a stalled resolver"
+
+
+def test_a_failing_resolver_is_still_reported_as_a_dns_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief      Bounding the connect must not change how a resolver that
+                answers "no such host" is classified.
+    @param[in]  monkeypatch Used to fail resolution without any real DNS.
+    @return     None
+    @exception  AssertionError If the outcome is not ``dns_failure``.
+    """
+
+    def failing_getaddrinfo(*_args: object, **_kwargs: object) -> None:
+        """@brief Reject the name the way a working resolver rejects an unknown host."""
+        raise socket.gaierror("name or service not known")
+
+    monkeypatch.setattr(socket, "getaddrinfo", failing_getaddrinfo)
+
+    result = network.SocketTransport().connect(
+        "missing.invalid", 443, use_tls=True, timeout=0.25
+    )
+
+    assert result.outcome == "dns_failure"
+
+
+def test_a_refused_connection_is_still_reported_as_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief      Bounding the connect must not change how an actively refused
+                port is classified.
+    @param[in]  monkeypatch Used to refuse the connect without any real socket.
+    @return     None
+    @exception  AssertionError If the outcome is not ``refused``.
+    """
+
+    def refusing_create_connection(*_args: object, **_kwargs: object) -> None:
+        """@brief Refuse the way a closed port does."""
+        raise ConnectionRefusedError("connection refused")
+
+    monkeypatch.setattr(socket, "create_connection", refusing_create_connection)
+
+    result = network.SocketTransport().connect(
+        "host.invalid", 443, use_tls=True, timeout=0.25
+    )
+
+    assert result.outcome == "refused"
 
 
 # END OF FILE
