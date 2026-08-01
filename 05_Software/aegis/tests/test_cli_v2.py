@@ -126,6 +126,20 @@ def test_schema_two_graph_is_rejected() -> None:
         Graph.from_dict({"schema_version": 2})
 
 
+def test_non_dict_stage_records_is_reported_as_value_error() -> None:
+    """@brief Verify a non-object stage_records raises ValueError, not AttributeError."""
+    graph = Graph(
+        run_id="fix-20260730T120000Z-1234abcd",
+        stage="intake",
+        intent=Intent(id="I-1", kind="fix", statement="Validate graph schema"),
+    )
+    data = graph.to_dict()
+    data["stage_records"] = ["not", "a", "dict"]
+
+    with pytest.raises(ValueError, match="stage_records must be an object"):
+        Graph.from_dict(data)
+
+
 def test_nested_graph_schema_errors_are_reported_as_value_errors() -> None:
     """
     @brief Wrap unknown nested record keys in the graph schema contract.

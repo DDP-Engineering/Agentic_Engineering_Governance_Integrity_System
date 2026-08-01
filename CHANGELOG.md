@@ -11,6 +11,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `Graph.from_dict` (AEGIS core) to raise the documented `ValueError` when
+  `stage_records` is not an object, instead of leaking a raw `AttributeError`.
+
+## [WAEGIS 1.2.0] - 2026-08-01
+
+Component versions in this release: AEGIS payload 2.1.0 (content updated in
+place per owner decision — schema and version unchanged), WAEGIS 1.2.0, and
+optional bundled RepoWise 0.37.0. The WAEGIS MINOR bump carries the new
+public non-interactive decision keys (`accept_failing_gates`,
+`adopt_over_existing_install`, `accept_nested_repository`); see the
+Migration note below.
+
 ### Added
 
 - Add the copied AEGIS merge/rebase playbook for concurrent `.agentic/` state,
@@ -47,6 +61,19 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Document the deployment self-containment contract: every RepoWise
+  deployment is exactly one of `source-only`, `external-runtime`, or
+  `offline-bundled-runtime`, and a Git clone versus a delivered working
+  directory have different self-containment properties whenever bundled
+  RepoWise is in play. The WAEGIS README states the contract and which
+  edition/answer combination produces each state, `waegis repowise status`
+  names the resulting state in human output, the bundled/external interview
+  questions state the portability consequence, the template's
+  `REPOWISE_INTEGRATION.md` and `GLOSSARY.md` use the same vocabulary, the
+  Complete delivery guidance ties it to the existing license/source/notices/
+  SBOM/provenance/hash requirements, and the WAEGIS V2 plan's D1 carries the
+  same terms forward. Documentation and message-string changes only; no
+  schema, CLI flag, or packaging behavior changed.
 - Separate general mutation consent from accepting a failing enforced quality
   gate. `--yes` and `--non-interactive` approve the rendered filesystem/Git
   mutation plan only; waiving a gate failure is now its own decision, stated by
@@ -62,8 +89,12 @@ All notable changes to this project will be documented in this file.
   **Migration:** automation that previously relied on blanket `--yes` to carry
   it past one of these questions now fails loudly, naming the missing decision;
   add the corresponding key to its answers file. Absence of a key always means
-  refusal, never acceptance. Because this adds public answer keys without
-  removing or renaming anything, it is recommended to ship as a MINOR release.
+  refusal, never acceptance. Note one deliberate asymmetry: when an interactive
+  console is present, these decision questions are still asked on the console
+  even if the answers file carries the key — the decision keys are consumed
+  only where no operator can be asked (`--non-interactive`). Because this adds
+  public answer keys without removing or renaming anything, it is recommended
+  to ship as a MINOR release.
 
 - Canonicalize adoption and upgrade conflict decisions through one shared
   payload normalizer while preserving the public upgrade exit aliases and the
@@ -98,7 +129,10 @@ All notable changes to this project will be documented in this file.
   separators before the child process started: the gate
   `uv run --directory 05_Software\pkg python -m pytest` reached uv as
   `--directory 05_Softwarepkg` and exited nonzero while the identical suite
-  passed by hand from the package root. Escape processing is now disabled on
+  passed by hand from the package root (a latent defect found while
+  investigating the AudioMancer gate observation, and distinct from it — the
+  deployment's own gate strings used forward slashes and were split
+  correctly). Escape processing is now disabled on
   Windows while POSIX quote handling is kept, so a quoted path keeps working
   and its quotes are still removed; on every other host the split is unchanged
   byte for byte. Gate commands run from the repository root as before.
