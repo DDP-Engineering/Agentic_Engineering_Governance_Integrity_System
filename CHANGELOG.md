@@ -13,6 +13,17 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Replace `requirements.update_requirement`'s 15-parameter (13 keyword-only)
+  signature with a single `patch: RequirementPatch` argument; the three
+  `value`/`clear_value` mutual-exclusion checks moved into
+  `RequirementPatch.__post_init__`. Updated call sites in
+  `requirements.activate_requirement` and
+  `stage_forms._activate_green_requirements`. No behavior change.
+- Fix `config.py`'s import block to sort alphabetically by module name
+  (matching `store.py`/`persistence.py`/`requirement_store.py`/
+  `stage_schema.py`), and add a `[tool.ruff.lint.isort]` config
+  (`force-sort-within-sections = true`) encoding that convention so
+  `ruff check --select I` can verify it.
 - Replace the `timeout: int = 300` literal duplicated in `gates.py`,
   `verification.py`, and `check_execution.py` with a single
   `gates.DEFAULT_GATE_TIMEOUT_SECONDS` constant.

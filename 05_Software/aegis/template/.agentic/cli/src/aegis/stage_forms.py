@@ -51,7 +51,7 @@ from .requirement_store import (
     publish_requirement_records,
     utc_timestamp,
 )
-from .requirements import update_requirement
+from .requirements import RequirementPatch, update_requirement
 from .repowise import inspect_repowise
 from .store import (
     append_journal,
@@ -1792,9 +1792,8 @@ def _activate_green_requirements(
         update_requirement(
             repo_root,
             requirement.id,
-            status="Active",
             config=config,
-            timestamp=utc_timestamp(),
+            patch=RequirementPatch(status="Active", timestamp=utc_timestamp()),
         )
         append_journal(
             repo_root,

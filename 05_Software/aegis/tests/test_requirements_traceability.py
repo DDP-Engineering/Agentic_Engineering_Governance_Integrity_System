@@ -42,6 +42,7 @@ from aegis.requirement_store import (
     render_requirement_toml,
 )
 from aegis.requirements import (
+    RequirementPatch,
     activate_requirement,
     audit_coverage,
     audit_traceability,
@@ -344,10 +345,12 @@ def test_scalar_update_preserves_immutable_identity(tmp_path: Path) -> None:
     updated = update_requirement(
         tmp_path,
         original.id,
-        priority="Should",
-        requirement="Addition returns a precise sum.",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            priority="Should",
+            requirement="Addition returns a precise sum.",
+            timestamp=UPDATED,
+        ),
     )
 
     assert updated.id == original.id
@@ -378,19 +381,23 @@ def test_collection_update_replaces_and_clears_complete_sets(tmp_path: Path) -> 
     replaced = update_requirement(
         tmp_path,
         original.id,
-        linked_tests=["tests/test_calculator_renamed.py::test_sum"],
-        affected_paths=["src/new.py", "src/**/nested.py"],
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            linked_tests=["tests/test_calculator_renamed.py::test_sum"],
+            affected_paths=["src/new.py", "src/**/nested.py"],
+            timestamp=UPDATED,
+        ),
     )
     cleared = update_requirement(
         tmp_path,
         original.id,
-        clear_linked_tests=True,
-        clear_affected_paths=True,
-        verification="Manual: inspect current behavior",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            clear_linked_tests=True,
+            clear_affected_paths=True,
+            verification="Manual: inspect current behavior",
+            timestamp=UPDATED,
+        ),
     )
 
     assert replaced.affected_paths == ("src/**/nested.py", "src/new.py")
@@ -470,27 +477,25 @@ def test_update_sets_and_clears_spec_ref(tmp_path: Path) -> None:
     with_ref = update_requirement(
         tmp_path,
         record.id,
-        spec_ref=".agentic/specs/feature.spec.md",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            spec_ref=".agentic/specs/feature.spec.md",
+            timestamp=UPDATED,
+        ),
     )
     assert with_ref.spec_ref == ".agentic/specs/feature.spec.md"
 
     with pytest.raises(ValueError, match="mutually exclusive"):
-        update_requirement(
-            tmp_path,
-            record.id,
+        RequirementPatch(
             spec_ref=".agentic/specs/feature.spec.md",
             clear_spec_ref=True,
-            config=config,
         )
 
     cleared = update_requirement(
         tmp_path,
         record.id,
-        clear_spec_ref=True,
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(clear_spec_ref=True, timestamp=UPDATED),
     )
     assert cleared.spec_ref == ""
 
@@ -699,9 +704,11 @@ def test_impact_includes_current_and_previous_git_rename_paths(tmp_path: Path) -
     update_requirement(
         tmp_path,
         record.id,
-        affected_paths=["src/calculator_renamed.py"],
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            affected_paths=["src/calculator_renamed.py"],
+            timestamp=UPDATED,
+        ),
     )
 
     by_path = {entry["file"]: entry for entry in impact(tmp_path, config=config)}
@@ -777,9 +784,8 @@ def test_list_filters_current_snapshots(tmp_path: Path) -> None:
     update_requirement(
         tmp_path,
         second.id,
-        status="Retired",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(status="Retired", timestamp=UPDATED),
     )
 
     assert [record.id for record in list_requirements(tmp_path, config=config)] == [
@@ -1077,9 +1083,8 @@ def test_retired_requirement_without_a_test_is_not_flagged(tmp_path: Path) -> No
     update_requirement(
         tmp_path,
         record.id,
-        status="Retired",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(status="Retired", timestamp=UPDATED),
     )
 
     assert audit_traceability(tmp_path, config) == []

@@ -46,7 +46,7 @@ from aegis.requirement_store import (
     find_requirement_record,
     render_requirement_toml,
 )
-from aegis.requirements import create_requirement, update_requirement
+from aegis.requirements import RequirementPatch, create_requirement, update_requirement
 from aegis import requirements as requirements_module
 from aegis.store import (
     GraphConflictError,
@@ -164,17 +164,18 @@ def _requirement_update_worker(
             update_requirement(
                 root,
                 requirement_id,
-                priority="Should",
                 config=config,
-                timestamp="2026-07-30T12:01:00Z",
+                patch=RequirementPatch(priority="Should", timestamp="2026-07-30T12:01:00Z"),
             )
         else:
             update_requirement(
                 root,
                 requirement_id,
-                rationale="Updated by the second writer.",
                 config=config,
-                timestamp="2026-07-30T12:02:00Z",
+                patch=RequirementPatch(
+                    rationale="Updated by the second writer.",
+                    timestamp="2026-07-30T12:02:00Z",
+                ),
             )
         messages.put(("done", field))
     except BaseException as exc:
@@ -622,9 +623,8 @@ def test_external_requirement_change_before_publish_returns_typed_conflict(
         update_requirement(
             tmp_path,
             requirement_id,
-            priority="Could",
             config=config,
-            timestamp="2026-07-30T12:04:00Z",
+            patch=RequirementPatch(priority="Could", timestamp="2026-07-30T12:04:00Z"),
         )
 
     assert conflict.value.code == "REQUIREMENT-STALE-UPDATE"
@@ -657,9 +657,8 @@ def test_requirement_replace_failure_leaves_valid_old_snapshot(
         update_requirement(
             tmp_path,
             requirement_id,
-            priority="Could",
             config=config,
-            timestamp="2026-07-30T12:05:00Z",
+            patch=RequirementPatch(priority="Could", timestamp="2026-07-30T12:05:00Z"),
         )
 
     after = find_requirement_record(tmp_path, requirement_id, config)

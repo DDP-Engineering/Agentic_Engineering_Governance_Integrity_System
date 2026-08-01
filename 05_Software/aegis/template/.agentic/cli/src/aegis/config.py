@@ -19,14 +19,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
-from types import MappingProxyType
-from collections.abc import Mapping
-from typing import Any, NoReturn
 import tomllib
+from types import MappingProxyType
+from typing import Any, NoReturn
 
 from .models import ALL_STAGES
 from .paths import RepositoryPathError

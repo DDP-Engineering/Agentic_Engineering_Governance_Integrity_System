@@ -43,7 +43,7 @@ from aegis.persistence import PersistenceError
 from aegis.report import render_report
 from aegis.repowise import RepoWiseInspection
 from aegis.requirement_store import create_requirement_record
-from aegis.requirements import AuditIssue, audit_coverage, update_requirement
+from aegis.requirements import AuditIssue, RequirementPatch, audit_coverage, update_requirement
 from aegis.stage_forms import close_stage, stage_blocker_details, stage_blockers
 from aegis.store import (
     GraphConflictError,
@@ -561,9 +561,11 @@ def test_inv10_waiver_goes_stale_after_cited_requirement_changes_again(
     update_requirement(
         tmp_path,
         record.id,
-        requirement="Requirement content state B.",
         config=config,
-        timestamp="2026-07-31T08:01:00Z",
+        patch=RequirementPatch(
+            requirement="Requirement content state B.",
+            timestamp="2026-07-31T08:01:00Z",
+        ),
     )
     state_b = _invariant(tmp_path, graph, config, "INV-10")
     assert state_b.holds is False
@@ -583,9 +585,11 @@ def test_inv10_waiver_goes_stale_after_cited_requirement_changes_again(
     update_requirement(
         tmp_path,
         record.id,
-        requirement="Requirement content state C.",
         config=config,
-        timestamp="2026-07-31T08:02:00Z",
+        patch=RequirementPatch(
+            requirement="Requirement content state C.",
+            timestamp="2026-07-31T08:02:00Z",
+        ),
     )
     state_c = _invariant(tmp_path, graph, config, "INV-10")
     assert state_c.holds is False
