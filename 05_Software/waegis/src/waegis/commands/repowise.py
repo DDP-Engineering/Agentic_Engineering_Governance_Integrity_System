@@ -22,6 +22,14 @@ from ..consent import ConfirmationAsker, ConsentDecision, mutation_consent
 from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OK, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
 from ..repowise import RepoWiseError, repowise_status, sync_repowise
 
+# CONSTANTS
+
+_PORTABILITY_BY_SOURCE = {
+    "disabled": "source-only",
+    "external": "external-runtime",
+    "bundled": "offline-bundled-runtime",
+}
+
 
 # EXPORTED FUNCTIONS / PUBLIC API
 
@@ -69,6 +77,9 @@ def run_repowise_status(repo: Path, *, as_json: bool, stream: IO[str]) -> int:
     ):
         if key in result:
             stream.write(f"{key}: {result[key] if result[key] is not None else 'none'}\n")
+    portability = _PORTABILITY_BY_SOURCE.get(str(result.get("source")))
+    if portability is not None:
+        stream.write(f"portability: {portability}\n")
     return EXIT_OK
 
 

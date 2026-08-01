@@ -74,6 +74,27 @@
          blocks. ``render_human_outcome`` (also in ``commands/_shared.py``)
          prints a ``=== Summary ... ===`` header before its end-of-run recap so
          it no longer looks like an accidental repeat of the live log above it.
+@details **Failed-gate evidence and gate consent.** A failing gate command used
+         to be recorded as an outcome string and a one-line note, with its
+         output discarded — enough to know a gate failed, never enough to tell
+         a real product failure from a wrong working directory. ``_act_gates``
+         now records, per failed command, the argv, resolved cwd, exit code,
+         duration, timeout, and bounded stdout/stderr tails, and writes the
+         full output to one log file per failure under
+         ``<home>/logs/gates``; the journal and ``--json`` result carry the
+         bounded tails plus the log path and the exact reproduction command,
+         so the envelope stays bounded while the evidence stays complete.
+         Everything persisted is redacted with the repository's *own*
+         configured secret patterns (``guardrails.secrets.patterns``, the
+         persisted form of the ``secret_patterns`` answer) — this deliberately
+         does not invent a second pattern list. A passing gate still records
+         its outcome and nothing else. Accepting a failing enforced gate is a
+         decision of its own, separate from the mutation-plan consent that
+         ``--yes``/``--non-interactive`` grants: it needs the explicit
+         ``accept_failing_gates`` answer or an interactive confirmation that
+         states the consequence (see :mod:`waegis.io.prompts` for the
+         per-default policy that enforces this for every default-refuse
+         question).
 @details **``prereq.node`` (added 0.5.0, architecture-review follow-up).** New
          warn-not-block step in ``P1_PREREQ``, between ``prereq.git`` and
          ``prereq.git-identity`` (also inserted into ``_COMMON_PREFIX_IDS``,
@@ -89,8 +110,11 @@ import json
 import os
 import re
 import shlex
+import time
 import tomllib
+import uuid
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO, Any, Mapping, Sequence
 from urllib.parse import urlsplit
@@ -132,9 +156,11 @@ from ..probes.tools import probe_git, probe_node, probe_python
 from ..repo import gitops
 from ..repo.workflow_toml import (
     GATE_ORDER,
+    OTHER_LANGUAGE_FIELD_SPECS,
     WORKFLOW_FIELD_SPECS,
     WorkflowTomlError,
     generate_workflow_toml,
+    normalize_stored_answers,
     verify_workflow_invariants,
 )
 from ..transaction import payload_transaction
@@ -190,6 +216,24 @@ MIN_FREE_DISK_BYTES = 1024**3
 # @brief Timeout for operator gate commands (a real test suite may be slow).
 GATE_TIMEOUT_SECONDS = 600.0
 
+# @brief Characters of a failed gate's stdout (and, separately, stderr) kept
+#        inline in the journal and the ``--json`` result. A failing test suite
+#        prints its verdict last, so the *tail* is the diagnostic part; the
+#        full text always survives in the durable log file, which is why this
+#        can stay small enough to keep the envelope bounded.
+GATE_OUTPUT_TAIL_LIMIT = 4000
+
+# @brief Subdirectory of ``<home>/logs`` holding one log file per failed gate
+#        command (sibling of the RepoWise log directory).
+GATE_LOG_DIRNAME = "gates"
+
+# @brief The answer key that explicitly accepts failing enforced gates.
+ACCEPT_FAILING_GATES_KEY = "accept_failing_gates"
+
+# @brief The answer key that explicitly accepts creating TARGET nested inside
+#        another git work tree.
+ACCEPT_NESTED_REPOSITORY_KEY = "accept_nested_repository"
+
 # @brief Templated initial-commit message (plan §8.1 repo.initial-commit).
 INITIAL_COMMIT_MESSAGE = f"Bootstrap AEGIS via WAEGIS {WIZARD_VERSION}"
 
@@ -233,55 +277,44 @@ NEW_STEP_IDS: tuple[str, ...] = (
 # DATA MODELS / TYPEDEFINITIONS
 
 
-def _normalize_string_list(raw: Any) -> list[str]:
-    """
-    @brief      Validate a list-of-names answer (extensions/patterns for the
-                ``other`` language).
-    @param[in]  raw A comma-separated string (console input) or a sequence of
-                strings (answers file).
-    @return     The non-empty list of stripped values.
-    @exception  ValueError If no non-empty value is present.
-    """
-    if isinstance(raw, str):
-        items = [part.strip() for part in raw.split(",") if part.strip()]
-    elif isinstance(raw, Sequence):
-        items = [str(part).strip() for part in raw]
-    else:
-        raise ValueError("expected a comma-separated string or a list of strings")
-    if not items or any(not item for item in items):
-        raise ValueError("at least one non-empty value is required")
-    return items
-
-
-# @brief Extra answer fields required only when language == "other" (plan §7
-#        invariant 6). No default: they are genuinely required in that branch.
-OTHER_LANGUAGE_FIELD_SPECS: tuple[FieldSpec, ...] = (
-    FieldSpec(
-        key="source_extensions",
-        question="File extension of your source files?",
-        description=(
-            "Lets the traceability check resolve source files for a language it "
-            "has no built-in preset for."
-        ),
-        example=".sql, .prc",
-        validator=_normalize_string_list,
+# @brief The gate-acceptance decision, shared verbatim by both wizards (Wizard
+#        E splices it into its own spec tuple) because both run the same
+#        ``deploy.gates`` step. It is never prompted for as a field: it exists
+#        so a non-interactive run can state the decision that
+#        ``_act_gates``'s default-refuse confirmation otherwise has no operator
+#        to make. The ``False`` default keeps it optional *and* keeps the
+#        refusing behaviour when it is absent.
+GATE_ACCEPTANCE_FIELD_SPEC = FieldSpec(
+    key=ACCEPT_FAILING_GATES_KEY,
+    question="Accept enforced quality gates that fail, and continue anyway?",
+    description=(
+        "Only read when a configured gate command actually fails. When true, a "
+        "failing enforced gate is recorded as accepted-failing and the "
+        "deployment reports success with an accepted failure; when absent or "
+        "false, a failing gate stops the run. General mutation consent "
+        "(--yes / --non-interactive) deliberately does not decide this."
     ),
-    FieldSpec(
-        key="test_file_patterns",
-        question="How is a single test file recognized in your test runner?",
-        description=(
-            "Lets the traceability check resolve 'this requirement is covered "
-            "by that test' for a language it has no built-in preset for."
-        ),
-        example="test_*.sql",
-        validator=_normalize_string_list,
-    ),
+    example="false",
+    default=False,
 )
 
 # @brief Optional wizard-level answers (defaults keep them non-required):
 #        clone_url selects clone-over-init; the git identity pair feeds
-#        prereq.git-identity's pending repo-local path.
+#        prereq.git-identity's pending repo-local path; accept_failing_gates
+#        decides deploy.gates' default-refuse acceptance question.
 NEW_EXTRA_FIELD_SPECS: tuple[FieldSpec, ...] = (
+    GATE_ACCEPTANCE_FIELD_SPEC,
+    FieldSpec(
+        key=ACCEPT_NESTED_REPOSITORY_KEY,
+        question="Create TARGET inside another git repository anyway?",
+        description=(
+            "Only read when TARGET turns out to lie inside an existing git "
+            "work tree. When true, the nested repository is created anyway; "
+            "when absent or false, the run stops rather than nesting silently."
+        ),
+        example="false",
+        default=False,
+    ),
     FieldSpec(
         key="clone_url",
         question="Clone from a remote instead of running a local 'git init'?",
@@ -432,6 +465,41 @@ def ask_field(ctx: EngineContext, spec: FieldSpec) -> Any:
     return ask_field(spec)
 
 
+def split_gate_command(command: str) -> list[str]:
+    """
+    @brief      Split one configured gate command string into argv, honoring the
+                host's path syntax (DPT-F07).
+    @details    ``shlex.split`` defaults to POSIX mode, where a backslash is an
+                escape character. On Windows that silently destroys every native
+                path an operator writes unquoted: the configured gate
+                ``uv run --directory 05_Software\\pkg python -m pytest`` was
+                handed to the child as ``--directory 05_Softwarepkg``, so the
+                command failed to locate the package and exited nonzero while
+                the very same suite passed when run by hand from the package
+                root. That is the exact shape of DPT-F07, and it contradicts
+                this field's own documented contract ("Run exactly as given").
+    @details    The fix disables *escape* processing on Windows while keeping
+                POSIX *quote* processing, so a quoted path keeps working and its
+                surrounding quotes are still removed. Plain ``posix=False``
+                would not do: it returns the quote characters inside the token,
+                which ``subprocess`` would then pass to the child literally.
+                :mod:`waegis.repowise` solves the same problem for the RepoWise
+                external command; this is the gate-command counterpart.
+    @details    On every non-Windows host the lexer is configured exactly as
+                ``shlex.split`` configures it, so POSIX behavior is unchanged
+                byte for byte.
+    @param[in]  command Configured gate command string.
+    @return     The argv list to execute.
+    @exception  ValueError If the string has an unbalanced quote.
+    """
+    lexer = shlex.shlex(command, posix=True)
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    if os.name == "nt":
+        lexer.escape = ""
+    return list(lexer)
+
+
 def _read_gates(target: Path) -> dict[str, tuple[str, list[list[str]]]]:
     """
     @brief      Read the configured gate commands from the written workflow.toml.
@@ -449,7 +517,7 @@ def _read_gates(target: Path) -> dict[str, tuple[str, list[list[str]]]]:
         group = gates.get(name, {})
         mode = str(group.get("mode", "disabled"))
         commands = [
-            shlex.split(str(command))
+            split_gate_command(str(command))
             for command in group.get("commands", [])
         ]
         result[name] = (mode, commands)
@@ -995,8 +1063,10 @@ def _act_target_path(ctx: EngineContext) -> None:
     if _nested_in_foreign_work_tree(ctx):
         ctx.note(f"warning: {target} lies inside an existing git work tree")
         if not ctx.asker.confirm(
-            "TARGET is inside another git repository. Create a nested repository anyway?",
+            "TARGET is inside another git repository. Create a nested repository anyway? "
+            "The outer repository will see the whole nested tree as untracked content.",
             default=False,
+            decision=ACCEPT_NESTED_REPOSITORY_KEY,
         ):
             raise RuntimeError("operator declined to create TARGET inside another git work tree")
     target.mkdir(parents=True, exist_ok=True)
@@ -1260,7 +1330,7 @@ def _act_workflow_toml(ctx: EngineContext) -> None:
         else:
             ctx.note("operator declined creating missing roots - verification requires them to exist")
 
-    amend_manifest_generated(target, answers=collected)
+    amend_manifest_generated(target, answers=normalize_stored_answers({**collected, **extras}))
     ctx.note("install manifest amended: .agentic/workflow.toml moved from files to generated")
 
 
@@ -1275,6 +1345,15 @@ def amend_manifest_generated(target: Path, *, answers: Mapping[str, Any] | None 
                 from ``files`` keeps drift reports clean and keeps
                 ``deploy.payload-copy``'s detect green on re-runs.
     @param[in]  target Target repository root holding the manifest.
+    @param[in]  answers The durable generator answers to record, already
+                reduced through
+                :func:`waegis.repo.workflow_toml.normalize_stored_answers` by
+                the calling wizard. ``None`` leaves the existing configuration
+                untouched (the file-move-only amendment). Every wizard that
+                generates the workflow passes them: a manifest without them
+                cannot answer "what was this configured with", and a later
+                ``configure`` would have to ask for settings the repository
+                already holds.
     @return     None
     @exception  FileNotFoundError If no manifest exists.
     @exception  waegis.payload.manifest.ManifestError If the manifest is invalid.
@@ -1359,6 +1438,232 @@ def on_fail_workflow_toml(ctx: EngineContext) -> Remediation:
 # --- step: deploy.gates ----------------------------------------------------------
 
 
+def _gate_secret_patterns(ctx: EngineContext, target: Path) -> tuple[re.Pattern[str], ...]:
+    """
+    @brief      The repository's own configured secret patterns, compiled.
+    @details    Single source, deliberately: ``guardrails.secrets.patterns`` in
+                the written workflow.toml *is* the persisted ``secret_patterns``
+                answer, and reading it from disk keeps this consistent with
+                :func:`_read_gates` on a resumed run whose interview step was
+                skipped. The in-memory answer is only consulted when the file
+                cannot be read at all. No second pattern list is invented here:
+                a repository that configured no patterns gets no redaction,
+                which is the same contract its own guardrails run under.
+                A pattern that does not compile is skipped rather than fatal —
+                the gate has already failed and losing the evidence entirely
+                would be the worse outcome.
+    @param[in]  ctx Active engine context.
+    @param[in]  target Target repository root.
+    @return     The compiled patterns, possibly empty.
+    @exception  None
+    """
+    document = _workflow_document(target)
+    if document is not None:
+        raw = document.get("guardrails", {}).get("secrets", {}).get("patterns", [])
+    else:
+        raw = get_answers(ctx).get("secret_patterns", [])
+    compiled: list[re.Pattern[str]] = []
+    for pattern in raw if isinstance(raw, (list, tuple)) else ():
+        try:
+            compiled.append(re.compile(str(pattern)))
+        except re.error:
+            continue
+    return tuple(compiled)
+
+
+def _redact(text: str, patterns: Sequence[re.Pattern[str]]) -> str:
+    """
+    @brief      Replace every configured-secret match with a fixed marker.
+    @param[in]  text Raw captured output.
+    @param[in]  patterns Compiled secret patterns.
+    @return     The redacted text (unchanged when no pattern matches).
+    @exception  None
+    """
+    for pattern in patterns:
+        text = pattern.sub("[REDACTED]", text)
+    return text
+
+
+def _bounded_tail(text: str) -> tuple[str, bool]:
+    """
+    @brief      Keep the last :data:`GATE_OUTPUT_TAIL_LIMIT` characters of a
+                captured stream.
+    @param[in]  text Redacted stream text.
+    @return     ``(tail, truncated)``.
+    @exception  None
+    """
+    if len(text) <= GATE_OUTPUT_TAIL_LIMIT:
+        return text, False
+    return text[-GATE_OUTPUT_TAIL_LIMIT:], True
+
+
+def _gate_reproduction(argv: Sequence[str], cwd: Path) -> str:
+    """
+    @brief      The exact command that re-runs one failed gate by hand.
+    @details    ``shlex.join`` quotes each argument of the argv
+                :func:`_read_gates` built, so what is printed re-runs what was
+                run. On Windows a native path is emitted single-quoted, which
+                PowerShell takes literally — the same shell the deployment
+                tooling uses there.
+    @param[in]  argv The gate command's argument vector.
+    @param[in]  cwd The working directory it ran in.
+    @return     A single copyable shell line.
+    @exception  None
+    """
+    return f"cd {shlex.quote(str(cwd))} && {shlex.join(argv)}"
+
+
+def _write_gate_log(
+    ctx: EngineContext,
+    *,
+    gate_name: str,
+    argv: Sequence[str],
+    cwd: Path,
+    result: Any,
+    duration: float,
+    patterns: Sequence[re.Pattern[str]],
+) -> str | None:
+    """
+    @brief      Write one failed gate command's full, redacted output to a
+                durable log file under the WAEGIS home.
+    @details    Large output belongs in an isolated file rather than the
+                journal or the ``--json`` envelope, which both stay bounded.
+                Redaction is applied here as well as to the inline tails: the
+                log is the copy an operator is most likely to paste elsewhere.
+                A log that cannot be written is not fatal — the bounded tails
+                still carry a diagnosis — so this returns ``None`` instead of
+                raising and taking the gate's evidence down with it.
+    @param[in]  ctx Active engine context.
+    @param[in]  gate_name The gate group (``test``, ``lint``, ...).
+    @param[in]  argv The gate command's argument vector.
+    @param[in]  cwd The working directory it ran in.
+    @param[in]  result The command result being recorded.
+    @param[in]  duration Wall-clock seconds the command took.
+    @param[in]  patterns Compiled secret patterns.
+    @return     The log file path as text, or ``None`` when it could not be
+                written.
+    @exception  None
+    """
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    directory = _home_dir(ctx) / "logs" / GATE_LOG_DIRNAME
+    path = directory / f"{stamp}-{uuid.uuid4().hex[:6]}.log"
+    # The whole body is redacted — including the argv/reproduce header lines,
+    # so a credential embedded in the gate command itself never persists.
+    body = _redact(
+        (
+            f"gate: {gate_name}\n"
+            f"argv: {json.dumps(list(argv))}\n"
+            f"cwd: {cwd}\n"
+            f"exit_code: {result.exit_code}\n"
+            f"found: {result.found}\n"
+            f"timed_out: {result.timed_out}\n"
+            f"timeout_seconds: {GATE_TIMEOUT_SECONDS}\n"
+            f"duration_seconds: {duration:.3f}\n"
+            f"reproduce: {_gate_reproduction(argv, cwd)}\n"
+            "--- stdout ---\n"
+            f"{result.stdout}\n"
+            "--- stderr ---\n"
+            f"{result.stderr}\n"
+        ),
+        patterns,
+    )
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+    except OSError:
+        return None
+    return str(path)
+
+
+def _gate_failure_record(
+    ctx: EngineContext,
+    *,
+    gate_name: str,
+    argv: Sequence[str],
+    cwd: Path,
+    result: Any,
+    duration: float,
+    patterns: Sequence[re.Pattern[str]],
+) -> dict[str, Any]:
+    """
+    @brief      Build the journalled evidence record for one failed gate command.
+    @details    Everything a post-mortem needs without re-running the gate:
+                what ran, where, how it ended, how long it took, the bounded
+                redacted tails of both streams, whether those tails were cut,
+                where the full log is, and the one-line reproduction. The
+                ``decision`` field is filled in by the caller once the operator
+                (or the answers file) has decided; it is not a gate *outcome*
+                and never enters the ``gate_outcomes`` vocabulary.
+    @param[in]  ctx Active engine context.
+    @param[in]  gate_name The gate group the command belongs to.
+    @param[in]  argv The gate command's argument vector.
+    @param[in]  cwd The working directory it ran in.
+    @param[in]  result The failing command result.
+    @param[in]  duration Wall-clock seconds the command took.
+    @param[in]  patterns Compiled secret patterns.
+    @return     A JSON-safe evidence mapping.
+    @exception  None
+    """
+    stdout_tail, stdout_truncated = _bounded_tail(_redact(result.stdout, patterns))
+    stderr_tail, stderr_truncated = _bounded_tail(_redact(result.stderr, patterns))
+    # The command/argv/reproduce fields are redacted too: a gate command that
+    # itself embeds a credential must not survive into any evidence sink.
+    return {
+        "gate": gate_name,
+        "command": _redact(" ".join(argv), patterns),
+        "argv": [_redact(argument, patterns) for argument in argv],
+        "cwd": str(cwd),
+        "exit_code": result.exit_code,
+        "found": result.found,
+        "timed_out": result.timed_out,
+        "timeout_seconds": GATE_TIMEOUT_SECONDS,
+        "duration_seconds": round(duration, 3),
+        "stdout_tail": stdout_tail,
+        "stderr_tail": stderr_tail,
+        "truncated": stdout_truncated or stderr_truncated,
+        "log_path": _write_gate_log(
+            ctx,
+            gate_name=gate_name,
+            argv=argv,
+            cwd=cwd,
+            result=result,
+            duration=duration,
+            patterns=patterns,
+        ),
+        "reproduce": _redact(_gate_reproduction(argv, cwd), patterns),
+        "decision": None,
+    }
+
+
+def _note_gate_failure(ctx: EngineContext, record: Mapping[str, Any]) -> None:
+    """
+    @brief      Surface one failed gate's evidence pointers on the human stream.
+    @details    Notes are journalled *and* printed by the console sink, so this
+                is what keeps human and ``--json`` output telling the same
+                story: the one-line failure, where the full log is, and the
+                exact command that reproduces it.
+    @param[in]  ctx Active engine context.
+    @param[in]  record The evidence record built for the failure.
+    @return     None
+    @exception  EngineError If called outside a running step.
+    """
+    if record["timed_out"]:
+        ending = f"timed out after {record['timeout_seconds']}s"
+    elif not record["found"]:
+        ending = "could not be launched (command not found)"
+    else:
+        ending = f"exited {record['exit_code']}"
+    ctx.note(
+        f"gate '{record['gate']}' FAILED: {record['command']} {ending} "
+        f"in {record['duration_seconds']}s (cwd: {record['cwd']})"
+    )
+    if record["log_path"] is not None:
+        ctx.note(f"  full output log: {record['log_path']}")
+    else:
+        ctx.note("  full output log could not be written; the recorded tails are all there is")
+    ctx.note(f"  reproduce with: {record['reproduce']}")
+
+
 def _act_gates(ctx: EngineContext) -> None:
     """
     @brief      deploy.gates act: offer to run each configured gate command once
@@ -1371,22 +1676,34 @@ def _act_gates(ctx: EngineContext) -> None:
                 them right now should defer them cleanly (recorded outcome
                 ``deferred``, verify still passes) instead of halting the
                 whole run the way an ``ASSISTED`` decline would.
+    @details    A failing command's evidence is recorded *before* the
+                acceptance question is asked, so a refusal — which fails the
+                step by raising — still leaves the journal holding everything
+                needed to diagnose it. Acceptance itself is a separate decision
+                from the run's mutation consent: the confirmation defaults to
+                refuse and names :data:`ACCEPT_FAILING_GATES_KEY`, so a
+                non-interactive run without that answer is refused loudly
+                rather than waived silently.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If the operator refuses to accept a failing or
                 empty gate (the step then fails, by their decision).
+    @exception  waegis.io.prompts.MissingAnswerError If a non-interactive run
+                hits a failing gate without stating the acceptance decision.
     @exception  OSError / tomllib.TOMLDecodeError If workflow.toml is unreadable.
     """
     runner = get_runner(ctx)
     target = get_target(ctx)
     gates = _read_gates(target)
     outcomes: dict[str, str] = {}
+    failures: list[dict[str, Any]] = []
     if all(mode == "disabled" for mode, _commands in gates.values()):
         for gate_name in gates:
             outcomes[gate_name] = "disabled"
         ctx.note("gate execution is disabled explicitly by workflow.toml")
         ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
         ctx.record_answer("gate_outcomes", outcomes)
+        ctx.record_answer("gate_accepted_failing", [])
         return
     if not ctx.asker.confirm("Proceed with 'Try the quality gates once'?", default=True):
         for gate_name, (mode, commands) in gates.items():
@@ -1398,6 +1715,7 @@ def _act_gates(ctx: EngineContext) -> None:
         ctx.note("gate run deferred entirely by operator (recorded)")
         ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
         ctx.record_answer("gate_outcomes", outcomes)
+        ctx.record_answer("gate_accepted_failing", [])
         return
     for gate_name, (mode, commands) in gates.items():
         if mode == "disabled":
@@ -1413,20 +1731,49 @@ def _act_gates(ctx: EngineContext) -> None:
             continue
         for command in commands:
             label = " ".join(command)
+            started = time.monotonic()
             result = runner.run(tuple(command), timeout=GATE_TIMEOUT_SECONDS, cwd=target)
-            passed = result.ok()
-            ctx.note(f"gate '{gate_name}' {'PASS' if passed else 'FAIL'}: {label}")
-            if passed:
+            duration = time.monotonic() - started
+            if result.ok():
+                # A passing gate stays cheap: outcome only, no captured volume.
+                ctx.note(f"gate '{gate_name}' PASS: {label}")
                 outcomes[label] = "pass"
                 continue
-            if not ctx.asker.confirm(
-                f"Gate command failed: {label}. Accept the failing gate and continue?",
+            record = _gate_failure_record(
+                ctx,
+                gate_name=gate_name,
+                argv=tuple(command),
+                cwd=target,
+                result=result,
+                duration=duration,
+                patterns=_gate_secret_patterns(ctx, target),
+            )
+            failures.append(record)
+            _note_gate_failure(ctx, record)
+            # Recorded before the decision so a refusal still journals the
+            # evidence on its way out through the raise below.
+            ctx.record_answer("gate_failures", failures)
+            accepted = ctx.asker.confirm(
+                f"Gate command failed: {label}. Accept the failing gate and continue? "
+                "It will be recorded as accepted-failing, and the deployment will "
+                "report success with an accepted failure.",
                 default=False,
-            ):
+                decision=ACCEPT_FAILING_GATES_KEY,
+            )
+            record["decision"] = "accepted" if accepted else "rejected"
+            ctx.record_answer("gate_failures", failures)
+            if not accepted:
+                ctx.record_answer("gate_outcomes", outcomes)
                 raise RuntimeError(f"operator rejected the failing gate command: {label}")
             outcomes[label] = "accepted-failing"
     ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
     ctx.record_answer("gate_outcomes", outcomes)
+    ctx.record_answer(
+        "gate_accepted_failing",
+        [label for label, outcome in outcomes.items() if outcome == "accepted-failing"],
+    )
+    if failures:
+        ctx.record_answer("gate_failures", failures)
 
 
 def _verify_gates(ctx: EngineContext) -> bool:

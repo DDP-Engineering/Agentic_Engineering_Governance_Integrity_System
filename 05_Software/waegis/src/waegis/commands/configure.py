@@ -10,10 +10,17 @@
 @file configure.py
 @brief Post-install, owned-field-only workflow configuration lifecycle.
 @details Uses stored manifest answers first and repository-analysis proposals as
-         fallbacks. The current workflow file is the rewrite base, so comments
+         fallbacks; when the manifest records no answers, the existing valid
+         workflow file is read back for them, and a successful run stores the
+         completed set. The current workflow file is the rewrite base, so comments
          and every non-owned field remain byte-for-byte unchanged. Writes are
          atomic, smoke/gate failures restore the prior file, and configuration
          metadata is written to the install manifest last.
+@details Human and ``--json`` output are held to the same information: when
+         configuration succeeds but RepoWise synchronization fails, both state
+         the sync verdict, the concise error, the isolated log path, and the
+         resume command. Only the rendering changed for this — the RepoWise
+         result payload and how the lifecycle is invoked are untouched.
 """
 
 # IMPORTS
@@ -41,9 +48,13 @@ from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo.analyze import RepoAnalysis, analyze_repo
 from ..repo.workflow_toml import (
     GATE_ORDER,
+    GENERATOR_ANSWER_KEYS,
+    OTHER_LANGUAGE_FIELD_SPECS,
     WORKFLOW_FIELD_SPECS,
     WorkflowTomlError,
+    derive_answers_from_workflow,
     generate_workflow_toml,
+    normalize_stored_answers,
 )
 from ..repowise import REPOWISE_ANSWER_KEYS, RepoWiseError, lifecycle_repowise
 from ..verification import smoke_reverify
@@ -58,15 +69,59 @@ from ._shared import (
     recover_transactions_or_emit,
     render_pending_recovery,
 )
-from .new import OTHER_LANGUAGE_FIELD_SPECS
 
 # CONSTANTS
 
 _CONTROL_KEYS = frozenset({"run_gates", "run_smoke"})
-CONFIG_KEYS = frozenset(spec.key for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS))
+
+# @brief The durable answer allowlist, owned by the generator's own spec tables
+#        so this command and the wizards that write the manifest can never
+#        disagree about which answers are configuration.
+CONFIG_KEYS = GENERATOR_ANSWER_KEYS
 
 
 # HELPER FUNCTIONS
+
+
+def _render_sync_failure(stream: IO[str], result: Mapping[str, Any]) -> None:
+    """
+    @brief      Render the split-result case: configuration applied, RepoWise
+                synchronization failed.
+    @details    This is the one outcome where the two output surfaces used to
+                disagree. ``configured`` is true, so human mode printed
+                "Configuration updated and verified." and stopped, while the
+                ``--json`` result carried the sync verdict, the parsing error,
+                the isolated log path, and the resume command. A human operator
+                read that as an unqualified success. The same four facts are
+                now printed here, so the surfaces are semantically equivalent.
+                A successful (or deferred, or disabled) sync adds no lines at
+                all: the configuration verdict already covers it.
+                Read defensively — the synthesized payload for a raised
+                RepoWise error carries ``error`` and no log or resume command,
+                where a returned failure carries ``message``/``log``/
+                ``resume_command``.
+    @param[in]  stream Output stream.
+    @param[in]  result The frozen result payload.
+    @return     None
+    @exception  None
+    """
+    repowise = result.get("repowise")
+    if not isinstance(repowise, Mapping):
+        return
+    sync = repowise.get("sync")
+    if not isinstance(sync, Mapping) or sync.get("ok", True):
+        return
+    stream.write(
+        "RepoWise synchronization: FAILED (the AEGIS configuration itself is "
+        "applied and verified).\n"
+    )
+    detail = sync.get("message") or sync.get("error") or "no error detail was reported"
+    stream.write(f"  error:  {detail}\n")
+    log = sync.get("log")
+    stream.write(f"  log:    {log}\n" if log else "  log:    (none was written)\n")
+    resume = sync.get("resume_command")
+    if resume:
+        stream.write(f"  resume: {resume}\n")
 
 
 def _render_configure_human(
@@ -80,6 +135,9 @@ def _render_configure_human(
                 :func:`waegis.commands._shared.emit_command_output`): the plan
                 is summarized as per-field before/after changes and the result
                 as the configuration verdict, which no other command emits.
+                A configured result whose RepoWise synchronization failed also
+                renders the sync block (:func:`_render_sync_failure`), so human
+                mode carries the same facts the JSON result does.
     @param[in]  stream Output stream.
     @param[in]  plan Optional frozen plan payload.
     @param[in]  result Optional frozen result payload.
@@ -94,6 +152,7 @@ def _render_configure_human(
             stream.write(f"  {change['field']}: {change['before']!r} -> {change['after']!r}\n")
     if result is not None and result.get("configured"):
         stream.write("Configuration updated and verified.\n")
+        _render_sync_failure(stream, result)
 
 
 def _emit(
@@ -153,7 +212,36 @@ def stored_answers(configuration: Mapping[str, Any]) -> dict[str, Any]:
     raw = configuration.get("answers")
     if not isinstance(raw, Mapping):
         return {}
-    return {str(key): value for key, value in raw.items() if str(key) in CONFIG_KEYS}
+    return normalize_stored_answers({str(key): value for key, value in raw.items()})
+
+
+def _recovered_answers(repo: Path, configuration: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    @brief      The effective stored-answer set, reconstructing what the
+                manifest does not record.
+    @details    Installs written before adoption persisted its answers carry an
+                empty ``configuration``, which used to leave configure with
+                nothing but repository proposals: a run that only meant to
+                change one field had to restate the entire workflow, and a run
+                that could not propose a source root failed outright. The
+                generated workflow.toml is itself a complete record of the
+                answers that produced it, so it is read back as the base layer.
+                Anything the manifest does record still wins — it is the more
+                explicit statement of intent, and this layer only fills gaps.
+                A successful configure then writes the completed set back, so
+                the reconstruction happens once.
+    @param[in]  repo Repository root.
+    @param[in]  configuration The manifest's configuration metadata.
+    @return     Stored answers over reconstructed ones, possibly empty.
+    @exception  None
+    """
+    stored = stored_answers(configuration)
+    workflow_path = resolve_managed_path(repo, WORKFLOW_TOML_RELATIVE_PATH)
+    try:
+        text = workflow_path.read_text(encoding="utf-8")
+    except OSError:
+        return stored
+    return {**derive_answers_from_workflow(text), **stored}
 
 
 def _resolve_answers(
@@ -352,7 +440,8 @@ def _resolve_configure_environment(
     )
     return ConfigureResolved(
         context, pending, recovered, manifest, supplied, payload_root, runner,
-        analysis, asker, stored_answers(manifest.configuration),
+        analysis, asker,
+        _recovered_answers(context.repo_path, manifest.configuration),
     )
 
 
@@ -484,9 +573,7 @@ def _commit_configure_manifest(
     generated_files[WORKFLOW_TOML_RELATIVE_PATH] = {
         "sha256": hash_file(plan.workflow_path).sha256
     }
-    configuration["answers"] = {
-        key: plan.answers[key] for key in sorted(plan.answers)
-    }
+    configuration["answers"] = normalize_stored_answers(plan.answers)
     configuration["generator_version"] = WIZARD_VERSION
     configuration["generated_files"] = generated_files
     generated_paths = tuple(

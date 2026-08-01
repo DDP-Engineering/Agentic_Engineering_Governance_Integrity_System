@@ -284,11 +284,19 @@ class Asker(Protocol):
              the ``ConsoleAsker``/``ScriptedAsker`` implementations.
     """
 
-    def confirm(self, prompt: str, *, default: bool = True) -> bool:
+    def confirm(self, prompt: str, *, default: bool = True, decision: str | None = None) -> bool:
         """
         @brief      Ask a yes/no question.
+        @details    ``decision`` is an additive, optional keyword naming the
+                    answer key that decides this question when there is no
+                    operator. Only a step asking a *default-refuse* safety
+                    question passes it, and every asker T1.2 supplies accepts
+                    it, so the protocol stays satisfied by the existing
+                    implementations.
         @param[in]  prompt Question text.
         @param[in]  default Value assumed when the operator gives no answer.
+        @param[in]  decision Answer key that decides the question without an
+                    operator; ``None`` for ordinary confirmations.
         @return     The operator's boolean choice.
         """
         ...

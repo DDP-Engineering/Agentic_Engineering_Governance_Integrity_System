@@ -35,8 +35,35 @@ All notable changes to this project will be documented in this file.
   findings while retaining the underlying failure and rendering it as
   `WAIVED`, never passed. Schema corruption, persistence locks, and stale
   updates remain non-waivable.
+- Report a waived failing quality gate in `waegis doctor`'s journal group.
+  Payload integrity and verification status are separate dimensions, so a
+  repository with zero drift no longer reads as healthy while its latest
+  wizard run holds an accepted failing gate. The warning names the gate, the
+  command, the run and its timestamp, and the evidence log, and clears only
+  when a later run records the same gate command as passing. In `--json` this
+  is one further finding object inside the existing `journal` group array; the
+  envelope shape, group names, and finding field names are unchanged, and
+  journals written before failed-gate evidence existed are read tolerantly.
 
 ### Changed
+
+- Separate general mutation consent from accepting a failing enforced quality
+  gate. `--yes` and `--non-interactive` approve the rendered filesystem/Git
+  mutation plan only; waiving a gate failure is now its own decision, stated by
+  the new `accept_failing_gates` answer key or by an interactive confirmation
+  that spells out the consequence. This is enforced structurally rather than
+  case by case: a scripted asker will not auto-answer "yes" to any
+  confirmation whose default is to refuse, so every present and future
+  default-refuse safety question inherits the rule. Two further questions of
+  that class gained answer keys so they stay answerable without a console —
+  `adopt_over_existing_install` (continue adopting over a repository that
+  already carries a valid install manifest) and `accept_nested_repository`
+  (create TARGET inside another Git work tree).
+  **Migration:** automation that previously relied on blanket `--yes` to carry
+  it past one of these questions now fails loudly, naming the missing decision;
+  add the corresponding key to its answers file. Absence of a key always means
+  refusal, never acceptance. Because this adds public answer keys without
+  removing or renaming anything, it is recommended to ship as a MINOR release.
 
 - Canonicalize adoption and upgrade conflict decisions through one shared
   payload normalizer while preserving the public upgrade exit aliases and the
@@ -65,12 +92,64 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Split configured quality-gate command strings with the host's own path
+  syntax. `shlex` defaults to POSIX mode, where a backslash is an escape
+  character, so on Windows every native path written unquoted lost its
+  separators before the child process started: the gate
+  `uv run --directory 05_Software\pkg python -m pytest` reached uv as
+  `--directory 05_Softwarepkg` and exited nonzero while the identical suite
+  passed by hand from the package root. Escape processing is now disabled on
+  Windows while POSIX quote handling is kept, so a quoted path keeps working
+  and its quotes are still removed; on every other host the split is unchanged
+  byte for byte. Gate commands run from the repository root as before.
+- Make `RUN-POINTER-MISSING` state the recovery command. The worktree-local
+  active-run pointer is deliberately Git-ignored while runs under
+  `.agentic/runs/` are durable, so losing the pointer leaves the run fully
+  recoverable — but the message named neither the run nor `aegis run select`,
+  which is the command that recovers it. The guidance now names the exact
+  `aegis run select <id>` when a single incomplete run makes the choice
+  unambiguous, lists every candidate when it does not, and keeps the previous
+  start-a-run advice when there is nothing to select. A corrupt `graph.json`
+  no longer hides the runs beside it. The error code and result fields are
+  unchanged.
+
+- Retain enough evidence to diagnose a failed quality gate without rerunning
+  it. A failing gate command now records its argv, resolved working directory,
+  exit code, duration, timeout, and bounded stdout/stderr tails, and writes the
+  full output to one log file per failure under the WAEGIS home; the journal
+  and `--json` result carry the bounded tails plus the log path and the exact
+  reproduction command, so the envelope stays bounded while the evidence stays
+  complete. Both output surfaces show the one-line failure, the log path, and
+  the reproduction command. Everything persisted is redacted with the
+  repository's own configured secret patterns rather than a second list
+  invented for the purpose, and a passing gate still records its outcome and
+  nothing else. The result distinguishes a clean deployment, a rejected gate
+  failure, and a gate failure that was explicitly accepted, using the existing
+  outcome vocabulary unchanged.
+- Report a failed RepoWise synchronization in `waegis configure`'s human
+  output. A run whose configuration succeeded but whose indexing failed
+  previously printed only that the configuration was updated and verified,
+  which reads as an unqualified success; it now states the synchronization
+  status, the concise error, the isolated log path, and the resume command —
+  the same facts the JSON result already carried. A successful synchronization
+  adds no output.
 - Prevent Click's Windows-only pre-parser from expanding WAEGIS-managed
   RepoWise exclusion globs into surplus positional paths when matches exist;
   use literal option binding for wildcard-capable values, bypass the Complete
   batch launcher during managed execution, preserve paths with spaces, and
   restore RepoWise's unsolicited project-local MCP/VS Code setup before
   artifact validation and receipt creation.
+- Persist the workflow answers in the install manifest when adopting an
+  existing repository, so a later configuration no longer has to restate the
+  whole workflow to request one setting. New and adopt now store one
+  allowlisted, canonically-normalized answer shape, which keeps adoption-only
+  answers and RepoWise runtime data out of the durable configuration.
+  Configuration of an install whose manifest records no answers reconstructs
+  them from the existing valid workflow file and writes the completed set back
+  after a successful run, so an earlier adoption is repaired in place without a
+  new command or flag. Regenerating from an already-generated file now replaces
+  the conditional baseline-threshold key and stage write-access table instead of
+  emitting a second copy of each.
 - Synchronize current AEGIS 2.1.0 / WAEGIS 1.1.0 template branding and schema
   documentation, enforce structural version parity and an empty downstream
   changelog, and exclude Python bytecode plus interpreter/test/coverage caches

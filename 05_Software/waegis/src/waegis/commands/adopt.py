@@ -109,7 +109,12 @@ from ..repo.gitops import (
     status_porcelain,
     validate_branch_name,
 )
-from ..repo.workflow_toml import GATE_ORDER, WORKFLOW_FIELD_SPECS, generate_workflow_toml
+from ..repo.workflow_toml import (
+    GATE_ORDER,
+    WORKFLOW_FIELD_SPECS,
+    generate_workflow_toml,
+    normalize_stored_answers,
+)
 from ..transaction import payload_transaction
 from ..version import WIZARD_VERSION
 from ._shared import (
@@ -134,6 +139,7 @@ from ._shared import (
 from .new import (
     COMMON_PREFIX_STEPS,
     GATES_STEP,
+    GATE_ACCEPTANCE_FIELD_SPEC,
     OTHER_LANGUAGE_FIELD_SPECS,
     SHARED_ANSWERS,
     SHARED_CLONE_URL,
@@ -251,9 +257,32 @@ def _normalize_conflict_table(raw: Any) -> dict[str, str]:
     return table
 
 
+# @brief The answer key that explicitly continues adoption over a repository
+#        that already carries a valid AEGIS install manifest.
+ADOPT_OVER_EXISTING_INSTALL_KEY = "adopt_over_existing_install"
+
 # @brief Answer fields new to Wizard E (defaults keep them non-required): the
-#        adoption branch name and the per-file conflict decision table.
+#        adoption branch name and the per-file conflict decision table, plus
+#        the gate-acceptance decision shared with Wizard N (same
+#        ``deploy.gates`` step, same answer key) and the prior-install
+#        override. The last two are never prompted for as fields: they exist so
+#        a non-interactive run can state the decisions that the two
+#        default-refuse confirmations otherwise have no operator to make.
 ADOPT_EXTRA_FIELD_SPECS: tuple[FieldSpec, ...] = (
+    GATE_ACCEPTANCE_FIELD_SPEC,
+    FieldSpec(
+        key=ADOPT_OVER_EXISTING_INSTALL_KEY,
+        question="Adopt into a repository that already has an AEGIS install?",
+        description=(
+            "Only read when a valid install manifest is already present. "
+            "'waegis doctor' (same version) or 'waegis upgrade' (different "
+            "version) is normally the right command; when absent or false, "
+            "adoption stops there instead of running over the existing "
+            "install."
+        ),
+        example="false",
+        default=False,
+    ),
     FieldSpec(
         key="adoption_branch",
         question="Which branch should the adoption changes be committed on?",
@@ -282,7 +311,7 @@ ADOPT_EXTRA_FIELD_SPECS: tuple[FieldSpec, ...] = (
 
 # @brief Every FieldSpec the adopt-mode command can consume (unknown-key check):
 #        the six workflow fields (confirmed in analyze.repo), the two
-#        "other"-language fields, and the two adopt-specific fields.
+#        "other"-language fields, and the adopt-extra fields.
 ADOPT_FIELD_SPECS: tuple[FieldSpec, ...] = (
     *WORKFLOW_FIELD_SPECS,
     *OTHER_LANGUAGE_FIELD_SPECS,
@@ -641,8 +670,10 @@ def _act_prior_install(ctx: EngineContext) -> None:
                 f"consider 'waegis doctor --repo {target}'."
             )
             if not ctx.asker.confirm(
-                "This repository already has the current AEGIS payload. Continue adoption anyway?",
+                "This repository already has the current AEGIS payload. Continue adoption anyway? "
+                "'waegis doctor' is the command for an already-installed repository.",
                 default=False,
+                decision=ADOPT_OVER_EXISTING_INSTALL_KEY,
             ):
                 raise RuntimeError(
                     "operator chose to stop; run 'waegis doctor' on the already-installed repository"
@@ -657,6 +688,7 @@ def _act_prior_install(ctx: EngineContext) -> None:
             "This repository has a different AEGIS payload version. Continue adoption anyway "
             "(instead of 'waegis upgrade')?",
             default=False,
+            decision=ADOPT_OVER_EXISTING_INSTALL_KEY,
         ):
             raise RuntimeError("operator chose to stop; run 'waegis upgrade' to move the existing install")
         return
@@ -975,7 +1007,12 @@ def _act_adopt_workflow_toml(ctx: EngineContext) -> None:
                 manifest amendment (``.agentic/workflow.toml`` moved from
                 ``files`` to ``generated`` after generation) reuse Wizard N's
                 exact machinery (:func:`generate_workflow_toml`,
-                :func:`amend_manifest_generated`).
+                :func:`amend_manifest_generated`) — including persisting the
+                confirmed answers, so an adopted repository can be reconfigured
+                later without restating settings it already holds. The stored
+                set is allowlisted to the generator's own answer keys, which
+                keeps the adopt-only answers (branch name, conflict decisions)
+                and RepoWise runtime data out of the durable configuration.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  waegis.repo.workflow_toml.WorkflowTomlError On generation/invariant failure.
@@ -1017,7 +1054,7 @@ def _act_adopt_workflow_toml(ctx: EngineContext) -> None:
         else:
             ctx.note("operator declined creating missing roots - verification requires them to exist")
 
-    amend_manifest_generated(target)
+    amend_manifest_generated(target, answers=normalize_stored_answers(answers))
     ctx.note("install manifest amended: .agentic/workflow.toml moved from files to generated")
 
 

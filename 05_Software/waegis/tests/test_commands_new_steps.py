@@ -39,6 +39,7 @@ from waegis.commands.new import (
     HOOK_FILES,
     SHARED_ANSWERS,
     SHARED_GATE_OUTCOMES,
+    SHARED_HOME,
     SHARED_PENDING_IDENTITY,
     SHARED_RUNNER,
     SHARED_TARGET,
@@ -76,17 +77,21 @@ def _ctx(
     @param[in]  target Target path placed under the shared contract.
     @param[in]  runner Fake CommandRunner placed under the shared contract.
     @param[in]  answers Answers mapping for the shared contract.
+    @details    A WAEGIS home is always seeded beside TARGET: steps that write
+                state under the home (failed-gate evidence logs) must never
+                reach the real one from a test.
     @param[in]  confirms ScriptedAsker confirm scripting.
     @param[in]  shared_extra Additional shared entries.
     @return     A ready :class:`EngineContext` with an active result.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     shared = {
         SHARED_TARGET: target,
         SHARED_RUNNER: runner,
         SHARED_ANSWERS: answers if answers is not None else {},
+        SHARED_HOME: target.parent / "waegis-home",
     }
     if shared_extra:
         shared.update(shared_extra)

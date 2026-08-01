@@ -37,12 +37,30 @@ from pathlib import Path
 
 import pytest
 
-from waegis.commands.adopt import DEFAULT_ADOPTION_BRANCH, build_adopt_catalog, run_adopt
-from waegis.commands.new import EXIT_OK, WORKFLOW_TOML_RELATIVE_PATH
+from waegis.commands.adopt import (
+    ADOPT_OVER_EXISTING_INSTALL_KEY,
+    DEFAULT_ADOPTION_BRANCH,
+    build_adopt_catalog,
+    run_adopt,
+)
+from waegis.commands.configure import run_configure
+from waegis.commands.new import (
+    EXIT_OK,
+    NO_ACTIVE_RUN_MARKER,
+    WORKFLOW_TOML_RELATIVE_PATH,
+    _wrapper_invocation,
+)
 from waegis.payload.locate import locate_payload
 from waegis.payload.manifest import ManifestState, compute_drift, hash_file, load_manifest
 from waegis.probes.runner import SubprocessCommandRunner
 from waegis.repo import gitops
+from waegis.repo.workflow_toml import (
+    GENERATOR_ANSWER_KEYS,
+    WORKFLOW_FIELD_SPECS,
+    derive_answers_from_workflow,
+)
+
+from _fake_command_runner import FakeCommandRunner, failing_result, ok_result
 
 # CONSTANTS
 
@@ -229,7 +247,14 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path) -> None:  # type: 
     assert first_code == EXIT_OK, first_text
     head_before = gitops.head_commit(SubprocessCommandRunner(), target)
 
-    second_code, second_text = _run(target, home, as_json=True)
+    # The second run finds a valid install manifest, so it hits the
+    # default-refuse "adopt over an existing install?" question. Blanket
+    # --yes/--non-interactive consent deliberately does not answer that one:
+    # the decision has to be stated by name.
+    rerun_answers = _write_answers(
+        tmp_path / "rerun.json", {ADOPT_OVER_EXISTING_INSTALL_KEY: True}
+    )
+    second_code, second_text = _run(target, home, answers_path=rerun_answers, as_json=True)
     assert second_code == EXIT_OK, second_text
     envelope = json.loads(second_text)
     assert envelope["command"] == "adopt" and envelope["status"] == "ok"
@@ -243,6 +268,96 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path) -> None:  # type: 
 
     # Nothing re-ran: no new commit.
     assert gitops.head_commit(SubprocessCommandRunner(), target) == head_before
+
+
+def test_adoption_persists_the_normalized_workflow_answers(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """
+    @brief      Adoption records the configuration it just applied: the manifest
+                carries the same three-part configuration block a fresh install
+                writes, holding exactly the generator's own answer keys — the
+                adopt-only answers (branch, conflict decisions) stay out of it.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @return     None
+    @exception  AssertionError If the answers are missing, or the wrong ones.
+    """
+    target = tmp_path / "repo"
+    home = tmp_path / "home"
+    _make_python_repo(target)
+    answers = _write_answers(
+        tmp_path / "answers.json",
+        {
+            "source_roots": ["lib"],
+            "adoption_branch": "agentic-adoption",
+            "stage_form_retention": "versioned",
+        },
+    )
+
+    code, text = _run(target, home, answers_path=answers)
+    assert code == EXIT_OK, text
+
+    load = load_manifest(target)
+    assert load.state is ManifestState.VALID and load.manifest is not None
+    configuration = load.manifest.configuration
+    assert set(configuration) == {"answers", "generator_version", "generated_files"}
+    assert configuration["generated_files"][WORKFLOW_TOML_RELATIVE_PATH]["sha256"] == hash_file(
+        target / WORKFLOW_TOML_RELATIVE_PATH
+    ).sha256
+
+    stored = configuration["answers"]
+    # A preset language answers the two "other" fields by itself, so the stored
+    # set is the workflow table exactly - the same shape `new` writes.
+    assert set(stored) == {spec.key for spec in WORKFLOW_FIELD_SPECS}
+    assert set(stored).isdisjoint({"adoption_branch", "adoption_conflicts"})
+    assert set(stored) <= GENERATOR_ANSWER_KEYS
+    assert stored["source_roots"] == ["lib"]  # the override, not the proposal
+    assert stored["stage_form_retention"] == "versioned"
+    # What was stored is what the generated file says.
+    assert stored == derive_answers_from_workflow(
+        (target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+
+
+def test_adopted_repo_configures_repowise_without_restating_the_workflow(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """
+    @brief      The reported field failure, end to end: after adoption, an
+                answers file naming only RepoWise keys configures successfully,
+                changes no workflow field, and leaves the generated file byte
+                for byte as adoption wrote it.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @return     None
+    @exception  AssertionError If the run failed or restated any field.
+    """
+    target = tmp_path / "repo"
+    home = tmp_path / "home"
+    _make_python_repo(target)
+    assert _run(target, home)[0] == EXIT_OK
+    workflow_before = (target / WORKFLOW_TOML_RELATIVE_PATH).read_bytes()
+
+    repowise_only = _write_answers(tmp_path / "repowise.json", {"repowise_source": "disabled"})
+    stream = io.StringIO()
+    code = run_configure(
+        target,
+        stream=stream,
+        answers_path=repowise_only,
+        non_interactive=True,
+        yes=True,
+        as_json=True,
+        payload=locate_payload(),
+        runner=FakeCommandRunner(
+            {
+                _wrapper_invocation(target, "--help"): ok_result(),
+                _wrapper_invocation(target, "run", "status", "--json"): failing_result(
+                    exit_code=2, stderr=NO_ACTIVE_RUN_MARKER
+                ),
+            }
+        ),
+    )
+    document = json.loads(stream.getvalue())
+    assert code == EXIT_OK, document["messages"]
+    assert document["plan"]["changes"] == []
+    assert document["plan"]["workflow_content_changed"] is False
+    assert document["result"]["configured"] is True
+    assert (target / WORKFLOW_TOML_RELATIVE_PATH).read_bytes() == workflow_before
 
 
 @pytest.mark.parametrize("decision", ["keep-local", "take-payload", "write-new"])

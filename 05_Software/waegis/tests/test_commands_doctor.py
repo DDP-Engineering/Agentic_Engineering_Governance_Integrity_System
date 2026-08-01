@@ -46,7 +46,7 @@ from waegis.commands.doctor import (
     run_doctor,
 )
 from waegis.commands.new import amend_manifest_generated, _wrapper_invocation
-from waegis.engine import STATUS_COMPLETED, STATUS_FAILED, Journal
+from waegis.engine import STATUS_COMPLETED, STATUS_FAILED, Journal, StepResult, StepStatus
 from waegis.io.reports import ProbeFindingRecord
 from waegis.payload.copier import copy_payload
 from waegis.payload.locate import locate_payload
@@ -150,6 +150,49 @@ def _make_journal(
         path=path,
     )
     journal.finalize(status=status, stopped_at_step=stopped_at_step)
+    return journal
+
+
+def _make_gate_journal(
+    home: Path,
+    repo: Path,
+    run_id: str,
+    *,
+    outcomes: dict[str, str] | None,
+    failures: list[dict] | None = None,
+) -> Journal:
+    """
+    @brief      Build a completed journal whose ``deploy.gates`` step recorded
+                the given outcomes and (optionally) failed-gate evidence.
+    @details    ``outcomes=None`` writes the step with no gate answers at all,
+                which is what a journal from before gates were recorded looks
+                like; omitting ``failures`` writes the pre-evidence shape.
+    @param[in]  home WAEGIS home directory.
+    @param[in]  repo Repository the journal targets.
+    @param[in]  run_id Explicit sortable run id.
+    @param[in]  outcomes Gate outcome map, or ``None`` for no gate answers.
+    @param[in]  failures Failed-gate evidence records, when recorded.
+    @return     The finalized :class:`Journal`.
+    @exception  OSError If the journal cannot be written.
+    """
+    journal = Journal(
+        run_id=run_id,
+        wizard_version="0.1.0",
+        mode="new",
+        target=str(Path(repo).resolve()),
+        dry_run=False,
+        started_at="2026-07-15T00:00:00Z",
+        path=home / "journals" / f"{run_id}.json",
+    )
+    answers: dict = {}
+    if outcomes is not None:
+        answers["gate_outcomes"] = dict(outcomes)
+    if failures is not None:
+        answers["gate_failures"] = list(failures)
+    journal.record(
+        StepResult(step_id="deploy.gates", status=StepStatus.DONE, answers=answers)
+    )
+    journal.finalize(status=STATUS_COMPLETED)
     return journal
 
 
@@ -537,6 +580,205 @@ def test_journal_group_absent_completed_and_stopped_reported_distinctly(tmp_path
 
     details = {absent_finding.detail, completed_finding.detail, stopped_finding.detail}
     assert len(details) == 3
+
+
+def test_accepted_failing_gate_is_reported_with_its_evidence(tmp_path: Path) -> None:
+    """
+    @brief      A repository whose latest run waived a failing enforced gate is
+                not healthy just because its payload has zero drift: the
+                journal group warns, naming the gate, the command, the run and
+                its timestamp, and the evidence log.
+    @return     None
+    @exception  AssertionError If the warning or any of its details is missing.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home,
+        repo,
+        "20260101T000000Z-aaaaaa",
+        outcomes={"pytest -q": "accepted-failing"},
+        failures=[
+            {
+                "gate": "test",
+                "command": "pytest -q",
+                "log_path": str(home / "logs" / "gates" / "evidence.log"),
+            }
+        ],
+    )
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "20260101T000000Z-aaaaaa" in finding.detail
+    assert "test" in finding.detail and "pytest -q" in finding.detail
+    assert "evidence.log" in finding.detail
+    assert finding.guidance is not None
+    # A waived gate is a warning in its own right, whatever the other groups say.
+    assert report.overall_status in {"warn", "fail"}
+
+
+def test_a_later_passing_run_supersedes_the_accepted_failure(tmp_path: Path) -> None:
+    """
+    @brief      The warning clears only on an explicit superseding record: a
+                *later* run that recorded the same gate command as passing.
+    @return     None
+    @exception  AssertionError If the warning does not clear, or clears for the
+                wrong reason.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "accepted-failing"}
+    )
+    warned = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    assert _finding(warned.journal, "journal.accepted-failing-gates").status == "warn"
+
+    _make_gate_journal(home, repo, "20260101T000100Z-bbbbbb", outcomes={"pytest -q": "pass"})
+    cleared = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(cleared.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "ok"
+    assert "superseded" in finding.detail
+
+
+def test_an_older_outstanding_acceptance_survives_a_newer_superseded_run(tmp_path: Path) -> None:
+    """
+    @brief      An older run's never-re-proven acceptance stays warned even
+                when the newest accepting run's own commands were superseded.
+    @details    Regression for the review finding: the walk previously stopped
+                at the most recent accepting journal and could report
+                ``ok (superseded)`` while an older journal still held an
+                accepted failing command no later run ever passed.
+    @return     None
+    @exception  AssertionError If the older acceptance is hidden.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest old-suite": "accepted-failing"}
+    )
+    _make_gate_journal(
+        home, repo, "20260101T000100Z-bbbbbb", outcomes={"pytest -q": "accepted-failing"}
+    )
+    _make_gate_journal(home, repo, "20260101T000200Z-cccccc", outcomes={"pytest -q": "pass"})
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "pytest old-suite" in finding.detail
+    assert "20260101T000000Z-aaaaaa" in finding.detail
+    assert "pytest -q" not in finding.detail.replace("pytest old-suite", "")
+
+
+def test_a_later_run_that_passes_a_different_gate_does_not_supersede(tmp_path: Path) -> None:
+    """
+    @brief      Superseding is per gate command, not per run: a later run that
+                passed some *other* gate leaves the waived one outstanding.
+    @return     None
+    @exception  AssertionError If an unrelated pass clears the warning.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "accepted-failing"}
+    )
+    _make_gate_journal(home, repo, "20260101T000100Z-bbbbbb", outcomes={"ruff check": "pass"})
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "pytest -q" in finding.detail
+
+
+def test_no_accepted_failures_reports_ok(tmp_path: Path) -> None:
+    """
+    @brief      The finding is always present: a repository with no journals at
+                all, and one whose gates all passed, both report ``ok``.
+    @return     None
+    @exception  AssertionError If the finding is absent or not ``ok``.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+
+    empty = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    assert _finding(empty.journal, "journal.accepted-failing-gates").status == "ok"
+
+    _make_gate_journal(home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "pass"})
+    passing = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(passing.journal, "journal.accepted-failing-gates")
+    assert finding.status == "ok"
+    assert "no accepted failing gate outcomes" in finding.detail
+
+
+def test_journals_without_the_evidence_fields_are_read_tolerantly(tmp_path: Path) -> None:
+    """
+    @brief      Journals written before failed-gate evidence existed must still
+                read: one recording ``gate_outcomes`` and nothing else still
+                produces the warning (without a log reference), and one
+                recording no gate answers at all is simply silent.
+    @return     None
+    @exception  AssertionError If an older journal crashes doctor or is
+                misread.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+
+    # An old journal with a step that recorded no gate answers whatsoever.
+    _make_gate_journal(home, repo, "20260101T000000Z-aaaaaa", outcomes=None)
+    silent = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    assert _finding(silent.journal, "journal.accepted-failing-gates").status == "ok"
+
+    # An old journal with outcomes but no evidence records (pre-F03 shape).
+    _make_gate_journal(
+        home, repo, "20260101T000100Z-bbbbbb", outcomes={"pytest -q": "accepted-failing"}
+    )
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "pytest -q" in finding.detail
+    assert "log:" not in finding.detail
+
+
+def test_the_accepted_failing_finding_is_additive_in_the_json_journal_group(tmp_path: Path) -> None:
+    """
+    @brief      The new finding lives inside the existing ``journal`` group
+                array — the envelope shape, the group names, and the ``Finding``
+                field names are all unchanged.
+    @return     None
+    @exception  AssertionError If the JSON shape changed beyond the addition.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "accepted-failing"}
+    )
+
+    document = build_doctor_report(repo, runner=_healthy_runner(repo), home=home).to_dict()
+
+    assert set(document) == {"repo", "overall_status", "exit_code", "groups"}
+    assert set(document["groups"]) == {
+        "machine", "manifest", "drift", "workflow_toml", "runnability", "journal",
+    }
+    names = [item["name"] for item in document["groups"]["journal"]]
+    assert names.count("journal.accepted-failing-gates") == 1
+    entry = next(
+        item for item in document["groups"]["journal"]
+        if item["name"] == "journal.accepted-failing-gates"
+    )
+    assert set(entry) == {"name", "status", "detail", "guidance", "repair_action"}
+    assert entry["status"] == "warn"
 
 
 # --- verdict aggregation (direct, not inferred from scenarios) ---------------------

@@ -28,7 +28,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from ..io.prompts import FieldSpec
+from ..io.prompts import FieldSpec, ValidationError
 
 # CONSTANTS
 
@@ -1024,6 +1024,112 @@ WORKFLOW_FIELD_SPECS = (
 )
 
 
+def _normalize_string_list(raw: Any) -> list[str]:
+    """
+    @brief      Validate a list-of-names answer (extensions/patterns for the
+                ``other`` language).
+    @param[in]  raw A comma-separated string (console input) or a sequence of
+                strings (answers file).
+    @return     The non-empty list of stripped values.
+    @exception  ValueError If no non-empty value is present.
+    """
+    if isinstance(raw, str):
+        items = [part.strip() for part in raw.split(",") if part.strip()]
+    elif isinstance(raw, Sequence):
+        items = [str(part).strip() for part in raw]
+    else:
+        raise ValueError("expected a comma-separated string or a list of strings")
+    if not items or any(not item for item in items):
+        raise ValueError("at least one non-empty value is required")
+    return items
+
+
+# @brief Extra answer fields required only when language == "other" (plan §7
+#        invariant 6). No default: they are genuinely required in that branch.
+#        Kept beside :data:`WORKFLOW_FIELD_SPECS` because both tables describe
+#        the same generator's answer surface — the durable answer key set and
+#        the workflow.toml reconstruction below are derived from the pair.
+OTHER_LANGUAGE_FIELD_SPECS: tuple[FieldSpec, ...] = (
+    FieldSpec(
+        key="source_extensions",
+        question="File extension of your source files?",
+        description=(
+            "Lets the traceability check resolve source files for a language it "
+            "has no built-in preset for."
+        ),
+        example=".sql, .prc",
+        validator=_normalize_string_list,
+    ),
+    FieldSpec(
+        key="test_file_patterns",
+        question="How is a single test file recognized in your test runner?",
+        description=(
+            "Lets the traceability check resolve 'this requirement is covered "
+            "by that test' for a language it has no built-in preset for."
+        ),
+        example="test_*.sql",
+        validator=_normalize_string_list,
+    ),
+)
+
+# @brief Every answer key this generator owns — the allowlist for the durable
+#        answer set persisted in the install manifest's ``configuration``.
+#        Derived from the spec tables so a new field joins it automatically.
+GENERATOR_ANSWER_KEYS: frozenset[str] = frozenset(
+    spec.key for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS)
+)
+
+# @brief Where each owned answer lands in workflow.toml, as
+#        ``(dotted section, key)``. Single source of truth: the generator builds
+#        its rewrite table from these entries, and
+#        :func:`derive_answers_from_workflow` reads the same entries back, so
+#        the two directions cannot drift apart.
+OWNED_ANSWER_LOCATIONS: dict[str, tuple[str, str]] = {
+    "source_roots": ("source", "roots"),
+    "test_roots": ("tests", "roots"),
+    "language": ("traceability", "language"),
+    "source_extensions": ("traceability", "source_extensions"),
+    "test_file_patterns": ("traceability", "test_file_patterns"),
+    "baseline_guard_mode": ("components.baseline_guard", "mode"),
+    "baseline_minimum_completion_level": (
+        "components.baseline_guard",
+        "minimum_completion_level",
+    ),
+    "coverage_mode": ("traceability.coverage", "mode"),
+    "coverage_roots": ("traceability.coverage", "coverable_roots"),
+    "coverage_exclude": ("traceability.coverage", "exclude"),
+    "source_changes_mode": ("adoption.source_changes", "mode"),
+    "alignment_enabled": ("alignment", "enabled"),
+    "alignment_protected_scope_mode": ("alignment.protected_scope", "mode"),
+    "alignment_protected_scope_patterns": ("alignment.protected_scope", "patterns"),
+    "stage_form_retention": ("interface", "stage_form_retention"),
+    "check_execution": ("interface", "check_execution"),
+    **{f"gate_{name}_mode": (f"gates.{name}", "mode") for name in GATE_ORDER},
+    **{f"gate_{name}_cmds": (f"gates.{name}", "commands") for name in GATE_ORDER},
+    "secrets_mode": ("guardrails.secrets", "mode"),
+    "secret_patterns": ("guardrails.secrets", "patterns"),
+    "protected_paths_mode": ("guardrails.protected_paths", "mode"),
+    "protected_path_patterns": ("guardrails.protected_paths", "patterns"),
+    "protected_path_operations": ("guardrails.protected_paths", "operations"),
+    "working_tree_mode": ("guardrails.working_tree", "mode"),
+    "working_tree_blocked_patterns": ("guardrails.working_tree", "blocked_patterns"),
+    "write_access_mode": ("guardrails.write_access", "mode"),
+    "write_access_stages": ("guardrails.write_access", "stages"),
+    "scope_mode": ("guardrails.scope", "mode"),
+    "scope_allowed_roots": ("guardrails.scope", "allowed_roots"),
+    "delivery_mode": ("guardrails.delivery", "mode"),
+    "delivery_command_patterns": ("guardrails.delivery", "command_patterns"),
+}
+
+# @brief Owned answers whose target is written only under a policy condition:
+#        the baseline threshold exists only while the guard is enforced, and the
+#        per-stage write table only while write access is stage-restricted.
+#        Every other owned answer is present in every generated file.
+CONDITIONAL_ANSWER_KEYS: frozenset[str] = frozenset(
+    {"baseline_minimum_completion_level", "write_access_stages"}
+)
+
+
 def resolve_language_preset(
     language: str,
     *,
@@ -1622,7 +1728,25 @@ def verify_workflow_invariants(
 
 
 def _insert_key(text: str, section: str, key: str, value: Any) -> str:
-    """@brief Insert a conditional key at the end of an existing TOML table."""
+    """
+    @brief      Set a conditional key in an existing TOML table, appending it
+                only when the table does not already carry it.
+    @details    A conditional key is written by a second pass over text the
+                answer rewrite already produced, and configure regenerates from
+                the repository's own workflow.toml rather than from the pristine
+                payload base. Appending unconditionally would therefore add a
+                duplicate assignment every time a repository that already has
+                the policy enabled is reconfigured, producing text that no
+                longer parses at all. Replacing in place instead keeps
+                regeneration byte-stable: the same answers applied to an
+                already-generated file reproduce that file exactly.
+    @param[in]  text The workflow text being generated.
+    @param[in]  section Dotted section name owning the key.
+    @param[in]  key The conditional key to set.
+    @param[in]  value The value to render.
+    @return     The text with the key set.
+    @exception  BaseFileMismatchError If the section is absent.
+    """
     lines = text.splitlines(keepends=True)
     header = f"[{section}]"
     start = next((index for index, line in enumerate(lines) if line.strip() == header), None)
@@ -1632,18 +1756,45 @@ def _insert_key(text: str, section: str, key: str, value: Any) -> str:
         (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
         len(lines),
     )
+    rendered = _toml_value(value)
+    for index in range(start + 1, end):
+        match = _KEY_RE.match(lines[index].rstrip("\r\n"))
+        if match is not None and match.group("key") == key:
+            lines[index] = f"{match.group('indent')}{key} = {rendered}{_line_ending(lines[index])}"
+            return "".join(lines)
     ending = "\r\n" if "\r\n" in text else "\n"
-    lines.insert(end, f"{key} = {_toml_value(value)}{ending}")
+    lines.insert(end, f"{key} = {rendered}{ending}")
     return "".join(lines)
 
 
 def _append_stage_table(text: str, stages: Mapping[str, Sequence[str]]) -> str:
-    """@brief Append the conditional complete write-access stage table."""
+    """
+    @brief      Write the conditional complete write-access stage table,
+                replacing an existing one rather than appending a second.
+    @details    Same regeneration contract as :func:`_insert_key`: a repository
+                already configured for stage-restricted write access carries
+                this table in its workflow.toml, and TOML rejects a duplicate
+                table outright.
+    @param[in]  text The workflow text being generated.
+    @param[in]  stages Complete stage-to-glob mapping.
+    @return     The text carrying exactly one stage table.
+    @exception  None
+    """
     ending = "\r\n" if "\r\n" in text else "\n"
-    suffix = "" if text.endswith(("\n", "\r")) else ending
-    rendered = ["[guardrails.write_access.stages]"]
+    header = "[guardrails.write_access.stages]"
+    rendered = [header]
     rendered.extend(f"{stage} = {_toml_value(list(stages[stage]))}" for stage in ALL_STAGES)
-    return text + suffix + ending + ending.join(rendered) + ending
+    block = ending.join(rendered) + ending
+    lines = text.splitlines(keepends=True)
+    start = next((index for index, line in enumerate(lines) if line.strip() == header), None)
+    if start is None:
+        suffix = "" if text.endswith(("\n", "\r")) else ending
+        return text + suffix + ending + block
+    end = next(
+        (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
+        len(lines),
+    )
+    return "".join(lines[:start]) + block + "".join(lines[end:])
 
 
 def generate_workflow_toml(
@@ -1771,42 +1922,43 @@ def generate_workflow_toml(
         raise BaseFileMismatchError(f"base workflow.toml text is not valid TOML: {exc}") from exc
     verify_workflow_schema(base_document)
 
+    # Keyed by answer name, then mapped onto file locations through
+    # OWNED_ANSWER_LOCATIONS so the write path and the reconstruction path
+    # (derive_answers_from_workflow) share one table. The two conditional
+    # answers are applied below, after the unconditional rewrite.
+    owned_answers: dict[str, Any] = {
+        "source_roots": roots,
+        "test_roots": tests,
+        "language": preset.language,
+        "source_extensions": list(preset.source_extensions),
+        "test_file_patterns": list(preset.test_file_patterns),
+        "baseline_guard_mode": baseline_guard_mode,
+        "coverage_mode": coverage_mode,
+        "coverage_roots": normalized_rules["coverage_roots"],
+        "coverage_exclude": normalized_rules["coverage_exclude"],
+        "source_changes_mode": source_changes_mode,
+        "alignment_enabled": alignment,
+        "alignment_protected_scope_mode": alignment_protected_scope_mode,
+        "alignment_protected_scope_patterns": normalized_rules["alignment_protected_scope_patterns"],
+        "stage_form_retention": stage_form_retention,
+        "check_execution": check_execution,
+        **{f"gate_{name}_mode": gate_modes[name] for name in GATE_ORDER},
+        **{f"gate_{name}_cmds": gate_commands[name] for name in GATE_ORDER},
+        "secrets_mode": secrets_mode,
+        "secret_patterns": normalized_rules["secret_patterns"],
+        "protected_paths_mode": protected_paths_mode,
+        "protected_path_patterns": normalized_rules["protected_path_patterns"],
+        "protected_path_operations": normalized_rules["protected_path_operations"],
+        "working_tree_mode": working_tree_mode,
+        "working_tree_blocked_patterns": normalized_rules["working_tree_blocked_patterns"],
+        "write_access_mode": write_access_mode,
+        "scope_mode": scope_mode,
+        "scope_allowed_roots": normalized_rules["scope_allowed_roots"],
+        "delivery_mode": delivery_mode,
+        "delivery_command_patterns": normalized_rules["delivery_command_patterns"],
+    }
     owned: dict[tuple[str, str], Any] = {
-        ("source", "roots"): roots,
-        ("tests", "roots"): tests,
-        ("traceability", "language"): preset.language,
-        ("traceability", "source_extensions"): list(preset.source_extensions),
-        ("traceability", "test_file_patterns"): list(preset.test_file_patterns),
-        ("components.baseline_guard", "mode"): baseline_guard_mode,
-        ("traceability.coverage", "mode"): coverage_mode,
-        ("traceability.coverage", "coverable_roots"): normalized_rules["coverage_roots"],
-        ("traceability.coverage", "exclude"): normalized_rules["coverage_exclude"],
-        ("adoption.source_changes", "mode"): source_changes_mode,
-        ("alignment", "enabled"): alignment,
-        ("alignment.protected_scope", "mode"): alignment_protected_scope_mode,
-        ("alignment.protected_scope", "patterns"): normalized_rules["alignment_protected_scope_patterns"],
-        ("interface", "stage_form_retention"): stage_form_retention,
-        ("interface", "check_execution"): check_execution,
-        **{
-            (f"gates.{name}", "mode"): gate_modes[name]
-            for name in GATE_ORDER
-        },
-        **{
-            (f"gates.{name}", "commands"): gate_commands[name]
-            for name in GATE_ORDER
-        },
-        ("guardrails.secrets", "mode"): secrets_mode,
-        ("guardrails.secrets", "patterns"): normalized_rules["secret_patterns"],
-        ("guardrails.protected_paths", "mode"): protected_paths_mode,
-        ("guardrails.protected_paths", "patterns"): normalized_rules["protected_path_patterns"],
-        ("guardrails.protected_paths", "operations"): normalized_rules["protected_path_operations"],
-        ("guardrails.working_tree", "mode"): working_tree_mode,
-        ("guardrails.working_tree", "blocked_patterns"): normalized_rules["working_tree_blocked_patterns"],
-        ("guardrails.write_access", "mode"): write_access_mode,
-        ("guardrails.scope", "mode"): scope_mode,
-        ("guardrails.scope", "allowed_roots"): normalized_rules["scope_allowed_roots"],
-        ("guardrails.delivery", "mode"): delivery_mode,
-        ("guardrails.delivery", "command_patterns"): normalized_rules["delivery_command_patterns"],
+        OWNED_ANSWER_LOCATIONS[key]: value for key, value in owned_answers.items()
     }
     generated_text = _apply_answers(base_toml_text, owned)
     if baseline_guard_mode == "enforce":
@@ -1836,6 +1988,115 @@ def generate_workflow_toml(
         text=generated_text,
         warnings=_empty_gate_warnings(gate_commands, gate_modes),
     )
+
+
+def normalize_stored_answers(answers: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    @brief      Reduce a raw answer mapping to the durable generator answer set.
+    @details    The single normalization every wizard applies before writing the
+                install manifest's ``configuration``, so two wizards recording
+                the same configuration record identical bytes. Keys outside
+                :data:`GENERATOR_ANSWER_KEYS` (wizard-only answers such as the
+                adoption branch or conflict table, and RepoWise runtime data)
+                never become durable configuration; a ``None`` placeholder for
+                an unasked field is dropped rather than stored as a value later
+                resolution would have to special-case; and each value is put
+                through its own field validator, so a stored answer is in the
+                same canonical form the generator writes to the file. Without
+                that last step an equivalent-but-differently-shaped value (an
+                argv list where the file holds a joined command) reads back as
+                a difference, and the next run reports a change and rewrites a
+                file that did not need rewriting. A value the validator rejects
+                is kept verbatim: this function records, it does not judge — the
+                resolution path reports an unusable answer with its own message.
+    @param[in]  answers Raw collected answers, possibly with extra keys.
+    @return     The allowlisted, canonicalized answer mapping, sorted by key.
+    @exception  None
+    """
+    specs = {spec.key: spec for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS)}
+    normalized: dict[str, Any] = {}
+    for key in sorted(answers):
+        value = answers[key]
+        if key not in GENERATOR_ANSWER_KEYS or value is None:
+            continue
+        try:
+            normalized[key] = specs[key].normalize(value)
+        except (ValidationError, ValueError):
+            normalized[key] = value
+    return normalized
+
+
+def _owned_table(document: Mapping[str, Any], dotted_section: str) -> Mapping[str, Any] | None:
+    """
+    @brief      Resolve one dotted section of a parsed workflow document.
+    @param[in]  document Parsed workflow.toml.
+    @param[in]  dotted_section Section path, e.g. ``"guardrails.secrets"``.
+    @return     The table, or ``None`` when the path is absent or not a table.
+    @exception  None
+    """
+    current: Any = document
+    for name in dotted_section.split("."):
+        if not isinstance(current, Mapping) or name not in current:
+            return None
+        current = current[name]
+    return current if isinstance(current, Mapping) else None
+
+
+def derive_answers_from_workflow(workflow_text: str) -> dict[str, Any]:
+    """
+    @brief      Reconstruct the generator answer set from a generated
+                workflow.toml.
+    @details    Every owned answer is written to exactly one documented location
+                (:data:`OWNED_ANSWER_LOCATIONS`), so a valid schema-version-3
+                file is a complete record of the answers that produced it. This
+                recovers that record for installs whose manifest predates
+                answer persistence, without asking the operator to restate
+                settings the file already holds. Only a file that passes the
+                schema check is read; an unreadable, unparseable, or invalid one
+                yields no answers rather than a guess. A value the current
+                validator rejects is skipped individually — reconstruction is a
+                best-effort recovery, never a second validation gate. The two
+                ``"other"``-language answers are returned only when the file's
+                language is ``"other"``, matching what an interview would have
+                collected (a preset language derives them instead).
+    @param[in]  workflow_text The workflow.toml text to read back.
+    @return     The reconstructed, allowlisted answer mapping; empty when the
+                text is not a valid schema-version-3 workflow file.
+    @exception  None
+    """
+    try:
+        document = tomllib.loads(workflow_text)
+    except tomllib.TOMLDecodeError:
+        return {}
+    try:
+        verify_workflow_schema(document)
+    except WorkflowTomlError:
+        return {}
+    specs = {spec.key: spec for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS)}
+    derived: dict[str, Any] = {}
+    for key, (section, name) in OWNED_ANSWER_LOCATIONS.items():
+        spec = specs.get(key)
+        if spec is None:
+            continue
+        table = _owned_table(document, section)
+        raw = table[name] if table is not None and name in table else None
+        if raw is None:
+            # A conditional answer is written only while its governing policy is
+            # on, so its absence is not missing information: it says the policy
+            # is off, and the effective value is the generator's own default.
+            # Recording that keeps the reconstruction complete, which is what
+            # lets a regeneration report honestly that nothing changed.
+            if key not in CONDITIONAL_ANSWER_KEYS:
+                continue
+            raw = spec.default_value()
+        try:
+            derived[key] = spec.normalize(raw)
+        except (ValidationError, ValueError):
+            continue
+    if derived.get("language") != "other":
+        derived.pop("source_extensions", None)
+        derived.pop("test_file_patterns", None)
+    return normalize_stored_answers(derived)
 
 
 # END OF FILE

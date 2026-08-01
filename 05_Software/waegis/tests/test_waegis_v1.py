@@ -43,7 +43,7 @@ from waegis.version import (
 
 def test_version_boundary_is_aegis_two_only() -> None:
     """@brief Verify the unsupported cross-major compatibility boundary."""
-    assert WIZARD_VERSION == "1.1.0"
+    assert WIZARD_VERSION == "1.2.0"
     assert PAYLOAD_COMPAT_SPEC == ">=2.0.0,<3.0.0"
     assert is_payload_compatible("2.0.0")
     assert not is_payload_compatible("1.9.9")

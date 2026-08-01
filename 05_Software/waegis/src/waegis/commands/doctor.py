@@ -94,7 +94,14 @@
            as :func:`waegis.lifecycle.find_resume_journal`, but without its
            mode/fingerprint filters): completed (``ok``), stopped mid-run (``warn``,
            names the step), no prior journal at all (``ok`` — informational
-           absence, not a failure).
+           absence, not a failure). The group also reports whether any failing
+           enforced gate was *waived* (``warn``, naming the gate, command, run
+           id, timestamp, and evidence log): payload integrity and verification
+           status are different dimensions, and zero drift over an accepted
+           failing test gate is not a healthy repository. The warning clears
+           when a later run records the same gate command as passing. Journals
+           written before failed-gate evidence existed are read tolerantly —
+           a missing field reads as "nothing recorded", never as an error.
 @details **Exit codes.** Every finding's verdict maps to a severity
          (``ok``=0, ``warn``=1, ``fail``=2); the report's ``exit_code`` is the
          *worst* severity across every group (plan §10.1: 0 healthy / 1
@@ -117,6 +124,12 @@
          modified/missing file lists), a deliberate, documented exception.
          These field names are a public, frozen integration contract;
          changing them is a wizard MAJOR version bump.
+@details **Additive ``--json`` change.** The ``journal`` group array gained one
+         further ``Finding`` object, ``journal.accepted-failing-gates``. This
+         is additive inside an existing group: the top-level envelope shape,
+         the group names, and the ``Finding`` field names are all unchanged, so
+         a consumer that reads the array rather than indexing a fixed position
+         is unaffected. The finding is always present, exactly once.
 """
 
 # IMPORTS
@@ -128,7 +141,7 @@ import tomllib
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
-from typing import IO, Any, Mapping
+from typing import IO, Any, Mapping, Sequence
 
 from ..engine import STATUS_COMPLETED, Journal, waegis_home
 from ..io.envelope import EXIT_OPERATIONAL, write_envelope
@@ -812,55 +825,168 @@ def _build_runnability_findings(repo: Path, runner: CommandRunner) -> tuple[Prob
 # --- group: Journal ----------------------------------------------------------------
 
 
-def _latest_journal_for_repo(home: Path, repo: Path) -> tuple[Journal | None, tuple[str, ...]]:
+def _repo_journals(home: Path, repo: Path) -> tuple[tuple[Journal, ...], tuple[str, ...]]:
     """
-    @brief      Find the latest recorded (non-dry-run) journal for this repo.
+    @brief      Every recorded (non-dry-run) journal for this repo, newest first.
     @details    Scans ``<home>/journals/*.json`` newest-first (run ids are
                 lexicographically sortable timestamps), using the same journal
                 location and order as :func:`waegis.lifecycle.find_resume_journal`
-                but without mode/fingerprint filters. Doctor reports the last
-                run regardless of whether it was ``new`` or ``adopt``.
-                Unreadable or corrupt journals are skipped (never fatal) but
-                their names are reported so the corruption itself surfaces as
-                a health datum.
+                but without mode/fingerprint filters. Doctor reports on the
+                recorded history regardless of whether a run was ``new`` or
+                ``adopt``. Unreadable or corrupt journals are skipped (never
+                fatal) but their names are reported so the corruption itself
+                surfaces as a health datum.
     @param[in]  home WAEGIS home directory.
     @param[in]  repo Resolved repository path.
-    @return     ``(journal, corrupt)``: the loaded latest :class:`Journal` (or
-                ``None``) and the file names of journals that failed to load.
+    @return     ``(journals, corrupt)``: the loaded journals newest-first and
+                the file names of journals that failed to load.
     @exception  None
     """
     journals_dir = home / "journals"
     if not journals_dir.is_dir():
-        return None, ()
+        return (), ()
     target = str(repo)
     corrupt: list[str] = []
-    latest: Journal | None = None
+    journals: list[Journal] = []
     for path in sorted(journals_dir.glob("*.json"), reverse=True):
         try:
             journal = Journal.load(path)
         except Exception:  # noqa: BLE001 - a corrupt journal must never block doctor
             corrupt.append(path.name)
             continue
-        if latest is None and not journal.dry_run and journal.target == target:
-            latest = journal
-    return latest, tuple(corrupt)
+        if not journal.dry_run and journal.target == target:
+            journals.append(journal)
+    return tuple(journals), tuple(corrupt)
+
+
+def _latest_journal_for_repo(home: Path, repo: Path) -> tuple[Journal | None, tuple[str, ...]]:
+    """
+    @brief      Find the latest recorded (non-dry-run) journal for this repo.
+    @param[in]  home WAEGIS home directory.
+    @param[in]  repo Resolved repository path.
+    @return     ``(journal, corrupt)``: the loaded latest :class:`Journal` (or
+                ``None``) and the file names of journals that failed to load.
+    @exception  None
+    """
+    journals, corrupt = _repo_journals(home, repo)
+    return (journals[0] if journals else None), corrupt
+
+
+def _gate_answers(journal: Journal) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+    """
+    @brief      The gate outcome map and failure evidence recorded by one run.
+    @details    Read tolerantly on purpose: journals written before failed-gate
+                evidence existed carry ``gate_outcomes`` and nothing else, and
+                journals written before gates were journalled at all carry
+                neither. Both must read as "nothing recorded", never as an
+                error — doctor's job is to report health, not to reject an
+                older repository's history.
+    @param[in]  journal The journal to read.
+    @return     ``(outcomes, evidence_by_command)``, either possibly empty.
+    @exception  None
+    """
+    outcomes: dict[str, Any] = {}
+    evidence: dict[str, Any] = {}
+    for result in journal.results():
+        recorded = result.answers.get("gate_outcomes")
+        if isinstance(recorded, Mapping):
+            outcomes.update({str(key): value for key, value in recorded.items()})
+        failures = result.answers.get("gate_failures")
+        if isinstance(failures, list):
+            for failure in failures:
+                if isinstance(failure, Mapping) and failure.get("command"):
+                    evidence[str(failure["command"])] = failure
+    return outcomes, evidence
+
+
+def _build_accepted_failing_finding(journals: Sequence[Journal]) -> ProbeFindingRecord:
+    """
+    @brief      Journal group: every accepted failing gate command not yet
+                re-proven by a later run recording it as passing.
+    @details    Payload integrity and verification status are different
+                dimensions: a repository can have zero drift and still be
+                sitting on a test gate somebody accepted as failing, which is
+                exactly the state that used to be reported as healthy. The
+                warning names the gate, the command, the run it came from and
+                its timestamp, and the evidence log when one was recorded.
+                Each command clears only when a *later* journal records the
+                same command as a pass (an explicit superseding record); the
+                walk covers every journal so an older run's acceptance cannot
+                hide behind a newer run whose own acceptances were superseded.
+    @param[in]  journals Every journal for the repo, newest first.
+    @return     One ``journal.accepted-failing-gates`` finding.
+    @exception  None
+    """
+    # Walk EVERY journal, newest first, so an older run's never-re-proven
+    # acceptance cannot hide behind a newer run whose own acceptances were
+    # superseded (each command clears only against a strictly newer pass).
+    passed: set[str] = set()
+    outstanding: list[str] = []
+    seen_accepted = False
+    seen_commands: set[str] = set()
+    for journal in journals:
+        outcomes, evidence = _gate_answers(journal)
+        for command in sorted(outcomes):
+            outcome = outcomes[command]
+            if outcome == "pass":
+                passed.add(command)
+                continue
+            if outcome != "accepted-failing":
+                continue
+            seen_accepted = True
+            if command in passed or command in seen_commands:
+                continue
+            seen_commands.add(command)
+            record = evidence.get(command)
+            log = record.get("log_path") if isinstance(record, Mapping) else None
+            gate = record.get("gate") if isinstance(record, Mapping) else None
+            suffix = f" [log: {log}]" if log else ""
+            when = journal.finished_at or journal.started_at
+            outstanding.append(
+                f"{gate or 'gate'}: '{command}' (run {journal.run_id}, {when}){suffix}"
+            )
+    if not seen_accepted:
+        return _finding(
+            "journal.accepted-failing-gates",
+            "ok",
+            "no accepted failing gate outcomes are recorded for this repository",
+        )
+    if not outstanding:
+        return _finding(
+            "journal.accepted-failing-gates",
+            "ok",
+            "every accepted failing gate was superseded by a "
+            "later run recording it as passing",
+        )
+    return _finding(
+        "journal.accepted-failing-gates",
+        "warn",
+        f"{len(outstanding)} accepted failing gate command(s) have not been "
+        "re-proven by a later passing run: " + "; ".join(outstanding),
+        guidance="fix the gate and re-run it so a later run records it as passing, "
+        "or accept that this repository's verification status is unproven",
+    )
 
 
 def _build_journal_findings(repo: Path, home: Path) -> tuple[ProbeFindingRecord, ...]:
     """
     @brief      Journal group: whether the last wizard run for this repo
-                completed, or names the step it stopped at (plan §10.1).
+                completed, or names the step it stopped at (plan §10.1), plus
+                whether any failing enforced gate was waived and not since
+                superseded.
     @param[in]  repo Resolved repository path.
     @param[in]  home WAEGIS home directory.
-    @return     One ``journal.last-run`` finding, plus one
+    @return     One ``journal.last-run`` finding and one
+                ``journal.accepted-failing-gates`` finding, plus one
                 ``journal.corrupt`` warn finding when unreadable journals
                 were skipped during the scan.
     @exception  None
     """
-    journal, corrupt = _latest_journal_for_repo(home, repo)
-    extra: tuple[ProbeFindingRecord, ...] = ()
+    journals, corrupt = _repo_journals(home, repo)
+    journal = journals[0] if journals else None
+    extra: tuple[ProbeFindingRecord, ...] = (_build_accepted_failing_finding(journals),)
     if corrupt:
-        extra = (
+        extra = extra + (
             _finding(
                 "journal.corrupt",
                 "warn",

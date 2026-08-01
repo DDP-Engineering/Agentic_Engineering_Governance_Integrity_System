@@ -168,6 +168,85 @@ def test_old_pointer_is_ignored_even_when_it_names_a_valid_run(tmp_path: Path) -
     assert raised.value.pointer_path == ".agentic/.workspace/state/current_run"
 
 
+def test_missing_pointer_names_the_single_incomplete_run_to_select(tmp_path: Path) -> None:
+    """
+    @brief      A lost pointer with exactly one incomplete run states the exact
+                recovery command (DPT-F08).
+    @details    The pointer is worktree-local and Git-ignored while the run is
+                durable, so losing it leaves the run recoverable — but the
+                operator has to be told the run ID and the command. The
+                deployment test hit precisely this and the message named
+                neither.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    graph = init_graph(tmp_path, "adoption", "Recoverable run")
+    current_run_path(tmp_path).unlink()
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    assert raised.value.code == "RUN-POINTER-MISSING"
+    assert f"aegis run select {graph.run_id}" in raised.value.remediation
+
+
+def test_missing_pointer_lists_candidates_when_the_choice_is_ambiguous(tmp_path: Path) -> None:
+    """
+    @brief      With more than one incomplete run, every candidate is listed
+                rather than one being guessed at.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    first = init_graph(tmp_path, "feature", "First run")
+    second = init_graph(tmp_path, "fix", "Second run")
+    current_run_path(tmp_path).unlink()
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    remediation = raised.value.remediation
+    assert f"aegis run select {first.run_id}" in remediation
+    assert f"aegis run select {second.run_id}" in remediation
+
+
+def test_missing_pointer_without_runs_keeps_the_start_guidance(tmp_path: Path) -> None:
+    """
+    @brief      With nothing to select, the guidance stays "start a run" and
+                never invents a `run select` target.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    (tmp_path / ".agentic").mkdir(parents=True)
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    assert raised.value.code == "RUN-POINTER-MISSING"
+    assert "aegis run select" not in raised.value.remediation
+    assert "aegis run start <kind>" in raised.value.remediation
+
+
+def test_missing_pointer_survives_an_unreadable_graph(tmp_path: Path) -> None:
+    """
+    @brief      A corrupt `graph.json` must not hide the runs beside it, because
+                this message is the operator's only recovery instruction.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    healthy = init_graph(tmp_path, "feature", "Healthy run")
+    broken = tmp_path / ".agentic" / "runs" / "fix-2026-07-22T120000Z-abcdef01"
+    broken.mkdir(parents=True)
+    (broken / "graph.json").write_text("{not json", encoding="utf-8")
+    current_run_path(tmp_path).unlink()
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    remediation = raised.value.remediation
+    assert f"aegis run select {healthy.run_id}" in remediation
+    assert "aegis run select fix-2026-07-22T120000Z-abcdef01" in remediation
+
+
 @pytest.mark.parametrize("content", [b"", b" \n", b"feature-invalid\n", b"feature-2026-02-30T120000Z-12345678\n", b"feature-2026-07-22T120000Z-12345678\r\n"])
 def test_invalid_pointer_content_has_stable_error(tmp_path: Path, content: bytes) -> None:
     """

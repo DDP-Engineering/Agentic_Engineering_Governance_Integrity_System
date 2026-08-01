@@ -496,6 +496,13 @@ def select_wizard_askers(
                 layered under pre-supplied answers (:class:`HybridAsker`) when
                 both exist, and a confirmation-refusing scripted asker is the
                 last resort when no console is available.
+    @details    ``confirms=True`` is *blanket consent to the rendered mutation
+                plan*, not to every question a step can ask: the scripted
+                asker's per-default policy (see :mod:`waegis.io.prompts`) still
+                refuses to auto-answer ``True`` to a default-refuse safety
+                question, which needs its own named answer key. The
+                ``confirms=False`` asker is unaffected — refusing is the
+                conservative answer either way.
     @param[in]  answers Loaded answers mapping.
     @param[in]  non_interactive Never prompt.
     @param[in]  stdin Interactive input stream (``None`` when unavailable).
@@ -814,15 +821,21 @@ class HybridAsker:
         self._answers = dict(answers)
         self._console = console
 
-    def confirm(self, prompt: str, *, default: bool = True) -> bool:
+    def confirm(self, prompt: str, *, default: bool = True, decision: str | None = None) -> bool:
         """
         @brief      Delegate confirmations to the console.
+        @details    Confirmations always reach the operator here even when the
+                    answers mapping names the decision: this asker exists
+                    precisely because a console is available, and a live
+                    operator is the most explicit answer there is.
         @param[in]  prompt Question text.
         @param[in]  default Value assumed on empty input.
+        @param[in]  decision Answer key that would decide this question without
+                    an operator; passed through and ignored by the console.
         @return     The operator's choice.
         @exception  None
         """
-        return self._console.confirm(prompt, default=default)
+        return self._console.confirm(prompt, default=default, decision=decision)
 
     def ask(self, key: str, prompt: str, *, default: str | None = None) -> str:
         """

@@ -31,7 +31,11 @@ from pathlib import Path
 
 import pytest
 
-from waegis.commands.adopt import SHARED_PRIOR_INSTALL_ROUTE, _act_prior_install
+from waegis.commands.adopt import (
+    ADOPT_OVER_EXISTING_INSTALL_KEY,
+    SHARED_PRIOR_INSTALL_ROUTE,
+    _act_prior_install,
+)
 from waegis.commands.new import SHARED_PAYLOAD_ROOT, SHARED_RUNNER, SHARED_TARGET
 from waegis.engine import EngineContext, StepResult
 from waegis.io.prompts import ScriptedAsker
@@ -98,15 +102,22 @@ def _ctx(target: Path, payload: Path, *, confirm: bool) -> EngineContext:
                 the recording helpers work outside the runner.
     @param[in]  target Target repository root.
     @param[in]  payload Fake payload root (for the current-version read).
+    @details    The continue/stop confirmation defaults to refuse, so the
+                scripted answer is supplied as the named decision rather than a
+                blanket confirm value: a blanket "yes to everything" is exactly
+                what the asker's per-default policy now refuses to accept for
+                that class of question.
     @param[in]  confirm Scripted answer to the continue/stop confirmation.
     @return     A ready :class:`EngineContext`.
     @exception  None
     @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
+    @version    0.2.0
     """
     ctx = EngineContext(
         mode="adopt",
-        asker=ScriptedAsker({}, confirms=confirm),
+        asker=ScriptedAsker(
+            {ADOPT_OVER_EXISTING_INSTALL_KEY: confirm}, confirms=confirm
+        ),
         shared={
             SHARED_TARGET: target,
             SHARED_RUNNER: FakeCommandRunner({}),

@@ -1169,11 +1169,18 @@ def lifecycle_repowise(
             stream.write(
                 "RepoWise 0.37.0 provides offline structural repository discovery. "
                 f"The bundled payload is about {manifest['packaged_size']} bytes and "
-                f"uses {manifest['unpacked_size']} bytes unpacked.\n"
+                f"uses {manifest['unpacked_size']} bytes unpacked. Bundled installs the "
+                "runtime inside the repo but gitignored: clones are NOT self-contained; "
+                "delivered working directories are.\n"
             )
         if asker.confirm("Install the bundled offline RepoWise structural index?", default=True):
             source = "bundled"
-        elif asker.confirm("Link to an external RepoWise installation instead?", default=False):
+        elif asker.confirm(
+            "Link to an external RepoWise installation instead? "
+            "(this machine's RepoWise is used; a fresh clone elsewhere must "
+            "re-link its own)",
+            default=False,
+        ):
             source = "external"
         else:
             source = "disabled"
@@ -1185,7 +1192,12 @@ def lifecycle_repowise(
             )
         source = (
             "external"
-            if asker.confirm("Link to an external RepoWise installation?", default=False)
+            if asker.confirm(
+                "Link to an external RepoWise installation? "
+                "(this machine's RepoWise is used; a fresh clone elsewhere must "
+                "re-link its own)",
+                default=False,
+            )
             else "disabled"
         )
     if source == "bundled" and edition != "complete":

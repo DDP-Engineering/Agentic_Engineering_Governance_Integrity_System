@@ -492,4 +492,134 @@ def test_configure_reports_untrusted_recovery_state_in_json_and_human_modes(
     assert managed.read_bytes() == b"operator-secret-content"
 
 
+# --- human/JSON parity for the split configure result -------------------------------
+
+
+def _configure_with_sync(
+    tmp_path: Path, repo: Path, payload: Path, sync: dict, monkeypatch, *, as_json: bool
+) -> str:
+    """
+    @brief      Run configure to completion with a stubbed RepoWise lifecycle
+                result and return the raw output.
+    @details    Only the lifecycle's *return value* is substituted: this is a
+                rendering test, and how RepoWise is invoked is deliberately
+                left exactly as it is.
+    @param[in]  tmp_path Pytest tmp fixture (answers file location).
+    @param[in]  repo Installed repository root.
+    @param[in]  payload Located payload root.
+    @param[in]  sync The ``sync`` sub-result the lifecycle should report.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @param[in]  as_json Emit the frozen envelope instead of human text.
+    @return     The captured output text.
+    @exception  None
+    """
+    monkeypatch.setattr(
+        "waegis.commands.configure.lifecycle_repowise",
+        lambda *args, **kwargs: {
+            "edition": "core", "aegis": "ok", "configuration": {}, "sync": sync
+        },
+    )
+    answers = _write_answers(
+        tmp_path / "configure-sync.json",
+        {"source_roots": ["src"], "run_smoke": False, "repowise_source": "external"},
+    )
+    stream = io.StringIO()
+    run_configure(
+        repo,
+        stream=stream,
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        as_json=as_json,
+        payload=payload,
+        runner=FakeCommandRunner({}),
+    )
+    return stream.getvalue()
+
+
+def test_human_transcript_reports_a_failed_synchronization(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      Golden test: configuration succeeded but RepoWise
+                synchronization failed. Human mode used to print only
+                "Configuration updated and verified.", which reads as an
+                unqualified success; it must now carry the same four facts the
+                JSON result does — status, error, log, resume command.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None
+    @exception  AssertionError If the rendered transcript drifts, or stops
+                carrying what the JSON result carries.
+    """
+    repo = tmp_path / "repo"
+    payload = _install(repo)
+    sync = {
+        "ok": False,
+        "action": "init",
+        "message": "index manifest could not be parsed",
+        "log": "<HOME>/logs/repowise/20260801T000000Z-abcdef.jsonl",
+        "resume_command": "repowise index --resume",
+        "profile": "balanced",
+        "fallback": False,
+    }
+
+    transcript = _configure_with_sync(
+        tmp_path, repo, payload, sync, monkeypatch, as_json=False
+    )
+
+    assert transcript == (
+        "Configuration plan: 1 field change(s).\n"
+        "  source_roots: ['src', 'app', 'lib'] -> ['src']\n"
+        "Configuration updated and verified.\n"
+        "RepoWise synchronization: FAILED (the AEGIS configuration itself is "
+        "applied and verified).\n"
+        "  error:  index manifest could not be parsed\n"
+        "  log:    <HOME>/logs/repowise/20260801T000000Z-abcdef.jsonl\n"
+        "  resume: repowise index --resume\n"
+    )
+
+    # Parity: every fact the JSON result carries is in the human transcript.
+    document = json.loads(
+        _configure_with_sync(tmp_path, repo, payload, sync, monkeypatch, as_json=True)
+    )
+    reported = document["result"]["repowise"]["sync"]
+    assert reported["ok"] is False
+    for fact in (reported["message"], reported["log"], reported["resume_command"]):
+        assert fact in transcript
+
+
+def test_human_transcript_adds_nothing_when_synchronization_succeeds(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      Golden test for the other half of the parity claim: a
+                successful synchronization adds no lines at all, so the fix
+                introduced no noise into the ordinary success path.
+    @param[in]  tmp_path Pytest tmp fixture.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None
+    @exception  AssertionError If the success transcript drifts.
+    """
+    repo = tmp_path / "repo"
+    payload = _install(repo)
+    sync = {
+        "ok": True,
+        "action": "init",
+        "message": "index initialized",
+        "log": "<HOME>/logs/repowise/20260801T000000Z-abcdef.jsonl",
+        "resume_command": None,
+        "profile": "balanced",
+        "fallback": False,
+    }
+
+    transcript = _configure_with_sync(
+        tmp_path, repo, payload, sync, monkeypatch, as_json=False
+    )
+
+    assert transcript == (
+        "Configuration plan: 1 field change(s).\n"
+        "  source_roots: ['src', 'app', 'lib'] -> ['src']\n"
+        "Configuration updated and verified.\n"
+    )
+
+
 # END OF FILE

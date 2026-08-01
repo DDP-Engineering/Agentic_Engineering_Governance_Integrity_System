@@ -32,6 +32,23 @@
          every prompt write, so the prompt text is guaranteed to render before
          the following blocking read under a fully-buffered stream (observed
          under Windows ``cmd.exe``, unlike a real TTY or PowerShell).
+@details **Per-default confirmation policy.** ``confirm`` takes an optional
+         ``decision`` keyword naming the answer key that decides the question
+         when there is no operator. It exists because a blanket
+         ``--non-interactive`` "yes to everything" used to invert the meaning of
+         a *default-refuse* safety question: general mutation consent approves
+         the rendered mutation plan, which is a materially different decision
+         from waiving a safety outcome. :class:`ScriptedAsker` therefore never
+         auto-answers ``True`` to a confirmation whose ``default`` is ``False``
+         — such a question needs an explicit scripted answer (the ``decision``
+         key in the answers mapping, or a scripted confirmation queue) and
+         otherwise raises :class:`MissingAnswerError` naming the decision. The
+         rule is per-default rather than per-question, so every future
+         default-refuse confirmation inherits it. Answering ``False`` is always
+         allowed: it agrees with the refusing default and is the conservative
+         outcome. ``ConsoleAsker`` accepts ``decision`` and ignores it (a real
+         operator is the explicit answer); the consequence of a yes belongs in
+         the prompt text itself.
 """
 
 # IMPORTS
@@ -65,16 +82,21 @@ class MissingAnswerError(PromptsError):
     @brief Raised when a required answer is absent and no default applies.
     @details This is what ``--non-interactive`` surfaces (plan §4/§5): the
              ``key`` attribute names the missing field so the operator's error
-             message is actionable.
+             message is actionable. A refused default-refuse confirmation
+             raises this too, with ``detail`` carrying the longer "which
+             decision, and how to supply it" text.
     """
 
-    def __init__(self, key: str) -> None:
+    def __init__(self, key: str, *, detail: str | None = None) -> None:
         """
-        @brief      Construct the error for one missing field.
-        @param[in]  key The ``FieldSpec.key`` that had no answer.
+        @brief      Construct the error for one missing field or decision.
+        @param[in]  key The ``FieldSpec.key`` (or decision key) that had no
+                    answer.
+        @param[in]  detail Full message to use in place of the default
+                    missing-field wording.
         @return     None
         """
-        super().__init__(f"missing answer for required field {key!r}")
+        super().__init__(detail or f"missing answer for required field {key!r}")
         self.key = key
 
 
@@ -206,6 +228,29 @@ class FieldSpec:
 # HELPER FUNCTIONS
 
 
+def _as_bool(key: str, raw: Any) -> bool:
+    """
+    @brief      Interpret a scripted decision answer as a boolean.
+    @details    Answers files are typed (TOML/JSON booleans survive the load),
+                but a hand-written file may still spell the value out, so the
+                usual literals are accepted. Anything else is rejected rather
+                than coerced: a decision that silently reads as ``True`` is the
+                exact failure mode the per-default policy exists to prevent.
+    @param[in]  key The decision key, for the rejection message.
+    @param[in]  raw The scripted value.
+    @return     The boolean the answer denotes.
+    @exception  ScriptedAnswerError If the value is not a recognizable boolean.
+    """
+    if isinstance(raw, bool):
+        return raw
+    text = str(raw).strip().lower()
+    if text in ("true", "yes", "y", "1"):
+        return True
+    if text in ("false", "no", "n", "0"):
+        return False
+    raise ScriptedAnswerError(key, f"expected a boolean, got {raw!r}")
+
+
 def _default_secret_reader(prompt: str) -> str:
     """
     @brief      Default no-echo reader used by :class:`ConsoleAsker` for secrets.
@@ -274,11 +319,14 @@ class ConsoleAsker:
         if flush is not None:
             flush()
 
-    def confirm(self, prompt: str, *, default: bool = True) -> bool:
+    def confirm(self, prompt: str, *, default: bool = True, decision: str | None = None) -> bool:
         """
         @brief      Ask a yes/no question (engine ``Asker`` protocol member).
         @param[in]  prompt Question text.
         @param[in]  default Value assumed when the operator presses enter.
+        @param[in]  decision Answer key that would decide this question without
+                    an operator; accepted and ignored here, since a live
+                    operator *is* the explicit answer.
         @return     The operator's boolean choice.
         @exception  None
         """
@@ -401,18 +449,43 @@ class ScriptedAsker:
             self._confirm_queue = list(confirms)
             self._fixed_confirm = True
 
-    def confirm(self, prompt: str, *, default: bool = True) -> bool:
+    def confirm(self, prompt: str, *, default: bool = True, decision: str | None = None) -> bool:
         """
-        @brief      Answer a yes/no question from the scripted queue/fixed value.
-        @param[in]  prompt Question text (unused; scripted answers ignore it).
-        @param[in]  default Ignored: scripted confirms are explicit, not defaulted.
-        @return     The next scripted boolean.
-        @exception  MissingAnswerError If a finite confirmation queue is empty.
+        @brief      Answer a yes/no question from the scripted answers, queue,
+                    or fixed value, honoring the per-default policy.
+        @details    Resolution order: the named ``decision`` key in the answers
+                    mapping (the most explicit statement of intent), then a
+                    finite confirmation queue, then the fixed value. The fixed
+                    value may only auto-answer ``True`` to a question whose
+                    ``default`` is ``True``: a default-refuse question answered
+                    ``True`` by blanket consent would waive a safety outcome
+                    nobody decided, so it raises instead (module docstring).
+        @param[in]  prompt Question text (used only in the refusal message).
+        @param[in]  default The interactive default, which selects the policy.
+        @param[in]  decision Answer key that decides this question explicitly.
+        @return     The scripted boolean.
+        @exception  MissingAnswerError If a finite confirmation queue is empty,
+                    or a default-refuse question has no explicit answer.
+        @exception  ScriptedAnswerError If the ``decision`` answer is not a
+                    recognizable boolean.
         """
+        if decision is not None and decision in self._answers:
+            return _as_bool(decision, self._answers[decision])
         if self._confirm_queue is not None:
             if self._confirm_queue:
                 return self._confirm_queue.pop(0)
             raise MissingAnswerError("confirmation")
+        if self._fixed_confirm and not default:
+            key = decision or "confirmation"
+            raise MissingAnswerError(
+                key,
+                detail=(
+                    "refusing to answer a default-refuse question without an explicit "
+                    f"decision: {prompt} — general consent (--yes/--non-interactive) "
+                    "approves the rendered mutation plan only; set "
+                    f"{key!r} in the answers file to make this choice explicitly"
+                ),
+            )
         return self._fixed_confirm
 
     def ask(self, key: str, prompt: str, *, default: str | None = None) -> str:

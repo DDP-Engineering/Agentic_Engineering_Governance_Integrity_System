@@ -251,8 +251,15 @@ def test_external_sync_writes_current_receipt_and_detects_worktree_staleness(
     invocation = json.loads(
         (repo / ".repowise-invocation.json").read_text(encoding="utf-8")
     )
-    assert invocation.count("--exclude=.agentic/tools/**") == 1
-    assert invocation.count("--exclude=.agentic/runs/**") == 1
+    if os.name == "nt":
+        # Windows: joined form defeats RepoWise's Click pre-parser globbing.
+        assert invocation.count("--exclude=.agentic/tools/**") == 1
+        assert invocation.count("--exclude=.agentic/runs/**") == 1
+    else:
+        # POSIX: the historical two-token form is preserved byte for byte.
+        assert invocation.count("--exclude") == 2
+        assert invocation.count(".agentic/tools/**") == 1
+        assert invocation.count(".agentic/runs/**") == 1
     assert not any("install.ps1" in argument for argument in invocation)
     assert not any("adoption-fixture" in argument for argument in invocation)
     assert (repo / ARTIFACT_PATH).is_file()

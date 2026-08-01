@@ -24,7 +24,7 @@ import re
 # CONSTANTS
 
 # @brief Independent WAEGIS wizard version (SemVer).
-WIZARD_VERSION = "1.1.0"
+WIZARD_VERSION = "1.2.0"
 
 # @brief Inclusive lower bound of the compatible AEGIS payload version.
 PAYLOAD_COMPAT_MIN = "2.0.0"

@@ -337,4 +337,118 @@ def test_question_none_falls_back_to_key_based_prompt_line() -> None:
     assert "port (e.g. 8080; default: 8000): " in stdout.getvalue()
 
 
+# --- ScriptedAsker per-default confirmation policy ----------------------------------
+
+
+def test_blanket_confirms_auto_answer_default_true_questions() -> None:
+    """
+    @brief      Blanket consent still auto-answers an ordinary default-accept
+                confirmation: that is what ``--non-interactive`` is for, and
+                the policy must not turn every question into a hard stop.
+    @return     None
+    @exception  AssertionError If a default-True question is not auto-answered.
+    """
+    asker = ScriptedAsker({}, confirms=True)
+    assert asker.confirm("Proceed with the planned mutation?", default=True) is True
+
+
+def test_blanket_confirms_refuse_to_answer_a_default_refuse_question() -> None:
+    """
+    @brief      Blanket consent must not invert a default-refuse safety
+                question: with no explicit answer it raises, naming the
+                decision key the operator has to set.
+    @return     None
+    @exception  AssertionError If the question is auto-answered or the error
+                does not name the decision.
+    """
+    asker = ScriptedAsker({}, confirms=True)
+    with pytest.raises(MissingAnswerError) as raised:
+        asker.confirm("Accept the failing gate?", default=False, decision="accept_failing_gates")
+    assert raised.value.key == "accept_failing_gates"
+    assert "accept_failing_gates" in str(raised.value)
+    assert "Accept the failing gate?" in str(raised.value)
+
+
+def test_an_unnamed_default_refuse_question_is_still_refused() -> None:
+    """
+    @brief      The policy is per-default, not per-question: a default-refuse
+                confirmation that names no decision key is refused too, so a
+                future safety question cannot be waived just because its author
+                forgot the keyword.
+    @return     None
+    @exception  AssertionError If the question is auto-answered.
+    """
+    asker = ScriptedAsker({}, confirms=True)
+    with pytest.raises(MissingAnswerError):
+        asker.confirm("Do something irreversible?", default=False)
+
+
+def test_an_explicit_decision_answer_decides_a_default_refuse_question() -> None:
+    """
+    @brief      The named decision key answers the question in either
+                direction, and it is the answer that is honored — not the
+                blanket confirm value.
+    @return     None
+    @exception  AssertionError If the explicit answer is not honored.
+    """
+    accepting = ScriptedAsker({"accept_failing_gates": True}, confirms=True)
+    assert accepting.confirm("Accept?", default=False, decision="accept_failing_gates") is True
+
+    refusing = ScriptedAsker({"accept_failing_gates": False}, confirms=True)
+    assert refusing.confirm("Accept?", default=False, decision="accept_failing_gates") is False
+
+
+def test_a_non_boolean_decision_answer_is_rejected_not_coerced() -> None:
+    """
+    @brief      A decision answer that is not a recognizable boolean fails
+                loudly: silently reading "maybe" as true is the exact failure
+                mode this policy exists to prevent.
+    @return     None
+    @exception  AssertionError If the value is coerced instead of rejected.
+    """
+    asker = ScriptedAsker({"accept_failing_gates": "maybe"}, confirms=True)
+    with pytest.raises(ScriptedAnswerError):
+        asker.confirm("Accept?", default=False, decision="accept_failing_gates")
+
+
+def test_a_confirmation_refusing_asker_is_unaffected_by_the_policy() -> None:
+    """
+    @brief      ``confirms=False`` keeps answering ``False`` to both kinds of
+                question: refusing agrees with a default-refuse question and is
+                the conservative answer to a default-accept one, so there is
+                nothing to guard against.
+    @return     None
+    @exception  AssertionError If the refusing asker raises or answers True.
+    """
+    asker = ScriptedAsker({}, confirms=False)
+    assert asker.confirm("Proceed?", default=True) is False
+    assert asker.confirm("Accept the failing gate?", default=False) is False
+
+
+def test_a_scripted_confirmation_queue_answers_default_refuse_questions() -> None:
+    """
+    @brief      A finite confirmation queue is itself an explicit answer, so it
+                still decides a default-refuse question (this is how step tests
+                script an acceptance without an answers file).
+    @return     None
+    @exception  AssertionError If a queued answer is not honored.
+    """
+    asker = ScriptedAsker({}, confirms=[True, False])
+    assert asker.confirm("Accept?", default=False) is True
+    assert asker.confirm("Accept?", default=False) is False
+
+
+def test_console_asker_accepts_and_ignores_the_decision_keyword() -> None:
+    """
+    @brief      A live operator is the explicit answer, so the console asker
+                takes the ``decision`` keyword and prompts exactly as it would
+                without it.
+    @return     None
+    @exception  AssertionError If the prompt changes or the keyword is refused.
+    """
+    asker, stdout = _console("y\n")
+    assert asker.confirm("Accept?", default=False, decision="accept_failing_gates") is True
+    assert stdout.getvalue() == "Accept? [y/N]: "
+
+
 # END OF FILE

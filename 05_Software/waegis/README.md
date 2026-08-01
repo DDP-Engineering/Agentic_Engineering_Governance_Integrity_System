@@ -25,6 +25,32 @@ Complete installs its selected sidecar beneath
 indexing do not download packages or contact GitHub, PyPI, telemetry, or update
 services. Core can still link an external RepoWise `>=0.37.0,<0.38.0`.
 
+## Deployment Self-Containment
+
+A deployment's portability is one of exactly three states, determined by
+edition and the `repowise_source` answer:
+
+- **`source-only`** — the AEGIS payload lives beneath `.agentic`; RepoWise is
+  not configured at all (`repowise_source = "disabled"`, either edition). A
+  Git clone is fully self-contained.
+- **`external-runtime`** — the AEGIS payload plus a link to a machine-level
+  external RepoWise installation (`repowise_source = "external"`, either
+  edition). The external command is not stored in the repository. A fresh
+  clone on another machine has the AEGIS payload but must re-link its own
+  RepoWise installation before RepoWise can run there.
+- **`offline-bundled-runtime`** — WAEGIS Complete installed the RepoWise
+  runtime under `.agentic/tools/repowise/0.37.0/<platform>/`
+  (`repowise_source = "bundled"`, Complete edition only). That runtime is
+  excluded from Git, so a **Git clone is not self-contained**: only a
+  **delivered working directory** (the runtime files present on disk) or a
+  fresh run of the WAEGIS Complete installer restores it.
+
+A Git clone and a delivered working directory therefore have different
+self-containment properties whenever bundled RepoWise is in play: cloning
+reproduces everything except the gitignored runtime, while a delivered working
+directory (a copy of the actual directory tree, not just its Git history)
+carries the runtime along with it.
+
 ## Commands
 
 ```text
@@ -189,7 +215,7 @@ state, hashes, Git HEAD, and worktree fingerprint before using proposals.
 The default disabled Core policy remains part of the normal AEGIS deployment
 commit. When `new` or a committed `adopt` explicitly selects bundled or
 external RepoWise, WAEGIS records the mutable policy and its install-manifest
-digest in a second, narrow `Configure RepoWise via WAEGIS 1.1.0` commit. Runtime,
+digest in a second, narrow `Configure RepoWise via WAEGIS 1.2.0` commit. Runtime,
 receipt, index, and tool files remain ignored. An adoption deliberately left
 uncommitted keeps this policy change with the operator's other pending changes.
 
