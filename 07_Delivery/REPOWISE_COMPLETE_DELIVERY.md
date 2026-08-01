@@ -6,6 +6,20 @@ WAEGIS Complete adds RepoWise 0.37.0 as a separate, optional AGPL sidecar. It
 does not link RepoWise into AEGIS or WAEGIS and does not give RepoWise authority
 over AEGIS state.
 
+A Complete artifact produces the `offline-bundled-runtime` deployment
+portability state (see `05_Software/waegis/README.md`'s "Deployment
+Self-Containment" section and the template's `REPOWISE_INTEGRATION.md`): the
+installed runtime beneath `.agentic/tools/repowise/0.37.0/<platform>/` is
+gitignored, so a downstream Git clone alone does not restore it — only the
+delivered working directory or a fresh Complete installer run does. Every
+Complete artifact therefore carries the RepoWise license, its exact
+corresponding source, third-party notices, SBOM, provenance, and hashes, as
+listed below, so the runtime can be reconstructed and reviewed independently
+of Git history. The RepoWise source checkout used as build input (for example
+`D:\Source\repowise` above) stays outside `05_Software`; it is a clean tagged
+checkout consumed only by the release builder and is never vendored into the
+tracked AEGIS/WAEGIS source tree.
+
 ## Native Release Build
 
 Use a clean checkout exactly at RepoWise tag `v0.37.0`:

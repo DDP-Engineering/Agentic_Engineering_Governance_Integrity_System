@@ -11,6 +11,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add a project-agnostic human explanation of the AEGIS adoption installation
+  baseline, including every installation-manifest configuration field.
+
 ### Changed
 
 - Replace `requirements.update_requirement`'s 15-parameter (13 keyword-only)
