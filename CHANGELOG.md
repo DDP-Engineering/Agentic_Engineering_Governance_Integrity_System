@@ -14,7 +14,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Add a project-agnostic human explanation of the AEGIS adoption installation
-  baseline, including every installation-manifest configuration field.
+  baseline, including every installation-manifest and workflow configuration
+  field, the component inventory contract, and the requirements workspace.
 
 ### Changed
 

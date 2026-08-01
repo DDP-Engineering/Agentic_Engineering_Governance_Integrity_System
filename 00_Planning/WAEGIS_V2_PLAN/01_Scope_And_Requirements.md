@@ -54,6 +54,15 @@ Unchanged.
 | D3 | Packaging | Plain `zipapp` + a SHA256SUMS file (~200-line build script). Drop embedded-CPython runtimes and the reproducible-archive framework; require Python 3.11+ on the operator machine (already required for AEGIS itself, so this costs nothing in practice). If byte-reproducibility is ever needed again, V1's `build_release.py` remains in git history. |
 | D4 | Version numbering | V2 ships as **WAEGIS 2.0.0** (the CLI surface is compatible but the safety model is a breaking change of behavior). Payload compatibility stays `>=2.0,<3.0`. |
 
+Whichever way D1 resolves, V2 must describe RepoWise deployment portability
+with the same three states V1 uses: `source-only` (RepoWise not configured),
+`external-runtime` (linked to a machine-level installation outside the repo,
+which a fresh clone elsewhere must re-link), and `offline-bundled-runtime` (a
+gitignored runtime bundled by a Complete-equivalent build, restored only by a
+delivered working directory or a fresh installer run, never by a Git clone
+alone). Sharing this vocabulary keeps the two efforts' operator-facing
+language consistent even while D1 remains unratified.
+
 ## 5. Requirements checklist (acceptance-level)
 
 - R1: A repo installed by V1 1.1.0 is fully manageable by V2 (analyze, check, configure, repair, upgrade) with no migration step.
