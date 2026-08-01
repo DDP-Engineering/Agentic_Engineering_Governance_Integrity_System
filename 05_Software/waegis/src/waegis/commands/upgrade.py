@@ -485,6 +485,58 @@ class ConflictResolutionError(UpgradeError):
         super().__init__(f"no decision available for conflict on {relative_path!r}")
 
 
+class UpgradeApplyError(UpgradeError):
+    """
+    @brief One apply-phase failure paired with the transaction's true terminal
+           state.
+    @details :func:`_apply_upgrade_transactional` raises this instead of
+             re-raising the originating exception, because the three post-write
+             outcomes are materially different and must never be reported
+             alike:
+
+             - ``committed`` — every file write and the manifest rewrite are
+               durable on disk and only the post-commit storage cleanup failed;
+               nothing was rolled back and recovery retries the cleanup. The
+               upgrade SUCCEEDED.
+             - ``rolled_back`` — the transaction restored every declared path,
+               so the repository is back at its exact pre-upgrade state.
+             - neither — rollback itself failed, so the repository may be left
+               partially upgraded and the authenticated recovery state was
+               retained for a later ``waegis`` run.
+
+             Interrupts (:class:`KeyboardInterrupt` / :class:`SystemExit`) are
+             never wrapped: they keep propagating unchanged, carrying any
+             rollback failure as a note. ``__cause__`` is always the
+             originating exception.
+    """
+
+    def __init__(
+        self,
+        cause: BaseException,
+        *,
+        committed: bool,
+        rolled_back: bool,
+        rollback_error: BaseException | None = None,
+    ) -> None:
+        """
+        @brief      Build the typed apply failure.
+        @param[in]  cause The exception raised inside the transaction body.
+        @param[in]  committed True when the transaction reached ``committed``
+                    before the failure (a durable, successful upgrade).
+        @param[in]  rolled_back True when rollback completed and restored every
+                    declared path.
+        @param[in]  rollback_error The rollback failure, when rollback was
+                    attempted and did not complete.
+        @return     None
+        @exception  None
+        """
+        self.cause = cause
+        self.committed = committed
+        self.rolled_back = rolled_back
+        self.rollback_error = rollback_error
+        super().__init__(str(cause) or type(cause).__name__)
+
+
 # LOCAL HELPERS
 
 
@@ -913,11 +965,17 @@ def apply_upgrade(
                 hook returns a non-:class:`ConflictDecision`, a ``write-new``
                 sidecar already exists with different content, or
                 ``decisions`` does not exactly match the plan's conflicts.
-    @exception  OSError If a file copy/delete or the manifest write fails.
-    @exception  BaseException Any other error raised while applying (e.g. a
-                transaction or manifest failure) is re-raised after an
-                automatic rollback attempt, mirroring
-                :func:`_apply_upgrade_transactional`.
+    @exception  OSError If a file copy/delete or the manifest write fails
+                before the transaction is opened.
+    @exception  UpgradeApplyError Any error raised inside the transaction body
+                (e.g. a transaction or manifest failure) is wrapped, after the
+                automatic rollback attempt, in a typed failure carrying whether
+                the transaction committed, rolled back, or failed to roll back
+                — see :class:`UpgradeApplyError`. The originating exception is
+                the wrapper's ``__cause__``.
+    @exception  BaseException :class:`KeyboardInterrupt` and
+                :class:`SystemExit` are never wrapped; they propagate unchanged
+                after the same rollback attempt.
     """
     return _apply_upgrade_transactional(
         plan,
@@ -939,7 +997,13 @@ def _apply_upgrade_transactional(
     """
     @brief      Apply a fully resolved plan through a persistent transaction.
     @return     Upgrade report, including rollback state on smoke failure.
-    @exception  BaseException Re-raised only after automatic rollback.
+    @exception  UpgradeApplyError Raised, after the automatic rollback attempt,
+                for every non-interrupt failure inside the transaction body,
+                carrying the transaction's true terminal state so callers never
+                have to inspect message text to tell a committed-but-
+                cleanup-failed upgrade from a rolled-back one.
+    @exception  BaseException :class:`KeyboardInterrupt` / :class:`SystemExit`
+                propagate unchanged after the same rollback attempt.
     """
     active_runner = runner or SubprocessCommandRunner()
     if decisions is None:
@@ -1002,15 +1066,28 @@ def _apply_upgrade_transactional(
         write_manifest(plan.repo, manifest)
         transaction.commit()
     except BaseException as exc:
-        if transaction.directory.exists() and transaction.phase != "committed":
+        committed = transaction.phase == "committed"
+        rolled_back = False
+        rollback_error: BaseException | None = None
+        if transaction.directory.exists() and not committed:
             try:
                 transaction.rollback()
-            except Exception as rollback_exc:
+                rolled_back = True
+            except Exception as exc_rollback:
+                rollback_error = exc_rollback
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            if rollback_error is not None:
                 exc.add_note(
                     "upgrade rollback failed; authenticated recovery state "
-                    f"was retained: {rollback_exc}"
+                    f"was retained: {rollback_error}"
                 )
-        raise
+            raise
+        raise UpgradeApplyError(
+            exc,
+            committed=committed,
+            rolled_back=rolled_back,
+            rollback_error=rollback_error,
+        ) from exc
     return UpgradeReport(
         plan=plan,
         dry_run=False,
@@ -1589,16 +1666,90 @@ def _begin_upgrade_journal(plan: UpgradePlanState) -> Journal:
     return journal
 
 
+def _upgrade_apply_failure(
+    plan: UpgradePlanState, journal: Journal, failure: UpgradeApplyError,
+) -> int:
+    """
+    @brief      Journal and report one apply failure by the transaction's true
+                terminal state.
+    @details    Mirrors ``configure``'s ``_configure_apply_failure`` and
+                ``repair``'s ``_repair_apply_failure``: a transaction that
+                reached ``committed`` before its storage cleanup failed is a
+                SUCCESSFUL upgrade and is never reported as failed-and-rolled-
+                back, and a rollback that did not complete is never reported as
+                if it had. The exit code stays :data:`EXIT_ERROR`
+                (``EXIT_OPERATIONAL``) in every branch — the frozen upgrade
+                exit-code contract — so the machine-readable distinction lives
+                in the ``result`` mapping (``applied`` / ``rolled_back`` /
+                ``cleanup_pending``) and in the message.
+    @param[in]  plan The resolved plan being applied.
+    @param[in]  journal The open upgrade journal.
+    @param[in]  failure The typed apply failure raised by :func:`apply_upgrade`.
+    @return     The command exit code.
+    @exception  None
+    """
+    context = plan.validated.context
+    cause = failure.cause
+    detail = f"{type(cause).__name__}: {cause}"
+    plan_data = plan.plan_data if context.options.as_json else None
+    if failure.committed:
+        # The manifest and every file write are durable; only the transaction's
+        # own storage cleanup failed. Journaling this as a failed run would be
+        # the same false report the message used to make.
+        journal.record(StepResult(
+            step_id="upgrade.apply", status=StepStatus.DONE, error=detail,
+        ))
+        journal.finalize(status=STATUS_COMPLETED)
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
+            result_extra={"applied": True, "rolled_back": False, "cleanup_pending": True},
+            messages=("upgrade committed, but transaction cleanup failed; "
+                      f"recovery will retry cleanup: {cause}",),
+        )
+    journal.record(StepResult(
+        step_id="upgrade.apply", status=StepStatus.FAILED, error=detail,
+    ))
+    journal.finalize(status=STATUS_FAILED, stopped_at_step="upgrade.apply")
+    if failure.rollback_error is not None:
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
+            result_extra={"applied": False, "rolled_back": False, "cleanup_pending": True},
+            messages=("upgrade failed and rollback did not complete; the repository may "
+                      "be partially upgraded and authenticated recovery state was "
+                      f"retained: {failure.rollback_error} (original failure: {cause})",),
+        )
+    return _upgrade_emit(
+        context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
+        result_extra={"applied": False, "rolled_back": True, "cleanup_pending": False},
+        messages=(f"upgrade failed and was rolled back: {cause}",),
+    )
+
+
 def _apply_upgrade_journaled(
     plan: UpgradePlanState, journal: Journal,
 ) -> int | UpgradeReport:
-    """@brief Apply the upgrade and preserve journal failure semantics."""
+    """
+    @brief      Apply the upgrade and preserve journal failure semantics.
+    @details    A failure raised inside the transaction body arrives as a typed
+                :class:`UpgradeApplyError` and is reported by its true terminal
+                state (:func:`_upgrade_apply_failure`). Anything else escaping
+                :func:`apply_upgrade` was raised before the transaction opened
+                — a decision-set mismatch, a sidecar collision, or a failure to
+                begin the transaction — so no repository file was touched.
+    @param[in]  plan The consented plan.
+    @param[in]  journal The open upgrade journal.
+    @return     The applied report, or a command exit code on failure.
+    @exception  BaseException :class:`KeyboardInterrupt` / :class:`SystemExit`
+                are re-raised after the journal is finalized.
+    """
     context = plan.validated.context
     try:
         report = apply_upgrade(
             plan.validated.plan, runner=plan.validated.runner,
             decisions=plan.decisions, resolved_outcomes=plan.outcomes,
         )
+    except UpgradeApplyError as failure:
+        return _upgrade_apply_failure(plan, journal, failure)
     except BaseException as exc:
         journal.record(StepResult(
             step_id="upgrade.apply", status=StepStatus.FAILED,
@@ -1608,9 +1759,10 @@ def _apply_upgrade_journaled(
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
             raise
         return _upgrade_emit(
-            context, status="error", exit_code=EXIT_OPERATIONAL,
+            context, status="error", exit_code=EXIT_ERROR,
             plan_data=plan.plan_data if context.options.as_json else None,
-            messages=(f"upgrade failed and was rolled back: {exc}",),
+            result_extra={"applied": False, "rolled_back": False, "cleanup_pending": False},
+            messages=(f"upgrade failed before any change was applied: {exc}",),
         )
     journal.record(StepResult(
         step_id="upgrade.apply",

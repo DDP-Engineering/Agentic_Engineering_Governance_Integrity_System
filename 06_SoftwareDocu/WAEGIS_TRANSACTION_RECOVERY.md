@@ -131,6 +131,30 @@ Termination after the commit mark retains the applied files and retries only
 cleanup. Ordinary errors attempt rollback immediately, report its actual
 outcome, and preserve `KeyboardInterrupt` and `SystemExit`.
 
+## Mutating-Command Failure Reporting
+
+`configure`, `repair`, and `upgrade` all report the transaction's actual
+terminal state rather than a single generic failure, because the three
+post-write outcomes are materially different:
+
+| Transaction state | Repository | Reported as |
+|---|---|---|
+| `committed`, cleanup failed | fully upgraded, durable | committed, cleanup pending; recovery retries cleanup |
+| `rolled-back` | restored to its exact pre-command bytes | failed and rolled back |
+| rollback raised | possibly partially applied | rollback did not complete; recovery state retained |
+
+For `upgrade` the apply phase raises a typed `UpgradeApplyError` carrying that
+state, so the reported outcome never depends on inspecting message text. All
+three keep the frozen `upgrade` operational exit code; the machine-readable
+distinction is in the `--json` `result` mapping, which carries `applied`,
+`rolled_back`, and `cleanup_pending`. A committed-but-cleanup-pending upgrade
+journals as a completed run, because the payload really was upgraded on disk
+and only transaction storage remains to be removed.
+
+`KeyboardInterrupt` and `SystemExit` are never converted into a reported
+outcome; they propagate after the same rollback attempt, carrying any rollback
+failure as an exception note.
+
 ## Legacy State and Manual Remediation
 
 Version-1 state has no MAC, external operation ownership, or authenticated

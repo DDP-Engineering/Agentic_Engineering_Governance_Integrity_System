@@ -59,7 +59,11 @@ from waegis.io.envelope import EXIT_NEEDS_INPUT
 from waegis.io.prompts import ConsoleAsker
 from waegis.payload.copier import SIDECAR_SUFFIX, ConflictDecision, copy_payload
 from waegis.payload.locate import locate_payload
-from waegis.transaction import FileTransaction, pending_transaction_ids
+from waegis.transaction import (
+    FileTransaction,
+    TransactionRollbackError,
+    pending_transaction_ids,
+)
 from waegis.payload.manifest import (
     FileEntry,
     Manifest,
@@ -1099,6 +1103,154 @@ def test_keyboard_interrupt_mid_apply_journals_rolls_back_and_reraises(tmp_path:
     assert document["stopped_at_step"] == "upgrade.apply"
     steps = {step["id"]: step["status"] for step in document["steps"]}
     assert steps["upgrade.apply"] == "failed"
+
+
+# ---------------------------------------------------------------------------
+# apply-failure outcomes must never be reported alike: committed-but-cleanup-
+# failed, rolled back, and rollback-did-not-complete are three different states
+# ---------------------------------------------------------------------------
+
+
+def _journal_document(home: Path) -> dict:
+    """
+    @brief      Read the single journal a run wrote under ``home``.
+    @param[in]  home Journal root the run was given.
+    @return     The parsed journal document.
+    @exception  AssertionError If the run did not write exactly one journal.
+    """
+    journals = sorted((home / "journals").glob("*.json"))
+    assert len(journals) == 1
+    return json.loads(journals[0].read_text(encoding="utf-8"))
+
+
+def test_cleanup_failure_after_commit_is_reported_as_a_committed_upgrade(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A ``TransactionCleanupError`` raised after the commit marker is
+                a SUCCESSFUL upgrade and must never be reported as
+                failed-and-rolled-back.
+    @details    The manifest rewrite and every file write are already durable
+                when post-commit storage cleanup fails, so the run reports
+                ``applied``/``cleanup_pending`` and journals as completed;
+                only the cleanup is left for recovery to retry.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @param[in]  monkeypatch Used to fail only the transaction storage cleanup.
+    @return     None
+    @exception  AssertionError If the committed upgrade is reported as a
+                failure or a rollback.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    home = tmp_path / "home"
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    def fail_cleanup(_transaction: FileTransaction) -> None:
+        """@brief Make only the post-commit storage cleanup fail."""
+        raise OSError("cleanup unavailable")
+
+    monkeypatch.setattr(FileTransaction, "cleanup", fail_cleanup)
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=_smoke_ok_runner(repo),
+        home=home,
+    )
+
+    assert code == EXIT_ERROR
+    data = json.loads(stream.getvalue())
+    message = data["messages"][0]
+    assert "upgrade committed, but transaction cleanup failed" in message
+    assert "rolled back" not in message
+    assert data["result"] == {
+        "applied": True,
+        "rolled_back": False,
+        "cleanup_pending": True,
+    }
+    # The upgrade really is on disk: reported state and actual state agree.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "Y"
+    assert read_manifest(repo).payload_version == "2.0.1"
+    assert read_manifest(repo).files["file.txt"] == _entry("Y")
+    document = _journal_document(home)
+    assert document["status"] == "completed"
+    assert document["stopped_at_step"] is None
+    steps = {step["id"]: step["status"] for step in document["steps"]}
+    assert steps["upgrade.apply"] == "done"
+
+
+def test_a_rollback_that_does_not_complete_is_reported_as_such(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      When rollback itself fails the run must say so, never claim the
+                repository was restored.
+    @details    The apply is forced to fail at the manifest rewrite (after the
+                file writes) and rollback is forced to raise, so the repository
+                is genuinely left partially upgraded — the one state the
+                previous "failed and was rolled back" message hid.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @param[in]  monkeypatch Used to fail the manifest rewrite and the rollback.
+    @return     None
+    @exception  AssertionError If the failed rollback is reported as a
+                completed one.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    home = tmp_path / "home"
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    def fail_manifest_write(_root: object, _manifest: object) -> Path:
+        """@brief Fail the step 3 manifest rewrite, inside the transaction."""
+        raise OSError("manifest volume unavailable")
+
+    def fail_rollback(_transaction: FileTransaction, *, _release_lock: bool = True) -> None:
+        """@brief Make restoration fail the way a locked destination would."""
+        raise TransactionRollbackError("rollback unavailable")
+
+    monkeypatch.setattr(upgrade_module, "write_manifest", fail_manifest_write)
+    monkeypatch.setattr(FileTransaction, "rollback", fail_rollback)
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=_smoke_ok_runner(repo),
+        home=home,
+    )
+
+    assert code == EXIT_ERROR
+    data = json.loads(stream.getvalue())
+    message = data["messages"][0]
+    assert "rollback did not complete" in message
+    assert "may be partially upgraded" in message
+    assert "rollback unavailable" in message
+    assert "manifest volume unavailable" in message
+    assert data["result"]["rolled_back"] is False
+    assert data["result"]["applied"] is False
+    # Truthful: the write really was left in place and the old manifest stands.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "Y"
+    assert read_manifest(repo).payload_version == "2.0.0"
+    document = _journal_document(home)
+    assert document["status"] == "failed"
+    assert document["stopped_at_step"] == "upgrade.apply"
 
 
 # ---------------------------------------------------------------------------

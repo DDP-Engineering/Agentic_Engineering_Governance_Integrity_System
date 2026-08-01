@@ -49,6 +49,18 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Fix `waegis upgrade` reporting "upgrade failed and was rolled back" for every
+  apply-phase exception, including two cases where that was untrue: a
+  `TransactionCleanupError` raised *after* the commit marker (the payload was
+  durably upgraded on disk and nothing was rolled back) and a
+  `TransactionRollbackError` (rollback did not complete, so the repository may
+  be partially upgraded). `_apply_upgrade_transactional` now raises a typed
+  `UpgradeApplyError` carrying the transaction's terminal state, and the
+  command reports each outcome distinctly — matching the branch `configure` and
+  `repair` already had. A committed-but-cleanup-pending upgrade also journals as
+  a completed run instead of a failed one. The `--json` `result` mapping gained
+  `applied`, `rolled_back`, and `cleanup_pending`; upgrade exit codes are
+  unchanged.
 - Fix `Graph.from_dict` (AEGIS core) to raise the documented `ValueError` when
   `stage_records` is not an object, instead of leaking a raw `AttributeError`.
 
