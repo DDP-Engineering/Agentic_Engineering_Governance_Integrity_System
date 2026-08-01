@@ -35,8 +35,8 @@ from __future__ import annotations
 import errno
 import socket
 import ssl
+import threading
 from collections.abc import Mapping, Sequence
-from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 from urllib.parse import urlsplit
@@ -337,20 +337,57 @@ def _certificate_info(peer_cert: Mapping[str, Any] | None) -> CertificateInfo | 
     return CertificateInfo(issuer=issuer, subject=subject)
 
 
-def _close_late_connection(future: Future[socket.socket]) -> None:
+class _ConnectAttempt:
     """
-    @brief      Close a connection that completed after the caller gave up.
-    @details    Attached to an abandoned connect future so a resolver that
-                unblocks *after* the probe already reported ``timed_out`` does
-                not leave a live socket behind. The future is always done when
-                this runs, so no accessor here blocks.
-    @param[in]  future The abandoned connect future.
-    @return     None
-    @exception  None
+    @brief One TCP connect running on a worker thread, with a race-free handoff
+           to a caller that may give up first.
+    @details The worker either publishes a connection or an error; the caller
+             claims whichever landed. If nothing landed within the caller's
+             budget the attempt is marked abandoned, and a connection that
+             arrives afterwards is closed by the worker instead of leaking.
+             The lock makes "caller gave up" and "worker succeeded" mutually
+             exclusive, so exactly one side owns the socket.
     """
-    if future.cancelled() or future.exception() is not None:
-        return
-    future.result().close()
+
+    def __init__(self) -> None:
+        """@brief Build an attempt with nothing published and no owner yet."""
+        self._lock = threading.Lock()
+        self._abandoned = False
+        self._connection: socket.socket | None = None
+        self._error: BaseException | None = None
+
+    def run(self, host: str, port: int, timeout: float) -> None:
+        """
+        @brief      Perform the connect; the worker thread's entry point.
+        @param[in]  host Target hostname or address.
+        @param[in]  port Target TCP port.
+        @param[in]  timeout Seconds passed through to ``create_connection``.
+        @return     None
+        @exception  None Every failure is published to the caller instead.
+        """
+        try:
+            connection = socket.create_connection((host, port), timeout=timeout)
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread
+            with self._lock:
+                self._error = exc
+            return
+        with self._lock:
+            if self._abandoned:
+                connection.close()
+                return
+            self._connection = connection
+
+    def claim(self) -> tuple[socket.socket | None, BaseException | None]:
+        """
+        @brief      Take whatever the worker published, giving up if nothing has.
+        @return     ``(connection, error)``; both ``None`` means the worker is
+                    still running, which is the timed-out case.
+        @exception  None
+        """
+        with self._lock:
+            if self._connection is None and self._error is None:
+                self._abandoned = True
+            return self._connection, self._error
 
 
 # PUBLIC API
@@ -423,43 +460,51 @@ class SocketTransport:
         """
         @brief      Open a TCP connection under a hard wall-clock bound that
                     also covers address resolution.
-        @details    ``socket.create_connection`` runs on a worker thread and the
-                    caller waits at most ``timeout`` for it, so a resolver that
+        @details    ``socket.create_connection`` runs on a **daemon** worker
+                    thread joined for at most ``timeout``, so a resolver that
                     never answers is reported as ``timed_out`` instead of
-                    hanging the probe. The executor is shut down without
-                    waiting; if the abandoned attempt later succeeds, its socket
-                    is closed by :func:`_close_late_connection` rather than
-                    leaked.
+                    hanging the probe — and, because the thread is a daemon,
+                    without delaying interpreter shutdown either. A pooled
+                    worker would not do: ``ThreadPoolExecutor`` registers an
+                    ``atexit`` hook that joins its threads, which would move the
+                    same stall from the probe to process exit. A connection that
+                    lands after the caller gave up is closed by the worker
+                    rather than leaked.
         @param[in]  host Target hostname or address.
         @param[in]  port Target TCP port.
         @param[in]  timeout Seconds allowed for resolution plus connect.
         @return     The connected socket, or the :class:`ConnectResult` this
                     attempt already resolves to.
-        @exception  OSError Propagated for connection failures other than the
-                    ones mapped to a :data:`ConnectOutcome`.
+        @exception  BaseException Propagated, from the worker, for connection
+                    failures other than the ones mapped to a
+                    :data:`ConnectOutcome`.
         """
-        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="waegis-connect")
-        try:
-            future = pool.submit(socket.create_connection, (host, port), timeout=timeout)
-            try:
-                return future.result(timeout=timeout)
-            except TimeoutError:
-                # One branch for both the socket-level timeout raised inside the
-                # worker and this wall-clock bound: since 3.10/3.11 they are the
-                # same type, and either way the attempt outlasted the caller's
-                # budget. Closing a late success is a no-op on a failed future.
-                future.add_done_callback(_close_late_connection)
-                return ConnectResult(outcome="timed_out")
-            except socket.gaierror:
-                return ConnectResult(outcome="dns_failure")
-            except ConnectionRefusedError:
-                return ConnectResult(outcome="refused")
-            except OSError as exc:
-                if getattr(exc, "errno", None) == errno.ECONNREFUSED:
-                    return ConnectResult(outcome="refused")
-                raise
-        finally:
-            pool.shutdown(wait=False)
+        attempt = _ConnectAttempt()
+        worker = threading.Thread(
+            target=attempt.run,
+            args=(host, port, timeout),
+            name="waegis-connect",
+            daemon=True,
+        )
+        worker.start()
+        worker.join(timeout)
+        connection, error = attempt.claim()
+        if connection is not None:
+            return connection
+        if error is None:
+            # Nothing landed inside the caller's budget: the worker is still
+            # blocked, almost always inside getaddrinfo. It is a daemon and
+            # will close its own socket if the resolver ever answers.
+            return ConnectResult(outcome="timed_out")
+        if isinstance(error, TimeoutError):
+            return ConnectResult(outcome="timed_out")
+        if isinstance(error, socket.gaierror):
+            return ConnectResult(outcome="dns_failure")
+        if isinstance(error, ConnectionRefusedError):
+            return ConnectResult(outcome="refused")
+        if isinstance(error, OSError) and error.errno == errno.ECONNREFUSED:
+            return ConnectResult(outcome="refused")
+        raise error
 
 
 class WinInetRegistryReader:

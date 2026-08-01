@@ -64,9 +64,20 @@ All notable changes to this project will be documented in this file.
 - Fix `SocketTransport.connect` (WAEGIS network probes) hanging well past its
   `timeout` against a stalled DNS server: `socket.create_connection` resolves
   the address before the socket carrying that timeout exists, so `getaddrinfo`
-  was unbounded. The TCP attempt now runs on a worker thread awaited for at
-  most `timeout`, and a resolver stall is reported as `timed_out`. The
-  `gaierror` -> `dns_failure`, refused, and TLS classifications are unchanged.
+  was unbounded. The TCP attempt now runs on a daemon worker thread joined for
+  at most `timeout`, and a resolver stall is reported as `timed_out`. The
+  thread is deliberately not pooled: `ThreadPoolExecutor` joins its workers in
+  an `atexit` hook, which would move the same stall from the probe to
+  interpreter shutdown. The `gaierror` -> `dns_failure`, refused, and TLS
+  classifications are unchanged.
+- Fix `engine.journal.Journal.flush` staging through a fixed
+  `<run-id>.json.tmp` sibling, the same shared-temp-path defect fixed in
+  `write_manifest`; it now uses a `uuid4`-suffixed name with
+  cleanup-on-failure.
+- Report that a `branch-commit` `waegis upgrade` whose apply left files on disk
+  did not commit them, naming the branch. The Git commit step runs only for a
+  clean apply, so a committed-but-cleanup-pending upgrade previously left the
+  new payload uncommitted in the working tree without saying so.
 - Fix `payload.manifest.write_manifest` staging through a fixed
   `install-manifest.json.tmp` name shared by every caller, so two concurrent
   WAEGIS invocations against one repository could clobber each other's staged

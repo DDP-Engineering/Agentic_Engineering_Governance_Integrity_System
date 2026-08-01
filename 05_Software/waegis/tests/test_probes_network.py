@@ -586,6 +586,45 @@ def test_a_stalled_resolver_still_returns_within_the_timeout(
     assert elapsed < 5.0, f"probe blocked for {elapsed:.1f}s on a stalled resolver"
 
 
+def test_an_abandoned_connect_worker_never_delays_interpreter_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief      The worker left behind by a timed-out connect is a daemon, so a
+                resolver that never answers cannot move the stall from the probe
+                to process exit.
+    @details    A pooled worker would reintroduce the hang: ``ThreadPoolExecutor``
+                registers an ``atexit`` hook that joins its threads, so the probe
+                would return on time and then block the interpreter on the way
+                out. Nothing is gained by bounding the probe if exit is not
+                bounded too.
+    @param[in]  monkeypatch Used to stall the resolver without any real DNS.
+    @return     None
+    @exception  AssertionError If no worker lingers, or one lingers as a
+                non-daemon thread.
+    """
+    resolver_released = threading.Event()
+
+    def stalled_getaddrinfo(*_args: object, **_kwargs: object) -> None:
+        """@brief Block like a non-responding resolver until the test releases it."""
+        resolver_released.wait(30.0)
+        raise socket.gaierror("resolver released by the test")
+
+    monkeypatch.setattr(socket, "getaddrinfo", stalled_getaddrinfo)
+    try:
+        result = network.SocketTransport().connect(
+            "stalled.invalid", 443, use_tls=False, timeout=0.25
+        )
+        lingering = [
+            thread for thread in threading.enumerate() if thread.name == "waegis-connect"
+        ]
+        assert result.outcome == "timed_out"
+        assert lingering, "expected the abandoned connect worker to still be running"
+        assert all(thread.daemon for thread in lingering)
+    finally:
+        resolver_released.set()
+
+
 def test_a_failing_resolver_is_still_reported_as_a_dns_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

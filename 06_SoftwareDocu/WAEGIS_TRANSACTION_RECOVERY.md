@@ -151,6 +151,11 @@ distinction is in the `--json` `result` mapping, which carries `applied`,
 journals as a completed run, because the payload really was upgraded on disk
 and only transaction storage remains to be removed.
 
+Whenever files are left on disk, an `upgrade` run in `branch-commit` mode also
+reports that they are uncommitted and names the branch holding them: the Git
+commit step runs only for a clean apply, so a committed-but-cleanup-pending
+upgrade leaves the new payload in the working tree with nothing recorded in Git.
+
 `KeyboardInterrupt` and `SystemExit` are never converted into a reported
 outcome; they propagate after the same rollback attempt, carrying any rollback
 failure as an exception note.

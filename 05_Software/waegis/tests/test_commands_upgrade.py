@@ -1188,6 +1188,67 @@ def test_cleanup_failure_after_commit_is_reported_as_a_committed_upgrade(
     assert steps["upgrade.apply"] == "done"
 
 
+def test_a_committed_cleanup_failure_says_the_branch_is_uncommitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A ``branch-commit`` upgrade that committed on disk but failed
+                cleanup must say the changes were never committed to Git.
+    @details    The Git commit step only runs for a clean apply, so without this
+                the operator is told the upgrade committed and finds the new
+                payload sitting uncommitted in the working tree of a branch they
+                did not know was left dirty.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @param[in]  monkeypatch Used to fail only the transaction storage cleanup.
+    @return     None
+    @exception  AssertionError If the uncommitted branch is not named.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    branch = "waegis/upgrade-2.0.1"
+    answers = tmp_path / "answers.json"
+    _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
+    runner = FakeCommandRunner(
+        {
+            ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
+            ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
+            ("git", "-C", str(repo), "checkout", "-b", branch): ok_result(),
+            _wrapper_invocation(repo, "--help"): ok_result(),
+            _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                exit_code=2, stderr=NO_ACTIVE_RUN_MARKER,
+            ),
+        }
+    )
+
+    def fail_cleanup(_transaction: FileTransaction) -> None:
+        """@brief Make only the post-commit storage cleanup fail."""
+        raise OSError("cleanup unavailable")
+
+    monkeypatch.setattr(FileTransaction, "cleanup", fail_cleanup)
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=runner,
+        home=tmp_path / "home",
+    )
+
+    assert code == EXIT_ERROR
+    messages = json.loads(stream.getvalue())["messages"]
+    assert "upgrade committed, but transaction cleanup failed" in messages[0]
+    assert any("NOT committed" in message and branch in message for message in messages)
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "Y"
+
+
 def test_a_rollback_that_does_not_complete_is_reported_as_such(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

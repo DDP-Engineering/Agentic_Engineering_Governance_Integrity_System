@@ -355,15 +355,27 @@ class Journal:
         """
         @brief      Atomically write the journal document to :attr:`path`.
         @details    Writes to a sibling temporary file and renames it into place
-                    so a crash mid-write cannot leave a truncated journal.
+                    so a crash mid-write cannot leave a truncated journal. The
+                    temp name carries a ``uuid4`` suffix, matching
+                    :func:`waegis.io.answers.save_answers_file` and
+                    :func:`waegis.payload.manifest.write_manifest`: a fixed
+                    sibling would be shared by any second writer of the same
+                    journal (a resumed run flushing while the original process
+                    still holds it), which can publish one writer's staged bytes
+                    under the other's rename. A failed write leaves no temp file
+                    behind.
         @return     None
         @exception  OSError If the directory or file cannot be created/written.
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        tmp.write_text(payload, encoding="utf-8")
-        os.replace(tmp, self.path)
+        tmp = self.path.with_name(f"{self.path.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            tmp.write_text(payload, encoding="utf-8")
+            os.replace(tmp, self.path)
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            raise
 
 
 # END OF FILE

@@ -23,7 +23,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+
+import pytest
 
 from waegis.engine import (
     STATUS_COMPLETED,
@@ -187,6 +190,46 @@ def test_previous_layout_without_fingerprints_is_rejected(tmp_path: Path) -> Non
         assert "fingerprints" in str(exc)
     else:
         raise AssertionError("a previous journal layout must not be accepted")
+
+
+def test_two_interleaved_journal_flushes_never_publish_a_mixed_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A second flush of the same journal that completes while the
+                first is between its temp write and its publish must not
+                corrupt or destroy either document.
+    @details    A fixed ``<run-id>.json.tmp`` sibling is shared by every writer
+                of that journal, so a second flush overwrote and then consumed
+                the first flush's staged bytes and the first flush's own rename
+                operated on a file that no longer held its content. Per-call
+                unique temp names keep the two flushes independent.
+    @param[in]  tmp_path Pytest-provided WAEGIS home.
+    @param[in]  monkeypatch Used to suspend the first flush at its publish.
+    @return     None
+    @exception  AssertionError If the published journal is not valid, or a temp
+                file is left behind.
+    """
+    journal = Journal.begin(mode="test", wizard_version=WIZARD_VERSION, home=tmp_path)
+    real_replace = os.replace
+    interleaved: list[bool] = []
+
+    def interleaving_replace(source: object, destination: object) -> None:
+        """@brief Let a whole second flush run inside the first one's publish."""
+        if not interleaved:
+            interleaved.append(True)
+            journal.flush()
+        return real_replace(source, destination)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(os, "replace", interleaving_replace)
+    journal.flush()
+    monkeypatch.undo()
+
+    assert interleaved == [True]
+    reloaded = Journal.load(journal.path)
+    assert reloaded.run_id == journal.run_id
+    leftovers = sorted(path.name for path in journal.path.parent.glob("*.tmp"))
+    assert leftovers == []
 
 
 # END OF FILE

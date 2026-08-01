@@ -1682,6 +1682,11 @@ def _upgrade_apply_failure(
                 exit-code contract — so the machine-readable distinction lives
                 in the ``result`` mapping (``applied`` / ``rolled_back`` /
                 ``cleanup_pending``) and in the message.
+    @details    Whenever files are left on disk, a ``branch-commit`` run also
+                says the changes are uncommitted: the Git commit step only runs
+                for a clean apply, so an operator whose upgrade committed on
+                disk would otherwise find the new payload in their working tree
+                on a dedicated branch with nothing recorded in Git.
     @param[in]  plan The resolved plan being applied.
     @param[in]  journal The open upgrade journal.
     @param[in]  failure The typed apply failure raised by :func:`apply_upgrade`.
@@ -1692,6 +1697,13 @@ def _upgrade_apply_failure(
     cause = failure.cause
     detail = f"{type(cause).__name__}: {cause}"
     plan_data = plan.plan_data if context.options.as_json else None
+    if plan.git_mode == "branch-commit" and plan.git_branch is not None:
+        uncommitted = (
+            "the files left on disk are NOT committed; they are in the working "
+            f"tree on branch {plan.git_branch!r}",
+        )
+    else:
+        uncommitted = ()
     if failure.committed:
         # The manifest and every file write are durable; only the transaction's
         # own storage cleanup failed. Journaling this as a failed run would be
@@ -1704,7 +1716,7 @@ def _upgrade_apply_failure(
             context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
             result_extra={"applied": True, "rolled_back": False, "cleanup_pending": True},
             messages=("upgrade committed, but transaction cleanup failed; "
-                      f"recovery will retry cleanup: {cause}",),
+                      f"recovery will retry cleanup: {cause}",) + uncommitted,
         )
     journal.record(StepResult(
         step_id="upgrade.apply", status=StepStatus.FAILED, error=detail,
@@ -1716,7 +1728,8 @@ def _upgrade_apply_failure(
             result_extra={"applied": False, "rolled_back": False, "cleanup_pending": True},
             messages=("upgrade failed and rollback did not complete; the repository may "
                       "be partially upgraded and authenticated recovery state was "
-                      f"retained: {failure.rollback_error} (original failure: {cause})",),
+                      f"retained: {failure.rollback_error} (original failure: {cause})",)
+                     + uncommitted,
         )
     return _upgrade_emit(
         context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
