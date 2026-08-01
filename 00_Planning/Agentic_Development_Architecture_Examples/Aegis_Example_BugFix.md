@@ -14,3 +14,12 @@ For “a sandbox adapter leaves stale state after rollback”:
    shared, cross-cutting, or untraced.
 7. Deterministic verification precedes diff review; validation closure activates
    the requirement; delivery closure records handoff only.
+
+For a small, well-understood fix like this, start with
+`aegis run start fix --quick` instead: it collapses to
+intake → implementation → validation → delivery (four closes, not eight),
+journals alignment/requirement/design/check as `bypassed` rather than
+skipping them silently, and reports the collapsed stages' invariants and
+audits as not applicable rather than passed. Gates, secrets scanning, scope
+advisories, and working-tree review still run for real. If the fix later
+turns out to need real requirement/design work, route back to a full run.

@@ -13,3 +13,10 @@
 7. Run `aegis verify run`, then review diff/documentation/style and close
    validation. Eligible requirements activate automatically.
 8. Complete delivery handoff and close. No Git publication occurs.
+
+`--quick` is not available for `feature` (only `fix`/`change`): a new feature
+always walks all eight stages. If any gate, invariant, or working-tree finding
+blocks a stage close and the human judges it a deliberate exception, record a
+one-time reason with `aegis waive add <blocker-id> --reason "..."`; the report
+still shows it as `WAIVED`, never as passed. Corrupted or invalid graph/schema
+state, lock conflicts, and stale-update conflicts cannot be waived.

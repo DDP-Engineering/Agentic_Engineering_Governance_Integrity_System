@@ -12,9 +12,6 @@
 @details The test suite imports the wizard package from ``src`` (wired through
          the ``pythonpath`` pytest option). Disabling bytecode writes keeps the
          source tree free of ``__pycache__`` artifacts during testing.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS

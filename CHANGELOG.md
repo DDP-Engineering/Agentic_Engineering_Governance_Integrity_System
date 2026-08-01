@@ -15,7 +15,14 @@ All notable changes to this project will be documented in this file.
 
 - Add a project-agnostic human explanation of the AEGIS adoption installation
   baseline, including every installation-manifest and workflow configuration
-  field, the component inventory contract, and the requirements workspace.
+  field, the component inventory contract, and the requirements and knowledge
+  workspaces and their reusable templates, coverage waivers, and adoption
+  reports, plus workflow run records, their stage sequences, and every
+  stage-form and validation-summary field, plus hook integrations. Begin
+  splitting the combined explanation into lifecycle-oriented guides, starting
+  with installation payload and configuration, followed by agent adapters,
+  hooks, integrations, and skills, durable governance state, and workflow run
+  records, then maintenance, upgrades, transactions, and legacy history.
 
 ### Changed
 

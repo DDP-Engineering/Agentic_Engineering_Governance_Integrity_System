@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# WAEGIS 1.1
+# WAEGIS 1.2
 
 WAEGIS is the separate, stdlib-only guided wizard that analyzes, configures,
 deploys, diagnoses, repairs, and upgrades compatible AEGIS payloads. It is never
@@ -8,7 +8,7 @@ copied into the target payload.
 
 ## Version Boundary
 
-WAEGIS 1.1 supports AEGIS `>=2.0.0,<3.0.0`. AEGIS 1.x and cross-major upgrades
+WAEGIS 1.2 supports AEGIS `>=2.0.0,<3.0.0`. AEGIS 1.x and cross-major upgrades
 are rejected before mutation. Schema-2 workflow configurations are not migrated;
 deploy a fresh AEGIS 2.x payload with schema 3.
 

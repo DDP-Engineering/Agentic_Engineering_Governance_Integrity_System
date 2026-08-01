@@ -117,7 +117,7 @@ reads and UUID-backed creation retain their existing behavior. Lock files under
 process exit releases the operating-system lock, so operators must not delete a
 file to bypass a live owner.
 
-WAEGIS 1.1 is the recommended deployment/configuration tool and supports AEGIS
+WAEGIS 1.2 is the recommended deployment/configuration tool and supports AEGIS
 `>=2.0.0,<3.0.0`. Its Core and Complete editions remain outside the copied
 payload; Complete can install RepoWise 0.37.0 as a project-local sidecar. Its
 interviews and doctor do not yet manage the optional quick changed-path policy;

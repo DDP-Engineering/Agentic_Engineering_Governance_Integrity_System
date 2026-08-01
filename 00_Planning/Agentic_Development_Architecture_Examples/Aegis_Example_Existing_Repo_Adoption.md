@@ -2,7 +2,7 @@
 
 # Example: Existing Repository Adoption
 
-1. WAEGIS 1.1 analyzes explicit scripts, tool configuration, Make targets, and
+1. WAEGIS 1.2 analyzes explicit scripts, tool configuration, Make targets, and
    CI commands and proposes build/typecheck/lint/test/security gates. It never
    invents a security command.
 2. The operator selects discovery: disabled; a validated external RepoWise
@@ -14,7 +14,9 @@
    `waegis repowise sync --repo "<project>"`. When the adoption commit was
    accepted, the selected RepoWise policy is recorded in a second narrow
    configuration commit; an adoption left uncommitted keeps it with the other
-   pending changes.
+   pending changes. The install manifest persists the normalized workflow
+   answers (not just the generated `workflow.toml`), so a later RepoWise-only
+   `waegis configure` reconfigures with zero unrelated field restatement.
 4. The operator reviews schema-3 interface policy, every gate group, and the
    separate schema-1 RepoWise integration, then deploys AEGIS 2.1.
 5. `aegis run start adoption` prepares adoption intake.
@@ -30,4 +32,13 @@
 9. Delivery closure records completion without publishing.
 
 An AEGIS 1.x install is not upgraded in place. Preserve intended project-owned
-artifacts and deploy a fresh AEGIS 2.x payload.
+artifacts and deploy a fresh AEGIS 2.x payload. `waegis upgrade` refuses the
+cross-major move; adopt is the correct route for a 1.x-installed project.
+
+On Windows, WAEGIS passes RepoWise's own excluded-path arguments so the
+host's argument pre-processing cannot expand them into surplus positional
+paths; a repository whose `.agentic/tools/**` or `.agentic/runs/**` contains
+many files indexes the same as a small one. Any failed gate command's
+evidence records the bounded, redacted output, exit status, and a
+reproduction command, so a gate that returns nonzero during adoption is
+diagnosable without re-running it by hand.
