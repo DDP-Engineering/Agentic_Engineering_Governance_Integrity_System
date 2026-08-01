@@ -67,6 +67,17 @@ All notable changes to this project will be documented in this file.
   was unbounded. The TCP attempt now runs on a worker thread awaited for at
   most `timeout`, and a resolver stall is reported as `timed_out`. The
   `gaierror` -> `dns_failure`, refused, and TLS classifications are unchanged.
+- Fix `payload.manifest.write_manifest` staging through a fixed
+  `install-manifest.json.tmp` name shared by every caller, so two concurrent
+  WAEGIS invocations against one repository could clobber each other's staged
+  bytes and publish a broken manifest through an otherwise atomic
+  `os.replace`. It now uses a `uuid4`-suffixed temp name with
+  cleanup-on-failure, matching `io.answers.save_answers_file`.
+- Fix `io.prompts.ConsoleAsker.ask_field` letting `EOFError` from the secret
+  reader (`getpass` at closed/exhausted stdin) escape, contradicting its
+  documented `MissingAnswerError` contract and crashing an unattended run with
+  a raw traceback. EOF on a secret field now raises `MissingAnswerError(key)`,
+  the same as EOF on a plain field.
 - Fix `Graph.from_dict` (AEGIS core) to raise the documented `ValueError` when
   `stage_records` is not an object, instead of leaking a raw `AttributeError`.
 

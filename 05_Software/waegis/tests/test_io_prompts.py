@@ -235,6 +235,30 @@ def test_secret_field_uses_no_echo_reader_and_is_not_written_to_stdout() -> None
     assert "s3cr3t-value" not in stdout.getvalue()
 
 
+def test_eof_on_a_secret_field_raises_the_documented_missing_answer_error() -> None:
+    """
+    @brief      EOF while reading a secret is reported as ``MissingAnswerError``
+                naming the key, the same as EOF on a plain field.
+    @details    ``getpass.getpass`` signals a closed/exhausted stdin with a bare
+                ``EOFError``; without translation an unattended run (a CI runner
+                without a TTY, or piped input that ends at a secret prompt) died
+                with a raw traceback instead of the documented, catchable error.
+    @return     None
+    @exception  AssertionError If ``EOFError`` propagates or the key is wrong.
+    """
+
+    def eof_secret_reader(_prompt: str) -> str:
+        """@brief Reject the read the way ``getpass`` does at EOF."""
+        raise EOFError()
+
+    spec = FieldSpec(key="token", description="API token.", secret=True)
+    asker, _stdout = _console("", secret_reader=eof_secret_reader)
+
+    with pytest.raises(MissingAnswerError) as excinfo:
+        asker.ask_field(spec)
+    assert excinfo.value.key == "token"
+
+
 def test_guard_answers_rejects_one_invalid_value() -> None:
     """
     @brief      The never-save-invalid guard refuses an answer set carrying one

@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -549,6 +550,61 @@ def test_load_manifest_reports_valid_for_a_well_formed_manifest(tmp_path: Path) 
     assert result.state == ManifestState.VALID
     assert result.manifest == manifest
     assert result.error is None
+
+
+def test_two_interleaved_manifest_writers_never_publish_a_mixed_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A second writer that completes while the first is between its
+                temp write and its publish must not corrupt or destroy either
+                manifest.
+    @details    Two WAEGIS invocations can touch one repository at the same
+                time (a ``doctor`` in an automation hook while an operator runs
+                ``repair``). With a fixed ``install-manifest.json.tmp`` name
+                they shared one temp path: the second writer overwrote and then
+                consumed the first writer's staged bytes, so the first writer's
+                own publish operated on a file that no longer held its content.
+                Per-call unique temp names keep the two writers independent and
+                leave the last publish standing, intact.
+    @param[in]  tmp_path Isolated repository root.
+    @param[in]  monkeypatch Used to suspend the first writer at its publish.
+    @return     None
+    @exception  AssertionError If the published manifest is not exactly one of
+                the two inputs, or a temp file is left behind.
+    """
+    _make_tree(tmp_path)
+    first = build_manifest(
+        tmp_path, product="aegis", payload_version="1.0.0", mode="new",
+        file_paths=["AGENTS.md"], installed_at="2026-07-12T12:00:00Z",
+    )
+    second = build_manifest(
+        tmp_path, product="aegis", payload_version="2.0.0", mode="adopt",
+        file_paths=[".agentic/cli/cli.py"], installed_at="2026-07-12T13:00:00Z",
+    )
+    real_replace = os.replace
+    interleaved: list[bool] = []
+
+    def interleaving_replace(source: object, destination: object) -> None:
+        """@brief Let a whole second write_manifest run inside the first publish."""
+        if not interleaved:
+            interleaved.append(True)
+            write_manifest(tmp_path, second)
+        return real_replace(source, destination)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(os, "replace", interleaving_replace)
+    write_manifest(tmp_path, first)
+    monkeypatch.undo()
+
+    assert interleaved == [True]
+    # Valid JSON, and exactly one of the two manifests - never a mix.
+    loaded = read_manifest(tmp_path)
+    assert loaded in (first, second)
+    assert loaded == first  # the suspended writer published last
+    leftovers = sorted(
+        path.name for path in (tmp_path / ".agentic").glob("install-manifest.json.*")
+    )
+    assert leftovers == []
 
 
 # END OF FILE

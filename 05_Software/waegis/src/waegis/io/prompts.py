@@ -383,7 +383,12 @@ class ConsoleAsker:
         @param[in]  spec The field to prompt for.
         @return     The normalized answer.
         @exception  MissingAnswerError If ``stdin`` reaches EOF before a valid
-                    answer is provided.
+                    answer is provided. This covers the secret branch too: the
+                    default no-echo reader (``getpass``) signals EOF by raising
+                    :class:`EOFError`, which is translated here so a wizard run
+                    with closed or exhausted stdin — a CI runner without a TTY,
+                    or piped input that runs out at a secret prompt — reports
+                    the missing answer instead of a raw traceback.
         """
         if not self._terse and spec.description:
             self._write(f"{spec.description}\n")
@@ -397,7 +402,10 @@ class ConsoleAsker:
             prompt_text = f"{spec.key}{spec.hint()}: "
         while True:
             if spec.secret:
-                raw = self._secret_reader(prompt_text)
+                try:
+                    raw = self._secret_reader(prompt_text)
+                except EOFError:
+                    raise MissingAnswerError(spec.key) from None
             else:
                 self._write(prompt_text)
                 line = self._stdin.readline()

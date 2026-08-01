@@ -46,6 +46,7 @@ import json
 import os
 import re
 import stat
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -527,6 +528,13 @@ def write_manifest(root: str | PathLike[str], manifest: Manifest) -> Path:
                 write it under a repo root.
     @details    2-space indent, ``\\n`` line endings regardless of host OS.
                 Creates the parent ``.agentic/`` directory if needed.
+    @details    The temp sibling carries a ``uuid4`` suffix, mirroring
+                :func:`waegis.io.answers.save_answers_file`, so two WAEGIS
+                invocations against the same repository (e.g. a ``doctor`` in
+                an automation hook while an operator runs ``repair``) cannot
+                interleave their writes into one shared ``.tmp`` path and
+                publish a corrupted manifest through an otherwise atomic
+                :func:`os.replace`.
     @param[in]  root Repository root directory.
     @param[in]  manifest The :class:`Manifest` to write.
     @return     The path the manifest was written to.
@@ -535,9 +543,13 @@ def write_manifest(root: str | PathLike[str], manifest: Manifest) -> Path:
     path = manifest_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(manifest.to_dict(), indent=2, ensure_ascii=False) + "\n"
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(text, encoding="utf-8", newline="\n")
-    os.replace(temporary, path)
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8", newline="\n")
+        os.replace(temporary, path)
+    except OSError:
+        temporary.unlink(missing_ok=True)
+        raise
     return path
 
 
