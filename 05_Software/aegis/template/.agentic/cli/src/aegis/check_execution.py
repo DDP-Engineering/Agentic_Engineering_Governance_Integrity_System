@@ -30,7 +30,7 @@ from ._form_io import load_evidence_form as _load
 from ._form_io import quote_toml_string as _q
 from ._form_io import read_string_field as _string
 from ._form_io import retire_form as _retire_form
-from .gates import _run_command
+from .gates import DEFAULT_GATE_TIMEOUT_SECONDS, _run_command
 from .models import Check, Evidence, Graph
 from .stage_forms import StageOperationError, stage_directory
 from .store import (
@@ -231,7 +231,7 @@ def run_checks(
     repo_root: Path,
     graph: Graph,
     check_ids: list[str] | None = None,
-    timeout: int = 300,
+    timeout: int = DEFAULT_GATE_TIMEOUT_SECONDS,
 ) -> list[Evidence]:
     """
     @brief      Execute configured checks and record managed evidence.

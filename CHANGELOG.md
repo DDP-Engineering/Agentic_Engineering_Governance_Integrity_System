@@ -13,6 +13,21 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Replace the `timeout: int = 300` literal duplicated in `gates.py`,
+  `verification.py`, and `check_execution.py` with a single
+  `gates.DEFAULT_GATE_TIMEOUT_SECONDS` constant.
+- Split `cli.py`'s `_verify_command` into one helper per verification action
+  (`_verify_run`, `_verify_status`, `_verify_gates`, `_verify_invariants`,
+  `_verify_audit`, `_verify_impact`, `_verify_working_tree`), mirroring the
+  existing `_stage_command`/`_check_command` pattern.
+- Split `repowise.py`'s `inspect_repowise` into `_missing_required_evidence`,
+  `_load_and_validate_artifacts`, `_compute_staleness_warnings`, and
+  `_write_discovery_snapshot` helpers.
+- Split `config.py`'s `_Parser.parse()` into section-sized private methods
+  (`_parse_source_tests_requirements`, `_parse_documentation_components`,
+  `_parse_knowledge_reports`, `_parse_traceability`, `_parse_adoption`,
+  `_parse_alignment`, `_parse_guardrails`). No behavior change in any of the
+  above; parsing/dispatch results and error codes are unchanged.
 - Deduplicate repository-path/glob normalization (`config.py`,
   `requirement_store.py`) into shared `paths.normalize_repository_path` /
   `paths.validate_glob`; each module still raises its own typed error with
