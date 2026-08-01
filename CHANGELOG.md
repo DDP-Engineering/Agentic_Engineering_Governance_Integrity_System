@@ -11,6 +11,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Deduplicate repository-path/glob normalization (`config.py`,
+  `requirement_store.py`) into shared `paths.normalize_repository_path` /
+  `paths.validate_glob`; each module still raises its own typed error with
+  unchanged codes and messages.
+- Deduplicate the evidence-form TOML load/quote/retire helpers
+  (`evidence_forms.py`, `check_execution.py`, and `stage_forms.py`'s
+  `_string`) into a shared internal `_form_io.py` module. No behavior change.
+
 ### Fixed
 
 - Fix `Graph.from_dict` (AEGIS core) to raise the documented `ValueError` when

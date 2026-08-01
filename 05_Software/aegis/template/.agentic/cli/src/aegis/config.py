@@ -29,6 +29,9 @@ from typing import Any, NoReturn
 import tomllib
 
 from .models import ALL_STAGES
+from .paths import RepositoryPathError
+from .paths import normalize_repository_path as _normalize_repository_path
+from .paths import validate_glob as _validate_glob_syntax
 
 # CONSTANTS
 
@@ -1064,33 +1067,17 @@ class _Parser:
     def _normalize_path(
         self, value: str, key_path: str, *, allow_glob: bool = False
     ) -> str:
-        normalized = value.replace("\\", "/")
-        while normalized.startswith("./"):
-            normalized = normalized[2:]
-        normalized = re.sub(r"/{2,}", "/", normalized).rstrip("/")
-        if (
-            not normalized
-            or normalized.startswith(("/", "~"))
-            or re.match(r"^[A-Za-z]:", normalized)
-            or ".." in normalized.split("/")
-        ):
+        try:
+            return _normalize_repository_path(value, allow_glob=allow_glob)
+        except RepositoryPathError as exc:
+            if exc.reason == "has-globs":
+                self._rule_invalid(key_path, value, "a repository-relative path without globs")
             self._rule_invalid(key_path, value, "a repository-relative path without `..`")
-        if not allow_glob and any(char in normalized for char in "*?[]"):
-            self._rule_invalid(key_path, value, "a repository-relative path without globs")
-        return normalized
 
     def _validate_glob(self, value: str, key_path: str) -> None:
-        depth = 0
-        for char in value:
-            if char == "[":
-                if depth:
-                    self._rule_invalid(key_path, value, "a glob with balanced bracket expressions")
-                depth = 1
-            elif char == "]":
-                if not depth:
-                    self._rule_invalid(key_path, value, "a glob with balanced bracket expressions")
-                depth = 0
-        if depth:
+        try:
+            _validate_glob_syntax(value)
+        except RepositoryPathError:
             self._rule_invalid(key_path, value, "a glob with balanced bracket expressions")
 
     def _missing_key(self, key_path: str, remediation: str) -> NoReturn:

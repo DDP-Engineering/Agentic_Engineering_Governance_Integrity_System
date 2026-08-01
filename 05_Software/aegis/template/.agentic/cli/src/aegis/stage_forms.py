@@ -29,6 +29,7 @@ import tomllib
 import uuid
 from typing import Any
 
+from ._form_io import read_string_field as _string
 from .config import GATE_ORDER, WorkflowConfig, load_config
 from .models import (
     STAGES,
@@ -2039,14 +2040,6 @@ def _render_stage_field(field: StageFieldSpec, value: Any) -> str:
     if field.kind == "bool":
         return "true" if value else "false"
     return _q(value)
-
-
-def _string(data: dict[str, Any], key: str, path: Path) -> str:
-    """@brief Read one string field."""
-    value = data.get(key)
-    if not isinstance(value, str):
-        raise StageOperationError(f"{path}: {key} must be a string")
-    return value.strip()
 
 
 def _nonempty(data: dict[str, Any], key: str, path: Path) -> str:

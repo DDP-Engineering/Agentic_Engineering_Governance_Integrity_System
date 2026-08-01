@@ -26,7 +26,13 @@ from pathlib import Path
 import pytest
 
 from aegis import paths as paths_module
-from aegis.paths import matches_pattern, relative_to_root
+from aegis.paths import (
+    RepositoryPathError,
+    matches_pattern,
+    normalize_repository_path,
+    relative_to_root,
+    validate_glob,
+)
 
 
 def test_relative_path_inside_root(tmp_path: Path) -> None:
@@ -116,6 +122,34 @@ def test_matching_is_case_sensitive_on_non_windows(monkeypatch: pytest.MonkeyPat
     assert not matches_pattern("Src/App.py", "src/**")
     assert not matches_pattern("src/app.py", "SRC/**")
     assert matches_pattern("src/app.py", "src/**")
+
+
+def test_normalize_repository_path_accepts_a_relative_path() -> None:
+    """@brief Accept a repository-relative path and normalize its separators."""
+    assert normalize_repository_path("src\\app.py") == "src/app.py"
+
+
+def test_normalize_repository_path_rejects_root_escape() -> None:
+    """@brief Reject a path that escapes the repository root via `..`."""
+    with pytest.raises(RepositoryPathError) as excinfo:
+        normalize_repository_path("../outside.txt")
+    assert excinfo.value.reason == "escapes-root"
+
+
+def test_normalize_repository_path_rejects_globs_unless_allowed() -> None:
+    """@brief Reject glob metacharacters unless allow_glob=True is set."""
+    with pytest.raises(RepositoryPathError) as excinfo:
+        normalize_repository_path("src/*.py")
+    assert excinfo.value.reason == "has-globs"
+    assert normalize_repository_path("src/*.py", allow_glob=True) == "src/*.py"
+
+
+def test_validate_glob_rejects_unbalanced_brackets() -> None:
+    """@brief Reject a glob bracket expression that is unbalanced or nested."""
+    with pytest.raises(RepositoryPathError) as excinfo:
+        validate_glob("src/[abc.py")
+    assert excinfo.value.reason == "unbalanced-glob"
+    validate_glob("src/[abc]*.py")
 
 
 # END OF FILE
