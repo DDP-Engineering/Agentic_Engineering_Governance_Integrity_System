@@ -14,9 +14,6 @@
          safely split must become a "manual review required" candidate rather
          than a wrong argv. Offline: the walk-fallback runner is used so no git
          is invoked; candidate extraction reads marker files from disk.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
 """
 
 # IMPORTS
@@ -34,9 +31,6 @@ from waegis.probes.runner import CommandResult
 class _NoGitRunner:
     """
     @brief Fake :class:`CommandRunner` forcing the walk inventory fallback.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     def run(self, argv, *, timeout: float = 5.0, cwd=None) -> CommandResult:
@@ -47,8 +41,6 @@ class _NoGitRunner:
         @param[in]  cwd Ignored.
         @return     A not-found :class:`CommandResult`.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return CommandResult(found=False, exit_code=None, stdout="", stderr="")
 
@@ -60,8 +52,6 @@ def _write(repo: Path, rel_path: str, content: str) -> None:
     @param[in]  rel_path Repo-relative path.
     @param[in]  content File content.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = repo / rel_path
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -73,8 +63,6 @@ def _analyze(repo: Path) -> analyze.RepoAnalysis:
     @brief      Run the full analysis over a repo via the walk fallback.
     @param[in]  repo Repository root.
     @return     The analysis result.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return analyze.analyze_repo(repo, runner=_NoGitRunner())
 
@@ -90,8 +78,6 @@ def test_makefile_test_and_lint_targets_both_extracted(tmp_path: Path) -> None:
                 candidates as ``make <target>`` with target provenance.
     @return     None
     @exception  AssertionError If either candidate is missing or misattributed.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "Makefile", "test:\n\tpytest -q\n\nlint:\n\truff check .\n")
 
@@ -111,8 +97,6 @@ def test_makefile_assignment_is_not_a_target(tmp_path: Path) -> None:
                 ``test:`` target.
     @return     None
     @exception  AssertionError If a candidate is spuriously extracted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "Makefile", "test := pytest\n")
 
@@ -131,8 +115,6 @@ def test_github_workflow_run_line_extracted_with_provenance(tmp_path: Path) -> N
                 line number.
     @return     None
     @exception  AssertionError If the candidate or provenance is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(
         tmp_path,
@@ -155,8 +137,6 @@ def test_shell_syntax_ci_line_becomes_manual_review(tmp_path: Path) -> None:
                 wrong argv.
     @return     None
     @exception  AssertionError If a wrong argv was produced.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(
         tmp_path,
@@ -178,8 +158,6 @@ def test_gitlab_script_list_items_extracted(tmp_path: Path) -> None:
                 provenance; a lint item classifies to the lint gate.
     @return     None
     @exception  AssertionError If either item is missing or misclassified.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(
         tmp_path,
@@ -201,8 +179,6 @@ def test_ci_install_line_is_dropped_not_classified(tmp_path: Path) -> None:
                 (an install step) is dropped, not surfaced as a candidate.
     @return     None
     @exception  AssertionError If the install line leaked into any gate.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(
         tmp_path,
@@ -222,8 +198,6 @@ def test_github_block_scalar_run_is_skipped(tmp_path: Path) -> None:
                 is skipped (documented scope limit).
     @return     None
     @exception  AssertionError If a spurious candidate was extracted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(
         tmp_path,
@@ -245,8 +219,6 @@ def test_npm_placeholder_test_script_is_skipped(tmp_path: Path) -> None:
                 emitted as a gate candidate.
     @return     None
     @exception  AssertionError If the placeholder produced a candidate.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(
         tmp_path,
@@ -265,8 +237,6 @@ def test_every_gate_candidate_names_its_source_file(tmp_path: Path) -> None:
                 non-empty source_file and source_detail (provenance guarantee).
     @return     None
     @exception  AssertionError If any candidate lacks provenance.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "package.json", '{"scripts": {"test": "jest", "lint": "eslint ."}}')
     _write(tmp_path, "pyproject.toml", "[tool.pytest.ini_options]\n[tool.ruff]\n")

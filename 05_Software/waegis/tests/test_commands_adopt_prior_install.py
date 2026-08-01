@@ -18,9 +18,6 @@
          "older" (suggests upgrade); .agentic present without a manifest ->
          "legacy" (conservative path). Also proves declining "continue" stops
          the run while still recording the route.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
 """
 
 # IMPORTS
@@ -60,8 +57,6 @@ def _fake_payload(tmp_path: Path, version: str = _CURRENT_VERSION) -> Path:
     @param[in]  version Version to declare.
     @return     The payload root path.
     @exception  OSError If the version file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     root = tmp_path / "payload"
     cli_dir = root / ".agentic" / "cli"
@@ -77,8 +72,6 @@ def _write_manifest(target: Path, payload_version: str) -> None:
     @param[in]  payload_version Version the manifest records.
     @return     None
     @exception  OSError If the manifest cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     write_manifest(
         target,
@@ -110,8 +103,6 @@ def _ctx(target: Path, payload: Path, *, confirm: bool) -> EngineContext:
     @param[in]  confirm Scripted answer to the continue/stop confirmation.
     @return     A ready :class:`EngineContext`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     ctx = EngineContext(
         mode="adopt",
@@ -137,8 +128,6 @@ def test_route_none_when_no_agentic_directory(tmp_path) -> None:  # type: ignore
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the route is not "none".
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     target.mkdir()
@@ -154,8 +143,6 @@ def test_route_current_when_manifest_matches_bundled_version(tmp_path) -> None: 
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the route is not "current".
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     target.mkdir()
@@ -173,8 +160,6 @@ def test_route_older_when_manifest_version_differs(tmp_path) -> None:  # type: i
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the route is not "older".
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     target.mkdir()
@@ -193,8 +178,6 @@ def test_route_legacy_when_agentic_present_without_manifest(tmp_path) -> None:  
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the route is not "legacy".
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     (target / ".agentic").mkdir(parents=True)
@@ -211,8 +194,6 @@ def test_declining_continue_stops_but_records_route(tmp_path) -> None:  # type: 
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the stop did not raise or record the route.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     target.mkdir()

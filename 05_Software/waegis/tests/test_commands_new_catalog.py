@@ -20,9 +20,6 @@
          halting the run (see ``_EXPECTED_AUTOMATION``'s inline comment).
 @details ``prereq.node`` (0.1.2) is not in plan §8.1 at all — an
          architecture-review follow-up step, also ``AUTO``/warn-not-block.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.1.2
 """
 
 # IMPORTS
@@ -75,8 +72,6 @@ def _ctx(shared: dict | None = None) -> EngineContext:
     @param[in]  shared Initial shared mapping.
     @return     A ready :class:`EngineContext`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return EngineContext(mode="new", asker=ScriptAsker(), shared=shared if shared is not None else {})
 
@@ -91,9 +86,6 @@ def test_catalog_registers_and_matches_plan_order() -> None:
                 mirrors plan §8.1 row for row.
     @return     None
     @exception  AssertionError If the ordered ids differ from plan §8.1.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     catalog = build_new_catalog()
 
@@ -108,9 +100,6 @@ def test_catalog_matches_plan_automation_kinds() -> None:
                 ``_EXPECTED_AUTOMATION``).
     @return     None
     @exception  AssertionError On any automation mismatch.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.2
     """
     catalog = build_new_catalog()
 
@@ -124,8 +113,6 @@ def test_catalog_preconditions_form_linear_chain() -> None:
                 exactly the previous one), realizing the P0->P5 phase order.
     @return     None
     @exception  AssertionError If any step's preconditions deviate.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_new_catalog()
 
@@ -141,8 +128,6 @@ def test_net_proxy_applies_only_with_clone_url() -> None:
                 requested).
     @return     None
     @exception  AssertionError If the applies predicate misbehaves.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = build_new_catalog().get("net.proxy")
 
@@ -158,8 +143,6 @@ def test_plan_for_skips_net_proxy_without_clone_url() -> None:
                 without disturbing any other step.
     @return     None
     @exception  AssertionError If the planned id lists are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_new_catalog()
 

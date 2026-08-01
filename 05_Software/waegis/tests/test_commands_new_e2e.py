@@ -18,9 +18,6 @@
          directory to a committed, smoke-verified AEGIS repo with zero manual
          file editing, and a re-run that skips every step (resumable /
          idempotent).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.1.0
 """
 
 # IMPORTS
@@ -112,8 +109,6 @@ def _run(target: Path, home: Path, answers_file: Path, *, as_json: bool = False)
     @param[in]  as_json Emit the frozen run-summary JSON instead of human text.
     @return     ``(exit_code, captured_output)``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.3.0
     """
     out = io.StringIO()
     code = run_new(
@@ -136,8 +131,6 @@ def answers_file(tmp_path: Path) -> Path:
     @param[in]  tmp_path Pytest tmp fixture.
     @return     Path to the answers JSON file.
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.1
     """
     path = tmp_path / "answers.json"
     path.write_text(json.dumps(_ANSWERS), encoding="utf-8")
@@ -158,8 +151,6 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     @param[in]  answers_file Prepared answers file fixture.
     @return     None
     @exception  AssertionError If any acceptance artifact is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "proj"
     home = tmp_path / "home"
@@ -223,8 +214,6 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     @param[in]  answers_file Prepared answers file fixture.
     @return     None
     @exception  AssertionError If any step re-ran or the summary shape drifted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     target = tmp_path / "proj"
     home = tmp_path / "home"

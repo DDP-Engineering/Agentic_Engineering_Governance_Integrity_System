@@ -19,9 +19,6 @@
          table can be reproduced independently), plus one test that drives the
          REAL ``05_Software/aegis/template/`` tree as the "new" payload against
          an aged/edited install.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.2.1
 """
 
 # IMPORTS
@@ -83,8 +80,6 @@ def _write(path: Path, content: str) -> None:
     @param[in]  path File to write (parents created).
     @param[in]  content Text content (no newline translation).
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8", newline="")
@@ -95,8 +90,6 @@ def _entry(content: str) -> FileEntry:
     @brief      Build the :class:`FileEntry` a verbatim copy of ``content`` hashes to.
     @param[in]  content Text content.
     @return     A :class:`FileEntry` with the sha256/size of ``content``'s bytes.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     raw = content.encode("utf-8")
     return FileEntry(sha256=hashlib.sha256(raw).hexdigest(), size=len(raw))
@@ -135,8 +128,6 @@ def _make_manifest(
     @param[in]  mode Recorded install mode.
     @param[in]  product Recorded product name.
     @return     The written :class:`Manifest`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     manifest = Manifest(
         manifest_version=1,
@@ -163,8 +154,6 @@ def _make_payload(root: Path, files: dict[str, str], *, marker: bool = False, ve
     @param[in]  version When set, write a ``.agentic/cli/pyproject.toml`` so
                 ``read_payload_version`` returns it.
     @return     ``root``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     root.mkdir(parents=True, exist_ok=True)
     for path, content in files.items():
@@ -185,8 +174,6 @@ def _smoke_ok_runner(repo: Path) -> FakeCommandRunner:
                 healthy.
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.1
     """
     return FakeCommandRunner(
         {
@@ -206,8 +193,6 @@ def _smoke_fail_runner(repo: Path) -> FakeCommandRunner:
     @brief      A fake runner that makes the post-apply smoke re-verify FAIL.
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner` whose ``--help`` fails.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     return FakeCommandRunner(
         {
@@ -228,8 +213,6 @@ def _plan(repo: Path, new_payload: Path):
     @param[in]  repo Repository root.
     @param[in]  new_payload New payload root.
     @return     The computed plan.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return build_upgrade_plan(repo, new_payload_root=new_payload, load_result=load_manifest(repo))
 
@@ -241,8 +224,6 @@ def _action_of(plan, path: str) -> FileAction:
     @param[in]  path Repo-relative POSIX path.
     @return     The :class:`FileAction`.
     @exception  AssertionError If the path is not present exactly once.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     matches = [item.action for item in plan.items if item.path == path]
     assert len(matches) == 1, f"expected exactly one plan item for {path!r}, got {matches}"
@@ -479,8 +460,6 @@ def test_generated_file_never_touched(tmp_path: Path) -> None:
 class _RecordingHook:
     """
     @brief Test hook recording every conflict path it is asked to resolve.
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
 
     def __init__(self, decision: ConflictDecision) -> None:
@@ -496,8 +475,6 @@ def _mixed_scenario(tmp_path: Path) -> tuple[Path, Path]:
     """
     @brief      One repo/new pair with an unchanged, an auto-apply, and a
                 conflict file (for cardinality assertions).
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "a.txt", "X")  # unchanged
@@ -526,9 +503,6 @@ def test_rewritten_hook_config_is_reported_for_retrust(tmp_path: Path) -> None:
                 the smoke re-verify still passes, so this notice is the only
                 signal the operator gets that enforcement is now off.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {}}')
@@ -557,9 +531,6 @@ def test_untouched_hook_config_needs_no_retrust(tmp_path: Path) -> None:
     @details    Guards against a notice that fires on every upgrade: one the
                 operator learns to skip is worth no more than none at all.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {}}')
@@ -582,9 +553,6 @@ def test_keep_local_hook_config_needs_no_retrust(tmp_path: Path) -> None:
     @brief      A conflict resolved ``keep-local`` writes nothing, so the
                 existing hook trust survives and no re-review is demanded.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {"local": 1}}')  # L != O
@@ -603,9 +571,6 @@ def test_take_payload_hook_config_needs_retrust(tmp_path: Path) -> None:
     @brief      A conflict resolved ``take-payload`` does rewrite the file, so
                 it is reported for re-trust like any other write.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {"local": 1}}')
@@ -830,9 +795,6 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
     @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
     @return     None
     @exception  AssertionError If the upgrade fails or omits a Git operation.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
@@ -883,9 +845,6 @@ def test_branch_commit_upgrade_reports_branch_creation_failure(tmp_path: Path) -
     @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
     @return     None
     @exception  AssertionError If the failure escapes or loses Git's detail.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
@@ -989,8 +948,6 @@ def _abandon_pending_transaction(repo: Path) -> str:
     @param[in]  repo Repository root (created if absent).
     @return     The pending transaction's id.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo.mkdir(parents=True, exist_ok=True)
     managed = repo / "managed.txt"
@@ -1014,9 +971,6 @@ def test_recovery_decline_renders_recovery_only_plan_in_human_mode(tmp_path: Pat
     @param[in]  tmp_path Isolated repository root.
     @return     None
     @exception  AssertionError If the decline crashes, recovers, or mislabels.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-31
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     transaction_id = _abandon_pending_transaction(repo)
@@ -1038,9 +992,6 @@ class _KeyboardInterruptRunner:
     """
     @brief Runner that raises ``KeyboardInterrupt`` at the smoke re-verify,
            i.e. mid-apply: after the file writes, before the manifest rewrite.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-31
-    @version 0.1.0
     """
 
     def __init__(self, repo: Path) -> None:
@@ -1064,9 +1015,6 @@ def test_keyboard_interrupt_mid_apply_journals_rolls_back_and_reraises(tmp_path:
     @return     None
     @exception  AssertionError If the interrupt is swallowed, the journal is
                 left open, or the rollback leaves partial writes behind.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-31
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
@@ -1325,9 +1273,6 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary repository and payload workspace.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.1
     """
     real = locate_payload()  # the repo-checkout template
     repo = tmp_path / "repo"
@@ -1414,9 +1359,6 @@ def test_interactive_consent_transcript_is_frozen(tmp_path: Path) -> None:
     @param[in] tmp_path Pytest temporary directory.
     @return None
     @exception AssertionError If the rendered transcript drifts.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-31
-    @version 0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")

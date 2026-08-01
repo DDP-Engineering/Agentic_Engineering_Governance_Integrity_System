@@ -19,9 +19,6 @@
          resumes with every step skipped; and that a conflicting pre-existing
          CLAUDE.md is resolved exactly once, per the chosen decision, on disk and
          in the manifest.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
 """
 
 # IMPORTS
@@ -86,8 +83,6 @@ def _make_python_repo(target: Path, *, extra_files: dict[str, str] | None = None
     @param[in]  extra_files Optional ``{relative_path: content}`` extra files.
     @return     None
     @exception  RuntimeError If a git operation fails.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     runner = SubprocessCommandRunner()
     target.mkdir(parents=True, exist_ok=True)
@@ -119,8 +114,6 @@ def _run(target: Path, home: Path, *, answers_path: Path | None = None, as_json:
     @param[in]  as_json Emit the frozen run-summary JSON instead of human text.
     @return     ``(exit_code, captured_output)``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     out = io.StringIO()
     code = run_adopt(
@@ -143,8 +136,6 @@ def _write_answers(path: Path, answers: dict) -> Path:
     @param[in]  answers Answers mapping.
     @return     The written path.
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path.write_text(json.dumps(answers), encoding="utf-8")
     return path
@@ -161,8 +152,6 @@ def test_full_green_adoption_accepting_proposals(tmp_path) -> None:  # type: ign
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If any acceptance artifact is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     home = tmp_path / "home"
@@ -211,8 +200,6 @@ def test_operator_override_beats_the_proposal(tmp_path) -> None:  # type: ignore
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the proposal, not the override, was applied.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     home = tmp_path / "home"
@@ -237,8 +224,6 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path) -> None:  # type: 
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If any step re-ran or the summary drifted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     home = tmp_path / "home"
@@ -370,8 +355,6 @@ def test_conflict_resolution_applies_the_chosen_decision(tmp_path, decision) -> 
     @param[in]  decision The conflict decision under test.
     @return     None
     @exception  AssertionError If the decision was misapplied.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     home = tmp_path / "home"

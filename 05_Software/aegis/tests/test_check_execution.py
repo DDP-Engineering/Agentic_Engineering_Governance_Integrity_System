@@ -12,9 +12,6 @@
 @details Covers canonical field storage, complete-document validation,
          preparation preconditions, mutation isolation, form retention, and
          managed-execution stale-state rejection.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.2.0
 """
 
 # IMPORTS
@@ -252,7 +249,6 @@ def test_managed_results_reject_changed_checks_before_recording(
     @param[in] tmp_path Temporary repository root.
     @param[in] monkeypatch Pytest replacement helper.
     @return None.
-    @version 0.1.0
     """
     graph = _external_graph(
         tmp_path,
@@ -268,7 +264,6 @@ def test_managed_results_reject_changed_checks_before_recording(
     ) -> subprocess.CompletedProcess[str]:
         """
         @brief Simulate a concurrent check-definition mutation in Phase B.
-        @version 0.1.0
         """
         current = load_graph(tmp_path, graph.run_id)
         current.checks[0].command = "python -m pytest tests/replacement.py"
@@ -321,7 +316,6 @@ def _external_graph(
     @param[in] check_count Number of imported checks.
     @param[in] retention Captured evidence-form retention.
     @return Persisted graph.
-    @version 0.1.0
     """
     graph = init_graph(repo_root, "fix", "Exercise external evidence")
     graph.stage = stage  # type: ignore[assignment]
@@ -354,7 +348,6 @@ def _replace_once(path: Path, old: str, new: str) -> None:
     @param[in] old Expected fragment.
     @param[in] new Replacement fragment.
     @return None.
-    @version 0.1.0
     """
     text = path.read_text(encoding="utf-8")
     if text.count(old) != 1:
@@ -369,7 +362,6 @@ def _complete_results(path: Path, *, result: str, exit_status: int) -> None:
     @param[in] result Expected result.
     @param[in] exit_status Matching process status.
     @return None.
-    @version 0.1.0
     """
     text = path.read_text(encoding="utf-8")
     text = text.replace('result = ""', f'result = "{result}"')
@@ -385,7 +377,6 @@ def _make_invalid(path: Path, graph: Graph, invalid_case: str) -> None:
     @param[in] graph Active graph supplying immutable identities.
     @param[in] invalid_case Transformation name.
     @return None.
-    @version 0.1.0
     """
     text = path.read_text(encoding="utf-8")
     header, *rows = text.split("\n[[result]]")

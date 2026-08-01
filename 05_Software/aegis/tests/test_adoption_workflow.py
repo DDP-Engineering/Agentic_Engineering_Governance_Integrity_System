@@ -11,9 +11,6 @@
 @brief Grouped adoption inspection and baseline-policy tests.
 @details The adoption stage sequence is exercised end to end in test_cli_v2;
          this module covers the retained read-only inspection commands.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 2.0.0
 """
 
 # IMPORTS

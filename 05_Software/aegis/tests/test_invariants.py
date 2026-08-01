@@ -10,9 +10,6 @@
 @file test_invariants.py
 @brief Workflow support module for test_invariants.
 @details Covers expected workflow behavior through focused pytest checks.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.2.0
 """
 
 # IMPORTS
@@ -36,9 +33,6 @@ def init_repo_with_commit(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
@@ -54,9 +48,6 @@ def secret_config(repo_root: Path) -> WorkflowConfig:
     @param[in]  repo_root Repository containing the complete workflow config.
     @return     Valid workflow configuration with secret enforcement enabled.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     return replace(
         load_config(repo_root),
@@ -77,9 +68,6 @@ def test_clean_secrets_detects_staged_file(tmp_path: Path) -> None:
                 had already been `git add`-ed, so a secret committed via
                 `git add` then left staged would silently pass INV-7.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     init_repo_with_commit(tmp_path)
     (tmp_path / "config.py").write_text("TOKEN = 'sk-abcdefghijklmnopqrstuvwx'\n", encoding="utf-8")
@@ -101,9 +89,6 @@ def test_clean_secrets_detects_untracked_file(tmp_path: Path) -> None:
                 reads untracked file content directly via `git ls-files
                 --others --exclude-standard`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     init_repo_with_commit(tmp_path)
     (tmp_path / "new_file.py").write_text("TOKEN = 'sk-abcdefghijklmnopqrstuvwx'\n", encoding="utf-8")
@@ -119,9 +104,6 @@ def test_clean_secrets_passes_for_untracked_file_without_secret(tmp_path: Path) 
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     init_repo_with_commit(tmp_path)
     (tmp_path / "notes.md").write_text("Nothing sensitive here.\n", encoding="utf-8")

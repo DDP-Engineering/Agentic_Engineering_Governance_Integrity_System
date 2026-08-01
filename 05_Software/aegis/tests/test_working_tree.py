@@ -11,9 +11,6 @@
 @brief Deterministic working-tree review tests for AEGIS 2.
 @details Covers untracked reporting, configured blockers, Unicode paths,
          adoption source protection, and fail-closed Git diagnostics.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 2.0.0
 """
 
 # IMPORTS

@@ -20,9 +20,6 @@
          constructed directly via :class:`waegis.engine.Journal` with
          explicit sortable run ids so "latest journal" tests are never
          timing-flaky.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.1.0
 """
 
 # IMPORTS
@@ -67,8 +64,6 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
                 with explicit commands; ``False`` leaves all five groups
                 explicitly disabled.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = locate_payload()
     copy_payload(payload, repo, mode="new")
@@ -106,8 +101,6 @@ def _healthy_runner(repo: Path) -> FakeCommandRunner:
     @param[in]  repo Target repository (determines the platform-appropriate
                 wrapper invocation key via :func:`_wrapper_invocation`).
     @return     A scripted :class:`FakeCommandRunner`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return FakeCommandRunner(
         {
@@ -136,8 +129,6 @@ def _make_journal(
     @param[in]  status Terminal run status.
     @param[in]  stopped_at_step Step id a stop occurred at, if any.
     @return     The finalized :class:`Journal`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = home / "journals" / f"{run_id}.json"
     journal = Journal(
@@ -203,8 +194,6 @@ def _finding(report_findings, name: str) -> ProbeFindingRecord:
     @param[in]  name The finding name to locate.
     @return     The matching :class:`ProbeFindingRecord`.
     @exception  StopIteration If no finding with that name exists.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return next(f for f in report_findings if f.name == name)
 
@@ -220,8 +209,6 @@ def test_healthy_repo_all_ok_exit_zero(tmp_path: Path) -> None:
                 drift, valid workflow.toml, all hooks/wrappers present)
                 reports every finding ``ok`` and exits 0.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -243,8 +230,6 @@ def test_drift_present_exit_one_warn(tmp_path: Path) -> None:
                 finding lists both (via ``drift_detail``), overall exit is 1
                 (warn), and every other group stays ``ok``.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -278,8 +263,6 @@ def test_update_available_distinct_from_drift(tmp_path: Path) -> None:
                 ``manifest.update-available`` as ``warn`` while
                 ``drift.files`` stays ``ok`` — the two findings are distinct.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -309,8 +292,6 @@ def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
                 ``workflow.invariants`` as ``fail`` with the raised error text
                 surfaced, and the overall exit is 2.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -339,8 +320,6 @@ def test_disabled_gates_are_explicitly_valid(tmp_path: Path) -> None:
     @brief      All five explicitly disabled gate groups are valid and are
                 reported as disabled rather than passed.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -363,8 +342,6 @@ def test_missing_hook_file_exit_two_fail(tmp_path: Path) -> None:
                 reports ``runnability.hooks`` as ``fail`` naming that file,
                 and the overall exit is 2.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -389,9 +366,6 @@ def test_missing_node_reports_hook_runtime_warn(tmp_path: Path) -> None:
                 Node.js silently disables enforcement (fail-open) rather than
                 breaking any installed file.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -430,9 +404,6 @@ def test_unsupported_key_in_codex_hooks_config_exit_two_fail(tmp_path: Path) -> 
                 reporting ``ok`` over an unloadable config is the exact gap
                 that let a broken payload ship.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -456,9 +427,6 @@ def test_unparseable_adapter_config_reports_fail(tmp_path: Path) -> None:
     @brief      An adapter config that is not valid JSON is ``fail`` too: the
                 host discards it for the same reason and with the same effect.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -479,9 +447,6 @@ def test_absent_adapter_config_is_not_a_failure(tmp_path: Path) -> None:
                 absent adapter is ``runnability.adapters``' business, and not
                 every repo uses every agent client.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -504,8 +469,6 @@ def test_manifest_state_none_vs_legacy_vs_invalid_reported_distinctly(tmp_path: 
                 ``repo.prior-install`` four-way routing, adapted with
                 doctor-specific severities: none/legacy warn, invalid fails).
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     none_repo = tmp_path / "none"
     none_repo.mkdir()
@@ -552,8 +515,6 @@ def test_journal_group_absent_completed_and_stopped_reported_distinctly(tmp_path
                 mid-way reports ``warn`` naming the stopping step. The three
                 are distinct.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -788,8 +749,6 @@ def test_aggregate_all_ok_exit_zero() -> None:
     """
     @brief      Aggregating only ``ok`` findings across groups yields exit 0.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ok_group = (ProbeFindingRecord(name="a", status="ok", detail="x"),)
     exit_code, status = _aggregate(ok_group, ok_group)
@@ -802,8 +761,6 @@ def test_aggregate_one_warn_zero_fail_exit_one() -> None:
     @brief      One ``warn`` finding among otherwise-``ok`` groups yields
                 exit 1, never escalating to a fail.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ok_group = (ProbeFindingRecord(name="a", status="ok", detail="x"),)
     warn_group = (ProbeFindingRecord(name="b", status="warn", detail="y"),)
@@ -817,8 +774,6 @@ def test_aggregate_one_fail_among_ok_warn_exit_two() -> None:
     @brief      One ``fail`` finding among several ``ok``/``warn`` findings
                 yields exit 2 — fail always wins the aggregation.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ok_group = (ProbeFindingRecord(name="a", status="ok", detail="x"),)
     warn_group = (ProbeFindingRecord(name="b", status="warn", detail="y"),)
@@ -837,8 +792,6 @@ def test_repo_not_found_is_a_distinct_exit_code(tmp_path: Path) -> None:
                 and an exit code distinct from every health-verdict code
                 (0/1/2).
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     missing = tmp_path / "does-not-exist"
     stream = io.StringIO()
@@ -853,8 +806,6 @@ def test_repo_path_that_is_a_file_is_also_not_found(tmp_path: Path) -> None:
     @brief      A ``--repo`` path that exists but is a file, not a directory,
                 is also reported as the not-found operational failure.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     a_file = tmp_path / "not-a-dir.txt"
     a_file.write_text("x", encoding="utf-8")
@@ -870,8 +821,6 @@ def test_json_output_is_valid_and_documented_for_healthy_repo(tmp_path: Path) ->
     @brief      ``--json`` output for a healthy repo parses via ``json.loads``
                 and carries every documented top-level/group/finding field.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -899,8 +848,6 @@ def test_json_output_reports_disabled_gates_as_valid(tmp_path: Path) -> None:
                 warn-level) parses via ``json.loads`` and reports the warn
                 exit code and status consistently.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -926,8 +873,6 @@ def test_human_render_mentions_every_group_header(tmp_path: Path) -> None:
     @brief      The human report includes every group header and the overall
                 verdict line for a healthy repo.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()

@@ -14,9 +14,6 @@
          time, duplicate-id rejection, ``applies()`` filtering that lets one
          catalog serve both wizard modes, and stable precondition-aware ordering.
          Strictly offline.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -45,8 +42,6 @@ def _spec(step_id: str, preconditions: tuple[str, ...] = ()) -> StepSpec:
     @param[in]  step_id Step id.
     @param[in]  preconditions Precondition ids.
     @return     A :class:`StepSpec` with a trivial passing ``verify``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return StepSpec(
         id=step_id,
@@ -67,8 +62,6 @@ def test_verify_is_required_at_construction() -> None:
     @brief      A step built without ``verify`` is rejected (R5: verify required).
     @return     None
     @exception  AssertionError If construction does not raise.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with pytest.raises(StepContractError):
         StepSpec(
@@ -85,8 +78,6 @@ def test_unknown_precondition_rejected() -> None:
     @brief      A precondition naming an unknown step is rejected at registration.
     @return     None
     @exception  AssertionError If the catalog constructs without error.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with pytest.raises(CatalogError):
         Catalog([_spec("a", preconditions=("does-not-exist",))])
@@ -97,8 +88,6 @@ def test_precondition_cycle_rejected() -> None:
     @brief      A precondition cycle is rejected at registration time.
     @return     None
     @exception  AssertionError If the catalog constructs without error.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with pytest.raises(CatalogError):
         Catalog([_spec("a", preconditions=("b",)), _spec("b", preconditions=("a",))])
@@ -109,8 +98,6 @@ def test_duplicate_id_rejected() -> None:
     @brief      Two steps sharing an id are rejected.
     @return     None
     @exception  AssertionError If the catalog constructs without error.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with pytest.raises(CatalogError):
         Catalog([_spec("a"), _spec("a")])
@@ -121,8 +108,6 @@ def test_stable_precondition_order() -> None:
     @brief      Steps are ordered so preconditions precede dependents.
     @return     None
     @exception  AssertionError If the order violates preconditions.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_toy_catalog()
     order = [spec.id for spec in catalog.ordered()]
@@ -135,8 +120,6 @@ def test_topological_reorders_out_of_order_registration() -> None:
                 after it.
     @return     None
     @exception  AssertionError If the precondition is not moved ahead.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = Catalog([_spec("b", preconditions=("a",)), _spec("a")])
     order = [spec.id for spec in catalog.ordered()]
@@ -148,8 +131,6 @@ def test_applies_filtering_selects_branch() -> None:
     @brief      ``plan_for`` includes an ``applies``-gated step only when enabled.
     @return     None
     @exception  AssertionError If filtering does not honour the branch flag.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_toy_catalog(include_optional=True)
 

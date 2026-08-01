@@ -10,9 +10,6 @@
 @file test_documentation_workflow.py
 @brief Workflow support module for test_documentation_workflow.
 @details Covers expected workflow behavior through focused pytest checks.
-@author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.7.0
 """
 
 # IMPORTS
@@ -50,9 +47,6 @@ def test_default_documentation_config(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.3.0
     """
     cfg = load_config(tmp_path)
 
@@ -74,9 +68,6 @@ def test_alignment_config_reads_policy(
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-03
-    @version    0.2.0
     """
     replace_workflow_toml(
         "pause_on_open_questions = true", "pause_on_open_questions = false"
@@ -108,9 +99,6 @@ def test_documentation_config_reads_roots_and_template(
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.2
     """
     replace_workflow_toml(
         'roots = [".agentic/knowledge/components"]',
@@ -136,9 +124,6 @@ def test_documentation_root_is_in_scope(
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.3.0
     """
     replace_workflow_toml(
         '[guardrails.scope]\nmode = "unrestricted"\nallowed_roots = []',
@@ -170,9 +155,6 @@ def test_unconfigured_path_remains_out_of_scope(
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.4.0
     """
     replace_workflow_toml(
         '[guardrails.scope]\nmode = "unrestricted"\nallowed_roots = []',
@@ -201,9 +183,6 @@ def test_template_includes_component_documentation_assets() -> None:
     @brief      Handle test template includes component documentation assets workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.2
     """
     template_root = PACKAGE_ROOT / "template"
 
@@ -219,9 +198,6 @@ def test_template_declares_alignment_workflow_contract() -> None:
     @brief      Verify template docs and skills declare intent-alignment behavior.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-03
-    @version    0.1.0
     """
     template_root = PACKAGE_ROOT / "template"
 
@@ -243,9 +219,6 @@ def test_installable_template_includes_bundled_skills() -> None:
     @brief      Handle test installable template includes bundled skills workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     template_skills = PACKAGE_ROOT / "template" / ".codex" / "skills"
     expected = {
@@ -273,9 +246,6 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
     @brief      Verify the shared skill procedures live in `.agentic/skills`.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     skills_root = PACKAGE_ROOT / "template" / ".agentic" / "skills"
     expected = {
@@ -343,9 +313,6 @@ def test_installable_template_includes_claude_skill_wrappers() -> None:
     @brief      Handle test installable template includes claude skill wrappers workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.1
     """
     template_skills = PACKAGE_ROOT / "template" / ".claude" / "skills"
     expected = {
@@ -375,9 +342,6 @@ def test_installable_template_includes_opencode_skill_wrappers() -> None:
     @brief      Verify the installable template includes OpenCode skill wrappers.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-25
-    @version    0.1.0
     """
     template_skills = PACKAGE_ROOT / "template" / ".opencode" / "skills"
     expected = {
@@ -406,9 +370,6 @@ def test_template_includes_claude_adapter_assets() -> None:
     @brief      Handle test template includes claude adapter assets workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     template_root = PACKAGE_ROOT / "template"
 
@@ -424,9 +385,6 @@ def test_template_hooks_are_standalone_files() -> None:
     @brief      Handle test template hooks are standalone files workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     hooks_root = PACKAGE_ROOT / "template" / ".agentic" / "hooks"
     expected = {
@@ -447,9 +405,6 @@ def test_documentation_audit_defaults_to_changed_component_docs() -> None:
     @brief      Handle test documentation audit defaults to changed component docs workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.1
     """
     skill = (
         PACKAGE_ROOT
@@ -474,9 +429,6 @@ def test_prompt_cheatsheet_is_not_authoritative_workflow_source() -> None:
     @brief      Handle test prompt cheatsheet is not authoritative workflow source workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.1
     """
     text = (PACKAGE_ROOT / "template" / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md").read_text(encoding="utf-8")
 
@@ -490,9 +442,6 @@ def test_template_includes_local_cli_bootstrap() -> None:
     @brief      Handle test template includes local cli bootstrap workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     template_root = PACKAGE_ROOT / "template"
 
@@ -512,9 +461,6 @@ def test_template_has_no_generated_python_cache() -> None:
     @brief      Handle test template has no generated python cache workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     repository_root = PACKAGE_ROOT.parents[1]
     result = subprocess.run(
@@ -535,9 +481,6 @@ def test_template_text_files_have_legal_header() -> None:
     @brief      Handle test template text files have legal header workflow behavior.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     template_root = PACKAGE_ROOT / "template"
     exempt_suffixes = {".json"}
@@ -569,9 +512,6 @@ def test_agent_instructions_require_effective_configuration_bootstrap() -> None:
     @brief      Verify canonical skills and adapter wrappers require WP6 bootstrap.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.2
     """
     template_root = PACKAGE_ROOT / "template"
     skill_names = {
@@ -610,9 +550,6 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     @brief      Verify maintained operator documents expose the schema-3 contract.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.1
     """
     documents_root = PACKAGE_ROOT / "template" / ".agentic" / "documents"
     maintained = {

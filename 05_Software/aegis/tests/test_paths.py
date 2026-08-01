@@ -12,9 +12,6 @@
 @details Covers expected workflow behavior through focused pytest checks.
 @details OS-aware case sensitivity of `matches_pattern` covered as of 0.2.0
          (architecture-review follow-up).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.2.0
 """
 
 # IMPORTS
@@ -41,9 +38,6 @@ def test_relative_path_inside_root(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     assert relative_to_root("src/app.py", tmp_path) == "src/app.py"
 
@@ -54,9 +48,6 @@ def test_path_escape_is_rejected(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     with pytest.raises(ValueError):
         relative_to_root(tmp_path.parent / "outside.txt", tmp_path)
@@ -68,9 +59,6 @@ def test_glob_write_zone_match(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     rel = relative_to_root("tests/test_app.py", tmp_path)
     assert matches_pattern(rel, "tests/**")
@@ -83,9 +71,6 @@ def test_windows_style_pattern_normalization(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     assert matches_pattern(relative_to_root("src/app.py", tmp_path), "src\\**")
 
@@ -97,9 +82,6 @@ def test_matching_is_case_insensitive_on_windows(monkeypatch: pytest.MonkeyPatch
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(paths_module.os, "name", "nt")
     assert matches_pattern("Src/App.py", "src/**")
@@ -114,9 +96,6 @@ def test_matching_is_case_sensitive_on_non_windows(monkeypatch: pytest.MonkeyPat
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(paths_module.os, "name", "posix")
     assert not matches_pattern("Src/App.py", "src/**")

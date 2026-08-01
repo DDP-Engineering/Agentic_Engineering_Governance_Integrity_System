@@ -11,9 +11,6 @@
 @brief Regression tests for honest quick-run reporting boundaries.
 @details Proves absent requirement-stage storage is not loaded and that a
          bypass is reported only after human intake closure commits the route.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-31
-@version 0.1.0
 """
 
 # IMPORTS
@@ -50,7 +47,6 @@ def _invoke_json(
     @param[in] capsys Pytest capture fixture.
     @param[in] arguments Command arguments without the global JSON flag.
     @return Parsed stable response envelope.
-    @version 0.1.0
     """
     main([*arguments, "--json"])
     return json.loads(capsys.readouterr().out)
@@ -62,7 +58,6 @@ def _replace(path: Path, replacements: dict[str, str]) -> None:
     @param[in] path Generated form path.
     @param[in] replacements Expected old fragments and replacements.
     @return None.
-    @version 0.1.0
     """
     text = path.read_text(encoding="utf-8")
     for old, new in replacements.items():
@@ -77,7 +72,6 @@ def _journal(repo_root: Path, run_id: str) -> list[dict[str, object]]:
     @param[in] repo_root Temporary repository root.
     @param[in] run_id Run whose journal is inspected.
     @return Parsed journal entries in append order.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "runs" / run_id / "journal.jsonl"
     return [
@@ -92,7 +86,6 @@ def _initialize_git_repository(repo_root: Path) -> None:
     @brief Create a committed baseline for real working-tree verification.
     @param[in] repo_root Temporary repository root.
     @return None.
-    @version 0.1.0
     """
     source = repo_root / "src" / "state.py"
     source.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +118,6 @@ def _configure_failing_test_gate(repo_root: Path) -> WorkflowConfig:
     @brief Enable one deterministic enforced gate that exits with status seven.
     @param[in] repo_root Temporary repository root.
     @return Reloaded workflow configuration.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -149,7 +141,6 @@ def _close_quick_intake(
     @param[in] capsys Pytest capture fixture.
     @param[in] artifact Repository-relative intake form path.
     @return Stage-close response positioned at implementation.
-    @version 0.1.0
     """
     _replace(
         repo_root / artifact,
@@ -169,7 +160,6 @@ def _invariant_map(summary: dict[str, object]) -> dict[str, dict[str, object]]:
     @brief Index serialized verification invariants by stable identifier.
     @param[in] summary Validation summary returned by verification.
     @return Mapping from invariant ID to its serialized result.
-    @version 0.1.0
     """
     invariants = summary["invariants"]
     assert isinstance(invariants, list)
@@ -194,7 +184,6 @@ def test_quick_verification_skips_malformed_requirement_storage_but_runs_gates(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.2.0
     """
     _initialize_git_repository(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -217,7 +206,6 @@ def test_quick_verification_skips_malformed_requirement_storage_but_runs_gates(
         tmp_path,
         load_graph(tmp_path, run_id),
         config,
-        timeout=10,
     )
 
     assert code == 1
@@ -270,7 +258,6 @@ def test_bypass_reporting_begins_only_after_human_intake_close(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.1.0
     """
     _initialize_git_repository(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -291,7 +278,6 @@ def test_bypass_reporting_begins_only_after_human_intake_close(
         tmp_path,
         load_graph(tmp_path, run_id),
         config,
-        timeout=10,
     )
     assert summary_before["run_profile"] == "quick"
     assert "bypass_status" not in summary_before
@@ -324,7 +310,6 @@ def test_bypass_reporting_begins_only_after_human_intake_close(
         tmp_path,
         load_graph(tmp_path, run_id),
         config,
-        timeout=10,
     )
     assert summary_after["bypass_status"] == "bypassed"
     assert summary_after["bypassed_stages"] == QUICK_BYPASSED_STAGES

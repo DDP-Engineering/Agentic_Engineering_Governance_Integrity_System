@@ -11,9 +11,6 @@
 @brief Verify crash-safe AEGIS persistence and cross-process serialization.
 @details Exercises real spawned processes on Windows and POSIX without
          timing-dependent sleeps.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 1.0.0
 """
 
 # IMPORTS
@@ -75,7 +72,6 @@ def _graph_update_worker(
 ) -> None:
     """
     @brief Apply one graph update after every worker has loaded old state.
-    @version 1.0.0
     """
     try:
         root = Path(repo_root)
@@ -100,7 +96,6 @@ def _evidence_worker(
 ) -> None:
     """
     @brief Record one managed check after loading a shared old graph.
-    @version 1.0.0
     """
     try:
         root = Path(repo_root)
@@ -123,7 +118,6 @@ def _journal_worker(
 ) -> None:
     """
     @brief Append a deterministic record set from one spawned process.
-    @version 1.0.0
     """
     try:
         messages.put(("ready", worker))
@@ -151,7 +145,6 @@ def _requirement_update_worker(
 ) -> None:
     """
     @brief Patch one independent requirement field in a spawned process.
-    @version 1.0.0
     """
     try:
         root = Path(repo_root)
@@ -189,7 +182,6 @@ def _lock_holder(
 ) -> None:
     """
     @brief Hold one OS lock until the parent releases it.
-    @version 1.0.0
     """
     with locked(Path(lock_path), timeout=5):
         acquired.set()
@@ -206,7 +198,6 @@ def _run_workers(
 ) -> list[tuple[Any, ...]]:
     """
     @brief Start synchronized spawned workers and return completion messages.
-    @version 1.0.0
     """
     context = multiprocessing.get_context("spawn")
     start = context.Event()
@@ -234,7 +225,6 @@ def _run_workers(
 def _base_graph() -> Graph:
     """
     @brief Build one persisted graph suitable for concurrency tests.
-    @version 1.0.0
     """
     return Graph(
         run_id=RUN_ID,
@@ -246,7 +236,6 @@ def _base_graph() -> Graph:
 def _create_requirement(repo_root: Path) -> str:
     """
     @brief Create one UUID-backed requirement for update tests.
-    @version 1.0.0
     """
     record = create_requirement(
         repo_root,
@@ -270,7 +259,6 @@ def test_atomic_replacement_preserves_old_content_before_publish(
 ) -> None:
     """
     @brief A failure before replace leaves the prior complete JSON intact.
-    @version 1.0.0
     """
     path = tmp_path / "state" / "graph.json"
     atomic_write_json(path, {"generation": "old"})
@@ -278,7 +266,6 @@ def test_atomic_replacement_preserves_old_content_before_publish(
     def fail_replace(_source: object, _target: object) -> None:
         """
         @brief Inject interruption at the atomic publication boundary.
-        @version 1.0.0
         """
         raise OSError("injected replacement failure")
 
@@ -297,7 +284,6 @@ def test_atomic_replacement_publishes_complete_content_and_ignores_fixed_temp(
 ) -> None:
     """
     @brief Exclusive unique temps cannot be redirected by a fixed sibling.
-    @version 1.0.0
     """
     path = tmp_path / "state" / "graph.json"
     predictable = path.with_name(path.name + ".tmp")
@@ -318,7 +304,6 @@ def test_stale_direct_graph_save_is_rejected_without_overwrite(
 ) -> None:
     """
     @brief A stale in-memory graph cannot overwrite an external replacement.
-    @version 1.0.0
     """
     graph = _base_graph()
     save_graph(tmp_path, graph)
@@ -347,7 +332,6 @@ def test_graph_transaction_refreshes_unmodified_stale_copy_in_place(
              and mid-flight waivers: an external update between load and
              transaction entry must merge, not conflict, when the held copy
              carries no local mutation.
-    @version 1.0.0
     """
     save_graph(tmp_path, _base_graph())
     held = load_graph(tmp_path, RUN_ID)
@@ -376,7 +360,6 @@ def test_graph_transaction_rejects_stale_modified_copy(
              disk digest and the in-memory state digest moved, neither state
              can win without losing the other, so the transaction refuses and
              the persisted graph keeps only the external update.
-    @version 1.0.0
     """
     save_graph(tmp_path, _base_graph())
     held = load_graph(tmp_path, RUN_ID)
@@ -401,7 +384,6 @@ def test_graph_replace_failure_leaves_old_graph_valid(
 ) -> None:
     """
     @brief Interruption before graph replace preserves the old graph document.
-    @version 1.0.0
     """
     graph = _base_graph()
     save_graph(tmp_path, graph)
@@ -410,7 +392,6 @@ def test_graph_replace_failure_leaves_old_graph_valid(
     def fail_replace(_source: object, _target: object) -> None:
         """
         @brief Inject graph replacement failure.
-        @version 1.0.0
         """
         raise OSError("graph replace failed")
 
@@ -433,7 +414,6 @@ def test_concurrent_graph_updates_preserve_both_mutations(
 ) -> None:
     """
     @brief Two old-state writers reload under lock and preserve both updates.
-    @version 1.0.0
     """
     save_graph(tmp_path, _base_graph())
 
@@ -455,7 +435,6 @@ def test_concurrent_evidence_creation_has_unique_monotonic_identifiers(
 ) -> None:
     """
     @brief Concurrent managed checks retain both records and unique IDs.
-    @version 1.0.0
     """
     command = f'"{sys.executable}" -c "raise SystemExit(0)"'
     checks = [
@@ -504,7 +483,6 @@ def test_concurrent_journal_appends_are_complete_parseable_records(
 ) -> None:
     """
     @brief Spawned appenders cannot interleave or truncate JSON lines.
-    @version 1.0.0
     """
     count = 12
     _run_workers(
@@ -536,7 +514,6 @@ def test_journal_replace_failure_preserves_complete_prior_records(
 ) -> None:
     """
     @brief Journal publication failure leaves the earlier journal parseable.
-    @version 1.0.0
     """
     append_journal(tmp_path, RUN_ID, "first", {"value": 1})
     original = journal_path(tmp_path, RUN_ID).read_bytes()
@@ -544,7 +521,6 @@ def test_journal_replace_failure_preserves_complete_prior_records(
     def fail_replace(_source: object, _target: object) -> None:
         """
         @brief Inject journal replacement failure.
-        @version 1.0.0
         """
         raise OSError("journal replace failed")
 
@@ -561,7 +537,6 @@ def test_concurrent_requirement_updates_preserve_independent_fields(
 ) -> None:
     """
     @brief Same-requirement writers serialize complete update transactions.
-    @version 1.0.0
     """
     requirement_id = _create_requirement(tmp_path)
 
@@ -588,7 +563,6 @@ def test_external_requirement_change_before_publish_returns_typed_conflict(
 ) -> None:
     """
     @brief Non-cooperative external modification is never overwritten silently.
-    @version 1.0.0
     """
     requirement_id = _create_requirement(tmp_path)
     config = load_config(tmp_path)
@@ -600,7 +574,6 @@ def test_external_requirement_change_before_publish_returns_typed_conflict(
     def modify_after_load(repo_root: Path, spec_ref: str) -> None:
         """
         @brief Replace the source after update load but before CAS publish.
-        @version 1.0.0
         """
         nonlocal changed
         original_check(repo_root, spec_ref)
@@ -639,7 +612,6 @@ def test_requirement_replace_failure_leaves_valid_old_snapshot(
 ) -> None:
     """
     @brief Requirement replacement failure never truncates the current TOML.
-    @version 1.0.0
     """
     requirement_id = _create_requirement(tmp_path)
     config = load_config(tmp_path)
@@ -648,7 +620,6 @@ def test_requirement_replace_failure_leaves_valid_old_snapshot(
     def fail_replace(_source: object, _target: object) -> None:
         """
         @brief Inject requirement replacement failure.
-        @version 1.0.0
         """
         raise OSError("requirement replace failed")
 
@@ -671,7 +642,6 @@ def test_repowise_replace_failure_preserves_valid_old_json(
 ) -> None:
     """
     @brief RepoWise snapshot uses the shared crash-safe writer.
-    @version 1.0.0
     """
     path = tmp_path / ".agentic" / "runs" / RUN_ID / "repowise.json"
     _atomic_json(path, {"generation": "old"})
@@ -679,7 +649,6 @@ def test_repowise_replace_failure_preserves_valid_old_json(
     def fail_replace(_source: object, _target: object) -> None:
         """
         @brief Inject RepoWise replacement failure.
-        @version 1.0.0
         """
         raise OSError("RepoWise replace failed")
 
@@ -697,7 +666,6 @@ def test_live_lock_times_out_and_unlocked_stale_file_is_reused(
 ) -> None:
     """
     @brief Live locks fail closed; retained stale lock files need no deletion.
-    @version 1.0.0
     """
     context = multiprocessing.get_context("spawn")
     acquired = context.Event()

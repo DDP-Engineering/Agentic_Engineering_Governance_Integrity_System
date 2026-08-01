@@ -11,9 +11,6 @@
 @brief WAEGIS 1.x and AEGIS schema-3 integration tests.
 @details Covers version compatibility, all five independently configured gates,
          interface defaults, and explicit security-script analysis.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.0.0
 """
 
 # IMPORTS

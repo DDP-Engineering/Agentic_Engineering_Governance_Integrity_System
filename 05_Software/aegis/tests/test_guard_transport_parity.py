@@ -18,9 +18,6 @@
          one transport drifts from the others.
 @details The launcher behavior tests execute `run_hook.mjs` through Node and are
          skipped when no Node runtime is available.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-23
-@version 0.1.0
 """
 
 # IMPORTS
@@ -76,9 +73,6 @@ def collapse(text: str) -> str:
     @param[in]  text Source text to normalize.
     @return     Text with every whitespace run reduced to one space.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     return re.sub(r"\s+", " ", text)
 
@@ -95,9 +89,6 @@ def isolated_env(home: Path, **overrides: str) -> dict[str, str]:
                 test observes the launcher's own resolution rather than whatever
                 the host machine happens to have configured.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     env = dict(os.environ)
     env.pop("AEGIS_PYTHON", None)
@@ -118,9 +109,6 @@ def run_launcher(hook: Path, home: Path, **overrides: str) -> subprocess.Complet
     @param[in]  overrides Extra environment entries for `isolated_env`.
     @return     Completed launcher process.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     assert NODE is not None
     return subprocess.run(
@@ -144,9 +132,6 @@ def powershell_code(path: Path) -> str:
                 merely names a construct. A comment explaining why `Write-Error`
                 is avoided otherwise reads as `Write-Error` being used.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     text = re.sub(r"<#.*?#>", "", path.read_text(encoding="utf-8"), flags=re.DOTALL)
     return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
@@ -160,9 +145,6 @@ def write_hook(directory: Path, name: str, body: str) -> Path:
     @param[in]  body Python source body.
     @return     Path of the written script.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     path = directory / name
     path.write_text(body, encoding="utf-8", newline="\n")
@@ -182,9 +164,6 @@ def test_every_transport_offers_the_same_interpreter_candidates() -> None:
                 which exits non-zero with empty stdout, so the ordered list and
                 its PATH probe are part of the guard contract.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     windows_candidates = collapse('[{ command: "py", args: ["-3"] }, { command: "python", args: [] }]')
     posix_candidates = collapse('[{ command: "python3", args: [] }, { command: "python", args: [] }]')
@@ -205,9 +184,6 @@ def test_every_transport_treats_an_unavailable_guard_as_a_block() -> None:
                 that case explicitly rather than falling through to its
                 allow path.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     for transport in TRANSPORTS:
         source = transport.read_text(encoding="utf-8")
@@ -227,9 +203,6 @@ def test_cli_wrappers_resolve_python_in_the_same_order() -> None:
                 operator choice must beat a remembered one, and a remembered
                 one must beat guessing.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     for wrapper in CLI_WRAPPERS:
         source = wrapper.read_text(encoding="utf-8")
@@ -253,9 +226,6 @@ def test_cli_wrappers_use_the_windows_runtime_pointer_location() -> None:
                 fall-through lands on an interpreter that launches, exits
                 non-zero and writes nothing.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     for wrapper in CLI_WRAPPERS:
         source = wrapper.read_text(encoding="utf-8")
@@ -272,9 +242,6 @@ def test_cli_wrappers_offer_the_shared_candidate_order() -> None:
                 runs on Linux and under Git Bash; `run.ps1` is Windows-only and
                 carries only that one.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     shell = RUN_SH.read_text(encoding="utf-8")
     assert '"py -3" "python"' in shell, "run.sh lost the Windows candidate order"
@@ -297,9 +264,6 @@ def test_cli_wrappers_agree_on_the_no_interpreter_exit_code() -> None:
                 scripts meant to be equivalent reported the identical condition
                 with different statuses.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     for wrapper in CLI_WRAPPERS:
         source = wrapper.read_text(encoding="utf-8")
@@ -327,9 +291,6 @@ def test_run_ps1_avoids_constrained_language_constructs() -> None:
                 not itself depend on a construct that mode forbids. Cmdlets are
                 unrestricted; method invocation is not.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     code = powershell_code(RUN_PS1)
 
@@ -344,9 +305,6 @@ def test_launcher_allows_when_the_hook_exits_clean(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary directory for the hook and WAEGIS home.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     hook = write_hook(tmp_path, "allow_hook.py", "import sys\nsys.stdin.read()\n")
 
@@ -364,9 +322,6 @@ def test_launcher_forwards_a_deny_decision_unchanged(tmp_path: Path) -> None:
     @details    A denial is carried on stdout with exit status 0; the host reads
                 the JSON, so the launcher must pass both through untouched.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     hook = write_hook(
         tmp_path,
@@ -396,9 +351,6 @@ def test_launcher_blocks_when_the_hook_crashes(tmp_path: Path) -> None:
                 through would let the tool call proceed unchecked. The launcher
                 must normalize it to the blocking status instead.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     hook = write_hook(
         tmp_path,
@@ -420,9 +372,6 @@ def test_launcher_blocks_when_the_interpreter_cannot_be_launched(tmp_path: Path)
     @param[in]  tmp_path Temporary directory for the hook and WAEGIS home.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     hook = write_hook(tmp_path, "unused_hook.py", "import sys\nsys.stdin.read()\n")
 
@@ -445,9 +394,6 @@ def test_launcher_blocks_when_no_interpreter_is_available(tmp_path: Path) -> Non
     @details    This is the case that previously diverged the hardest: the
                 launcher blocked while the OpenCode transport allowed.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     hook = write_hook(tmp_path, "unused_hook.py", "import sys\nsys.stdin.read()\n")
 
@@ -468,9 +414,6 @@ def test_launcher_module_is_importable_without_running(tmp_path: Path) -> None:
                 guard, importing it exited the host process with the usage
                 error because no hook argument was present.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     assert NODE is not None
     module_url = RUN_HOOK.resolve().as_uri()

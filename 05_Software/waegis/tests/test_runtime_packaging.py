@@ -11,9 +11,6 @@
 @brief Embedded-runtime registration and payload-zipapp acceptance tests.
 @details Covers runtime discovery, reproducible source filtering, pinned
          runtime metadata, zipapp execution, and archive extraction safety.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.5.0
 """
 
 # IMPORTS
@@ -122,9 +119,6 @@ def test_release_artifact_names_carry_no_version(tmp_path: Path) -> None:
                 breaks them silently at the next release. The version is not
                 lost: it is recorded in ``release-manifest.json`` and reported
                 by the artifact itself.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.2.0
     """
     builder = _builder()
     sys.path.insert(0, str(PACKAGE_ROOT / "src"))
@@ -158,9 +152,6 @@ def test_release_metadata_uses_lf_line_endings(tmp_path: Path) -> None:
                 in a carriage return and fail every entry — indistinguishable,
                 to whoever downloaded it, from a corrupt artifact. A build must
                 produce the same bytes on Windows as on Linux.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.1.0
     """
     builder = _builder()
     output = tmp_path / "dist"
@@ -183,9 +174,6 @@ def test_default_build_output_is_the_single_delivery_dist(tmp_path: Path) -> Non
     @details    Builds overwrite that directory instead of leaving a versioned
                 set behind; the previous default scattered outputs across three
                 locations that nothing ever cleaned up.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.1.0
     """
     builder = _builder()
 
@@ -198,7 +186,6 @@ def test_runtime_lock_pins_both_release_assets() -> None:
     @brief      Core and RepoWise pin compatible runtimes for both targets.
     @details    WAEGIS Core retains Python 3.13, while the RepoWise sidecar uses
                 Python 3.12 because RepoWise 0.37.0 locks NumPy 1.26.4.
-    @version    0.2.0
     """
     lock = json.loads((PACKAGE_ROOT / "packaging/runtime-lock.json").read_text(encoding="utf-8"))
     assert lock["release"] == "20260510"
@@ -221,9 +208,6 @@ def test_release_copy_excludes_generated_payload_state(tmp_path: Path) -> None:
     @return     None.
     @exception  AssertionError If generated dependency, cache, metadata, or
                 bytecode state reaches the staged release tree.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     builder = _builder()
     source = tmp_path / "source"
@@ -267,9 +251,6 @@ def test_runtime_extraction_materializes_relative_symlinks(tmp_path: Path) -> No
     @param[in]  tmp_path Temporary runtime archive and extraction root.
     @return     None.
     @exception  AssertionError If link bytes or executable metadata are lost.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     builder = _builder()
     archive_path = tmp_path / "runtime.tar.gz"
@@ -301,9 +282,6 @@ def test_linux_tar_filter_normalizes_cross_build_modes() -> None:
     @return     None.
     @exception  AssertionError If directory, data, script, launcher, or runtime
                 modes are not deterministic and executable where required.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     builder = _builder()
     executable_paths = frozenset({"waegis", "runtime/python/bin/python3"})
@@ -350,9 +328,6 @@ def test_complete_companions_require_matching_repowise_source(tmp_path: Path) ->
     @brief      Cross-platform Complete companions share one source identity.
     @details    A stale archive left by an earlier native build must not be
                 silently included in a new release manifest.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.2.0
     """
     builder = _builder()
     document = {
@@ -413,7 +388,6 @@ def test_complete_companions_require_matching_repowise_source(tmp_path: Path) ->
 def test_repowise_release_source_requires_exact_clean_tag(tmp_path: Path) -> None:
     """
     @brief      Complete packaging pins source blobs and rejects worktree drift.
-    @version    0.2.0
     """
     builder = _builder()
     source = tmp_path / "repowise"

@@ -11,9 +11,6 @@
 @brief Verify strict schema-version-3 workflow configuration behavior.
 @details Covers typed errors, policy consistency, normalization, immutable
          records, and the agent-facing config CLI commands.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 0.3.0
 """
 
 # IMPORTS
@@ -36,7 +33,7 @@ from aegis.models import ALL_STAGES
 
 
 def _write(repo_root: Path, text: str) -> Path:
-    """@brief Write one workflow configuration test document. @version 0.1.0"""
+    """@brief Write one workflow configuration test document."""
     path = repo_root / ".agentic" / "workflow.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -44,13 +41,13 @@ def _write(repo_root: Path, text: str) -> Path:
 
 
 def _replace(text: str, old: str, new: str) -> str:
-    """@brief Replace one unique fixture fragment and assert fixture drift. @version 0.1.0"""
+    """@brief Replace one unique fixture fragment and assert fixture drift."""
     assert text.count(old) == 1
     return text.replace(old, new)
 
 
 def _error(repo_root: Path, code: str) -> ConfigurationError:
-    """@brief Load an invalid document and return its typed error. @version 0.1.0"""
+    """@brief Load an invalid document and return its typed error."""
     with pytest.raises(ConfigurationError) as exc_info:
         load_config(repo_root)
     assert exc_info.value.code == code
@@ -64,7 +61,7 @@ def test_complete_unrestricted_configuration_parses_as_immutable_model(
     tmp_path: Path,
     write_unrestricted_workflow_toml: Callable[[Path], Path],
 ) -> None:
-    """@brief The complete unrestricted fixture produces immutable records. @version 0.1.0"""
+    """@brief The complete unrestricted fixture produces immutable records."""
     write_unrestricted_workflow_toml(tmp_path)
 
     config = load_config(tmp_path)
@@ -79,7 +76,7 @@ def test_complete_unrestricted_configuration_parses_as_immutable_model(
 
 
 def test_missing_configuration_is_actionable(tmp_path: Path) -> None:
-    """@brief A missing workflow.toml never creates an implicit configuration. @version 0.1.0"""
+    """@brief A missing workflow.toml never creates an implicit configuration."""
     (tmp_path / ".agentic" / "workflow.toml").unlink()
     error = _error(tmp_path, "CONFIG-MISSING")
 
@@ -99,7 +96,7 @@ def test_missing_configuration_is_actionable(tmp_path: Path) -> None:
 def test_file_and_schema_failures_use_stable_codes(
     tmp_path: Path, text: str, code: str
 ) -> None:
-    """@brief TOML and schema failures remain machine-classifiable. @version 0.1.0"""
+    """@brief TOML and schema failures remain machine-classifiable."""
     _write(tmp_path, text)
     _error(tmp_path, code)
 
@@ -107,7 +104,7 @@ def test_file_and_schema_failures_use_stable_codes(
 def test_missing_section_and_key_are_distinct(
     tmp_path: Path, unrestricted_workflow_toml: str
 ) -> None:
-    """@brief Missing tables and keys use their exclusive error codes. @version 0.1.0"""
+    """@brief Missing tables and keys use their exclusive error codes."""
     without_source = _replace(
         unrestricted_workflow_toml,
         '[source]\nroots = ["src", "app", "lib"]\n\n',
@@ -128,7 +125,7 @@ def test_missing_section_and_key_are_distinct(
 def test_unknown_key_and_wrong_type_are_rejected(
     tmp_path: Path, unrestricted_workflow_toml: str
 ) -> None:
-    """@brief Closed tables reject unknown keys and exact types are enforced. @version 0.1.0"""
+    """@brief Closed tables reject unknown keys and exact types are enforced."""
     unknown = _replace(
         unrestricted_workflow_toml,
         '[source]\nroots = ["src", "app", "lib"]',
@@ -170,7 +167,7 @@ def test_unknown_key_and_wrong_type_are_rejected(
 def test_policy_modes_reject_contradictory_rule_sets(
     tmp_path: Path, unrestricted_workflow_toml: str, old: str, new: str
 ) -> None:
-    """@brief Dormant rules and empty restrictive modes are inconsistent. @version 0.1.0"""
+    """@brief Dormant rules and empty restrictive modes are inconsistent."""
     _write(tmp_path, _replace(unrestricted_workflow_toml, old, new))
     _error(tmp_path, "CONFIG-INCONSISTENT")
 
@@ -207,7 +204,7 @@ def test_invalid_and_duplicate_normalized_rules_are_rejected(
     new: str,
     key_path: str,
 ) -> None:
-    """@brief Regexes, globs, paths, and normalized duplicates are validated. @version 0.1.0"""
+    """@brief Regexes, globs, paths, and normalized duplicates are validated."""
     _write(tmp_path, _replace(unrestricted_workflow_toml, old, new))
     error = _error(tmp_path, "CONFIG-RULE-INVALID")
     assert error.key_path == key_path
@@ -216,7 +213,7 @@ def test_invalid_and_duplicate_normalized_rules_are_rejected(
 def test_stage_restricted_mode_requires_every_supported_stage(
     tmp_path: Path, unrestricted_workflow_toml: str
 ) -> None:
-    """@brief A stage-restricted map is closed and complete over ALL_STAGES. @version 0.2.0"""
+    """@brief A stage-restricted map is closed and complete over ALL_STAGES."""
     incomplete = _replace(
         unrestricted_workflow_toml,
         '[guardrails.write_access]\nmode = "unrestricted"',
@@ -247,7 +244,7 @@ def test_stage_restricted_mode_requires_every_supported_stage(
 def test_every_restrictive_policy_mode_parses_when_rules_are_complete(
     tmp_path: Path, unrestricted_workflow_toml: str
 ) -> None:
-    """@brief All ratified restrictive policy modes accept complete rules. @version 0.1.0"""
+    """@brief All ratified restrictive policy modes accept complete rules."""
     text = unrestricted_workflow_toml
     replacements = [
         (
@@ -316,7 +313,7 @@ def test_config_cli_validate_show_and_json_error(
     capsys: pytest.CaptureFixture[str],
     write_unrestricted_workflow_toml: Callable[[Path], Path],
 ) -> None:
-    """@brief CLI config commands expose deterministic success and error JSON. @version 0.1.0"""
+    """@brief CLI config commands expose deterministic success and error JSON."""
     write_unrestricted_workflow_toml(tmp_path)
     monkeypatch.chdir(tmp_path)
 
@@ -350,9 +347,6 @@ def test_graph_command_loads_configuration_once_at_cli_boundary(
     @param[in] monkeypatch Pytest monkeypatch fixture.
     @param[in] capsys Pytest output capture fixture.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     monkeypatch.chdir(tmp_path)
     main(["run", "start", "feature", "--json"])
@@ -385,9 +379,6 @@ def test_invalid_configuration_stops_command_before_state_mutation(
     @param[in] monkeypatch Pytest monkeypatch fixture.
     @param[in] capsys Pytest output capture fixture.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     (tmp_path / ".agentic" / "workflow.toml").unlink()
     monkeypatch.chdir(tmp_path)

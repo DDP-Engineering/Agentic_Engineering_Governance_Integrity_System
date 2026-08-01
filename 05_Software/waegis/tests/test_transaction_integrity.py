@@ -12,9 +12,6 @@
 @details Exercises forged state, storage redirection, destination substitution,
          content binding, retained rollback evidence, and idempotent recovery
          with real filesystem objects.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 1.0.0
 """
 
 # IMPORTS
@@ -597,7 +594,6 @@ def test_repository_lock_serializes_transactions_across_processes(
 ) -> None:
     """
     @brief A second process cannot begin while the first holds its transaction.
-    @version 0.2.0
     """
     monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis-home"))
     repo = tmp_path / "repo"

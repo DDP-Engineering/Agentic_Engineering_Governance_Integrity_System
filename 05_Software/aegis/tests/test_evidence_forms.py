@@ -10,9 +10,6 @@
 @file test_evidence_forms.py
 @brief Manual-evidence form contract tests.
 @details Covers stage preparation preconditions before evidence mutation.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 # IMPORTS
@@ -36,7 +33,6 @@ def test_apply_evidence_requires_prepared_current_stage(tmp_path: Path) -> None:
     @brief Reject manual evidence before the current stage is prepared.
     @param[in] tmp_path Configured temporary repository.
     @return None.
-    @version 0.1.0
     """
     graph = Graph(
         run_id="fix-20260730T120000Z-1234abcd",

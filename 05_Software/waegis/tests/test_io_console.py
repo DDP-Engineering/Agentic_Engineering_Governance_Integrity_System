@@ -16,9 +16,6 @@
          restrictive-encoding stream must never raise ``UnicodeEncodeError``).
 @details Assertions padded/adjusted for the 0.2.0 marker-alignment and
          phase-banner changes in ``LiveStatusRenderer``.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.1.1
 """
 
 # IMPORTS
@@ -64,8 +61,6 @@ class _Cp1252Stream(io.StringIO):
                 encoding-fallback contract is exercised by having renderers
                 check ``.encoding`` proactively (as the console module does)
                 rather than relying on a write-time exception.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
 
     encoding = "cp1252"
@@ -80,8 +75,6 @@ def test_render_plan_preview_lists_all_fields_in_order() -> None:
                 id/title/phase/automation/change columns.
     @return     None
     @exception  AssertionError If a step id/field is missing or out of order.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = make_ctx()
     catalog = build_toy_catalog()
@@ -113,8 +106,6 @@ def test_plan_preview_json_round_trips_with_documented_keys() -> None:
     @return     None
     @exception  AssertionError If a documented key is missing or the value
                 does not match the source plan.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = make_ctx()
     catalog = build_toy_catalog()
@@ -138,9 +129,6 @@ def test_live_status_renderer_uses_ascii_markers_by_default() -> None:
                 a phase banner precedes the first step of a new phase.
     @return     None
     @exception  AssertionError If a marker/line is wrong or events are dropped.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     stream = io.StringIO()
     renderer = LiveStatusRenderer(stream)
@@ -171,9 +159,6 @@ def test_forced_glyph_flag_switches_markers_not_data() -> None:
     @return     None
     @exception  AssertionError If the glyph marker is not used, or a status is
                 different from the ASCII-rendered run.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     ascii_stream = io.StringIO()
     glyph_stream = io.StringIO()
@@ -201,8 +186,6 @@ def test_live_status_renderer_encoding_fallback_never_raises() -> None:
                 still renders the expected marker/text via the ASCII fallback.
     @return     None
     @exception  AssertionError If rendering raises or omits the expected text.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     stream = _Cp1252Stream()
     renderer = LiveStatusRenderer(stream, use_glyphs=True)
@@ -221,8 +204,6 @@ def test_step_result_json_matches_documented_keys() -> None:
                 field-name contract.
     @return     None
     @exception  AssertionError If a key is missing or the id/status is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     result = StepResult(step_id="toy.a", status=StepStatus.DONE, detected=False, acted=True, verified=True)
     payload = json.loads(step_result_json(result))
@@ -250,8 +231,6 @@ def test_run_summary_json_matches_documented_keys() -> None:
                 ``mode, dry_run, ok, stopped_at, results`` contract.
     @return     None
     @exception  AssertionError If a key is missing or a nested result is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     result = StepResult(step_id="toy.a", status=StepStatus.DONE)
     summary = RunSummary(mode="new", dry_run=False, results=[result], ok=True, stopped_at=None)
@@ -271,8 +250,6 @@ def test_unrecognized_events_are_ignored() -> None:
                 renders deterministically without raising.
     @return     None
     @exception  AssertionError If rendering raises.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     stream = io.StringIO()
     renderer = LiveStatusRenderer(stream)

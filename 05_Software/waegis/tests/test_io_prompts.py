@@ -14,9 +14,6 @@
          Covers FieldSpec validation/re-prompt/default behaviour, ScriptedAsker
          missing/invalid-answer errors, secret-field no-echo handling, and the
          never-save-invalid guard.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -47,8 +44,6 @@ def _port_validator(raw: str) -> int:
     @param[in]  raw Candidate raw value.
     @return     The validated port number.
     @exception  ValueError If ``raw`` is not an integer or out of TCP range.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     value = int(raw)
     if not (1 <= value <= 65535):
@@ -63,8 +58,6 @@ def _console(input_text: str, *, terse: bool = False, secret_reader=None) -> tup
     @param[in]  terse Passed through to ``ConsoleAsker``.
     @param[in]  secret_reader Optional fake no-echo reader.
     @return     The asker and its stdout buffer (for assertions).
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     stdin = io.StringIO(input_text)
     stdout = io.StringIO()
@@ -80,8 +73,6 @@ def test_console_asker_and_scripted_asker_satisfy_engine_protocol() -> None:
     @brief      Both askers satisfy the frozen engine ``Asker`` protocol.
     @return     None
     @exception  AssertionError If either class fails the ``isinstance`` check.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     console, _ = _console("\n")
     scripted = ScriptedAsker({})
@@ -94,8 +85,6 @@ def test_valid_value_passes_and_is_normalized() -> None:
     @brief      A valid raw value is normalized through the validator.
     @return     None
     @exception  AssertionError If the returned value is not the validated int.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port to bind.", validator=_port_validator)
     asker, _ = _console("8080\n")
@@ -108,8 +97,6 @@ def test_invalid_value_reprompts_with_validator_message() -> None:
                 and the eventual valid retry is returned.
     @return     None
     @exception  AssertionError If no re-prompt occurs or the message is missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port to bind.", validator=_port_validator)
     asker, stdout = _console("not-a-number\n99999\n8080\n")
@@ -127,8 +114,6 @@ def test_empty_input_accepts_default_without_validation() -> None:
                 accepted verbatim).
     @return     None
     @exception  AssertionError If the default is not returned unchanged.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port to bind.", default=99999, validator=_port_validator)
     asker, _ = _console("\n")
@@ -140,8 +125,6 @@ def test_detected_default_rendered_in_prompt_text() -> None:
     @brief      The rendered prompt shows both the example and the default.
     @return     None
     @exception  AssertionError If either hint is absent from stdout.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port to bind.", example="8080", default="8000")
     asker, stdout = _console("\n")
@@ -156,8 +139,6 @@ def test_terse_mode_suppresses_description() -> None:
     @brief      Terse mode omits the novice ``why`` description text.
     @return     None
     @exception  AssertionError If the description leaks into stdout.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="EXPLAIN WHY THIS MATTERS", default="8000")
     asker, stdout = _console("\n", terse=True)
@@ -170,8 +151,6 @@ def test_scripted_asker_applies_validator() -> None:
     @brief      ScriptedAsker validates a supplied answer through the FieldSpec.
     @return     None
     @exception  AssertionError If the normalized value is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port.", validator=_port_validator)
     asker = ScriptedAsker({"port": "9090"})
@@ -184,8 +163,6 @@ def test_scripted_asker_missing_answer_names_the_key() -> None:
                 the field key (what ``--non-interactive`` surfaces).
     @return     None
     @exception  AssertionError If the error is not raised or misnames the key.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port.", validator=_port_validator)
     asker = ScriptedAsker({})
@@ -200,8 +177,6 @@ def test_scripted_asker_invalid_answer_fails_loudly_without_reprompt() -> None:
                 exists in scripted mode).
     @return     None
     @exception  AssertionError If the wrong error type is raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="port", description="Port.", validator=_port_validator)
     asker = ScriptedAsker({"port": "99999"})
@@ -217,8 +192,6 @@ def test_secret_field_uses_no_echo_reader_and_is_not_written_to_stdout() -> None
                 secret value never appears on stdout.
     @return     None
     @exception  AssertionError If stdout leaks the secret or the reader is unused.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     calls: list[str] = []
 
@@ -265,8 +238,6 @@ def test_guard_answers_rejects_one_invalid_value() -> None:
                 invalid value, even when other fields are valid.
     @return     None
     @exception  AssertionError If it does not raise, or the bad key is absent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     specs = [
         FieldSpec(key="name", description="Name."),
@@ -284,8 +255,6 @@ def test_guard_answers_accepts_a_fully_valid_set() -> None:
     @brief      A fully valid answer set passes the guard and is normalized.
     @return     None
     @exception  AssertionError If normalization is wrong or it raises.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     specs = [
         FieldSpec(key="name", description="Name."),
@@ -301,8 +270,6 @@ def test_field_spec_normalize_raises_without_default() -> None:
                 when no default is configured.
     @return     None
     @exception  AssertionError If no error is raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = FieldSpec(key="name", description="Name.")
     with pytest.raises(ValidationError):

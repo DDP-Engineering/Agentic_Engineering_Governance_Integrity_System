@@ -12,9 +12,6 @@
 @details Keeps current AEGIS/WAEGIS declarations synchronized while treating
          historical release records as history. The copied-verbatim template
          must remain free of generated interpreter state and release content.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 # IMPORTS

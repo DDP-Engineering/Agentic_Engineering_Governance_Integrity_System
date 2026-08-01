@@ -14,9 +14,6 @@
          known adapter directory name list is cross-checked against the real
          ``05_Software/aegis/template/`` directory so :data:`ADAPTER_DIR_NAMES`
          cannot silently drift from what the template actually ships.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.1.0
 """
 
 # IMPORTS
@@ -48,8 +45,6 @@ def _install_valid_manifest(root: Path, *, files: dict[str, str]) -> None:
     @param[in]  root Repo root directory.
     @param[in]  files Mapping of repo-relative path to file content.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     for rel_path, content in files.items():
         path = root / rel_path
@@ -80,8 +75,6 @@ def test_adapter_dir_names_match_the_real_template() -> None:
                 rather than trusting a hardcoded guess.
     @return     None
     @exception  AssertionError If the constant and the real template diverge.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     template_root = Path(__file__).resolve().parents[2] / "aegis" / "template"
     real_adapter_dirs = {
@@ -101,8 +94,6 @@ def test_plain_directory_reports_no_manifest_no_agentic(tmp_path: Path) -> None:
                 absent-manifest state and ``agentic_present=False``; exit 0.
     @return     None
     @exception  AssertionError If the state, inventory, or exit code is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     report = build_analyze_report(tmp_path)
     assert report.manifest.state == "absent"
@@ -122,8 +113,6 @@ def test_legacy_agentic_without_manifest_reports_absent_distinctly(tmp_path: Pat
     @return     None
     @exception  AssertionError If the two no-manifest cases are not
                 distinguished by ``agentic_present``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (tmp_path / ".agentic").mkdir()
     report = build_analyze_report(tmp_path)
@@ -144,8 +133,6 @@ def test_malformed_manifest_reports_error_without_crashing(tmp_path: Path) -> No
     @return     None
     @exception  AssertionError If the command raises, or the state/error/exit
                 code are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     manifest_dir = tmp_path / ".agentic"
     manifest_dir.mkdir()
@@ -171,8 +158,6 @@ def test_valid_manifest_no_drift_reports_fields_and_zero_drift(tmp_path: Path) -
                 manifest field and zero modified/missing files.
     @return     None
     @exception  AssertionError If any field or the drift counts are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _install_valid_manifest(tmp_path, files={"AGENTS.md": "# AGENTS\n", ".agentic/cli.py": "print(1)\n"})
 
@@ -202,8 +187,6 @@ def test_valid_manifest_with_drift_lists_modified_and_missing(tmp_path: Path) ->
     @return     None
     @exception  AssertionError If either file is missing from the expected
                 drift bucket, or the JSON omits the full paths.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _install_valid_manifest(
         tmp_path,
@@ -231,8 +214,6 @@ def test_adapter_inventory_reports_present_subset(tmp_path: Path) -> None:
                 reports exactly that subset as present, the rest absent.
     @return     None
     @exception  AssertionError If any adapter is misreported.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (tmp_path / ".claude").mkdir()
     (tmp_path / ".qwen").mkdir()
@@ -252,8 +233,6 @@ def test_adapter_inventory_reports_none_present_as_not_a_failure(tmp_path: Path)
                 failure (exit 0).
     @return     None
     @exception  AssertionError If any adapter is misreported or exit != 0.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     report = build_analyze_report(tmp_path)
     assert all(present is False for present in report.inventory.adapters.values())
@@ -272,8 +251,6 @@ def test_repo_not_found_is_a_genuine_operational_failure(tmp_path: Path) -> None
                 informational (manifest/drift/inventory) finding above.
     @return     None
     @exception  AssertionError If the exit code is 0 or no message is written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     missing = tmp_path / "does-not-exist"
     stream = io.StringIO()
@@ -289,8 +266,6 @@ def test_repo_path_that_is_a_file_is_also_a_failure(tmp_path: Path) -> None:
                 is also a genuine operational failure.
     @return     None
     @exception  AssertionError If the exit code is 0.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     a_file = tmp_path / "not-a-dir.txt"
     a_file.write_text("x", encoding="utf-8")
@@ -308,8 +283,6 @@ def test_json_output_is_valid_json_with_documented_keys_no_manifest(tmp_path: Pa
                 manifest-section keys.
     @return     None
     @exception  AssertionError If parsing fails or a documented key is absent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     stream = io.StringIO()
     exit_code = run_analyze(tmp_path, as_json=True, stream=stream)
@@ -332,8 +305,6 @@ def test_json_output_is_valid_json_with_documented_keys_valid_manifest_with_drif
     @return     None
     @exception  AssertionError If parsing fails or a documented key/value is
                 wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _install_valid_manifest(tmp_path, files={"AGENTS.md": "# AGENTS\n", "edited.txt": "original\n"})
     (tmp_path / "edited.txt").write_text("changed!\n", encoding="utf-8", newline="\n")
@@ -360,8 +331,6 @@ def test_human_render_mentions_manifest_and_inventory_sections(tmp_path: Path) -
                 ``Workflow inventory`` sections for a valid-manifest repo.
     @return     None
     @exception  AssertionError If a section header is missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _install_valid_manifest(tmp_path, files={"AGENTS.md": "# AGENTS\n"})
     report = build_analyze_report(tmp_path)

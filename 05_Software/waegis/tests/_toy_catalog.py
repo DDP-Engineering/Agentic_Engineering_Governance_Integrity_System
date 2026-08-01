@@ -16,9 +16,6 @@
          behaviours can be exercised entirely offline. All step state lives in
          ``EngineContext.shared`` so one catalog can be re-run against fresh
          contexts (the resume scenario).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -48,9 +45,6 @@ class ScriptAsker:
              ``default_confirm`` when the queue is empty, and records every
              prompt seen. ``ask`` returns a value from a preset mapping (or the
              field default). No console interaction.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(
@@ -81,9 +75,6 @@ class ScriptAsker:
 class RecordingSink:
     """
     @brief :class:`EventSink` that stores every emitted event for assertions.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self) -> None:
@@ -97,8 +88,6 @@ class RecordingSink:
         @brief      Events of a given concrete type, in emission order.
         @param[in]  event_type Event class to filter by.
         @return     List of matching events.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return [e for e in self.events if type(e) is event_type]
 
@@ -111,8 +100,6 @@ def _state(ctx: EngineContext) -> dict[str, Any]:
     @brief      Fetch (creating if needed) the toy state on the context.
     @param[in]  ctx Engine context whose ``shared`` holds the toy state.
     @return     Mutable state dict with ``order``, ``flags``, and ``acts``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return ctx.shared.setdefault("toy", {"order": [], "flags": {}, "acts": {}})
 
@@ -176,8 +163,6 @@ def _toy_step(
     @param[in]  fail_step Which step should fail (or ``None``).
     @param[in]  fail_mode ``"act"`` (act raises) or ``"verify"`` (verify false).
     @return     The configured :class:`StepSpec`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     act_raises = fail_step == step_id and fail_mode == "act"
     verify_ok = not (fail_step == step_id and fail_mode == "verify")
@@ -212,9 +197,6 @@ def build_toy_catalog(
     @param[in]  fail_mode ``"act"`` (act raises) or ``"verify"`` (verify false).
     @param[in]  include_optional Add ``toy.opt`` gated on ``shared['include_opt']``.
     @return     A validated :class:`Catalog`.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     steps = [
         _toy_step("toy.a", Automation.AUTO, (), fail_step=fail_step, fail_mode=fail_mode),
@@ -253,8 +235,6 @@ def make_ctx(
     @param[in]  shared Initial shared state.
     @param[in]  mode Wizard mode label.
     @return     A ready :class:`EngineContext`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return EngineContext(
         mode=mode,
@@ -269,8 +249,6 @@ def act_counts(ctx: EngineContext) -> dict[str, int]:
     @brief      How many times each toy step's ``act`` ran on this context.
     @param[in]  ctx Engine context holding the toy state.
     @return     Mapping of step id to act invocation count.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return dict(_state(ctx)["acts"])
 
@@ -280,8 +258,6 @@ def call_order(ctx: EngineContext) -> list[tuple[str, str]]:
     @brief      Ordered (step_id, phase) record of detect/act/verify calls.
     @param[in]  ctx Engine context holding the toy state.
     @return     List of ``(step_id, phase)`` tuples in call order.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return list(_state(ctx)["order"])
 

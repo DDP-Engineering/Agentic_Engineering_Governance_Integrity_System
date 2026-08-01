@@ -12,9 +12,6 @@
 @details Verifies the Qwen adapter files exist, the settings keep AGENTS.md
          authoritative, delegate repository policy to shared Python hooks,
          reuse shared skills, and contain no adapter-native denylist.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.4.0
 """
 
 # IMPORTS
@@ -66,9 +63,6 @@ def read_settings() -> dict:
     @brief      Read and parse the Qwen Code project settings file.
     @return     Parsed ``template/.qwen/settings.json`` as a dictionary.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     return json.loads((QWEN_DIR / "settings.json").read_text(encoding="utf-8"))
 
@@ -79,9 +73,6 @@ def hook_commands(settings: dict) -> list[str]:
     @param[in]  settings Parsed Qwen settings mapping.
     @return     Flat list of the ``command`` fields across all hook events.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     commands: list[str] = []
     for entries in settings.get("hooks", {}).values():
@@ -101,9 +92,6 @@ def test_qwen_adapter_files_exist() -> None:
     @brief      Verify the Qwen adapter ships settings, skills, commands, and docs.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     assert (QWEN_DIR / "settings.json").exists()
     assert (QWEN_DIR / "README.md").exists()
@@ -119,9 +107,6 @@ def test_settings_keep_agents_md_authoritative() -> None:
     @brief      Verify the context file list loads AGENTS.md ahead of QWEN.md.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     settings = read_settings()
     file_names = settings.get("context", {}).get("fileName")
@@ -135,9 +120,6 @@ def test_settings_wire_shared_python_guards() -> None:
     @brief      Verify the shared guard hooks are wired and present on disk.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.2.0
     """
     commands = " ".join(hook_commands(read_settings()))
     for script in HOOK_SCRIPTS:
@@ -150,9 +132,6 @@ def test_settings_delegate_policy_without_native_denies() -> None:
     @brief      Verify repository policy is delegated entirely to Python hooks.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.2.0
     """
     settings = read_settings()
     assert "permissions" not in settings
@@ -167,9 +146,6 @@ def test_write_guard_matcher_covers_qwen_write_tool() -> None:
     @brief      Verify the write-zone matcher targets Qwen's ``WriteFile`` tool.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     pre_tool = read_settings()["hooks"]["PreToolUse"]
     write_entry = next(entry for entry in pre_tool if "guard_write_zone.py" in json.dumps(entry))
@@ -181,9 +157,6 @@ def test_hook_matchers_cover_friendly_and_raw_qwen_tool_names() -> None:
     @brief      Verify T8 hooks cover friendly aliases and raw Qwen tool ids.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     settings = read_settings()
     pre_tool = settings["hooks"]["PreToolUse"]
@@ -231,9 +204,6 @@ def test_skill_wrappers_reuse_shared_engine() -> None:
     @brief      Verify each wrapper references the shared skill it adapts.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     for name in SKILL_NAMES:
         wrapper = (QWEN_DIR / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
@@ -247,9 +217,6 @@ def test_scaffold_copies_qwen_adapter(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary destination directory for the copied template.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.2.0
     """
     target = tmp_path / "new-project"
 

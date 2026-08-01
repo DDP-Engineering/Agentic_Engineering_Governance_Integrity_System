@@ -11,9 +11,6 @@
 @brief Gate parsing and command-tokenization tests for schema 3.
 @details Execution, ordering, timeout, missing executable, and execute-all
          semantics are covered by test_aegis_v2_policy.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 2.1.0
 """
 
 # IMPORTS
@@ -29,7 +26,7 @@ import pytest
 
 import aegis.gates as gates_module
 from aegis.cli import main
-from aegis.config import ConfigurationError, load_config
+from aegis.config import DEFAULT_GATE_TIMEOUT_SECONDS, ConfigurationError, load_config
 from aegis.gates import _argv_for_simple_command, run_gates
 from aegis.store import init_graph, load_graph, set_access_mode
 
@@ -90,6 +87,74 @@ def test_enforced_gate_requires_a_command(
         load_config(tmp_path)
 
 
+def test_gate_timeout_defaults_when_absent(tmp_path: Path) -> None:
+    """@brief Fall back to DEFAULT_GATE_TIMEOUT_SECONDS when unconfigured."""
+    config = load_config(tmp_path)
+    assert config.gates.test.timeout == DEFAULT_GATE_TIMEOUT_SECONDS
+    assert config.gates.build.timeout == DEFAULT_GATE_TIMEOUT_SECONDS
+
+
+def test_gate_timeout_accepts_a_configured_override(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Parse a per-gate timeout override from workflow.toml."""
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []\ntimeout = 2400',
+    )
+    config = load_config(tmp_path)
+    assert config.gates.test.timeout == 2400
+    assert config.gates.build.timeout == DEFAULT_GATE_TIMEOUT_SECONDS
+
+
+def test_gate_timeout_rejects_a_non_positive_value(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Reject a zero or negative configured gate timeout."""
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []\ntimeout = 0',
+    )
+    with pytest.raises(ConfigurationError) as raised:
+        load_config(tmp_path)
+    assert raised.value.key_path == "gates.test.timeout"
+
+
+def test_run_gates_uses_each_groups_own_configured_timeout(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief Pass each gate group's configured timeout to its own commands."""
+    replace_workflow_toml(
+        '[gates.lint]\nmode = "disabled"\ncommands = []',
+        '[gates.lint]\nmode = "enforce"\ncommands = ["lint-cmd"]\ntimeout = 15',
+    )
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "enforce"\ncommands = ["test-cmd"]\ntimeout = 45',
+    )
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "fix", "Exercise per-gate timeout wiring")
+    observed: dict[str, int] = {}
+
+    def capturing_runner(
+        _repo_root: Path,
+        command: str,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        """@brief Record the timeout each command was actually invoked with."""
+        observed[command] = timeout
+        return subprocess.CompletedProcess(command, 0, "ok", "")
+
+    monkeypatch.setattr(gates_module, "_run_command", capturing_runner)
+    run_gates(tmp_path, graph.run_id, config, ["lint", "test"])
+
+    assert observed == {"lint-cmd": 15, "test-cmd": 45}
+
+
 def test_unknown_gate_selector_is_rejected_by_grouped_cli() -> None:
     """@brief Reject unknown group names through the parser."""
     with pytest.raises(SystemExit) as raised:
@@ -108,7 +173,6 @@ def test_slow_gate_does_not_block_concurrent_graph_operation(
     @param[in] replace_workflow_toml Workflow configuration editor.
     @param[in] monkeypatch Pytest replacement helper.
     @return None.
-    @version 0.1.0
     """
     replace_workflow_toml(
         '[gates.test]\nmode = "disabled"\ncommands = []',
@@ -129,7 +193,6 @@ def test_slow_gate_does_not_block_concurrent_graph_operation(
     ) -> subprocess.CompletedProcess[str]:
         """
         @brief Hold the scripted subprocess phase until the test releases it.
-        @version 0.1.0
         """
         started.set()
         if not release.wait(5):

@@ -18,9 +18,6 @@
          the same journal detects-and-skips every step. Strictly offline.
 @details Live-renderer assertions padded for the 0.2.0 marker-alignment
          change in ``io/console.py`` (``LiveStatusRenderer``).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.1.1
 """
 
 # IMPORTS
@@ -51,8 +48,6 @@ def _statuses(summary) -> dict[str, StepStatus]:
     @brief      Map each step id in a run summary to its terminal status.
     @param[in]  summary The :class:`~waegis.engine.runner.RunSummary` to read.
     @return     Mapping of step id to :class:`~waegis.engine.step.StepStatus`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return {r.step_id: r.status for r in summary.results}
 
@@ -70,9 +65,6 @@ def test_toy_catalog_runs_to_completion_interactively_via_console_renderer(tmp_p
     @return     None
     @exception  AssertionError If the run does not complete green or the
                 renderer/journal output is malformed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     catalog = build_toy_catalog()
     ctx = make_ctx()
@@ -114,8 +106,6 @@ def test_toy_catalog_runs_to_completion_via_answers_file(tmp_path: Path) -> None
                 file and journal.
     @return     None
     @exception  AssertionError If the run does not complete green.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     answers_path = tmp_path / "answers.json"
     answers_path.write_text(json.dumps({"confirm_b": True}), encoding="utf-8")
@@ -147,8 +137,6 @@ def test_second_run_against_same_journal_detects_and_skips_every_step(tmp_path: 
     @param[in]  tmp_path Pytest-provided temporary directory for the journal.
     @return     None
     @exception  AssertionError If any step is not skipped or re-acts.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_toy_catalog()
     ctx = make_ctx()

@@ -12,9 +12,6 @@
 @details Covers strict schema rejection, versioned form retention, captured
          check modes, managed red/green evidence, five-group gate ordering,
          execute-all failure behavior, and launch/timeout evidence semantics.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.0.0
 """
 
 # IMPORTS

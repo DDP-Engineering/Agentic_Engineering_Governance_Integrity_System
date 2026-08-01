@@ -12,9 +12,6 @@
 @details Verifies stable human/JSON blocked responses while ensuring parser,
          process-control, and unexpected programming exceptions retain their
          normal semantics and diagnostic context.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 # IMPORTS
@@ -309,7 +306,6 @@ def _start_run(
     @brief Start one selected run and consume its JSON response.
     @param[in] repo_root Temporary repository root.
     @return None.
-    @version 0.1.0
     """
     monkeypatch.chdir(repo_root)
     main(["run", "start", "fix", "--json"])

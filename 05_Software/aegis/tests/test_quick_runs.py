@@ -12,9 +12,6 @@
 @details Covers declarative lifecycle selection, schema-3 compatibility,
          typed profile validation, honest bypass reporting, the complete
          four-stage workflow, and the optional changed-path advisory.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-31
-@version 0.3.0
 """
 
 # IMPORTS
@@ -60,7 +57,6 @@ def _invoke_json(
     @param[in] capsys Pytest capture fixture.
     @param[in] arguments Grouped command arguments without the global JSON flag.
     @return Parsed stable response envelope.
-    @version 0.1.0
     """
     main([*arguments, "--json"])
     return json.loads(capsys.readouterr().out)
@@ -72,7 +68,6 @@ def _replace(path: Path, replacements: dict[str, str]) -> None:
     @param[in] path Generated form path.
     @param[in] replacements Expected old fragments and their replacements.
     @return None.
-    @version 0.1.0
     """
     text = path.read_text(encoding="utf-8")
     for old, new in replacements.items():
@@ -87,7 +82,6 @@ def _journal(repo_root: Path, run_id: str) -> list[dict[str, object]]:
     @param[in] repo_root Temporary repository root.
     @param[in] run_id Run whose events are inspected.
     @return Parsed journal entries in append order.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "runs" / run_id / "journal.jsonl"
     return [
@@ -106,7 +100,6 @@ def _complete_quick_intake(
     @param[in] repo_root Temporary repository root.
     @param[in] capsys Pytest capture fixture.
     @return Run ID and intake-close response positioned at implementation.
-    @version 0.2.0
     """
     started = _invoke_json(capsys, ["run", "start", "fix", "--quick"])
     run_id = str(started["run_id"])
@@ -134,7 +127,6 @@ def _record_manual_evidence(
     @param[in] repo_root Temporary repository root.
     @param[in] capsys Pytest capture fixture.
     @return CLI-minted evidence ID.
-    @version 0.2.0
     """
     prepared = _invoke_json(capsys, ["evidence", "prepare", "add"])
     form = repo_root / str(prepared["artifact"])
@@ -160,7 +152,6 @@ def _configure_quick_path_policy(
     @param[in] mode Disabled or advise policy mode.
     @param[in] max_paths Positive path-count threshold.
     @return None.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -177,7 +168,6 @@ def _initialize_git_repository(repo_root: Path) -> None:
     @brief Create a committed baseline for real working-tree verification.
     @param[in] repo_root Temporary repository root.
     @return None.
-    @version 0.1.0
     """
     source = repo_root / "src" / "state.py"
     source.parent.mkdir(parents=True, exist_ok=True)
@@ -210,7 +200,6 @@ def _invariant_map(summary: dict[str, object]) -> dict[str, dict[str, object]]:
     @brief Index serialized verification invariants by stable identifier.
     @param[in] summary Validation summary returned by verify run.
     @return Mapping from invariant ID to its serialized result.
-    @version 0.1.0
     """
     invariants = summary["invariants"]
     assert isinstance(invariants, list)
@@ -228,7 +217,6 @@ def test_run_stage_schema_declares_full_adoption_and_quick_sequences() -> None:
     """
     @brief Keep every supported kind/profile lifecycle in one declarative table.
     @return None.
-    @version 0.1.0
     """
     assert QUICK_STAGES == ["intake", "implementation", "validation", "delivery"]
     assert set(RUN_STAGE_SCHEMAS) == {
@@ -262,7 +250,6 @@ def test_old_full_graph_serialization_loads_without_profile_drift(tmp_path: Path
     @brief Preserve old schema-3 full graphs and their serialized byte shape.
     @param[in] tmp_path Configured temporary repository.
     @return None.
-    @version 0.1.0
     """
     graph = Graph(
         run_id="fix-2026-07-31T120000Z-1234abcd",
@@ -302,7 +289,6 @@ def test_hand_edited_quick_kind_mismatch_raises_typed_stage_error(
     @param[in] kind Full-run kind changed incompatibly to quick.
     @param[in] stage Valid starting stage for the original full run.
     @return None.
-    @version 0.1.0
     """
     graph = init_graph(tmp_path, kind, "Hand edit profile")  # type: ignore[arg-type]
     assert graph.stage == stage
@@ -326,7 +312,6 @@ def test_hand_edited_quick_route_to_bypassed_stage_raises_typed_error(
     @brief Reject a persisted quick route into a bypassed lifecycle stage.
     @param[in] tmp_path Configured temporary repository.
     @return None.
-    @version 0.1.0
     """
     graph = init_graph(
         tmp_path,
@@ -374,7 +359,6 @@ def test_persisted_earlier_routes_remain_valid_for_full_run_sequences(
     @param[in] record_stage Stage whose close requested the route.
     @param[in] route_to Earlier stage within the selected lifecycle.
     @return None.
-    @version 0.1.0
     """
     graph = Graph(
         run_id=f"{kind}-20260731T120000Z-1234abcd",
@@ -416,7 +400,6 @@ def test_quick_start_rejects_ineligible_kinds_before_state_mutation(
     @param[in] capsys Pytest capture fixture.
     @param[in] kind Ineligible run kind.
     @return None.
-    @version 0.1.0
     """
     monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit) as raised:
@@ -443,7 +426,6 @@ def test_quick_change_start_is_accepted(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.1.0
     """
     monkeypatch.chdir(tmp_path)
     started = _invoke_json(capsys, ["run", "start", "change", "--quick"])
@@ -469,7 +451,6 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.2.0
     """
     _initialize_git_repository(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -628,7 +609,6 @@ def test_quick_run_with_waived_enforced_gate_completes_and_reports_honestly(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 1.0.0
     """
     _initialize_git_repository(tmp_path)
     executable = Path(sys.executable).as_posix()
@@ -776,7 +756,6 @@ def test_quick_changed_path_advisory_is_soft_and_mode_controlled(
     @param[in] mode Quick changed-path policy mode.
     @param[in] expects_advisory Whether the close response should advise.
     @return None.
-    @version 0.1.0
     """
     _configure_quick_path_policy(tmp_path, mode, max_paths=1)
     monkeypatch.chdir(tmp_path)
@@ -834,7 +813,6 @@ def test_quick_implementation_requires_real_active_evidence(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.1.0
     """
     monkeypatch.chdir(tmp_path)
     _run_id, intake_closed = _complete_quick_intake(tmp_path, capsys)
@@ -893,7 +871,6 @@ def test_quick_bypass_journal_rolls_back_with_failed_graph_coupled_publish(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.1.0
     """
     monkeypatch.chdir(tmp_path)
     started = _invoke_json(capsys, ["run", "start", "fix", "--quick"])
@@ -914,7 +891,6 @@ def test_quick_bypass_journal_rolls_back_with_failed_graph_coupled_publish(
     def fail_bypass_journal(path: Path, content: bytes) -> None:
         """
         @brief Inject one journal replacement failure after graph save.
-        @version 0.1.0
         """
         if path.name == "journal.jsonl" and b"run.stages_bypassed" in content:
             raise OSError("injected bypass journal failure")
@@ -954,7 +930,6 @@ def test_full_start_without_quick_preserves_legacy_shape_and_sequence(
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.
     @return None.
-    @version 0.1.0
     """
     config = load_config(tmp_path)
     assert config.quick_changed_paths.mode == "disabled"

@@ -86,6 +86,22 @@ Configure a real tool (a dependency scanner, a static analyzer) rather than a
 placeholder command — an empty or fake command undermines the entire point of
 enforcing it.
 
+Each gate group also accepts an optional `timeout` (seconds, applied per
+command in that group):
+
+```toml
+[gates.test]
+mode = "enforce"
+commands = ["pytest -q"]
+timeout = 2400
+```
+
+Omitted, it defaults to 1800 seconds (30 minutes). Raise it for a genuinely
+slow suite rather than letting AEGIS report a false `fail` for a command that
+was still running — the recorded evidence for a timed-out command is
+indistinguishable from a real failure unless you already know to expect it,
+so a too-short timeout on a slow gate quietly produces misleading history.
+
 A reasonable adoption order: turn on `test` first (you likely already run
 tests), then `build` and `typecheck` if your language has them, then `lint`,
 and only add `security` once you've picked a real tool for it.

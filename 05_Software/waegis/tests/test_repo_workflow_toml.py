@@ -11,9 +11,6 @@
 @brief Verify WAEGIS schema-version-3 workflow generation and validation.
 @details Locks policy-neutral defaults, explicit restrictive modes, canonical
          gate encoding, comment preservation, and never-save-invalid behavior.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 2.0.1
 """
 
 # IMPORTS

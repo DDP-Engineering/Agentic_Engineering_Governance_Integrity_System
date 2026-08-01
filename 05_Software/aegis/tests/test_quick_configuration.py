@@ -11,9 +11,6 @@
 @brief Verify optional proportional quick-run configuration behavior.
 @details Covers ship-open defaults, explicit advisory modes, positive
          thresholds, exact types, and closed-schema rejection.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-31
-@version 0.1.0
 """
 
 # IMPORTS
@@ -31,7 +28,7 @@ from aegis.config import ConfigurationError, effective_config_dict, load_config
 
 
 def _write(repo_root: Path, text: str) -> Path:
-    """@brief Write one workflow configuration test document. @version 0.1.0"""
+    """@brief Write one workflow configuration test document."""
     path = repo_root / ".agentic" / "workflow.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -39,7 +36,7 @@ def _write(repo_root: Path, text: str) -> Path:
 
 
 def _error(repo_root: Path, code: str) -> ConfigurationError:
-    """@brief Load an invalid document and return its typed error. @version 0.1.0"""
+    """@brief Load an invalid document and return its typed error."""
     with pytest.raises(ConfigurationError) as exc_info:
         load_config(repo_root)
     assert exc_info.value.code == code
@@ -57,7 +54,6 @@ def test_quick_changed_paths_policy_defaults_when_table_is_absent(
     @brief Resolve the optional quick-run advisory to ship-open defaults.
     @param[in] tmp_path Temporary repository root.
     @return None.
-    @version 0.1.0
     """
     write_unrestricted_workflow_toml(tmp_path)
 
@@ -88,7 +84,6 @@ def test_quick_changed_paths_policy_accepts_explicit_modes(
     @brief Parse both explicit proportional-run advisory modes.
     @param[in] tmp_path Temporary repository root.
     @return None.
-    @version 0.1.0
     """
     _write(
         tmp_path,
@@ -144,7 +139,6 @@ def test_quick_changed_paths_policy_rejects_invalid_explicit_values(
     @param[in] tmp_path Temporary repository root.
     @param[in] policy Candidate changed-path policy body.
     @return None.
-    @version 0.1.0
     """
     _write(
         tmp_path,

@@ -12,9 +12,6 @@
 @details Covers the hard-break parser, stable response envelope, strict
          schema-3 graph, captured interface policy, form reconstruction, and
          prepare/apply/close lifecycle.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.2.0
 """
 
 # IMPORTS
@@ -143,7 +140,6 @@ def test_non_dict_stage_records_is_reported_as_value_error() -> None:
 def test_nested_graph_schema_errors_are_reported_as_value_errors() -> None:
     """
     @brief Wrap unknown nested record keys in the graph schema contract.
-    @version 0.1.0
     """
     graph = Graph(
         run_id="fix-20260730T120000Z-1234abcd",

@@ -18,9 +18,6 @@
          rather than materializing 10k files. Every fixture with a clear
          language asserts the proposed ``language`` is an exact
          ``LANGUAGE_PRESETS`` key (the T5.2 handoff guarantee).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
 """
 
 # IMPORTS
@@ -46,9 +43,6 @@ class _FakeGitRunner:
            repo path (the T5.1 git inventory path).
     @details Any other argv (or a different repo path) reports "not found",
              matching :class:`waegis.probes.runner.SubprocessCommandRunner`.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     def __init__(self, repo: Path, files: Sequence[str]) -> None:
@@ -56,8 +50,6 @@ class _FakeGitRunner:
         @brief      Build a runner returning ``files`` for ``repo``'s ls-files.
         @param[in]  repo Repository path the ls-files argv targets.
         @param[in]  files Repo-relative tracked paths to return, NUL-joined.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self._key = ("git", "-C", str(repo), "ls-files", "-z")
         self._stdout = "\0".join(files)
@@ -70,8 +62,6 @@ class _FakeGitRunner:
         @param[in]  cwd Ignored.
         @return     The scripted :class:`CommandResult`.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         if tuple(argv) == self._key:
             return CommandResult(found=True, exit_code=0, stdout=self._stdout, stderr="")
@@ -82,9 +72,6 @@ class _NoGitRunner:
     """
     @brief Fake :class:`CommandRunner` reporting git absent for every argv,
            forcing the filesystem-walk inventory fallback.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-14
-    @version 0.1.0
     """
 
     def run(self, argv, *, timeout: float = 5.0, cwd=None) -> CommandResult:
@@ -95,8 +82,6 @@ class _NoGitRunner:
         @param[in]  cwd Ignored.
         @return     A not-found :class:`CommandResult`.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return CommandResult(found=False, exit_code=None, stdout="", stderr="")
 
@@ -108,8 +93,6 @@ def _write(repo: Path, rel_path: str, content: str = "x\n") -> None:
     @param[in]  rel_path Repo-relative path.
     @param[in]  content File content.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = repo / rel_path
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -121,8 +104,6 @@ def _flag_names(result: analyze.RepoAnalysis) -> set[str]:
     @brief      Collect the risk-flag names raised on a result.
     @param[in]  result The analysis result.
     @return     Set of ``flag.name`` values.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return {flag.name for flag in result.risk_flags}
 
@@ -139,8 +120,6 @@ def test_python_src_fixture_via_git_inventory(tmp_path: Path) -> None:
                 candidates present; inventory came from git.
     @return     None
     @exception  AssertionError If any proposal is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "pyproject.toml", "[tool.pytest.ini_options]\n[tool.ruff]\n")
     _write(tmp_path, "src/pkg/__init__.py", "")
@@ -171,8 +150,6 @@ def test_node_monorepo_fixture(tmp_path: Path) -> None:
                 gate candidates from package.json scripts with that provenance.
     @return     None
     @exception  AssertionError If the language, flag, or provenance is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "package.json", '{"scripts": {"test": "jest", "lint": "eslint ."}}')
     _write(tmp_path, "package-lock.json", "{}")
@@ -207,8 +184,6 @@ def test_node_monorepo_lockfile_selects_package_manager(tmp_path: Path) -> None:
     @brief      A yarn.lock steers package.json gate candidates to yarn.
     @return     None
     @exception  AssertionError If the package manager was not yarn.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "package.json", '{"scripts": {"test": "jest"}}')
     _write(tmp_path, "yarn.lock", "")
@@ -227,8 +202,6 @@ def test_java_maven_fixture(tmp_path: Path) -> None:
                 layout, test_roots detects src/test/java specifically.
     @return     None
     @exception  AssertionError If a proposal is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "pom.xml", "<project/>")
     _write(tmp_path, "src/main/java/com/x/App.java", "class App {}\n" * 20)
@@ -252,8 +225,6 @@ def test_go_colocated_tests_fixture(tmp_path: Path) -> None:
                 directory) rather than a fictional directory.
     @return     None
     @exception  AssertionError If the flag or proposals are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "go.mod", "module example.com/x\n")
     _write(tmp_path, "pkg/foo.go", "package pkg\n" * 10)
@@ -282,8 +253,6 @@ def test_existing_claude_md_raises_guaranteed_conflict(tmp_path: Path) -> None:
                 ``"conflict"`` status, and no prior-install flag.
     @return     None
     @exception  AssertionError If the flag is missing or misclassified.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "CLAUDE.md", "# project\n")
     _write(tmp_path, "main.py", "print(1)\n")
@@ -304,8 +273,6 @@ def test_partial_agentic_raises_prior_install_distinctly(tmp_path: Path) -> None
                 guaranteed-conflict, and notes the manifest is absent.
     @return     None
     @exception  AssertionError If the flag is missing or the two are conflated.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (tmp_path / ".agentic").mkdir()
     _write(tmp_path, "main.py", "print(1)\n")
@@ -328,8 +295,6 @@ def test_submodules_and_lfs_flags_raised_independently(tmp_path: Path) -> None:
                 flags independently.
     @return     None
     @exception  AssertionError If either flag is missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, ".gitmodules", '[submodule "vendor"]\n\tpath = vendor\n')
     _write(tmp_path, ".gitattributes", "*.psd filter=lfs diff=lfs merge=lfs -text\n")
@@ -346,8 +311,6 @@ def test_gitattributes_without_lfs_does_not_flag(tmp_path: Path) -> None:
     @brief      A .gitattributes without ``filter=lfs`` raises no LFS flag.
     @return     None
     @exception  AssertionError If an LFS flag is spuriously raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, ".gitattributes", "* text=auto\n")
 
@@ -365,8 +328,6 @@ def test_very_large_repo_raises_heuristic_only_flag(tmp_path: Path) -> None:
                 still producing a full analysis — injected, not materialized.
     @return     None
     @exception  AssertionError If the flag is missing or the count is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     inventory = Inventory(
         source="git",
@@ -386,8 +347,6 @@ def test_exactly_threshold_files_does_not_raise_large_repo(tmp_path: Path) -> No
                 large-repo threshold.
     @return     None
     @exception  AssertionError If the flag is spuriously raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     inventory = Inventory(
         source="git",
@@ -408,8 +367,6 @@ def test_walk_fallback_honors_top_level_gitignore(tmp_path: Path) -> None:
                 that honors the top-level .gitignore and always skips .git/.
     @return     None
     @exception  AssertionError If an ignored path leaks into the inventory.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, ".gitignore", "build/\n*.log\nnode_modules\n")
     _write(tmp_path, "src/app.py", "x = 1\n")
@@ -439,8 +396,6 @@ def test_source_root_coverage_fallback_when_no_convention(tmp_path: Path) -> Non
                 low confidence.
     @return     None
     @exception  AssertionError If the fallback proposal is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     # 9 code files in "core", 1 in "extras" -> "core" alone covers 90%.
     for i in range(9):
@@ -464,8 +419,6 @@ def test_managed_workflow_code_never_becomes_project_source(tmp_path: Path) -> N
     @return     None
     @exception  AssertionError If managed workflow infrastructure leaks into
                 the project proposal.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     inventory = Inventory(
         source="git",
@@ -488,8 +441,6 @@ def test_no_code_files_yields_other_language(tmp_path: Path) -> None:
                 "other" (a valid workflow_toml answer) and no crash.
     @return     None
     @exception  AssertionError If the language is not "other".
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "README.md", "# docs only\n")
     _write(tmp_path, "notes.txt", "text\n")
@@ -508,8 +459,6 @@ def test_every_fixture_language_is_a_preset_key_and_roots_normalize(tmp_path: Pa
     @return     None
     @exception  AssertionError If a language name or root shape would break
                 the generate_workflow_toml handoff.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "pyproject.toml", "[tool.ruff]\n")
     _write(tmp_path, "src/app.py", "x = 1\n" * 10)
@@ -535,8 +484,6 @@ def test_json_round_trips_with_documented_field_names(tmp_path: Path) -> None:
                 candidate serializes ``argv`` as ``null``.
     @return     None
     @exception  AssertionError If a field name or the null argv is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "pyproject.toml", "[tool.pytest.ini_options]\n")
     _write(tmp_path, "src/app.py", "x = 1\n")
@@ -573,8 +520,6 @@ def test_render_summary_states_proposals_only(tmp_path: Path) -> None:
                 proposals-only contract.
     @return     None
     @exception  AssertionError If the closing contract line is absent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write(tmp_path, "src/app.py", "x = 1\n")
 

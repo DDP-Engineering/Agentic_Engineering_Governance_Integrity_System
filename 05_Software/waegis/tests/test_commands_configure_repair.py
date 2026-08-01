@@ -9,9 +9,6 @@
 """
 @file test_commands_configure_repair.py
 @brief Lifecycle acceptance tests for transactional configure and repair.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.2.0
 """
 
 # IMPORTS
@@ -336,7 +333,6 @@ def test_repair_smoke_failure_rolls_back(tmp_path: Path) -> None:
 def test_repair_recovers_interrupted_transaction_before_detection(tmp_path: Path) -> None:
     """
     @brief A later repair invocation restores an interrupted transaction first.
-    @version 0.2.0
     """
     repo = tmp_path / "repo"
     payload = _install(repo)
@@ -426,9 +422,6 @@ def test_recovery_decline_is_needs_input_in_human_mode_for_repair_and_configure(
     @param[in]  tmp_path Isolated repository roots.
     @return     None
     @exception  AssertionError If a decline crashes, recovers, or exits wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-31
-    @version    0.1.0
     """
     for run_command in (run_repair, run_configure):
         repo = tmp_path / f"repo-{run_command.__name__}"

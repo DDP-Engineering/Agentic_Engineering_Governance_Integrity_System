@@ -10,9 +10,6 @@
 @file test_verification.py
 @brief Shared WAEGIS smoke-verification contract tests.
 @details Ensures successful JSON output has the stable AEGIS response envelope.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 # IMPORTS
@@ -47,7 +44,6 @@ def test_smoke_reverify_rejects_json_without_response_envelope(
     @param[in] tmp_path Temporary repository path.
     @param[in] status_json Parseable but structurally invalid status output.
     @return None.
-    @version 0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -73,7 +69,6 @@ def test_smoke_reverify_accepts_stable_response_envelope(tmp_path: Path) -> None
     @brief Accept a JSON object carrying all stable AEGIS response keys.
     @param[in] tmp_path Temporary repository path.
     @return None.
-    @version 0.1.0
     """
     runner = FakeCommandRunner(
         {

@@ -12,9 +12,6 @@
 @details Uses compact local fixtures for epochs, ZIP/tar metadata, strict locks,
          downloads, exact archive verification, link graphs, and publication.
          No test performs a live network request or builds production runtimes.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 0.1.0
 """
 
 # IMPORTS

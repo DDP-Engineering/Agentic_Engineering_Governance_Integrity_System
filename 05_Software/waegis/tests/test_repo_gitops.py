@@ -12,9 +12,6 @@
 @details Strictly offline: every test uses :class:`FakeCommandRunner` from
          ``_fake_command_runner.py`` and asserts on scripted responses and
          recorded argv tuples. No test invokes a real ``git`` process.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.2.0
 """
 
 # IMPORTS
@@ -36,8 +33,6 @@ def test_is_work_tree_true_when_inside_work_tree() -> None:
                 ``True``.
     @return     None
     @exception  AssertionError If the result is not ``True``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {("git", "-C", "/repo", "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n")}
@@ -51,8 +46,6 @@ def test_is_work_tree_false_when_not_a_repo() -> None:
     @brief      A non-zero exit (not a git repo) reports ``False``.
     @return     None
     @exception  AssertionError If the result is not ``False``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -71,8 +64,6 @@ def test_is_work_tree_false_when_git_not_found() -> None:
     @return     None
     @exception  AssertionError If the call raises or returns other than
                 ``False``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({})
 
@@ -88,8 +79,6 @@ def test_init_repo_success_with_dash_b_supported() -> None:
                 commands are issued.
     @return     None
     @exception  AssertionError If ``ok`` is not ``True`` or extra calls made.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {("git", "init", "-b", "main", "/new-repo"): ok_result(stdout="Initialized empty Git repository")}
@@ -108,8 +97,6 @@ def test_init_repo_falls_back_on_older_git_without_dash_b() -> None:
     @return     None
     @exception  AssertionError If the fallback commands are not issued in
                 order or ``ok`` is not ``True``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -137,8 +124,6 @@ def test_init_repo_failure_surfaces_ok_false_with_detail() -> None:
                 surfaces ``ok=False`` with git's stderr, no fallback attempted.
     @return     None
     @exception  AssertionError If ``ok`` is not ``False`` or a fallback ran.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -163,8 +148,6 @@ def test_clone_repo_success() -> None:
     @brief      A successful clone reports ``ok=True``.
     @return     None
     @exception  AssertionError If ``ok`` is not ``True``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -189,8 +172,6 @@ def test_clone_repo_target_already_exists_non_empty_short_circuits(tmp_path) -> 
     @return     None
     @exception  AssertionError If the runner recorded any call, or ``ok`` is
                 not ``False``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "dest"
     target.mkdir()
@@ -211,8 +192,6 @@ def test_clone_repo_git_failure_passes_through_stderr() -> None:
     @return     None
     @exception  AssertionError If the failure detail does not contain git's
                 stderr, or ``ok`` is not ``False``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -271,8 +250,6 @@ def test_get_identity_both_set() -> None:
     @brief      Both ``user.name`` and ``user.email`` set are both returned.
     @return     None
     @exception  AssertionError If either field is missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -293,8 +270,6 @@ def test_get_identity_only_name_set() -> None:
                 from both-set and neither-set outcomes).
     @return     None
     @exception  AssertionError If ``name`` or ``email`` do not match.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -315,8 +290,6 @@ def test_get_identity_neither_set() -> None:
                 raising.
     @return     None
     @exception  AssertionError If either field is not ``None``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -340,8 +313,6 @@ def test_set_identity_repo_local_by_default() -> None:
     @return     None
     @exception  AssertionError If ``--local`` is absent from the recorded
                 commands.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -365,8 +336,6 @@ def test_set_identity_global_when_requested() -> None:
     @return     None
     @exception  AssertionError If ``--global`` is absent from the recorded
                 commands.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -392,8 +361,6 @@ def test_status_porcelain_empty_tree() -> None:
     @brief      An empty porcelain output means a clean tree -> ``[]``.
     @return     None
     @exception  AssertionError If the result is not an empty list.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({("git", "-C", "/repo", "status", "--porcelain"): ok_result(stdout="")})
 
@@ -408,8 +375,6 @@ def test_status_porcelain_dirty_tree_with_rename_line() -> None:
                 not touch the status-code prefix at all.
     @return     None
     @exception  AssertionError If any line is altered or dropped.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     porcelain_output = " M modified.txt\n?? untracked.txt\nR  old_name.txt -> new_name.txt\n"
     runner = FakeCommandRunner(
@@ -433,8 +398,6 @@ def test_add_all_records_exact_argument_list() -> None:
     @brief      ``add_all`` issues exactly ``git -C <path> add -A``.
     @return     None
     @exception  AssertionError If the recorded argv differs.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({("git", "-C", "/repo", "add", "-A"): ok_result()})
 
@@ -452,8 +415,6 @@ def test_commit_records_exact_argument_list_with_message_as_single_arg() -> None
     @return     None
     @exception  AssertionError If the recorded argv differs or the message
                 is split across elements.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     message = "Initial commit; rm -rf / && echo pwned"
     runner = FakeCommandRunner({("git", "-C", "/repo", "commit", "-m", message): ok_result()})
@@ -470,8 +431,6 @@ def test_commit_failure_returns_ok_false_not_an_exception() -> None:
                 git's message, never raises.
     @return     None
     @exception  AssertionError If ``ok`` is not ``False`` or the call raises.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -493,8 +452,6 @@ def test_create_branch_records_exact_argument_list() -> None:
                 ``git -C <path> checkout -b <name>``.
     @return     None
     @exception  AssertionError If the recorded argv differs.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({("git", "-C", "/repo", "checkout", "-b", "feature/x"): ok_result()})
 
@@ -510,8 +467,6 @@ def test_create_branch_without_checkout_uses_branch_command() -> None:
                 instead, without switching.
     @return     None
     @exception  AssertionError If the recorded argv differs.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({("git", "-C", "/repo", "branch", "feature/x"): ok_result()})
 
@@ -528,8 +483,6 @@ def test_create_branch_empty_name_raises_value_error() -> None:
     @return     None
     @exception  AssertionError If no exception is raised or the runner was
                 invoked.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({})
 
@@ -566,7 +519,6 @@ def test_git_operations_forward_explicit_timeout_classes(tmp_path) -> None:
     @brief Forward plumbing, mutation, and clone timeout policies explicitly.
     @param[in] tmp_path Temporary path used for argument construction.
     @return None.
-    @version 0.1.0
     """
     repo = str(tmp_path / "repo")
     clone_target = str(tmp_path / "clone")
@@ -620,8 +572,6 @@ def test_windows_style_path_argument_construction_is_os_agnostic() -> None:
     @return     None
     @exception  AssertionError If the recorded argv does not contain the
                 Windows-style path verbatim.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     windows_path = r"C:\Users\test\projects\my-repo"
     runner = FakeCommandRunner(
@@ -649,8 +599,6 @@ def test_ls_files_returns_nul_split_tracked_paths() -> None:
                 tracked paths as a list, trailing NUL dropped.
     @return     None
     @exception  AssertionError If the parsed path list is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {("git", "-C", "/repo", "ls-files", "-z"): ok_result(stdout="src/a.py\0src/b.py\0tests/t.py\0")}
@@ -665,8 +613,6 @@ def test_ls_files_empty_repo_returns_empty_list_not_none() -> None:
                 ``None`` "could not list" signal the walk fallback keys on).
     @return     None
     @exception  AssertionError If the result is not an empty list.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({("git", "-C", "/repo", "ls-files", "-z"): ok_result(stdout="")})
 
@@ -679,8 +625,6 @@ def test_ls_files_not_a_work_tree_returns_none() -> None:
                 raises.
     @return     None
     @exception  AssertionError If the result is not ``None``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -698,8 +642,6 @@ def test_ls_files_git_missing_returns_none() -> None:
     @brief      A missing git executable returns ``None``, never raises.
     @return     None
     @exception  AssertionError If the call raises or returns other than ``None``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({})
 

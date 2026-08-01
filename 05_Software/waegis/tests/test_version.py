@@ -11,9 +11,6 @@
 @brief Tests for the WAEGIS version and payload compatibility range (AD-11).
 @details Verifies the wizard version constant and the inclusive-min /
          exclusive-max payload compatibility check. Runs offline.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 1.0.0
 """
 
 # IMPORTS
@@ -44,9 +41,6 @@ def test_payload_compat_range(payload_version: str, expected: bool) -> None:
     @param[in]  expected Expected compatibility verdict.
     @return     None
     @exception  AssertionError If the verdict does not match.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    1.0.0
     """
     assert version.is_payload_compatible(payload_version) is expected
 
@@ -56,9 +50,6 @@ def test_payload_compat_rejects_unparseable() -> None:
     @brief      An unparseable payload version raises ``ValueError``.
     @return     None
     @exception  AssertionError If ``ValueError`` is not raised.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     with pytest.raises(ValueError):
         version.is_payload_compatible("not-a-version")

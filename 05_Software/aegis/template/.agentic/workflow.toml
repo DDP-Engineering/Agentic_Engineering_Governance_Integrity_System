@@ -73,6 +73,8 @@ check_execution = "external"
 [gates.build]
 mode = "disabled"
 commands = []
+# Optional per-command timeout in seconds; omitted means 1800. Example:
+# timeout = 2400
 
 [gates.typecheck]
 mode = "disabled"

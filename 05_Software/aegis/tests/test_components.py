@@ -10,9 +10,6 @@
 @file test_components.py
 @brief Component manifest support tests.
 @details Covers the approved component and bundle contract for adoption runs.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.5.0
 """
 
 # IMPORTS
@@ -37,9 +34,6 @@ def write_manifest(repo_root: Path, body: str) -> None:
     @param[in]  body TOML body to write into the manifest.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
     """
     agentic = repo_root / ".agentic"
     agentic.mkdir(exist_ok=True)
@@ -55,9 +49,6 @@ def test_no_manifest_returns_empty_components_and_bundles(tmp_path: Path) -> Non
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     manifest = load_components(tmp_path, ".agentic/components.toml")
 
@@ -71,9 +62,6 @@ def test_one_component_resolves_repo_relative_path(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.3.0
     """
     write_manifest(
         tmp_path,
@@ -103,9 +91,6 @@ def test_bare_component_directory_matches_its_subtree(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -130,9 +115,6 @@ def test_bare_component_directory_does_not_match_sibling(tmp_path: Path) -> None
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -155,9 +137,6 @@ def test_baseline_usable_satisfies_baseline_comparison() -> None:
     @brief      Verify baseline-usable satisfies an explicit baseline minimum.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     assert has_usable_baseline("baseline-usable", "baseline-usable")
 
@@ -167,9 +146,6 @@ def test_discovered_is_below_usable_baseline() -> None:
     @brief      Verify discovered status is below an explicit usable baseline.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     assert not has_usable_baseline("discovered", "baseline-usable")
 
@@ -180,9 +156,6 @@ def test_bundle_with_six_components_emits_bundle_too_large(tmp_path: Path) -> No
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -219,9 +192,6 @@ def test_approved_bundle_with_two_components_is_valid(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -250,9 +220,6 @@ def test_invalid_component_status_emits_component_status_invalid(tmp_path: Path)
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -277,9 +244,6 @@ def test_audit_components_uses_configured_manifest_by_default(
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     agentic = tmp_path / ".agentic"
     agentic.mkdir(exist_ok=True)
@@ -307,9 +271,6 @@ def test_local_scope_blocks_component_below_minimum_baseline(tmp_path: Path) -> 
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -338,9 +299,6 @@ def test_local_scope_allows_component_with_usable_baseline(tmp_path: Path) -> No
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -367,9 +325,6 @@ def test_local_scope_allows_approved_bundle_with_usable_bundle_baseline(tmp_path
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -405,9 +360,6 @@ def test_local_scope_blocks_approved_bundle_when_bundle_and_component_baselines_
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.2.0
     """
     write_manifest(
         tmp_path,
@@ -447,9 +399,6 @@ def test_config_reads_adoption_component_knowledge_and_report_settings(
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-22
-    @version    0.1.0
     """
     agentic = tmp_path / ".agentic"
     agentic.mkdir(exist_ok=True)

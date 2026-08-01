@@ -15,9 +15,6 @@
          real socket or registry handle. Includes a regression guard proving
          no function in ``probes/network.py`` opens a real socket when called
          without an explicit host.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -54,8 +51,6 @@ def test_probe_proxy_no_env_no_registry_reports_not_configured() -> None:
     @return     None
     @exception  AssertionError If status is not ``"ok"`` or a proxy is
                 reported.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     finding = network.probe_proxy_configuration({})
 
@@ -71,8 +66,6 @@ def test_probe_proxy_https_proxy_env_var_reported_with_source() -> None:
                 source and value.
     @return     None
     @exception  AssertionError If the source or value is missing from detail.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     finding = network.probe_proxy_configuration({"HTTPS_PROXY": "http://proxy.corp:8080"})
 
@@ -88,8 +81,6 @@ def test_probe_proxy_windows_registry_used_when_no_env_var(monkeypatch: pytest.M
     @return     None
     @exception  AssertionError If the registry source is not surfaced, or the
                 registry was not consulted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     registry = FakeRegistryReader(network.WindowsProxySetting(enabled=True, server="proxy.corp:3128"))
 
@@ -107,8 +98,6 @@ def test_probe_proxy_registry_not_consulted_when_env_var_present() -> None:
                 never read when an env var already answers the question.
     @return     None
     @exception  AssertionError If the registry was consulted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     registry = FakeRegistryReader(network.WindowsProxySetting(enabled=True, server="ignored:1"))
 
@@ -125,8 +114,6 @@ def test_probe_proxy_disabled_registry_setting_reports_not_configured() -> None:
     @return     None
     @exception  AssertionError If a disabled setting is reported as
                 configured.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     registry = FakeRegistryReader(network.WindowsProxySetting(enabled=False, server="proxy.corp:3128"))
 
@@ -145,8 +132,6 @@ def test_probe_proxy_conflicting_env_var_casings_resolve_deterministically() -> 
     @exception  AssertionError If the resolved value is not the uppercase
                 variant, or the result is nondeterministic across dict
                 orderings.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     env_a = {"HTTPS_PROXY": "http://upper.corp:8080", "https_proxy": "http://lower.corp:8080"}
     env_b = {"https_proxy": "http://lower.corp:8080", "HTTPS_PROXY": "http://upper.corp:8080"}
@@ -168,8 +153,6 @@ def test_probe_proxy_connectivity_check_direct_succeeds() -> None:
     @return     None
     @exception  AssertionError If status is not ``"info"`` or the direct
                 success is not mentioned.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("forge.internal", 443, True): connected()})
 
@@ -192,8 +175,6 @@ def test_probe_proxy_connectivity_check_direct_fails_proxy_reachable() -> None:
                 working path.
     @return     None
     @exception  AssertionError If status escalates to ``"fail"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport(
         {
@@ -219,8 +200,6 @@ def test_probe_proxy_connectivity_check_both_paths_fail() -> None:
     @return     None
     @exception  AssertionError If status is not ``"fail"`` or guidance is
                 missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport(
         {
@@ -248,8 +227,6 @@ def test_probe_tls_interception_ok_for_known_public_ca() -> None:
     @brief      A certificate issuer matching a known public CA marker passes.
     @return     None
     @exception  AssertionError If status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport(
         {("forge.example.com", 443, True): connected(issuer="C=US, O=DigiCert Inc, CN=DigiCert Global Root CA")}
@@ -269,8 +246,6 @@ def test_probe_tls_interception_warns_on_unexpected_issuer() -> None:
     @return     None
     @exception  AssertionError If status is not ``"warn"`` or the issuer is
                 not named.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport(
         {("forge.example.com", 443, True): connected(issuer="O=Acme Corporate Proxy CA, CN=Acme MITM Root")}
@@ -293,8 +268,6 @@ def test_probe_tls_interception_reports_connect_failure_via_reachability_text() 
     @return     None
     @exception  AssertionError If status is not ``"fail"`` or the detail does
                 not describe a timeout.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("forge.example.com", 443, True): timed_out()})
 
@@ -312,8 +285,6 @@ def test_probe_host_reachability_reachable() -> None:
     @brief      A successful connect reports ``"ok"``.
     @return     None
     @exception  AssertionError If status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("mirror.internal", 8443, True): connected()})
 
@@ -330,8 +301,6 @@ def test_probe_host_reachability_timeout() -> None:
                 guidance.
     @return     None
     @exception  AssertionError If the guidance does not mention allowlisting.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("mirror.internal", 8443, True): timed_out()})
 
@@ -349,8 +318,6 @@ def test_probe_host_reachability_refused() -> None:
     @return     None
     @exception  AssertionError If the detail/guidance do not describe a
                 refusal.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("mirror.internal", 8443, True): refused()})
 
@@ -368,8 +335,6 @@ def test_probe_host_reachability_dns_failure() -> None:
     @return     None
     @exception  AssertionError If the detail/guidance do not describe a DNS
                 failure.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("mirror.internal", 8443, True): dns_failure()})
 
@@ -388,8 +353,6 @@ def test_reachability_findings_are_distinct_per_failure_kind() -> None:
     @return     None
     @exception  AssertionError If any two failure-kind findings share detail
                 text.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport(
         {
@@ -418,8 +381,6 @@ def test_failed_reachability_finding_maps_to_blocking_point_report() -> None:
     @return     None
     @exception  AssertionError If a field is missing or the render call
                 raises.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("forge.internal", 443, True): refused()})
     finding = network.probe_host_reachability(transport, "forge.internal", 443)
@@ -455,8 +416,6 @@ def test_blocking_point_report_accepts_custom_alternatives() -> None:
     @return     None
     @exception  AssertionError If the custom alternatives are not used
                 verbatim.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({("h", 1, True): dns_failure()})
     finding = network.probe_host_reachability(transport, "h", 1)
@@ -483,8 +442,6 @@ def test_network_findings_satisfy_probe_finding_protocol() -> None:
                 without adaptation.
     @return     None
     @exception  AssertionError If a finding fails the protocol check.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport(
         {
@@ -509,8 +466,6 @@ def test_no_host_argument_never_touches_a_real_transport(monkeypatch: pytest.Mon
                 regression.
     @return     None
     @exception  AssertionError If ``connect`` was called.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     transport = FakeTransport({})  # any call raises AssertionError
 
@@ -529,8 +484,6 @@ def test_no_host_argument_never_opens_a_real_socket(monkeypatch: pytest.MonkeyPa
                 constructed and available to the caller.
     @return     None
     @exception  AssertionError If ``socket.create_connection`` was called.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
 
     def _fail_if_called(*args: object, **kwargs: object) -> None:

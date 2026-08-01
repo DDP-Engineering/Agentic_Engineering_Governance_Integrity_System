@@ -20,9 +20,6 @@
          follow-up) cover the POSIX execute-bit backstop applied to every
          copied ``.sh`` file; the mocked-``chmod`` tests are meaningful on
          any host OS, plus one real-filesystem proof skipped on Windows.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.2.1
 """
 
 # IMPORTS
@@ -77,8 +74,6 @@ def _make_payload(root: Path) -> Path:
     @param[in]  root Directory to populate.
     @return     ``root``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (root / ".agentic").mkdir(parents=True)
     (root / ".agentic" / "workflow.toml").write_bytes(b"[workflow]\nname = 'toy'\n")
@@ -95,8 +90,6 @@ class _RecordingHook:
     """
     @brief Decision hook that records every conflict it is asked about and
            answers with a fixed decision.
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
 
     def __init__(self, decision: ConflictDecision) -> None:
@@ -105,8 +98,6 @@ class _RecordingHook:
         @param[in]  decision Decision returned for every conflict.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self.decision = decision
         self.seen: list[PayloadConflict] = []
@@ -117,8 +108,6 @@ class _RecordingHook:
         @param[in]  conflict The conflict presented by the copier.
         @return     The fixed decision.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self.seen.append(conflict)
         return self.decision
@@ -130,8 +119,6 @@ def _tree_snapshot(root: Path) -> dict[str, bytes]:
     @param[in]  root Directory to snapshot.
     @return     Mapping of relative POSIX path to file content.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     if not root.exists():
         return {}
@@ -187,8 +174,6 @@ def test_new_copy_into_empty_dir_copies_exact_file_set(tmp_path: Path) -> None:
                 directories, and writes a manifest recording every file.
     @return     None
     @exception  AssertionError If the copied set or manifest is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -222,8 +207,6 @@ def test_copied_files_are_byte_verbatim_by_direct_hash_equality(tmp_path: Path) 
                 and the manifest records that same source hash.
     @return     None
     @exception  AssertionError If any copy translated or altered bytes.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -246,8 +229,6 @@ def test_dry_run_reports_same_files_and_writes_nothing(tmp_path: Path) -> None:
                 nothing: no target directory, no files, no manifest.
     @return     None
     @exception  AssertionError If dry-run wrote anything or diverged.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -270,8 +251,6 @@ def test_missing_payload_and_missing_existing_target_raise_typed_errors(tmp_path
                 raise their typed errors with the legacy message text.
     @return     None
     @exception  AssertionError If the errors or messages are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with pytest.raises(PayloadMissingError, match="Template directory not found"):
         copy_payload(tmp_path / "no-payload", tmp_path / "target", mode="new")
@@ -292,8 +271,6 @@ def test_strict_mode_refuses_differing_file_and_leaves_target_untouched(tmp_path
                 untouched (the documented no-partial-copy decision).
     @return     None
     @exception  AssertionError If anything was written or the error is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -316,8 +293,6 @@ def test_strict_mode_refuses_even_identical_files(tmp_path: Path) -> None:
                 destination file, even one byte-identical to the payload.
     @return     None
     @exception  AssertionError If an identical file is silently accepted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -335,8 +310,6 @@ def test_strict_dry_run_also_refuses_on_existing_files(tmp_path: Path) -> None:
                 preceded its dry-run guard).
     @return     None
     @exception  AssertionError If dry-run bypasses the refusal.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -359,8 +332,6 @@ def _make_adoption_target(payload: Path, target: Path) -> None:
     @param[in]  target Target directory to populate.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target.mkdir()
     (target / "AGENTS.md").write_bytes((payload / "AGENTS.md").read_bytes())
@@ -377,8 +348,6 @@ def test_adoption_classifies_missing_identical_different(tmp_path: Path) -> None
                 called exactly once, never for identical or missing files.
     @return     None
     @exception  AssertionError If classification or hook cardinality is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -406,8 +375,6 @@ def test_keep_local_preserves_file_and_records_skip(tmp_path: Path) -> None:
                 from manifest files, and records it under skipped.
     @return     None
     @exception  AssertionError If the local file was replaced or not skipped.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -431,8 +398,6 @@ def test_take_payload_replaces_file_and_records_it(tmp_path: Path) -> None:
                 records it in manifest files with the source hash.
     @return     None
     @exception  AssertionError If the payload bytes did not replace the local.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -457,8 +422,6 @@ def test_write_new_keeps_local_and_writes_sidecar(tmp_path: Path) -> None:
                 under skipped, and never lists the sidecar in manifest files.
     @return     None
     @exception  AssertionError If either side of the decision is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -484,8 +447,6 @@ def test_adoption_dry_run_lists_conflicts_without_calling_hook(tmp_path: Path) -
                 hook and writes nothing.
     @return     None
     @exception  AssertionError If the hook was consulted or anything written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -510,8 +471,6 @@ def test_invalid_hook_return_raises_and_leaves_target_untouched(tmp_path: Path) 
                 both cases the target is untouched.
     @return     None
     @exception  AssertionError If a write happened despite the failing hook.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -537,8 +496,6 @@ def test_write_new_refuses_existing_differing_sidecar(tmp_path: Path) -> None:
                 with different content, leaving the target untouched.
     @return     None
     @exception  AssertionError If the sidecar was clobbered.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -562,8 +519,6 @@ def test_force_overwrites_everything_via_internal_take_payload_hook(tmp_path: Pa
     @return     None
     @exception  AssertionError If force diverges from legacy overwrite
                 behavior.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -587,8 +542,6 @@ def test_force_and_hook_are_mutually_exclusive(tmp_path: Path) -> None:
                 ValueError.
     @return     None
     @exception  AssertionError If the ambiguous combination is accepted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     with pytest.raises(ValueError, match="mutually exclusive"):
@@ -612,8 +565,6 @@ def test_exclusion_rules_never_copy_generated_or_dependency_state(tmp_path: Path
     @return     None
     @exception  AssertionError If any excluded artifact reaches the target or
                 the manifest.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     for part in ("__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".vitest"):
@@ -642,8 +593,6 @@ def test_should_exclude_predicate_matches_ported_rules(tmp_path: Path) -> None:
                 exclusion rule.
     @return     None
     @exception  AssertionError If any deployment exclusion rule diverges.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     excluded = [
         Path("pkg/__pycache__/module.pyc"),
@@ -669,8 +618,6 @@ def test_payload_shipped_manifest_is_never_copied(tmp_path: Path) -> None:
                 not the payload's copy.
     @return     None
     @exception  AssertionError If the payload's stale manifest leaks through.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     (payload / MANIFEST_RELATIVE_PATH).write_bytes(b'{"stale": true}')
@@ -698,9 +645,6 @@ def test_ensure_executable_grants_exec_bits_on_posix(tmp_path: Path, monkeypatch
     @param[in]  monkeypatch Pytest fixture.
     @return     None
     @exception  AssertionError If ``chmod`` is not called with the OR'd mode.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(copier_module.os, "name", "posix")
     destination = tmp_path / "run.sh"
@@ -723,9 +667,6 @@ def test_ensure_executable_is_a_noop_on_windows(tmp_path: Path, monkeypatch: pyt
     @param[in]  monkeypatch Pytest fixture.
     @return     None
     @exception  AssertionError If ``chmod`` is called.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(copier_module.os, "name", "nt")
     destination = tmp_path / "run.sh"
@@ -745,9 +686,6 @@ def test_ensure_executable_ignores_non_script_suffixes(tmp_path: Path, monkeypat
     @param[in]  monkeypatch Pytest fixture.
     @return     None
     @exception  AssertionError If ``chmod`` is called.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(copier_module.os, "name", "posix")
     destination = tmp_path / "notes.txt"
@@ -769,9 +707,6 @@ def test_real_template_shell_scripts_are_executable_after_copy_on_posix(tmp_path
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If either script lacks the owner execute bit.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     assert REAL_TEMPLATE.is_dir()
     target = tmp_path / "target"
@@ -795,8 +730,6 @@ def test_real_template_end_to_end_copy_and_manifest(tmp_path: Path) -> None:
                 payload_version matches the template's own declaration.
     @return     None
     @exception  AssertionError If the real payload surprises the copier.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.1
     """
     assert REAL_TEMPLATE.is_dir()
     target = tmp_path / "target"

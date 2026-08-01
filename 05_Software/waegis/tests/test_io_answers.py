@@ -14,9 +14,6 @@
          all-missing-keys-at-once reporting for ``--non-interactive``,
          malformed-file error clarity, and BOM tolerance for JSON files
          written by Windows PowerShell.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.2.0
 """
 
 # IMPORTS
@@ -45,8 +42,6 @@ def _specs() -> list[FieldSpec]:
     @brief      A small representative FieldSpec set for the round-trip tests.
     @return     Three fields: a required text field, a defaulted field, and a
                 secret field that must never be saved.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return [
         FieldSpec(key="project_name", description="Project name."),
@@ -63,8 +58,6 @@ def test_toml_round_trip(tmp_path: Path) -> None:
     @brief      Saving then loading a TOML answers file round-trips the values.
     @return     None
     @exception  AssertionError If the loaded mapping does not match the saved one.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "answers.toml"
     specs = _specs()
@@ -81,8 +74,6 @@ def test_json_with_utf8_bom_loads(tmp_path: Path) -> None:
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the BOM breaks loading.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "answers.json"
     path.write_bytes(b'\xef\xbb\xbf{"project_name": "acme"}')
@@ -94,8 +85,6 @@ def test_json_round_trip(tmp_path: Path) -> None:
     @brief      Saving then loading a JSON answers file round-trips the values.
     @return     None
     @exception  AssertionError If the loaded mapping does not match the saved one.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "answers.json"
     specs = _specs()
@@ -111,8 +100,6 @@ def test_save_excludes_secret_fields(tmp_path: Path) -> None:
                 regardless of the file format.
     @return     None
     @exception  AssertionError If the secret value is present in either file.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     specs = _specs()
     answers = {"project_name": "acme", "source_root": "src", "api_token": "top-secret"}
@@ -133,8 +120,6 @@ def test_unknown_keys_are_collected_not_raised(tmp_path: Path) -> None:
                 caller as a warning, not a load failure.
     @return     None
     @exception  AssertionError If the load raises or the unknown key is missed.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "answers.json"
     path.write_text('{"project_name": "acme", "typo_field": "oops"}', encoding="utf-8")
@@ -149,8 +134,6 @@ def test_missing_required_keys_reports_all_at_once() -> None:
                 required key in one structured error, not just the first.
     @return     None
     @exception  AssertionError If not all missing keys are present in the error.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     specs = [
         FieldSpec(key="project_name", description="Name."),
@@ -169,8 +152,6 @@ def test_require_non_interactive_answers_resolves_defaults_and_validates() -> No
                 values.
     @return     None
     @exception  AssertionError If resolution is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     specs = [
         FieldSpec(key="project_name", description="Name."),
@@ -186,8 +167,6 @@ def test_malformed_toml_file_raises_clear_error(tmp_path: Path) -> None:
                 message rather than an uncaught parser exception.
     @return     None
     @exception  AssertionError If the wrong exception type is raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "broken.toml"
     path.write_text("this = = not valid toml", encoding="utf-8")
@@ -201,8 +180,6 @@ def test_malformed_json_file_raises_clear_error(tmp_path: Path) -> None:
                 message rather than an uncaught parser exception.
     @return     None
     @exception  AssertionError If the wrong exception type is raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "broken.json"
     path.write_text("{not valid json", encoding="utf-8")
@@ -216,8 +193,6 @@ def test_unsupported_extension_raises_clear_error(tmp_path: Path) -> None:
                 error rather than being silently misparsed.
     @return     None
     @exception  AssertionError If the wrong exception type is raised.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = tmp_path / "answers.yaml"
     path.write_text("project_name: acme", encoding="utf-8")

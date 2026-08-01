@@ -12,9 +12,6 @@
 @details Covers CLI approval validation, persistence, hard-block consumption,
          digest staleness, honest WAIVED rendering, and the non-waivable
          persistence-integrity floor.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-31
-@version 0.2.0
 """
 
 # IMPORTS
@@ -73,7 +70,6 @@ def _journal(repo_root: Path, run_id: str) -> list[dict[str, object]]:
     @param[in] repo_root Temporary repository root.
     @param[in] run_id Run whose journal is inspected.
     @return Parsed journal entries in append order.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "runs" / run_id / "journal.jsonl"
     return [
@@ -88,7 +84,6 @@ def _configure_failing_test_gate(repo_root: Path) -> WorkflowConfig:
     @brief Enable one deterministic enforced gate that exits with status seven.
     @param[in] repo_root Temporary repository root.
     @return Reloaded workflow configuration.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -107,7 +102,6 @@ def _approve_empty_design(repo_root: Path, graph: Graph) -> None:
     @param[in] repo_root Temporary repository root.
     @param[in,out] graph Mutable workflow graph.
     @return None.
-    @version 0.1.0
     """
     design_path = repo_root / ".agentic" / "runs" / graph.run_id / "design.md"
     design_path.parent.mkdir(parents=True, exist_ok=True)
@@ -133,7 +127,6 @@ def _configure_coverage(repo_root: Path) -> WorkflowConfig:
     @brief Enable source coverage enforcement for one temporary repository.
     @param[in] repo_root Temporary repository root.
     @return Reloaded workflow configuration.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -159,7 +152,6 @@ def _invariant(
     """
     @brief Return one named invariant from a complete evaluation.
     @return Matching invariant result.
-    @version 0.1.0
     """
     return next(
         item
@@ -378,7 +370,6 @@ def test_gate_waiver_unblocks_verification_and_renders_honest_failure(
         tmp_path,
         graph,
         config,
-        timeout=10,
     )
     assert first_code == 1
     graph = load_graph(tmp_path, graph.run_id)
@@ -395,7 +386,7 @@ def test_gate_waiver_unblocks_verification_and_renders_honest_failure(
         blocker.state_digests,
     )
 
-    summary, code = run_verification(tmp_path, graph, config, timeout=10)
+    summary, code = run_verification(tmp_path, graph, config)
 
     assert code == 0, json.dumps(summary, indent=2)
     gate = summary["gates"]["test"]
@@ -920,7 +911,6 @@ def _configure_secret_scanning(repo_root: Path) -> WorkflowConfig:
     @brief Enable one enforced secret pattern in the workflow policy.
     @param[in] repo_root Temporary repository root.
     @return Reloaded workflow configuration.
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")

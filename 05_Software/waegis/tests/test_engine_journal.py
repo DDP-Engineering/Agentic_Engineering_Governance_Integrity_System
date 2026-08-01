@@ -13,9 +13,6 @@
          write/read round-trip, a loaded journal never bypasses current-state
          detection, and the ``WAEGIS_HOME`` override is honoured. Strictly offline; all
          writes go under a pytest ``tmp_path``.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -49,8 +46,6 @@ def test_journal_round_trip(tmp_path: Path) -> None:
     @param[in]  tmp_path Pytest-provided temporary directory (WAEGIS home).
     @return     None
     @exception  AssertionError If the reloaded journal differs.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     journal = Journal.begin(
         mode="test",
@@ -75,8 +70,6 @@ def test_secrets_never_journaled_by_construction(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary WAEGIS home.
     @return     None
     @exception  AssertionError If unexpected answer keys are journaled.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     journal = Journal.begin(mode="test", wizard_version=WIZARD_VERSION, home=tmp_path)
     run(build_toy_catalog(), make_ctx(), journal=journal)
@@ -93,8 +86,6 @@ def test_resume_redetects_previously_green_steps(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary WAEGIS home.
     @return     None
     @exception  AssertionError If a resumed step acts or is not skipped.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_toy_catalog()
 
@@ -119,8 +110,6 @@ def test_resume_iterable_is_only_a_redetection_hint(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary WAEGIS home.
     @return     None
     @exception  AssertionError If a seeded id is not skipped.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = make_ctx()
     summary = run(build_toy_catalog(), ctx, resume={"toy.a"})
@@ -139,8 +128,6 @@ def test_waegis_home_override_respected(tmp_path: Path, monkeypatch) -> None:
     @param[in]  monkeypatch Pytest environment patcher.
     @return     None
     @exception  AssertionError If the override is not honoured.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setenv("WAEGIS_HOME", str(tmp_path))
     assert waegis_home() == tmp_path

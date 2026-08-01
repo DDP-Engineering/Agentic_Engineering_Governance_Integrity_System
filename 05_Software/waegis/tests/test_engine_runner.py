@@ -14,9 +14,6 @@
          stopping the run (R5); ``verify`` always following ``act`` (R5); an
          assisted step not acting without confirmation; and ``--dry-run``
          mutating nothing. Strictly offline; no journal or filesystem needed.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -51,8 +48,6 @@ def _statuses(summary) -> dict[str, StepStatus]:
     @brief      Map each step id in a summary to its terminal status.
     @param[in]  summary The :class:`RunSummary` to read.
     @return     Mapping of step id to :class:`StepStatus`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return {r.step_id: r.status for r in summary.results}
 
@@ -65,8 +60,6 @@ def test_full_green_run() -> None:
     @brief      Every step of the toy catalog runs and verifies green once.
     @return     None
     @exception  AssertionError On any non-green step or wrong act count.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = make_ctx()
     summary = run(build_toy_catalog(), ctx)
@@ -91,8 +84,6 @@ def test_detect_skip_on_rerun() -> None:
                 skips it, without acting again (R6).
     @return     None
     @exception  AssertionError If a step re-acts or is not skipped.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     catalog = build_toy_catalog()
     ctx = make_ctx()
@@ -112,8 +103,6 @@ def test_act_failure_surfaces_on_fail_and_stops() -> None:
                 guidance and stops the run before later steps (R5).
     @return     None
     @exception  AssertionError If the failure is not surfaced or the run continues.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = make_ctx()
     summary = run(build_toy_catalog(fail_step="toy.a", fail_mode="act"), ctx)
@@ -136,8 +125,6 @@ def test_verify_failure_stops_run() -> None:
                 stops the run.
     @return     None
     @exception  AssertionError If a false verify does not fail/stop.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = make_ctx()
     summary = run(build_toy_catalog(fail_step="toy.b", fail_mode="verify"), ctx)
@@ -156,8 +143,6 @@ def test_verify_always_called_after_act() -> None:
                 via the call order and the emitted events (R5).
     @return     None
     @exception  AssertionError If verify does not follow act.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     sink = RecordingSink()
     ctx = make_ctx(sink=sink)
@@ -183,8 +168,6 @@ def test_assisted_step_without_confirmation_does_not_act() -> None:
                 stops the run as DECLINED.
     @return     None
     @exception  AssertionError If the step acts or the run does not stop.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     # First confirm approves the plan; second (for the assisted toy.b) refuses.
     asker = ScriptAsker(confirms=[True, False])
@@ -205,8 +188,6 @@ def test_plan_rejected_runs_nothing() -> None:
     @brief      Declining the plan-preview gate runs no step.
     @return     None
     @exception  AssertionError If any step acts or the run reports ok.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     asker = ScriptAsker(confirms=[False])
     ctx = make_ctx(asker=asker)
@@ -223,8 +204,6 @@ def test_dry_run_mutates_nothing() -> None:
                 preview lifecycle events are emitted.
     @return     None
     @exception  AssertionError If any step acts or a step event is emitted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     sink = RecordingSink()
     ctx = make_ctx(sink=sink)

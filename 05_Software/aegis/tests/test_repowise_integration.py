@@ -11,9 +11,6 @@
 @brief Verify the optional RepoWise discovery-provider boundary.
 @details Covers strict configuration, receipt/artifact validation, normalized
          adoption proposals, advisory behavior, and required freshness.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-29
-@version 1.1.0
 """
 
 # IMPORTS

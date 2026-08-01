@@ -12,9 +12,6 @@
 @details Uses abrupt child-process termination at each write barrier to prove
          that the next authenticated recovery restores the exact prior state,
          while committed cleanup failures preserve applied state.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-30
-@version 1.0.0
 """
 
 # IMPORTS
@@ -71,7 +68,6 @@ def _snapshot(repo: Path) -> dict[str, bytes | None]:
 def _run_crashing_configuration(repo: Path, stage: str) -> subprocess.CompletedProcess[str]:
     """
     @brief Run RepoWise configuration in a child that exits at one barrier.
-    @version 0.2.0
     """
     script = r"""
 import os
