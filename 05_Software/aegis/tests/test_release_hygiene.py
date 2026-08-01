@@ -126,7 +126,7 @@ def test_current_waegis_version_declarations_agree() -> None:
     assert project["tool"]["setuptools"]["dynamic"]["version"]["attr"] == (
         "waegis.version.WIZARD_VERSION"
     )
-    assert WAEGIS_PACKAGE_VERSION == WIZARD_VERSION == "1.1.0"
+    assert WAEGIS_PACKAGE_VERSION == WIZARD_VERSION == "1.2.0"
     assert delivery_manifest["waegis_version"] == WIZARD_VERSION
 
 

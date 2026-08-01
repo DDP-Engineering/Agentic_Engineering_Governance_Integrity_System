@@ -1,0 +1,34 @@
+{
+  "artifact_metadata": {
+    "waegis-complete-windows-x64.zip": {
+      "edition": "complete",
+      "sha256": "ec3a5ba675f19248ab62dd68f4efc9c55660f18f86e5eed84aea1091d7c4479c",
+      "size": 266460040
+    },
+    "waegis-linux-x64.tar.gz": {
+      "edition": "core",
+      "sha256": "49f8fc28b33200d2644e653c2195fbff203d6d1bd03066b32e798f9ea9e7cfcb",
+      "size": 69088764
+    },
+    "waegis-windows-x64.zip": {
+      "edition": "core",
+      "sha256": "4d84bcd1582b5815183b0eda52a6857458afac3812574f45bf7e0e43cfabe605",
+      "size": 24252966
+    },
+    "waegis.pyz": {
+      "edition": "core",
+      "sha256": "c6f672e3c4fee9d8d29066a6d4e9f887623da661c19cc616e3d43584b8301f28",
+      "size": 694872
+    }
+  },
+  "artifacts": {
+    "waegis-complete-windows-x64.zip": "ec3a5ba675f19248ab62dd68f4efc9c55660f18f86e5eed84aea1091d7c4479c",
+    "waegis-linux-x64.tar.gz": "49f8fc28b33200d2644e653c2195fbff203d6d1bd03066b32e798f9ea9e7cfcb",
+    "waegis-windows-x64.zip": "4d84bcd1582b5815183b0eda52a6857458afac3812574f45bf7e0e43cfabe605",
+    "waegis.pyz": "c6f672e3c4fee9d8d29066a6d4e9f887623da661c19cc616e3d43584b8301f28"
+  },
+  "build_epoch": 1785572526,
+  "repowise_version": "0.37.0",
+  "schema_version": 1,
+  "waegis_version": "1.2.0"
+}
