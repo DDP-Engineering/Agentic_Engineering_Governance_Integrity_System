@@ -676,6 +676,24 @@ TICKET_RE = re.compile(
     r"(?<![\w&#])#\d+\b|\b[A-Z][A-Z0-9]{1,9}-\d{1,6}\b|\b(?:TASK|REQ)-[0-9A-Za-z-]{2,}\b"
 )
 
+#: standards and formats share the JIRA-style shape (UTF-8, SHA-256, RFC-2119,
+#: AES-128 ...). Technical prose is full of them and none is a ticket, so the
+#: prefix is checked before a match is reported.
+NOT_TICKET_PREFIXES = frozenset({
+    "AAC", "AES", "AGPL", "ANSI", "ARM", "ASCII", "BASE", "BSD", "CP", "CSS",
+    "DB", "DIN", "DPI", "EN", "FLAC", "FPS", "GPL", "H", "HTML", "HTTP", "HZ",
+    "IEC", "IEEE", "IPV", "ISO", "KHZ", "LGPL", "MD", "MP", "MPEG", "OGG",
+    "PCM", "PY", "QT", "RFC", "RGB", "RGBA", "RSA", "SHA", "SQL", "SRGB",
+    "SSL", "TLS", "USB", "UTC", "UTF", "WAV", "WCAG", "X", "XML",
+})
+
+
+def is_ticket_reference(hit: str) -> bool:
+    """@brief True when a TICKET_RE hit is a ticket, not a standard or format."""
+    if hit.startswith("#") or hit.startswith(("TASK-", "REQ-")):
+        return True
+    return hit.split("-", 1)[0].upper() not in NOT_TICKET_PREFIXES
+
 DIFF_HEADER_RE = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 CHECK_EPILOG = (
@@ -971,7 +989,8 @@ def check_requirement_links(add, records) -> None:
                 if not exists:
                     add("WARN", "stale-paths", relpath,
                         f"{entry} no longer exists")
-        for hit in sorted(set(TICKET_RE.findall(str(data.get("requirement", ""))))):
+        hits = set(TICKET_RE.findall(str(data.get("requirement", ""))))
+        for hit in sorted(h for h in hits if is_ticket_reference(h)):
             add("WARN", "ticket-ref", relpath, f"ticket pattern: {hit}")
 
 
