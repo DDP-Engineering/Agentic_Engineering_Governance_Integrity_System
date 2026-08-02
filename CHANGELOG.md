@@ -24,8 +24,40 @@ All notable changes to this project will be documented in this file.
   hooks, integrations, and skills, durable governance state, and workflow run
   records, then maintenance, upgrades, transactions, and legacy history.
 
+### Fixed
+
+- Reconcile check evidence state instead of silently discarding it, closing
+  two defects found on a real downstream run. Reapplying the check stage now
+  preserves the red/green links and state of every check whose identity and
+  command are unchanged, re-deriving them from the active evidence the graph
+  still holds (`stage_forms._apply_checks` previously rebuilt every check
+  with default `unknown`/`None` link fields, so any reapply orphaned all
+  recorded evidence and INV-3 misreported green checks as missing red
+  evidence). Recording a check observation now supersedes its older active
+  evidence through the shared `check_execution._update_check_states` rule:
+  a new record retires prior active records with the same result, and a
+  genuine pass additionally retires earlier failed attempts from the
+  implementation/validation/delivery stages, so INV-4 stops reporting a
+  live regression for a check that later truly passed. The check-stage red
+  witness is never retired by a pass, and a new failure never retires an
+  older pass, keeping red-before-green and genuine regressions honest. Both
+  paths share the new `store.relink_check_evidence` helper, which never
+  leaves a link pointing at superseded evidence.
+
 ### Changed
 
+- Let `check_execution.prepare_check_evidence` / `record_check_evidence` accept
+  a partial external evidence document. A check whose stage evidence blocker is
+  already covered by an active, exactly matching waiver is excused: it gets no
+  generated `[[result]]` row, and completeness is measured against the checks
+  that remain rather than every imported check. Excused status reuses the
+  blockers `stage_forms.stage_blockers` already evaluates
+  (`red-before-green:<check-id>` during check,
+  `stage:implementation:<check-id>:green-evidence` during implementation), so a
+  stale or absent waiver excuses nothing. Recording rejects a row submitted for
+  an excused check, and both commands refuse when every check is excused.
+  Previously the only way to record real evidence while one check stayed waived
+  was to fabricate a result for it.
 - Replace `requirements.update_requirement`'s 15-parameter (13 keyword-only)
   signature with a single `patch: RequirementPatch` argument; the three
   `value`/`clear_value` mutual-exclusion checks moved into
@@ -62,6 +94,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Fix `gates._run_command` reporting a real gate as an unlaunchable
+  configuration error (exit 127) when Windows refuses direct exec with
+  `PermissionError` — a resolved directory, or a shim `CreateProcess` will not
+  launch itself. An argv-eligible command is now retried once through the
+  shell; a failing retry still synthesizes 124/127 on the normal evidence path.
+  Commands that already required shell mode, and non-Windows platforms, are
+  unchanged. Ported from the correction made in the AudioMancer payload.
 - Fix `waegis upgrade` reporting "upgrade failed and was rolled back" for every
   apply-phase exception, including two cases where that was untrue: a
   `TransactionCleanupError` raised *after* the commit marker (the payload was

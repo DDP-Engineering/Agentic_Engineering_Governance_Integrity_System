@@ -27,10 +27,113 @@ import pytest
 import aegis.gates as gates_module
 from aegis.cli import main
 from aegis.config import DEFAULT_GATE_TIMEOUT_SECONDS, ConfigurationError, load_config
-from aegis.gates import _argv_for_simple_command, run_gates
+from aegis.gates import _argv_for_simple_command, _run_command, run_gates
 from aegis.store import init_graph, load_graph, set_access_mode
 
 # TESTS
+
+
+def test_windows_permission_error_retries_the_command_through_the_shell(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Launch an argv-eligible gate through the shell when direct exec is
+           refused by Windows.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    """
+    monkeypatch.setattr("os.name", "nt")
+    calls: list[bool] = []
+
+    def refuse_then_succeed(*args: object, **kwargs: object) -> object:
+        """@brief Refuse direct exec once, then complete through the shell."""
+        calls.append(bool(kwargs["shell"]))
+        if not kwargs["shell"]:
+            raise PermissionError(5, "Access is denied")
+        return subprocess.CompletedProcess("pytest -q", 0, "passed", "")
+
+    monkeypatch.setattr(subprocess, "run", refuse_then_succeed)
+
+    result = _run_command(tmp_path, "pytest -q", 30)
+
+    assert calls == [False, True]
+    assert result.returncode == 0
+    assert result.stdout == "passed"
+
+
+@pytest.mark.parametrize(
+    ("retry_error", "returncode"),
+    [
+        (subprocess.TimeoutExpired("pytest -q", 30), 124),
+        (OSError("shell unavailable"), 127),
+    ],
+)
+def test_failed_shell_retry_stays_on_the_evidence_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    retry_error: BaseException,
+    returncode: int,
+) -> None:
+    """
+    @brief Synthesize a failing gate when the shell retry also cannot complete.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @param[in] retry_error Failure raised by the retried shell launch.
+    @param[in] returncode Synthesized timeout or unlaunchable exit status.
+    @return None.
+    """
+    monkeypatch.setattr("os.name", "nt")
+
+    def refuse_then_fail(*args: object, **kwargs: object) -> object:
+        """@brief Refuse direct exec, then fail the shell retry."""
+        if not kwargs["shell"]:
+            raise PermissionError(5, "Access is denied")
+        raise retry_error
+
+    monkeypatch.setattr(subprocess, "run", refuse_then_fail)
+
+    result = _run_command(tmp_path, "pytest -q", 30)
+
+    assert result.returncode == returncode
+    assert result.stdout == ""
+    assert type(retry_error).__name__ in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("os_name", "command"),
+    [("posix", "pytest -q"), ("nt", "pytest -q && ruff check")],
+)
+def test_permission_error_is_not_retried_outside_windows_direct_exec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    os_name: str,
+    command: str,
+) -> None:
+    """
+    @brief Report a refused launch as unlaunchable when no retry applies.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @param[in] os_name Platform reported to the gate runner.
+    @param[in] command Argv-eligible or shell-only gate command.
+    @return None.
+    """
+    monkeypatch.setattr("os.name", os_name)
+    calls: list[bool] = []
+
+    def always_refuse(*args: object, **kwargs: object) -> object:
+        """@brief Refuse every launch attempt."""
+        calls.append(bool(kwargs["shell"]))
+        raise PermissionError(5, "Access is denied")
+
+    monkeypatch.setattr(subprocess, "run", always_refuse)
+
+    result = _run_command(tmp_path, command, 30)
+
+    assert len(calls) == 1
+    assert result.returncode == 127
+    assert "PermissionError" in result.stderr
 
 
 def test_repo_relative_executable_is_resolved(tmp_path: Path) -> None:

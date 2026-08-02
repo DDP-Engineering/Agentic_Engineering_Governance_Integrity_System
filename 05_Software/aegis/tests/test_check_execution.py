@@ -10,8 +10,9 @@
 @file test_check_execution.py
 @brief Behavioral tests for external deterministic check evidence.
 @details Covers canonical field storage, complete-document validation,
-         preparation preconditions, mutation isolation, form retention, and
-         managed-execution stale-state rejection.
+         preparation preconditions, mutation isolation, form retention,
+         waiver-excused partial submissions, and managed-execution stale-state
+         rejection.
 """
 
 # IMPORTS
@@ -24,21 +25,32 @@ import subprocess
 import pytest
 
 import aegis.check_execution as check_execution_module
+import aegis.stage_forms as stage_forms_module
 from aegis.check_execution import (
     prepare_check_evidence,
     record_check_evidence,
     run_checks,
 )
 from aegis.models import Check, Evidence, Graph, StageRecord
-from aegis.stage_forms import StageOperationError
+from aegis.stage_forms import StageOperationError, stage_blocker_details
 from aegis.store import (
     GraphConflictError,
+    add_waiver,
     graph_path,
     init_graph,
     journal_path,
     load_graph,
+    relink_check_evidence,
     save_graph,
 )
+from aegis.waivers import Blocker
+
+# CONSTANTS
+
+COMPLETENESS_ERROR = (
+    "result collection must contain every imported check exactly once"
+)
+STAGE_EXPECTATIONS = (("check", "fail", 1), ("implementation", "pass", 0))
 
 # TESTS
 
@@ -297,6 +309,383 @@ def test_managed_results_reject_changed_checks_before_recording(
     ).read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize(
+    ("stage", "expected", "exit_status"),
+    STAGE_EXPECTATIONS,
+)
+def test_waived_check_is_excused_from_the_evidence_document(
+    tmp_path: Path,
+    stage: str,
+    expected: str,
+    exit_status: int,
+) -> None:
+    """
+    @brief Record real evidence for the checks that have it while one is waived.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Active stage under test.
+    @param[in] expected Uniform result required of every present row.
+    @param[in] exit_status Process status consistent with that result.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage=stage, check_count=2)
+    _waive(tmp_path, graph, "CHK-001")
+
+    form = prepare_check_evidence(tmp_path, graph)
+    assert _row_check_ids(form) == ["CHK-002"]
+    _complete_results(form, result=expected, exit_status=exit_status)
+    imported = record_check_evidence(tmp_path, graph)
+
+    assert [item.check_id for item in imported] == ["CHK-002"]
+    persisted = load_graph(tmp_path, graph.run_id)
+    assert [item.check_id for item in persisted.evidence] == ["CHK-002"]
+    assert persisted.checks[0].state == "unknown"
+    assert persisted.checks[1].state == ("red" if expected == "fail" else "green")
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected", "exit_status"),
+    STAGE_EXPECTATIONS,
+)
+def test_unwaived_check_still_cannot_be_omitted(
+    tmp_path: Path,
+    stage: str,
+    expected: str,
+    exit_status: int,
+) -> None:
+    """
+    @brief Keep every check without an active waiver mandatory in the document.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Active stage under test.
+    @param[in] expected Uniform result required of every present row.
+    @param[in] exit_status Process status consistent with that result.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage=stage, check_count=3)
+    _waive(tmp_path, graph, "CHK-001")
+    form = prepare_check_evidence(tmp_path, graph)
+    _complete_results(form, result=expected, exit_status=exit_status)
+    _drop_row(form, "CHK-002")
+
+    with pytest.raises(StageOperationError, match=COMPLETENESS_ERROR):
+        record_check_evidence(tmp_path, graph)
+
+    assert load_graph(tmp_path, graph.run_id).evidence == []
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected", "exit_status"),
+    STAGE_EXPECTATIONS,
+)
+def test_stale_waiver_does_not_excuse_its_check(
+    tmp_path: Path,
+    stage: str,
+    expected: str,
+    exit_status: int,
+) -> None:
+    """
+    @brief Restore the mandatory row once approved state no longer matches.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Active stage under test.
+    @param[in] expected Uniform result required of every present row.
+    @param[in] exit_status Process status consistent with that result.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage=stage, check_count=2)
+    _waive(tmp_path, graph, "CHK-001")
+    if stage == "check":
+        graph.checks[0].concerns = ["state advanced after approval"]
+    else:
+        graph.stage_records[stage].revision += 1
+    save_graph(tmp_path, graph)
+
+    form = prepare_check_evidence(tmp_path, graph)
+
+    assert _row_check_ids(form) == ["CHK-001", "CHK-002"]
+    assert len(load_graph(tmp_path, graph.run_id).waivers) == 1
+    _complete_results(form, result=expected, exit_status=exit_status)
+    _drop_row(form, "CHK-001")
+    with pytest.raises(StageOperationError, match=COMPLETENESS_ERROR):
+        record_check_evidence(tmp_path, graph)
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected", "exit_status"),
+    STAGE_EXPECTATIONS,
+)
+def test_every_check_is_required_without_any_waiver(
+    tmp_path: Path,
+    stage: str,
+    expected: str,
+    exit_status: int,
+) -> None:
+    """
+    @brief Preserve complete-document behavior for runs that hold no waivers.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Active stage under test.
+    @param[in] expected Uniform result required of every present row.
+    @param[in] exit_status Process status consistent with that result.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage=stage, check_count=2)
+
+    form = prepare_check_evidence(tmp_path, graph)
+    assert _row_check_ids(form) == ["CHK-001", "CHK-002"]
+    _complete_results(form, result=expected, exit_status=exit_status)
+    imported = record_check_evidence(tmp_path, graph)
+
+    assert [item.check_id for item in imported] == ["CHK-001", "CHK-002"]
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected", "exit_status"),
+    STAGE_EXPECTATIONS,
+)
+def test_excused_check_may_not_carry_a_recorded_result(
+    tmp_path: Path,
+    stage: str,
+    expected: str,
+    exit_status: int,
+) -> None:
+    """
+    @brief Refuse an observation submitted under an active approval instead.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Active stage under test.
+    @param[in] expected Uniform result required of every present row.
+    @param[in] exit_status Process status consistent with that result.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage=stage, check_count=2)
+    _waive(tmp_path, graph, "CHK-001")
+    form = prepare_check_evidence(tmp_path, graph)
+    _complete_results(form, result=expected, exit_status=exit_status)
+    _replace_once(form, 'check_id = "CHK-002"', 'check_id = "CHK-001"')
+    _replace_once(form, "tests/test_2.py", "tests/test_1.py")
+
+    with pytest.raises(
+        StageOperationError,
+        match="CHK-001 is covered by an active waiver",
+    ):
+        record_check_evidence(tmp_path, graph)
+
+    assert load_graph(tmp_path, graph.run_id).evidence == []
+
+
+@pytest.mark.parametrize(("stage", "expected", "exit_status"), STAGE_EXPECTATIONS)
+def test_fully_waived_check_set_requires_no_external_document(
+    tmp_path: Path,
+    stage: str,
+    expected: str,
+    exit_status: int,
+) -> None:
+    """
+    @brief Report an honest precondition instead of an empty evidence document.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Active stage under test.
+    @param[in] expected Unused uniform result for the shared stage table.
+    @param[in] exit_status Unused process status for the shared stage table.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage=stage, check_count=1)
+    _waive(tmp_path, graph, "CHK-001")
+
+    for operation in (prepare_check_evidence, record_check_evidence):
+        with pytest.raises(
+            StageOperationError,
+            match="every imported check is covered by an active waiver",
+        ):
+            operation(tmp_path, graph)
+
+
+def test_reapplying_unchanged_checks_preserves_evidence_links(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Keep red/green links and state through a same-definition reapply.
+    @param[in] tmp_path Temporary repository root.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage="check", check_count=2)
+    form = prepare_check_evidence(tmp_path, graph)
+    _complete_results(form, result="fail", exit_status=1)
+    record_check_evidence(tmp_path, graph)
+    linked = [(check.state, check.red_evidence) for check in graph.checks]
+    assert linked == [("red", "E-0001"), ("red", "E-0002")]
+
+    directory = _write_check_forms(tmp_path, graph)
+    stage_forms_module._apply_checks(
+        graph, directory, graph.stage_records["check"]
+    )
+
+    assert [
+        (check.state, check.red_evidence) for check in graph.checks
+    ] == linked
+
+
+def test_reapplying_a_changed_command_resets_only_that_check(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Reset evidence links only for a check whose command changed.
+    @param[in] tmp_path Temporary repository root.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage="check", check_count=2)
+    form = prepare_check_evidence(tmp_path, graph)
+    _complete_results(form, result="fail", exit_status=1)
+    record_check_evidence(tmp_path, graph)
+
+    directory = _write_check_forms(
+        tmp_path,
+        graph,
+        commands={"CHK-001": "python -m pytest tests/test_other.py"},
+    )
+    stage_forms_module._apply_checks(
+        graph, directory, graph.stage_records["check"]
+    )
+
+    changed, kept = graph.checks
+    assert (changed.state, changed.red_evidence) == ("unknown", None)
+    assert (kept.state, kept.red_evidence) == ("red", "E-0002")
+
+
+def test_managed_green_rerun_supersedes_prior_failed_attempt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Retire an implementation-stage failed attempt on a genuine rerun pass.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    """
+    graph = _external_graph(
+        tmp_path, stage="implementation", mode="managed", check_count=1
+    )
+    _seed_evidence(
+        graph,
+        Evidence(
+            id="E-0001",
+            kind="test-run",
+            result="fail",
+            summary="red witness",
+            stage="check",
+            check_id="CHK-001",
+            exit_status=1,
+        ),
+        Evidence(
+            id="E-0002",
+            kind="test-run",
+            result="fail",
+            summary="launcher denied",
+            stage="implementation",
+            check_id="CHK-001",
+            exit_status=127,
+        ),
+    )
+    save_graph(tmp_path, graph)
+    monkeypatch.setattr(
+        check_execution_module,
+        "_run_command",
+        lambda _root, command, _timeout: subprocess.CompletedProcess(
+            command, 0, "ok", ""
+        ),
+    )
+
+    imported = run_checks(tmp_path, graph)
+
+    assert [item.result for item in imported] == ["pass"]
+    persisted = load_graph(tmp_path, graph.run_id)
+    by_id = {item.id: item for item in persisted.evidence}
+    assert by_id["E-0002"].status == "superseded"
+    assert by_id["E-0002"].superseded_by == imported[0].id
+    assert by_id["E-0001"].status == "active"
+    check = persisted.checks[0]
+    assert check.state == "green"
+    assert check.green_evidence == imported[0].id
+    assert check.red_evidence == "E-0001"
+
+
+def test_external_green_rerun_supersedes_prior_failed_attempt(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Apply the same supersede rule through the external record path.
+    @param[in] tmp_path Temporary repository root.
+    @return None.
+    """
+    graph = _external_graph(tmp_path, stage="implementation", check_count=1)
+    _seed_evidence(
+        graph,
+        Evidence(
+            id="E-0001",
+            kind="test-run",
+            result="fail",
+            summary="launcher denied",
+            stage="implementation",
+            check_id="CHK-001",
+            exit_status=127,
+        ),
+    )
+    save_graph(tmp_path, graph)
+    form = prepare_check_evidence(tmp_path, graph)
+    _complete_results(form, result="pass", exit_status=0)
+
+    imported = record_check_evidence(tmp_path, graph)
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    by_id = {item.id: item for item in persisted.evidence}
+    assert by_id["E-0001"].status == "superseded"
+    assert by_id["E-0001"].superseded_by == imported[0].id
+    check = persisted.checks[0]
+    assert check.state == "green"
+    assert check.red_evidence is None
+
+
+def test_regressed_check_keeps_its_prior_pass_visible(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Keep an older pass active when a rerun fails, exposing the regression.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    """
+    graph = _external_graph(
+        tmp_path, stage="implementation", mode="managed", check_count=1
+    )
+    _seed_evidence(
+        graph,
+        Evidence(
+            id="E-0001",
+            kind="test-run",
+            result="pass",
+            summary="previously green",
+            stage="implementation",
+            check_id="CHK-001",
+            exit_status=0,
+        ),
+    )
+    save_graph(tmp_path, graph)
+    monkeypatch.setattr(
+        check_execution_module,
+        "_run_command",
+        lambda _root, command, _timeout: subprocess.CompletedProcess(
+            command, 1, "", "assertion failed"
+        ),
+    )
+
+    imported = run_checks(tmp_path, graph)
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    by_id = {item.id: item for item in persisted.evidence}
+    assert by_id["E-0001"].status == "active"
+    check = persisted.checks[0]
+    assert check.state == "red"
+    assert check.red_evidence == imported[0].id
+    assert check.green_evidence == "E-0001"
+
+
 # LOCAL HELPERS
 
 
@@ -339,6 +728,128 @@ def _external_graph(
     )
     save_graph(repo_root, graph)
     return graph
+
+
+def _seed_evidence(graph: Graph, *records: Evidence) -> None:
+    """
+    @brief Append pre-existing evidence and relink check state from it.
+    @param[in,out] graph Active graph receiving the seeded records.
+    @param[in] records Evidence records considered already recorded.
+    @return None.
+    """
+    graph.evidence.extend(records)
+    relink_check_evidence(graph)
+
+
+def _write_check_forms(
+    repo_root: Path,
+    graph: Graph,
+    commands: dict[str, str] | None = None,
+) -> Path:
+    """
+    @brief Write one importable check form per imported check.
+    @param[in] repo_root Temporary repository root.
+    @param[in] graph Active graph whose check collection is re-expressed.
+    @param[in] commands Optional per-check command overrides.
+    @return Directory containing the generated check forms.
+    """
+    record = graph.stage_records[graph.stage]
+    directory = repo_root / f".agentic/runs/{graph.run_id}/stages/{graph.stage}"
+    directory.mkdir(parents=True, exist_ok=True)
+    for index, check in enumerate(graph.checks, start=1):
+        command = (commands or {}).get(check.id, check.command)
+        (directory / f"check-{index:03d}.toml").write_text(
+            "\n".join(
+                [
+                    "schema_version = 3",
+                    f'run_id = "{graph.run_id}"',
+                    f'stage = "{graph.stage}"',
+                    f"revision = {record.revision}",
+                    f'id = "{check.id}"',
+                    'level = "unit"',
+                    'cites_requirement = ["REQ-TEST"]',
+                    "cites_spec = []",
+                    f'command = "{command}"',
+                    f'path = "{check.path}"',
+                    "contract_variants = []",
+                    "concerns = []",
+                    "parity_targets = []",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+    return directory
+
+
+def _stage_blocker(repo_root: Path, graph: Graph, check_id: str) -> Blocker:
+    """
+    @brief Return the exact CLI waiver target this stage's evidence answers.
+    @param[in] repo_root Temporary repository root.
+    @param[in] graph Active graph in an applied stage.
+    @param[in] check_id Immutable check identity.
+    @return The blocker `aegis waive add` would accept for that check.
+    """
+    wanted = (
+        f"red-before-green:{check_id}"
+        if graph.stage == "check"
+        else f"stage:implementation:{check_id}:green-evidence"
+    )
+    return next(
+        item
+        for item in stage_blocker_details(repo_root, graph)
+        if item.id == wanted
+    )
+
+
+def _waive(repo_root: Path, graph: Graph, check_id: str) -> None:
+    """
+    @brief Approve one check's stage evidence blocker for exact current state.
+    @param[in] repo_root Temporary repository root.
+    @param[in,out] graph Active graph receiving the run-local waiver.
+    @param[in] check_id Immutable check identity.
+    @return None.
+    """
+    blocker = _stage_blocker(repo_root, graph, check_id)
+    add_waiver(
+        repo_root,
+        graph,
+        blocker.id,
+        "A human accepted this unobtainable observation.",
+        blocker.state_digests,
+    )
+
+
+def _row_check_ids(path: Path) -> list[str]:
+    """
+    @brief Read the immutable check identities present in a generated form.
+    @param[in] path Evidence form path.
+    @return Check IDs in document order.
+    """
+    return [
+        line.removeprefix("check_id = ").strip('"')
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.startswith("check_id = ")
+    ]
+
+
+def _drop_row(path: Path, check_id: str) -> None:
+    """
+    @brief Remove exactly one completed result row from a form.
+    @param[in] path Evidence form path.
+    @param[in] check_id Immutable identity of the row to omit.
+    @return None.
+    """
+    header, *rows = path.read_text(encoding="utf-8").split("\n[[result]]")
+    kept = [row for row in rows if f'check_id = "{check_id}"' not in row]
+    if len(kept) != len(rows) - 1:
+        raise AssertionError(f"expected exactly one row for {check_id}")
+    path.write_text(
+        header + "\n[[result]]".join(["", *kept]),
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def _replace_once(path: Path, old: str, new: str) -> None:
