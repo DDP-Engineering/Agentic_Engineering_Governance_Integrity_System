@@ -334,6 +334,20 @@ def test_uncovered_source_fires_then_covered_is_silent(tmp_path, capsys):
 
 
 @needs_git
+def test_uncovered_source_ignores_deleted_files(tmp_path, capsys):
+    """A deleted file stays in the diff, but no requirement can cover a file
+    that no longer exists - found in a real repository after a refactor."""
+    _agentic, aegis = make_git_repo(tmp_path)
+    (tmp_path / "src" / "app.py").unlink()          # remove a covered file
+    write(tmp_path / "src" / "kept.py", "y = 1\n")  # and add an uncovered one
+    git(tmp_path, "add", "-A")
+    out = run_check(aegis, capsys)
+    hits = lines_for(out, "uncovered-source")
+    assert not any("src/app.py" in line for line in hits)  # deleted: silent
+    assert any("src/kept.py" in line for line in hits)     # present: flagged
+
+
+@needs_git
 def test_scope_drift_fires_and_is_silent_when_requirement_is_touched(tmp_path,
                                                                      capsys):
     agentic, aegis = make_git_repo(tmp_path)
