@@ -17,6 +17,17 @@ records for the standalone AEGIS project belong here.
   optional RepoWise 0.37.0 discovery sidecar.
 - `Agentic_Development_Architecture_Examples/` - worked feature, bug-fix, and
   existing-repository adoption examples using prepare/apply/close.
+- `AEGIS_LIGHT_PLAN/` - the design record for the lightweight, heuristic,
+  agent-oriented AEGIS: workflow defined in `AGENTS.md` plus per-stage step
+  files instead of hooks and blocking gates, five condensed stages with a
+  quick path, one-file artifacts (requirement TOML, task journals) with git
+  as the state and collaboration layer, an advisory single-file companion
+  CLI (`aegis check` never blocks; `--strict` is CI-only), and explicit
+  context budgets for small local models (32k+). No backward compatibility
+  with the 2.x payload. **Built and hardened**: the product lives at
+  `05_Software/aegis-light/` (0.1.0, phases P1-P5 done; the pilot is the
+  remaining phase) with user documentation at `06_SoftwareDocu/AEGIS-Light/`.
+  Where the plan and the payload disagree, the payload is authoritative.
 - `WAEGIS_V2_PLAN/` - the proposed WAEGIS "lite" rewrite: a git-as-transaction
   safety model replacing the current transaction/journal machinery, a
   harvested-module architecture budgeted under 5,000 lines, and the
