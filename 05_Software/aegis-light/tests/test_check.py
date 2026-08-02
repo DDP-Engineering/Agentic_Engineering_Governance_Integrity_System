@@ -274,6 +274,22 @@ def test_ticket_ref_fires_on_ticket_patterns_in_prose(nogit_repo, capsys):
     assert any("ticket pattern: TASK-9f9f" in line for line in hits)
 
 
+def test_ticket_ref_ignores_standards_and_formats(nogit_repo, capsys):
+    """Standards share the JIRA shape; technical prose is full of them.
+    Found against a real 495-requirement register, where UTF-8 was flagged."""
+    agentic, aegis = nogit_repo
+    write_req(agentic, "REQ-FUNC-1111", status="draft",
+              prose="Text is decoded as UTF-8, hashed with SHA-256, served "
+                    "over TLS-1 per RFC-2119, encoded AES-128, licensed "
+                    "AGPL-3, resampled to 44100 Hz for MP-3 output.")
+    assert not lines_for(run_check(aegis, capsys), "ticket-ref")
+
+    write_req(agentic, "REQ-FUNC-2222", status="draft",
+              prose="Implements ABC-123 as agreed.")   # still caught
+    assert any("ABC-123" in line
+               for line in lines_for(run_check(aegis, capsys), "ticket-ref"))
+
+
 def test_ticket_ref_silent_on_self_contained_prose(nogit_repo, capsys):
     agentic, aegis = nogit_repo
     write_req(agentic, "REQ-FUNC-1111", status="draft",
