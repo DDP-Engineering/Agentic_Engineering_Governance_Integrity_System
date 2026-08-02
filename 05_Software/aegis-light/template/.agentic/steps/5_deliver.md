@@ -41,7 +41,11 @@ touched — refresh the component knowledge, write the report, and publish.
    the team decides (fix it, or waive it at team level) with open eyes.
    Note: `check --run` executes only verification commands — it skips
    side-effect-looking names unless `[check] run` lists them; deployment
-   commands do not belong in `[commands]` at all.
+   commands do not belong in `[commands]` at all. It also proves only
+   what your config covers: "the full suite ran" is true because
+   `[commands] test` *is* your suite and `[check] run` does not exclude
+   it. If you see `run: test skipped`, the suite did not run — say so in
+   the log instead of claiming it did.
 2. Review the diff — semantically, hunk by hunk, against: the scope and
    exclusions in the frame log, each requirement's prose and
    `verification`, the design note, error paths, Windows/Linux

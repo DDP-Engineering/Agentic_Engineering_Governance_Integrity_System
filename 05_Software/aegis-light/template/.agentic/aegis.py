@@ -189,8 +189,10 @@ def run_git(*args: str) -> tuple[int, str] | None:
              missing or the call itself failed - callers degrade, never crash.
     @details Output is held in memory: a very large diff (generated or
              vendored trees) costs proportional memory for the duration of
-             the call. Exclude such paths with `[check] ignore` if that
-             matters in your repository.
+             the call. There is no in-tool mitigation - `[check] ignore`
+             filters findings *after* the patch has been captured, so it
+             does not reduce this. Keep generated trees out of the diff
+             (`.gitignore`, a vendor submodule) if it matters here.
     """
     try:
         out = subprocess.run(
@@ -693,8 +695,12 @@ errors, failed --run commands, or warnings whose slug is listed in
 [check] strict_promote. --run executes every plain [commands] entry
 (template entries containing `{` and the `timeout` key are skipped, as
 are side-effect-looking names unless [check] run lists them); a failing
-command is an ERROR (`command-failed`), and running nothing at all is a
-WARN (`nothing-ran`) - silence never counts as proof.
+command is an ERROR (`command-failed`), and running nothing at all is
+also an ERROR (`nothing-ran`), so --strict fails on it without needing a
+promotion entry - silence never counts as proof. Note that --run proves
+only what your [commands] actually cover: a `[check] run` list that
+omits the test command means the suite did not run, and the skip is
+printed as `run: <name> skipped`.
 
 output is capped at the first 40 findings; --full (implied by --strict)
 prints them all.
@@ -1022,10 +1028,13 @@ def check_diff(add, skip, cfg, records, journals, scope) -> None:
         for slug in DIFF_CHECKS:
             add("NOTE", slug, "(diff)", f"skipped: {reason}")
         return
+    # WARN, not NOTE: a team that promotes `secret-in-diff` in CI is asking
+    # for the secret scan to be trusted, and an unscanned file is precisely
+    # when it cannot be - so the gap must be promotable too.
     for name in gaps[:5]:  # a partial scan must say so, never read as clean
-        add("NOTE", "secret-in-diff", name, "added lines not scanned")
+        add("WARN", "secret-in-diff", name, "added lines not scanned")
     if len(gaps) > 5:
-        add("NOTE", "secret-in-diff", "(diff)",
+        add("WARN", "secret-in-diff", "(diff)",
             f"{len(gaps) - 5} further file(s) not content-scanned")
     files = [f for f in files if not skip(f)]
     layout = cfg_table(cfg, "layout")
@@ -1081,6 +1090,10 @@ def check_diff(add, skip, cfg, records, journals, scope) -> None:
                 add("WARN", "secret-in-diff", file, f"possible secret ({name})")
 
     for file in files:  # 12: outside-layout
+        # the root pointer files are ours - init creates them, so flagging
+        # them would greet every new install with three false warnings
+        if file in POINTER_FILES:
+            continue
         if not (match_any(file, source_globs) or match_any(file, tests_globs)
                 or file.startswith(".agentic/")):
             add("WARN", "outside-layout", file,
@@ -1188,8 +1201,11 @@ def run_command(command: str, timeout: int,
              the console and the tail is empty - used by `aegis test`, where
              live output matters. Captured output goes to a temporary file,
              so memory stays flat whatever the command emits and only the
-             last 4 KiB is ever read back; the cost moves to the temp volume,
-             which a pathologically noisy command can still fill.
+             last 4 KiB is ever read back. The cost moves to the temp
+             volume - note this is a cost capture *adds*: run in a terminal
+             the same output would stream and be discarded, so a
+             pathologically noisy command can fill the temp volume here
+             when it would not have filled anything there.
     """
     start = time.monotonic()
     kwargs: dict = {"cwd": str(ROOT), "shell": True}
@@ -1255,8 +1271,10 @@ def run_configured_commands(cfg: dict, findings: list,
              are skipped with a visible line. Progress prints as each command
              finishes rather than at the end, so a long suite does not look
              hung. Each failure appends an ERROR finding (`command-failed`),
-             and running *nothing* appends a WARN (`nothing-ran`) - silence
-             must never read as proof that the suite passed.
+             and running *nothing* appends an ERROR (`nothing-ran`), which
+             fails strict mode on its own - silence must never read as proof
+             that the suite passed. What *did* run is only ever what
+             `[commands]` (minus `[check] run` exclusions) covers.
     @details Progress goes to `stream` (stdout by default; stderr under
              `--json`, so stdout stays one parseable document). Returns one
              record per configured command for the JSON envelope.

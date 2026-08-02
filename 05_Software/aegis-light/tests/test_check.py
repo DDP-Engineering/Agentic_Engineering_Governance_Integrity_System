@@ -363,6 +363,19 @@ def test_secret_in_diff_silent_on_a_clean_diff(tmp_path, capsys):
 
 
 @needs_git
+def test_outside_layout_ignores_the_pointer_files_init_creates(tmp_path,
+                                                               capsys):
+    """A fresh install must not greet the user with warnings about the
+    AGENTS.md / CLAUDE.md / QWEN.md that init itself wrote."""
+    _agentic, aegis = make_git_repo(tmp_path)
+    aegis.main(["init"])          # re-run: pointer files are in the diff
+    git(tmp_path, "add", "-A")
+    out = run_check(aegis, capsys)
+    assert not [line for line in lines_for(out, "outside-layout")
+                if any(name in line for name in aegis.POINTER_FILES)]
+
+
+@needs_git
 def test_outside_layout_fires_for_a_stray_file_only(tmp_path, capsys):
     _agentic, aegis = make_git_repo(tmp_path)
     write(tmp_path / "docs" / "notes.md", "stray\n")
@@ -469,7 +482,7 @@ def test_the_per_file_fallback_recovers_a_quoted_name(tmp_path, monkeypatch):
     assert gaps == []
 
 
-def test_unscanned_files_surface_as_notes(tmp_path, monkeypatch, capsys):
+def test_unscanned_files_surface_as_warnings(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     write(agentic / "aegis.toml",
@@ -477,8 +490,34 @@ def test_unscanned_files_surface_as_notes(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(aegis, "collect_diff",
                         lambda _cfg: (["src/a.py"], [], ["src/a.py"], ""))
     out = run_check(aegis, capsys)
-    assert any("added lines not scanned" in line
-               for line in lines_for(out, "secret-in-diff"))
+    gap = [line for line in lines_for(out, "secret-in-diff")
+           if "added lines not scanned" in line]
+    # WARN, not NOTE: a promoted secret-in-diff must catch an unscanned file
+    assert gap and gap[0].startswith("WARN")
+
+
+def test_promoted_secret_in_diff_fails_strict_on_an_unscanned_file(tmp_path,
+                                                                   monkeypatch,
+                                                                   capsys):
+    """The end-to-end guarantee: a team that promotes secret-in-diff gets a
+    failing gate when part of the diff could not be inspected."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write(agentic / "aegis.toml",
+          'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n\n'
+          '[check]\nstrict_promote = ["secret-in-diff"]\n')
+    monkeypatch.setattr(aegis, "collect_diff",
+                        lambda _cfg: (["src/a.py"], [], ["src/a.py"], ""))
+
+    capsys.readouterr()
+    assert aegis.main(["check", "--strict"]) == 1
+    out = capsys.readouterr().out
+    assert "strict: exit 1 (0 error(s), 1 promoted warning(s))" in out
+
+    # and the same repo without the promotion stays advisory
+    write(agentic / "aegis.toml",
+          'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n')
+    assert aegis.main(["check", "--strict"]) == 0
 
 
 # TESTS - stricter artifact validation

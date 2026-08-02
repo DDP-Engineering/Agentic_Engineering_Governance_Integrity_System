@@ -51,7 +51,13 @@ python .agentic/aegis.py check --strict --run
 - `--strict` exits 1 on **errors** (broken artifacts) and on warnings
   the team explicitly promoted;
 - `--run` also executes every `[commands]` entry (test, lint, ...) and
-  turns failures into errors.
+  turns failures into errors. Running *nothing* is an error too, so a
+  misconfigured gate fails loudly instead of passing silently.
+
+The gate proves exactly what your configuration covers, no more: it is
+green because `[commands] test` really is your suite. If you add a
+`[check] run` allowlist that omits `test`, the suite stops running and
+the skip is printed — the gate will not invent a guarantee for you.
 
 Promote the warnings your team considers non-negotiable in
 `.agentic/aegis.toml`:

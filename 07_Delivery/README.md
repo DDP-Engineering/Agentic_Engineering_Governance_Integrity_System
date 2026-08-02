@@ -26,7 +26,33 @@ publication records for the standalone AEGIS project belong here.
     RELEASE.md
     SHA256SUMS
     release-manifest.json
+
+  aegis-light-<version>/    publication record for the AEGIS Light payload
+    RELEASE.md
+    SHA256SUMS
+    release-manifest.json
 ```
+
+## AEGIS Light
+
+AEGIS Light delivers as two small archives with byte-identical content
+(`aegis-light-<version>.zip` and `.tar.gz`) holding the `.agentic/`
+payload, `INSTALL.md`, the product `README.md`, `LICENSE.txt` and the
+user guides. It embeds no runtime and is not platform-specific: the two
+formats are ergonomic, not different builds.
+
+Build with:
+
+```
+python 02_Tools/build_aegis_light_release.py --version <version>
+```
+
+The builder verifies the payload inventory, runs the product test suite
+and refuses to package a red tree, then writes deterministic archives
+(normalized member timestamps, so the same sources reproduce the same
+checksums) plus `SHA256SUMS` and `release-manifest.json` into `dist/`,
+and copies the checksums and manifest into the tracked publication
+record. Write `RELEASE.md` there by hand.
 
 Artifact filenames carry **no version**, so documentation, install scripts, and
 automation can reference a stable path, and a rebuild overwrites the previous

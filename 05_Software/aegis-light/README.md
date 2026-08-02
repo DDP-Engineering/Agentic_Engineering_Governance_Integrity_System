@@ -90,7 +90,11 @@ check finding and ticked checklist lands in the task journal
 JSON document on stdout — always complete (never capped), carrying a
 `schema` integer so a consumer fails loudly on a contract change instead
 of misparsing. Exit codes are unchanged, and under `--json` the live
-`--run` progress goes to stderr so stdout stays parseable.
+`--run` progress goes to stderr so stdout stays parseable. A *usage or
+configuration error* (unknown task id, unreadable config) is reported the
+same way as in text mode — one line on stderr, exit 1, and **empty
+stdout**: a consumer never receives a half-written document, but it must
+treat empty stdout as an error rather than as an empty result.
 
 ## Layout (inside the adopting repo)
 
