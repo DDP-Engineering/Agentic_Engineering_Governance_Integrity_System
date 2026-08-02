@@ -17,9 +17,6 @@
          never runs before a step it depends on. ``plan_for`` filters the ordered
          steps through ``applies(ctx)`` so one catalog drives both modes and
          optional branches.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.2.0
 """
 
 # IMPORTS
@@ -39,9 +36,6 @@ class Catalog:
              precondition cycle. The stored order is a deterministic topological
              sort (Kahn's algorithm, breaking ties by registration order) so the
              runner can execute steps in a single forward pass.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, steps: list[StepSpec] | tuple[StepSpec, ...]) -> None:
@@ -51,9 +45,6 @@ class Catalog:
         @return     None
         @exception  CatalogError If an id is duplicated, a precondition names an
                     unknown step, or the preconditions contain a cycle.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         registration = list(steps)
         by_id: dict[str, StepSpec] = {}
@@ -71,9 +62,6 @@ class Catalog:
         @brief      Reject preconditions that name a step not in the catalog.
         @return     None
         @exception  CatalogError If any precondition id is unknown or self-referential.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         for spec in self._registration:
             for pre in spec.preconditions:
@@ -90,9 +78,6 @@ class Catalog:
                     by registration order (Kahn's algorithm).
         @return     Steps in stable topological order.
         @exception  CatalogError If the preconditions contain a cycle.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         index = {spec.id: position for position, spec in enumerate(self._registration)}
         remaining = {spec.id: set(spec.preconditions) for spec in self._registration}
@@ -115,9 +100,6 @@ class Catalog:
         @param[in]  step_id Step id to resolve.
         @return     The matching :class:`StepSpec`.
         @exception  CatalogError If no step has that id.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         try:
             return self._by_id[step_id]
@@ -129,9 +111,6 @@ class Catalog:
         @brief      Return every step in canonical (topological) order.
         @return     Ordered tuple of all registered steps.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return self._ordered
 
@@ -141,9 +120,6 @@ class Catalog:
         @param[in]  ctx Engine context whose mode/branch selects steps.
         @return     Ordered list of steps for which ``applies(ctx)`` is true.
         @exception  Exception Propagates any error raised by a step's ``applies``.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return [spec for spec in self._ordered if spec.applies(ctx)]
 
@@ -151,8 +127,6 @@ class Catalog:
         """
         @brief      Number of registered steps.
         @return     Step count.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return len(self._registration)
 
@@ -160,8 +134,6 @@ class Catalog:
         """
         @brief      Iterate steps in canonical order.
         @return     Iterator over the ordered steps.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return iter(self._ordered)
 

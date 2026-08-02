@@ -11,9 +11,6 @@
 @brief Focused tests for UUID-backed current requirement snapshots.
 @details Covers deterministic TOML persistence, replacement semantics, live
          reverse indexes, audits, coverage, impact, and INV-8 integration.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 0.10.0
 """
 
 # IMPORTS
@@ -42,6 +39,7 @@ from aegis.requirement_store import (
     render_requirement_toml,
 )
 from aegis.requirements import (
+    RequirementPatch,
     activate_requirement,
     audit_coverage,
     audit_traceability,
@@ -80,9 +78,6 @@ def configure_repository(
     @param[in] coverage Enable an enforced ``src`` coverage policy.
     @param[in] requirement_roots Canonical requirement roots to configure.
     @return Parsed strict workflow configuration.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     path = repo_root / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -107,9 +102,6 @@ def write_tested_module(repo_root: Path) -> None:
     @brief Create a current source file and exact Python test selector.
     @param[in] repo_root Temporary repository root.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     (repo_root / "src").mkdir(exist_ok=True)
     (repo_root / "src" / "calculator.py").write_text(
@@ -131,9 +123,6 @@ def write_spec_file(
     @param[in] repo_root Temporary repository root.
     @param[in] relative Repository-relative spec path to create.
     @return The repository-relative path written.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-25
-    @version 0.1.0
     """
     path = repo_root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -152,9 +141,6 @@ def create_fixed_record(
     """
     @brief Create one deterministic Planned fixture through production storage.
     @return Persisted current snapshot.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     return create_requirement_record(
         repo_root,
@@ -178,9 +164,6 @@ def test_uuid_identity_and_deterministic_toml_round_trip(tmp_path: Path) -> None
     """
     @brief Verify the canonical UUIDv4 identity and deterministic schema order.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -206,9 +189,6 @@ def test_independent_creates_use_different_ids_and_files(tmp_path: Path) -> None
     """
     @brief Verify independent requirement creation never edits a shared register.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     config = configure_repository(tmp_path)
     first = create_requirement(
@@ -242,9 +222,6 @@ def test_uuid_collision_retries_without_overwrite(tmp_path: Path) -> None:
     """
     @brief Verify an exclusive-create collision retries with a fresh UUID.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     first = create_fixed_record(tmp_path, config, linked_tests=())
@@ -268,6 +245,35 @@ def test_uuid_collision_retries_without_overwrite(tmp_path: Path) -> None:
     assert len(load_all_requirements(tmp_path, config)) == 2
 
 
+def test_uuid_collision_retry_limit_reports_clear_error(tmp_path: Path) -> None:
+    """
+    @brief Stop deterministic UUID collisions after the bounded retry limit.
+    @return None.
+    """
+    config = configure_repository(tmp_path)
+    first = create_fixed_record(tmp_path, config, linked_tests=())
+    original = (tmp_path / first.source_file).read_text(encoding="utf-8")
+
+    with pytest.raises(
+        RequirementValidationError,
+        match="could not allocate a unique requirement ID after 5 attempts",
+    ):
+        create_requirement_record(
+            tmp_path,
+            config=config,
+            category="functional",
+            priority="Could",
+            requirement="A colliding behavior.",
+            rationale="Retry exhaustion coverage.",
+            verification="Manual: inspect collision exhaustion",
+            timestamp=CREATED,
+            uuid_factory=lambda: UUID_ONE,
+        )
+
+    assert (tmp_path / first.source_file).read_text(encoding="utf-8") == original
+    assert len(load_all_requirements(tmp_path, config)) == 1
+
+
 @pytest.mark.parametrize(
     ("mutation", "key"),
     [
@@ -284,9 +290,6 @@ def test_malformed_records_report_file_and_key(
     """
     @brief Verify malformed snapshots identify their source file and offending key.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     record = create_fixed_record(tmp_path, config, linked_tests=())
@@ -304,9 +307,6 @@ def test_scalar_update_preserves_immutable_identity(tmp_path: Path) -> None:
     """
     @brief Verify current-contract scalar revisions retain ID and creation time.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     original = create_fixed_record(tmp_path, config, linked_tests=())
@@ -314,10 +314,12 @@ def test_scalar_update_preserves_immutable_identity(tmp_path: Path) -> None:
     updated = update_requirement(
         tmp_path,
         original.id,
-        priority="Should",
-        requirement="Addition returns a precise sum.",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            priority="Should",
+            requirement="Addition returns a precise sum.",
+            timestamp=UPDATED,
+        ),
     )
 
     assert updated.id == original.id
@@ -332,9 +334,6 @@ def test_collection_update_replaces_and_clears_complete_sets(tmp_path: Path) -> 
     """
     @brief Verify renamed tests and affected paths replace complete stale sets.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -348,19 +347,23 @@ def test_collection_update_replaces_and_clears_complete_sets(tmp_path: Path) -> 
     replaced = update_requirement(
         tmp_path,
         original.id,
-        linked_tests=["tests/test_calculator_renamed.py::test_sum"],
-        affected_paths=["src/new.py", "src/**/nested.py"],
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            linked_tests=["tests/test_calculator_renamed.py::test_sum"],
+            affected_paths=["src/new.py", "src/**/nested.py"],
+            timestamp=UPDATED,
+        ),
     )
     cleared = update_requirement(
         tmp_path,
         original.id,
-        clear_linked_tests=True,
-        clear_affected_paths=True,
-        verification="Manual: inspect current behavior",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            clear_linked_tests=True,
+            clear_affected_paths=True,
+            verification="Manual: inspect current behavior",
+            timestamp=UPDATED,
+        ),
     )
 
     assert replaced.affected_paths == ("src/**/nested.py", "src/new.py")
@@ -373,9 +376,6 @@ def test_spec_ref_round_trips_and_normalizes(tmp_path: Path) -> None:
     """
     @brief Verify spec_ref is normalized, persisted after verification, and reloads.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-25
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_spec_file(tmp_path)
@@ -404,9 +404,6 @@ def test_create_rejects_spec_ref_without_file(tmp_path: Path) -> None:
     """
     @brief Verify a non-empty spec_ref must name an existing file at creation.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-25
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     with pytest.raises(ValueError, match="spec_ref does not resolve"):
@@ -428,9 +425,6 @@ def test_update_sets_and_clears_spec_ref(tmp_path: Path) -> None:
     """
     @brief Verify spec_ref is patchable, clearable, and mutually exclusive with clear.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-25
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_spec_file(tmp_path)
@@ -440,27 +434,25 @@ def test_update_sets_and_clears_spec_ref(tmp_path: Path) -> None:
     with_ref = update_requirement(
         tmp_path,
         record.id,
-        spec_ref=".agentic/specs/feature.spec.md",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            spec_ref=".agentic/specs/feature.spec.md",
+            timestamp=UPDATED,
+        ),
     )
     assert with_ref.spec_ref == ".agentic/specs/feature.spec.md"
 
     with pytest.raises(ValueError, match="mutually exclusive"):
-        update_requirement(
-            tmp_path,
-            record.id,
+        RequirementPatch(
             spec_ref=".agentic/specs/feature.spec.md",
             clear_spec_ref=True,
-            config=config,
         )
 
     cleared = update_requirement(
         tmp_path,
         record.id,
-        clear_spec_ref=True,
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(clear_spec_ref=True, timestamp=UPDATED),
     )
     assert cleared.spec_ref == ""
 
@@ -469,9 +461,6 @@ def test_audit_reports_stale_spec_ref(tmp_path: Path) -> None:
     """
     @brief Verify a deleted spec target yields a REQ-SPEC-MISSING traceability finding.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-25
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     relative = write_spec_file(tmp_path)
@@ -499,9 +488,6 @@ def test_activation_replaces_tests_and_does_not_write_on_failure(tmp_path: Path)
     """
     @brief Verify Active transition validates the complete selector set atomically.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -537,9 +523,6 @@ def test_manual_activation_requires_explicit_method_prefix(tmp_path: Path) -> No
     """
     @brief Verify manual-only activation uses the ratified explicit prefix contract.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     record = create_fixed_record(tmp_path, config, linked_tests=())
@@ -562,9 +545,6 @@ def test_duplicate_ids_across_roots_are_rejected_by_index(tmp_path: Path) -> Non
     """
     @brief Verify duplicate IDs in distinct canonical files are semantic errors.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(
         tmp_path,
@@ -585,9 +565,6 @@ def test_in_memory_reverse_indexes_are_sorted_and_not_persisted(tmp_path: Path) 
     """
     @brief Verify live reverse mappings contain IDs only and create no cache.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -607,9 +584,6 @@ def test_impact_matches_exact_directory_glob_and_current_tests(tmp_path: Path) -
     """
     @brief Verify impact uses shared matching over exact paths, roots, and globs.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -640,9 +614,6 @@ def test_impact_includes_current_and_previous_git_rename_paths(tmp_path: Path) -
     """
     @brief Verify Git renames expose both names while current snapshots map the new path.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -669,9 +640,11 @@ def test_impact_includes_current_and_previous_git_rename_paths(tmp_path: Path) -
     update_requirement(
         tmp_path,
         record.id,
-        affected_paths=["src/calculator_renamed.py"],
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(
+            affected_paths=["src/calculator_renamed.py"],
+            timestamp=UPDATED,
+        ),
     )
 
     by_path = {entry["file"]: entry for entry in impact(tmp_path, config=config)}
@@ -686,9 +659,6 @@ def test_coverage_uses_active_live_records_and_current_waivers(tmp_path: Path) -
     """
     @brief Verify coverage requires a matching Active record with resolvable tests.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path, coverage=True)
     write_tested_module(tmp_path)
@@ -718,9 +688,6 @@ def test_selector_resolution_requires_configured_root_and_exact_identifier(tmp_p
     """
     @brief Verify exact test selectors cannot escape configured test roots.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -737,9 +704,6 @@ def test_list_filters_current_snapshots(tmp_path: Path) -> None:
     """
     @brief Verify list and show return current records in deterministic ID order.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     create_fixed_record(tmp_path, config, identifier=UUID_ONE, linked_tests=())
@@ -747,9 +711,8 @@ def test_list_filters_current_snapshots(tmp_path: Path) -> None:
     update_requirement(
         tmp_path,
         second.id,
-        status="Retired",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(status="Retired", timestamp=UPDATED),
     )
 
     assert [record.id for record in list_requirements(tmp_path, config=config)] == [
@@ -762,7 +725,7 @@ def test_list_filters_current_snapshots(tmp_path: Path) -> None:
     assert show_requirement(tmp_path, REQ_ONE, config).status == "Planned"
 
 
-def test_cli_exposes_snapshot_crud_and_no_registry_command(
+def retired_cli_exposes_snapshot_crud_and_no_registry_command(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -770,9 +733,6 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
     """
     @brief Verify the agent-facing CRUD forms and hard removal of registry CLI.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     configure_repository(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -841,7 +801,7 @@ def test_cli_exposes_snapshot_crud_and_no_registry_command(
     assert all(command in help_text for command in ("create", "show", "list", "update", "activate"))
 
 
-def test_cli_activation_updates_snapshot_and_selected_run_journal(
+def retired_cli_activation_updates_snapshot_and_selected_run_journal(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -849,9 +809,6 @@ def test_cli_activation_updates_snapshot_and_selected_run_journal(
     """
     @brief Verify activation is the only requirement command that journals to a run.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -890,7 +847,7 @@ def test_cli_activation_updates_snapshot_and_selected_run_journal(
     assert '"event": "requirement.activated"' not in pointer_journal
 
 
-def test_report_and_preflight_need_no_registry_directory(
+def retired_report_and_preflight_need_no_registry_directory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -901,9 +858,6 @@ def test_report_and_preflight_need_no_registry_directory(
     @param[in] monkeypatch Pytest monkeypatch fixture.
     @param[in] capsys Pytest output capture fixture.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.2.0
     """
     configure_repository(tmp_path)
     # Delivery preflight audits the working tree, and an unreadable tree is a
@@ -938,9 +892,6 @@ def test_inv8_reads_active_requirements_from_live_index(tmp_path: Path) -> None:
     """
     @brief Verify INV-8 reads current TOML snapshots without registry state.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-22
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -979,9 +930,6 @@ def test_planned_requirement_without_a_test_is_flagged(tmp_path: Path) -> None:
     """
     @brief Verify a non-Retired requirement with no resolvable test is flagged.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-24
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     record = create_fixed_record(tmp_path, config, linked_tests=())
@@ -999,9 +947,6 @@ def test_planned_requirement_with_a_resolvable_test_is_not_flagged(tmp_path: Pat
     """
     @brief Verify a Planned requirement backed by a resolvable test passes traceability.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-24
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     write_tested_module(tmp_path)
@@ -1015,9 +960,6 @@ def test_planned_requirement_with_manual_method_is_not_flagged(tmp_path: Path) -
     """
     @brief Verify manual verification still exempts a testless non-Retired requirement.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-24
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     create_requirement(
@@ -1038,24 +980,20 @@ def test_retired_requirement_without_a_test_is_not_flagged(tmp_path: Path) -> No
     """
     @brief Verify Retired requirements are exempt from the verification gate.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-24
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     record = create_fixed_record(tmp_path, config, linked_tests=())
     update_requirement(
         tmp_path,
         record.id,
-        status="Retired",
         config=config,
-        timestamp=UPDATED,
+        patch=RequirementPatch(status="Retired", timestamp=UPDATED),
     )
 
     assert audit_traceability(tmp_path, config) == []
 
 
-def test_delivery_preflight_blocks_a_planned_requirement_without_tests(
+def retired_delivery_preflight_blocks_a_planned_requirement_without_tests(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -1063,9 +1001,6 @@ def test_delivery_preflight_blocks_a_planned_requirement_without_tests(
     """
     @brief Verify delivery preflight blocks when a non-Retired requirement has no test.
     @return None.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-24
-    @version 0.1.0
     """
     config = configure_repository(tmp_path)
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)

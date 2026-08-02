@@ -1,7 +1,0 @@
-# Built delivery binaries are large and reproducible from source; they are not
-# tracked. The release record (RELEASE.md), the release manifest, and the
-# checksums are tracked as the publication record. Rebuild the binaries with:
-#   uv run python 05_Software/waegis/packaging/build_release.py --output <dir>
-*.pyz
-*.zip
-*.tar.gz

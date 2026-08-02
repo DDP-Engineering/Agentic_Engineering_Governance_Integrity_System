@@ -12,9 +12,6 @@
 @details The test suite imports the CLI from the single-source template tree
          under ``template/.agentic/cli/src``. Disabling bytecode writes keeps
          that shipped tree free of ``__pycache__`` artifacts during testing.
-@author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.1.0
 """
 
 # IMPORTS

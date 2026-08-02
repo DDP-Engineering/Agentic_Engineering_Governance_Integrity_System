@@ -12,9 +12,6 @@
 @details Every ``--json`` path uses this writer exactly once. Commands place
          command-specific data in ``plan`` and ``result``; validation and
          operational failures use the same shape as success.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.1.0
 """
 
 # IMPORTS
@@ -56,9 +53,6 @@ def command_envelope(
     @param[in]  messages Human-readable notes/errors.
     @return     JSON-safe envelope mapping.
     @exception  ValueError If status or exit code is outside the contract.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if status not in VALID_STATUSES:
         raise ValueError(f"invalid command status: {status!r}")
@@ -96,9 +90,6 @@ def write_envelope(
     @param[in]  messages Notes/errors.
     @return     ``exit_code``.
     @exception  ValueError On an invalid contract value.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     payload = command_envelope(
         command,

@@ -12,9 +12,6 @@
 @details WAEGIS configures and deploys the AEGIS template payload into target
          repositories. It is a separate, stdlib-only package (AD-1/AD-3) and is
          never copied into the payload itself.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS

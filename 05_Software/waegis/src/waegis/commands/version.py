@@ -9,9 +9,6 @@
 """
 @file version.py
 @brief ``waegis version`` reporting from the single version source.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.1.0
 """
 
 # IMPORTS
@@ -45,9 +42,6 @@ def build_version_info() -> dict[str, Any]:
     """
     @brief      Build the version and bundled-payload report.
     @return     JSON-safe result mapping.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     payload_version: str | None = None
     payload_digest: str | None = None
@@ -70,9 +64,6 @@ def run_version(*, as_json: bool, stream: IO[str]) -> int:
     """
     @brief      Render ``waegis version [--json]``.
     @return     Zero.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     info = build_version_info()
     if as_json:

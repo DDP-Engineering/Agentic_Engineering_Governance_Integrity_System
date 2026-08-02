@@ -13,9 +13,6 @@
        absent/invalid/valid load states (T3.1).
 @details Strictly offline, uses only synthetic ``tmp_path`` fixture trees —
          never touches ``05_Software/aegis/template/`` directly.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -23,6 +20,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -32,6 +30,7 @@ from waegis.payload.manifest import (
     MANIFEST_RELATIVE_PATH,
     DriftResult,
     FileEntry,
+    Manifest,
     ManifestError,
     ManifestState,
     build_manifest,
@@ -54,8 +53,6 @@ def _make_tree(root: Path) -> None:
     @brief      Build a small synthetic payload-shaped file tree under ``root``.
     @param[in]  root Directory to populate.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (root / ".agentic").mkdir(parents=True)
     (root / ".agentic" / "cli").mkdir()
@@ -68,14 +65,24 @@ def _make_tree(root: Path) -> None:
 # --- round-trip --------------------------------------------------------------
 
 
+def test_manifest_documentation_names_the_current_schema_and_complete_shape() -> None:
+    """
+    @brief      Keep the public manifest contract documentation aligned with code.
+    @return     None.
+    @exception  AssertionError If stale schema or result-field text returns.
+    """
+    assert "Schema-v1/v2" not in (Manifest.__doc__ or "")
+    assert "schema-v1" in (Manifest.__doc__ or "")
+    assert "payload_digest" in (Manifest.to_dict.__doc__ or "")
+    assert "configuration" in (Manifest.to_dict.__doc__ or "")
+
+
 def test_build_write_read_round_trip(tmp_path: Path) -> None:
     """
     @brief      Building, writing, and reading back a manifest for a small
                 synthetic tree preserves fields and file hashes exactly.
     @return     None
     @exception  AssertionError If any field or hash mismatches after round-trip.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _make_tree(tmp_path)
     manifest = build_manifest(
@@ -104,8 +111,6 @@ def test_build_manifest_installed_by_defaults_to_current_wizard_version(tmp_path
                 from ``waegis.version`` at call time, not a hardcoded string.
     @return     None
     @exception  AssertionError If the default does not reflect the live version.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _make_tree(tmp_path)
     manifest = build_manifest(
@@ -124,8 +129,6 @@ def test_manifest_never_lists_itself(tmp_path: Path) -> None:
                 ``files`` map, even if the caller's file list includes it.
     @return     None
     @exception  AssertionError If the manifest path key is present in ``files``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _make_tree(tmp_path)
     manifest_dir = tmp_path / ".agentic"
@@ -150,8 +153,6 @@ def _golden_json() -> str:
     """
     @brief      A fixed schema-v1 manifest JSON document, per plan §6.
     @return     JSON text, 2-space indent, stable key order.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return (
         "{\n"
@@ -189,8 +190,6 @@ def test_golden_manifest_parses_to_expected_fields() -> None:
                 exactly the expected field values (frozen contract, plan §15).
     @return     None
     @exception  AssertionError If any field differs from the golden document.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     data = json.loads(_golden_json())
     manifest = manifest_from_dict(data)
@@ -215,8 +214,6 @@ def test_golden_manifest_serializes_back_to_the_same_json() -> None:
                 same JSON text — catches accidental field reordering/renaming.
     @return     None
     @exception  AssertionError If the round-tripped JSON differs at all.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     golden = _golden_json()
     manifest = manifest_from_dict(json.loads(golden))
@@ -232,8 +229,6 @@ def test_hash_stable_across_copy_mechanisms(tmp_path: Path) -> None:
                 manual byte read/write yields the identical hash.
     @return     None
     @exception  AssertionError If the two copies hash differently.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     original = tmp_path / "original.txt"
     original.write_bytes(b"line one\nline two\nline three\n")
@@ -257,8 +252,6 @@ def test_hash_differs_for_actually_different_bytes(tmp_path: Path) -> None:
                 — proving this module performs no newline normalization.
     @return     None
     @exception  AssertionError If the two variants hash identically.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     lf_path = tmp_path / "lf.txt"
     crlf_path = tmp_path / "crlf.txt"
@@ -277,8 +270,6 @@ def test_build_manifest_normalizes_windows_style_input_paths(tmp_path: Path) -> 
                 stores forward-slash POSIX keys, on any host OS.
     @return     None
     @exception  AssertionError If a backslash survives into a manifest key.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (tmp_path / "a").mkdir()
     (tmp_path / "a" / "b.txt").write_text("x", encoding="utf-8")
@@ -303,8 +294,6 @@ def test_read_manifest_normalizes_keys_from_disk(tmp_path: Path) -> None:
                 back as forward-slash keys.
     @return     None
     @exception  AssertionError If a backslash key survives parsing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     data = {
         "manifest_version": 1,
@@ -334,8 +323,6 @@ def test_missing_manifest_version_raises_clear_error() -> None:
     @return     None
     @exception  AssertionError If ``ManifestError`` is not raised, or the
                 message omits the missing key.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     data = json.loads(_golden_json())
     del data["manifest_version"]
@@ -350,8 +337,6 @@ def test_unknown_manifest_version_raises_clear_error() -> None:
     @return     None
     @exception  AssertionError If ``ManifestError`` is not raised, or the
                 message omits the offending version.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     data = json.loads(_golden_json())
     data["manifest_version"] = 99
@@ -375,8 +360,6 @@ def test_malformed_file_entry_raises_error_naming_the_key() -> None:
     @return     None
     @exception  AssertionError If ``ManifestError`` is not raised, or the
                 message omits the offending key.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     data = json.loads(_golden_json())
     data["files"]["AGENTS.md"] = {"sha256": "bbbb"}  # missing "size"
@@ -446,8 +429,6 @@ def test_drift_unmodified_edited_deleted_and_extra(tmp_path: Path) -> None:
                 needs a *new* payload's file list, T3.2/T6.2's job).
     @return     None
     @exception  AssertionError If any file lands in the wrong bucket.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     (tmp_path / "unchanged.txt").write_text("same\n", encoding="utf-8", newline="\n")
     (tmp_path / "edited.txt").write_text("original\n", encoding="utf-8", newline="\n")
@@ -484,8 +465,6 @@ def test_load_manifest_reports_absent_when_no_manifest_file(tmp_path: Path) -> N
     @brief      ``load_manifest`` reports ``ABSENT`` for a repo with no manifest.
     @return     None
     @exception  AssertionError If the state or payload fields are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     result = load_manifest(tmp_path)
     assert result.state == ManifestState.ABSENT
@@ -500,8 +479,6 @@ def test_load_manifest_reports_invalid_for_malformed_json(tmp_path: Path) -> Non
                 from ``ABSENT``.
     @return     None
     @exception  AssertionError If the state, manifest, or error fields are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = manifest_path(tmp_path)
     path.parent.mkdir(parents=True)
@@ -519,8 +496,6 @@ def test_load_manifest_reports_valid_for_a_well_formed_manifest(tmp_path: Path) 
                 a well-formed document — distinct from both other states.
     @return     None
     @exception  AssertionError If the state or manifest fields are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _make_tree(tmp_path)
     manifest = build_manifest(
@@ -536,6 +511,61 @@ def test_load_manifest_reports_valid_for_a_well_formed_manifest(tmp_path: Path) 
     assert result.state == ManifestState.VALID
     assert result.manifest == manifest
     assert result.error is None
+
+
+def test_two_interleaved_manifest_writers_never_publish_a_mixed_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A second writer that completes while the first is between its
+                temp write and its publish must not corrupt or destroy either
+                manifest.
+    @details    Two WAEGIS invocations can touch one repository at the same
+                time (a ``doctor`` in an automation hook while an operator runs
+                ``repair``). With a fixed ``install-manifest.json.tmp`` name
+                they shared one temp path: the second writer overwrote and then
+                consumed the first writer's staged bytes, so the first writer's
+                own publish operated on a file that no longer held its content.
+                Per-call unique temp names keep the two writers independent and
+                leave the last publish standing, intact.
+    @param[in]  tmp_path Isolated repository root.
+    @param[in]  monkeypatch Used to suspend the first writer at its publish.
+    @return     None
+    @exception  AssertionError If the published manifest is not exactly one of
+                the two inputs, or a temp file is left behind.
+    """
+    _make_tree(tmp_path)
+    first = build_manifest(
+        tmp_path, product="aegis", payload_version="1.0.0", mode="new",
+        file_paths=["AGENTS.md"], installed_at="2026-07-12T12:00:00Z",
+    )
+    second = build_manifest(
+        tmp_path, product="aegis", payload_version="2.0.0", mode="adopt",
+        file_paths=[".agentic/cli/cli.py"], installed_at="2026-07-12T13:00:00Z",
+    )
+    real_replace = os.replace
+    interleaved: list[bool] = []
+
+    def interleaving_replace(source: object, destination: object) -> None:
+        """@brief Let a whole second write_manifest run inside the first publish."""
+        if not interleaved:
+            interleaved.append(True)
+            write_manifest(tmp_path, second)
+        return real_replace(source, destination)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(os, "replace", interleaving_replace)
+    write_manifest(tmp_path, first)
+    monkeypatch.undo()
+
+    assert interleaved == [True]
+    # Valid JSON, and exactly one of the two manifests - never a mix.
+    loaded = read_manifest(tmp_path)
+    assert loaded in (first, second)
+    assert loaded == first  # the suspended writer published last
+    leftovers = sorted(
+        path.name for path in (tmp_path / ".agentic").glob("install-manifest.json.*")
+    )
+    assert leftovers == []
 
 
 # END OF FILE

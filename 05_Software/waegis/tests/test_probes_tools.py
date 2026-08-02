@@ -19,9 +19,6 @@
          warn-not-block like ``uv``, but unlike ``uv`` its absence is a
          ``"warn"`` (visible, since hooks depend on it) rather than a mere
          ``"info"`` (uv is a pure performance optional).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.1.1
 """
 
 # IMPORTS
@@ -49,8 +46,6 @@ def test_probe_python_ok_via_py_launcher(monkeypatch: pytest.MonkeyPatch) -> Non
     @return     None
     @exception  AssertionError If status is not ``"ok"`` or the wrong
                 candidate is credited.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner(
@@ -73,8 +68,6 @@ def test_probe_python_falls_back_through_candidates_in_order(monkeypatch: pytest
     @return     None
     @exception  AssertionError If the fallback order is not followed or the
                 wrong candidate's version is reported.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner(
@@ -101,8 +94,6 @@ def test_probe_python_fails_when_found_version_too_old(monkeypatch: pytest.Monke
     @brief      A found interpreter below 3.11 fails with install guidance.
     @return     None
     @exception  AssertionError If status is not ``"fail"`` or guidance absent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner(
@@ -127,8 +118,6 @@ def test_probe_python_fails_when_no_candidate_found(monkeypatch: pytest.MonkeyPa
     @return     None
     @exception  AssertionError If status is not ``"fail"`` or candidates are
                 not named.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner({})
@@ -149,8 +138,6 @@ def test_probe_python_degrades_to_warning_on_unparseable_output(monkeypatch: pyt
     @return     None
     @exception  AssertionError If status is not exactly ``"warn"`` or the
                 function raises.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner({("py", "-3", "--version"): ok_result(stdout="py launcher 3.x\n")})
@@ -167,8 +154,6 @@ def test_probe_python_reads_version_from_stderr_when_stdout_empty(monkeypatch: p
                 is still parsed via ``combined_output``.
     @return     None
     @exception  AssertionError If the version on stderr is missed.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner(
@@ -190,8 +175,6 @@ def test_probe_git_ok_with_real_world_windows_version_string(monkeypatch: pytest
                 output shape and accepts it (>= 2.30).
     @return     None
     @exception  AssertionError If status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner(
@@ -210,8 +193,6 @@ def test_probe_git_fails_when_too_old(monkeypatch: pytest.MonkeyPatch) -> None:
     @brief      A found git below 2.30 fails with install guidance.
     @return     None
     @exception  AssertionError If status is not ``"fail"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner({("git", "--version"): ok_result(stdout="git version 1.8.3.1\n")})
@@ -227,8 +208,6 @@ def test_probe_git_fails_when_not_found(monkeypatch: pytest.MonkeyPatch) -> None
     @brief      A missing git executable fails with install guidance.
     @return     None
     @exception  AssertionError If status is not ``"fail"`` or guidance absent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner({})
@@ -245,8 +224,6 @@ def test_probe_git_warns_on_unparseable_output(monkeypatch: pytest.MonkeyPatch) 
                 crash.
     @return     None
     @exception  AssertionError If status is not exactly ``"warn"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner({("git", "--version"): ok_result(stdout="unexpected output\n")})
@@ -264,9 +241,6 @@ def test_probe_node_ok_when_found(monkeypatch: pytest.MonkeyPatch) -> None:
     @brief      A found, parseable node version reports ``"ok"``.
     @return     None
     @exception  AssertionError If status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner({("node", "--version"): ok_result(stdout="v22.9.0\n")})
@@ -284,9 +258,6 @@ def test_probe_node_absence_is_a_warning_not_a_failure(monkeypatch: pytest.Monke
                 (warn-not-block, unlike ``prereq.python``/``prereq.git``).
     @return     None
     @exception  AssertionError If the status implies a hard failure.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner({})
@@ -303,9 +274,6 @@ def test_probe_node_warns_on_unparseable_output(monkeypatch: pytest.MonkeyPatch)
                 crash.
     @return     None
     @exception  AssertionError If status is not exactly ``"warn"``.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner({("node", "--version"): ok_result(stdout="unexpected output\n")})
@@ -327,9 +295,6 @@ def test_probe_node_warns_below_the_supported_major(monkeypatch: pytest.MonkeyPa
                 which a host reads as a *non-blocking* hook error, letting the
                 tool call through. Naming the floor here turns a silent bypass
                 into a setup-time message.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner({("node", "--version"): ok_result(stdout="v14.21.3\n")})
@@ -348,9 +313,6 @@ def test_probe_node_accepts_exactly_the_supported_major(monkeypatch: pytest.Monk
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None
     @exception  AssertionError If the boundary version is rejected.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     floor = f"v{tools._MIN_NODE[0]}.{tools._MIN_NODE[1]}.0\n"
@@ -372,9 +334,6 @@ def test_probe_node_never_fails_whatever_the_version(monkeypatch: pytest.MonkeyP
                 message carries the security consequence instead; the severity
                 stays recoverable because installing Node afterwards fixes it
                 with no repair or re-run.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     for stdout, found in [("v22.9.0\n", True), ("v14.0.0\n", True), ("garbage\n", True), ("", False)]:
@@ -396,9 +355,6 @@ def test_probe_node_states_the_security_consequence(monkeypatch: pytest.MonkeyPa
                 that makes an operator act. "Hooks will not run" reads like a
                 missing convenience; the real outcome is that guarded tool
                 calls proceed without being checked at all.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner({("node", "--version"): not_found_result()})
@@ -416,8 +372,6 @@ def test_probe_uv_ok_when_found(monkeypatch: pytest.MonkeyPatch) -> None:
     @brief      A found, parseable uv version reports ``"ok"``.
     @return     None
     @exception  AssertionError If status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner({("uv", "--version"): ok_result(stdout="uv 0.4.18\n")})
@@ -435,8 +389,6 @@ def test_probe_uv_absence_is_informational_not_a_failure(monkeypatch: pytest.Mon
                 status, since uv is optional per the plan.
     @return     None
     @exception  AssertionError If the status implies a failure.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Windows")
     runner = FakeCommandRunner({})
@@ -457,9 +409,6 @@ def test_install_guidance_differs_between_windows_and_ubuntu(tool: str) -> None:
                 concrete install command for every tool.
     @return     None
     @exception  AssertionError If the two texts match or lack a command.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     windows_guidance = tools._install_guidance(tool, "Windows")
     linux_guidance = tools._install_guidance(tool, "Linux")
@@ -474,8 +423,6 @@ def test_install_guidance_falls_back_for_unknown_os() -> None:
     @brief      An unrecognized OS gets generic guidance instead of crashing.
     @return     None
     @exception  AssertionError If the call raises or returns empty text.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     guidance = tools._install_guidance("python", "Darwin")
     assert guidance
@@ -492,9 +439,6 @@ def test_tool_findings_satisfy_probe_finding_and_round_trip_json(monkeypatch: py
     @return     None
     @exception  AssertionError If a finding fails the protocol check or a
                 field is dropped by the JSON round trip.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     monkeypatch.setattr(tools.platform, "system", lambda: "Linux")
     runner = FakeCommandRunner(

@@ -9,7 +9,7 @@
 """
 @file guard_read_path.py
 @brief Pre-tool hook enforcing configured protected-read policy.
-@details Loads the canonical schema-version-2 workflow model and applies only
+@details Loads the canonical schema-version-3 workflow model and applies only
          ``guardrails.protected_paths`` patterns configured for ``read``.
          The hook contains no native repository denylist or fallback policy.
 @details Covers the search and listing tools as well as the single-file read
@@ -24,9 +24,6 @@
          supported host lets a pre-tool hook rewrite tool output. Treat
          ``protected_paths`` read policy as a guard against direct access, and
          keep genuine secrets out of the working tree.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-23
-@version 0.2.0
 """
 
 # IMPORTS
@@ -112,9 +109,6 @@ def main() -> int:
                 (0.2.0): an unknown tool wired to this hook by an adapter is far
                 more likely to be a read under a name not yet listed than a
                 search, and the strict branch is the safe way to be wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.2.0
     """
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
@@ -168,9 +162,6 @@ def extract_target_paths(tool_input: object, tool_name: str = "") -> list[str]:
                 arbitrary regex text against the protected patterns — producing
                 both false blocks and a misleading denial message.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.2.0
     """
     if not isinstance(tool_input, dict):
         return []
@@ -200,9 +191,6 @@ def deny(message: str) -> int:
     @brief      Emit the common pre-tool denial envelope.
     @param[in]  message Actionable reason shown to the agent.
     @return     Zero as required by adapter hook transports.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     print(
         json.dumps(

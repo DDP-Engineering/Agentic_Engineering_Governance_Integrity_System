@@ -35,9 +35,6 @@
          manifest — callers (T3.2's copier) supply the file list.
 @details This module is pure data (read/write/validate/compute) per the io/
          module convention (T1.3): it never prints; callers render.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.2.0
 """
 
 # IMPORTS
@@ -49,6 +46,7 @@ import json
 import os
 import re
 import stat
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -98,9 +96,6 @@ class ManifestError(ValueError):
     @brief Raised when a manifest document is malformed or invalid.
     @details Never raised for a merely absent manifest; use :func:`load_manifest`
              to distinguish absent/invalid/valid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -110,9 +105,6 @@ class ManifestState(Enum):
     @details Lets callers (``analyze``, ``doctor``, ``upgrade``) branch on
              exactly "no manifest yet" vs. "manifest present but broken" vs.
              "manifest present and valid" (plan §6 no-manifest legacy case).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     ABSENT = "absent"
@@ -124,9 +116,6 @@ class ManifestState(Enum):
 class FileEntry:
     """
     @brief One ``files`` map entry: the as-shipped sha256 and byte size.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     sha256: str
@@ -137,9 +126,6 @@ class FileEntry:
         @brief      Serialize to the frozen ``{"sha256", "size"}`` mapping.
         @return     Mapping with keys ``sha256, size``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return {"sha256": self.sha256, "size": self.size}
 
@@ -147,15 +133,12 @@ class FileEntry:
 @dataclass(frozen=True)
 class Manifest:
     """
-    @brief Schema-v1/v2 install manifest (plan §6 plus lifecycle hardening).
+    @brief Current schema-v1 install manifest (plan §6 plus lifecycle hardening).
     @details ``files`` is every payload file copied verbatim, keyed by
              repo-relative POSIX path, with its original as-shipped hash.
              ``generated`` lists files the wizard created/rewrote from answers
              (upgrade never overwrites these). ``skipped`` lists payload files
              the operator chose to keep local during an adoption conflict.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     manifest_version: int
@@ -178,11 +161,8 @@ class Manifest:
                     order the caller built the mapping in.
         @return     Mapping keyed ``manifest_version, product, payload_version,
                     installed_at, installed_by, mode, files, generated,
-                    skipped``.
+                    skipped, payload_digest, configuration``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         data: dict[str, Any] = {
             "manifest_version": self.manifest_version,
@@ -210,9 +190,6 @@ class DriftResult:
              longer present on disk. A file present on disk but absent from the
              manifest is neither: computing "extra" requires a *new* payload's
              file list and belongs to T3.2/T6.2, not this function.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     modified: tuple[str, ...] = ()
@@ -224,9 +201,6 @@ class ManifestLoadResult:
     """
     @brief Outcome of :func:`load_manifest`: exactly one of absent / invalid /
            valid.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     state: ManifestState
@@ -248,9 +222,6 @@ def normalize_managed_path(path: str | PathLike[str]) -> str:
     @param[in]  path Candidate key: repo-relative path, string, or ``PathLike``.
     @return     Canonical forward-slash POSIX path string.
     @exception  ManifestError If the candidate is unsafe or non-canonical.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.2.0
     """
     text = str(path).replace("\\", "/")
     if not text or "\x00" in text:
@@ -279,9 +250,6 @@ def resolve_managed_path(root: str | PathLike[str], path: str | PathLike[str]) -
     @param[in]  path Candidate managed path.
     @return     Safe absolute candidate path.
     @exception  ManifestError If validation, containment, or symlink checks fail.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     key = normalize_managed_path(path)
     root_path = Path(root).resolve()
@@ -305,9 +273,6 @@ def _is_link_like(path: Path) -> bool:
     @param[in]  path Existing filesystem path.
     @return     True for a symlink, junction, or other reparse point.
     @exception  OSError If metadata cannot be read.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     if path.is_symlink():
         return True
@@ -323,9 +288,6 @@ def _normalize_path_collection(values: Iterable[str | PathLike[str]], *, label: 
     @param[in]  label Field name used in diagnostics.
     @return     Sorted canonical paths.
     @exception  ManifestError On duplicate or case-colliding keys.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     normalized: list[str] = []
     folded: dict[str, str] = {}
@@ -345,9 +307,6 @@ def digest_file_entries(entries: Mapping[str, FileEntry]) -> str:
     @param[in]  entries Managed path to byte hash/size mapping.
     @return     Lowercase sha256 digest for the entire payload inventory.
     @exception  ManifestError If an entry path is unsafe or collides by case.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     keys = _normalize_path_collection(entries.keys(), label="payload files")
     hasher = hashlib.sha256()
@@ -370,9 +329,6 @@ def _require_mapping(entry: Any, key: str) -> Mapping[str, Any]:
     @param[in]  key The offending manifest key, for the error message.
     @return     ``entry``, narrowed to ``Mapping[str, Any]``.
     @exception  ManifestError If ``entry`` is not a mapping.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if not isinstance(entry, Mapping):
         raise ManifestError(f"install manifest file entry for {key!r} must be an object with sha256/size")
@@ -387,9 +343,6 @@ def _file_entry_from_dict(entry: Mapping[str, Any], key: str) -> FileEntry:
     @return     The parsed :class:`FileEntry`.
     @exception  ManifestError If ``sha256`` is not a non-empty string or
                 ``size`` is not an integer.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     sha256 = entry.get("sha256")
     size = entry.get("size")
@@ -415,9 +368,6 @@ def hash_file(path: str | PathLike[str]) -> FileEntry:
     @param[in]  path Path of the file to hash.
     @return     A :class:`FileEntry` with the file's sha256 hex digest and size.
     @exception  OSError If the file cannot be opened/read.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     hasher = hashlib.sha256()
     size = 0
@@ -437,9 +387,6 @@ def manifest_path(root: str | PathLike[str]) -> Path:
     @param[in]  root Repository root directory.
     @return     ``root / ".agentic/install-manifest.json"``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return Path(root) / MANIFEST_RELATIVE_PATH
 
@@ -481,9 +428,8 @@ def build_manifest(
     @param[in]  installed_by Override for the installed-by string (tests).
     @return     The built :class:`Manifest`.
     @exception  OSError If a listed file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @exception  ManifestError If a path is unsafe, duplicate/case-colliding, or
+                a path appears in more than one of files/generated/skipped.
     """
     root = Path(root).resolve()
     manifest_key = normalize_managed_path(MANIFEST_RELATIVE_PATH)
@@ -521,9 +467,6 @@ def manifest_from_dict(data: Mapping[str, Any]) -> Manifest:
     @exception  ManifestError If a required top-level key is missing, the
                 ``manifest_version`` is unknown, or a ``files`` entry is
                 malformed. The message names the offending key.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     manifest_version = data.get("manifest_version")
     if manifest_version != MANIFEST_VERSION:
@@ -554,8 +497,15 @@ def manifest_from_dict(data: Mapping[str, Any]) -> Manifest:
     if not isinstance(configuration, Mapping):
         raise ManifestError("install manifest 'configuration' must be an object")
     payload_digest = data["payload_digest"]
-    if not isinstance(payload_digest, str) or len(payload_digest) != 64:
-        raise ManifestError("install manifest 'payload_digest' must be a sha256 string")
+    if (
+        not isinstance(payload_digest, str)
+        or len(payload_digest) != 64
+        or any(char not in "0123456789abcdef" for char in payload_digest)
+    ):
+        raise ManifestError("install manifest 'payload_digest' must be a lowercase hex sha256 string")
+    for attribute_name in ("product", "payload_version", "installed_at", "installed_by", "mode"):
+        if not isinstance(data[attribute_name], str):
+            raise ManifestError(f"install manifest {attribute_name!r} must be a string")
 
     return Manifest(
         manifest_version=manifest_version,
@@ -578,20 +528,28 @@ def write_manifest(root: str | PathLike[str], manifest: Manifest) -> Path:
                 write it under a repo root.
     @details    2-space indent, ``\\n`` line endings regardless of host OS.
                 Creates the parent ``.agentic/`` directory if needed.
+    @details    The temp sibling carries a ``uuid4`` suffix, mirroring
+                :func:`waegis.io.answers.save_answers_file`, so two WAEGIS
+                invocations against the same repository (e.g. a ``doctor`` in
+                an automation hook while an operator runs ``repair``) cannot
+                interleave their writes into one shared ``.tmp`` path and
+                publish a corrupted manifest through an otherwise atomic
+                :func:`os.replace`.
     @param[in]  root Repository root directory.
     @param[in]  manifest The :class:`Manifest` to write.
     @return     The path the manifest was written to.
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     path = manifest_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(manifest.to_dict(), indent=2, ensure_ascii=False) + "\n"
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(text, encoding="utf-8", newline="\n")
-    os.replace(temporary, path)
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8", newline="\n")
+        os.replace(temporary, path)
+    except OSError:
+        temporary.unlink(missing_ok=True)
+        raise
     return path
 
 
@@ -603,9 +561,6 @@ def read_manifest(root: str | PathLike[str]) -> Manifest:
     @exception  FileNotFoundError If no manifest exists under ``root``.
     @exception  ManifestError If the file is not valid JSON or fails schema
                 validation.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     path = manifest_path(root)
     text = path.read_text(encoding="utf-8")
@@ -625,9 +580,6 @@ def load_manifest(root: str | PathLike[str]) -> ManifestLoadResult:
     @param[in]  root Repository root directory.
     @return     A :class:`ManifestLoadResult` in exactly one of the three states.
     @exception  None — every failure is captured in the returned result.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if not manifest_path(root).is_file():
         return ManifestLoadResult(state=ManifestState.ABSENT)
@@ -650,9 +602,8 @@ def compute_drift(root: str | PathLike[str], manifest: Manifest) -> DriftResult:
     @param[in]  manifest The manifest to compare current files against.
     @return     A :class:`DriftResult` with sorted ``modified``/``missing`` lists.
     @exception  OSError If a present file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
+    @exception  ManifestError If a recorded path now crosses a symlink or
+                escapes the resolved root.
     """
     root = Path(root).resolve()
     modified: list[str] = []

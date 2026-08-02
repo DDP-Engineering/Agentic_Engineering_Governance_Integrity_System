@@ -18,11 +18,8 @@
 @details T5 regression coverage (0.5.0) verifies that ``gh pr merge`` reaches
          delivery preflight like PR creation and other outward actions.
 @details WP5 coverage verifies that write, read, secret, and delivery hooks
-         consume only the canonical schema-version-2 configuration and deny
+         consume only the canonical schema-version-3 configuration and deny
          pre-tool operations when that policy cannot be validated.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 1.1.0
 """
 
 # IMPORTS
@@ -40,7 +37,7 @@ from types import ModuleType
 import pytest
 
 from aegis import paths as paths_module
-from aegis.cli import main as cli_main
+from aegis.store import init_graph, save_graph
 
 
 # LOCAL HELPERS
@@ -59,9 +56,6 @@ def load_hook(module_name: str) -> ModuleType:
     @param[in]  module_name Hook file stem under the template hooks directory.
     @return     Imported module exposing the hook ``main`` callable.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     path = HOOKS_DIR / f"{module_name}.py"
     spec = importlib.util.spec_from_file_location(f"agentic_hook_{module_name}", path)
@@ -87,41 +81,15 @@ def test_workflow_config_bootstrap_uses_canonical_parser() -> None:
     """
     @brief      The shared hook bootstrap imports the delivered strict parser.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     template_root = HOOKS_DIR.parents[1]
 
     config = config_bootstrap.load_workflow_config(template_root)
 
-    assert config.schema_version == 2
+    assert config.schema_version == 3
     assert config.write_access.mode == "unrestricted"
     payload = config_bootstrap.configuration_error_payload(RuntimeError("missing parser"))
     assert payload["code"] == "CONFIG-BOOTSTRAP-FAILED"
-
-
-def run_cli(tmp_path: Path, *args: str) -> None:
-    """
-    @brief      Run CLI workflow behavior.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @param[in]  args Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
-    """
-    if args and args[0] == "start":
-        configure_stage_restricted_guardrails(tmp_path)
-    cwd = Path.cwd()
-    try:
-        import os
-
-        os.chdir(tmp_path)
-        cli_main(list(args))
-    finally:
-        os.chdir(cwd)
 
 
 def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
@@ -132,9 +100,6 @@ def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
     @details    WP2 removes hook fallbacks. Tests that exercise stage behavior
                 therefore opt into complete stage-restricted and protected-path
                 policies before starting a run.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     path = tmp_path / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -153,6 +118,7 @@ def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
         'intake = [".agentic/**"]\n'
         'alignment = [".agentic/**"]\n'
         'requirement = [".agentic/requirements/**"]\n'
+        'design = [".agentic/**"]\n'
         'check = ["tests/**", "test/**"]\n'
         'implementation = ["src/**", "app/**", "lib/**", ".agentic/knowledge/components/**"]\n'
         'validation = []\n'
@@ -168,6 +134,28 @@ def configure_stage_restricted_guardrails(tmp_path: Path) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
+def prepare_run(
+    tmp_path: Path,
+    stage: str,
+    *,
+    kind: str = "feature",
+    access_mode: str = "standard",
+) -> None:
+    """
+    @brief Create a selected schema-3 run at the stage needed by a hook test.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] stage Stage whose write policy is under test.
+    @param[in] kind Intent kind for stage-specific policy.
+    @param[in] access_mode Captured run access mode.
+    @return None.
+    """
+    configure_stage_restricted_guardrails(tmp_path)
+    graph = init_graph(tmp_path, kind, "Hook policy probe")
+    graph.stage = stage  # type: ignore[assignment]
+    graph.access_mode = access_mode  # type: ignore[assignment]
+    save_graph(tmp_path, graph)
+
+
 def replace_workflow_fragment(tmp_path: Path, old: str, new: str) -> None:
     """
     @brief      Replace one unique policy fragment in the shared configuration.
@@ -176,9 +164,6 @@ def replace_workflow_fragment(tmp_path: Path, old: str, new: str) -> None:
     @param[in]  new Exact replacement fragment.
     @return     None.
     @exception  AssertionError If the expected fragment is not unique.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     path = tmp_path / ".agentic" / "workflow.toml"
     text = path.read_text(encoding="utf-8")
@@ -194,9 +179,6 @@ def run_hook(func, payload: dict, monkeypatch) -> str:
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     cwd_value = payload.get("cwd")
     if isinstance(cwd_value, str):
@@ -217,9 +199,6 @@ def install_hook_runtime(repo_root: Path) -> None:
     @details    Delivered projects contain `.agentic/cli/src/aegis`; temporary
                 hook repositories reproduce that runtime boundary so the hook
                 bootstrap is exercised instead of importing test-process state.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     destination = repo_root / ".agentic" / "cli" / "src"
     if not (destination / "aegis").is_dir():
@@ -233,9 +212,6 @@ def apply_patch_payload(tmp_path: Path, target: str) -> dict:
     @param[in]  target Repo-relative path the patch updates.
     @return     Pre-tool-use payload mimicking the Codex apply_patch envelope.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     command = f"*** Begin Patch\n*** Update File: {target}\n@@\n+change\n*** End Patch\n"
     return {
@@ -255,9 +231,6 @@ def file_edit_payload(tmp_path: Path, tool_name: str, target: str) -> dict:
     @param[in]  target Repo-relative path the tool intends to edit.
     @return     Pre-tool-use payload mimicking an adapter file edit.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     tool_input: dict = {"file_path": target}
     if tool_name in {"Write", "WriteFile", "write_file"}:
@@ -281,15 +254,8 @@ def advance_to_implementation(tmp_path: Path) -> None:
     @param[in]  tmp_path Working directory hosting the workflow run.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "implementation")
 
 
 # --- Shared path-policy matching -----------------------------------------------
@@ -302,9 +268,6 @@ def test_matches_is_case_insensitive_on_windows(monkeypatch) -> None:
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(paths_module.os, "name", "nt")
     assert guard_module.matches("Src/App.py", "src/**")
@@ -319,9 +282,6 @@ def test_matches_is_case_sensitive_on_non_windows(monkeypatch) -> None:
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     monkeypatch.setattr(paths_module.os, "name", "posix")
     assert not guard_module.matches("Src/App.py", "src/**")
@@ -346,9 +306,6 @@ def test_guard_write_zone_stage_restricted_missing_run_uses_resolver_error(tmp_p
                 is active and how to start one, so a fresh agent's first
                 blocked edit points at the actual next step.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.3.0
     """
     configure_stage_restricted_guardrails(tmp_path)
     payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
@@ -357,7 +314,7 @@ def test_guard_write_zone_stage_restricted_missing_run_uses_resolver_error(tmp_p
     reason = decision["permissionDecisionReason"]
     assert decision["permissionDecision"] == "deny"
     assert reason.startswith("RUN-POINTER-MISSING:")
-    assert "--run-id <existing-run-id>" in reason
+    assert "--run <existing-run-id>" in reason
     assert ".agentic/.workspace/state/current_run" in reason
 
 
@@ -370,9 +327,6 @@ def test_guard_write_zone_unrestricted_policy_needs_no_run(tmp_path: Path, monke
     @details    T7 changes only denial text; the existing bookkeeping allowance
                 remains unchanged.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
@@ -388,12 +342,9 @@ def test_guard_write_zone_active_intake_denial_message_unchanged(tmp_path: Path,
     @details    T7 must not replace stage-specific guidance when a readable
                 active run already exists.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     (tmp_path / ".agentic").mkdir(exist_ok=True)
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
+    prepare_run(tmp_path, "intake")
     payload = file_edit_payload(tmp_path, "Edit", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "deny" in output
@@ -408,9 +359,6 @@ def test_guard_write_zone_denies_implementation_test_edit(tmp_path: Path, monkey
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = apply_patch_payload(tmp_path, "tests/test_app.py")
@@ -426,9 +374,6 @@ def test_guard_write_zone_allows_implementation_source_edit(tmp_path: Path, monk
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = apply_patch_payload(tmp_path, "src/app.py")
@@ -443,13 +388,8 @@ def test_guard_write_zone_allows_requirement_snapshot_edit(tmp_path: Path, monke
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "requirement")
     payload = apply_patch_payload(
         tmp_path,
         ".agentic/requirements/functional/"
@@ -466,12 +406,8 @@ def test_guard_write_zone_allows_alignment_state_edit(tmp_path: Path, monkeypatc
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-03
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "alignment")
     payload = apply_patch_payload(tmp_path, ".agentic/runs/RUN-1/note.md")
     output = run_hook(guard_main, payload, monkeypatch)
     assert output == ""
@@ -484,18 +420,8 @@ def test_guard_write_zone_repo_wide_allows_normal_repo_file(tmp_path: Path, monk
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, "README.md")
     output = run_hook(guard_main, payload, monkeypatch)
     assert output == ""
@@ -508,18 +434,8 @@ def test_guard_write_zone_repo_wide_blocks_protected_path(tmp_path: Path, monkey
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, ".git/config")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "permissionDecision" in output
@@ -546,18 +462,8 @@ def test_guard_write_zone_reads_patch_envelope_from_any_key(
                 keys on its own side, but that only covered calls routed through
                 it; this is the shared implementation every adapter feeds.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, ".git/config")
     payload["tool_input"] = {envelope_key: payload["tool_input"]["command"]}
 
@@ -581,18 +487,8 @@ def test_guard_write_zone_reports_a_path_once_across_duplicate_keys(
                 same patch can be seen twice. Deduplication keeps one violation
                 from being reported as two.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = apply_patch_payload(tmp_path, ".git/config")
     command = payload["tool_input"]["command"]
     payload["tool_input"] = {"command": command, "patch": command}
@@ -613,9 +509,6 @@ def test_guard_write_zone_denies_claude_test_edit_during_implementation(tmp_path
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = file_edit_payload(tmp_path, "Edit", "tests/test_app.py")
@@ -632,9 +525,6 @@ def test_guard_write_zone_allows_claude_source_write_during_implementation(tmp_p
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = file_edit_payload(tmp_path, "Write", "src/app.py")
@@ -649,14 +539,8 @@ def test_guard_write_zone_denies_claude_source_edit_during_check(tmp_path: Path,
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Add discounts")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
-    run_cli(tmp_path, "next")
+    prepare_run(tmp_path, "check")
     payload = file_edit_payload(tmp_path, "Write", "src/app.py")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "permissionDecision" in output
@@ -670,18 +554,8 @@ def test_guard_write_zone_repo_wide_blocks_claude_multiedit_protected_path(tmp_p
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     payload = file_edit_payload(tmp_path, "MultiEdit", "deploy/id_rsa")
     output = run_hook(guard_main, payload, monkeypatch)
     assert "permissionDecision" in output
@@ -698,9 +572,6 @@ def test_guard_write_zone_denies_qwen_test_write_during_implementation(tmp_path:
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = file_edit_payload(tmp_path, "WriteFile", "tests/test_app.py")
@@ -717,9 +588,6 @@ def test_guard_write_zone_allows_qwen_source_write_during_implementation(tmp_pat
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-01
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = file_edit_payload(tmp_path, "WriteFile", "src/app.py")
@@ -736,9 +604,6 @@ def test_post_tool_evidence_warns_without_valid_workspace_pointer(tmp_path: Path
     @param[in]  tmp_path Repository without an active-run pointer.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     payload = {
         "hook_event_name": "PostToolUse",
@@ -762,11 +627,8 @@ def test_post_tool_evidence_appends_only_to_selected_run(tmp_path: Path, monkeyp
     @param[in]  tmp_path Repository with an active run.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "Evidence state")
+    prepare_run(tmp_path, "intake")
     run_id = (tmp_path / ".agentic" / ".workspace" / "state" / "current_run").read_text(encoding="utf-8").strip()
     journal = tmp_path / ".agentic" / "runs" / run_id / "journal.jsonl"
     before = journal.read_text(encoding="utf-8")
@@ -796,9 +658,6 @@ def test_guard_read_path_denies_configured_protected_read(tmp_path: Path, monkey
     @param[in]  tmp_path Repository root containing ``workflow.toml``.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -825,9 +684,6 @@ def enforce_protected_read(tmp_path: Path) -> None:
     @param[in]  tmp_path Repository root containing ``workflow.toml``.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -877,9 +733,6 @@ def test_guard_read_path_blocks_protected_path_through_search_tools(
                 tool. Each case here is one host's real tool identifier,
                 verified against that host's shipped build.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     enforce_protected_read(tmp_path)
     payload = {
@@ -912,9 +765,6 @@ def test_guard_read_path_directory_listing_follows_pattern_shape(
                 writes the bare directory; `credentials/**` deliberately names
                 only what is inside it.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     enforce_protected_read(tmp_path)
     listing = {
@@ -951,9 +801,6 @@ def test_guard_read_path_allows_unscoped_search(tmp_path: Path, monkeypatch) -> 
                 protected path from being *targeted*, not every search that
                 might incidentally touch one.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     enforce_protected_read(tmp_path)
     payload = {
@@ -980,9 +827,6 @@ def test_guard_read_path_does_not_treat_grep_regex_as_a_path(
                 protected patterns and block a legitimate search whose regex
                 happened to look like a protected path.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     enforce_protected_read(tmp_path)
     payload = {
@@ -1007,9 +851,6 @@ def test_guard_read_path_still_denies_a_read_naming_no_file(
                 A read tool cannot operate without a target, so a payload
                 without one is malformed and must not become an allow.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     enforce_protected_read(tmp_path)
     payload = {
@@ -1035,9 +876,6 @@ def test_guard_read_path_tool_sets_are_disjoint_and_classify_every_name() -> Non
                 the search tools, since it only refines how their ``pattern``
                 argument is read.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     read_module = load_hook("guard_read_path")
 
@@ -1062,9 +900,6 @@ def test_claude_and_qwen_matchers_cover_every_search_tool() -> None:
                 distinct read tool — it reads through `shell`, already matched
                 by the Bash entry.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     template = Path(__file__).resolve().parents[1] / "template"
 
@@ -1094,9 +929,6 @@ def test_guard_read_path_disabled_allows_former_builtin_secret_name(
     @param[in]  tmp_path Repository root containing unrestricted policy.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     payload = {
         "hook_event_name": "PreToolUse",
@@ -1114,9 +946,6 @@ def test_guard_read_path_invalid_configuration_denies(tmp_path: Path, monkeypatc
     @param[in]  tmp_path Repository root containing malformed TOML.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     (tmp_path / ".agentic" / "workflow.toml").write_text("not = [valid", encoding="utf-8")
     payload = {
@@ -1143,9 +972,6 @@ def test_secret_scan_denies_configured_pattern(tmp_path: Path, monkeypatch) -> N
     @return     None.
     @details    The hook compiles only patterns accepted by ``aegis.config``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.3.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -1169,9 +995,6 @@ def test_secret_scan_invalid_configured_regex_denies(tmp_path: Path, monkeypatch
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.3.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -1198,9 +1021,6 @@ def test_secret_scan_missing_workflow_denies_without_builtin_fallback(
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     (tmp_path / ".agentic" / "workflow.toml").unlink()
     payload = {
@@ -1220,9 +1040,6 @@ def test_secret_scan_disabled_has_no_builtin_patterns(tmp_path: Path, monkeypatc
     @param[in]  tmp_path Repository root containing unrestricted policy.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     payload = {
         "hook_event_name": "PreToolUse",
@@ -1241,9 +1058,6 @@ def test_delivery_preflight_ignores_non_delivery_command(tmp_path: Path, monkeyp
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -1268,9 +1082,6 @@ def test_delivery_preflight_disabled_ignores_former_builtin_command(
     @param[in]  tmp_path Repository root containing unrestricted policy.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     payload = {
         "hook_event_name": "PreToolUse",
@@ -1291,9 +1102,6 @@ def test_delivery_preflight_denies_configured_push_without_launcher(
     @param[in]  monkeypatch Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -1320,9 +1128,6 @@ def test_qwen_delivery_preflight_denies_configured_push_without_launcher(
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -1354,9 +1159,6 @@ def test_delivery_preflight_denies_gh_pr_merge_without_launcher(
                 previously bypassed ``DELIVERY_PATTERNS`` even though PR create,
                 Git push, and Git merge were intercepted.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     replace_workflow_fragment(
         tmp_path,
@@ -1380,9 +1182,6 @@ def test_delivery_preflight_invalid_configuration_denies(tmp_path: Path, monkeyp
     @param[in]  tmp_path Repository root containing no workflow configuration.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     (tmp_path / ".agentic" / "workflow.toml").unlink()
     payload = {
@@ -1409,9 +1208,6 @@ def shell_payload(tmp_path: Path, command: str, tool_name: str = "Bash") -> dict
     @param[in]  tool_name Shell tool identifier (``Bash`` or ``run_shell_command``).
     @return     Pre-tool-use payload mimicking a shell invocation.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     return {
         "hook_event_name": "PreToolUse",
@@ -1452,9 +1248,6 @@ def test_extract_write_targets_recognizes_common_forms(command: str, expected: l
     @param[in]  expected Write targets the extractor should report.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     assert shell_write_module.extract_write_targets(command) == expected
 
@@ -1469,9 +1262,6 @@ def test_guard_shell_write_denies_out_of_zone_redirect(tmp_path: Path, monkeypat
                 ``> tests/...`` redirection is blocked exactly as an editor edit
                 of the same path would be.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > tests/test_app.py"), monkeypatch)
@@ -1486,9 +1276,6 @@ def test_guard_shell_write_allows_in_zone_redirect(tmp_path: Path, monkeypatch) 
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > src/app.py"), monkeypatch)
@@ -1506,9 +1293,6 @@ def test_guard_shell_write_ignores_targets_outside_the_repository(tmp_path: Path
                 left untouched even at a stage whose zone would reject it as a
                 repository path.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     output = run_hook(shell_write_main, shell_payload(tmp_path, "pytest -q > /dev/null 2>&1"), monkeypatch)
@@ -1526,9 +1310,6 @@ def test_guard_shell_write_allows_non_writing_command_without_a_run(tmp_path: Pa
                 nothing never triggers the missing-run denial that a real shell
                 write would.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     configure_stage_restricted_guardrails(tmp_path)
     output = run_hook(shell_write_main, shell_payload(tmp_path, "git status && ls -la src/"), monkeypatch)
@@ -1543,9 +1324,6 @@ def test_guard_shell_write_missing_run_uses_resolver_error(tmp_path: Path, monke
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     configure_stage_restricted_guardrails(tmp_path)
     output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > src/app.py"), monkeypatch)
@@ -1561,18 +1339,8 @@ def test_guard_shell_write_repo_wide_blocks_protected_path(tmp_path: Path, monke
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
-    run_cli(tmp_path, "start", "--kind", "change", "--statement", "Maintain docs")
-    run_cli(
-        tmp_path,
-        "set-access-mode",
-        "repo-wide",
-        "--reason",
-        "Human-approved broad maintenance",
-    )
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
     output = run_hook(shell_write_main, shell_payload(tmp_path, "cp key.pem deploy/id_rsa"), monkeypatch)
     assert "deny" in output
     assert "deploy/id_rsa" in output
@@ -1586,9 +1354,6 @@ def test_guard_shell_write_unrestricted_policy_allows_repo_write(tmp_path: Path,
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > src/app.py"), monkeypatch)
     assert output == ""
@@ -1601,9 +1366,6 @@ def test_guard_shell_write_applies_to_qwen_shell_tool(tmp_path: Path, monkeypatc
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     advance_to_implementation(tmp_path)
     payload = shell_payload(tmp_path, "echo x > tests/test_app.py", tool_name="run_shell_command")

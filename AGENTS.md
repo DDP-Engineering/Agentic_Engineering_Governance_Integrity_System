@@ -62,13 +62,10 @@ required. Prefer self-contained names that remain accurate if planning
 documents are renamed, reorganized, or removed. Requirement IDs remain valid
 where the traceability rules below call for them.
 
-When changing the implementation of a function, method, or documented nested
-helper, update that callable's local `@version` tag in its documentation block
-in the same change.
-
-When adding or removing a function, method, class, or documented nested helper
-from a Python file, update the file-level `@version` tag in that file's module
-documentation header in the same change.
+Docstrings carry no authorship or version tags. The file-top copyright/license
+comment block is the sole in-file attribution. Versioning is project-level
+only, tracked in `aegis`'s `__init__.__version__` / payload version, `waegis`'s
+`version.py` `WIZARD_VERSION`, and the existing changelogs.
 
 ## Requirements Traceability Rules
 

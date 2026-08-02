@@ -15,9 +15,6 @@
          deploy.gates step, and the three verify.* smoke steps are reused as the
          *same* StepSpec objects Wizard N runs (object identity, not lookalikes),
          while deploy.workflow-toml is an adopt-specific instance.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
 """
 
 # IMPORTS
@@ -56,8 +53,6 @@ def test_catalog_builds_in_plan_order_without_duplicates() -> None:
                 order matches ADOPT_STEP_IDS row for row (plan §8.2).
     @return     None
     @exception  AssertionError If the order or uniqueness is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ids = tuple(step.id for step in build_adopt_catalog().ordered())
     assert ids == ADOPT_STEP_IDS
@@ -70,8 +65,6 @@ def test_every_precondition_names_a_catalog_step() -> None:
                 (no dangling preconditions).
     @return     None
     @exception  AssertionError If a precondition names an unknown step.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     known = set(ADOPT_STEP_IDS)
     for step in build_adopt_catalog().ordered():
@@ -87,8 +80,6 @@ def test_shared_steps_are_the_same_objects_as_wizard_n() -> None:
     @return     None
     @exception  AssertionError If any shared step is a distinct object, or the
                 adopt-specific step is shared.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     adopt_by_id = {step.id: step for step in build_adopt_catalog().ordered()}
     new_by_id = {step.id: step for step in build_new_catalog().ordered()}
@@ -104,8 +95,6 @@ def test_adopt_specific_step_ids_are_present() -> None:
     @return     None
     @exception  AssertionError If an adopt-specific step is missing or leaked
                 into Wizard N.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     adopt_only = {
         "repo.validate-existing",

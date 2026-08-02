@@ -19,9 +19,6 @@
          here. The current schema includes command/catalog/target/answers/
          payload fingerprints. Only an incomplete compatible journal may contribute
          replay answers, and its previously green steps are re-detected.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.3.0
 """
 
 # IMPORTS
@@ -35,7 +32,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .step import GREEN_STATUSES, StepResult, StepStatus
+from .step import GREEN_STATUSES, Remediation, StepResult, StepStatus
 
 # CONSTANTS
 
@@ -69,9 +66,6 @@ def utc_now_iso() -> str:
     @brief      Current UTC time as an ISO-8601 string with a trailing ``Z``.
     @return     Timestamp such as ``"2026-07-12T13:05:01Z"`` (second precision).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -85,9 +79,6 @@ def waegis_home() -> Path:
                 ``~/.config/waegis`` on POSIX. The directory is not created here.
     @return     Path to the WAEGIS home (may not yet exist).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     override = os.environ.get("WAEGIS_HOME")
     if override:
@@ -104,9 +95,6 @@ def _new_run_id() -> str:
     @brief      Generate a unique, sortable run id.
     @return     Id such as ``"20260712T130501Z-a1b2c3"`` (UTC compact + random).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     return f"{stamp}-{uuid.uuid4().hex[:6]}"
@@ -122,9 +110,6 @@ class Journal:
              them to a single JSON file that is refreshed after every recorded
              step. Use :meth:`begin` to start a fresh journal and :meth:`load` to
              read a prior one for resume.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(
@@ -157,11 +142,10 @@ class Journal:
         @param[in]  finished_at ISO-8601 finish timestamp, when known.
         @param[in]  stopped_at_step Step id a stop occurred at, if any.
         @param[in]  results Ordered per-step results recorded so far.
+        @param[in]  fingerprints Command/catalog/target/answers/payload
+                    fingerprints recorded with the run.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         self.run_id = run_id
         self.wizard_version = wizard_version
@@ -195,11 +179,10 @@ class Journal:
         @param[in]  target Optional target repo path.
         @param[in]  dry_run Whether the run is a preview only.
         @param[in]  home Override home directory; defaults to :func:`waegis_home`.
+        @param[in]  fingerprints Command/catalog/target/answers/payload
+                    fingerprints to record with the run.
         @return     A ready-to-record :class:`Journal`.
         @exception  OSError If the journal directory or file cannot be created.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         base = home if home is not None else waegis_home()
         run_id = _new_run_id()
@@ -225,10 +208,8 @@ class Journal:
         @return     The reconstructed :class:`Journal`.
         @exception  OSError If the file cannot be read.
         @exception  json.JSONDecodeError If the file is not valid JSON.
-        @exception  KeyError If a required field is missing from the document.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
+        @exception  ValueError If the journal version is unsupported or a
+                    required field is missing/malformed.
         """
         path = Path(path)
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -277,12 +258,7 @@ class Journal:
         @return     The reconstructed :class:`StepResult`.
         @exception  KeyError If the entry lacks a step id.
         @exception  ValueError If the status value is not a known ``StepStatus``.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
-        from .step import Remediation
-
         failure = item.get("failure")
         remediation = (
             Remediation(
@@ -315,9 +291,6 @@ class Journal:
                     same step id is overwritten in place.
         @return     None
         @exception  OSError If the journal file cannot be written.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         for position, existing in enumerate(self._results):
             if existing.step_id == result.step_id:
@@ -334,9 +307,6 @@ class Journal:
         @param[in]  stopped_at_step Step id a stop occurred at, if any.
         @return     None
         @exception  OSError If the journal file cannot be written.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         self.status = status
         self.stopped_at_step = stopped_at_step
@@ -349,9 +319,6 @@ class Journal:
         @return     Set of step ids whose recorded status is ``DONE`` or
                     ``SKIPPED`` — the seed set for resume.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return {r.step_id for r in self._results if r.status in GREEN_STATUSES}
 
@@ -360,8 +327,6 @@ class Journal:
         @brief      The recorded per-step results in order.
         @return     Tuple of :class:`StepResult`.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         return tuple(self._results)
 
@@ -370,9 +335,6 @@ class Journal:
         @brief      Serialize the whole journal to a JSON-safe mapping.
         @return     The journal document (schema v1).
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return {
             "journal_version": JOURNAL_VERSION,
@@ -393,18 +355,27 @@ class Journal:
         """
         @brief      Atomically write the journal document to :attr:`path`.
         @details    Writes to a sibling temporary file and renames it into place
-                    so a crash mid-write cannot leave a truncated journal.
+                    so a crash mid-write cannot leave a truncated journal. The
+                    temp name carries a ``uuid4`` suffix, matching
+                    :func:`waegis.io.answers.save_answers_file` and
+                    :func:`waegis.payload.manifest.write_manifest`: a fixed
+                    sibling would be shared by any second writer of the same
+                    journal (a resumed run flushing while the original process
+                    still holds it), which can publish one writer's staged bytes
+                    under the other's rename. A failed write leaves no temp file
+                    behind.
         @return     None
         @exception  OSError If the directory or file cannot be created/written.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        tmp.write_text(payload, encoding="utf-8")
-        os.replace(tmp, self.path)
+        tmp = self.path.with_name(f"{self.path.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            tmp.write_text(payload, encoding="utf-8")
+            os.replace(tmp, self.path)
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            raise
 
 
 # END OF FILE

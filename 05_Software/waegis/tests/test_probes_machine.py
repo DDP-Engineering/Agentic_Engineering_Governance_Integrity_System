@@ -13,9 +13,6 @@
          ``platform.machine`` so results are identical on Windows and Linux
          CI; disk tests monkeypatch ``shutil.disk_usage``. No test reads real
          machine state.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -38,8 +35,6 @@ def test_probe_os_support_ok_for_windows_11(monkeypatch: pytest.MonkeyPatch) -> 
                 depending on CPython build) is inside the support matrix.
     @return     None
     @exception  AssertionError If the status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(machine.platform, "system", lambda: "Windows")
     monkeypatch.setattr(machine.platform, "release", lambda: "11")
@@ -58,8 +53,6 @@ def test_probe_os_support_ok_for_ubuntu(monkeypatch: pytest.MonkeyPatch) -> None
                 distro major version, so this probe does not overclaim).
     @return     None
     @exception  AssertionError If the status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(machine.platform, "system", lambda: "Linux")
     monkeypatch.setattr(machine.platform, "release", lambda: "5.15.0-91-generic")
@@ -75,8 +68,6 @@ def test_probe_os_support_warns_outside_matrix_windows_7(monkeypatch: pytest.Mon
     @brief      A Windows release below the supported line warns, never fails.
     @return     None
     @exception  AssertionError If the status is not exactly ``"warn"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(machine.platform, "system", lambda: "Windows")
     monkeypatch.setattr(machine.platform, "release", lambda: "7")
@@ -95,8 +86,6 @@ def test_probe_os_support_warns_for_unknown_os(monkeypatch: pytest.MonkeyPatch) 
     @return     None
     @exception  AssertionError If the status is not ``"warn"`` or guidance is
                 missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(machine.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(machine.platform, "release", lambda: "23.1.0")
@@ -114,8 +103,6 @@ def test_probe_architecture_reports_detected_machine(monkeypatch: pytest.MonkeyP
     @return     None
     @exception  AssertionError If the arch string is dropped or the status is
                 not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(machine.platform, "machine", lambda: "AMD64")
 
@@ -131,8 +118,6 @@ def test_probe_disk_space_ok_above_minimum(monkeypatch: pytest.MonkeyPatch) -> N
     @brief      Free space at or above the caller's minimum reports ``"ok"``.
     @return     None
     @exception  AssertionError If the status is not ``"ok"``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     real_usage_type = type(shutil.disk_usage("."))
     fake_usage = real_usage_type(total=100 * 1024**3, used=50 * 1024**3, free=50 * 1024**3)
@@ -153,8 +138,6 @@ def test_probe_disk_space_fails_below_minimum(monkeypatch: pytest.MonkeyPatch) -
     @return     None
     @exception  AssertionError If the status is not ``"fail"`` or guidance is
                 missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     real_usage_type = type(shutil.disk_usage("."))
     fake_usage = real_usage_type(total=10 * 1024**3, used=int(9.9 * 1024**3), free=100 * 1024**2)
@@ -174,8 +157,6 @@ def test_machine_findings_satisfy_probe_finding_and_round_trip_json() -> None:
     @return     None
     @exception  AssertionError If a finding fails the protocol check or a
                 field is dropped by the JSON round trip.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     findings = [
         machine.probe_os_support(),

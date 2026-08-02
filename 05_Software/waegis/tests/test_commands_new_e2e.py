@@ -18,9 +18,6 @@
          directory to a committed, smoke-verified AEGIS repo with zero manual
          file editing, and a re-run that skips every step (resumable /
          idempotent).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.1.0
 """
 
 # IMPORTS
@@ -54,14 +51,17 @@ pytestmark = [
     pytest.mark.skipif(shutil.which(_REQUIRED_SHELL) is None, reason=f"{_REQUIRED_SHELL} not available"),
 ]
 
-# @brief Complete scripted answer set: local init, python preset, empty gates
-#        (exercising the loud empty-gate warning path), hermetic git identity.
+# @brief Complete scripted answer set: local init, Python preset, five disabled
+#        gates, file-first interface defaults, and hermetic Git identity.
 _ANSWERS: dict = {
     "source_roots": ["src"],
     "test_roots": ["tests"],
     "language": "python",
-    "gate_test_cmds": [],
+    "gate_build_cmds": [],
+    "gate_typecheck_cmds": [],
     "gate_lint_cmds": [],
+    "gate_test_cmds": [],
+    "gate_security_cmds": [],
     "alignment_enabled": True,
     "baseline_guard_mode": "disabled",
     "baseline_minimum_completion_level": "baseline-usable",
@@ -71,7 +71,13 @@ _ANSWERS: dict = {
     "source_changes_mode": "unrestricted",
     "alignment_protected_scope_mode": "disabled",
     "alignment_protected_scope_patterns": [],
-    "gates_mode": "disabled",
+    "stage_form_retention": "discard",
+    "check_execution": "external",
+    "gate_build_mode": "disabled",
+    "gate_typecheck_mode": "disabled",
+    "gate_lint_mode": "disabled",
+    "gate_test_mode": "disabled",
+    "gate_security_mode": "disabled",
     "secrets_mode": "disabled",
     "secret_patterns": [],
     "protected_paths_mode": "disabled",
@@ -103,8 +109,6 @@ def _run(target: Path, home: Path, answers_file: Path, *, as_json: bool = False)
     @param[in]  as_json Emit the frozen run-summary JSON instead of human text.
     @return     ``(exit_code, captured_output)``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     out = io.StringIO()
     code = run_new(
@@ -112,6 +116,7 @@ def _run(target: Path, home: Path, answers_file: Path, *, as_json: bool = False)
         stream=out,
         answers_path=answers_file,
         non_interactive=True,
+        yes=True,
         as_json=as_json,
         runner=SubprocessCommandRunner(),
         home=home,
@@ -126,8 +131,6 @@ def answers_file(tmp_path: Path) -> Path:
     @param[in]  tmp_path Pytest tmp fixture.
     @return     Path to the answers JSON file.
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.1
     """
     path = tmp_path / "answers.json"
     path.write_text(json.dumps(_ANSWERS), encoding="utf-8")
@@ -148,8 +151,6 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     @param[in]  answers_file Prepared answers file fixture.
     @return     None
     @exception  AssertionError If any acceptance artifact is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "proj"
     home = tmp_path / "home"
@@ -169,7 +170,10 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
     # workflow.toml: parses and satisfies the plan §7 invariants for the answers.
     document = tomllib.loads((target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8"))
     verify_workflow_invariants(document, source_roots=["src"], test_roots=["tests"])
-    assert document["gates"]["test"] == [] and document["gates"]["lint"] == []
+    assert all(
+        document["gates"][name] == {"mode": "disabled", "commands": []}
+        for name in ("build", "typecheck", "lint", "test", "security")
+    )
     assert (target / "src" / ".gitkeep").is_file() and (target / "tests" / ".gitkeep").is_file()
     gitignore_lines = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".agentic/.workspace/" in gitignore_lines
@@ -186,8 +190,8 @@ def test_full_green_run_installs_verifies_and_commits(tmp_path, answers_file) ->
 
     # Handoff: real first prompt and explicit disabled-gate status.
     assert "First prompt to try" in text
-    assert "config validate --json" in text
-    assert "config show --effective --json" in text
+    assert "aegis run start feature" in text
+    assert "config show --json" in text
     assert "gate execution is disabled explicitly" in text
 
     # Journal: completed run recorded under the isolated home.
@@ -210,8 +214,6 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     @param[in]  answers_file Prepared answers file fixture.
     @return     None
     @exception  AssertionError If any step re-ran or the summary shape drifted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "proj"
     home = tmp_path / "home"
@@ -225,7 +227,15 @@ def test_completed_rerun_freshly_detects_every_step(tmp_path, answers_file) -> N
     envelope = json.loads(second_text)
     assert envelope["command"] == "new" and envelope["status"] == "ok"
     summary = envelope["result"]
-    assert set(summary) == {"mode", "dry_run", "ok", "stopped_at", "results"}
+    assert set(summary) == {
+        "mode",
+        "dry_run",
+        "ok",
+        "stopped_at",
+        "results",
+        "aegis",
+        "repowise",
+    }
     assert summary["mode"] == "new" and summary["ok"] is True and summary["stopped_at"] is None
     # One result per catalog step; net.proxy is filtered out (no clone URL).
     expected_steps = sum(1 for spec in build_new_catalog().ordered() if spec.id != "net.proxy")

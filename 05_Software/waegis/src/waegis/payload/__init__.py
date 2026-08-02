@@ -11,9 +11,6 @@
 @brief Package marker for the WAEGIS payload engine.
 @details Holds the install manifest, the manifest-aware copier, and payload
          location resolution (plan §6/§M3, AD-6). Populated by later M3 tasks.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # END OF FILE

@@ -21,9 +21,6 @@
          previously green step runs its current read-only ``detect`` again.
          Damage or configuration drift therefore cannot be hidden by a stale
          checkpoint.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.3.0
 """
 
 # IMPORTS
@@ -31,8 +28,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable
+from typing import Callable, Iterable
 
+from ..consent import ConfirmationAsker, ConsentDecision, mutation_consent
 from .catalog import Catalog
 from .journal import (
     STATUS_COMPLETED,
@@ -66,6 +64,7 @@ from .step import (
 
 # @brief Prompt shown at the plan-preview approval gate.
 _APPROVAL_PROMPT = "Apply this plan?"
+_CONTEXT_ASKER = object()
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -78,9 +77,6 @@ class RunSummary:
     @details ``ok`` is true only when every planned step reached a green outcome.
              ``stopped_at`` names the step a failure/decline/block stopped the run
              at, or ``None`` for a completed or dry run.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     mode: str
@@ -100,9 +96,6 @@ def _resolve_resume(resume: "Journal | Iterable[str] | None") -> set[str]:
                 ``None``.
     @return     Set of step ids to treat as already green.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if resume is None:
         return set()
@@ -119,9 +112,6 @@ def _safe_on_fail(spec: StepSpec, ctx: EngineContext) -> Remediation:
     @return     The step's :class:`Remediation`, or a neutral one if ``on_fail``
                 raised or returned a non-remediation value.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     try:
         remediation = spec.on_fail(ctx)
@@ -146,9 +136,6 @@ def _error_text(exc: BaseException) -> str:
     @param[in]  exc The caught exception.
     @return     ``"<ExceptionType>: <message>"``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return f"{type(exc).__name__}: {exc}"
 
@@ -166,9 +153,6 @@ def _run_step(spec: StepSpec, ctx: EngineContext) -> StepResult:
     @param[in]  ctx Active engine context.
     @return     The terminal :class:`StepResult` for the step.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     result = StepResult(step_id=spec.id, started_at=utc_now_iso())
     ctx._begin(result)
@@ -245,9 +229,6 @@ def _finish(
     @param[in]  stopped_at Step id a stop occurred at, if any.
     @return     The same ``summary`` (for call-site convenience).
     @exception  OSError If a supplied journal cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if journal is not None:
         journal.finalize(status=status, stopped_at_step=stopped_at)
@@ -265,6 +246,10 @@ def run(
     dry_run: bool = False,
     journal: Journal | None = None,
     resume: "Journal | Iterable[str] | None" = None,
+    yes: bool = False,
+    approval_asker: ConfirmationAsker | None | object = _CONTEXT_ASKER,
+    journal_factory: Callable[[], Journal] | None = None,
+    additional_mutations: tuple[str, ...] = (),
 ) -> RunSummary:
     """
     @brief      Execute a catalog: plan preview, approval gate, then the per-step
@@ -283,11 +268,19 @@ def run(
     @param[in]  journal Optional journal to checkpoint each step into.
     @param[in]  resume Optional loaded journal or iterable of green step ids to
                 seed as already complete.
+    @param[in]  yes When true, auto-approve the plan without prompting (still
+                subject to the same mutation-consent policy).
+    @param[in]  approval_asker Confirmation asker used for the plan-approval
+                prompt; the sentinel default uses ``ctx.asker``, and ``None``
+                disables prompting outright.
+    @param[in]  journal_factory Optional factory invoked to lazily create a
+                journal once a mutation is actually planned, when the caller
+                did not already supply one.
+    @param[in]  additional_mutations Extra mutation descriptions, beyond the
+                steps themselves, to include in the plan preview and the
+                mutation-consent decision.
     @return     The :class:`RunSummary` for the run.
     @exception  OSError If a supplied journal cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     seeded = _resolve_resume(resume)
     steps = catalog.plan_for(ctx)
@@ -295,7 +288,13 @@ def run(
     step_ids = tuple(spec.id for spec in steps)
 
     ctx.events.emit(RunStarted(ctx.mode, dry_run, step_ids))
-    plan = build_plan(ctx.mode, dry_run, steps, ctx)
+    plan = build_plan(
+        ctx.mode,
+        dry_run,
+        steps,
+        ctx,
+        additional_mutations=additional_mutations,
+    )
     ctx.events.emit(PlanReady(plan))
 
     # Dry run: preview only, no approval prompt, no mutation, no journal writes.
@@ -304,12 +303,32 @@ def run(
         ctx.events.emit(RunFinished(summary))
         return summary
 
-    # Plan-preview approval gate.
-    if not ctx.asker.confirm(_APPROVAL_PROMPT, default=True):
+    # Read-only detects make genuinely green reruns no-op plans.
+    mutation_planned = bool(additional_mutations)
+    for spec in steps:
+        try:
+            if not bool(spec.detect(ctx)):
+                mutation_planned = True
+                break
+        except Exception:  # noqa: BLE001 - the normal run reports the typed step failure
+            mutation_planned = True
+            break
+
+    consent = mutation_consent(
+        mutation_planned=mutation_planned,
+        yes=yes,
+        asker=ctx.asker if approval_asker is _CONTEXT_ASKER else approval_asker,  # type: ignore[arg-type]
+        prompt=_APPROVAL_PROMPT,
+    )
+    if consent is not ConsentDecision.APPROVED:
         ctx.events.emit(PlanRejected())
         summary = RunSummary(mode=ctx.mode, dry_run=False, results=[], ok=False)
+        # A caller-supplied journal must still be finalized so its on-disk
+        # document does not stay "in_progress" after the operator declines.
         return _finish(ctx, journal, summary, STATUS_STOPPED, None)
     ctx.events.emit(PlanApproved())
+    if mutation_planned and journal is None and journal_factory is not None:
+        journal = journal_factory()
 
     green: set[str] = set()
     results: list[StepResult] = []

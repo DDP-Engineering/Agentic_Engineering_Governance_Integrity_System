@@ -18,9 +18,6 @@
          ``--dry-run`` emitting the plan preview (human + frozen ``--json``)
          while leaving TARGET and the journal untouched; the unknown-answer-key
          warning; a malformed answers file; and an invalid conflict decision.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-14
-@version 0.1.0
 """
 
 # IMPORTS
@@ -52,8 +49,6 @@ def _existing_target(tmp_path: Path) -> Path:
     @param[in]  tmp_path Pytest tmp fixture.
     @return     The created directory.
     @exception  OSError If the directory cannot be created.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "repo"
     target.mkdir()
@@ -67,8 +62,6 @@ def _write_answers(path: Path, answers: dict) -> Path:
     @param[in]  answers Answers mapping to serialize.
     @return     The written path.
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path.write_text(json.dumps(answers), encoding="utf-8")
     return path
@@ -84,8 +77,6 @@ def test_target_must_exist(tmp_path) -> None:  # type: ignore[no-untyped-def]
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the failure is not clean.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     out = io.StringIO()
     code = run_adopt(
@@ -106,8 +97,6 @@ def test_non_interactive_missing_roots_fails_before_engine(tmp_path) -> None:  #
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the failure is late, partial, or silent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     home = tmp_path / "home"
     out = io.StringIO()
@@ -131,8 +120,6 @@ def test_non_interactive_other_language_requires_extension_answers(tmp_path) -> 
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the conditional requirement is not enforced.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     answers = _write_answers(tmp_path / "answers.json", {**_ROOTS, "language": "other"})
     out = io.StringIO()
@@ -157,8 +144,6 @@ def test_dry_run_emits_plan_preview_and_touches_nothing(tmp_path) -> None:  # ty
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the preview is wrong or a journal appeared.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     home = tmp_path / "home"
     out = io.StringIO()
@@ -186,8 +171,6 @@ def test_dry_run_json_is_the_frozen_plan_preview_shape(tmp_path) -> None:  # typ
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the JSON shape deviates from the contract.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     out = io.StringIO()
     answers = _write_answers(
@@ -224,8 +207,6 @@ def test_unknown_answer_keys_are_warned_not_fatal(tmp_path) -> None:  # type: ig
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the warning is missing or the run fails.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     answers = _write_answers(tmp_path / "answers.json", {**_ROOTS, "language": "python", "bogus_key": 1})
     out = io.StringIO()
@@ -249,8 +230,6 @@ def test_malformed_answers_file_fails_cleanly(tmp_path) -> None:  # type: ignore
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the failure is not clean.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     bad = tmp_path / "answers.txt"
     bad.write_text("not = usable", encoding="utf-8")
@@ -273,8 +252,6 @@ def test_invalid_conflict_decision_fails_cleanly(tmp_path) -> None:  # type: ign
     @param[in]  tmp_path Pytest tmp fixture.
     @return     None
     @exception  AssertionError If the invalid table is not rejected cleanly.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     answers = _write_answers(tmp_path / "answers.json", {"adoption_conflicts": {"CLAUDE.md": "bogus"}})
     out = io.StringIO()

@@ -21,9 +21,6 @@
 @details Gate tests updated for the 0.2.0 ``deploy.gates`` behavior (added a
          leading top-level "proceed?" confirm ahead of the per-gate prompts;
          see ``test_gates_top_level_decline_defers_everything_without_further_prompts``).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.3.0
 """
 
 # IMPORTS
@@ -39,11 +36,12 @@ from waegis.commands.new import (
     HOOK_FILES,
     SHARED_ANSWERS,
     SHARED_GATE_OUTCOMES,
+    SHARED_HOME,
     SHARED_PENDING_IDENTITY,
     SHARED_RUNNER,
     SHARED_TARGET,
     WORKFLOW_TOML_RELATIVE_PATH,
-    _amend_manifest_generated,
+    amend_manifest_generated,
     build_new_catalog,
 )
 from waegis.commands.analyze import ADAPTER_DIR_NAMES
@@ -76,17 +74,19 @@ def _ctx(
     @param[in]  target Target path placed under the shared contract.
     @param[in]  runner Fake CommandRunner placed under the shared contract.
     @param[in]  answers Answers mapping for the shared contract.
+    @details    A WAEGIS home is always seeded beside TARGET: steps that write
+                state under the home (failed-gate evidence logs) must never
+                reach the real one from a test.
     @param[in]  confirms ScriptedAsker confirm scripting.
     @param[in]  shared_extra Additional shared entries.
     @return     A ready :class:`EngineContext` with an active result.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     shared = {
         SHARED_TARGET: target,
         SHARED_RUNNER: runner,
         SHARED_ANSWERS: answers if answers is not None else {},
+        SHARED_HOME: target.parent / "waegis-home",
     }
     if shared_extra:
         shared.update(shared_extra)
@@ -97,20 +97,23 @@ def _ctx(
 
 def _write_workflow_toml(target: Path, *, test_cmds: str = "[]", lint_cmds: str = "[]") -> None:
     """
-    @brief      Write a minimal workflow.toml carrying only the [gates] table.
+    @brief      Write a minimal workflow.toml carrying five schema-3 gates.
     @param[in]  target Target repository root.
     @param[in]  test_cmds TOML literal for [gates].test.
     @param[in]  lint_cmds TOML literal for [gates].lint.
     @return     None
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     path = target / WORKFLOW_TOML_RELATIVE_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
-    mode = "enforce" if test_cmds != "[]" or lint_cmds != "[]" else "disabled"
+    test_mode = "enforce" if test_cmds != "[]" else "disabled"
+    lint_mode = "enforce" if lint_cmds != "[]" else "disabled"
     path.write_text(
-        f'[gates]\nmode = "{mode}"\ntest = {test_cmds}\nlint = {lint_cmds}\n',
+        "[gates.build]\nmode = \"disabled\"\ncommands = []\n\n"
+        "[gates.typecheck]\nmode = \"disabled\"\ncommands = []\n\n"
+        f"[gates.lint]\nmode = \"{lint_mode}\"\ncommands = {lint_cmds}\n\n"
+        f"[gates.test]\nmode = \"{test_mode}\"\ncommands = {test_cmds}\n\n"
+        "[gates.security]\nmode = \"disabled\"\ncommands = []\n",
         encoding="utf-8",
     )
 
@@ -129,8 +132,6 @@ def test_cli_smoke_windows_invocation_shape(tmp_path, monkeypatch) -> None:  # t
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None
     @exception  AssertionError If the argv, cwd, or verify outcome is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(os, "name", "nt")
     script = tmp_path / ".agentic" / "tools" / "run.ps1"
@@ -155,8 +156,6 @@ def test_cli_smoke_posix_invocation_shape(tmp_path, monkeypatch) -> None:  # typ
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None
     @exception  AssertionError If the argv, cwd, or verify outcome is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(os, "name", "posix")
     script = tmp_path / ".agentic" / "tools" / "run.sh"
@@ -179,8 +178,6 @@ def test_cli_smoke_verify_false_without_result(tmp_path) -> None:  # type: ignor
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If verify passes without an act.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = _ctx(tmp_path, FakeCommandRunner({}))
 
@@ -199,12 +196,16 @@ def test_workflow_smoke_accepts_fresh_install_missing_pointer(tmp_path, monkeypa
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None
     @exception  AssertionError If the argv or the acceptance is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path)
-    expected = ("bash", str(tmp_path / ".agentic" / "tools" / "run.sh"), "status")
+    expected = (
+        "bash",
+        str(tmp_path / ".agentic" / "tools" / "run.sh"),
+        "run",
+        "status",
+        "--json",
+    )
     runner = FakeCommandRunner(
         {expected: failing_result(exit_code=2, stderr="RUN-POINTER-MISSING: No active AEGIS run is selected")}
     )
@@ -226,12 +227,16 @@ def test_workflow_smoke_zero_exit_requires_parseable_json(tmp_path, monkeypatch)
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None
     @exception  AssertionError If the parseability rule is not enforced.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path)
-    expected = ("bash", str(tmp_path / ".agentic" / "tools" / "run.sh"), "status")
+    expected = (
+        "bash",
+        str(tmp_path / ".agentic" / "tools" / "run.sh"),
+        "run",
+        "status",
+        "--json",
+    )
     spec = _CATALOG.get("verify.workflow-smoke")
 
     good = _ctx(tmp_path, FakeCommandRunner({expected: ok_result(stdout='{"run_id": "r1", "stage": "intake"}')}))
@@ -252,14 +257,12 @@ def test_workflow_smoke_runs_gates_only_when_configured_and_passed(tmp_path, mon
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None
     @exception  AssertionError If the gates-run guard misbehaves.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(os, "name", "posix")
     _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     wrapper = str(tmp_path / ".agentic" / "tools" / "run.sh")
-    status_argv = ("bash", wrapper, "status")
-    gates_argv = ("bash", wrapper, "gates", "run")
+    status_argv = ("bash", wrapper, "run", "status", "--json")
+    gates_argv = ("bash", wrapper, "verify", "gates")
     responses = {
         status_argv: failing_result(exit_code=2, stderr="RUN-POINTER-MISSING"),
         gates_argv: ok_result(stdout="gates ok"),
@@ -295,8 +298,6 @@ def test_prereq_python_detects_and_reprobes(tmp_path) -> None:  # type: ignore[n
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If detect/verify or the guidance notes are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = _CATALOG.get("prereq.python")
     good = _ctx(tmp_path, FakeCommandRunner({("py", "-3", "--version"): ok_result(stdout="Python 3.12.1")}))
@@ -319,8 +320,6 @@ def test_git_identity_detects_configured_identity(tmp_path) -> None:  # type: ig
     @param[in]  tmp_path Pytest tmp fixture (TARGET, exists).
     @return     None
     @exception  AssertionError If detect misreads the identity.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner(
         {
@@ -342,8 +341,6 @@ def test_git_identity_records_pending_repo_local_pair_from_answers(tmp_path) -> 
     @param[in]  tmp_path Pytest tmp fixture (TARGET, exists).
     @return     None
     @exception  AssertionError If the pending path is not recorded/accepted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     runner = FakeCommandRunner({})  # every git config read fails -> identity unset
     ctx = _ctx(tmp_path, runner, answers={"git_user_name": "Ada", "git_user_email": "ada@example.com"})
@@ -365,8 +362,6 @@ def test_git_identity_guides_and_fails_without_answers(tmp_path) -> None:  # typ
     @return     None
     @exception  AssertionError If verify passes without identity or guidance
                 is missing.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ctx = _ctx(tmp_path, FakeCommandRunner({}))
     spec = _CATALOG.get("prereq.git-identity")
@@ -388,8 +383,6 @@ def test_target_path_nested_worktree_needs_confirmation(tmp_path) -> None:  # ty
     @param[in]  tmp_path Pytest tmp fixture (TARGET parent).
     @return     None
     @exception  AssertionError If the confirmation gate misbehaves.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     target = tmp_path / "proj"
     nested = {
@@ -420,8 +413,6 @@ def test_gates_records_pass_and_accepted_empty(tmp_path) -> None:  # type: ignor
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If outcomes or the cwd are wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({("echo", "hi"): ok_result(stdout="hi")})
@@ -430,7 +421,13 @@ def test_gates_records_pass_and_accepted_empty(tmp_path) -> None:  # type: ignor
 
     spec.act(ctx)
 
-    assert ctx.shared[SHARED_GATE_OUTCOMES] == {"echo hi": "pass", "lint (empty)": "accepted-empty"}
+    assert ctx.shared[SHARED_GATE_OUTCOMES] == {
+        "build": "disabled",
+        "typecheck": "disabled",
+        "lint": "disabled",
+        "echo hi": "pass",
+        "security": "disabled",
+    }
     assert ctx._current.answers["gate_outcomes"] == ctx.shared[SHARED_GATE_OUTCOMES]
     assert runner.cwds == [str(tmp_path)]
     assert spec.verify(ctx) is True
@@ -443,17 +440,13 @@ def test_gates_failing_command_must_be_explicitly_accepted(tmp_path) -> None:  #
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If acceptance recording misbehaves.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     _write_workflow_toml(tmp_path, test_cmds='["false-cmd"]')
     responses = {("false-cmd",): failing_result(exit_code=1, stderr="boom")}
     spec = _CATALOG.get("deploy.gates")
 
-    # confirms: proceed with gates? yes; run gate? yes; accept failing? yes;
-    # accept empty lint? yes.
-    accepted = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, True, True])
+    # confirms: proceed with gates, run test, accept the observed failure.
+    accepted = _ctx(tmp_path, FakeCommandRunner(responses), confirms=[True, True, True])
     spec.act(accepted)
     assert accepted.shared[SHARED_GATE_OUTCOMES]["false-cmd"] == "accepted-failing"
     assert spec.verify(accepted) is True
@@ -472,15 +465,11 @@ def test_gates_deferred_execution_is_recorded(tmp_path) -> None:  # type: ignore
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If deferral is not recorded or a command ran.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.1
     """
     _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({})
-    # confirms: proceed with gates? yes; run test gate now? NO; accept empty
-    # lint? yes.
-    ctx = _ctx(tmp_path, runner, confirms=[True, False, True])
+    # confirms: proceed with gates, then defer the enforced test group.
+    ctx = _ctx(tmp_path, runner, confirms=[True, False])
     spec = _CATALOG.get("deploy.gates")
 
     spec.act(ctx)
@@ -503,9 +492,6 @@ def test_gates_top_level_decline_defers_everything_without_further_prompts(tmp_p
     @return     None
     @exception  AssertionError If deferral is not recorded, a command ran, or
                 more confirms than the single top-level one were consumed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     _write_workflow_toml(tmp_path, test_cmds='["echo hi"]')
     runner = FakeCommandRunner({})
@@ -515,7 +501,13 @@ def test_gates_top_level_decline_defers_everything_without_further_prompts(tmp_p
 
     spec.act(ctx)
 
-    assert ctx.shared[SHARED_GATE_OUTCOMES] == {"echo hi": "deferred", "lint (empty)": "accepted-empty"}
+    assert ctx.shared[SHARED_GATE_OUTCOMES] == {
+        "build": "disabled",
+        "typecheck": "disabled",
+        "lint": "disabled",
+        "echo hi": "deferred",
+        "security": "disabled",
+    }
     assert runner.calls == []
     assert spec.verify(ctx) is True
 
@@ -530,8 +522,6 @@ def test_hooks_present_requires_all_hooks_and_adapters(tmp_path) -> None:  # typ
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If presence checking misbehaves.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     hooks_dir = tmp_path / ".agentic" / "hooks"
     hooks_dir.mkdir(parents=True)
@@ -566,9 +556,6 @@ def test_hook_files_match_the_real_template() -> None:
                 unverified from the day it was added until 0.3.0. Comparing
                 against the real directory means the next hook added fails this
                 test instead of silently going unchecked.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     hooks_root = Path(__file__).resolve().parents[2] / "aegis" / "template" / ".agentic" / "hooks"
     shipped = {
@@ -593,8 +580,6 @@ def test_amend_manifest_moves_workflow_toml_to_generated(tmp_path) -> None:  # t
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If the amendment or its idempotence is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     _write_workflow_toml(tmp_path)
     workflow_entry = hash_file(tmp_path / WORKFLOW_TOML_RELATIVE_PATH)
@@ -611,8 +596,8 @@ def test_amend_manifest_moves_workflow_toml_to_generated(tmp_path) -> None:  # t
         ),
     )
 
-    _amend_manifest_generated(tmp_path)
-    _amend_manifest_generated(tmp_path)  # idempotent
+    amend_manifest_generated(tmp_path)
+    amend_manifest_generated(tmp_path)  # idempotent
 
     manifest = read_manifest(tmp_path)
     assert WORKFLOW_TOML_RELATIVE_PATH not in manifest.files
@@ -631,8 +616,6 @@ def test_initial_commit_detect_requires_head_not_just_clean_status(tmp_path) -> 
     @param[in]  tmp_path Pytest tmp fixture (TARGET).
     @return     None
     @exception  AssertionError If detect green-lights without a commit.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     spec = _CATALOG.get("repo.initial-commit")
     status_argv = ("git", "-C", str(tmp_path), "status", "--porcelain")

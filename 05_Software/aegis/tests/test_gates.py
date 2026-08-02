@@ -8,11 +8,9 @@
 # -----------------------------------------------------------------------------
 """
 @file test_gates.py
-@brief Workflow support module for test_gates.
-@details Covers expected workflow behavior through focused pytest checks.
-@author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.3.0
+@brief Gate parsing and command-tokenization tests for schema 3.
+@details Execution, ordering, timeout, missing executable, and execute-all
+         semantics are covered by test_aegis_v2_policy.
 """
 
 # IMPORTS
@@ -21,276 +19,337 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-import sys
+import subprocess
+import threading
 
 import pytest
 
+import aegis.gates as gates_module
 from aegis.cli import main
-from aegis.config import ConfigurationError, load_config
-from aegis.gates import _argv_for_simple_command
-from aegis.store import load_graph, resolve_run_id
-
-
-# LOCAL HELPERS
-
-
-def run_cli(tmp_path: Path, *args: str) -> None:
-    """
-    @brief      Run CLI workflow behavior.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @param[in]  args Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
-    """
-    cwd = Path.cwd()
-    try:
-        import os
-
-        os.chdir(tmp_path)
-        main(list(args))
-    finally:
-        os.chdir(cwd)
-
+from aegis.config import DEFAULT_GATE_TIMEOUT_SECONDS, ConfigurationError, load_config
+from aegis.gates import _argv_for_simple_command, _run_command, run_gates
+from aegis.store import init_graph, load_graph, set_access_mode
 
 # TESTS
 
 
-def test_simple_gate_command_runs_without_shell(
+def test_windows_permission_error_retries_the_command_through_the_shell(
     tmp_path: Path,
-    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    @brief      Handle test simple gate command runs without shell workflow behavior.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.3.0
+    @brief Launch an argv-eligible gate through the shell when direct exec is
+           refused by Windows.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
     """
-    python = sys.executable.replace("\\", "/")
-    replace_workflow_toml(
-        '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-        f'[gates]\nmode = "enforce"\ntest = [\'"{python}" -c "print(123)"\']\nlint = []',
-    )
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "demo")
+    monkeypatch.setattr("os.name", "nt")
+    calls: list[bool] = []
 
-    run_cli(tmp_path, "gates", "run")
-    graph = load_graph(tmp_path, resolve_run_id(tmp_path))
+    def refuse_then_succeed(*args: object, **kwargs: object) -> object:
+        """@brief Refuse direct exec once, then complete through the shell."""
+        calls.append(bool(kwargs["shell"]))
+        if not kwargs["shell"]:
+            raise PermissionError(5, "Access is denied")
+        return subprocess.CompletedProcess("pytest -q", 0, "passed", "")
 
-    assert graph.evidence[-1].kind == "gate"
-    assert graph.evidence[-1].result == "pass"
+    monkeypatch.setattr(subprocess, "run", refuse_then_succeed)
+
+    result = _run_command(tmp_path, "pytest -q", 30)
+
+    assert calls == [False, True]
+    assert result.returncode == 0
+    assert result.stdout == "passed"
 
 
-def test_repo_relative_executable_path_is_resolved_for_simple_gate_command(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("retry_error", "returncode"),
+    [
+        (subprocess.TimeoutExpired("pytest -q", 30), 124),
+        (OSError("shell unavailable"), 127),
+    ],
+)
+def test_failed_shell_retry_stays_on_the_evidence_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    retry_error: BaseException,
+    returncode: int,
+) -> None:
     """
-    @brief      Handle test repo relative executable path is resolved for simple gate command workflow behavior.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
+    @brief Synthesize a failing gate when the shell retry also cannot complete.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @param[in] retry_error Failure raised by the retried shell launch.
+    @param[in] returncode Synthesized timeout or unlaunchable exit status.
+    @return None.
     """
-    executable = tmp_path / "04_Software" / "App" / ".venv" / "Scripts" / "python.exe"
+    monkeypatch.setattr("os.name", "nt")
+
+    def refuse_then_fail(*args: object, **kwargs: object) -> object:
+        """@brief Refuse direct exec, then fail the shell retry."""
+        if not kwargs["shell"]:
+            raise PermissionError(5, "Access is denied")
+        raise retry_error
+
+    monkeypatch.setattr(subprocess, "run", refuse_then_fail)
+
+    result = _run_command(tmp_path, "pytest -q", 30)
+
+    assert result.returncode == returncode
+    assert result.stdout == ""
+    assert type(retry_error).__name__ in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("os_name", "command"),
+    [("posix", "pytest -q"), ("nt", "pytest -q && ruff check")],
+)
+def test_permission_error_is_not_retried_outside_windows_direct_exec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    os_name: str,
+    command: str,
+) -> None:
+    """
+    @brief Report a refused launch as unlaunchable when no retry applies.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @param[in] os_name Platform reported to the gate runner.
+    @param[in] command Argv-eligible or shell-only gate command.
+    @return None.
+    """
+    monkeypatch.setattr("os.name", os_name)
+    calls: list[bool] = []
+
+    def always_refuse(*args: object, **kwargs: object) -> object:
+        """@brief Refuse every launch attempt."""
+        calls.append(bool(kwargs["shell"]))
+        raise PermissionError(5, "Access is denied")
+
+    monkeypatch.setattr(subprocess, "run", always_refuse)
+
+    result = _run_command(tmp_path, command, 30)
+
+    assert len(calls) == 1
+    assert result.returncode == 127
+    assert "PermissionError" in result.stderr
+
+
+def test_repo_relative_executable_is_resolved(tmp_path: Path) -> None:
+    """@brief Resolve a repository-relative executable without a shell."""
+    executable = tmp_path / "tools" / "python.exe"
     executable.parent.mkdir(parents=True)
     executable.write_text("", encoding="utf-8")
+    argv = _argv_for_simple_command(tmp_path, "tools/python.exe audit.py")
+    assert argv == [str(executable), "audit.py"]
 
-    argv = _argv_for_simple_command(
+
+def test_quoted_argument_and_windows_path_are_preserved(tmp_path: Path) -> None:
+    """@brief Keep quoted spaces and literal Windows backslashes intact."""
+    assert _argv_for_simple_command(
         tmp_path,
-        "04_Software/App/.venv/Scripts/python.exe 02_Tools/audit.py --changed-only",
+        'pytest -k "test name with space"',
+    ) == ["pytest", "-k", "test name with space"]
+    assert _argv_for_simple_command(
+        tmp_path,
+        r"C:\Users\demo\run.exe --path C:\Users\demo\data",
+    ) == [
+        r"C:\Users\demo\run.exe",
+        "--path",
+        r"C:\Users\demo\data",
+    ]
+
+
+@pytest.mark.parametrize("invalid", ['"pytest"', "123"])
+def test_gate_commands_require_a_string_array(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    invalid: str,
+) -> None:
+    """@brief Reject scalar command values at the exact group key."""
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        f'[gates.test]\nmode = "enforce"\ncommands = {invalid}',
     )
-
-    assert argv is not None
-    assert argv[0] == str(executable)
-
-
-def test_quoted_argument_with_space_stays_one_token(tmp_path: Path) -> None:
-    """
-    @brief      A quoted argument containing a space parses as one argv token.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @details    Regression test (code-review follow-up, 2026-07-18):
-                `shlex.split(command, posix=os.name != "nt")` on Windows only
-                treats a quote as significant when it starts a token, so
-                `pytest -k "test name with space"` used to split into
-                `['pytest', '-k', '"test', 'name', 'with', 'space"']` instead
-                of one `-k` value, silently running a different (narrower or
-                invalid) command than configured.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
-    """
-    argv = _argv_for_simple_command(tmp_path, 'pytest -k "test name with space"')
-
-    assert argv == ["pytest", "-k", "test name with space"]
+    with pytest.raises(ConfigurationError) as raised:
+        load_config(tmp_path)
+    assert raised.value.key_path == "gates.test.commands"
 
 
-def test_windows_backslash_path_is_preserved_unquoted(tmp_path: Path) -> None:
-    """
-    @brief      An unquoted Windows-style path keeps its literal backslashes.
-    @param[in]  tmp_path Input value used by the workflow helper.
-    @return     Result produced by the workflow helper.
-    @details    Regression test (code-review follow-up, 2026-07-18): plain
-                POSIX-mode `shlex.split` treats backslash as its own escape
-                character and would strip it from an unquoted Windows path
-                (e.g. turning `C:\\Users\\x` into `C:Usersx`); the argv
-                splitter must preserve it literally regardless of platform.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
-    """
-    argv = _argv_for_simple_command(tmp_path, r"C:\Users\demo\run.exe --path C:\Users\demo\data")
-
-    assert argv == [r"C:\Users\demo\run.exe", "--path", r"C:\Users\demo\data"]
-
-
-def test_scalar_gate_value_is_rejected_by_schema(
+def test_enforced_gate_requires_a_command(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
-    """
-    @brief      A scalar `[gates]` string value is rejected by the strict schema.
-    @param[in]  tmp_path Pytest-provided temporary directory.
-    @return     None.
-    @details    Schema version 2 requires each gate collection to be a list of
-                complete command strings and performs no compatibility coercion.
-    @exception  ConfigurationError When the scalar value is parsed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
-    """
+    """@brief Reject an enforced group with no deterministic command."""
     replace_workflow_toml(
-        '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-        '[gates]\nmode = "enforce"\ntest = "pytest"\nlint = []',
+        '[gates.security]\nmode = "disabled"\ncommands = []',
+        '[gates.security]\nmode = "enforce"\ncommands = []',
     )
-
-    with pytest.raises(ConfigurationError) as exc_info:
+    with pytest.raises(ConfigurationError, match="at least one command"):
         load_config(tmp_path)
 
-    assert exc_info.value.code == "CONFIG-TYPE-INVALID"
-    assert exc_info.value.key_path == "gates.test"
+
+def test_gate_timeout_defaults_when_absent(tmp_path: Path) -> None:
+    """@brief Fall back to DEFAULT_GATE_TIMEOUT_SECONDS when unconfigured."""
+    config = load_config(tmp_path)
+    assert config.gates.test.timeout == DEFAULT_GATE_TIMEOUT_SECONDS
+    assert config.gates.build.timeout == DEFAULT_GATE_TIMEOUT_SECONDS
 
 
-def test_invalid_gate_value_type_fails_with_clear_message(
+def test_gate_timeout_accepts_a_configured_override(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
-    """
-    @brief      A non-string, non-list `[gates]` value exits with a clear error.
-    @param[in]  tmp_path Pytest-provided temporary directory.
-    @return     None.
-    @details    Configuration content must never surface as a raw traceback;
-                the error names the offending `[gates]` key.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
-    """
+    """@brief Parse a per-gate timeout override from workflow.toml."""
     replace_workflow_toml(
-        '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-        '[gates]\nmode = "enforce"\ntest = 123\nlint = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []\ntimeout = 2400',
     )
+    config = load_config(tmp_path)
+    assert config.gates.test.timeout == 2400
+    assert config.gates.build.timeout == DEFAULT_GATE_TIMEOUT_SECONDS
 
-    with pytest.raises(ConfigurationError) as exc_info:
+
+def test_gate_timeout_rejects_a_non_positive_value(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Reject a zero or negative configured gate timeout."""
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []\ntimeout = 0',
+    )
+    with pytest.raises(ConfigurationError) as raised:
         load_config(tmp_path)
-
-    assert exc_info.value.code == "CONFIG-TYPE-INVALID"
-    assert exc_info.value.key_path == "gates.test"
+    assert raised.value.key_path == "gates.test.timeout"
 
 
-def test_unknown_gate_selector_is_rejected_by_cli(tmp_path: Path) -> None:
-    """
-    @brief      Reject an unknown explicit gate name instead of succeeding silently.
-    @param[in]  tmp_path Pytest-provided temporary directory.
-    @return     None.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
-    """
-    with pytest.raises(SystemExit) as exc_info:
-        run_cli(tmp_path, "gates", "run", "--name", "typo")
-
-    assert exc_info.value.code == 2
-
-
-def test_missing_executable_records_failing_gate_evidence(
+def test_run_gates_uses_each_groups_own_configured_timeout(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """
-    @brief      A gate whose executable does not exist records failing evidence.
-    @param[in]  tmp_path Pytest-provided temporary directory.
-    @return     None.
-    @details    Regression test (analysis-review follow-up, 2026-07-20): a
-                mistyped command in argv mode used to raise an unhandled
-                `FileNotFoundError` traceback (while shell mode returned
-                non-zero) — it now ends as a normal failing gate with exit
-                code 127, consistent across both execution modes.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.3.0
-    """
+    """@brief Pass each gate group's configured timeout to its own commands."""
     replace_workflow_toml(
-        '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-        '[gates]\nmode = "enforce"\n'
-        'test = ["definitely-not-a-command-xyz --version"]\nlint = []',
+        '[gates.lint]\nmode = "disabled"\ncommands = []',
+        '[gates.lint]\nmode = "enforce"\ncommands = ["lint-cmd"]\ntimeout = 15',
     )
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "demo")
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "enforce"\ncommands = ["test-cmd"]\ntimeout = 45',
+    )
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "fix", "Exercise per-gate timeout wiring")
+    observed: dict[str, int] = {}
 
-    with pytest.raises(SystemExit) as exc_info:
-        run_cli(tmp_path, "gates", "run")
+    def capturing_runner(
+        _repo_root: Path,
+        command: str,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        """@brief Record the timeout each command was actually invoked with."""
+        observed[command] = timeout
+        return subprocess.CompletedProcess(command, 0, "ok", "")
 
-    assert exc_info.value.code == 127
-    graph = load_graph(tmp_path, resolve_run_id(tmp_path))
-    assert graph.evidence[-1].kind == "gate"
-    assert graph.evidence[-1].result == "fail"
+    monkeypatch.setattr(gates_module, "_run_command", capturing_runner)
+    run_gates(tmp_path, graph.run_id, config, ["lint", "test"])
+
+    assert observed == {"lint-cmd": 15, "test-cmd": 45}
 
 
-def test_gate_timeout_records_failing_gate_evidence(
+def test_unknown_gate_selector_is_rejected_by_grouped_cli() -> None:
+    """@brief Reject unknown group names through the parser."""
+    with pytest.raises(SystemExit) as raised:
+        main(["verify", "gates", "typo"])
+    assert raised.value.code == 2
+
+
+def test_slow_gate_does_not_block_concurrent_graph_operation(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    @brief      A gate exceeding the timeout records failing evidence.
-    @param[in]  tmp_path Pytest-provided temporary directory.
-    @return     None.
-    @details    `subprocess.TimeoutExpired` used to propagate as a raw
-                traceback in both execution modes; it now ends as a normal
-                failing gate with exit code 124.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.3.0
+    @brief Allow a same-run graph operation while a gate subprocess is active.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
     """
-    python = sys.executable.replace("\\", "/")
-    # No `;` in the command (a semicolon would route it through the shell
-    # path, where the timeout kill only reaches the shell and the sleeping
-    # child keeps the pipes open for the full duration) and no quotes in the
-    # `-c` code (TOML literal strings cannot contain single quotes), so the
-    # module name "time" is spelled with chr() calls.
     replace_workflow_toml(
-        '[gates]\nmode = "disabled"\ntest = []\nlint = []',
-        f'[gates]\nmode = "enforce"\n'
-        f'test = [\'"{python}" -c __import__(chr(116)+chr(105)+chr(109)+chr(101)).sleep(30)\']\n'
-        'lint = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "enforce"\ncommands = ["slow-gate"]',
     )
-    run_cli(tmp_path, "start", "--kind", "feature", "--statement", "demo")
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "fix", "Exercise gate lock scope")
+    started = threading.Event()
+    release = threading.Event()
+    operation_done = threading.Event()
+    gate_errors: list[BaseException] = []
+    operation_errors: list[BaseException] = []
 
-    with pytest.raises(SystemExit) as exc_info:
-        run_cli(tmp_path, "gates", "run", "--timeout", "1")
+    def slow_runner(
+        _repo_root: Path,
+        command: str,
+        _timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        """
+        @brief Hold the scripted subprocess phase until the test releases it.
+        """
+        started.set()
+        if not release.wait(5):
+            raise RuntimeError("slow gate release was not received")
+        return subprocess.CompletedProcess(command, 0, "gate complete", "")
 
-    assert exc_info.value.code == 124
-    graph = load_graph(tmp_path, resolve_run_id(tmp_path))
-    assert graph.evidence[-1].kind == "gate"
-    assert graph.evidence[-1].result == "fail"
+    monkeypatch.setattr(gates_module, "_run_command", slow_runner)
+
+    def execute_gate() -> None:
+        """@brief Run the gate command in the background."""
+        try:
+            run_gates(tmp_path, graph.run_id, config, ["test"])
+        except BaseException as exc:
+            gate_errors.append(exc)
+
+    def update_graph() -> None:
+        """@brief Perform a second serialized AEGIS graph operation."""
+        try:
+            current = load_graph(tmp_path, graph.run_id)
+            set_access_mode(
+                tmp_path,
+                current,
+                "elevated",
+                "Concurrent operation during gate execution.",
+            )
+        except BaseException as exc:
+            operation_errors.append(exc)
+        finally:
+            operation_done.set()
+
+    gate_thread = threading.Thread(target=execute_gate)
+    operation_thread = threading.Thread(target=update_graph)
+    gate_thread.start()
+    started_in_time = started.wait(5)
+    try:
+        assert started_in_time, gate_errors
+        operation_thread.start()
+        completed_while_gate_running = operation_done.wait(1)
+    finally:
+        release.set()
+        gate_thread.join(5)
+        if operation_thread.ident is not None:
+            operation_thread.join(5)
+
+    assert completed_while_gate_running
+    assert not gate_thread.is_alive()
+    assert not operation_thread.is_alive()
+    assert gate_errors == []
+    assert operation_errors == []
+    persisted = load_graph(tmp_path, graph.run_id)
+    assert persisted.access_mode == "elevated"
+    assert [(item.gate_name, item.result) for item in persisted.evidence] == [
+        ("test", "pass")
+    ]
 
 
 # END OF FILE

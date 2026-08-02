@@ -5,7 +5,14 @@
 
 # Complete AEGIS workflow configuration. Repository policy is explicit: the
 # shipped template is unrestricted/disabled until an operator opts into rules.
-schema_version = 2
+schema_version = 3
+
+# Optional AEGIS quick-run advisory. Omission is equivalent to disabled mode
+# with max_paths = 10 and preserves compatibility with schema-3 deployment
+# tooling that recognizes only the original tables. Uncomment to opt in:
+# [quick.changed_paths]
+# mode = "advise"
+# max_paths = 10
 
 [source]
 roots = ["src", "app", "lib"]
@@ -59,10 +66,31 @@ allow_recommended_responses = true
 mode = "disabled"
 patterns = []
 
-[gates]
+[interface]
+stage_form_retention = "discard"
+check_execution = "external"
+
+[gates.build]
 mode = "disabled"
-test = []
-lint = []
+commands = []
+# Optional per-command timeout in seconds; omitted means 1800. Example:
+# timeout = 2400
+
+[gates.typecheck]
+mode = "disabled"
+commands = []
+
+[gates.lint]
+mode = "disabled"
+commands = []
+
+[gates.test]
+mode = "disabled"
+commands = []
+
+[gates.security]
+mode = "disabled"
+commands = []
 
 [guardrails.secrets]
 mode = "disabled"

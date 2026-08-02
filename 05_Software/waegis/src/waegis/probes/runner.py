@@ -38,9 +38,6 @@
          calling ``.strip()`` or ``.splitlines()`` got an ``AttributeError``
          far from the real cause. Git and the tools probed here emit UTF-8
          regardless of the console code page.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-23
-@version 0.3.0
 """
 
 # IMPORTS
@@ -52,6 +49,11 @@ import subprocess
 from dataclasses import dataclass
 from typing import Protocol, Sequence, runtime_checkable
 
+# CONSTANTS
+
+# @brief Shared default for every probe's subprocess timeout.
+DEFAULT_PROBE_TIMEOUT = 5.0
+
 # DATA MODELS / TYPEDEFINITIONS
 
 
@@ -59,16 +61,14 @@ from typing import Protocol, Sequence, runtime_checkable
 class CommandResult:
     """
     @brief Outcome of one command invocation through a :class:`CommandRunner`.
-    @details ``found`` is ``False`` only when the executable itself could not
-             be located (e.g. ``FileNotFoundError``); in that case
-             ``exit_code`` is ``None`` and ``stdout``/``stderr`` are empty.
+    @details ``found`` is ``False`` when the process could not be launched.
+             A missing executable keeps ``stdout``/``stderr`` empty; other
+             operating-system launch failures retain their diagnostic in
+             ``stderr``. In either case ``exit_code`` is ``None``.
              ``timed_out`` is ``True`` when the process exceeded the caller's
              timeout; the executable is known to exist (``found`` stays
              ``True``) but ``exit_code`` is ``None`` since the process did not
              finish.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     found: bool
@@ -83,9 +83,6 @@ class CommandResult:
         @return     ``True`` when ``found`` is ``True``, the process did not
                     time out, and ``exit_code == 0``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return self.found and not self.timed_out and self.exit_code == 0
 
@@ -96,9 +93,6 @@ class CommandResult:
         @return     ``stdout`` then ``stderr``, joined with a newline when both
                     are non-empty.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         if self.stdout and self.stderr:
             return f"{self.stdout}\n{self.stderr}"
@@ -113,16 +107,13 @@ class CommandRunner(Protocol):
     @details Probe modules depend only on this protocol, never on
              ``subprocess`` directly, so tests substitute a fake runner and the
              probe suite stays fully offline.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def run(
         self,
         argv: Sequence[str],
         *,
-        timeout: float = 5.0,
+        timeout: float = DEFAULT_PROBE_TIMEOUT,
         cwd: str | os.PathLike[str] | None = None,
     ) -> CommandResult:
         """
@@ -135,8 +126,6 @@ class CommandRunner(Protocol):
                     inherits the caller's working directory (the pre-T4.3
                     behavior, unchanged for existing callers).
         @return     A :class:`CommandResult` describing what happened.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.2.0
         """
         ...
 
@@ -148,20 +137,17 @@ class SubprocessCommandRunner:
     """
     @brief Real, subprocess-backed :class:`CommandRunner` implementation.
     @details The only place in the probe layer allowed to import
-             ``subprocess``. Captures stdout/stderr as text, maps
-             ``FileNotFoundError`` to ``CommandResult(found=False, ...)``, and
-             maps :class:`subprocess.TimeoutExpired` to
+             ``subprocess``. Captures stdout/stderr as text, maps operating
+             system launch failures to ``CommandResult(found=False, ...)``,
+             and maps :class:`subprocess.TimeoutExpired` to
              ``CommandResult(found=True, timed_out=True, exit_code=None, ...)``.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def run(
         self,
         argv: Sequence[str],
         *,
-        timeout: float = 5.0,
+        timeout: float = DEFAULT_PROBE_TIMEOUT,
         cwd: str | os.PathLike[str] | None = None,
     ) -> CommandResult:
         """
@@ -180,9 +166,6 @@ class SubprocessCommandRunner:
                     back as ``stdout=None`` from a decode that failed inside
                     ``subprocess``'s reader thread. See the module docstring for
                     the concrete ``cp1252`` case this closes.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-23
-        @version    0.3.0
         """
         try:
             completed = subprocess.run(
@@ -197,6 +180,11 @@ class SubprocessCommandRunner:
             )
         except FileNotFoundError:
             return CommandResult(found=False, exit_code=None, stdout="", stderr="")
+        except OSError as exc:
+            # Capture rarer launch failures such as PermissionError (present
+            # but not executable) and NotADirectoryError (bad cwd) without
+            # changing the established missing-executable response contract.
+            return CommandResult(found=False, exit_code=None, stdout="", stderr=str(exc))
         except subprocess.TimeoutExpired as exc:
             stdout = exc.stdout if isinstance(exc.stdout, str) else ""
             stderr = exc.stderr if isinstance(exc.stderr, str) else ""

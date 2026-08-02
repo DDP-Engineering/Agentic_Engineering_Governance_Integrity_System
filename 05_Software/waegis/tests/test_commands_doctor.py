@@ -20,9 +20,6 @@
          constructed directly via :class:`waegis.engine.Journal` with
          explicit sortable run ids so "latest journal" tests are never
          timing-flaky.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.1.0
 """
 
 # IMPORTS
@@ -45,8 +42,8 @@ from waegis.commands.doctor import (
     render_doctor_report,
     run_doctor,
 )
-from waegis.commands.new import _amend_manifest_generated, _wrapper_invocation
-from waegis.engine import STATUS_COMPLETED, STATUS_FAILED, Journal
+from waegis.commands.new import amend_manifest_generated, _wrapper_invocation
+from waegis.engine import STATUS_COMPLETED, STATUS_FAILED, Journal, StepResult, StepStatus
 from waegis.io.reports import ProbeFindingRecord
 from waegis.payload.copier import copy_payload
 from waegis.payload.locate import locate_payload
@@ -63,13 +60,10 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
     @brief      Build a fully healthy AEGIS install under ``repo`` using the
                 real payload copier and workflow.toml generator.
     @param[in]  repo Empty, already-created target directory.
-    @param[in]  gates_configured When ``True`` (default), configure non-empty
-                ``[gates].test``/``[gates].lint`` so a healthy fixture is
-                truly all-``ok``; ``False`` reproduces the "empty gates"
-                scenario on an otherwise valid install.
+    @param[in]  gates_configured When ``True`` (default), enforce test and lint
+                with explicit commands; ``False`` leaves all five groups
+                explicitly disabled.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = locate_payload()
     copy_payload(payload, repo, mode="new")
@@ -82,13 +76,22 @@ def _install_healthy_repo(repo: Path, *, gates_configured: bool = True) -> None:
         source_roots=["src"],
         test_roots=["tests"],
         language="python",
-        gate_test_cmds=gate_cmds,
+        gate_build_cmds=[],
+        gate_typecheck_cmds=[],
         gate_lint_cmds=gate_cmds,
-        gates_mode="enforce" if gates_configured else "disabled",
+        gate_test_cmds=gate_cmds,
+        gate_security_cmds=[],
+        stage_form_retention="discard",
+        check_execution="external",
+        gate_build_mode="disabled",
+        gate_typecheck_mode="disabled",
+        gate_lint_mode="enforce" if gates_configured else "disabled",
+        gate_test_mode="enforce" if gates_configured else "disabled",
+        gate_security_mode="disabled",
         alignment_enabled=True,
     )
     (repo / WORKFLOW_TOML_RELATIVE_PATH).write_text(generated.text, encoding="utf-8", newline="")
-    _amend_manifest_generated(repo)
+    amend_manifest_generated(repo)
 
 
 def _healthy_runner(repo: Path) -> FakeCommandRunner:
@@ -98,8 +101,6 @@ def _healthy_runner(repo: Path) -> FakeCommandRunner:
     @param[in]  repo Target repository (determines the platform-appropriate
                 wrapper invocation key via :func:`_wrapper_invocation`).
     @return     A scripted :class:`FakeCommandRunner`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return FakeCommandRunner(
         {
@@ -128,8 +129,6 @@ def _make_journal(
     @param[in]  status Terminal run status.
     @param[in]  stopped_at_step Step id a stop occurred at, if any.
     @return     The finalized :class:`Journal`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path = home / "journals" / f"{run_id}.json"
     journal = Journal(
@@ -145,6 +144,49 @@ def _make_journal(
     return journal
 
 
+def _make_gate_journal(
+    home: Path,
+    repo: Path,
+    run_id: str,
+    *,
+    outcomes: dict[str, str] | None,
+    failures: list[dict] | None = None,
+) -> Journal:
+    """
+    @brief      Build a completed journal whose ``deploy.gates`` step recorded
+                the given outcomes and (optionally) failed-gate evidence.
+    @details    ``outcomes=None`` writes the step with no gate answers at all,
+                which is what a journal from before gates were recorded looks
+                like; omitting ``failures`` writes the pre-evidence shape.
+    @param[in]  home WAEGIS home directory.
+    @param[in]  repo Repository the journal targets.
+    @param[in]  run_id Explicit sortable run id.
+    @param[in]  outcomes Gate outcome map, or ``None`` for no gate answers.
+    @param[in]  failures Failed-gate evidence records, when recorded.
+    @return     The finalized :class:`Journal`.
+    @exception  OSError If the journal cannot be written.
+    """
+    journal = Journal(
+        run_id=run_id,
+        wizard_version="0.1.0",
+        mode="new",
+        target=str(Path(repo).resolve()),
+        dry_run=False,
+        started_at="2026-07-15T00:00:00Z",
+        path=home / "journals" / f"{run_id}.json",
+    )
+    answers: dict = {}
+    if outcomes is not None:
+        answers["gate_outcomes"] = dict(outcomes)
+    if failures is not None:
+        answers["gate_failures"] = list(failures)
+    journal.record(
+        StepResult(step_id="deploy.gates", status=StepStatus.DONE, answers=answers)
+    )
+    journal.finalize(status=STATUS_COMPLETED)
+    return journal
+
+
 def _finding(report_findings, name: str) -> ProbeFindingRecord:
     """
     @brief      Fetch a specific named finding out of a group's finding tuple.
@@ -152,8 +194,6 @@ def _finding(report_findings, name: str) -> ProbeFindingRecord:
     @param[in]  name The finding name to locate.
     @return     The matching :class:`ProbeFindingRecord`.
     @exception  StopIteration If no finding with that name exists.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return next(f for f in report_findings if f.name == name)
 
@@ -169,8 +209,6 @@ def test_healthy_repo_all_ok_exit_zero(tmp_path: Path) -> None:
                 drift, valid workflow.toml, all hooks/wrappers present)
                 reports every finding ``ok`` and exits 0.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -192,8 +230,6 @@ def test_drift_present_exit_one_warn(tmp_path: Path) -> None:
                 finding lists both (via ``drift_detail``), overall exit is 1
                 (warn), and every other group stays ``ok``.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -227,8 +263,6 @@ def test_update_available_distinct_from_drift(tmp_path: Path) -> None:
                 ``manifest.update-available`` as ``warn`` while
                 ``drift.files`` stays ``ok`` — the two findings are distinct.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -258,8 +292,6 @@ def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
                 ``workflow.invariants`` as ``fail`` with the raised error text
                 surfaced, and the overall exit is 2.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -267,10 +299,10 @@ def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
     workflow_path = repo / WORKFLOW_TOML_RELATIVE_PATH
     text = workflow_path.read_text(encoding="utf-8")
     broken = text.replace(
-        '[gates]\nmode = "enforce"',
-        '[gates]\nmode = "disabled"',
+        '[gates.test]\nmode = "enforce"\ncommands = ["python -c pass"]',
+        '[gates.test]\nmode = "enforce"\ncommands = []',
     )
-    assert broken != text, "the expected enforced gates mode was not found to break"
+    assert broken != text, "the expected enforced test gate was not found"
     workflow_path.write_text(broken, encoding="utf-8", newline="")
 
     report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
@@ -285,20 +317,19 @@ def test_workflow_toml_schema_violation_exit_two_fail(tmp_path: Path) -> None:
 
 def test_disabled_gates_are_explicitly_valid(tmp_path: Path) -> None:
     """
-    @brief      Empty ``[gates].test``/``[gates].lint`` on an otherwise valid
-                installed workflow.toml produces warn-level findings, not a
-                hard failure.
+    @brief      All five explicitly disabled gate groups are valid and are
+                reported as disabled rather than passed.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
     _install_healthy_repo(repo, gates_configured=False)
 
     report = build_doctor_report(repo, runner=_healthy_runner(repo), home=tmp_path / "home")
-    assert _finding(report.workflow_toml, "workflow.gates.test").status == "ok"
-    assert _finding(report.workflow_toml, "workflow.gates.lint").status == "ok"
+    for name in ("build", "typecheck", "lint", "test", "security"):
+        finding = _finding(report.workflow_toml, f"workflow.gates.{name}")
+        assert finding.status == "ok"
+        assert finding.detail == "disabled"
     assert report.exit_code == EXIT_OK
 
 
@@ -311,8 +342,6 @@ def test_missing_hook_file_exit_two_fail(tmp_path: Path) -> None:
                 reports ``runnability.hooks`` as ``fail`` naming that file,
                 and the overall exit is 2.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -337,9 +366,6 @@ def test_missing_node_reports_hook_runtime_warn(tmp_path: Path) -> None:
                 Node.js silently disables enforcement (fail-open) rather than
                 breaking any installed file.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-24
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -378,9 +404,6 @@ def test_unsupported_key_in_codex_hooks_config_exit_two_fail(tmp_path: Path) -> 
                 reporting ``ok`` over an unloadable config is the exact gap
                 that let a broken payload ship.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -404,9 +427,6 @@ def test_unparseable_adapter_config_reports_fail(tmp_path: Path) -> None:
     @brief      An adapter config that is not valid JSON is ``fail`` too: the
                 host discards it for the same reason and with the same effect.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -427,9 +447,6 @@ def test_absent_adapter_config_is_not_a_failure(tmp_path: Path) -> None:
                 absent adapter is ``runnability.adapters``' business, and not
                 every repo uses every agent client.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -452,8 +469,6 @@ def test_manifest_state_none_vs_legacy_vs_invalid_reported_distinctly(tmp_path: 
                 ``repo.prior-install`` four-way routing, adapted with
                 doctor-specific severities: none/legacy warn, invalid fails).
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     none_repo = tmp_path / "none"
     none_repo.mkdir()
@@ -500,8 +515,6 @@ def test_journal_group_absent_completed_and_stopped_reported_distinctly(tmp_path
                 mid-way reports ``warn`` naming the stopping step. The three
                 are distinct.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -530,6 +543,205 @@ def test_journal_group_absent_completed_and_stopped_reported_distinctly(tmp_path
     assert len(details) == 3
 
 
+def test_accepted_failing_gate_is_reported_with_its_evidence(tmp_path: Path) -> None:
+    """
+    @brief      A repository whose latest run waived a failing enforced gate is
+                not healthy just because its payload has zero drift: the
+                journal group warns, naming the gate, the command, the run and
+                its timestamp, and the evidence log.
+    @return     None
+    @exception  AssertionError If the warning or any of its details is missing.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home,
+        repo,
+        "20260101T000000Z-aaaaaa",
+        outcomes={"pytest -q": "accepted-failing"},
+        failures=[
+            {
+                "gate": "test",
+                "command": "pytest -q",
+                "log_path": str(home / "logs" / "gates" / "evidence.log"),
+            }
+        ],
+    )
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "20260101T000000Z-aaaaaa" in finding.detail
+    assert "test" in finding.detail and "pytest -q" in finding.detail
+    assert "evidence.log" in finding.detail
+    assert finding.guidance is not None
+    # A waived gate is a warning in its own right, whatever the other groups say.
+    assert report.overall_status in {"warn", "fail"}
+
+
+def test_a_later_passing_run_supersedes_the_accepted_failure(tmp_path: Path) -> None:
+    """
+    @brief      The warning clears only on an explicit superseding record: a
+                *later* run that recorded the same gate command as passing.
+    @return     None
+    @exception  AssertionError If the warning does not clear, or clears for the
+                wrong reason.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "accepted-failing"}
+    )
+    warned = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    assert _finding(warned.journal, "journal.accepted-failing-gates").status == "warn"
+
+    _make_gate_journal(home, repo, "20260101T000100Z-bbbbbb", outcomes={"pytest -q": "pass"})
+    cleared = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(cleared.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "ok"
+    assert "superseded" in finding.detail
+
+
+def test_an_older_outstanding_acceptance_survives_a_newer_superseded_run(tmp_path: Path) -> None:
+    """
+    @brief      An older run's never-re-proven acceptance stays warned even
+                when the newest accepting run's own commands were superseded.
+    @details    Regression for the review finding: the walk previously stopped
+                at the most recent accepting journal and could report
+                ``ok (superseded)`` while an older journal still held an
+                accepted failing command no later run ever passed.
+    @return     None
+    @exception  AssertionError If the older acceptance is hidden.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest old-suite": "accepted-failing"}
+    )
+    _make_gate_journal(
+        home, repo, "20260101T000100Z-bbbbbb", outcomes={"pytest -q": "accepted-failing"}
+    )
+    _make_gate_journal(home, repo, "20260101T000200Z-cccccc", outcomes={"pytest -q": "pass"})
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "pytest old-suite" in finding.detail
+    assert "20260101T000000Z-aaaaaa" in finding.detail
+    assert "pytest -q" not in finding.detail.replace("pytest old-suite", "")
+
+
+def test_a_later_run_that_passes_a_different_gate_does_not_supersede(tmp_path: Path) -> None:
+    """
+    @brief      Superseding is per gate command, not per run: a later run that
+                passed some *other* gate leaves the waived one outstanding.
+    @return     None
+    @exception  AssertionError If an unrelated pass clears the warning.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "accepted-failing"}
+    )
+    _make_gate_journal(home, repo, "20260101T000100Z-bbbbbb", outcomes={"ruff check": "pass"})
+
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "pytest -q" in finding.detail
+
+
+def test_no_accepted_failures_reports_ok(tmp_path: Path) -> None:
+    """
+    @brief      The finding is always present: a repository with no journals at
+                all, and one whose gates all passed, both report ``ok``.
+    @return     None
+    @exception  AssertionError If the finding is absent or not ``ok``.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+
+    empty = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    assert _finding(empty.journal, "journal.accepted-failing-gates").status == "ok"
+
+    _make_gate_journal(home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "pass"})
+    passing = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(passing.journal, "journal.accepted-failing-gates")
+    assert finding.status == "ok"
+    assert "no accepted failing gate outcomes" in finding.detail
+
+
+def test_journals_without_the_evidence_fields_are_read_tolerantly(tmp_path: Path) -> None:
+    """
+    @brief      Journals written before failed-gate evidence existed must still
+                read: one recording ``gate_outcomes`` and nothing else still
+                produces the warning (without a log reference), and one
+                recording no gate answers at all is simply silent.
+    @return     None
+    @exception  AssertionError If an older journal crashes doctor or is
+                misread.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+
+    # An old journal with a step that recorded no gate answers whatsoever.
+    _make_gate_journal(home, repo, "20260101T000000Z-aaaaaa", outcomes=None)
+    silent = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    assert _finding(silent.journal, "journal.accepted-failing-gates").status == "ok"
+
+    # An old journal with outcomes but no evidence records (pre-F03 shape).
+    _make_gate_journal(
+        home, repo, "20260101T000100Z-bbbbbb", outcomes={"pytest -q": "accepted-failing"}
+    )
+    report = build_doctor_report(repo, runner=_healthy_runner(repo), home=home)
+    finding = _finding(report.journal, "journal.accepted-failing-gates")
+
+    assert finding.status == "warn"
+    assert "pytest -q" in finding.detail
+    assert "log:" not in finding.detail
+
+
+def test_the_accepted_failing_finding_is_additive_in_the_json_journal_group(tmp_path: Path) -> None:
+    """
+    @brief      The new finding lives inside the existing ``journal`` group
+                array — the envelope shape, the group names, and the ``Finding``
+                field names are all unchanged.
+    @return     None
+    @exception  AssertionError If the JSON shape changed beyond the addition.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    _make_gate_journal(
+        home, repo, "20260101T000000Z-aaaaaa", outcomes={"pytest -q": "accepted-failing"}
+    )
+
+    document = build_doctor_report(repo, runner=_healthy_runner(repo), home=home).to_dict()
+
+    assert set(document) == {"repo", "overall_status", "exit_code", "groups"}
+    assert set(document["groups"]) == {
+        "machine", "manifest", "drift", "workflow_toml", "runnability", "journal",
+    }
+    names = [item["name"] for item in document["groups"]["journal"]]
+    assert names.count("journal.accepted-failing-gates") == 1
+    entry = next(
+        item for item in document["groups"]["journal"]
+        if item["name"] == "journal.accepted-failing-gates"
+    )
+    assert set(entry) == {"name", "status", "detail", "guidance", "repair_action"}
+    assert entry["status"] == "warn"
+
+
 # --- verdict aggregation (direct, not inferred from scenarios) ---------------------
 
 
@@ -537,8 +749,6 @@ def test_aggregate_all_ok_exit_zero() -> None:
     """
     @brief      Aggregating only ``ok`` findings across groups yields exit 0.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ok_group = (ProbeFindingRecord(name="a", status="ok", detail="x"),)
     exit_code, status = _aggregate(ok_group, ok_group)
@@ -551,8 +761,6 @@ def test_aggregate_one_warn_zero_fail_exit_one() -> None:
     @brief      One ``warn`` finding among otherwise-``ok`` groups yields
                 exit 1, never escalating to a fail.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ok_group = (ProbeFindingRecord(name="a", status="ok", detail="x"),)
     warn_group = (ProbeFindingRecord(name="b", status="warn", detail="y"),)
@@ -566,8 +774,6 @@ def test_aggregate_one_fail_among_ok_warn_exit_two() -> None:
     @brief      One ``fail`` finding among several ``ok``/``warn`` findings
                 yields exit 2 — fail always wins the aggregation.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     ok_group = (ProbeFindingRecord(name="a", status="ok", detail="x"),)
     warn_group = (ProbeFindingRecord(name="b", status="warn", detail="y"),)
@@ -586,8 +792,6 @@ def test_repo_not_found_is_a_distinct_exit_code(tmp_path: Path) -> None:
                 and an exit code distinct from every health-verdict code
                 (0/1/2).
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     missing = tmp_path / "does-not-exist"
     stream = io.StringIO()
@@ -602,8 +806,6 @@ def test_repo_path_that_is_a_file_is_also_not_found(tmp_path: Path) -> None:
     @brief      A ``--repo`` path that exists but is a file, not a directory,
                 is also reported as the not-found operational failure.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     a_file = tmp_path / "not-a-dir.txt"
     a_file.write_text("x", encoding="utf-8")
@@ -619,8 +821,6 @@ def test_json_output_is_valid_and_documented_for_healthy_repo(tmp_path: Path) ->
     @brief      ``--json`` output for a healthy repo parses via ``json.loads``
                 and carries every documented top-level/group/finding field.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -648,8 +848,6 @@ def test_json_output_reports_disabled_gates_as_valid(tmp_path: Path) -> None:
                 warn-level) parses via ``json.loads`` and reports the warn
                 exit code and status consistently.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -675,8 +873,6 @@ def test_human_render_mentions_every_group_header(tmp_path: Path) -> None:
     @brief      The human report includes every group header and the overall
                 verdict line for a healthy repo.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()

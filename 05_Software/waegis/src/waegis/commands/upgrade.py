@@ -100,9 +100,6 @@
 @details **``--json`` seam (frozen, WADORE-relevant per plan §5/§15 D13).** See
          :meth:`UpgradeReport.to_dict` for the full field-name contract;
          changing those names is a wizard MAJOR version bump.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-15
-@version 0.1.0
 """
 
 # IMPORTS
@@ -111,21 +108,34 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 from os import PathLike
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import IO, Any, Callable, Mapping
 
+from ..consent import ConsentDecision, mutation_consent
 from ..engine import STATUS_COMPLETED, STATUS_FAILED, Journal, StepResult, StepStatus, waegis_home
 from ..io.answers import AnswersFileError, load_answers_file
-from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
+from ..io.envelope import (
+    EXIT_NEEDS_INPUT,
+    EXIT_OK as ENVELOPE_EXIT_OK,
+    EXIT_OPERATIONAL,
+    EXIT_VALIDATION,
+    write_envelope,
+)
 from ..io.prompts import ConsoleAsker, FieldSpec
-from ..lifecycle import find_resume_journal, stable_fingerprint
 from ..io.reports import ProbeFindingRecord
-from ..payload.copier import CopierError, SIDECAR_SUFFIX, ConflictDecision, ensure_executable, inspect_payload
-from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
+from ..lifecycle import find_resume_journal, stable_fingerprint
+from ..payload.copier import (
+    CopierError,
+    ConflictDecision,
+    ensure_executable,
+    inspect_payload,
+    normalize_conflict_decision_value,
+)
+from ..payload.locate import read_payload_version
 from ..payload.manifest import (
     MANIFEST_RELATIVE_PATH,
     MANIFEST_VERSION,
@@ -141,32 +151,35 @@ from ..payload.manifest import (
 )
 from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..repo import gitops
-from ..transaction import FileTransaction, recover_incomplete_transactions
-from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
-from ..verification import (
-    HASH_TRUSTED_HOOK_CONFIGS,
-    NO_ACTIVE_RUN_MARKER,
-    SMOKE_TIMEOUT_SECONDS,
-    smoke_reverify,
-    wrapper_invocation as _wrapper_invocation,
+from ..repowise import (
+    REPOWISE_ANSWER_KEYS,
+    RepoWiseError,
+    distribution_edition,
+    lifecycle_repowise,
+    repowise_status,
 )
+from ..transaction import FileTransaction
+from ..version import WIZARD_VERSION
+from ..verification import HASH_TRUSTED_HOOK_CONFIGS, smoke_reverify
+from ._shared import (
+    CommandOptions,
+    PAYLOAD_VALIDATION_ERRORS,
+    locate_validated_payload,
+    recover_transactions_or_emit,
+    sidecar_relative_path,
+)
+
 # CONSTANTS
 
 # @brief Fallback payload_version recorded when the new payload ships no
 #        readable version declaration (mirrors copier's UNKNOWN_PAYLOAD_VERSION).
 UNKNOWN_PAYLOAD_VERSION = "unknown"
 
-# @brief Manifest ``mode`` recorded when the conservative (no-manifest) path
-#        writes a fresh manifest: the repo is effectively being (re-)adopted.
-
-# @brief Manifest ``product`` recorded on the conservative path (no old manifest
-#        to preserve it from).
-
 # @brief Exit codes (part of the public contract from 0.1.0, plan §5/§15 D13).
-EXIT_OK = 0
-EXIT_CONFLICTS = 1  # true 3-way conflicts require decisions; nothing applied
-EXIT_SMOKE_FAILED = 2  # apply happened but the post-apply smoke re-verify failed
-EXIT_ERROR = 3  # operational failure (repo/payload not found) — never a merge verdict
+EXIT_OK = ENVELOPE_EXIT_OK
+EXIT_CONFLICTS = EXIT_NEEDS_INPUT
+EXIT_SMOKE_FAILED = EXIT_VALIDATION
+EXIT_ERROR = EXIT_OPERATIONAL
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -183,9 +196,6 @@ class FileAction(Enum):
              tracked in the new manifest's ``files`` map; the two removal
              actions drop the path; ``keep-local``/``write-new`` conflict
              resolutions record the path under ``skipped``.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     UNCHANGED = "unchanged"
@@ -226,9 +236,6 @@ class UpgradeConflict:
              (a conflict only arises when the new payload ships the path), and
              ``source_path`` is the new-payload file copied for a
              ``take-payload`` / ``write-new`` decision.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     relative_path: str
@@ -243,9 +250,6 @@ class UpgradeConflict:
         @return     Mapping keyed ``relative_path, original, local, new`` where
                     each hash side is ``{"sha256", "size"}`` or ``null``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         return {
             "relative_path": self.relative_path,
@@ -272,9 +276,6 @@ class PlanItem:
              :class:`FileEntry` values (``None`` where that side is absent).
              ``source_path`` is the new-payload file to copy, or ``None`` when
              the new payload does not ship the path (removal rows).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     path: str
@@ -290,9 +291,6 @@ class PlanItem:
         @return     The equivalent :class:`UpgradeConflict`.
         @exception  ValueError If the item is not a CONFLICT (its ``new`` and
                     ``source_path`` would be ``None``).
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         if self.action is not FileAction.CONFLICT or self.new is None or self.source_path is None:
             raise ValueError(f"plan item for {self.path!r} is not a resolvable conflict")
@@ -314,9 +312,9 @@ class UpgradePlan:
              Carries the context :func:`apply_upgrade` needs to rewrite the
              manifest truthfully: the new payload root and version, the old
              manifest's preserved fields, and the untouched ``generated`` list.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
+             ``conservative`` is a deprecated compatibility field retained for
+             the frozen report/API shape; valid-manifest upgrades always set it
+             to ``False`` and no conservative execution mode exists.
     """
 
     repo: Path
@@ -338,9 +336,6 @@ class UpgradePlan:
         @param[in]  action The action to filter by.
         @return     Sorted tuple of repo-relative POSIX paths.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         return tuple(item.path for item in self.items if item.action is action)
 
@@ -349,9 +344,6 @@ class UpgradePlan:
         @brief      Every true three-way conflict, in sorted path order.
         @return     Tuple of :class:`UpgradeConflict`.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         return tuple(item.as_conflict() for item in self.items if item.action is FileAction.CONFLICT)
 
@@ -363,9 +355,6 @@ class ConflictOutcome:
     @details ``written_path`` is the repo-relative POSIX path written for the
              decision: the payload path for ``TAKE_PAYLOAD``, the ``<name>.new``
              sidecar for ``WRITE_NEW``, ``None`` for ``KEEP_LOCAL``.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     relative_path: str
@@ -383,9 +372,6 @@ class UpgradeReport:
              (the rewrite-last barrier). ``preserved_local_edits`` names files
              upstream removed but the operator had locally modified — kept, not
              deleted (plan §10.2).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     plan: UpgradePlan
@@ -407,9 +393,6 @@ class UpgradeReport:
                     locally modified (plan §10.2 removed-upstream-modified).
         @return     Sorted tuple of repo-relative POSIX paths.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         return self.plan.by_action(FileAction.KEEP_MODIFIED_REMOVED)
 
@@ -427,9 +410,6 @@ class UpgradeReport:
         @return     Sorted tuple of repo-relative POSIX paths, empty when this
                     upgrade touches none of them.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-28
-        @version    0.1.0
         """
         return _hook_configs_needing_retrust(self.plan, self.outcomes)
 
@@ -451,9 +431,6 @@ class UpgradeReport:
                     while its Codex guards have stopped running.
         @return     The JSON-safe mapping.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-28
-        @version    0.2.0
         """
         return {
             "repo": str(self.plan.repo),
@@ -485,9 +462,6 @@ class UpgradeReport:
 class UpgradeError(Exception):
     """
     @brief Base error for upgrade failures caught before any write.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
 
@@ -498,9 +472,6 @@ class ConflictResolutionError(UpgradeError):
              from the table and no interactive fallback exists. Raised during
              the read-only decide phase, so the target is never touched;
              :func:`run_upgrade` catches it and stops-and-reports.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-15
-    @version 0.1.0
     """
 
     def __init__(self, relative_path: str) -> None:
@@ -509,12 +480,61 @@ class ConflictResolutionError(UpgradeError):
         @param[in]  relative_path The conflict path with no available decision.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-15
-        @version    0.1.0
         """
         self.relative_path = relative_path
         super().__init__(f"no decision available for conflict on {relative_path!r}")
+
+
+class UpgradeApplyError(UpgradeError):
+    """
+    @brief One apply-phase failure paired with the transaction's true terminal
+           state.
+    @details :func:`_apply_upgrade_transactional` raises this instead of
+             re-raising the originating exception, because the three post-write
+             outcomes are materially different and must never be reported
+             alike:
+
+             - ``committed`` — every file write and the manifest rewrite are
+               durable on disk and only the post-commit storage cleanup failed;
+               nothing was rolled back and recovery retries the cleanup. The
+               upgrade SUCCEEDED.
+             - ``rolled_back`` — the transaction restored every declared path,
+               so the repository is back at its exact pre-upgrade state.
+             - neither — rollback itself failed, so the repository may be left
+               partially upgraded and the authenticated recovery state was
+               retained for a later ``waegis`` run.
+
+             Interrupts (:class:`KeyboardInterrupt` / :class:`SystemExit`) are
+             never wrapped: they keep propagating unchanged, carrying any
+             rollback failure as a note. ``__cause__`` is always the
+             originating exception.
+    """
+
+    def __init__(
+        self,
+        cause: BaseException,
+        *,
+        committed: bool,
+        rolled_back: bool,
+        rollback_error: BaseException | None = None,
+    ) -> None:
+        """
+        @brief      Build the typed apply failure.
+        @param[in]  cause The exception raised inside the transaction body.
+        @param[in]  committed True when the transaction reached ``committed``
+                    before the failure (a durable, successful upgrade).
+        @param[in]  rolled_back True when rollback completed and restored every
+                    declared path.
+        @param[in]  rollback_error The rollback failure, when rollback was
+                    attempted and did not complete.
+        @return     None
+        @exception  None
+        """
+        self.cause = cause
+        self.committed = committed
+        self.rolled_back = rolled_back
+        self.rollback_error = rollback_error
+        super().__init__(str(cause) or type(cause).__name__)
 
 
 # LOCAL HELPERS
@@ -529,32 +549,26 @@ def _new_payload_files(payload_root: Path) -> dict[str, FileEntry]:
                 computed over exactly the set of files a copy would write.
     @param[in]  payload_root New payload (template) root directory.
     @return     Mapping of repo-relative POSIX path to its new hash/size ``N``.
+    @exception  PayloadMissingError If ``payload_root`` is not a directory.
+    @exception  CopierError If an included payload source is unsafe or not
+                a regular file.
     @exception  OSError If the payload tree cannot be walked or a file hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return dict(inspect_payload(payload_root).entries)
 
 
-def _classify(original: str | None, local: str | None, new: str | None, conservative: bool) -> FileAction:
+def _classify(original: str | None, local: str | None, new: str | None) -> FileAction:
     """
     @brief      Classify one path from its ``O``/``L``/``N`` hashes (plan §10.2).
     @details    An absent side is passed as ``None`` and treated as unequal to
                 every hash and to another absent side, so "operator deleted the
                 file" and "upstream dropped the file" cases fall out of the same
-                comparisons. On the conservative (no-manifest) path there is no
-                trustworthy ``O``, so a local file that differs from the new
-                payload is always a CONFLICT — nothing is auto-applied.
+                comparisons.
     @param[in]  original ``O`` hash, or ``None`` when untracked.
     @param[in]  local ``L`` hash, or ``None`` when the file is absent on disk.
     @param[in]  new ``N`` hash, or ``None`` when the new payload dropped it.
-    @param[in]  conservative Whether the no-manifest conservative path is active.
     @return     The classified :class:`FileAction`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     if new is not None:
         if original is None:
@@ -563,8 +577,6 @@ def _classify(original: str | None, local: str | None, new: str | None, conserva
                 return FileAction.ADD_NEW
             if local == new:
                 return FileAction.NEW_CONVERGED
-            return FileAction.CONFLICT
-        if conservative:  # defensive: conservative implies original is None
             return FileAction.CONFLICT
         if local == original and new == original:
             return FileAction.UNCHANGED
@@ -597,9 +609,6 @@ def _copy_file(source: Path, destination: Path) -> None:
     @param[in]  destination File to copy to.
     @return     None
     @exception  OSError If the copy fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
@@ -627,9 +636,6 @@ def _hook_configs_needing_retrust(
     @param[in]  outcomes Resolved conflict outcomes (empty before resolution).
     @return     Sorted tuple of repo-relative POSIX paths.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     written = set(plan.by_action(FileAction.AUTO_APPLY_NEW))
     written |= set(plan.by_action(FileAction.ADD_NEW))
@@ -648,13 +654,8 @@ def _sidecar_path(repo: Path, relative_path: str) -> Path:
     @param[in]  relative_path Repo-relative POSIX path of the conflicting file.
     @return     Absolute path of the ``.new`` sidecar beside the local file.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
-    target = PurePosixPath(relative_path)
-    sidecar = target.with_name(target.name + SIDECAR_SUFFIX).as_posix()
-    return resolve_managed_path(repo, sidecar)
+    return resolve_managed_path(repo, sidecar_relative_path(relative_path))
 
 
 def make_resolution_hook(
@@ -674,9 +675,6 @@ def make_resolution_hook(
     @param[in]  fallback Optional interactive hook for paths absent from the table.
     @return     A :data:`UpgradeConflictHook`.
     @exception  None (the returned hook may raise :class:`ConflictResolutionError`).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     table: Mapping[str, str] = resolutions or {}
 
@@ -687,12 +685,10 @@ def make_resolution_hook(
         @return     The chosen :class:`ConflictDecision`.
         @exception  ConflictResolutionError If no decision is available.
         @exception  ValueError If a table value is not a valid decision.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         raw = table.get(conflict.relative_path)
         if raw is not None:
-            return ConflictDecision(str(raw).strip().lower())
+            return ConflictDecision(normalize_conflict_decision_value(raw))
         if fallback is not None:
             return fallback(conflict)
         raise ConflictResolutionError(conflict.relative_path)
@@ -710,9 +706,6 @@ def make_console_hook(asker: ConsoleAsker) -> UpgradeConflictHook:
     @param[in]  asker The console asker prompting the operator.
     @return     A :data:`UpgradeConflictHook`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
 
     def hook(conflict: UpgradeConflict) -> ConflictDecision:
@@ -724,9 +717,6 @@ def make_console_hook(asker: ConsoleAsker) -> UpgradeConflictHook:
         @param[in]  conflict The conflict to resolve.
         @return     The chosen :class:`ConflictDecision`.
         @exception  waegis.io.prompts.PromptsError On a missing/invalid answer.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.1.1
         """
         local_desc = (
             f"local {conflict.local.size} bytes / {conflict.local.sha256[:12]}"
@@ -735,104 +725,21 @@ def make_console_hook(asker: ConsoleAsker) -> UpgradeConflictHook:
         )
         spec = FieldSpec(
             key=f"conflict:{conflict.relative_path}",
+            question=f"{conflict.relative_path} differs three ways ({local_desc}; new payload {conflict.new.size} bytes / {conflict.new.sha256[:12]}) — keep yours, take the new payload, or write it beside yours?",
             description=(
-                f"{conflict.relative_path} differs three ways ({local_desc}; new payload "
-                f"{conflict.new.size} bytes / {conflict.new.sha256[:12]}). Choose keep-local "
-                "(keep yours), take-payload (overwrite with the new payload), or write-new "
-                "(keep yours and write the new payload as a .new file beside it)."
+                "Nothing you own is ever silently overwritten: keep-local keeps "
+                "yours untouched, take-payload overwrites it with the new "
+                "payload, write-new keeps yours and writes the new payload as "
+                "a .new file beside it."
             ),
             example="keep-local",
             default="keep-local",
-            validator=_normalize_decision_value,
+            validator=normalize_conflict_decision_value,
             choices=("keep-local", "take-payload", "write-new"),
         )
         return ConflictDecision(asker.ask_field(spec))
 
     return hook
-
-
-def _normalize_decision_value(raw: Any) -> str:
-    """
-    @brief      Validate a conflict-decision answer to its canonical string.
-    @param[in]  raw Candidate answer.
-    @return     One of ``keep-local``/``take-payload``/``write-new``.
-    @exception  ValueError If the value is not a known decision.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
-    """
-    text = str(raw).strip().lower()
-    try:
-        return ConflictDecision(text).value
-    except ValueError as exc:
-        raise ValueError("choose one of: keep-local, take-payload, write-new") from exc
-
-
-def _smoke_reverify(runner: CommandRunner, repo: Path) -> tuple[tuple[ProbeFindingRecord, ...], bool]:
-    """
-    @brief      Post-apply smoke re-verify: ``verify.cli-smoke`` +
-                ``verify.workflow-smoke`` (plan §10.2), reusing the wrapper
-                invocation and healthy-response rules from ``commands/new.py``.
-    @details    cli-smoke: the wrapper's ``--help`` must exit 0. workflow-smoke:
-                the wrapper's ``status`` is healthy when it exits 0 with
-                JSON-parseable output, or exits non-zero with the coherent
-                fresh-install marker (:data:`NO_ACTIVE_RUN_MARKER`) — the same
-                verdict logic as ``new.py``'s ``_verify_workflow_smoke``. Gates
-                are not re-run here (plan §10.2 names only the two smoke checks).
-    @param[in]  runner Injectable command runner (real subprocess or a fake).
-    @param[in]  repo Repository root holding the (now upgraded) payload.
-    @return     ``(findings, ok)`` where ``ok`` is ``True`` only when both
-                checks pass.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
-    """
-    findings: list[ProbeFindingRecord] = []
-    ok = True
-
-    help_argv = _wrapper_invocation(repo, "--help")
-    help_result = runner.run(help_argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=repo)
-    if help_result.ok():
-        findings.append(ProbeFindingRecord("verify.cli-smoke", "ok", f"'{' '.join(help_argv)}' exited 0"))
-    else:
-        ok = False
-        detail = help_result.combined_output().strip() if help_result.found else "the wrapper executable was not found"
-        findings.append(
-            ProbeFindingRecord(
-                "verify.cli-smoke",
-                "fail",
-                f"'{' '.join(help_argv)}' failed: {detail or 'no output'}",
-                guidance="confirm Python 3.11+ is on PATH for the wrapper, then re-run 'waegis upgrade'",
-            )
-        )
-
-    status_argv = _wrapper_invocation(repo, "status")
-    status_result = runner.run(status_argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=repo)
-    healthy = False
-    if status_result.ok():
-        try:
-            json.loads(status_result.stdout)
-            healthy = True
-        except json.JSONDecodeError:
-            healthy = False
-    elif NO_ACTIVE_RUN_MARKER in status_result.combined_output():
-        healthy = True
-    if healthy:
-        findings.append(ProbeFindingRecord("verify.workflow-smoke", "ok", f"'{' '.join(status_argv)}' responded coherently"))
-    else:
-        ok = False
-        detail = status_result.combined_output().strip() if status_result.found else "the wrapper executable was not found"
-        findings.append(
-            ProbeFindingRecord(
-                "verify.workflow-smoke",
-                "fail",
-                f"'{' '.join(status_argv)}' did not respond as expected: {detail or 'no output'}",
-                guidance="run the wrapper manually inside the repo (.agentic/tools/run.* status) and check the error",
-            )
-        )
-
-    return tuple(findings), ok
 
 
 def _build_new_manifest(plan: UpgradePlan, outcomes: Mapping[str, ConflictDecision]) -> Manifest:
@@ -846,26 +753,23 @@ def _build_new_manifest(plan: UpgradePlan, outcomes: Mapping[str, ConflictDecisi
                 ``write-new`` conflicts record the payload path under ``skipped``
                 (re-offered by a future upgrade); removals drop the path.
                 ``product``/``mode``/``installed_at`` are preserved from the old
-                manifest (defaults on the conservative path); ``installed_by`` is
-                stamped to this wizard build; ``generated`` is preserved verbatim.
+                manifest; ``installed_by`` is stamped to this wizard build;
+                ``generated`` is preserved verbatim.
     @param[in]  plan The computed plan.
     @param[in]  outcomes Resolved conflict decisions keyed by path.
     @return     The new :class:`Manifest` (not yet written).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     files: dict[str, FileEntry] = {}
     skipped: list[str] = []
     for item in plan.items:
         if item.action in _TRACKED_ACTIONS:
-            assert item.new is not None
+            assert item.new is not None, f"tracked item {item.path!r} lacks a payload entry"
             files[item.path] = item.new
         elif item.action is FileAction.CONFLICT:
             decision = outcomes[item.path]
             if decision is ConflictDecision.TAKE_PAYLOAD:
-                assert item.new is not None
+                assert item.new is not None, f"conflict item {item.path!r} lacks a payload entry"
                 files[item.path] = item.new
             else:  # KEEP_LOCAL or WRITE_NEW
                 skipped.append(item.path)
@@ -901,18 +805,16 @@ def build_upgrade_plan(
                 hook. Builds the union of the manifest's ``files`` and the new
                 payload's files, removes ``generated`` paths and the manifest's
                 own path, and classifies every remaining path from its
-                ``O``/``L``/``N`` hashes. When the manifest is absent or invalid
-                the conservative path is taken (no ``O``; every colliding local
-                file is a CONFLICT; ``.agentic/workflow.toml`` if present is
-                protected as ``generated``).
+                ``O``/``L``/``N`` hashes. A valid current install manifest is
+                mandatory; adoption owns repositories without one.
     @param[in]  repo Repository root to upgrade.
     @param[in]  new_payload_root Resolved new payload (template) root.
     @param[in]  load_result Result of :func:`waegis.payload.manifest.load_manifest`.
     @return     The computed :class:`UpgradePlan`.
+    @exception  UpgradeError If the current install manifest is absent or invalid.
+    @exception  CopierError If the new payload is unreadable or ships an unsafe
+                entry (propagated from :func:`_new_payload_files`).
     @exception  OSError If a repo or payload file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     repo_path = Path(repo)
     payload_path = Path(new_payload_root)
@@ -921,7 +823,6 @@ def build_upgrade_plan(
 
     if load_result.state is not ManifestState.VALID or load_result.manifest is None:
         raise UpgradeError("upgrade requires a valid current install manifest")
-    conservative = False
     manifest = load_result.manifest
     old_files = manifest.files
     generated = manifest.generated
@@ -942,7 +843,6 @@ def build_upgrade_plan(
             original.sha256 if original is not None else None,
             local_entry.sha256 if local_entry is not None else None,
             new_entry.sha256 if new_entry is not None else None,
-            conservative,
         )
         items.append(
             PlanItem(
@@ -961,7 +861,7 @@ def build_upgrade_plan(
         new_payload_version=new_version,
         items=tuple(items),
         generated=generated,
-        conservative=conservative,
+        conservative=False,
         manifest_state=load_result.state,
         product=product,
         mode=mode,
@@ -977,11 +877,17 @@ def resolve_upgrade_decisions(
 ) -> tuple[dict[str, ConflictDecision], tuple[ConflictOutcome, ...]]:
     """
     @brief      Collect and validate every conflict decision without writing.
+    @param[in]  plan The computed plan.
+    @param[in]  hook Per-conflict decision hook; required when ``plan`` has
+                conflicts.
     @return     Decision mapping and ordered outcomes.
-    @exception  UpgradeError If any conflict lacks a valid decision or sidecar.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
+    @exception  UpgradeError If ``hook`` is ``None`` while conflicts exist, or
+                the hook returns a non-:class:`ConflictDecision`.
+    @exception  ConflictResolutionError If ``hook`` cannot resolve a conflict
+                (a :class:`UpgradeError` subclass, raised by hooks built with
+                :func:`make_resolution_hook`).
+    @exception  OSError If an existing ``write-new`` sidecar cannot be hashed
+                to check for a collision.
     """
     conflicts = plan.conflicts()
     if conflicts and hook is None:
@@ -989,7 +895,7 @@ def resolve_upgrade_decisions(
     decisions: dict[str, ConflictDecision] = {}
     outcomes: list[ConflictOutcome] = []
     for conflict in conflicts:
-        assert hook is not None
+        assert hook is not None, "conflicts without a hook are rejected above"
         decision = hook(conflict)
         if not isinstance(decision, ConflictDecision):
             raise UpgradeError(
@@ -1035,25 +941,41 @@ def apply_upgrade(
                 (2) apply — delete removed-unmodified files, copy
                 auto-apply/add/take-payload files byte-verbatim, write
                 ``write-new`` sidecars. (2.5) smoke re-verify via
-                :func:`_smoke_reverify`; on failure STOP and return with
-                ``manifest_written=False`` (the old manifest still describes the
-                old state). (3) rewrite the manifest — the single
+                :func:`waegis.verification.smoke_reverify`; on failure roll
+                back and return with ``manifest_written=False``. (3) rewrite
+                the manifest — the single
                 :func:`write_manifest`, textually last.
     @param[in]  plan The computed plan.
     @param[in]  hook Per-conflict decision hook; required when the plan has
-                conflicts (a conflict is never resolved without it).
+                conflicts and ``decisions`` is not supplied (a conflict is
+                never resolved without one or the other).
     @param[in]  runner Injectable command runner for the smoke re-verify;
                 defaults to the real subprocess runner.
+    @param[in]  decisions Pre-resolved conflict decisions keyed by path,
+                bypassing ``hook`` entirely; when given, the set of keys must
+                exactly match the plan's conflict paths.
+    @param[in]  resolved_outcomes Pre-built outcomes paired with ``decisions``
+                (e.g. from a prior :func:`resolve_upgrade_decisions` call);
+                when omitted alongside ``decisions``, outcomes are rebuilt
+                with ``written_path=None``.
     @return     The :class:`UpgradeReport`.
     @exception  ConflictResolutionError If a conflict has no available decision
                 (raised in the decide phase, before any write).
     @exception  UpgradeError If ``hook`` is missing while conflicts exist, the
-                hook returns a non-:class:`ConflictDecision`, or a ``write-new``
-                sidecar already exists with different content.
-    @exception  OSError If a file copy/delete or the manifest write fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
+                hook returns a non-:class:`ConflictDecision`, a ``write-new``
+                sidecar already exists with different content, or
+                ``decisions`` does not exactly match the plan's conflicts.
+    @exception  OSError If a file copy/delete or the manifest write fails
+                before the transaction is opened.
+    @exception  UpgradeApplyError Any error raised inside the transaction body
+                (e.g. a transaction or manifest failure) is wrapped, after the
+                automatic rollback attempt, in a typed failure carrying whether
+                the transaction committed, rolled back, or failed to roll back
+                — see :class:`UpgradeApplyError`. The originating exception is
+                the wrapper's ``__cause__``.
+    @exception  BaseException :class:`KeyboardInterrupt` and
+                :class:`SystemExit` are never wrapped; they propagate unchanged
+                after the same rollback attempt.
     """
     return _apply_upgrade_transactional(
         plan,
@@ -1061,84 +983,6 @@ def apply_upgrade(
         runner=runner,
         decisions=decisions,
         resolved_outcomes=resolved_outcomes,
-    )
-
-    active_runner = runner if runner is not None else SubprocessCommandRunner()  # pragma: no cover
-    conflicts = plan.conflicts()
-    if conflicts and hook is None:
-        raise UpgradeError("the plan has conflicts but no decision hook was supplied")
-
-    # Phase 1b — decide (read-only). Every hook call and sidecar refusal here.
-    decisions: dict[str, ConflictDecision] = {}
-    outcomes: list[ConflictOutcome] = []
-    for conflict in conflicts:
-        assert hook is not None
-        decision = hook(conflict)
-        if not isinstance(decision, ConflictDecision):
-            raise UpgradeError(
-                f"conflict hook returned {decision!r} for {conflict.relative_path!r}; expected a ConflictDecision"
-            )
-        written_path: str | None
-        if decision is ConflictDecision.TAKE_PAYLOAD:
-            written_path = conflict.relative_path
-        elif decision is ConflictDecision.KEEP_LOCAL:
-            written_path = None
-        else:  # WRITE_NEW
-            sidecar = _sidecar_path(plan.repo, conflict.relative_path)
-            if sidecar.exists() and (not sidecar.is_file() or hash_file(sidecar).sha256 != conflict.new.sha256):
-                raise UpgradeError(f"refusing to overwrite existing sidecar file: {sidecar}")
-            written_path = sidecar.relative_to(plan.repo).as_posix()
-        decisions[conflict.relative_path] = decision
-        outcomes.append(ConflictOutcome(relative_path=conflict.relative_path, decision=decision, written_path=written_path))
-
-    # Phase 2 — apply. All refusals happened above; below only writes.
-    for item in plan.items:
-        destination = plan.repo / item.path
-        if item.action in (FileAction.AUTO_APPLY_NEW, FileAction.ADD_NEW):
-            assert item.source_path is not None
-            _copy_file(item.source_path, destination)
-        elif item.action is FileAction.DELETE_REMOVED:
-            if destination.is_file():
-                destination.unlink()
-        elif item.action is FileAction.CONFLICT:
-            decision = decisions[item.path]
-            assert item.source_path is not None
-            if decision is ConflictDecision.TAKE_PAYLOAD:
-                _copy_file(item.source_path, destination)
-            elif decision is ConflictDecision.WRITE_NEW:
-                _copy_file(item.source_path, _sidecar_path(plan.repo, item.path))
-            # KEEP_LOCAL: nothing written.
-        # UNCHANGED / KEEP_LOCAL / ALREADY_CONVERGED / NEW_CONVERGED /
-        # KEEP_MODIFIED_REMOVED: nothing written.
-
-    # Phase 2.5 — BARRIER: post-apply smoke re-verify.
-    smoke, smoke_ok = smoke_reverify(active_runner, plan.repo)
-    if not smoke_ok:
-        return UpgradeReport(
-            plan=plan,
-            dry_run=False,
-            applied=True,
-            outcomes=tuple(outcomes),
-            smoke=smoke,
-            smoke_ok=False,
-            manifest_written=False,
-            manifest=None,
-            exit_code=EXIT_SMOKE_FAILED,
-        )
-
-    # Phase 3 — manifest rewrite (LAST): the single write_manifest call.
-    manifest = _build_new_manifest(plan, decisions)
-    write_manifest(plan.repo, manifest)
-    return UpgradeReport(
-        plan=plan,
-        dry_run=False,
-        applied=True,
-        outcomes=tuple(outcomes),
-        smoke=smoke,
-        smoke_ok=True,
-        manifest_written=True,
-        manifest=manifest,
-        exit_code=EXIT_OK,
     )
 
 
@@ -1153,10 +997,13 @@ def _apply_upgrade_transactional(
     """
     @brief      Apply a fully resolved plan through a persistent transaction.
     @return     Upgrade report, including rollback state on smoke failure.
-    @exception  BaseException Re-raised only after automatic rollback.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
+    @exception  UpgradeApplyError Raised, after the automatic rollback attempt,
+                for every non-interrupt failure inside the transaction body,
+                carrying the transaction's true terminal state so callers never
+                have to inspect message text to tell a committed-but-
+                cleanup-failed upgrade from a rolled-back one.
+    @exception  BaseException :class:`KeyboardInterrupt` / :class:`SystemExit`
+                propagate unchanged after the same rollback attempt.
     """
     active_runner = runner or SubprocessCommandRunner()
     if decisions is None:
@@ -1186,14 +1033,14 @@ def _apply_upgrade_transactional(
         for item in plan.items:
             destination = resolve_managed_path(plan.repo, item.path)
             if item.action in (FileAction.AUTO_APPLY_NEW, FileAction.ADD_NEW):
-                assert item.source_path is not None
+                assert item.source_path is not None, f"apply item {item.path!r} lacks a source path"
                 _copy_file(item.source_path, destination)
             elif item.action is FileAction.DELETE_REMOVED:
                 if destination.is_file():
                     destination.unlink()
             elif item.action is FileAction.CONFLICT:
                 decision = resolved[item.path]
-                assert item.source_path is not None
+                assert item.source_path is not None, f"conflict item {item.path!r} lacks a source path"
                 if decision is ConflictDecision.TAKE_PAYLOAD:
                     _copy_file(item.source_path, destination)
                 elif decision is ConflictDecision.WRITE_NEW:
@@ -1218,10 +1065,29 @@ def _apply_upgrade_transactional(
         manifest = _build_new_manifest(plan, resolved)
         write_manifest(plan.repo, manifest)
         transaction.commit()
-    except BaseException:
-        if transaction.directory.exists():
-            transaction.rollback()
-        raise
+    except BaseException as exc:
+        committed = transaction.phase == "committed"
+        rolled_back = False
+        rollback_error: BaseException | None = None
+        if transaction.directory.exists() and not committed:
+            try:
+                transaction.rollback()
+                rolled_back = True
+            except Exception as exc_rollback:
+                rollback_error = exc_rollback
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            if rollback_error is not None:
+                exc.add_note(
+                    "upgrade rollback failed; authenticated recovery state "
+                    f"was retained: {rollback_error}"
+                )
+            raise
+        raise UpgradeApplyError(
+            exc,
+            committed=committed,
+            rolled_back=rolled_back,
+            rollback_error=rollback_error,
+        ) from exc
     return UpgradeReport(
         plan=plan,
         dry_run=False,
@@ -1255,9 +1121,6 @@ def render_upgrade_report(report: UpgradeReport, stream: IO[str]) -> None:
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.2.0
     """
     plan = report.plan
     stream.write(f"WAEGIS upgrade - {plan.repo}\n")
@@ -1339,131 +1202,9 @@ def upgrade_report_json(report: UpgradeReport) -> str:
     @param[in]  report The report to serialize.
     @return     JSON text, 2-space indent.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     return json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
 
-
-def run_upgrade(
-    repo: str | PathLike[str],
-    *,
-    as_json: bool,
-    dry_run: bool,
-    stream: IO[str],
-    payload: str | None = None,
-    answers_path: str | PathLike[str] | None = None,
-    non_interactive: bool = False,
-    yes: bool = False,
-    on_conflict: UpgradeConflictHook | None = None,
-    resolutions: Mapping[str, str] | None = None,
-    asker: ConsoleAsker | None = None,
-    runner: CommandRunner | None = None,
-    home: Path | None = None,
-) -> int:
-    """
-    @brief      Entry point for ``waegis upgrade --repo PATH [--dry-run]
-                [--json] [--payload PATH]`` (plan §5/§10.2).
-    @details    Locates the new payload, loads the manifest, and builds the
-                read-only plan. ``--dry-run`` renders the plan and returns
-                without writing anything or touching the manifest. Otherwise, if
-                the plan has conflicts, they are resolved through a hook derived
-                (in precedence order) from ``on_conflict``, then a
-                ``resolutions`` table with an optional ``asker`` fallback, then
-                ``asker`` alone; with none of these available the command
-                stops-and-reports (applies nothing, exit
-                :data:`EXIT_CONFLICTS`) — the frozen ``--json`` CLI path. A
-                partial resolution table that cannot decide some conflict also
-                stops-and-reports (the decide phase raises before any write).
-    @param[in]  repo Repository root to upgrade.
-    @param[in]  as_json When true, render the frozen ``--json`` shape.
-    @param[in]  dry_run When true, render the plan and change nothing.
-    @param[in]  stream Output stream (real console or injected buffer for tests).
-    @param[in]  payload Optional ``--payload`` override for payload resolution.
-    @param[in]  on_conflict Explicit per-conflict hook (test / WADORE seam).
-    @param[in]  resolutions Optional pre-supplied ``{path: decision}`` table.
-    @param[in]  asker Optional console asker for the interactive prompt path.
-    @param[in]  runner Injectable command runner for the smoke re-verify.
-    @return     :data:`EXIT_OK` on a completed upgrade (or a completed dry run);
-                :data:`EXIT_CONFLICTS` when conflicts need decisions and none
-                were available (nothing written); :data:`EXIT_SMOKE_FAILED` when
-                files were applied but the smoke re-verify failed (manifest not
-                rewritten); :data:`EXIT_ERROR` when ``--repo`` or the payload
-                could not be resolved.
-    @exception  None All operational failures are reported and mapped to an exit
-                code rather than raised.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
-    """
-    return _run_upgrade_hardened(
-        repo,
-        as_json=as_json,
-        dry_run=dry_run,
-        stream=stream,
-        payload=payload,
-        answers_path=answers_path,
-        non_interactive=non_interactive,
-        yes=yes,
-        on_conflict=on_conflict,
-        resolutions=resolutions,
-        asker=asker,
-        runner=runner,
-        home=home,
-    )
-
-    repo_path = Path(repo)  # pragma: no cover - retained legacy body
-    if not repo_path.is_dir():
-        stream.write(f"waegis upgrade: --repo path does not exist or is not a directory: {repo_path}\n")
-        return EXIT_ERROR
-    try:
-        payload_root = locate_payload(payload)
-    except PayloadLocateError as exc:
-        stream.write(f"waegis upgrade: could not resolve the new payload: {exc}\n")
-        return EXIT_ERROR
-
-    load_result = load_manifest(repo_path)
-    plan = build_upgrade_plan(repo_path, new_payload_root=payload_root, load_result=load_result)
-
-    if dry_run:
-        report = UpgradeReport(
-            plan=plan,
-            dry_run=True,
-            applied=False,
-            outcomes=(),
-            smoke=(),
-            smoke_ok=None,
-            manifest_written=False,
-            manifest=None,
-            exit_code=EXIT_OK,
-        )
-        _emit(report, stream, as_json)
-        return EXIT_OK
-
-    conflicts = plan.conflicts()
-    hook: UpgradeConflictHook | None
-    if not conflicts:
-        hook = None
-    elif on_conflict is not None:
-        hook = on_conflict
-    elif resolutions is not None or asker is not None:
-        fallback = make_console_hook(asker) if asker is not None else None
-        hook = make_resolution_hook(resolutions, fallback)
-    else:
-        report = _conflicts_unresolved_report(plan)
-        _emit(report, stream, as_json)
-        return EXIT_CONFLICTS
-
-    try:
-        report = apply_upgrade(plan, hook=hook, runner=runner)
-    except ConflictResolutionError:
-        report = _conflicts_unresolved_report(plan)
-        _emit(report, stream, as_json)
-        return EXIT_CONFLICTS
-
-    _emit(report, stream, as_json)
-    return report.exit_code
 
 
 # HARDENED COMMAND ORCHESTRATION
@@ -1505,22 +1246,32 @@ def _emit_upgrade_envelope_or_report(
     exit_code: int,
     plan_data: Mapping[str, Any] | None = None,
     report: UpgradeReport | None = None,
+    result_extra: Mapping[str, Any] | None = None,
     messages: tuple[str, ...] = (),
 ) -> int:
     """@brief Emit one hardened upgrade result."""
     if as_json:
+        result = report.to_dict() if report is not None else {}
+        if result_extra is not None:
+            result.update(result_extra)
         return write_envelope(
             stream,
             "upgrade",
             status=status,
             exit_code=exit_code,
             plan=plan_data,
-            result=report.to_dict() if report is not None else {},
+            result=result,
             messages=messages,
         )
     for message in messages:
         stream.write("waegis upgrade: " + message + "\n")
-    if plan_data is not None:
+    if plan_data is not None and "repo" not in plan_data:
+        # Recovery-only plan: the transaction-recovery consent was declined
+        # before any upgrade plan existed, so only the pending transaction
+        # ids are known (the _shared.recover_transactions_or_emit shape).
+        for transaction_id in plan_data.get("recovery", []):
+            stream.write(f"  pending transaction: {transaction_id}\n")
+    elif plan_data is not None:
         stream.write(f"Resolved upgrade plan for {plan_data['repo']}\n")
         stream.write(f"  payload: {plan_data['new_payload_version']} ({plan_data['payload_digest'][:12]})\n")
         stream.write(f"  git mode: {plan_data['git_mode']}\n")
@@ -1540,363 +1291,677 @@ def _emit_upgrade_envelope_or_report(
     return exit_code
 
 
-def _run_upgrade_hardened(
+@dataclass(frozen=True)
+class UpgradeContext:
+    """@brief Resolved public boundary for upgrade command phases."""
+    repo_path: Path
+    options: CommandOptions
+    on_conflict: UpgradeConflictHook | None
+    resolutions: Mapping[str, str] | None
+    asker: ConsoleAsker | None
+
+
+@dataclass(frozen=True)
+class UpgradeValidated:
+    """@brief Validated upgrade inputs before decision planning."""
+    context: UpgradeContext
+    pending: tuple[str, ...]
+    supplied: dict[str, Any]
+    payload_root: Path
+    inventory: Any
+    plan: UpgradePlan
+    runner: CommandRunner
+
+
+@dataclass(frozen=True)
+class UpgradePlanState:
+    """@brief Fully resolved upgrade plan awaiting operator consent."""
+    validated: UpgradeValidated
+    git_mode: str
+    git_branch: str | None
+    fingerprints: dict[str, str]
+    decisions: Mapping[str, ConflictDecision]
+    outcomes: tuple[ConflictOutcome, ...]
+    plan_data: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class UpgradeOutcome:
+    """@brief Applied upgrade awaiting RepoWise and final rendering."""
+    plan: UpgradePlanState
+    report: UpgradeReport
+
+
+def _upgrade_emit(context: UpgradeContext, **kwargs: Any) -> int:
+    """@brief Bind upgrade output options for phase-local early returns."""
+    return _emit_upgrade_envelope_or_report(
+        context.options.stream, as_json=context.options.as_json, **kwargs
+    )
+
+
+def _load_upgrade_answers(context: UpgradeContext) -> int | dict[str, Any]:
+    """@brief Load and closed-schema validate upgrade answers."""
+    supplied: dict[str, Any] = {}
+    if context.options.answers_path is not None:
+        try:
+            supplied = load_answers_file(context.options.answers_path)
+        except AnswersFileError as exc:
+            return _upgrade_emit(
+                context, status="failed", exit_code=EXIT_VALIDATION,
+                messages=(str(exc),),
+            )
+    allowed = {"upgrade_conflicts", "git_mode", "git_branch"} | REPOWISE_ANSWER_KEYS
+    unknown = sorted(set(supplied) - allowed)
+    if unknown:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("unrecognized answer key(s): " + ", ".join(unknown),),
+        )
+    return supplied
+
+
+def _validate_upgrade_install(
+    context: UpgradeContext, payload_root: Path, payload_version: str,
+    load: ManifestLoadResult,
+) -> int | UpgradePlan:
+    """@brief Validate installed integration/version and build read-only plan."""
+    if load.state is not ManifestState.VALID or load.manifest is None:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("upgrade requires a valid current install manifest",),
+        )
+    try:
+        installed_repowise = repowise_status(context.repo_path)
+        if installed_repowise.get("source") == "bundled" and distribution_edition() == "core":
+            return _upgrade_emit(
+                context, status="failed", exit_code=EXIT_VALIDATION,
+                messages=(
+                    "Complete to Core is refused while RepoWise uses the bundled runtime; "
+                    "run waegis configure to select external or disabled first",
+                ),
+            )
+    except RepoWiseError as exc:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=(f"cannot validate installed RepoWise integration: {exc}",),
+        )
+    if load.manifest.payload_version.split(".", 1)[0] != payload_version.split(".", 1)[0]:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("cross-major AEGIS upgrades are unsupported; deploy AEGIS 2.x "
+                      "as a fresh installation with schema 3",),
+        )
+    try:
+        return build_upgrade_plan(
+            context.repo_path, new_payload_root=payload_root, load_result=load
+        )
+    except (OSError, ValueError, CopierError) as exc:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=(str(exc),),
+        )
+
+
+def _validate_upgrade(context: UpgradeContext) -> int | UpgradeValidated:
+    """@brief Validate recovery, inputs, payload, installation, and Git state."""
+    options = context.options
+    if not context.repo_path.is_dir():
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_OPERATIONAL,
+            messages=(f"--repo path does not exist or is not a directory: {context.repo_path}",),
+        )
+    recovery = recover_transactions_or_emit(
+        context.repo_path, dry_run=options.dry_run, yes=options.yes,
+        recovery_asker=context.asker,
+        emit=lambda *, status, exit_code, plan=None, messages=(): _upgrade_emit(
+            context, status=status, exit_code=exit_code,
+            plan_data=plan, messages=messages,
+        ),
+    )
+    if isinstance(recovery, int):
+        return recovery
+    pending, _recovered = recovery
+    supplied = _load_upgrade_answers(context)
+    if isinstance(supplied, int):
+        return supplied
+    try:
+        payload_root, inventory, payload_version = locate_validated_payload(
+            options.payload
+        )
+    except PAYLOAD_VALIDATION_ERRORS as exc:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=(str(exc),),
+        )
+    load = load_manifest(context.repo_path)
+    plan = _validate_upgrade_install(
+        context, payload_root, payload_version, load
+    )
+    if isinstance(plan, int):
+        return plan
+    runner = options.runner or SubprocessCommandRunner()
+    if not gitops.is_work_tree(runner, context.repo_path):
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("upgrade requires a Git worktree",),
+        )
+    if gitops.status_porcelain(runner, context.repo_path):
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("upgrade requires a clean Git worktree; commit or stash current changes first",),
+        )
+    return UpgradeValidated(
+        context, tuple(pending), supplied, payload_root, inventory, plan, runner
+    )
+
+
+def _resolve_upgrade_git(
+    validated: UpgradeValidated,
+) -> int | tuple[str, str | None]:
+    """@brief Resolve and validate the upgrade Git mode and branch."""
+    context = validated.context
+    raw = validated.supplied.get("git_mode")
+    if context.options.non_interactive and raw is None:
+        return _upgrade_emit(
+            context, status="needs-input", exit_code=EXIT_NEEDS_INPUT,
+            messages=("non-interactive upgrade requires git_mode in --answers",),
+        )
+    if raw is None and context.asker is not None:
+        raw = context.asker.ask_field(FieldSpec(
+            key="git_mode",
+            question="Commit the upgrade on the current branch, or on a dedicated branch?",
+            description=(
+                "Either way the worktree must already be clean before the "
+                "upgrade starts. require-clean commits directly on your "
+                "current branch; branch-commit creates a dedicated branch "
+                "first, so the upgrade's commit lands there instead."
+            ),
+            example="require-clean", default="require-clean",
+            validator=lambda value: str(value).strip().lower(),
+        ))
+    git_mode = str(raw or "require-clean").strip().lower()
+    if git_mode not in {"require-clean", "branch-commit"}:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("git_mode must be require-clean or branch-commit",),
+        )
+    git_branch = None
+    if git_mode == "branch-commit":
+        git_branch = str(
+            validated.supplied.get("git_branch")
+            or f"waegis/upgrade-{validated.plan.new_payload_version}"
+        ).strip()
+        try:
+            git_branch = gitops.validate_branch_name(git_branch)
+        except ValueError as exc:
+            return _upgrade_emit(
+                context, status="failed", exit_code=EXIT_VALIDATION,
+                messages=(f"invalid git_branch: {exc}",),
+            )
+    return git_mode, git_branch
+
+
+def _upgrade_fingerprints(validated: UpgradeValidated) -> dict[str, str]:
+    """@brief Build the stable upgrade journal fingerprints."""
+    return {
+        "command": stable_fingerprint("upgrade"),
+        "catalog": stable_fingerprint("upgrade-transaction-v1"),
+        "target": stable_fingerprint(str(validated.context.repo_path).casefold()),
+        "answers": stable_fingerprint(validated.supplied),
+        "payload": stable_fingerprint(validated.inventory.digest),
+    }
+
+
+def _upgrade_decision_table(
+    validated: UpgradeValidated, fingerprints: Mapping[str, str],
+) -> int | dict[str, str]:
+    """@brief Merge resume, answers-file, and explicit decision seams."""
+    context = validated.context
+    table: dict[str, str] = {}
+    prior = find_resume_journal(
+        context.options.home or waegis_home(),
+        expected_fingerprints=fingerprints,
+    )
+    if prior is not None:
+        for result in prior.results():
+            recorded = result.answers.get("resolutions")
+            if isinstance(recorded, Mapping):
+                table.update({str(key): str(value) for key, value in recorded.items()})
+    supplied_table = validated.supplied.get("upgrade_conflicts", {})
+    if not isinstance(supplied_table, Mapping):
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("upgrade_conflicts must be a path-to-decision mapping",),
+        )
+    table.update({str(key): str(value) for key, value in supplied_table.items()})
+    if context.resolutions is not None:
+        table.update({str(key): str(value) for key, value in context.resolutions.items()})
+    return table
+
+
+def _upgrade_dry_run(
+    validated: UpgradeValidated, git_mode: str, git_branch: str | None,
+) -> int:
+    """@brief Emit the byte-compatible read-only upgrade preview."""
+    preview = _upgrade_plan_dict(
+        validated.plan, (), git_mode=git_mode, git_branch=git_branch
+    )
+    preview["pending_recovery"] = list(validated.pending)
+    preview["repowise"] = {
+        key: validated.supplied[key]
+        for key in sorted(REPOWISE_ANSWER_KEYS.intersection(validated.supplied))
+    }
+    messages = [
+        f"pending transaction recovery not applied in dry-run: {item}"
+        for item in validated.pending
+    ]
+    messages.append("Dry run: no changes were made.")
+    return _upgrade_emit(
+        validated.context, status="ok", exit_code=EXIT_OK,
+        plan_data=preview, messages=tuple(messages),
+    )
+
+
+def _plan_upgrade(validated: UpgradeValidated) -> int | UpgradePlanState:
+    """@brief Resolve Git and file decisions into an approval-ready plan."""
+    git_result = _resolve_upgrade_git(validated)
+    if isinstance(git_result, int):
+        return git_result
+    git_mode, git_branch = git_result
+    fingerprints = _upgrade_fingerprints(validated)
+    table = _upgrade_decision_table(validated, fingerprints)
+    if isinstance(table, int):
+        return table
+    if validated.context.options.dry_run:
+        return _upgrade_dry_run(validated, git_mode, git_branch)
+    fallback = validated.context.on_conflict
+    if fallback is None and validated.context.asker is not None:
+        fallback = make_console_hook(validated.context.asker)
+    hook = make_resolution_hook(table, fallback) if validated.plan.conflicts() else None
+    try:
+        decisions, outcomes = resolve_upgrade_decisions(validated.plan, hook)
+    except (ConflictResolutionError, UpgradeError, ValueError) as exc:
+        unresolved = _upgrade_plan_dict(
+            validated.plan, (), git_mode=git_mode, git_branch=git_branch
+        )
+        return _upgrade_emit(
+            validated.context, status="needs-input", exit_code=EXIT_NEEDS_INPUT,
+            plan_data=unresolved, messages=(str(exc),),
+        )
+    plan_data = _upgrade_plan_dict(
+        validated.plan, outcomes, git_mode=git_mode, git_branch=git_branch
+    )
+    plan_data["repowise"] = {
+        key: validated.supplied[key]
+        for key in sorted(REPOWISE_ANSWER_KEYS.intersection(validated.supplied))
+    }
+    return UpgradePlanState(
+        validated, git_mode, git_branch, fingerprints,
+        decisions, outcomes, plan_data,
+    )
+
+
+def _consent_upgrade(plan: UpgradePlanState) -> int | UpgradePlanState:
+    """@brief Render and obtain explicit consent for the resolved upgrade."""
+    context = plan.validated.context
+    options = context.options
+    if not options.as_json:
+        _upgrade_emit(
+            context, status="ok", exit_code=EXIT_OK, plan_data=plan.plan_data
+        )
+    consent = mutation_consent(
+        mutation_planned=True, yes=options.yes, asker=context.asker,
+        prompt="Apply this fully resolved upgrade plan?",
+    )
+    if consent is ConsentDecision.APPROVED:
+        return plan
+    return _upgrade_emit(
+        context, status="needs-input", exit_code=EXIT_NEEDS_INPUT,
+        plan_data=plan.plan_data if options.as_json else None,
+        messages=(
+            "upgrade plan was not approved" if consent is ConsentDecision.DECLINED
+            else "upgrade mutation requires explicit --yes or an interactive approval",
+        ),
+    )
+
+
+def _prepare_upgrade_branch(plan: UpgradePlanState) -> int | None:
+    """@brief Create the approved dedicated branch before journaling."""
+    if plan.git_mode != "branch-commit":
+        return None
+    context = plan.validated.context
+    if plan.git_branch is None:
+        return _upgrade_emit(
+            context, status="failed", exit_code=EXIT_VALIDATION,
+            messages=("git mode 'branch-commit' requires a branch name",),
+        )
+    result = gitops.create_branch(
+        plan.validated.runner, context.repo_path, plan.git_branch
+    )
+    if result.ok:
+        return None
+    return _upgrade_emit(
+        context, status="error", exit_code=EXIT_OPERATIONAL,
+        plan_data=plan.plan_data if context.options.as_json else None,
+        messages=(f"could not create upgrade branch {plan.git_branch!r}: {result.detail}",),
+    )
+
+
+def _begin_upgrade_journal(plan: UpgradePlanState) -> Journal:
+    """@brief Begin the upgrade journal and record resolved decisions."""
+    context = plan.validated.context
+    journal = Journal.begin(
+        mode="upgrade", wizard_version=WIZARD_VERSION,
+        target=str(context.repo_path), home=context.options.home,
+        fingerprints=plan.fingerprints,
+    )
+    result = StepResult(step_id="upgrade.decisions", status=StepStatus.DONE)
+    result.answers = {
+        "resolutions": {
+            path: decision.value for path, decision in plan.decisions.items()
+        },
+        "git_mode": plan.git_mode,
+    }
+    journal.record(result)
+    return journal
+
+
+def _upgrade_apply_failure(
+    plan: UpgradePlanState, journal: Journal, failure: UpgradeApplyError,
+) -> int:
+    """
+    @brief      Journal and report one apply failure by the transaction's true
+                terminal state.
+    @details    Mirrors ``configure``'s ``_configure_apply_failure`` and
+                ``repair``'s ``_repair_apply_failure``: a transaction that
+                reached ``committed`` before its storage cleanup failed is a
+                SUCCESSFUL upgrade and is never reported as failed-and-rolled-
+                back, and a rollback that did not complete is never reported as
+                if it had. The exit code stays :data:`EXIT_ERROR`
+                (``EXIT_OPERATIONAL``) in every branch — the frozen upgrade
+                exit-code contract — so the machine-readable distinction lives
+                in the ``result`` mapping (``applied`` / ``rolled_back`` /
+                ``cleanup_pending``) and in the message.
+    @details    Whenever files are left on disk, a ``branch-commit`` run also
+                says the changes are uncommitted: the Git commit step only runs
+                for a clean apply, so an operator whose upgrade committed on
+                disk would otherwise find the new payload in their working tree
+                on a dedicated branch with nothing recorded in Git.
+    @param[in]  plan The resolved plan being applied.
+    @param[in]  journal The open upgrade journal.
+    @param[in]  failure The typed apply failure raised by :func:`apply_upgrade`.
+    @return     The command exit code.
+    @exception  None
+    """
+    context = plan.validated.context
+    cause = failure.cause
+    detail = f"{type(cause).__name__}: {cause}"
+    plan_data = plan.plan_data if context.options.as_json else None
+    if plan.git_mode == "branch-commit" and plan.git_branch is not None:
+        uncommitted = (
+            "the files left on disk are NOT committed; they are in the working "
+            f"tree on branch {plan.git_branch!r}",
+        )
+    else:
+        uncommitted = ()
+    if failure.committed:
+        # The manifest and every file write are durable; only the transaction's
+        # own storage cleanup failed. Journaling this as a failed run would be
+        # the same false report the message used to make.
+        journal.record(StepResult(
+            step_id="upgrade.apply", status=StepStatus.DONE, error=detail,
+        ))
+        journal.finalize(status=STATUS_COMPLETED)
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
+            result_extra={"applied": True, "rolled_back": False, "cleanup_pending": True},
+            messages=("upgrade committed, but transaction cleanup failed; "
+                      f"recovery will retry cleanup: {cause}",) + uncommitted,
+        )
+    journal.record(StepResult(
+        step_id="upgrade.apply", status=StepStatus.FAILED, error=detail,
+    ))
+    journal.finalize(status=STATUS_FAILED, stopped_at_step="upgrade.apply")
+    if failure.rollback_error is not None:
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
+            result_extra={"applied": False, "rolled_back": False, "cleanup_pending": True},
+            messages=("upgrade failed and rollback did not complete; the repository may "
+                      "be partially upgraded and authenticated recovery state was "
+                      f"retained: {failure.rollback_error} (original failure: {cause})",)
+                     + uncommitted,
+        )
+    return _upgrade_emit(
+        context, status="error", exit_code=EXIT_ERROR, plan_data=plan_data,
+        result_extra={"applied": False, "rolled_back": True, "cleanup_pending": False},
+        messages=(f"upgrade failed and was rolled back: {cause}",),
+    )
+
+
+def _apply_upgrade_journaled(
+    plan: UpgradePlanState, journal: Journal,
+) -> int | UpgradeReport:
+    """
+    @brief      Apply the upgrade and preserve journal failure semantics.
+    @details    A failure raised inside the transaction body arrives as a typed
+                :class:`UpgradeApplyError` and is reported by its true terminal
+                state (:func:`_upgrade_apply_failure`). Anything else escaping
+                :func:`apply_upgrade` was raised before the transaction opened
+                — a decision-set mismatch, a sidecar collision, or a failure to
+                begin the transaction — so no repository file was touched.
+    @param[in]  plan The consented plan.
+    @param[in]  journal The open upgrade journal.
+    @return     The applied report, or a command exit code on failure.
+    @exception  BaseException :class:`KeyboardInterrupt` / :class:`SystemExit`
+                are re-raised after the journal is finalized.
+    """
+    context = plan.validated.context
+    try:
+        report = apply_upgrade(
+            plan.validated.plan, runner=plan.validated.runner,
+            decisions=plan.decisions, resolved_outcomes=plan.outcomes,
+        )
+    except UpgradeApplyError as failure:
+        return _upgrade_apply_failure(plan, journal, failure)
+    except BaseException as exc:
+        journal.record(StepResult(
+            step_id="upgrade.apply", status=StepStatus.FAILED,
+            error=f"{type(exc).__name__}: {exc}",
+        ))
+        journal.finalize(status=STATUS_FAILED, stopped_at_step="upgrade.apply")
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_ERROR,
+            plan_data=plan.plan_data if context.options.as_json else None,
+            result_extra={"applied": False, "rolled_back": False, "cleanup_pending": False},
+            messages=(f"upgrade failed before any change was applied: {exc}",),
+        )
+    journal.record(StepResult(
+        step_id="upgrade.apply",
+        status=StepStatus.DONE if report.exit_code == EXIT_OK else StepStatus.FAILED,
+    ))
+    if report.exit_code == EXIT_OK:
+        journal.finalize(status=STATUS_COMPLETED)
+    else:
+        journal.finalize(status=STATUS_FAILED, stopped_at_step="upgrade.apply")
+    return report
+
+
+def _commit_upgrade_git(
+    plan: UpgradePlanState, report: UpgradeReport,
+) -> int | None:
+    """@brief Commit a successful branch-mode upgrade after journaling."""
+    if report.exit_code != EXIT_OK or plan.git_mode != "branch-commit":
+        return None
+    runner = plan.validated.runner
+    repo_path = plan.validated.context.repo_path
+    add_result = gitops.add_all(runner, repo_path)
+    commit_result = gitops.commit(
+        runner, repo_path,
+        f"Upgrade AEGIS to {plan.validated.plan.new_payload_version}",
+    )
+    if add_result.ok and commit_result.ok:
+        return None
+    context = plan.validated.context
+    return _upgrade_emit(
+        context, status="error", exit_code=EXIT_OPERATIONAL,
+        plan_data=plan.plan_data if context.options.as_json else None,
+        report=report,
+        messages=("upgrade applied but Git commit failed; changes remain on the dedicated branch",),
+    )
+
+
+def _apply_upgrade(plan: UpgradePlanState) -> int | UpgradeOutcome:
+    """@brief Apply branch, journal, transaction, and commit in original order."""
+    branch_error = _prepare_upgrade_branch(plan)
+    if branch_error is not None:
+        return branch_error
+    journal = _begin_upgrade_journal(plan)
+    report = _apply_upgrade_journaled(plan, journal)
+    if isinstance(report, int):
+        return report
+    commit_error = _commit_upgrade_git(plan, report)
+    if commit_error is not None:
+        return commit_error
+    return UpgradeOutcome(plan, report)
+
+
+def _report_upgrade(outcome: UpgradeOutcome) -> int:
+    """@brief Run RepoWise post-processing and emit the upgrade outcome."""
+    plan = outcome.plan
+    validated = plan.validated
+    context = validated.context
+    options = context.options
+    repowise_result: dict[str, Any] | None = None
+    repowise_error: str | None = None
+    requested = bool(REPOWISE_ANSWER_KEYS.intersection(validated.supplied)) or (
+        context.asker is not None and not options.non_interactive
+    )
+    if outcome.report.exit_code == EXIT_OK and requested:
+        try:
+            repowise_result = lifecycle_repowise(
+                context.repo_path, validated.supplied, lifecycle="upgrade",
+                interactive=not options.non_interactive, asker=context.asker,
+                stream=None if options.as_json else options.stream, yes=options.yes,
+            )
+        except (OSError, RepoWiseError) as exc:
+            repowise_error = str(exc)
+    if repowise_error or (repowise_result and not repowise_result["sync"]["ok"]):
+        return _upgrade_emit(
+            context, status="error", exit_code=EXIT_OPERATIONAL,
+            plan_data=plan.plan_data if options.as_json else None,
+            report=outcome.report,
+            result_extra={
+                "aegis": {"ok": True},
+                "repowise": repowise_result or {
+                    "aegis": "ok", "sync": {"ok": False, "error": repowise_error}
+                },
+            },
+            messages=((repowise_error,) if repowise_error else ()),
+        )
+    return _upgrade_emit(
+        context, status="ok" if outcome.report.exit_code == EXIT_OK else "failed",
+        exit_code=outcome.report.exit_code,
+        plan_data=plan.plan_data if options.as_json else None,
+        report=outcome.report,
+        result_extra={
+            "aegis": {"ok": outcome.report.exit_code == EXIT_OK},
+            "repowise": repowise_result,
+        },
+    )
+
+
+def _run_upgrade_phases(
+    repo: str | PathLike[str],
+    *,
+    options: CommandOptions,
+    on_conflict: UpgradeConflictHook | None = None,
+    resolutions: Mapping[str, str] | None = None,
+    asker: ConsoleAsker | None = None,
+) -> int:
+    """@brief Orchestrate validate, plan, consent, apply, and report phases."""
+    normalized = replace(
+        options, non_interactive=options.non_interactive or options.as_json
+    )
+    context = UpgradeContext(
+        Path(repo).resolve(), normalized, on_conflict, resolutions,
+        None if options.as_json else asker,
+    )
+    validated = _validate_upgrade(context)
+    if isinstance(validated, int):
+        return validated
+    plan = _plan_upgrade(validated)
+    if isinstance(plan, int):
+        return plan
+    approved = _consent_upgrade(plan)
+    if isinstance(approved, int):
+        return approved
+    outcome = _apply_upgrade(approved)
+    if isinstance(outcome, int):
+        return outcome
+    return _report_upgrade(outcome)
+
+
+def run_upgrade(
     repo: str | PathLike[str],
     *,
     as_json: bool,
     dry_run: bool,
     stream: IO[str],
-    payload: str | None,
-    answers_path: str | PathLike[str] | None,
-    non_interactive: bool,
-    yes: bool,
-    on_conflict: UpgradeConflictHook | None,
-    resolutions: Mapping[str, str] | None,
-    asker: ConsoleAsker | None,
-    runner: CommandRunner | None,
-    home: Path | None,
+    payload: str | None = None,
+    answers_path: str | PathLike[str] | None = None,
+    non_interactive: bool = False,
+    yes: bool = False,
+    on_conflict: UpgradeConflictHook | None = None,
+    resolutions: Mapping[str, str] | None = None,
+    asker: ConsoleAsker | None = None,
+    runner: CommandRunner | None = None,
+    home: Path | None = None,
 ) -> int:
     """
-    @brief      Resolve, approve, journal, transact, verify, and commit upgrade.
-    @return     Standardized exit code.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
+    @brief      Run the manifest-driven upgrade through its lifecycle phases.
+    @details    Preserves the public conflict hook/resolution/asker seams.
+                Dry-run remains read-only; unresolved conflicts stop before
+                consent; apply remains journaled and transactional; Git commit
+                and RepoWise processing retain their established order.
+    @param[in]  repo Repository root to upgrade.
+    @param[in]  as_json Emit the frozen JSON envelope instead of a human report.
+    @param[in]  dry_run Build and render the plan only; write nothing.
+    @param[in]  stream Output stream for the human report or JSON envelope.
+    @param[in]  payload Optional explicit new payload path/version selector.
+    @param[in]  answers_path Optional path to a pre-supplied answers file
+                (``git_mode``, ``git_branch``, ``upgrade_conflicts``, and the
+                RepoWise answer keys).
+    @param[in]  non_interactive Refuse to prompt; missing required answers
+                stop the run with ``needs-input``.
+    @param[in]  yes Treat mutation consent as pre-approved.
+    @param[in]  on_conflict Optional per-conflict decision hook (the
+                :data:`UpgradeConflictHook` seam).
+    @param[in]  resolutions Optional ``{path: decision}`` table merged ahead of
+                ``on_conflict``.
+    @param[in]  asker Optional console asker for interactive git-mode and
+                conflict prompts; ignored when ``as_json`` is set.
+    @param[in]  runner Injectable command runner for Git and smoke operations;
+                defaults to the real subprocess runner.
+    @param[in]  home Optional override for the WAEGIS home directory used for
+                journal resume lookups.
+    @return     Standardized command exit code 0/1/2/3.
+    @exception  None Operational failures are rendered and mapped to exit codes;
+                KeyboardInterrupt and SystemExit are re-raised after journaling.
     """
-    if as_json:
-        non_interactive = True
-        asker = None
-    repo_path = Path(repo).resolve()
-    if not repo_path.is_dir():
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="error",
-            exit_code=EXIT_OPERATIONAL,
-            messages=(f"--repo path does not exist or is not a directory: {repo_path}",),
-        )
-    try:
-        recovered = recover_incomplete_transactions(repo_path)
-    except (OSError, ValueError) as exc:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="error",
-            exit_code=EXIT_OPERATIONAL,
-            messages=(f"could not recover an interrupted transaction: {exc}",),
-        )
-    supplied: dict[str, Any] = {}
-    if answers_path is not None:
-        try:
-            supplied = load_answers_file(answers_path)
-        except AnswersFileError as exc:
-            return _emit_upgrade_envelope_or_report(
-                stream,
-                as_json=as_json,
-                status="failed",
-                exit_code=EXIT_VALIDATION,
-                messages=(str(exc),),
-            )
-    allowed = {"upgrade_conflicts", "git_mode", "git_branch"}
-    unknown = sorted(set(supplied) - allowed)
-    if unknown:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("unrecognized answer key(s): " + ", ".join(unknown),),
-        )
-    try:
-        payload_root = locate_payload(payload)
-        inventory = inspect_payload(payload_root)
-        payload_version = read_payload_version(payload_root)
-        if payload_version is None or not is_payload_compatible(payload_version):
-            raise ValueError(
-                f"payload version {payload_version or 'unknown'!r} is incompatible; expected {PAYLOAD_COMPAT_SPEC}"
-            )
-    except (PayloadLocateError, CopierError, ValueError, OSError) as exc:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=(str(exc),),
-        )
-    load = load_manifest(repo_path)
-    if load.state is not ManifestState.VALID or load.manifest is None:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("upgrade requires a valid current install manifest",),
-        )
-    try:
-        plan = build_upgrade_plan(repo_path, new_payload_root=payload_root, load_result=load)
-    except (OSError, ValueError, CopierError) as exc:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=(str(exc),),
-        )
-
-    active_runner = runner or SubprocessCommandRunner()
-    if not gitops.is_work_tree(active_runner, repo_path):
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("upgrade requires a Git worktree",),
-        )
-    dirty = gitops.status_porcelain(active_runner, repo_path)
-    if dirty:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("upgrade requires a clean Git worktree; commit or stash current changes first",),
-        )
-    git_mode_raw = supplied.get("git_mode")
-    if non_interactive and git_mode_raw is None:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            messages=("non-interactive upgrade requires git_mode in --answers",),
-        )
-    if git_mode_raw is None and asker is not None:
-        git_mode_raw = asker.ask_field(
-            FieldSpec(
-                key="git_mode",
-                description="Choose require-clean or branch-commit for this upgrade.",
-                example="require-clean",
-                default="require-clean",
-                validator=lambda value: str(value).strip().lower(),
-            )
-        )
-    git_mode = str(git_mode_raw or "require-clean").strip().lower()
-    if git_mode not in {"require-clean", "branch-commit"}:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("git_mode must be require-clean or branch-commit",),
-        )
-    git_branch = None
-    if git_mode == "branch-commit":
-        git_branch = str(supplied.get("git_branch") or f"waegis/upgrade-{plan.new_payload_version}").strip()
-
-    fingerprints = {
-        "command": stable_fingerprint("upgrade"),
-        "catalog": stable_fingerprint("upgrade-transaction-v1"),
-        "target": stable_fingerprint(str(repo_path).casefold()),
-        "answers": stable_fingerprint(supplied),
-        "payload": stable_fingerprint(inventory.digest),
-    }
-    prior = find_resume_journal(home or waegis_home(), expected_fingerprints=fingerprints)
-    decision_table: dict[str, str] = {}
-    if prior is not None:
-        for result in prior.results():
-            recorded = result.answers.get("resolutions")
-            if isinstance(recorded, Mapping):
-                decision_table.update({str(key): str(value) for key, value in recorded.items()})
-    supplied_table = supplied.get("upgrade_conflicts", {})
-    if not isinstance(supplied_table, Mapping):
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="failed",
-            exit_code=EXIT_VALIDATION,
-            messages=("upgrade_conflicts must be a path-to-decision mapping",),
-        )
-    decision_table.update({str(key): str(value) for key, value in supplied_table.items()})
-    if resolutions is not None:
-        decision_table.update({str(key): str(value) for key, value in resolutions.items()})
-
-    if dry_run:
-        preview = _upgrade_plan_dict(plan, (), git_mode=git_mode, git_branch=git_branch)
-        messages = [f"recovered interrupted transaction {item}" for item in recovered]
-        messages.append("Dry run: no changes were made.")
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="ok",
-            exit_code=EXIT_OK,
-            plan_data=preview,
-            messages=tuple(messages),
-        )
-    fallback = on_conflict
-    if fallback is None and asker is not None:
-        fallback = make_console_hook(asker)
-    hook = make_resolution_hook(decision_table, fallback) if plan.conflicts() else None
-    try:
-        resolved, outcomes = resolve_upgrade_decisions(plan, hook)
-    except (ConflictResolutionError, UpgradeError, ValueError) as exc:
-        unresolved_plan = _upgrade_plan_dict(plan, (), git_mode=git_mode, git_branch=git_branch)
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan_data=unresolved_plan,
-            messages=(str(exc),),
-        )
-    plan_data = _upgrade_plan_dict(plan, outcomes, git_mode=git_mode, git_branch=git_branch)
-    if non_interactive and not yes:
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan_data=plan_data,
-            messages=("non-interactive mutation requires --yes",),
-        )
-    if not as_json:
-        _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=False,
-            status="ok",
-            exit_code=EXIT_OK,
-            plan_data=plan_data,
-        )
-    if not yes and asker is not None and not asker.confirm("Apply this fully resolved upgrade plan?", default=True):
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="needs-input",
-            exit_code=EXIT_NEEDS_INPUT,
-            plan_data=plan_data if as_json else None,
-            messages=("upgrade plan was not approved",),
-        )
-    if git_mode == "branch-commit":
-        assert git_branch is not None
-        branch_result = gitops.create_branch(active_runner, repo_path, git_branch)
-        if not branch_result.ok:
-            return _emit_upgrade_envelope_or_report(
-                stream,
-                as_json=as_json,
-                status="error",
-                exit_code=EXIT_OPERATIONAL,
-                plan_data=plan_data if as_json else None,
-                messages=(f"could not create upgrade branch {git_branch!r}: {branch_result.detail}",),
-            )
-
-    journal = Journal.begin(
-        mode="upgrade",
-        wizard_version=WIZARD_VERSION,
-        target=str(repo_path),
-        home=home,
-        fingerprints=fingerprints,
-    )
-    decision_result = StepResult(step_id="upgrade.decisions", status=StepStatus.DONE)
-    decision_result.answers = {
-        "resolutions": {path: decision.value for path, decision in resolved.items()},
-        "git_mode": git_mode,
-    }
-    journal.record(decision_result)
-    try:
-        report = apply_upgrade(
-            plan,
-            runner=active_runner,
-            decisions=resolved,
-            resolved_outcomes=outcomes,
-        )
-    except BaseException as exc:
-        failed = StepResult(step_id="upgrade.apply", status=StepStatus.FAILED, error=f"{type(exc).__name__}: {exc}")
-        journal.record(failed)
-        journal.finalize(status=STATUS_FAILED, stopped_at_step="upgrade.apply")
-        return _emit_upgrade_envelope_or_report(
-            stream,
-            as_json=as_json,
-            status="error",
-            exit_code=EXIT_OPERATIONAL,
-            plan_data=plan_data if as_json else None,
-            messages=(f"upgrade failed and was rolled back: {exc}",),
-        )
-    apply_result = StepResult(
-        step_id="upgrade.apply",
-        status=StepStatus.DONE if report.exit_code == EXIT_OK else StepStatus.FAILED,
-    )
-    journal.record(apply_result)
-    if report.exit_code == EXIT_OK:
-        journal.finalize(status=STATUS_COMPLETED)
-    else:
-        journal.finalize(status=STATUS_FAILED, stopped_at_step="upgrade.apply")
-    if report.exit_code == EXIT_OK and git_mode == "branch-commit":
-        add_result = gitops.add_all(active_runner, repo_path)
-        commit_result = gitops.commit(active_runner, repo_path, f"Upgrade AEGIS to {plan.new_payload_version}")
-        if not add_result.ok or not commit_result.ok:
-            return _emit_upgrade_envelope_or_report(
-                stream,
-                as_json=as_json,
-                status="error",
-                exit_code=EXIT_OPERATIONAL,
-                plan_data=plan_data if as_json else None,
-                report=report,
-                messages=("upgrade applied but Git commit failed; changes remain on the dedicated branch",),
-            )
-    status = "ok" if report.exit_code == EXIT_OK else "failed"
-    return _emit_upgrade_envelope_or_report(
-        stream,
-        as_json=as_json,
-        status=status,
-        exit_code=report.exit_code,
-        plan_data=plan_data if as_json else None,
-        report=report,
+    return _run_upgrade_phases(
+        repo,
+        options=CommandOptions(
+            stream, None, runner, home, yes, dry_run, non_interactive,
+            as_json, answers_path, payload,
+        ),
+        on_conflict=on_conflict,
+        resolutions=resolutions,
+        asker=asker,
     )
 
 
-# LOCAL HELPERS (rendering dispatch)
-
-
-def _conflicts_unresolved_report(plan: UpgradePlan) -> UpgradeReport:
-    """
-    @brief      Build the stop-and-report result for unresolved conflicts.
-    @param[in]  plan The computed plan whose conflicts could not be resolved.
-    @return     An :class:`UpgradeReport` flagged ``conflicts_unresolved`` with
-                nothing applied.
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
-    """
-    return UpgradeReport(
-        plan=plan,
-        dry_run=False,
-        applied=False,
-        outcomes=(),
-        smoke=(),
-        smoke_ok=None,
-        manifest_written=False,
-        manifest=None,
-        exit_code=EXIT_CONFLICTS,
-        conflicts_unresolved=True,
-    )
-
-
-def _emit(report: UpgradeReport, stream: IO[str], as_json: bool) -> None:
-    """
-    @brief      Render a report to the stream as JSON or human text.
-    @param[in]  report The report to render.
-    @param[in]  stream Output stream.
-    @param[in]  as_json When true, emit the frozen ``--json`` shape.
-    @return     None
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
-    """
-    if as_json:
-        stream.write(upgrade_report_json(report) + "\n")
-    else:
-        render_upgrade_report(report, stream)
 
 
 # END OF FILE

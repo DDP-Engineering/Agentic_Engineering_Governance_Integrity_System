@@ -17,9 +17,6 @@
          containing an `.agentic` directory wins, then the nearest ancestor
          containing `.git`, then the candidate itself (legacy greenfield
          behavior).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.2.0
 """
 
 # IMPORTS
@@ -50,9 +47,6 @@ def _walk_is_contaminated(path: Path) -> bool:
                 legitimately resolve there instead, so those tests skip rather
                 than report a false failure.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     return any(
         (directory / ".agentic").is_dir() or (directory / ".git").exists()
@@ -69,9 +63,6 @@ def test_discovers_agentic_root_from_subdirectory(tmp_path: Path) -> None:
     @param[in]  tmp_path Pytest-provided temporary directory.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     root = tmp_path / "project"
     (root / ".agentic").mkdir(parents=True)
@@ -87,9 +78,6 @@ def test_falls_back_to_git_directory_root(tmp_path: Path) -> None:
     @param[in]  tmp_path Pytest-provided temporary directory.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     root = tmp_path / "project"
     (root / ".git").mkdir(parents=True)
@@ -105,9 +93,6 @@ def test_falls_back_to_git_file_root(tmp_path: Path) -> None:
     @param[in]  tmp_path Pytest-provided temporary directory.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     root = tmp_path / "worktree"
     root.mkdir()
@@ -124,9 +109,6 @@ def test_nearest_agentic_wins_over_outer_agentic(tmp_path: Path) -> None:
     @param[in]  tmp_path Pytest-provided temporary directory.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     outer = tmp_path / "outer"
     (outer / ".agentic").mkdir(parents=True)
@@ -147,9 +129,6 @@ def test_agentic_beats_a_nearer_git_marker(tmp_path: Path) -> None:
                 repository and reintroduce the nested-scaffold defect there;
                 the `.agentic` pass therefore runs to completion first.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     root = tmp_path / "project"
     (root / ".agentic").mkdir(parents=True)
@@ -171,9 +150,6 @@ def test_heals_when_invoked_from_inside_agentic(tmp_path: Path) -> None:
                 the guard remains only as a safety net for paths that do not
                 exist on disk.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     root = tmp_path / "project"
     nested = root / ".agentic" / "cli" / "src"
@@ -191,9 +167,6 @@ def test_without_markers_falls_back_to_candidate(tmp_path: Path) -> None:
     @details    Preserves the greenfield behavior: `aegis start` in a brand-new
                 folder still scaffolds `.agentic/` right there.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     if _walk_is_contaminated(tmp_path):
         pytest.skip("an ancestor of the pytest temp directory carries a repo marker")
@@ -218,9 +191,6 @@ def test_start_from_subdirectory_creates_run_at_root(
     @details    End-to-end regression for the observed defect: previously this
                 exact sequence created a second `src/.agentic/` silently.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     root = tmp_path / "project"
     (root / ".agentic").mkdir(parents=True)
@@ -233,7 +203,7 @@ def test_start_from_subdirectory_creates_run_at_root(
     subdirectory.mkdir()
     monkeypatch.chdir(subdirectory)
 
-    main(["start", "--kind", "fix", "--statement", "root discovery regression"])
+    main(["run", "start", "fix", "--json"])
 
     payload = json.loads(capsys.readouterr().out)
     assert (root / ".agentic" / "runs" / payload["run_id"] / "graph.json").is_file()
@@ -254,9 +224,6 @@ def test_status_from_subdirectory_finds_active_run(
     @param[in]  unrestricted_workflow_toml Complete strict workflow config.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     root = tmp_path / "project"
     (root / ".agentic").mkdir(parents=True)
@@ -268,11 +235,11 @@ def test_status_from_subdirectory_finds_active_run(
     subdirectory = root / "src"
     subdirectory.mkdir()
     monkeypatch.chdir(root)
-    main(["start", "--kind", "fix", "--statement", "root discovery regression"])
+    main(["run", "start", "fix", "--json"])
     started = json.loads(capsys.readouterr().out)
 
     monkeypatch.chdir(subdirectory)
-    main(["status"])
+    main(["run", "status", "--json"])
 
     reported = json.loads(capsys.readouterr().out)
     assert reported["run_id"] == started["run_id"]

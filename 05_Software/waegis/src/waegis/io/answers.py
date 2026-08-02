@@ -17,9 +17,6 @@
          never carry a secret value. ``require_non_interactive_answers``
          implements the ``--non-interactive`` contract: every missing required
          key is reported in one structured error, not just the first.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 0.1.1
 """
 
 # IMPORTS
@@ -27,7 +24,9 @@
 from __future__ import annotations
 
 import json
+import os
 import tomllib
+import uuid
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -39,18 +38,12 @@ from .prompts import FieldSpec
 class AnswersError(Exception):
     """
     @brief Base class for every error raised by the answers-file seam.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
 class AnswersFileError(AnswersError):
     """
     @brief Raised when an answers file cannot be read, parsed, or serialized.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -59,9 +52,6 @@ class MissingAnswersError(AnswersError):
     @brief Raised when ``--non-interactive`` finds required keys unanswered.
     @details Carries every missing key at once so the operator sees the full
              list in a single error rather than fixing one key at a time.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, keys: Sequence[str]) -> None:
@@ -69,8 +59,6 @@ class MissingAnswersError(AnswersError):
         @brief      Construct the error from every missing required key.
         @param[in]  keys The missing ``FieldSpec.key`` values, in spec order.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self.keys = list(keys)
         joined = ", ".join(self.keys)
@@ -87,16 +75,19 @@ def _toml_scalar(value: Any) -> str:
                 these (flat answers-file values only).
     @return     The TOML literal text for ``value``.
     @exception  AnswersFileError If ``value`` has an unsupported type.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+        raise AnswersFileError("cannot serialize a non-finite float to TOML")
     if isinstance(value, (int, float)):
         return repr(value)
     if isinstance(value, str):
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = "".join(
+            f"\\u{ord(char):04X}" if ord(char) < 0x20 or char == "\x7f" else char
+            for char in escaped
+        )
         return f'"{escaped}"'
     if isinstance(value, (list, tuple)):
         return "[" + ", ".join(_toml_scalar(item) for item in value) + "]"
@@ -112,9 +103,6 @@ def _dump_toml(mapping: Mapping[str, Any]) -> str:
     @param[in]  mapping Flat key to value mapping to serialize.
     @return     TOML document text (one ``key = value`` line per entry).
     @exception  AnswersFileError If a value has an unsupported type.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     lines = [f"{key} = {_toml_scalar(value)}" for key, value in mapping.items()]
     return "\n".join(lines) + ("\n" if lines else "")
@@ -137,9 +125,6 @@ def load_answers_file(path: str | Path) -> dict[str, Any]:
     @exception  AnswersFileError If the extension is unsupported, the file
                 cannot be read, the content is not valid TOML/JSON, or the
                 parsed document is not a flat mapping.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
     file_path = Path(path)
     suffix = file_path.suffix.lower()
@@ -175,9 +160,6 @@ def unknown_keys(answers: Mapping[str, Any], specs: Sequence[FieldSpec]) -> list
     @param[in]  specs Every ``FieldSpec`` the current catalog defines.
     @return     Sorted list of keys present in ``answers`` but not in ``specs``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     known = {spec.key for spec in specs}
     return sorted(key for key in answers if key not in known)
@@ -192,9 +174,6 @@ def missing_required_keys(specs: Sequence[FieldSpec], answers: Mapping[str, Any]
     @param[in]  answers Loaded (or partially built) answers mapping.
     @return     Missing required keys, in ``specs`` order.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return [spec.key for spec in specs if spec.key not in answers and spec.default is None]
 
@@ -214,9 +193,6 @@ def require_non_interactive_answers(
     @exception  MissingAnswersError If any required key has no answer.
     @exception  waegis.io.prompts.ValidationError If a present value fails its
                 validator.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     missing = missing_required_keys(specs, answers)
     if missing:
@@ -247,9 +223,6 @@ def save_answers_file(
     @exception  AnswersFileError If the extension is unsupported or a value
                 cannot be serialized (TOML only).
     @exception  OSError If the file cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     file_path = Path(path)
     suffix = file_path.suffix.lower()
@@ -257,9 +230,17 @@ def save_answers_file(
         raise AnswersFileError(f"unsupported answers file extension: {file_path.suffix!r}")
     saveable = {spec.key: answers[spec.key] for spec in specs if not spec.secret and spec.key in answers}
     if suffix == ".json":
-        file_path.write_text(json.dumps(saveable, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        text = json.dumps(saveable, indent=2, ensure_ascii=False) + "\n"
     else:
-        file_path.write_text(_dump_toml(saveable), encoding="utf-8")
+        text = _dump_toml(saveable)
+    # Temp-sibling + replace so a crash mid-write cannot corrupt the replay file.
+    temporary = file_path.with_name(f"{file_path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, file_path)
+    except OSError:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 # END OF FILE

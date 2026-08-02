@@ -18,9 +18,6 @@
          `test_root_discovery.py`.
 @details Updated 0.3.0 for WP2 workspace-local state, strict explicit-first
          resolution, typed errors, atomic publication, and Git-ignore behavior.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.3.0
 """
 
 # IMPORTS
@@ -61,9 +58,6 @@ def test_repo_root_from_heals_the_agentic_directory_itself(tmp_path: Path) -> No
                 improves it once more: the parent that contains `.agentic` is
                 resolved as the root and the command simply works.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     agentic_dir = tmp_path / ".agentic"
     agentic_dir.mkdir()
@@ -80,9 +74,6 @@ def test_repo_root_from_heals_a_path_nested_inside_agentic(tmp_path: Path) -> No
                 below `.agentic`, such as `.agentic/cli/src`, resolves upward
                 to the directory that contains `.agentic` instead of exiting.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     nested = tmp_path / ".agentic" / "cli" / "src"
     nested.mkdir(parents=True)
@@ -100,9 +91,6 @@ def test_reject_guard_still_refuses_agentic_roots_directly(tmp_path: Path) -> No
                 it remains the last line of defense for nonexistent-path
                 fallbacks, so it is covered at unit level here.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     with pytest.raises(SystemExit, match=r"Refusing to use.*\.agentic"):
         _reject_nested_agentic_root(tmp_path / ".agentic")
@@ -119,9 +107,6 @@ def test_repo_root_from_accepts_a_normal_project_root(tmp_path: Path) -> None:
                 deterministic regardless of any repository markers above the
                 pytest temp directory on the host machine.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     project_root = tmp_path / "my-project"
     (project_root / ".git").mkdir(parents=True)
@@ -134,9 +119,6 @@ def test_start_publishes_exact_workspace_pointer_without_cache(tmp_path: Path) -
     @brief      Starting a run creates only state and an LF pointer.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     graph = init_graph(tmp_path, "feature", "Workspace-local state")
 
@@ -152,9 +134,6 @@ def test_old_pointer_is_ignored_even_when_it_names_a_valid_run(tmp_path: Path) -
     @brief      The retired `.agentic/current_run` path is never a fallback.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     graph = init_graph(tmp_path, "feature", "Ignore old pointer")
     current_run_path(tmp_path).unlink()
@@ -168,6 +147,85 @@ def test_old_pointer_is_ignored_even_when_it_names_a_valid_run(tmp_path: Path) -
     assert raised.value.pointer_path == ".agentic/.workspace/state/current_run"
 
 
+def test_missing_pointer_names_the_single_incomplete_run_to_select(tmp_path: Path) -> None:
+    """
+    @brief      A lost pointer with exactly one incomplete run states the exact
+                recovery command (DPT-F08).
+    @details    The pointer is worktree-local and Git-ignored while the run is
+                durable, so losing it leaves the run recoverable — but the
+                operator has to be told the run ID and the command. The
+                deployment test hit precisely this and the message named
+                neither.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    graph = init_graph(tmp_path, "adoption", "Recoverable run")
+    current_run_path(tmp_path).unlink()
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    assert raised.value.code == "RUN-POINTER-MISSING"
+    assert f"aegis run select {graph.run_id}" in raised.value.remediation
+
+
+def test_missing_pointer_lists_candidates_when_the_choice_is_ambiguous(tmp_path: Path) -> None:
+    """
+    @brief      With more than one incomplete run, every candidate is listed
+                rather than one being guessed at.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    first = init_graph(tmp_path, "feature", "First run")
+    second = init_graph(tmp_path, "fix", "Second run")
+    current_run_path(tmp_path).unlink()
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    remediation = raised.value.remediation
+    assert f"aegis run select {first.run_id}" in remediation
+    assert f"aegis run select {second.run_id}" in remediation
+
+
+def test_missing_pointer_without_runs_keeps_the_start_guidance(tmp_path: Path) -> None:
+    """
+    @brief      With nothing to select, the guidance stays "start a run" and
+                never invents a `run select` target.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    (tmp_path / ".agentic").mkdir(parents=True)
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    assert raised.value.code == "RUN-POINTER-MISSING"
+    assert "aegis run select" not in raised.value.remediation
+    assert "aegis run start <kind>" in raised.value.remediation
+
+
+def test_missing_pointer_survives_an_unreadable_graph(tmp_path: Path) -> None:
+    """
+    @brief      A corrupt `graph.json` must not hide the runs beside it, because
+                this message is the operator's only recovery instruction.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    """
+    healthy = init_graph(tmp_path, "feature", "Healthy run")
+    broken = tmp_path / ".agentic" / "runs" / "fix-2026-07-22T120000Z-abcdef01"
+    broken.mkdir(parents=True)
+    (broken / "graph.json").write_text("{not json", encoding="utf-8")
+    current_run_path(tmp_path).unlink()
+
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+
+    remediation = raised.value.remediation
+    assert f"aegis run select {healthy.run_id}" in remediation
+    assert "aegis run select fix-2026-07-22T120000Z-abcdef01" in remediation
+
+
 @pytest.mark.parametrize("content", [b"", b" \n", b"feature-invalid\n", b"feature-2026-02-30T120000Z-12345678\n", b"feature-2026-07-22T120000Z-12345678\r\n"])
 def test_invalid_pointer_content_has_stable_error(tmp_path: Path, content: bytes) -> None:
     """
@@ -175,9 +233,6 @@ def test_invalid_pointer_content_has_stable_error(tmp_path: Path, content: bytes
     @param[in]  tmp_path Temporary repository root.
     @param[in]  content Exact pointer bytes under test.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     pointer = current_run_path(tmp_path)
     pointer.parent.mkdir(parents=True)
@@ -196,9 +251,6 @@ def test_stale_and_mismatched_pointer_graphs_are_actionable(tmp_path: Path) -> N
     @brief      Missing and identity-mismatched graphs are stale selections.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     run_id = "feature-2026-07-22T120000Z-12345678"
     pointer = current_run_path(tmp_path)
@@ -229,9 +281,6 @@ def test_explicit_run_precedes_pointer_without_mutating_it(tmp_path: Path) -> No
     @brief      Explicit selection wins and leaves worktree state unchanged.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     pointer_graph = init_graph(tmp_path, "feature", "Pointer run")
     explicit_graph = init_graph(tmp_path, "fix", "Explicit run")
@@ -250,9 +299,6 @@ def test_invalid_explicit_run_never_falls_back_to_pointer(tmp_path: Path) -> Non
     @brief      A malformed explicit ID does not use a valid local pointer.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     init_graph(tmp_path, "feature", "Pointer run")
 
@@ -270,9 +316,6 @@ def test_failed_initial_graph_save_never_selects_the_run(tmp_path: Path, monkeyp
     @param[in]  tmp_path Temporary repository root.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
 
     def fail_save(_repo_root: Path, _graph) -> None:  # type: ignore[no-untyped-def]
@@ -293,9 +336,6 @@ def test_failed_pointer_replacement_preserves_previous_selection(tmp_path: Path,
     @param[in]  tmp_path Temporary repository root.
     @param[in]  monkeypatch Pytest monkeypatch fixture.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     first = init_graph(tmp_path, "feature", "First selection")
 
@@ -315,9 +355,6 @@ def test_invalid_json_graph_is_reported_as_stale_pointer(tmp_path: Path) -> None
     @brief      A selected graph with invalid JSON is stale, never guessed.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     graph = init_graph(tmp_path, "feature", "Invalid JSON")
     path = tmp_path / ".agentic" / "runs" / graph.run_id / "graph.json"
@@ -335,9 +372,6 @@ def test_two_worktrees_keep_independent_active_pointers(tmp_path: Path) -> None:
     @brief      Linked Git worktrees select independent active runs.
     @param[in]  tmp_path Temporary parent directory.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     first_root = tmp_path / "worktree-one"
     second_root = tmp_path / "worktree-two"
@@ -371,9 +405,6 @@ def test_started_pointer_is_invisible_to_git_status(tmp_path: Path) -> None:
     @brief      Starting a run does not expose workspace state to Git.
     @param[in]  tmp_path Temporary Git repository root.
     @return     None.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     subprocess.run(
         ["git", "init", "--quiet", str(tmp_path)],

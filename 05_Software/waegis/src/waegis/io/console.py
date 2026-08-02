@@ -30,7 +30,8 @@
          shapes from ``engine/plan.py`` and ``engine/step.py`` verbatim:
 
          - Plan preview: ``{mode, dry_run, steps: [{id, title, why, phase,
-           automation, change_summary}, ...]}``.
+           automation, change_summary}, ...]}``, plus ``additional_mutations:
+           [str, ...]`` when the plan carries any.
          - Step result: ``{id, status, detected, acted, verified, started_at,
            finished_at, answers, artifacts, messages, failure, error}``.
          - Run summary (new field-name contract introduced here, since
@@ -46,9 +47,6 @@
          whenever the run enters a new :class:`~waegis.engine.step.Phase`, so
          the live log reads as grouped sections rather than one
          undifferentiated stream of lines.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.2.0
 """
 
 # IMPORTS
@@ -119,9 +117,6 @@ def _stream_encoding(stream: IO[str]) -> str:
     @return     The stream's ``encoding`` attribute, or ``"utf-8"`` if absent
                 or falsy (e.g. an ``io.StringIO`` in tests).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return getattr(stream, "encoding", None) or "utf-8"
 
@@ -134,9 +129,6 @@ def _encodable(text: str, encoding: str) -> bool:
     @return     ``True`` when encoding succeeds; ``False`` on any encoding
                 failure or unknown codec name.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     try:
         text.encode(encoding)
@@ -155,9 +147,6 @@ def _column_widths(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> lis
     @param[in]  rows Row cell tuples, one per plan/step entry.
     @return     Column widths, one per header, each at least the header length.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     widths = [len(h) for h in headers]
     for row in rows:
@@ -174,9 +163,6 @@ def _write_table(stream: IO[str], headers: tuple[str, ...], rows: list[tuple[str
     @param[in]  rows Row cell tuples.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     widths = _column_widths(headers, rows)
 
@@ -203,9 +189,6 @@ def render_plan_preview(plan: Plan, stream: IO[str]) -> None:
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.2.0
     """
     stream.write(f"WAEGIS plan preview - mode={plan.mode} dry_run={plan.dry_run}\n")
     rows = [
@@ -219,6 +202,8 @@ def render_plan_preview(plan: Plan, stream: IO[str]) -> None:
         for step in plan.steps
     ]
     _write_table(stream, _PLAN_COLUMNS, rows)
+    for mutation in plan.additional_mutations:
+        stream.write(f"Additional mutation: {mutation}\n")
     stream.write(f"{len(plan.steps)} step(s) planned.\n\n")
 
 
@@ -229,9 +214,6 @@ def plan_preview_json(plan: Plan) -> str:
     @return     JSON text of ``plan.to_dict()`` (see module docstring for the
                 field-name contract).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return json.dumps(plan.to_dict(), indent=2, ensure_ascii=False)
 
@@ -242,9 +224,6 @@ def step_result_json(result: StepResult) -> str:
     @param[in]  result The :class:`~waegis.engine.step.StepResult` to serialize.
     @return     JSON text of ``result.to_dict()``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return json.dumps(result.to_dict(), indent=2, ensure_ascii=False)
 
@@ -257,9 +236,6 @@ def run_summary_to_dict(summary: RunSummary) -> dict[str, Any]:
     @return     Mapping keyed ``mode, dry_run, ok, stopped_at, results`` (see
                 module docstring for the field-name contract).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return {
         "mode": summary.mode,
@@ -277,9 +253,6 @@ def run_summary_json(summary: RunSummary) -> str:
                 serialize.
     @return     JSON text of :func:`run_summary_to_dict`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return json.dumps(run_summary_to_dict(summary), indent=2, ensure_ascii=False)
 
@@ -300,11 +273,8 @@ class LiveStatusRenderer:
              ``_phase_banner`` line ahead of the first ``StepStarted`` of each
              new phase (added 0.2.0), so the output reads as grouped sections.
              No leading blank line is added before a banner: this renderer's
-             only current caller (``_ConsoleRunSink``) already writes one
+             only current caller (``ConsoleRunSink``) already writes one
              after every finished step's messages.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-18
-    @version 0.2.0
     """
 
     def __init__(self, stream: IO[str], *, use_glyphs: bool = False) -> None:
@@ -315,9 +285,6 @@ class LiveStatusRenderer:
                     still falls back per-call to ASCII if unencodable.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.2.0
         """
         self._stream = stream
         self._use_glyphs = use_glyphs
@@ -336,9 +303,6 @@ class LiveStatusRenderer:
         @param[in]  key One of ``pending, running, done, skip, fail``.
         @return     The padded marker text to print.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.2.0
         """
         if self._use_glyphs:
             glyph = GLYPH_MARKERS[key]
@@ -356,9 +320,6 @@ class LiveStatusRenderer:
                     (newline-terminated, no leading blank line — the caller
                     is responsible for spacing before it, if any).
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.1.0
         """
         label = f" {phase.value} "
         return f"{label:=^60}\n"
@@ -372,25 +333,32 @@ class LiveStatusRenderer:
         @param[in]  event The emitted :class:`~waegis.engine.step.EngineEvent`.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.2.0
         """
         if isinstance(event, StepStarted):
             self._titles[event.step_id] = event.title
             if event.phase != self._current_phase:
                 # No leading blank line here: this renderer's only current
-                # caller (``_ConsoleRunSink``) already writes one after every
+                # caller (``ConsoleRunSink``) already writes one after every
                 # finished step's messages, so adding another would double
                 # the gap before each new phase banner.
                 self._stream.write(self._phase_banner(event.phase))
                 self._current_phase = event.phase
             self._stream.write(f"{self._marker('running')} {event.title}\n")
+            self._flush()
             return
         if isinstance(event, StepFinished):
             title = self._titles.get(event.result.step_id, event.result.step_id)
             key = _STATUS_MARKER_KEY.get(event.result.status, "pending")
             self._stream.write(f"{self._marker(key)} {title}: {event.result.status.value}\n")
+            self._flush()
+
+    def _flush(self) -> None:
+        """
+        @brief Flush the stream so 'live' output survives full buffering.
+        """
+        flush = getattr(self._stream, "flush", None)
+        if flush is not None:
+            flush()
 
 
 # END OF FILE

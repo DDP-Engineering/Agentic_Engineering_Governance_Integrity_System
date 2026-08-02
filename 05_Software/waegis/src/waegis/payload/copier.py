@@ -45,9 +45,6 @@
          lets the deployment commands stage a rollback journal over the copy
          without this module depending on the transaction layer, and it is
          never entered on a dry run or a refusal because neither writes.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-23
-@version 0.4.0
 """
 
 # IMPORTS
@@ -82,14 +79,27 @@ from .manifest import (
 # @brief Directory-name parts never copied into a target (generated or
 #        dependency state; `node_modules`/`.vitest` belong to the `.pi/`
 #        adapter's isolated vitest setup).
-EXCLUDED_PARTS = frozenset({"__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".vitest"})
+EXCLUDED_PARTS = frozenset(
+    {
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".hypothesis",
+        ".tox",
+        ".nox",
+        "htmlcov",
+        "node_modules",
+        ".vitest",
+    }
+)
 
 # @brief File suffixes never copied into a target.
-EXCLUDED_SUFFIXES = frozenset({".pyc"})
+EXCLUDED_SUFFIXES = frozenset({".pyc", ".pyo"})
 
 # @brief Glob patterns (matched against the payload-relative path) never
 #        copied into a target.
-EXCLUDED_PATTERNS = ("*.egg-info", ".uv-cache*")
+EXCLUDED_PATTERNS = ("*.egg-info", ".uv-cache*", ".uv_cache*", ".coverage*", "coverage.xml")
 
 # @brief Fallback recorded as the manifest payload_version when the payload
 #        ships no readable version declaration.
@@ -118,9 +128,6 @@ class ConflictDecision(Enum):
              written byte-verbatim as ``<name>.new`` beside it (the payload
              path itself is still recorded under ``skipped`` so ``upgrade``
              re-offers it).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     KEEP_LOCAL = "keep-local"
@@ -137,9 +144,6 @@ class PayloadConflict:
              module's :class:`FileEntry`) so an interactive wizard or a
              non-interactive ``--json`` caller can render/report the conflict
              fully before deciding.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     relative_path: str
@@ -177,9 +181,6 @@ class ConflictResolution:
              for the decision: the payload path for ``TAKE_PAYLOAD``, the
              ``<name>.new`` sidecar for ``WRITE_NEW``, ``None`` for
              ``KEEP_LOCAL``.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     conflict: PayloadConflict
@@ -204,9 +205,6 @@ class CopyResult:
              ``WRITE_NEW`` decisions), i.e. the manifest's ``skipped``.
              ``manifest``/``manifest_file`` — the emitted manifest and its
              path; both ``None`` on dry-run, which writes nothing at all.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     target: Path
@@ -227,9 +225,6 @@ class PayloadInventory:
     @details Included paths have passed exclusion, canonical-path, regular-file,
              and source symlink/junction checks. ``digest`` is stable across
              machines and is suitable for manifests and journal fingerprints.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-16
-    @version 0.1.0
     """
 
     root: Path
@@ -242,18 +237,12 @@ class PayloadInventory:
 class CopierError(Exception):
     """
     @brief Base error for payload copy failures.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
 class PayloadMissingError(CopierError):
     """
     @brief The payload (template) root directory does not exist.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -261,9 +250,6 @@ class TargetDirectoryMissingError(CopierError):
     """
     @brief ``require_existing_target`` was set but the target directory does
            not exist (guards against typo paths in existing-repo adoption).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -274,9 +260,6 @@ class OverwriteRefusedError(CopierError):
              every pre-existing destination (sorted), while the message names
              the first one in the legacy
              ``"Refusing to overwrite existing file: ..."`` format.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, conflicting_paths: tuple[Path, ...]) -> None:
@@ -285,9 +268,6 @@ class OverwriteRefusedError(CopierError):
         @param[in]  conflicting_paths Every pre-existing destination file.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         self.conflicting_paths = conflicting_paths
         super().__init__(f"Refusing to overwrite existing file: {conflicting_paths[0]}")
@@ -303,14 +283,27 @@ def _force_take_payload(conflict: PayloadConflict) -> ConflictDecision:
     @param[in]  conflict The conflict being resolved (unused).
     @return     ``ConflictDecision.TAKE_PAYLOAD``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return ConflictDecision.TAKE_PAYLOAD
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
+
+
+def normalize_conflict_decision_value(raw: Any) -> str:
+    """
+    @brief      Normalize one payload-conflict decision to its canonical value.
+    @param[in]  raw Candidate decision value from a prompt or answers mapping.
+    @return     One of ``keep-local``, ``take-payload``, or ``write-new``.
+    @exception  ValueError If the value is not a supported decision.
+    """
+    if isinstance(raw, ConflictDecision):
+        return raw.value
+    text = str(raw).strip().lower()
+    try:
+        return ConflictDecision(text).value
+    except ValueError as exc:
+        raise ValueError("choose one of: keep-local, take-payload, write-new") from exc
 
 
 def ensure_executable(destination: Path) -> None:
@@ -337,9 +330,6 @@ def ensure_executable(destination: Path) -> None:
                 the file not existing (propagated, not swallowed, since a
                 silent failure here would ship a non-executable script with
                 no signal).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
     if os.name == "nt" or destination.suffix not in EXECUTABLE_SUFFIXES:
         return
@@ -358,9 +348,6 @@ def should_exclude(path: PurePath) -> bool:
     @param[in]  path Path relative to the payload root.
     @return     True when the path must not be copied.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.2.0
     """
     if any(part in EXCLUDED_PARTS for part in path.parts):
         return True
@@ -376,9 +363,7 @@ def inspect_payload(payload_root: str | PathLike[str]) -> PayloadInventory:
     @return     Deterministic :class:`PayloadInventory`.
     @exception  PayloadMissingError If the root is not a directory.
     @exception  CopierError If an included source is unsafe or not regular.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
+    @exception  OSError If an included file cannot be opened/read while hashing.
     """
     root = Path(payload_root).resolve()
     if not root.is_dir():
@@ -484,6 +469,9 @@ def copy_payload(
                 to ``"unknown"``.
     @param[in]  product Manifest product name.
     @param[in]  generated Repo-relative paths recorded as wizard-generated.
+    @param[in]  configuration Optional configuration mapping recorded
+                verbatim on the emitted manifest (passed through to
+                ``build_manifest``).
     @param[in]  installed_at Manifest timestamp override (tests).
     @param[in]  installed_by Manifest installer-string override (tests).
     @return     A :class:`CopyResult`; all path collections are sorted
@@ -497,18 +485,18 @@ def copy_payload(
     @exception  CopierError If a destination exists but is not a regular file,
                 the hook returns a non-``ConflictDecision``, or a ``WRITE_NEW``
                 sidecar path already exists with different content.
-    @exception  OSError If reading or writing a file fails mid-apply. Files
-                already applied remain unless the caller supplied ``on_apply``
-                with a rollback scope; without one, disk-level failures stay
-                outside the no-partial-write guarantee, which otherwise covers
-                refusals and hook errors.
+    @exception  OSError If hashing a payload/target file during scan/classify
+                fails, or if reading or writing a file fails mid-apply. An
+                apply-phase failure leaves already-applied files in place
+                unless the caller supplied ``on_apply`` with a rollback
+                scope; without one, disk-level failures during apply stay
+                outside the no-partial-write guarantee, which otherwise
+                covers refusals, hook errors, and scan/classify failures
+                (nothing has been written yet at that point).
     @details    Every write (``copied`` and sidecar) now also runs through
                 :func:`ensure_executable` (0.3.0), so a shell script payload
                 file always lands executable on a POSIX target regardless of
                 the source's own mode.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.3.0
     """
     if force and on_conflict is not None:
         raise ValueError("force=True and on_conflict are mutually exclusive: force is the constant take-payload hook")
@@ -584,7 +572,11 @@ def copy_payload(
     skipped: list[str] = []
     sidecar_writes: list[tuple[PurePath, PurePath]] = []  # (payload-relative source, sidecar-relative destination)
     for conflict in conflicts:
-        assert hook is not None  # strict mode raised above when conflicts could exist
+        if hook is None:  # strict mode raised above when conflicts could exist
+            raise CopierError(
+                f"conflict on {conflict.relative_path!r} but no decision hook "
+                "was supplied"
+            )
         decision = hook(conflict)
         if not isinstance(decision, ConflictDecision):
             raise CopierError(

@@ -56,9 +56,9 @@
          :data:`GATES_STEP`, all sliced from :func:`_build_new_steps`), plus the
          mode-agnostic helpers and the shared ``deploy.workflow-toml``
          detect/verify/on_fail — so the two catalogs share objects rather than
-         forking the logic. ``_find_prior_journal``/``_render_human_outcome``
-         carry mode/handoff parameters (defaulting to Wizard N's values) so
-         Wizard E reuses them too.
+         forking the logic. Journal discovery is shared through
+         :func:`waegis.lifecycle.find_resume_journal`; rendering helpers carry
+         mode/handoff parameters so Wizard E reuses them too.
 @details **``deploy.gates`` is optional (added 0.4.0).** Its ``automation``
          changed from ``ASSISTED`` to ``AUTO`` (shared with Wizard E via
          :data:`GATES_STEP`, so this applies to both catalogs): declining the
@@ -67,21 +67,39 @@
          asks its own top-level confirmation and defers every configured gate
          command (a valid, already-supported ``_verify_gates`` outcome)
          instead of raising when declined.
-@details **Console output layout (added 0.4.0).** ``_ConsoleRunSink`` now
-         indents step notes to align under the (now padded, see
-         ``io/console.py`` 0.2.0) marker column and writes a blank line after
-         each finished step, so the live log reads as distinct blocks.
-         ``_render_human_outcome`` prints a ``=== Summary ... ===`` header
-         before its end-of-run recap so it no longer looks like an accidental
-         repeat of the live log above it.
+@details **Console output layout (added 0.4.0).** ``ConsoleRunSink`` (now in
+         ``commands/_shared.py``) indents step notes to align under the (now
+         padded, see ``io/console.py`` 0.2.0) marker column and writes a blank
+         line after each finished step, so the live log reads as distinct
+         blocks. ``render_human_outcome`` (also in ``commands/_shared.py``)
+         prints a ``=== Summary ... ===`` header before its end-of-run recap so
+         it no longer looks like an accidental repeat of the live log above it.
+@details **Failed-gate evidence and gate consent.** A failing gate command used
+         to be recorded as an outcome string and a one-line note, with its
+         output discarded — enough to know a gate failed, never enough to tell
+         a real product failure from a wrong working directory. ``_act_gates``
+         now records, per failed command, the argv, resolved cwd, exit code,
+         duration, timeout, and bounded stdout/stderr tails, and writes the
+         full output to one log file per failure under
+         ``<home>/logs/gates``; the journal and ``--json`` result carry the
+         bounded tails plus the log path and the exact reproduction command,
+         so the envelope stays bounded while the evidence stays complete.
+         Everything persisted is redacted with the repository's *own*
+         configured secret patterns (``guardrails.secrets.patterns``, the
+         persisted form of the ``secret_patterns`` answer) — this deliberately
+         does not invent a second pattern list. A passing gate still records
+         its outcome and nothing else. Accepting a failing enforced gate is a
+         decision of its own, separate from the mutation-plan consent that
+         ``--yes``/``--non-interactive`` grants: it needs the explicit
+         ``accept_failing_gates`` answer or an interactive confirmation that
+         states the consequence (see :mod:`waegis.io.prompts` for the
+         per-default policy that enforces this for every default-refuse
+         question).
 @details **``prereq.node`` (added 0.5.0, architecture-review follow-up).** New
          warn-not-block step in ``P1_PREREQ``, between ``prereq.git`` and
          ``prereq.git-identity`` (also inserted into ``_COMMON_PREFIX_IDS``,
          so Wizard E gets it automatically): every AEGIS hook is dispatched
          through Node, which nothing checked for before this step existed.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-18
-@version 0.5.0
 """
 
 # IMPORTS
@@ -92,9 +110,11 @@ import json
 import os
 import re
 import shlex
-import sys
+import time
 import tomllib
-from dataclasses import replace
+import uuid
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO, Any, Mapping, Sequence
 from urllib.parse import urlsplit
@@ -104,31 +124,17 @@ from ..engine import (
     Catalog,
     EngineContext,
     EngineError,
-    EngineEvent,
-    Journal,
-    Note,
     Phase,
-    PlanReady,
     Remediation,
-    RunSummary,
-    StepFinished,
     StepSpec,
     run as engine_run,
     waegis_home,
 )
-from ..io.answers import (
-    AnswersFileError,
-    MissingAnswersError,
-    load_answers_file,
-    require_non_interactive_answers,
-    unknown_keys,
-)
-from ..io.console import LiveStatusRenderer, plan_preview_json, render_plan_preview, run_summary_json
-from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_OPERATIONAL, EXIT_VALIDATION, write_envelope
-from ..io.prompts import ConsoleAsker, FieldSpec, PromptsError, ScriptedAnswerError, ScriptedAsker, ValidationError
-from ..lifecycle import build_journal_fingerprints, find_resume_journal, replay_answers
-from ..payload.copier import CopierError, copy_payload, inspect_payload, should_exclude
-from ..payload.locate import PayloadLocateError, locate_payload, read_payload_version
+from ..io.answers import MissingAnswersError, require_non_interactive_answers
+from ..io.envelope import EXIT_NEEDS_INPUT, EXIT_VALIDATION
+from ..io.prompts import FieldSpec, PromptsError
+from ..payload.copier import copy_payload, should_exclude
+from ..payload.locate import locate_payload
 from ..payload.manifest import (
     MANIFEST_RELATIVE_PATH,
     ManifestState,
@@ -149,19 +155,39 @@ from ..probes.runner import CommandRunner, SubprocessCommandRunner
 from ..probes.tools import probe_git, probe_node, probe_python
 from ..repo import gitops
 from ..repo.workflow_toml import (
+    GATE_ORDER,
+    OTHER_LANGUAGE_FIELD_SPECS,
     WORKFLOW_FIELD_SPECS,
     WorkflowTomlError,
     generate_workflow_toml,
+    normalize_stored_answers,
     verify_workflow_invariants,
 )
-from ..transaction import payload_transaction, recover_incomplete_transactions
+from ..transaction import payload_transaction
 from ..verification import (
     HOOK_FILES,
     NO_ACTIVE_RUN_MARKER,
     SMOKE_TIMEOUT_SECONDS,
     wrapper_invocation as _wrapper_invocation,
 )
-from ..version import PAYLOAD_COMPAT_SPEC, WIZARD_VERSION, is_payload_compatible
+from ..version import WIZARD_VERSION
+from ._shared import (
+    CommandOptions,
+    WORKFLOW_TOML_RELATIVE_PATH,
+    ConsoleRunSink,
+    JsonRunSink,
+    PAYLOAD_VALIDATION_ERRORS,
+    load_wizard_answers,
+    locate_validated_payload,
+    repowise_additional_mutations,
+    select_wizard_askers,
+    warn_unknown_wizard_keys,
+    wizard_fail,
+    wizard_journal_factory,
+    wizard_postrun_and_emit,
+    wizard_recovery_preamble,
+    wizard_resume_setup,
+)
 from .analyze import ADAPTER_DIR_NAMES
 
 # CONSTANTS
@@ -184,27 +210,36 @@ SHARED_CLI_SMOKE_RESULT = "cli_smoke_result"
 SHARED_WORKFLOW_SMOKE_STATUS = "workflow_smoke_status"
 SHARED_WORKFLOW_SMOKE_GATES = "workflow_smoke_gates"
 
-# @brief Repo-relative path of the generated configuration surface.
-WORKFLOW_TOML_RELATIVE_PATH = ".agentic/workflow.toml"
-
-# @brief The hook files verify.hooks-present requires, read from the real
-#        template payload (05_Software/aegis/template/.agentic/hooks/).
 # @brief Minimum free disk space at the TARGET drive (plan §8.1 machine.disk).
 MIN_FREE_DISK_BYTES = 1024**3
 
-# @brief Timeout for wrapper-script smoke invocations (a cold python start on a
-#        corporate machine can take far longer than the probe default).
 # @brief Timeout for operator gate commands (a real test suite may be slow).
 GATE_TIMEOUT_SECONDS = 600.0
 
-# @brief The embedded workflow CLI reports actionable workspace-state guidance
-#        when ``status`` runs before any AEGIS run has been started.
+# @brief Characters of a failed gate's stdout (and, separately, stderr) kept
+#        inline in the journal and the ``--json`` result. A failing test suite
+#        prints its verdict last, so the *tail* is the diagnostic part; the
+#        full text always survives in the durable log file, which is why this
+#        can stay small enough to keep the envelope bounded.
+GATE_OUTPUT_TAIL_LIMIT = 4000
+
+# @brief Subdirectory of ``<home>/logs`` holding one log file per failed gate
+#        command (sibling of the RepoWise log directory).
+GATE_LOG_DIRNAME = "gates"
+
+# @brief The answer key that explicitly accepts failing enforced gates.
+ACCEPT_FAILING_GATES_KEY = "accept_failing_gates"
+
+# @brief The answer key that explicitly accepts creating TARGET nested inside
+#        another git work tree.
+ACCEPT_NESTED_REPOSITORY_KEY = "accept_nested_repository"
+
 # @brief Templated initial-commit message (plan §8.1 repo.initial-commit).
 INITIAL_COMMIT_MESSAGE = f"Bootstrap AEGIS via WAEGIS {WIZARD_VERSION}"
 
 # @brief Exit codes (frozen per plan §5/§15 D13; matches analyze's 0/1 shape).
 EXIT_OK = 0
-EXIT_FAILURE = 1
+EXIT_FAILURE = EXIT_NEEDS_INPUT
 
 # @brief Matches the first fenced ```text block of PROMPT_CHEATSHEET.md — the
 #        first operator prompt the handoff step surfaces.
@@ -242,65 +277,63 @@ NEW_STEP_IDS: tuple[str, ...] = (
 # DATA MODELS / TYPEDEFINITIONS
 
 
-def _normalize_string_list(raw: Any) -> list[str]:
-    """
-    @brief      Validate a list-of-names answer (extensions/patterns for the
-                ``other`` language).
-    @param[in]  raw A comma-separated string (console input) or a sequence of
-                strings (answers file).
-    @return     The non-empty list of stripped values.
-    @exception  ValueError If no non-empty value is present.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
-    """
-    if isinstance(raw, str):
-        items = [part.strip() for part in raw.split(",") if part.strip()]
-    elif isinstance(raw, Sequence):
-        items = [str(part).strip() for part in raw]
-    else:
-        raise ValueError("expected a comma-separated string or a list of strings")
-    if not items or any(not item for item in items):
-        raise ValueError("at least one non-empty value is required")
-    return items
-
-
-# @brief Extra answer fields required only when language == "other" (plan §7
-#        invariant 6). No default: they are genuinely required in that branch.
-OTHER_LANGUAGE_FIELD_SPECS: tuple[FieldSpec, ...] = (
-    FieldSpec(
-        key="source_extensions",
-        description="File extensions that count as source code for language 'other'.",
-        example=".sql, .prc",
-        validator=_normalize_string_list,
+# @brief The gate-acceptance decision, shared verbatim by both wizards (Wizard
+#        E splices it into its own spec tuple) because both run the same
+#        ``deploy.gates`` step. It is never prompted for as a field: it exists
+#        so a non-interactive run can state the decision that
+#        ``_act_gates``'s default-refuse confirmation otherwise has no operator
+#        to make. The ``False`` default keeps it optional *and* keeps the
+#        refusing behaviour when it is absent.
+GATE_ACCEPTANCE_FIELD_SPEC = FieldSpec(
+    key=ACCEPT_FAILING_GATES_KEY,
+    question="Accept enforced quality gates that fail, and continue anyway?",
+    description=(
+        "Only read when a configured gate command actually fails. When true, a "
+        "failing enforced gate is recorded as accepted-failing and the "
+        "deployment reports success with an accepted failure; when absent or "
+        "false, a failing gate stops the run. General mutation consent "
+        "(--yes / --non-interactive) deliberately does not decide this."
     ),
-    FieldSpec(
-        key="test_file_patterns",
-        description="Filename patterns that identify test files for language 'other'.",
-        example="test_*.sql",
-        validator=_normalize_string_list,
-    ),
+    example="false",
+    default=False,
 )
 
 # @brief Optional wizard-level answers (defaults keep them non-required):
 #        clone_url selects clone-over-init; the git identity pair feeds
-#        prereq.git-identity's pending repo-local path.
+#        prereq.git-identity's pending repo-local path; accept_failing_gates
+#        decides deploy.gates' default-refuse acceptance question.
 NEW_EXTRA_FIELD_SPECS: tuple[FieldSpec, ...] = (
+    GATE_ACCEPTANCE_FIELD_SPEC,
+    FieldSpec(
+        key=ACCEPT_NESTED_REPOSITORY_KEY,
+        question="Create TARGET inside another git repository anyway?",
+        description=(
+            "Only read when TARGET turns out to lie inside an existing git "
+            "work tree. When true, the nested repository is created anyway; "
+            "when absent or false, the run stops rather than nesting silently."
+        ),
+        example="false",
+        default=False,
+    ),
     FieldSpec(
         key="clone_url",
-        description="Remote URL to clone instead of a local 'git init' (leave empty for a new local repository).",
+        question="Clone from a remote instead of running a local 'git init'?",
+        description="When set, the repository is cloned from this URL; leave empty for a new local repository.",
         example="https://forge.example.com/org/repo.git",
         default="",
+        validator=lambda value: gitops.validate_clone_url(value, allow_empty=True),
     ),
     FieldSpec(
         key="git_user_name",
-        description="Git identity name to set repo-locally when no global identity exists.",
+        question="Git identity name to record, if no global Git identity exists?",
+        description="Set repo-locally only when Git has no usable global identity already; leave empty to skip.",
         example="Ada Lovelace",
         default="",
     ),
     FieldSpec(
         key="git_user_email",
-        description="Git identity e-mail to set repo-locally when no global identity exists.",
+        question="Git identity e-mail to record, if no global Git identity exists?",
+        description="Set repo-locally only when Git has no usable global identity already; leave empty to skip.",
         example="ada@example.com",
         default="",
     ),
@@ -317,41 +350,32 @@ NEW_FIELD_SPECS: tuple[FieldSpec, ...] = (
 # HELPER FUNCTIONS
 
 
-def _target(ctx: EngineContext) -> Path:
+def get_target(ctx: EngineContext) -> Path:
     """
     @brief      The resolved TARGET path from the shared contract.
     @param[in]  ctx Active engine context.
     @return     The target directory path.
     @exception  KeyError If the command did not seed the shared contract.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ctx.shared[SHARED_TARGET]
 
 
-def _runner(ctx: EngineContext) -> CommandRunner:
+def get_runner(ctx: EngineContext) -> CommandRunner:
     """
     @brief      The injected CommandRunner from the shared contract.
     @param[in]  ctx Active engine context.
     @return     The CommandRunner every subprocess-backed step must use.
     @exception  KeyError If the command did not seed the shared contract.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ctx.shared[SHARED_RUNNER]
 
 
-def _answers(ctx: EngineContext) -> Mapping[str, Any]:
+def get_answers(ctx: EngineContext) -> Mapping[str, Any]:
     """
     @brief      The loaded answers mapping from the shared contract.
     @param[in]  ctx Active engine context.
     @return     The (possibly empty) answers mapping.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ctx.shared.get(SHARED_ANSWERS, {})
 
@@ -366,9 +390,6 @@ def _nearest_existing(path: Path) -> Path:
     @return     ``path`` itself when it exists, else the first existing
                 ancestor, else the current working directory.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     candidate = path
     while not candidate.exists():
@@ -378,7 +399,7 @@ def _nearest_existing(path: Path) -> Path:
     return candidate
 
 
-def _payload_root(ctx: EngineContext) -> Path:
+def get_payload_root(ctx: EngineContext) -> Path:
     """
     @brief      Resolve (and memoize) the payload root for this run.
     @details    Honors the ``--payload`` override from the shared contract and
@@ -387,9 +408,6 @@ def _payload_root(ctx: EngineContext) -> Path:
     @param[in]  ctx Active engine context.
     @return     The payload root directory.
     @exception  waegis.payload.locate.PayloadLocateError If no payload resolves.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     cached = ctx.shared.get(SHARED_PAYLOAD_ROOT)
     if cached is not None:
@@ -406,9 +424,6 @@ def _note_finding(ctx: EngineContext, finding: Any) -> None:
     @param[in]  finding Any ``ProbeFinding``-shaped record.
     @return     None
     @exception  EngineError If called outside a running step.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     ctx.note(f"[{finding.status}] {finding.name}: {finding.detail}")
     if finding.guidance:
@@ -421,9 +436,6 @@ def _probe_write_read(directory: Path) -> bool:
     @param[in]  directory Directory to probe.
     @return     ``True`` when the round trip succeeds.
     @exception  None All failures report ``False``.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     probe = directory / ".waegis-write-probe"
     try:
@@ -435,7 +447,7 @@ def _probe_write_read(directory: Path) -> bool:
     return content == "probe"
 
 
-def _ask_field(ctx: EngineContext, spec: FieldSpec) -> Any:
+def ask_field(ctx: EngineContext, spec: FieldSpec) -> Any:
     """
     @brief      Prompt for one FieldSpec through the active asker.
     @details    The engine ``Asker`` protocol only declares ``confirm``/``ask``;
@@ -446,9 +458,6 @@ def _ask_field(ctx: EngineContext, spec: FieldSpec) -> Any:
     @return     The normalized answer.
     @exception  EngineError If the active asker has no ``ask_field``.
     @exception  waegis.io.prompts.PromptsError On a missing/invalid scripted answer.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     ask_field = getattr(ctx.asker, "ask_field", None)
     if ask_field is None:
@@ -456,24 +465,63 @@ def _ask_field(ctx: EngineContext, spec: FieldSpec) -> Any:
     return ask_field(spec)
 
 
-def _read_gates(target: Path) -> tuple[list[list[str]], list[list[str]]]:
+def split_gate_command(command: str) -> list[str]:
+    """
+    @brief      Split one configured gate command string into argv, honoring the
+                host's path syntax (DPT-F07).
+    @details    ``shlex.split`` defaults to POSIX mode, where a backslash is an
+                escape character. On Windows that silently destroys every native
+                path an operator writes unquoted: the configured gate
+                ``uv run --directory 05_Software\\pkg python -m pytest`` was
+                handed to the child as ``--directory 05_Softwarepkg``, so the
+                command failed to locate the package and exited nonzero while
+                the very same suite passed when run by hand from the package
+                root. That is the exact shape of DPT-F07, and it contradicts
+                this field's own documented contract ("Run exactly as given").
+    @details    The fix disables *escape* processing on Windows while keeping
+                POSIX *quote* processing, so a quoted path keeps working and its
+                surrounding quotes are still removed. Plain ``posix=False``
+                would not do: it returns the quote characters inside the token,
+                which ``subprocess`` would then pass to the child literally.
+                :mod:`waegis.repowise` solves the same problem for the RepoWise
+                external command; this is the gate-command counterpart.
+    @details    On every non-Windows host the lexer is configured exactly as
+                ``shlex.split`` configures it, so POSIX behavior is unchanged
+                byte for byte.
+    @param[in]  command Configured gate command string.
+    @return     The argv list to execute.
+    @exception  ValueError If the string has an unbalanced quote.
+    """
+    lexer = shlex.shlex(command, posix=True)
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    if os.name == "nt":
+        lexer.escape = ""
+    return list(lexer)
+
+
+def _read_gates(target: Path) -> dict[str, tuple[str, list[list[str]]]]:
     """
     @brief      Read the configured gate commands from the written workflow.toml.
     @details    Disk is the source of truth (resume-safe): a resumed run whose
                 ``deploy.workflow-toml`` was skipped still sees the real gates.
     @param[in]  target Target repository root.
-    @return     ``(test_commands, lint_commands)`` as argv lists.
+    @return     Gate names mapped to captured mode and argv lists.
     @exception  OSError If the file cannot be read.
     @exception  tomllib.TOMLDecodeError If the file is not valid TOML.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
     document = tomllib.loads((target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8"))
     gates = document.get("gates", {})
-    test_cmds = [shlex.split(str(command)) for command in gates.get("test", [])]
-    lint_cmds = [shlex.split(str(command)) for command in gates.get("lint", [])]
-    return test_cmds, lint_cmds
+    result: dict[str, tuple[str, list[list[str]]]] = {}
+    for name in GATE_ORDER:
+        group = gates.get(name, {})
+        mode = str(group.get("mode", "disabled"))
+        commands = [
+            split_gate_command(str(command))
+            for command in group.get("commands", [])
+        ]
+        result[name] = (mode, commands)
+    return result
 
 
 def _payload_file_count(payload_root: Path) -> int:
@@ -483,9 +531,6 @@ def _payload_file_count(payload_root: Path) -> int:
     @param[in]  payload_root Payload (template) root directory.
     @return     Number of non-excluded payload files.
     @exception  OSError If the payload tree cannot be walked.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     count = 0
     for source in payload_root.rglob("*"):
@@ -507,19 +552,8 @@ def _sanitize_url(url: str) -> str:
     @return     The URL with a ``user:secret@`` credential reduced to ``user@``;
                 unparseable values pass through unchanged.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    if "://" not in url:
-        return url
-    parsed = urlsplit(url)
-    if parsed.password is None:
-        return url
-    credential = f"{parsed.username}@" if parsed.username else ""
-    host = parsed.hostname or ""
-    port = f":{parsed.port}" if parsed.port else ""
-    return f"{parsed.scheme}://{credential}{host}{port}{parsed.path}"
+    return gitops.sanitize_clone_url(url)
 
 
 def _clone_host_port(url: str) -> tuple[str, int] | None:
@@ -530,9 +564,6 @@ def _clone_host_port(url: str) -> tuple[str, int] | None:
                 URL, or ``None`` for scp-like or unparseable forms — the proxy
                 probe then reports configuration only, without a connect test.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if "://" not in url:
         return None
@@ -551,9 +582,6 @@ def _first_operator_prompt(target: Path) -> str | None:
     @param[in]  target Target repository root.
     @return     The prompt text, or ``None`` when the file or block is absent.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     cheatsheet = target / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md"
     try:
@@ -570,9 +598,6 @@ def _workflow_document(target: Path) -> Mapping[str, Any] | None:
     @param[in]  target Target repository root.
     @return     The parsed document, or ``None`` when absent/unparseable.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     path = target / WORKFLOW_TOML_RELATIVE_PATH
     try:
@@ -588,9 +613,6 @@ def _hooks_and_adapters_missing(target: Path) -> list[str]:
     @param[in]  target Target repository root.
     @return     Sorted repo-relative names of missing items (empty = all present).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     missing: list[str] = []
     for hook in HOOK_FILES:
@@ -611,9 +633,6 @@ def _home_dir(ctx: EngineContext) -> Path:
     @param[in]  ctx Active engine context.
     @return     The shared home override, or :func:`waegis_home`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return ctx.shared.get(SHARED_HOME) or waegis_home()
 
@@ -624,9 +643,6 @@ def _detect_home_init(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when both directories exist.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     home = _home_dir(ctx)
     return home.is_dir() and (home / "journals").is_dir()
@@ -638,9 +654,6 @@ def _act_home_init(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  OSError If the directories cannot be created.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     home = _home_dir(ctx)
     (home / "journals").mkdir(parents=True, exist_ok=True)
@@ -653,9 +666,6 @@ def _verify_home_init(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the home exists and the round trip succeeds.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     home = _home_dir(ctx)
     return home.is_dir() and _probe_write_read(home)
@@ -670,9 +680,6 @@ def _detect_machine_os(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the OS is inside the support matrix.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     finding = probe_os_support()
     _note_finding(ctx, finding)
@@ -685,11 +692,8 @@ def _detect_machine_disk(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when free space meets the minimum.
     @exception  OSError If no ancestor of TARGET is accessible.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_disk_space(_nearest_existing(_target(ctx)), minimum_bytes=MIN_FREE_DISK_BYTES)
+    finding = probe_disk_space(_nearest_existing(get_target(ctx)), minimum_bytes=MIN_FREE_DISK_BYTES)
     _note_finding(ctx, finding)
     return finding.status == "ok"
 
@@ -700,11 +704,8 @@ def _verify_machine_disk(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` unless the re-probe reports ``fail``.
     @exception  OSError If no ancestor of TARGET is accessible.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_disk_space(_nearest_existing(_target(ctx)), minimum_bytes=MIN_FREE_DISK_BYTES)
+    finding = probe_disk_space(_nearest_existing(get_target(ctx)), minimum_bytes=MIN_FREE_DISK_BYTES)
     return finding.status != "fail"
 
 
@@ -714,9 +715,6 @@ def _on_fail_machine_disk(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="The drive holding TARGET has less than 1 GiB of free space.",
@@ -735,11 +733,8 @@ def _detect_prereq_python(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the probe reports ``ok``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_python(_runner(ctx))
+    finding = probe_python(get_runner(ctx))
     _note_finding(ctx, finding)
     return finding.status == "ok"
 
@@ -751,11 +746,8 @@ def _act_prereq_python(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_python(_runner(ctx))
+    finding = probe_python(get_runner(ctx))
     _note_finding(ctx, finding)
     ctx.note(
         "WAEGIS does not perform privileged installs: run the command above in a separate "
@@ -769,11 +761,8 @@ def _verify_prereq_python(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the re-probe reports ``ok``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return probe_python(_runner(ctx)).status == "ok"
+    return probe_python(get_runner(ctx)).status == "ok"
 
 
 def _on_fail_prereq_python(ctx: EngineContext) -> Remediation:
@@ -782,11 +771,8 @@ def _on_fail_prereq_python(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_python(_runner(ctx))
+    finding = probe_python(get_runner(ctx))
     return Remediation(
         diagnosis=finding.detail,
         remediation=finding.guidance or "Install Python 3.11 or newer and ensure it is on PATH.",
@@ -800,11 +786,8 @@ def _detect_prereq_git(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the probe reports ``ok``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_git(_runner(ctx))
+    finding = probe_git(get_runner(ctx))
     _note_finding(ctx, finding)
     return finding.status == "ok"
 
@@ -815,11 +798,8 @@ def _act_prereq_git(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_git(_runner(ctx))
+    finding = probe_git(get_runner(ctx))
     _note_finding(ctx, finding)
     ctx.note(
         "WAEGIS does not perform privileged installs: run the command above in a separate "
@@ -833,11 +813,8 @@ def _verify_prereq_git(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the re-probe reports ``ok``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return probe_git(_runner(ctx)).status == "ok"
+    return probe_git(get_runner(ctx)).status == "ok"
 
 
 def _on_fail_prereq_git(ctx: EngineContext) -> Remediation:
@@ -846,11 +823,8 @@ def _on_fail_prereq_git(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    finding = probe_git(_runner(ctx))
+    finding = probe_git(get_runner(ctx))
     return Remediation(
         diagnosis=finding.detail,
         remediation=finding.guidance or "Install Git 2.30 or newer and ensure it is on PATH.",
@@ -872,11 +846,8 @@ def _detect_prereq_node(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the probe reports ``ok`` (found and parseable).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.1.0
     """
-    finding = probe_node(_runner(ctx))
+    finding = probe_node(get_runner(ctx))
     _note_finding(ctx, finding)
     return finding.status == "ok"
 
@@ -892,11 +863,8 @@ def _identity_probe_path(ctx: EngineContext) -> Path:
     @param[in]  ctx Active engine context.
     @return     An existing directory path.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return _nearest_existing(_target(ctx))
+    return _nearest_existing(get_target(ctx))
 
 
 def _detect_git_identity(ctx: EngineContext) -> bool:
@@ -905,11 +873,8 @@ def _detect_git_identity(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the effective identity is complete.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    identity = gitops.get_identity(_runner(ctx), _identity_probe_path(ctx))
+    identity = gitops.get_identity(get_runner(ctx), _identity_probe_path(ctx))
     if identity.name and identity.email:
         ctx.note(f"git identity: {identity.name} <{identity.email}>")
         return True
@@ -929,11 +894,8 @@ def _act_git_identity(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    answers = _answers(ctx)
+    answers = get_answers(ctx)
     name = str(answers.get("git_user_name") or "").strip()
     email = str(answers.get("git_user_email") or "").strip()
     if name and email:
@@ -958,11 +920,8 @@ def _verify_git_identity(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when either condition holds.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    identity = gitops.get_identity(_runner(ctx), _identity_probe_path(ctx))
+    identity = gitops.get_identity(get_runner(ctx), _identity_probe_path(ctx))
     if identity.name and identity.email:
         return True
     pending = ctx.shared.get(SHARED_PENDING_IDENTITY)
@@ -975,9 +934,6 @@ def _on_fail_git_identity(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="Git does not know who you are, so it cannot record commits.",
@@ -997,9 +953,6 @@ def _applies_net_proxy(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when a clone URL was answered.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return bool(ctx.shared.get(SHARED_CLONE_URL))
 
@@ -1014,10 +967,9 @@ def _act_net_proxy(ctx: EngineContext) -> None:
                 point in the step notes.
     @param[in]  ctx Active engine context.
     @return     None
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
+    @exception  OSError Propagated from :func:`probe_proxy_configuration` (in
+                turn from the injected transport's ``connect``) for a failure
+                kind it does not map to a :data:`ConnectOutcome`.
     """
     clone_url = str(ctx.shared.get(SHARED_CLONE_URL) or "")
     target_pair = _clone_host_port(clone_url)
@@ -1048,9 +1000,6 @@ def _verify_net_proxy(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` for ``ok``/``info`` findings.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     finding = ctx.shared.get(SHARED_NET_PROXY_FINDING)
     return finding is not None and finding.status != "fail"
@@ -1062,9 +1011,6 @@ def _on_fail_net_proxy(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     finding = ctx.shared.get(SHARED_NET_PROXY_FINDING)
     detail = finding.detail if finding is not None else "the network check did not run"
@@ -1088,12 +1034,9 @@ def _nested_in_foreign_work_tree(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the parent is inside a work tree.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    parent = _nearest_existing(_target(ctx).parent)
-    return gitops.is_work_tree(_runner(ctx), parent)
+    parent = _nearest_existing(get_target(ctx).parent)
+    return gitops.is_work_tree(get_runner(ctx), parent)
 
 
 def _detect_target_path(ctx: EngineContext) -> bool:
@@ -1103,11 +1046,8 @@ def _detect_target_path(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when both conditions hold.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return _target(ctx).is_dir() and not _nested_in_foreign_work_tree(ctx)
+    return get_target(ctx).is_dir() and not _nested_in_foreign_work_tree(ctx)
 
 
 def _act_target_path(ctx: EngineContext) -> None:
@@ -1118,16 +1058,15 @@ def _act_target_path(ctx: EngineContext) -> None:
     @exception  RuntimeError If the operator declines to nest inside another
                 work tree.
     @exception  OSError If the directory cannot be created.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     if _nested_in_foreign_work_tree(ctx):
         ctx.note(f"warning: {target} lies inside an existing git work tree")
         if not ctx.asker.confirm(
-            "TARGET is inside another git repository. Create a nested repository anyway?",
+            "TARGET is inside another git repository. Create a nested repository anyway? "
+            "The outer repository will see the whole nested tree as untracked content.",
             default=False,
+            decision=ACCEPT_NESTED_REPOSITORY_KEY,
         ):
             raise RuntimeError("operator declined to create TARGET inside another git work tree")
     target.mkdir(parents=True, exist_ok=True)
@@ -1140,11 +1079,8 @@ def _verify_target_path(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the write-read probe succeeds.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     return target.is_dir() and _probe_write_read(target)
 
 
@@ -1157,11 +1093,8 @@ def _detect_init_or_clone(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when ``git rev-parse --is-inside-work-tree`` says so.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return gitops.is_work_tree(_runner(ctx), _target(ctx))
+    return gitops.is_work_tree(get_runner(ctx), get_target(ctx))
 
 
 def _act_init_or_clone(ctx: EngineContext) -> None:
@@ -1173,12 +1106,9 @@ def _act_init_or_clone(ctx: EngineContext) -> None:
     @return     None
     @exception  RuntimeError If the git operation or identity write fails
                 (surfaced as a step failure with git's own message).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     clone_url = str(ctx.shared.get(SHARED_CLONE_URL) or "")
     if clone_url:
         result = gitops.clone_repo(runner, clone_url, target)
@@ -1203,11 +1133,8 @@ def _verify_init_or_clone(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the re-check passes.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return gitops.is_work_tree(_runner(ctx), _target(ctx))
+    return gitops.is_work_tree(get_runner(ctx), get_target(ctx))
 
 
 # --- step: deploy.payload-copy ----------------------------------------------------
@@ -1220,14 +1147,11 @@ def _detect_payload_copy(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the manifest is valid with clean drift.
     @exception  OSError If a recorded file cannot be hashed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    load = load_manifest(_target(ctx))
+    load = load_manifest(get_target(ctx))
     if load.state is not ManifestState.VALID or load.manifest is None:
         return False
-    drift = compute_drift(_target(ctx), load.manifest)
+    drift = compute_drift(get_target(ctx), load.manifest)
     if drift.modified or drift.missing:
         ctx.note(
             f"manifest present but drifted: {len(drift.modified)} modified, {len(drift.missing)} missing"
@@ -1246,12 +1170,9 @@ def _act_payload_copy(ctx: EngineContext) -> None:
     @exception  waegis.payload.locate.PayloadLocateError If no payload resolves.
     @exception  waegis.payload.copier.CopierError On a strict-mode refusal
                 (pre-existing files) or copy failure.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.2.0
     """
-    payload = _payload_root(ctx)
-    target = _target(ctx)
+    payload = get_payload_root(ctx)
+    target = get_target(ctx)
     result = copy_payload(
         payload,
         target,
@@ -1263,7 +1184,9 @@ def _act_payload_copy(ctx: EngineContext) -> None:
         # WAEGIS command if this process never finishes.
         on_apply=lambda paths: payload_transaction(target, command="new", paths=paths),
     )
-    assert result.manifest is not None and result.manifest_file is not None
+    assert (
+        result.manifest is not None and result.manifest_file is not None
+    ), "copy_payload must produce a manifest on a non-dry-run apply"
     ctx.record_answer("payload_version", result.manifest.payload_version)
     ctx.record_artifact(str(result.manifest_file))
     ctx.note(f"copied {len(result.copied)} payload files from {payload}")
@@ -1276,17 +1199,14 @@ def _verify_payload_copy(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when drift is clean and the counts agree.
     @exception  OSError If hashing or the payload walk fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    load = load_manifest(_target(ctx))
+    load = load_manifest(get_target(ctx))
     if load.state is not ManifestState.VALID or load.manifest is None:
         return False
-    drift = compute_drift(_target(ctx), load.manifest)
+    drift = compute_drift(get_target(ctx), load.manifest)
     if drift.modified or drift.missing:
         return False
-    expected = _payload_file_count(_payload_root(ctx))
+    expected = _payload_file_count(get_payload_root(ctx))
     if len(load.manifest.files) != expected:
         ctx.note(f"file count mismatch: manifest records {len(load.manifest.files)}, payload ships {expected}")
         return False
@@ -1299,9 +1219,6 @@ def _on_fail_payload_copy(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="The payload could not be copied - most commonly because TARGET already "
@@ -1315,7 +1232,7 @@ def _on_fail_payload_copy(ctx: EngineContext) -> Remediation:
 # --- step: deploy.workflow-toml -----------------------------------------------------
 
 
-def _detect_workflow_toml(ctx: EngineContext) -> bool:
+def detect_workflow_toml(ctx: EngineContext) -> bool:
     """
     @brief      deploy.workflow-toml detect: an answers-generated workflow.toml
                 is already in place.
@@ -1325,11 +1242,8 @@ def _detect_workflow_toml(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when generated, parseable, and invariant-clean.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     load = load_manifest(target)
     if load.state is not ManifestState.VALID or load.manifest is None:
         return False
@@ -1370,22 +1284,23 @@ def _act_workflow_toml(ctx: EngineContext) -> None:
     @exception  waegis.repo.workflow_toml.WorkflowTomlError If generation or an
                 invariant fails (never-save-invalid guard).
     @exception  OSError If the file or roots cannot be written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
+    @exception  FileNotFoundError If the amendment step finds no install
+                manifest under ``target``.
+    @exception  waegis.payload.manifest.ManifestError If the existing install
+                manifest is invalid.
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     collected: dict[str, Any] = {}
     for spec in WORKFLOW_FIELD_SPECS:
-        collected[spec.key] = _ask_field(ctx, spec)
+        collected[spec.key] = ask_field(ctx, spec)
         ctx.record_answer(spec.key, collected[spec.key])
     extras: dict[str, Any] = {"source_extensions": None, "test_file_patterns": None}
     if collected["language"] == "other":
         for spec in OTHER_LANGUAGE_FIELD_SPECS:
-            extras[spec.key] = _ask_field(ctx, spec)
+            extras[spec.key] = ask_field(ctx, spec)
             ctx.record_answer(spec.key, extras[spec.key])
 
-    base_text = (_payload_root(ctx) / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
+    base_text = (get_payload_root(ctx) / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
     generated = generate_workflow_toml(base_text, **collected, **extras)
     for warning in generated.warnings:
         ctx.note(f"WARNING: {warning.message}")
@@ -1415,11 +1330,11 @@ def _act_workflow_toml(ctx: EngineContext) -> None:
         else:
             ctx.note("operator declined creating missing roots - verification requires them to exist")
 
-    _amend_manifest_generated(target, answers=collected)
+    amend_manifest_generated(target, answers=normalize_stored_answers({**collected, **extras}))
     ctx.note("install manifest amended: .agentic/workflow.toml moved from files to generated")
 
 
-def _amend_manifest_generated(target: Path, *, answers: Mapping[str, Any] | None = None) -> None:
+def amend_manifest_generated(target: Path, *, answers: Mapping[str, Any] | None = None) -> None:
     """
     @brief      Move ``.agentic/workflow.toml`` from the manifest's ``files``
                 map into its ``generated`` list (idempotent).
@@ -1430,13 +1345,19 @@ def _amend_manifest_generated(target: Path, *, answers: Mapping[str, Any] | None
                 from ``files`` keeps drift reports clean and keeps
                 ``deploy.payload-copy``'s detect green on re-runs.
     @param[in]  target Target repository root holding the manifest.
+    @param[in]  answers The durable generator answers to record, already
+                reduced through
+                :func:`waegis.repo.workflow_toml.normalize_stored_answers` by
+                the calling wizard. ``None`` leaves the existing configuration
+                untouched (the file-move-only amendment). Every wizard that
+                generates the workflow passes them: a manifest without them
+                cannot answer "what was this configured with", and a later
+                ``configure`` would have to ask for settings the repository
+                already holds.
     @return     None
     @exception  FileNotFoundError If no manifest exists.
     @exception  waegis.payload.manifest.ManifestError If the manifest is invalid.
     @exception  OSError If the manifest cannot be re-written.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     manifest = read_manifest(target)
     files = {key: entry for key, entry in manifest.files.items() if key != WORKFLOW_TOML_RELATIVE_PATH}
@@ -1457,7 +1378,7 @@ def _amend_manifest_generated(target: Path, *, answers: Mapping[str, Any] | None
     )
 
 
-def _verify_workflow_toml(ctx: EngineContext) -> bool:
+def verify_workflow_toml(ctx: EngineContext) -> bool:
     """
     @brief      deploy.workflow-toml verify: re-parse, re-run the invariants
                 against the answered roots, require the roots to exist, and
@@ -1465,11 +1386,8 @@ def _verify_workflow_toml(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when every check passes.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     document = _workflow_document(target)
     if document is None:
         return False
@@ -1502,15 +1420,12 @@ def _verify_workflow_toml(ctx: EngineContext) -> bool:
     )
 
 
-def _on_fail_workflow_toml(ctx: EngineContext) -> Remediation:
+def on_fail_workflow_toml(ctx: EngineContext) -> Remediation:
     """
     @brief      deploy.workflow-toml remediation.
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="The workflow configuration could not be generated or verified.",
@@ -1521,6 +1436,232 @@ def _on_fail_workflow_toml(ctx: EngineContext) -> Remediation:
 
 
 # --- step: deploy.gates ----------------------------------------------------------
+
+
+def _gate_secret_patterns(ctx: EngineContext, target: Path) -> tuple[re.Pattern[str], ...]:
+    """
+    @brief      The repository's own configured secret patterns, compiled.
+    @details    Single source, deliberately: ``guardrails.secrets.patterns`` in
+                the written workflow.toml *is* the persisted ``secret_patterns``
+                answer, and reading it from disk keeps this consistent with
+                :func:`_read_gates` on a resumed run whose interview step was
+                skipped. The in-memory answer is only consulted when the file
+                cannot be read at all. No second pattern list is invented here:
+                a repository that configured no patterns gets no redaction,
+                which is the same contract its own guardrails run under.
+                A pattern that does not compile is skipped rather than fatal —
+                the gate has already failed and losing the evidence entirely
+                would be the worse outcome.
+    @param[in]  ctx Active engine context.
+    @param[in]  target Target repository root.
+    @return     The compiled patterns, possibly empty.
+    @exception  None
+    """
+    document = _workflow_document(target)
+    if document is not None:
+        raw = document.get("guardrails", {}).get("secrets", {}).get("patterns", [])
+    else:
+        raw = get_answers(ctx).get("secret_patterns", [])
+    compiled: list[re.Pattern[str]] = []
+    for pattern in raw if isinstance(raw, (list, tuple)) else ():
+        try:
+            compiled.append(re.compile(str(pattern)))
+        except re.error:
+            continue
+    return tuple(compiled)
+
+
+def _redact(text: str, patterns: Sequence[re.Pattern[str]]) -> str:
+    """
+    @brief      Replace every configured-secret match with a fixed marker.
+    @param[in]  text Raw captured output.
+    @param[in]  patterns Compiled secret patterns.
+    @return     The redacted text (unchanged when no pattern matches).
+    @exception  None
+    """
+    for pattern in patterns:
+        text = pattern.sub("[REDACTED]", text)
+    return text
+
+
+def _bounded_tail(text: str) -> tuple[str, bool]:
+    """
+    @brief      Keep the last :data:`GATE_OUTPUT_TAIL_LIMIT` characters of a
+                captured stream.
+    @param[in]  text Redacted stream text.
+    @return     ``(tail, truncated)``.
+    @exception  None
+    """
+    if len(text) <= GATE_OUTPUT_TAIL_LIMIT:
+        return text, False
+    return text[-GATE_OUTPUT_TAIL_LIMIT:], True
+
+
+def _gate_reproduction(argv: Sequence[str], cwd: Path) -> str:
+    """
+    @brief      The exact command that re-runs one failed gate by hand.
+    @details    ``shlex.join`` quotes each argument of the argv
+                :func:`_read_gates` built, so what is printed re-runs what was
+                run. On Windows a native path is emitted single-quoted, which
+                PowerShell takes literally — the same shell the deployment
+                tooling uses there.
+    @param[in]  argv The gate command's argument vector.
+    @param[in]  cwd The working directory it ran in.
+    @return     A single copyable shell line.
+    @exception  None
+    """
+    return f"cd {shlex.quote(str(cwd))} && {shlex.join(argv)}"
+
+
+def _write_gate_log(
+    ctx: EngineContext,
+    *,
+    gate_name: str,
+    argv: Sequence[str],
+    cwd: Path,
+    result: Any,
+    duration: float,
+    patterns: Sequence[re.Pattern[str]],
+) -> str | None:
+    """
+    @brief      Write one failed gate command's full, redacted output to a
+                durable log file under the WAEGIS home.
+    @details    Large output belongs in an isolated file rather than the
+                journal or the ``--json`` envelope, which both stay bounded.
+                Redaction is applied here as well as to the inline tails: the
+                log is the copy an operator is most likely to paste elsewhere.
+                A log that cannot be written is not fatal — the bounded tails
+                still carry a diagnosis — so this returns ``None`` instead of
+                raising and taking the gate's evidence down with it.
+    @param[in]  ctx Active engine context.
+    @param[in]  gate_name The gate group (``test``, ``lint``, ...).
+    @param[in]  argv The gate command's argument vector.
+    @param[in]  cwd The working directory it ran in.
+    @param[in]  result The command result being recorded.
+    @param[in]  duration Wall-clock seconds the command took.
+    @param[in]  patterns Compiled secret patterns.
+    @return     The log file path as text, or ``None`` when it could not be
+                written.
+    @exception  None
+    """
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    directory = _home_dir(ctx) / "logs" / GATE_LOG_DIRNAME
+    path = directory / f"{stamp}-{uuid.uuid4().hex[:6]}.log"
+    # The whole body is redacted — including the argv/reproduce header lines,
+    # so a credential embedded in the gate command itself never persists.
+    body = _redact(
+        (
+            f"gate: {gate_name}\n"
+            f"argv: {json.dumps(list(argv))}\n"
+            f"cwd: {cwd}\n"
+            f"exit_code: {result.exit_code}\n"
+            f"found: {result.found}\n"
+            f"timed_out: {result.timed_out}\n"
+            f"timeout_seconds: {GATE_TIMEOUT_SECONDS}\n"
+            f"duration_seconds: {duration:.3f}\n"
+            f"reproduce: {_gate_reproduction(argv, cwd)}\n"
+            "--- stdout ---\n"
+            f"{result.stdout}\n"
+            "--- stderr ---\n"
+            f"{result.stderr}\n"
+        ),
+        patterns,
+    )
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+    except OSError:
+        return None
+    return str(path)
+
+
+def _gate_failure_record(
+    ctx: EngineContext,
+    *,
+    gate_name: str,
+    argv: Sequence[str],
+    cwd: Path,
+    result: Any,
+    duration: float,
+    patterns: Sequence[re.Pattern[str]],
+) -> dict[str, Any]:
+    """
+    @brief      Build the journalled evidence record for one failed gate command.
+    @details    Everything a post-mortem needs without re-running the gate:
+                what ran, where, how it ended, how long it took, the bounded
+                redacted tails of both streams, whether those tails were cut,
+                where the full log is, and the one-line reproduction. The
+                ``decision`` field is filled in by the caller once the operator
+                (or the answers file) has decided; it is not a gate *outcome*
+                and never enters the ``gate_outcomes`` vocabulary.
+    @param[in]  ctx Active engine context.
+    @param[in]  gate_name The gate group the command belongs to.
+    @param[in]  argv The gate command's argument vector.
+    @param[in]  cwd The working directory it ran in.
+    @param[in]  result The failing command result.
+    @param[in]  duration Wall-clock seconds the command took.
+    @param[in]  patterns Compiled secret patterns.
+    @return     A JSON-safe evidence mapping.
+    @exception  None
+    """
+    stdout_tail, stdout_truncated = _bounded_tail(_redact(result.stdout, patterns))
+    stderr_tail, stderr_truncated = _bounded_tail(_redact(result.stderr, patterns))
+    # The command/argv/reproduce fields are redacted too: a gate command that
+    # itself embeds a credential must not survive into any evidence sink.
+    return {
+        "gate": gate_name,
+        "command": _redact(" ".join(argv), patterns),
+        "argv": [_redact(argument, patterns) for argument in argv],
+        "cwd": str(cwd),
+        "exit_code": result.exit_code,
+        "found": result.found,
+        "timed_out": result.timed_out,
+        "timeout_seconds": GATE_TIMEOUT_SECONDS,
+        "duration_seconds": round(duration, 3),
+        "stdout_tail": stdout_tail,
+        "stderr_tail": stderr_tail,
+        "truncated": stdout_truncated or stderr_truncated,
+        "log_path": _write_gate_log(
+            ctx,
+            gate_name=gate_name,
+            argv=argv,
+            cwd=cwd,
+            result=result,
+            duration=duration,
+            patterns=patterns,
+        ),
+        "reproduce": _redact(_gate_reproduction(argv, cwd), patterns),
+        "decision": None,
+    }
+
+
+def _note_gate_failure(ctx: EngineContext, record: Mapping[str, Any]) -> None:
+    """
+    @brief      Surface one failed gate's evidence pointers on the human stream.
+    @details    Notes are journalled *and* printed by the console sink, so this
+                is what keeps human and ``--json`` output telling the same
+                story: the one-line failure, where the full log is, and the
+                exact command that reproduces it.
+    @param[in]  ctx Active engine context.
+    @param[in]  record The evidence record built for the failure.
+    @return     None
+    @exception  EngineError If called outside a running step.
+    """
+    if record["timed_out"]:
+        ending = f"timed out after {record['timeout_seconds']}s"
+    elif not record["found"]:
+        ending = "could not be launched (command not found)"
+    else:
+        ending = f"exited {record['exit_code']}"
+    ctx.note(
+        f"gate '{record['gate']}' FAILED: {record['command']} {ending} "
+        f"in {record['duration_seconds']}s (cwd: {record['cwd']})"
+    )
+    if record["log_path"] is not None:
+        ctx.note(f"  full output log: {record['log_path']}")
+    else:
+        ctx.note("  full output log could not be written; the recorded tails are all there is")
+    ctx.note(f"  reproduce with: {record['reproduce']}")
 
 
 def _act_gates(ctx: EngineContext) -> None:
@@ -1535,45 +1676,50 @@ def _act_gates(ctx: EngineContext) -> None:
                 them right now should defer them cleanly (recorded outcome
                 ``deferred``, verify still passes) instead of halting the
                 whole run the way an ``ASSISTED`` decline would.
+    @details    A failing command's evidence is recorded *before* the
+                acceptance question is asked, so a refusal — which fails the
+                step by raising — still leaves the journal holding everything
+                needed to diagnose it. Acceptance itself is a separate decision
+                from the run's mutation consent: the confirmation defaults to
+                refuse and names :data:`ACCEPT_FAILING_GATES_KEY`, so a
+                non-interactive run without that answer is refused loudly
+                rather than waived silently.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  RuntimeError If the operator refuses to accept a failing or
                 empty gate (the step then fails, by their decision).
+    @exception  waegis.io.prompts.MissingAnswerError If a non-interactive run
+                hits a failing gate without stating the acceptance decision.
     @exception  OSError / tomllib.TOMLDecodeError If workflow.toml is unreadable.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.3.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
-    test_cmds, lint_cmds = _read_gates(target)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
+    gates = _read_gates(target)
     outcomes: dict[str, str] = {}
-    document = tomllib.loads(
-        (target / WORKFLOW_TOML_RELATIVE_PATH).read_text(encoding="utf-8")
-    )
-    if document.get("gates", {}).get("mode") == "disabled":
-        outcomes["gates"] = "disabled"
+    failures: list[dict[str, Any]] = []
+    if all(mode == "disabled" for mode, _commands in gates.values()):
+        for gate_name in gates:
+            outcomes[gate_name] = "disabled"
         ctx.note("gate execution is disabled explicitly by workflow.toml")
         ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
         ctx.record_answer("gate_outcomes", outcomes)
+        ctx.record_answer("gate_accepted_failing", [])
         return
     if not ctx.asker.confirm("Proceed with 'Try the quality gates once'?", default=True):
-        for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
-            if not commands:
-                outcomes[f"{gate_name} (empty)"] = "accepted-empty"
+        for gate_name, (mode, commands) in gates.items():
+            if mode == "disabled":
+                outcomes[gate_name] = "disabled"
                 continue
             for command in commands:
                 outcomes[" ".join(command)] = "deferred"
         ctx.note("gate run deferred entirely by operator (recorded)")
         ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
         ctx.record_answer("gate_outcomes", outcomes)
+        ctx.record_answer("gate_accepted_failing", [])
         return
-    for gate_name, commands in (("test", test_cmds), ("lint", lint_cmds)):
-        if not commands:
-            ctx.note(f"gate '{gate_name}' is configured empty and will pass without checking anything")
-            if not ctx.asker.confirm(f"Gate '{gate_name}' is empty. Accept and continue?", default=True):
-                raise RuntimeError(f"operator rejected the empty '{gate_name}' gate")
-            outcomes[f"{gate_name} (empty)"] = "accepted-empty"
+    for gate_name, (mode, commands) in gates.items():
+        if mode == "disabled":
+            outcomes[gate_name] = "disabled"
             continue
         if not ctx.asker.confirm(
             f"Run the {len(commands)} '{gate_name}' gate command(s) once now inside TARGET?",
@@ -1585,20 +1731,49 @@ def _act_gates(ctx: EngineContext) -> None:
             continue
         for command in commands:
             label = " ".join(command)
+            started = time.monotonic()
             result = runner.run(tuple(command), timeout=GATE_TIMEOUT_SECONDS, cwd=target)
-            passed = result.ok()
-            ctx.note(f"gate '{gate_name}' {'PASS' if passed else 'FAIL'}: {label}")
-            if passed:
+            duration = time.monotonic() - started
+            if result.ok():
+                # A passing gate stays cheap: outcome only, no captured volume.
+                ctx.note(f"gate '{gate_name}' PASS: {label}")
                 outcomes[label] = "pass"
                 continue
-            if not ctx.asker.confirm(
-                f"Gate command failed: {label}. Accept the failing gate and continue?",
+            record = _gate_failure_record(
+                ctx,
+                gate_name=gate_name,
+                argv=tuple(command),
+                cwd=target,
+                result=result,
+                duration=duration,
+                patterns=_gate_secret_patterns(ctx, target),
+            )
+            failures.append(record)
+            _note_gate_failure(ctx, record)
+            # Recorded before the decision so a refusal still journals the
+            # evidence on its way out through the raise below.
+            ctx.record_answer("gate_failures", failures)
+            accepted = ctx.asker.confirm(
+                f"Gate command failed: {label}. Accept the failing gate and continue? "
+                "It will be recorded as accepted-failing, and the deployment will "
+                "report success with an accepted failure.",
                 default=False,
-            ):
+                decision=ACCEPT_FAILING_GATES_KEY,
+            )
+            record["decision"] = "accepted" if accepted else "rejected"
+            ctx.record_answer("gate_failures", failures)
+            if not accepted:
+                ctx.record_answer("gate_outcomes", outcomes)
                 raise RuntimeError(f"operator rejected the failing gate command: {label}")
             outcomes[label] = "accepted-failing"
     ctx.shared[SHARED_GATE_OUTCOMES] = outcomes
     ctx.record_answer("gate_outcomes", outcomes)
+    ctx.record_answer(
+        "gate_accepted_failing",
+        [label for label, outcome in outcomes.items() if outcome == "accepted-failing"],
+    )
+    if failures:
+        ctx.record_answer("gate_failures", failures)
 
 
 def _verify_gates(ctx: EngineContext) -> bool:
@@ -1610,9 +1785,6 @@ def _verify_gates(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when outcomes were recorded with known values.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
     outcomes = ctx.shared.get(SHARED_GATE_OUTCOMES)
     if outcomes is None:
@@ -1631,13 +1803,10 @@ def _act_cli_smoke(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     argv = _wrapper_invocation(target, "--help")
-    result = _runner(ctx).run(argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=target)
+    result = get_runner(ctx).run(argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=target)
     ctx.shared[SHARED_CLI_SMOKE_RESULT] = result
     ctx.note(f"ran: {' '.join(argv)} -> exit {result.exit_code}")
 
@@ -1648,9 +1817,6 @@ def _verify_cli_smoke(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` on a found, zero-exit run.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     result = ctx.shared.get(SHARED_CLI_SMOKE_RESULT)
     return result is not None and result.ok()
@@ -1662,9 +1828,6 @@ def _on_fail_cli_smoke(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     result = ctx.shared.get(SHARED_CLI_SMOKE_RESULT)
     detail = result.combined_output().strip() if result is not None else "the wrapper did not run"
@@ -1679,28 +1842,32 @@ def _on_fail_cli_smoke(ctx: EngineContext) -> Remediation:
 
 def _act_workflow_smoke(ctx: EngineContext) -> None:
     """
-    @brief      verify.workflow-smoke act: run the wrapper's ``status`` (and
-                ``gates run`` only when gates are configured non-empty and every
-                gate command passed in deploy.gates).
+    @brief      Run grouped ``run status --json`` and, when applicable,
+                ``verify gates`` through the installed wrapper.
     @param[in]  ctx Active engine context.
     @return     None
     @exception  OSError / tomllib.TOMLDecodeError If workflow.toml is unreadable.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
-    status_argv = _wrapper_invocation(target, "status")
+    runner = get_runner(ctx)
+    target = get_target(ctx)
+    status_argv = _wrapper_invocation(target, "run", "status", "--json")
     status_result = runner.run(status_argv, timeout=SMOKE_TIMEOUT_SECONDS, cwd=target)
     ctx.shared[SHARED_WORKFLOW_SMOKE_STATUS] = status_result
     ctx.note(f"ran: {' '.join(status_argv)} -> exit {status_result.exit_code}")
 
-    test_cmds, lint_cmds = _read_gates(target)
+    gates = _read_gates(target)
     outcomes = ctx.shared.get(SHARED_GATE_OUTCOMES) or {}
-    all_passed = bool(outcomes) and all(value == "pass" for value in outcomes.values())
-    if (test_cmds or lint_cmds) and all_passed:
-        gates_argv = _wrapper_invocation(target, "gates", "run")
+    all_passed = bool(outcomes) and all(
+        value in {"pass", "disabled"} for value in outcomes.values()
+    )
+    enabled_commands = [
+        command
+        for mode, commands in gates.values()
+        if mode == "enforce"
+        for command in commands
+    ]
+    if enabled_commands and all_passed:
+        gates_argv = _wrapper_invocation(target, "verify", "gates")
         gates_result = runner.run(gates_argv, timeout=GATE_TIMEOUT_SECONDS, cwd=target)
         ctx.shared[SHARED_WORKFLOW_SMOKE_GATES] = gates_result
         ctx.note(f"ran: {' '.join(gates_argv)} -> exit {gates_result.exit_code}")
@@ -1708,8 +1875,7 @@ def _act_workflow_smoke(ctx: EngineContext) -> None:
 
 def _verify_workflow_smoke(ctx: EngineContext) -> bool:
     """
-    @brief      verify.workflow-smoke verify: ``status`` responded coherently
-                (and ``gates run`` exited 0 when it ran).
+    @brief      Verify grouped run status and optional gate responses.
     @details    A fresh install has no active workflow run, and the embedded
                 CLI's ``status`` then exits non-zero with "No active agentic
                 run" (confirmed against the real template CLI) — that coherent
@@ -1718,9 +1884,6 @@ def _verify_workflow_smoke(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when the responses are healthy.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     status_result = ctx.shared.get(SHARED_WORKFLOW_SMOKE_STATUS)
     if status_result is None:
@@ -1742,9 +1905,6 @@ def _on_fail_workflow_smoke(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     status_result = ctx.shared.get(SHARED_WORKFLOW_SMOKE_STATUS)
     detail = status_result.combined_output().strip() if status_result is not None else "status did not run"
@@ -1765,11 +1925,8 @@ def _detect_hooks_present(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when nothing is missing.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    missing = _hooks_and_adapters_missing(_target(ctx))
+    missing = _hooks_and_adapters_missing(get_target(ctx))
     if missing:
         ctx.note("missing: " + ", ".join(missing))
         return False
@@ -1783,11 +1940,8 @@ def _verify_hooks_present(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when nothing is missing.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    return not _hooks_and_adapters_missing(_target(ctx))
+    return not _hooks_and_adapters_missing(get_target(ctx))
 
 
 # --- step: repo.initial-commit --------------------------------------------------------
@@ -1802,12 +1956,9 @@ def _detect_initial_commit(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when committed and clean.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     if gitops.status_porcelain(runner, target):
         return False
     return gitops.head_commit(runner, target) is not None
@@ -1821,12 +1972,9 @@ def _act_initial_commit(ctx: EngineContext) -> None:
     @return     None
     @exception  RuntimeError If staging or committing fails (git's message is
                 surfaced in the step failure).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     add_result = gitops.add_all(runner, target)
     if not add_result.ok:
         raise RuntimeError(f"git add failed: {add_result.detail}")
@@ -1845,12 +1993,9 @@ def _verify_initial_commit(ctx: EngineContext) -> bool:
     @param[in]  ctx Active engine context.
     @return     ``True`` when both re-checks pass.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
-    runner = _runner(ctx)
-    target = _target(ctx)
+    runner = get_runner(ctx)
+    target = get_target(ctx)
     if gitops.status_porcelain(runner, target):
         return False
     return gitops.head_commit(runner, target) is not None
@@ -1862,9 +2007,6 @@ def _on_fail_initial_commit(ctx: EngineContext) -> Remediation:
     @param[in]  ctx Active engine context.
     @return     The remediation text.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     return Remediation(
         diagnosis="The bootstrap commit could not be created.",
@@ -1889,11 +2031,8 @@ def _act_handoff_summary(ctx: EngineContext) -> None:
     @param[in]  ctx Active engine context.
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.2.0
     """
-    target = _target(ctx)
+    target = get_target(ctx)
     load = load_manifest(target)
     payload_version = (
         load.manifest.payload_version if load.state is ManifestState.VALID and load.manifest else "unknown"
@@ -1950,9 +2089,6 @@ def _build_new_steps() -> list[StepSpec]:
                 rather than forking the logic.
     @return     The ordered list of Wizard N :class:`StepSpec` objects.
     @exception  waegis.engine.StepContractError If a step were ever malformed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.2.0
     """
     steps = [
         StepSpec(
@@ -2083,7 +2219,7 @@ def _build_new_steps() -> list[StepSpec]:
             detect=_detect_target_path,
             act=_act_target_path,
             verify=_verify_target_path,
-            change_summary=lambda ctx: f"create {_target(ctx)} if missing and confirm it is writable",
+            change_summary=lambda ctx: f"create {get_target(ctx)} if missing and confirm it is writable",
         ),
         StepSpec(
             id="repo.init-or-clone",
@@ -2125,10 +2261,10 @@ def _build_new_steps() -> list[StepSpec]:
             phase=Phase.P4_DEPLOY,
             automation=Automation.ASSISTED,
             preconditions=("deploy.payload-copy",),
-            detect=_detect_workflow_toml,
+            detect=detect_workflow_toml,
             act=_act_workflow_toml,
-            verify=_verify_workflow_toml,
-            on_fail=_on_fail_workflow_toml,
+            verify=verify_workflow_toml,
+            on_fail=on_fail_workflow_toml,
             change_summary=lambda ctx: "interview, generate .agentic/workflow.toml, create missing roots",
         ),
         StepSpec(
@@ -2248,196 +2384,11 @@ def build_new_catalog() -> Catalog:
     @return     The validated :class:`Catalog`.
     @exception  waegis.engine.CatalogError If the catalog were ever inconsistent
                 (duplicate ids, unknown preconditions, cycles).
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.2.0
     """
     return Catalog(list(_NEW_STEPS))
 
 
 # COMMAND SUPPORT
-
-
-class _HybridAsker:
-    """
-    @brief Asker layering an answers mapping over an interactive ConsoleAsker.
-    @details Implements plan §4 item 6 for ``--answers`` without
-             ``--non-interactive``: a pre-supplied answer is used (validated,
-             scripted-style), everything else prompts on the console.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
-    """
-
-    def __init__(self, answers: Mapping[str, Any], console: ConsoleAsker) -> None:
-        """
-        @brief      Construct the hybrid asker.
-        @param[in]  answers Pre-supplied answers mapping.
-        @param[in]  console Interactive fallback asker.
-        @return     None
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        self._answers = dict(answers)
-        self._console = console
-
-    def confirm(self, prompt: str, *, default: bool = True) -> bool:
-        """
-        @brief      Delegate confirmations to the console.
-        @param[in]  prompt Question text.
-        @param[in]  default Value assumed on empty input.
-        @return     The operator's choice.
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        return self._console.confirm(prompt, default=default)
-
-    def ask(self, key: str, prompt: str, *, default: str | None = None) -> str:
-        """
-        @brief      Answer from the mapping when present, else prompt.
-        @param[in]  key Stable answer key.
-        @param[in]  prompt Question text.
-        @param[in]  default Fallback default.
-        @return     The answer.
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        if key in self._answers:
-            return str(self._answers[key])
-        return self._console.ask(key, prompt, default=default)
-
-    def ask_field(self, spec: FieldSpec) -> Any:
-        """
-        @brief      Resolve a FieldSpec from the mapping when present (validated,
-                    scripted-style), else prompt interactively.
-        @param[in]  spec The field to resolve.
-        @return     The normalized answer.
-        @exception  waegis.io.prompts.ScriptedAnswerError If the pre-supplied
-                    value fails validation (no silent fallback to prompting).
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        if spec.key in self._answers:
-            try:
-                return spec.normalize(self._answers[spec.key])
-            except ValidationError as exc:
-                raise ScriptedAnswerError(spec.key, str(exc)) from exc
-        return self._console.ask_field(spec)
-
-
-class _AutoConfirmAsker:
-    """
-    @brief Decorator that approves confirmations while preserving field input.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-16
-    @version 0.1.0
-    """
-
-    def __init__(self, delegate: Any) -> None:
-        """@brief Store the field-answer delegate."""
-        self._delegate = delegate
-
-    def confirm(self, prompt: str, *, default: bool = True) -> bool:
-        """@brief Approve one confirmation without prompting."""
-        return True
-
-    def ask(self, key: str, prompt: str, *, default: str | None = None) -> str:
-        """@brief Delegate legacy string input."""
-        return self._delegate.ask(key, prompt, default=default)
-
-    def ask_field(self, spec: FieldSpec) -> Any:
-        """@brief Delegate typed field input."""
-        return self._delegate.ask_field(spec)
-
-
-class _ConsoleRunSink:
-    """
-    @brief Human-mode event sink: plan preview + live step status + step notes.
-    @details Thin composition over the T1.3 renderers (no second renderer):
-             ``PlanReady`` goes to :func:`render_plan_preview`, step transitions
-             to :class:`LiveStatusRenderer`, and each finished step's messages
-             are echoed indented so warnings (empty gates, guidance) are loud on
-             the console, not only in the journal.
-    @details Notes are indented to align under the padded marker column (added
-             0.2.0, see ``io/console.py`` 0.2.0), and a blank line follows each
-             finished step's notes so the log reads as distinct step blocks.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-18
-    @version 0.2.0
-    """
-
-    def __init__(self, stream: IO[str]) -> None:
-        """
-        @brief      Construct the sink over an output stream.
-        @param[in]  stream Output stream.
-        @return     None
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        self._stream = stream
-        self._live = LiveStatusRenderer(stream)
-
-    def emit(self, event: EngineEvent) -> None:
-        """
-        @brief      Render one engine event.
-        @param[in]  event The emitted event.
-        @return     None
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-18
-        @version    0.2.0
-        """
-        if isinstance(event, PlanReady):
-            render_plan_preview(event.plan, self._stream)
-            return
-        if isinstance(event, Note):
-            self._stream.write(f"note: {event.message}\n")
-            return
-        if isinstance(event, StepFinished):
-            self._live.emit(event)
-            for message in event.result.messages:
-                self._stream.write(f"       - {message}\n")
-            self._stream.write("\n")
-            return
-        self._live.emit(event)
-
-
-class _JsonRunSink:
-    """
-    @brief ``--json`` event sink: captures the plan, renders nothing live.
-    @details The command emits exactly one JSON document on stdout: the frozen
-             plan-preview shape for ``--dry-run``, the frozen run-summary shape
-             otherwise (plan §5, io/console.py field-name contract).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
-    """
-
-    def __init__(self) -> None:
-        """
-        @brief      Construct the sink with no captured plan yet.
-        @return     None
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        self.plan: Any | None = None
-
-    def emit(self, event: EngineEvent) -> None:
-        """
-        @brief      Capture the plan; ignore every other event.
-        @param[in]  event The emitted event.
-        @return     None
-        @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
-        """
-        if isinstance(event, PlanReady):
-            self.plan = event.plan
 
 
 def _non_interactive_required_specs(answers: Mapping[str, Any]) -> list[FieldSpec]:
@@ -2451,9 +2402,6 @@ def _non_interactive_required_specs(answers: Mapping[str, Any]) -> list[FieldSpe
     @param[in]  answers Loaded answers mapping (drives the ``other`` branch).
     @return     The required spec list.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     required = [replace(spec, default=None) for spec in WORKFLOW_FIELD_SPECS]
     if str(answers.get("language", "")).strip().lower() == "other":
@@ -2464,6 +2412,210 @@ def _non_interactive_required_specs(answers: Mapping[str, Any]) -> list[FieldSpe
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
+@dataclass(frozen=True)
+class NewContext:
+    """@brief Resolved public boundary for the new command phases."""
+    target_path: Path
+    options: CommandOptions
+    transport: Any | None
+    registry_reader: Any | None
+    json_messages: list[str]
+
+
+@dataclass(frozen=True)
+class NewResolved:
+    """@brief Validated new inputs before engine planning."""
+    context: NewContext
+    answers: dict[str, Any]
+    payload_root: Path
+    catalog: Catalog
+    fingerprints: Mapping[str, str]
+    state_home: Path
+    resume: Any
+
+
+@dataclass(frozen=True)
+class NewPlan:
+    """@brief New-command plan and engine dependencies."""
+    resolved: NewResolved
+    runner: CommandRunner
+    asker: Any
+    approval_asker: Any
+    sink: ConsoleRunSink | JsonRunSink
+    engine_context: EngineContext
+
+
+@dataclass(frozen=True)
+class NewOutcome:
+    """@brief Completed engine run awaiting command-level reporting."""
+    plan: NewPlan
+    summary: Any
+
+
+def _validate_new(context: NewContext) -> int | NewResolved:
+    """@brief Validate and resolve every read-only new-command input."""
+    options = context.options
+    early_exit = wizard_recovery_preamble(
+        context.target_path,
+        command="new",
+        stream=options.stream,
+        as_json=options.as_json,
+        dry_run=options.dry_run,
+        non_interactive=options.non_interactive,
+        yes=options.yes,
+        stdin=options.stdin,
+        json_messages=context.json_messages,
+    )
+    if early_exit is not None:
+        return early_exit
+    loaded = load_wizard_answers(
+        options.answers_path, command="new", stream=options.stream, as_json=options.as_json
+    )
+    if isinstance(loaded, int):
+        return loaded
+    answers: dict[str, Any] = loaded
+    warn_unknown_wizard_keys(
+        answers, NEW_FIELD_SPECS, command="new", stream=options.stream,
+        as_json=options.as_json, json_messages=context.json_messages,
+    )
+    if "clone_url" in answers:
+        try:
+            answers["clone_url"] = gitops.validate_clone_url(answers["clone_url"], allow_empty=True)
+        except ValueError as exc:
+            return wizard_fail(
+                options.stream, "new", as_json=options.as_json, status="failed",
+                exit_code=EXIT_VALIDATION, message=f"invalid clone_url: {exc}",
+            )
+    try:
+        payload_root, inventory, _payload_version = locate_validated_payload(options.payload)
+    except PAYLOAD_VALIDATION_ERRORS as exc:
+        return wizard_fail(
+            options.stream, "new", as_json=options.as_json, status="failed",
+            exit_code=EXIT_VALIDATION, message=str(exc),
+        )
+    catalog = build_new_catalog()
+    fingerprints, state_home, resume, answers = wizard_resume_setup(
+        command="new", catalog=catalog, target_path=context.target_path,
+        answers=answers, payload_digest=inventory.digest, home=options.home,
+        dry_run=options.dry_run, field_specs=NEW_FIELD_SPECS,
+    )
+    return NewResolved(
+        context, answers, payload_root, catalog, fingerprints, state_home, resume
+    )
+
+
+def _plan_new(resolved: NewResolved) -> int | NewPlan:
+    """@brief Build the new-command engine plan without mutating the target."""
+    context = resolved.context
+    answers = resolved.answers
+    options = context.options
+    if options.non_interactive:
+        try:
+            require_non_interactive_answers(_non_interactive_required_specs(answers), answers)
+        except MissingAnswersError as exc:
+            return wizard_fail(
+                options.stream, "new", as_json=options.as_json, status="needs-input",
+                exit_code=EXIT_NEEDS_INPUT,
+                message="--non-interactive requires a complete answer set; missing: " + ", ".join(exc.keys),
+            )
+        except PromptsError as exc:
+            return wizard_fail(
+                options.stream, "new", as_json=options.as_json, status="failed",
+                exit_code=EXIT_VALIDATION, message=f"invalid answer: {exc}",
+            )
+    asker, approval_asker = select_wizard_askers(
+        answers, non_interactive=options.non_interactive,
+        stdin=options.stdin, stream=options.stream,
+    )
+    clone_url = str(answers.get("clone_url") or "")
+    runner = options.runner or SubprocessCommandRunner()
+    transport = context.transport or (SocketTransport() if clone_url else None)
+    registry_reader = context.registry_reader
+    if registry_reader is None and os.name == "nt":
+        registry_reader = WinInetRegistryReader()
+    shared: dict[str, Any] = {
+        SHARED_TARGET: context.target_path,
+        SHARED_PAYLOAD_OVERRIDE: resolved.payload_root,
+        SHARED_RUNNER: runner, SHARED_TRANSPORT: transport,
+        SHARED_REGISTRY_READER: registry_reader, SHARED_ANSWERS: answers,
+        SHARED_CLONE_URL: clone_url, SHARED_HOME: options.home,
+    }
+    sink: ConsoleRunSink | JsonRunSink = (
+        JsonRunSink() if options.as_json else ConsoleRunSink(options.stream)
+    )
+    engine_context = EngineContext(mode="new", asker=asker, events=sink, shared=shared)
+    return NewPlan(
+        resolved, runner, asker, approval_asker, sink, engine_context,
+    )
+
+
+def _consent_new(plan: NewPlan) -> NewPlan:
+    """@brief Preserve the engine-owned approval seam for the new plan."""
+    options = plan.resolved.context.options
+    if not options.dry_run and plan.resolved.resume is not None and not options.as_json:
+        options.stream.write(
+            f"resuming compatible incomplete run {plan.resolved.resume.run_id}; "
+            "green steps will be re-detected\n"
+        )
+    return plan
+
+
+def _apply_new(plan: NewPlan) -> NewOutcome:
+    """@brief Run the new plan through the engine's consent and apply phases."""
+    resolved = plan.resolved
+    options = resolved.context.options
+    summary = engine_run(
+        resolved.catalog, plan.engine_context, dry_run=options.dry_run,
+        resume=resolved.resume, yes=options.yes,
+        approval_asker=plan.approval_asker,
+        journal_factory=None if options.dry_run else wizard_journal_factory(
+            command="new", target_path=resolved.context.target_path,
+            home=options.home, fingerprints=resolved.fingerprints,
+        ),
+        additional_mutations=repowise_additional_mutations(resolved.answers),
+    )
+    return NewOutcome(plan, summary)
+
+
+def _report_new(outcome: NewOutcome) -> int:
+    """@brief Emit the byte-compatible new-command report and exit code."""
+    plan = outcome.plan
+    resolved = plan.resolved
+    options = resolved.context.options
+    return wizard_postrun_and_emit(
+        outcome.summary, command="new", target_path=resolved.context.target_path,
+        answers=resolved.answers, non_interactive=options.non_interactive,
+        dry_run=options.dry_run, yes=options.yes, as_json=options.as_json,
+        stream=options.stream, sink=plan.sink,
+        json_messages=resolved.context.json_messages, repowise_asker=plan.asker,
+        runner=plan.runner, state_home=resolved.state_home,
+        commit_step_id="repo.initial-commit", handoff_step_id="handoff.summary",
+    )
+
+
+def _run_new_phases(
+    target: str | os.PathLike[str],
+    *,
+    options: CommandOptions,
+    transport: Any | None = None,
+    registry_reader: Any | None = None,
+) -> int:
+    """@brief Orchestrate validate, plan, consent, apply, and report phases."""
+    normalized = replace(
+        options, non_interactive=options.non_interactive or options.as_json
+    )
+    context = NewContext(
+        Path(target).resolve(), normalized, transport, registry_reader, []
+    )
+    resolved = _validate_new(context)
+    if isinstance(resolved, int):
+        return resolved
+    plan = _plan_new(resolved)
+    if isinstance(plan, int):
+        return plan
+    return _report_new(_apply_new(_consent_new(plan)))
+
+
 def run_new(
     target: str | os.PathLike[str],
     *,
@@ -2471,7 +2623,7 @@ def run_new(
     answers_path: str | os.PathLike[str] | None = None,
     dry_run: bool = False,
     non_interactive: bool = False,
-    yes: bool | None = None,
+    yes: bool = False,
     as_json: bool = False,
     payload: str | os.PathLike[str] | None = None,
     stdin: IO[str] | None = None,
@@ -2481,275 +2633,20 @@ def run_new(
     home: Path | None = None,
 ) -> int:
     """
-    @brief      Entry point for ``waegis new TARGET`` (plan §5, T4.3).
-    @details    Validates the answers seam first (``--non-interactive`` fails
-                loudly, listing every missing required key, before the engine
-                or journal is touched), builds the Wizard N catalog and
-                context, wires the journal (never on ``--dry-run``) and the
-                auto-discovered resume seed, runs the engine, and renders
-                through the T1.3 console/JSON surfaces.
-    @param[in]  target TARGET directory for the new project.
-    @param[in]  stream Output stream (real console or injected buffer).
-    @param[in]  answers_path Optional ``--answers`` TOML/JSON file.
-    @param[in]  dry_run Stop after the plan preview; change nothing, journal
-                nothing.
-    @param[in]  non_interactive Never prompt; require a complete answer set.
-    @param[in]  as_json Emit exactly one frozen-shape JSON document instead of
-                human output.
-    @param[in]  payload Optional ``--payload`` root override (validated before
-                the run starts).
-    @param[in]  stdin Input stream for interactive prompting (default
-                ``sys.stdin``).
-    @param[in]  runner Injectable CommandRunner (default the real subprocess
-                runner).
-    @param[in]  transport Injectable network Transport for ``net.proxy``
-                (default: a real ``SocketTransport`` only when a clone URL is
-                answered).
-    @param[in]  registry_reader Injectable Windows proxy registry reader
-                (default: the real reader on Windows).
-    @param[in]  home WAEGIS home override (default :func:`waegis_home`, which
-                honors ``WAEGIS_HOME``).
-    @return     ``EXIT_OK`` (0) when the run (or dry run) succeeded;
-                ``EXIT_FAILURE`` (1) on validation failure, plan rejection,
-                a declined step, or a failed step.
-    @exception  None Operational failures are reported on ``stream`` and
-                encoded in the exit code.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.2.0
+    @brief      Run the new-project wizard through its five lifecycle phases.
+    @details    Preserves the public CLI/test injection seam while packaging
+                recurring arguments in :class:`CommandOptions`.
+    @return     Standardized command exit code 0/1/2/3.
     """
-    target_path = Path(target).resolve()
-    if as_json:
-        non_interactive = True
-    if non_interactive and yes is False and not dry_run:
-        if as_json:
-            return write_envelope(
-                stream,
-                "new",
-                status="needs-input",
-                exit_code=EXIT_NEEDS_INPUT,
-                messages=("non-interactive mutation requires --yes",),
-            )
-        stream.write("waegis new: non-interactive mutation requires --yes\n")
-        return EXIT_NEEDS_INPUT
-    json_messages: list[str] = []
-
-    # --- roll back an interrupted prior run before touching TARGET ---
-    # A dry run writes nothing, so it must not mutate the target either.
-    if not dry_run:
-        try:
-            recovered = recover_incomplete_transactions(target_path)
-        except (OSError, ValueError) as exc:
-            message = f"could not recover an interrupted transaction: {exc}"
-            if as_json:
-                return write_envelope(
-                    stream, "new", status="error", exit_code=EXIT_OPERATIONAL, messages=(message,)
-                )
-            stream.write(f"waegis new: {message}\n")
-            return EXIT_OPERATIONAL
-        if recovered:
-            message = f"rolled back {len(recovered)} interrupted transaction(s): {', '.join(recovered)}"
-            if as_json:
-                json_messages.append(message)
-            else:
-                stream.write(f"waegis new: {message}\n")
-
-    # --- answers seam (before any engine or journal work) ---
-    answers: dict[str, Any] = {}
-    if answers_path is not None:
-        try:
-            answers = load_answers_file(answers_path)
-        except AnswersFileError as exc:
-            if as_json:
-                return write_envelope(stream, "new", status="failed", exit_code=EXIT_VALIDATION, messages=(str(exc),))
-            stream.write(f"waegis new: {exc}\n")
-            return EXIT_VALIDATION
-    unknown = unknown_keys(answers, NEW_FIELD_SPECS)
-    if unknown:
-        warning = f"unrecognized answer key(s): {', '.join(unknown)}"
-        if as_json:
-            json_messages.append(warning)
-        else:
-            stream.write(f"waegis new: warning: {warning}\n")
-    # --- payload validated and fingerprinted up front ---
-    try:
-        payload_root = locate_payload(payload)
-        payload_inventory = inspect_payload(payload_root)
-        payload_version = read_payload_version(payload_root)
-        if payload_version is None or not is_payload_compatible(payload_version):
-            raise PayloadLocateError(
-                f"payload version {payload_version or 'unknown'!r} is incompatible; expected {PAYLOAD_COMPAT_SPEC}"
-            )
-    except (PayloadLocateError, CopierError, ValueError, OSError) as exc:
-        if as_json:
-            return write_envelope(stream, "new", status="failed", exit_code=EXIT_VALIDATION, messages=(str(exc),))
-        stream.write(f"waegis new: {exc}\n")
-        return EXIT_VALIDATION
-
-    catalog = build_new_catalog()
-    fingerprints = build_journal_fingerprints(
-        command="new",
-        catalog=catalog,
-        target=target_path,
-        answers=answers,
-        payload_digest=payload_inventory.digest,
+    return _run_new_phases(
+        target,
+        options=CommandOptions(
+            stream, stdin, runner, home, yes, dry_run, non_interactive,
+            as_json, answers_path, payload,
+        ),
+        transport=transport,
+        registry_reader=registry_reader,
     )
-    state_home = home if home is not None else waegis_home()
-    resume = None if dry_run else find_resume_journal(state_home, expected_fingerprints=fingerprints)
-    if resume is not None:
-        prior_answers = replay_answers(resume, allowed_keys=(spec.key for spec in NEW_FIELD_SPECS))
-        answers = {**prior_answers, **answers}
-
-    if non_interactive:
-        try:
-            require_non_interactive_answers(_non_interactive_required_specs(answers), answers)
-        except MissingAnswersError as exc:
-            message = "--non-interactive requires a complete answer set; missing: " + ", ".join(exc.keys)
-            if as_json:
-                return write_envelope(stream, "new", status="needs-input", exit_code=EXIT_NEEDS_INPUT, messages=(message,))
-            stream.write("waegis new: " + message + "\n")
-            return EXIT_NEEDS_INPUT
-        except PromptsError as exc:
-            if as_json:
-                return write_envelope(stream, "new", status="failed", exit_code=EXIT_VALIDATION, messages=(f"invalid answer: {exc}",))
-            stream.write(f"waegis new: invalid answer: {exc}\n")
-            return EXIT_VALIDATION
-
-    # --- asker selection (plan §4 item 6) ---
-    if non_interactive:
-        asker: Any = ScriptedAsker(answers, confirms=True)
-    else:
-        console = ConsoleAsker(stdin=stdin if stdin is not None else sys.stdin, stdout=stream)
-        asker = _HybridAsker(answers, console) if answers else console
-    if yes is True:
-        asker = _AutoConfirmAsker(asker)
-
-    # --- shared contract ---
-    clone_url = str(answers.get("clone_url") or "").strip()
-    if runner is None:
-        runner = SubprocessCommandRunner()
-    if transport is None and clone_url:
-        transport = SocketTransport()
-    if registry_reader is None and os.name == "nt":
-        registry_reader = WinInetRegistryReader()
-    shared: dict[str, Any] = {
-        SHARED_TARGET: target_path,
-        SHARED_PAYLOAD_OVERRIDE: payload_root,
-        SHARED_RUNNER: runner,
-        SHARED_TRANSPORT: transport,
-        SHARED_REGISTRY_READER: registry_reader,
-        SHARED_ANSWERS: answers,
-        SHARED_CLONE_URL: clone_url,
-        SHARED_HOME: home,
-    }
-
-    sink: _ConsoleRunSink | _JsonRunSink = _JsonRunSink() if as_json else _ConsoleRunSink(stream)
-    ctx = EngineContext(mode="new", asker=asker, events=sink, shared=shared)
-    # --- journal + resume (never on dry-run: Journal.begin writes immediately) ---
-    journal: Journal | None = None
-    if not dry_run:
-        if resume is not None and not as_json:
-            stream.write(f"resuming compatible incomplete run {resume.run_id}; green steps will be re-detected\n")
-        journal = Journal.begin(
-            mode="new",
-            wizard_version=WIZARD_VERSION,
-            target=str(target_path),
-            dry_run=False,
-            home=home,
-            fingerprints=fingerprints,
-        )
-
-    summary = engine_run(catalog, ctx, dry_run=dry_run, journal=journal, resume=resume)
-
-    # --- output ---
-    if as_json:
-        plan_data = None
-        if isinstance(sink, _JsonRunSink) and sink.plan is not None:
-            plan_data = json.loads(plan_preview_json(sink.plan))
-        if dry_run:
-            return write_envelope(
-                stream,
-                "new",
-                status="ok",
-                exit_code=EXIT_OK,
-                plan=plan_data,
-                messages=json_messages,
-            )
-        else:
-            exit_code = EXIT_OK if summary.ok else (EXIT_NEEDS_INPUT if not summary.results else EXIT_VALIDATION)
-            status = "ok" if summary.ok else ("needs-input" if exit_code == EXIT_NEEDS_INPUT else "failed")
-            return write_envelope(
-                stream,
-                "new",
-                status=status,
-                exit_code=exit_code,
-                plan=plan_data,
-                result=json.loads(run_summary_json(summary)),
-                messages=json_messages,
-            )
-    else:
-        _render_human_outcome(summary, target_path, stream)
-    if summary.ok:
-        return EXIT_OK
-    return EXIT_NEEDS_INPUT if not summary.results else EXIT_VALIDATION
-
-
-def _render_human_outcome(
-    summary: RunSummary,
-    target: Path,
-    stream: IO[str],
-    *,
-    handoff_step_id: str = "handoff.summary",
-) -> None:
-    """
-    @brief      Render the human end-of-run outcome: handoff notes on success,
-                the stopping step's remediation on failure.
-    @param[in]  summary The engine's run summary.
-    @param[in]  target Resolved TARGET path (for the completed-resume message).
-    @param[in]  stream Output stream.
-    @param[in]  handoff_step_id Id of the P5 handoff step whose notes are echoed
-                on success; defaults to Wizard N's ``"handoff.summary"``, Wizard
-                E passes ``"handoff.adoption"``.
-    @details    The success recap is prefixed with a ``=== Summary ... ===``
-                header (0.3.0) marking it as a deliberate, unprefixed re-print
-                of the handoff step's own notes (already shown, bullet-prefixed,
-                in the live step log) rather than an accidental duplicate.
-    @return     None
-    @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-18
-    @version    0.3.0
-    """
-    if summary.dry_run:
-        stream.write("dry run: no changes were made.\n")
-        return
-    if summary.ok:
-        handoff = next((r for r in summary.results if r.step_id == handoff_step_id), None)
-        if handoff is not None and handoff.acted:
-            # Deliberately re-prints the handoff step's own notes (already
-            # shown, prefixed, during the live step log): this is the final,
-            # unprefixed recap the operator copies from, not an accidental
-            # repeat, so a header marks the boundary between "what happened"
-            # (the log above) and "what to do next" (this recap).
-            stream.write("\n=== Summary (recap of the handoff notes above) ===\n")
-            for message in handoff.messages:
-                stream.write(message + "\n")
-        else:
-            stream.write(f"\nAll steps are already complete for {target}.\n")
-        return
-    if not summary.results:
-        stream.write("plan not approved; nothing was changed.\n")
-        return
-    stopped = summary.results[-1]
-    stream.write(f"\nstopped at step: {stopped.step_id} ({stopped.status.value})\n")
-    if stopped.error:
-        stream.write(f"error: {stopped.error}\n")
-    if stopped.failure is not None:
-        stream.write(f"diagnosis:   {stopped.failure.diagnosis}\n")
-        stream.write(f"remediation: {stopped.failure.remediation}\n")
-        if stopped.failure.it_request:
-            stream.write("ask IT (copy the text below):\n")
-            stream.write(f"  {stopped.failure.it_request}\n")
 
 
 # END OF FILE

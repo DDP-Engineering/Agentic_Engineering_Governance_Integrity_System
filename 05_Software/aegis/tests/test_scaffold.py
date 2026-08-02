@@ -16,9 +16,6 @@
 @details WP5 coverage requires every adapter to delegate repository read,
          write, secret, and delivery decisions to configured Python hooks and
          rejects native repository denylists in adapter settings or plugins.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 1.0.0
 """
 
 # IMPORTS
@@ -80,9 +77,6 @@ def test_embedded_cli_package_version_matches_pyproject() -> None:
     @brief      Enforce T13 version parity for the embedded AEGIS CLI package.
     @return     None.
     @exception  AssertionError If package and project metadata versions differ.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.1
     """
     pyproject_path = PACKAGE_ROOT / "template" / ".agentic" / "cli" / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
@@ -103,9 +97,6 @@ def test_edit_hook_configs_pair_write_zone_and_secret_scan(config_relative_path:
                 before a file write occurs.
     @exception  AssertionError If an edit matcher lacks the secret-scan hook or
                 Codex lacks its Windows command twin.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     config_path = PACKAGE_ROOT / "template" / config_relative_path
     data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -142,9 +133,6 @@ def test_write_zone_hook_has_no_builtin_protected_path_policy() -> None:
     @brief      Protected write paths come only from validated workflow policy.
     @return     None.
     @exception  AssertionError If the hook reintroduces a static denylist.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     guard_path = PACKAGE_ROOT / "template" / ".agentic" / "hooks" / "guard_write_zone.py"
     source = guard_path.read_text(encoding="utf-8")
@@ -163,9 +151,6 @@ def test_json_adapter_configs_delegate_reads_to_shared_hook(
     @param[in]  config_relative_path Adapter hook configuration below template.
     @return     None.
     @exception  AssertionError If configured reads bypass shared policy.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     data = json.loads(
         (PACKAGE_ROOT / "template" / config_relative_path).read_text(encoding="utf-8")
@@ -199,9 +184,6 @@ def test_strict_host_configs_use_only_supported_top_level_keys(config_relative_p
                 Valid JSON is not a loadable host config; only the host's own
                 key set decides that.
     @exception  AssertionError If the config carries a key its host rejects.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     allowed = STRICT_HOST_CONFIG_KEYS[config_relative_path]
     data = json.loads((PACKAGE_ROOT / "template" / config_relative_path).read_text(encoding="utf-8"))
@@ -229,9 +211,6 @@ def test_tolerant_host_config_annotations_stay_underscore_prefixed(config_relati
                 :func:`test_strict_host_configs_use_only_supported_top_level_keys`
                 instead, where annotations are not permitted at all.
     @exception  AssertionError If a `_`-prefixed annotation convention is broken.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     config_path = PACKAGE_ROOT / "template" / config_relative_path
     data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -252,9 +231,6 @@ def test_adapters_contain_no_native_repository_denylist() -> None:
     @brief      Adapter assets delegate policy without static path/command rules.
     @return     None.
     @exception  AssertionError If a duplicate repository denylist remains.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     template = PACKAGE_ROOT / "template"
     for relative in (Path(".claude/settings.json"), Path(".qwen/settings.json")):
@@ -295,9 +271,6 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.4.0
     """
     target = tmp_path / "new-project"
 
@@ -364,9 +337,6 @@ def test_scaffold_ships_polyform_license_in_agentic(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-21
-    @version    0.2.0
     """
     target = tmp_path / "new-project"
 
@@ -389,9 +359,6 @@ def test_scaffold_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     target = tmp_path / "new-project"
     target.mkdir()
@@ -407,9 +374,6 @@ def test_scaffold_existing_repo_requires_existing_target(tmp_path: Path) -> None
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-23
-    @version    0.3.0
     """
     target = tmp_path / "missing-existing-repo"
 
@@ -428,9 +392,6 @@ def test_scaffold_dry_run_does_not_write_files(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-23
-    @version    0.3.0
     """
     target = tmp_path / "existing-repo"
     target.mkdir()
@@ -456,9 +417,6 @@ def test_scaffold_writes_install_manifest(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.2.0
     """
     target = tmp_path / "new-project"
 
@@ -483,9 +441,6 @@ def test_scaffold_dry_run_writes_no_manifest(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.2.0
     """
     target = tmp_path / "existing-repo"
     target.mkdir()
@@ -509,16 +464,26 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     template = tmp_path / "template"
     target = tmp_path / "new-project"
-    (template / "pkg" / "__pycache__").mkdir(parents=True)
-    (template / "pkg" / "__pycache__" / "module.pyc").write_bytes(b"cache")
-    (template / ".pytest_cache").mkdir()
-    (template / ".pytest_cache" / "README.md").write_text("cache\n", encoding="utf-8")
+    excluded_files = (
+        template / "pkg" / "__pycache__" / "module.pyc",
+        template / "pkg" / "optimized.pyo",
+        template / ".pytest_cache" / "README.md",
+        template / ".mypy_cache" / "state.json",
+        template / ".ruff_cache" / "state",
+        template / ".hypothesis" / "examples",
+        template / ".tox" / "state",
+        template / ".nox" / "state",
+        template / ".uv_cache" / "archive.bin",
+        template / ".coverage",
+        template / "coverage.xml",
+        template / "htmlcov" / "index.html",
+    )
+    for path in excluded_files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"generated")
     (template / "src").mkdir()
     (template / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
 
@@ -526,8 +491,8 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
 
     assert result.copied == ("src/app.py",)
     assert (target / "src" / "app.py").exists()
-    assert not (target / "pkg" / "__pycache__").exists()
-    assert not (target / ".pytest_cache").exists()
+    for path in excluded_files:
+        assert not (target / path.relative_to(template)).exists()
 
 
 # END OF FILE

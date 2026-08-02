@@ -15,9 +15,6 @@
          Python installation. The pointer is deliberately a one-line text file
          so PowerShell, POSIX shell, and Node adapters can all read it without
          needing Python or an additional JSON parser.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.1.0
 """
 
 # IMPORTS
@@ -25,6 +22,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from pathlib import Path
 
 from .engine.journal import waegis_home
@@ -70,7 +68,9 @@ def register_runtime(python_executable: str | os.PathLike[str]) -> Path:
     """
     executable = _validated_executable(python_executable)
     pointer = runtime_pointer_path()
-    temporary = pointer.with_name(pointer.name + ".tmp")
+    # A unique temp name keeps two concurrent packaged launchers from racing
+    # on the same sibling file.
+    temporary = pointer.with_name(f"{pointer.name}.{os.getpid()}-{uuid.uuid4().hex}.tmp")
     try:
         pointer.parent.mkdir(parents=True, exist_ok=True)
         temporary.write_text(f"{executable}\n", encoding="utf-8")

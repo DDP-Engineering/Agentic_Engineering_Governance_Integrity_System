@@ -8,15 +8,12 @@
 # -----------------------------------------------------------------------------
 """
 @file workflow_toml.py
-@brief Strict schema-version-2 workflow.toml generator and validator.
+@brief Strict schema-version-3 workflow.toml generator and validator.
 @details Serves new, adopt, configure, repair, and doctor with one complete
          policy-neutral schema. Structural answers and repository policy are
          independent: every policy mode and every active rule set is supplied
          explicitly, rendered through targeted comment-preserving edits, then
          parsed and validated before the generated text can be saved.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-13
-@version 1.2.0
 """
 
 # IMPORTS
@@ -29,20 +26,22 @@ import shlex
 import tomllib
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
-from ..io.prompts import FieldSpec
+from ..io.prompts import FieldSpec, ValidationError
 
 # CONSTANTS
 
 # @brief Glob characters forbidden in structural repository roots.
 _ROOT_FORBIDDEN_CHARS = frozenset("*?[]")
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+GATE_ORDER = ("build", "typecheck", "lint", "test", "security")
 ALL_STAGES = (
     "intake",
     "alignment",
     "requirement",
+    "design",
     "check",
     "implementation",
     "validation",
@@ -67,7 +66,11 @@ POLICY_MODE_CHOICES: dict[str, tuple[str, ...]] = {
     "coverage_mode": ("disabled", "enforce"),
     "source_changes_mode": ("unrestricted", "blocked"),
     "alignment_protected_scope_mode": ("disabled", "enforce"),
-    "gates_mode": ("disabled", "enforce"),
+    "gate_build_mode": ("disabled", "enforce"),
+    "gate_typecheck_mode": ("disabled", "enforce"),
+    "gate_lint_mode": ("disabled", "enforce"),
+    "gate_test_mode": ("disabled", "enforce"),
+    "gate_security_mode": ("disabled", "enforce"),
     "secrets_mode": ("disabled", "enforce"),
     "protected_paths_mode": ("disabled", "enforce"),
     "working_tree_mode": ("unrestricted", "restricted"),
@@ -89,9 +92,6 @@ _KEY_RE = re.compile(r"^(?P<indent>\s*)(?P<key>[A-Za-z0-9_-]+)\s*=\s*(?P<value>.
 class WorkflowTomlError(ValueError):
     """
     @brief Base class for every error raised by the workflow.toml generator.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
 
@@ -101,9 +101,6 @@ class BaseFileMismatchError(WorkflowTomlError):
     @details Covers a base that does not parse as TOML at all, and a base that
              parses but lacks a section/key this generator owns — emitting a
              workflow.toml with missing settings would be worse than failing.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
 
@@ -112,9 +109,6 @@ class LanguagePresetError(WorkflowTomlError):
     @brief Raised for an unknown language or an incomplete "other" answer.
     @details Enforces plan §7 invariant 6: ``"other"`` requires the caller to
              supply ``source_extensions`` and ``test_file_patterns`` explicitly.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
 
@@ -126,9 +120,6 @@ class InvariantViolationError(WorkflowTomlError):
              invariant (1–4 for the re-checked properties; 5 for a round-trip
              failure — unparseable output or a generated value disagreeing
              with the intended answer).
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     def __init__(self, invariant: int, message: str) -> None:
@@ -137,8 +128,6 @@ class InvariantViolationError(WorkflowTomlError):
         @param[in]  invariant Plan §7 invariant number that failed (1–5).
         @param[in]  message What exactly disagreed.
         @return     None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         super().__init__(f"workflow.toml invariant {invariant} violated: {message}")
         self.invariant = invariant
@@ -152,9 +141,6 @@ class LanguagePreset:
              ``source_extensions`` / ``test_file_patterns`` feed the matching
              keys. Extending the preset table means adding one
              :data:`LANGUAGE_PRESETS` entry — no code changes.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     language: str
@@ -168,9 +154,6 @@ class GateWarning:
     @brief Structured warning for a gate configured empty (plan §7).
     @details Returned alongside the generated text; the calling step (T4.3)
              journals/prints it — this module never does.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     gate: str
@@ -181,9 +164,6 @@ class GateWarning:
 class GeneratedWorkflow:
     """
     @brief Result of :func:`generate_workflow_toml`: text plus warning records.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-13
-    @version 0.1.0
     """
 
     text: str
@@ -259,9 +239,6 @@ def normalize_roots(raw: Any) -> list[str]:
                 message names the offending root. (Raised as plain
                 ``ValueError`` so ``FieldSpec.normalize`` converts it to the
                 prompt layer's ``ValidationError``.)
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if isinstance(raw, str):
         items = [part.strip() for part in raw.split(",") if part.strip()]
@@ -296,9 +273,6 @@ def normalize_language(raw: Any) -> str:
                 ``"other"``).
     @exception  ValueError If the value is not a supported language; the
                 message lists the supported values.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if not isinstance(raw, str):
         raise ValueError("language must be a string")
@@ -326,9 +300,6 @@ def normalize_gate_commands(raw: Any) -> list[str]:
     @param[in]  raw Candidate answer value.
     @return     Canonical list of non-empty command strings.
     @exception  ValueError If the value is not a supported command list.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.3.0
     """
     if isinstance(raw, str):
         try:
@@ -365,9 +336,6 @@ def normalize_bool(raw: Any) -> bool:
     @param[in]  raw Candidate answer value: a bool, or a yes/no-style string.
     @return     The boolean value.
     @exception  ValueError If the value is not recognizably boolean.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if isinstance(raw, bool):
         return raw
@@ -386,9 +354,6 @@ def normalize_rule_list(raw: Any) -> list[str]:
     @param[in]  raw JSON list text or a sequence of strings.
     @return     Unique stripped strings in input order.
     @exception  ValueError If the input is not a list of non-empty strings.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     if isinstance(raw, str):
         try:
@@ -414,9 +379,6 @@ def normalize_stage_map(raw: Any) -> dict[str, list[str]]:
     @param[in]  raw JSON object text or a mapping.
     @return     Complete stage mapping with normalized rule lists.
     @exception  ValueError If the mapping is malformed, incomplete, or unknown.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     if isinstance(raw, str):
         try:
@@ -432,11 +394,15 @@ def normalize_stage_map(raw: Any) -> dict[str, list[str]]:
     return {stage: normalize_rule_list(raw[stage]) for stage in ALL_STAGES}
 
 
-def _mode_validator(key: str):  # type: ignore[no-untyped-def]
-    """@brief Build a FieldSpec validator for one ratified policy mode."""
+def _mode_validator(key: str) -> Callable[[Any], str]:
+    """
+    @brief Build a FieldSpec validator for one ratified policy mode.
+    """
 
     def validate(raw: Any) -> str:
-        """@brief Normalize and validate one policy-mode answer."""
+        """
+        @brief Normalize and validate one policy-mode answer.
+        """
         if not isinstance(raw, str):
             raise ValueError("policy mode must be a string")
         value = raw.strip()
@@ -448,8 +414,26 @@ def _mode_validator(key: str):  # type: ignore[no-untyped-def]
     return validate
 
 
+def _choice_value(raw: Any, choices: tuple[str, ...], name: str) -> str:
+    """
+    @brief      Normalize one non-policy enumerated workspace answer.
+    @param[in]  raw Candidate answer.
+    @param[in]  choices Supported values.
+    @param[in]  name Field name used in diagnostics.
+    @return     Normalized choice.
+    """
+    if not isinstance(raw, str) or raw.strip() not in choices:
+        raise ValueError(f"{name} expected one of: {', '.join(choices)}")
+    return raw.strip()
+
+
 def normalize_completion_level(raw: Any) -> str:
-    """@brief Normalize a component baseline completion threshold."""
+    """
+    @brief      Normalize a component baseline completion threshold answer.
+    @param[in]  raw Candidate answer value.
+    @return     The validated completion-level string.
+    @exception  ValueError If the value is not one of :data:`COMPLETION_LEVELS`.
+    """
     if not isinstance(raw, str) or raw.strip() not in COMPLETION_LEVELS:
         raise ValueError(f"expected one of: {', '.join(COMPLETION_LEVELS)}")
     return raw.strip()
@@ -464,9 +448,6 @@ def _normalize_name_list(raw: Any, *, what: str) -> tuple[str, ...]:
     @return     The values as a tuple of stripped strings.
     @exception  LanguagePresetError If the value is not a non-empty sequence of
                 non-empty strings.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if isinstance(raw, str) or not isinstance(raw, Sequence):
         raise LanguagePresetError(f"{what} must be a list of strings")
@@ -483,9 +464,6 @@ def _toml_string(value: str) -> str:
     @return     The double-quoted TOML representation with ``\\``, ``"`` and
                 common control characters escaped.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     escaped = (
         value.replace("\\", "\\\\")
@@ -504,9 +482,6 @@ def _toml_value(value: Any) -> str:
     @return     The single-line TOML representation.
     @exception  WorkflowTomlError If the value's type is not one this generator
                 emits.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -523,9 +498,6 @@ def _line_ending(line: str) -> str:
     @param[in]  line One line from ``splitlines(keepends=True)``.
     @return     ``"\\r\\n"``, ``"\\n"``, or ``""`` (final line without newline).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if line.endswith("\r\n"):
         return "\r\n"
@@ -545,9 +517,6 @@ def _scan_bracket_depth(fragment: str, depth: int) -> int:
     @param[in]  depth Bracket depth carried in from the previous line.
     @return     The bracket depth after this line.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     in_string: str | None = None
     escaped = False
@@ -589,9 +558,6 @@ def _apply_answers(base_text: str, owned: Mapping[tuple[str, str], Any]) -> str:
     @return     The rewritten text.
     @exception  BaseFileMismatchError If any owned key was not found in the
                 base text.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     lines = base_text.splitlines(keepends=True)
     output: list[str] = []
@@ -653,9 +619,6 @@ def _verify_unchanged_against_base(
     @exception  InvariantViolationError Invariant 4 for a drifted non-owned
                 value or a structural change; invariant 5 for an owned value
                 that does not match the intended answer.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     if set(base_document) != set(generated_document):
         raise InvariantViolationError(4, "generated file's top-level sections differ from the base file's")
@@ -680,24 +643,27 @@ def _verify_unchanged_against_base(
                 raise InvariantViolationError(4, f"[{section}].{key} changed without an answer")
 
 
-def _empty_gate_warnings(gate_test_cmds: Sequence[Any], gate_lint_cmds: Sequence[Any]) -> tuple[GateWarning, ...]:
+def _empty_gate_warnings(
+    gate_commands: Mapping[str, Sequence[Any]],
+    gate_modes: Mapping[str, str],
+) -> tuple[GateWarning, ...]:
     """
     @brief      Build the structured empty-gate warnings (plan §7).
-    @param[in]  gate_test_cmds Normalized [gates].test command list.
-    @param[in]  gate_lint_cmds Normalized [gates].lint command list.
-    @return     One :class:`GateWarning` per empty gate (possibly none).
+    @param[in]  gate_commands Normalized command list for each gate in
+                :data:`GATE_ORDER`.
+    @param[in]  gate_modes Configured mode ("disabled"/"enforce") for each
+                gate in :data:`GATE_ORDER`.
+    @return     One :class:`GateWarning` per gate that is enforced but has no
+                commands (possibly none).
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     warnings: list[GateWarning] = []
-    for gate, commands in (("test", gate_test_cmds), ("lint", gate_lint_cmds)):
-        if not commands:
+    for gate in GATE_ORDER:
+        if gate_modes[gate] == "enforce" and not gate_commands[gate]:
             warnings.append(
                 GateWarning(
                     gate=gate,
-                    message=f"gate '{gate}' is configured empty and will pass without checking anything",
+                    message=f"gate '{gate}' is enforced but has no commands",
                 )
             )
     return tuple(warnings)
@@ -712,10 +678,11 @@ def _empty_gate_warnings(gate_test_cmds: Sequence[Any], gate_lint_cmds: Sequence
 WORKFLOW_FIELD_SPECS: tuple[FieldSpec, ...] = (
     FieldSpec(
         key="source_roots",
+        question="Where does your source code live?",
         description=(
-            "Folders that hold your implementation code. The workflow uses them "
-            "to know which files need requirement coverage and where the "
-            "implementation stage may write."
+            "Marks these folders as production code: coverage checks, scope "
+            "advisories, and write restrictions (when you enable them below) "
+            "apply here, and the implementation stage may write here."
         ),
         example="src, app",
         default=["src"],
@@ -723,9 +690,10 @@ WORKFLOW_FIELD_SPECS: tuple[FieldSpec, ...] = (
     ),
     FieldSpec(
         key="test_roots",
+        question="Where do your tests live?",
         description=(
-            "Folders that hold your tests. The workflow uses them to resolve "
-            "linked tests and to know where the check stage may write."
+            "Folders where linked tests are looked up when checking that "
+            "requirements are covered, and where the check stage may write."
         ),
         example="tests",
         default=["tests"],
@@ -733,43 +701,39 @@ WORKFLOW_FIELD_SPECS: tuple[FieldSpec, ...] = (
     ),
     FieldSpec(
         key="language",
+        question="Which language is this project mainly written in?",
         description=(
-            "Main programming language of the project. It selects which file "
-            "extensions count as source code and how test files are recognized; "
-            "choose 'other' to supply those directly."
+            "Selects which file extensions count as source code and how a "
+            "linked test is resolved for that language; nothing language-specific "
+            "is installed. Choose 'other' to supply those directly."
         ),
         example="python",
         default="python",
         validator=normalize_language,
     ),
-    FieldSpec(
-        key="gate_test_cmds",
-        description=(
-            "Commands the workflow runs as the 'test' gate, each as a list of "
-            "argv strings. An empty list is allowed but the gate then passes "
-            "without checking anything."
-        ),
-        example='[["uv", "run", "pytest", "-q"]]',
-        default=[],
-        validator=normalize_gate_commands,
-    ),
-    FieldSpec(
-        key="gate_lint_cmds",
-        description=(
-            "Commands the workflow runs as the 'lint' gate, each as a list of "
-            "argv strings. An empty list is allowed but the gate then passes "
-            "without checking anything."
-        ),
-        example='[["ruff", "check", "."]]',
-        default=[],
-        validator=normalize_gate_commands,
+    *tuple(
+        FieldSpec(
+            key=f"gate_{name}_cmds",
+            question=f"Command(s) for the {name} gate?",
+            description=(
+                f"Run exactly as given, from the repo root, when the {name} gate "
+                "is enforced. Multiple commands run in order; the first failure "
+                "fails the gate. Commands remain stored (but unused) while the "
+                "gate is disabled."
+            ),
+            example="[]",
+            default=[],
+            validator=normalize_gate_commands,
+        )
+        for name in GATE_ORDER
     ),
     FieldSpec(
         key="alignment_enabled",
+        question="Record an intent-alignment stage before requirement and spec work?",
         description=(
-            "Whether the intent-alignment stage is recorded before requirement "
-            "and spec work. Recommended on; turn off only if your process "
-            "records intent elsewhere."
+            "When on, every run captures an approved alignment record before "
+            "requirement/design work proceeds. Recommended on; turn off only if "
+            "your process records intent elsewhere."
         ),
         example="true",
         default=True,
@@ -777,164 +741,392 @@ WORKFLOW_FIELD_SPECS: tuple[FieldSpec, ...] = (
     ),
 )
 
-# @brief Explicit schema-version-2 policy answers. Empty rule collections are
+# @brief Explicit schema-version-3 policy answers. Empty rule collections are
 #        still collected so disabled/unrestricted modes remain unambiguous.
 WORKFLOW_FIELD_SPECS = (
     *WORKFLOW_FIELD_SPECS,
     FieldSpec(
         key="baseline_guard_mode",
-        description="Component baseline guard mode.",
+        question="Enforce a component baseline before behavior changes?",
+        description=(
+            "When enforced, a behavior-changing run may only touch components "
+            "whose documented completion level (in the component manifest) "
+            "meets the minimum you set below — protecting poorly-understood "
+            "legacy components from casual modification. Disabled means no "
+            "restriction."
+        ),
         example="disabled",
         default="disabled",
         validator=_mode_validator("baseline_guard_mode"),
     ),
     FieldSpec(
         key="baseline_minimum_completion_level",
-        description="Minimum component completion level when the baseline guard is enforced.",
+        question="Minimum component completion level required, when the baseline guard is enforced?",
+        description=(
+            "Only used when the baseline guard above is enforced: a run is "
+            "blocked from touching a component documented below this level."
+        ),
         example="baseline-usable",
         default="baseline-usable",
         validator=normalize_completion_level,
     ),
     FieldSpec(
         key="coverage_mode",
-        description="Requirement coverage audit mode.",
+        question="Enforce requirement coverage for source files?",
+        description=(
+            "When enforced, every file under the coverable roots below must be "
+            "touched by at least one Active requirement with a resolvable test, "
+            "or be listed in the coverage waiver file; missing coverage blocks "
+            "validation. Start disabled and enable once your requirement "
+            "register is populated."
+        ),
         example="disabled",
         default="disabled",
         validator=_mode_validator("coverage_mode"),
     ),
     FieldSpec(
         key="coverage_roots",
-        description="Coverable roots used only when coverage mode is enforce.",
+        question="Which roots are subject to coverage enforcement?",
+        description="Only read when coverage is enforced above; every file under these folders needs a covering requirement.",
         example='["src"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="coverage_exclude",
-        description="Coverage exclusion globs used only when coverage is enforced.",
+        question="Any globs to exclude from coverage enforcement?",
+        description="Only read when coverage is enforced above; matching files never need a covering requirement.",
         example='["**/__init__.py"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="source_changes_mode",
-        description="Adoption source-change policy mode.",
+        question="Allow adoption runs to modify source files?",
+        description=(
+            "Adoption runs document existing behavior; 'blocked' guarantees an "
+            "adoption run cannot alter it by rejecting application source "
+            "changes at delivery. 'unrestricted' places no such restriction."
+        ),
         example="unrestricted",
         default="unrestricted",
         validator=_mode_validator("source_changes_mode"),
     ),
     FieldSpec(
         key="alignment_protected_scope_mode",
-        description="Alignment protected-scope mode.",
+        question="Require the intent-alignment stage to name protected scope patterns?",
+        description=(
+            "Recorded and schema-validated (enforce requires the alignment "
+            "stage above to be on); this repository does not yet have a "
+            "runtime check that blocks or flags changes to the patterns below, "
+            "so treat this as forward-looking configuration for now."
+        ),
         example="disabled",
         default="disabled",
         validator=_mode_validator("alignment_protected_scope_mode"),
     ),
     FieldSpec(
         key="alignment_protected_scope_patterns",
-        description="Protected alignment scope globs used only in enforce mode.",
+        question="Which path globs make up that protected alignment scope?",
+        description="Only read when the mode above is enforce; recorded alongside the alignment stage for future enforcement.",
         example='["infra/**"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
-        key="gates_mode",
-        description="Validation gate execution mode.",
-        example="disabled",
-        default="disabled",
-        validator=_mode_validator("gates_mode"),
+        key="stage_form_retention",
+        question="Keep, version, or discard stage forms after import?",
+        description=(
+            "versioned keeps every revision of a transient stage input form "
+            "under the run folder (full audit trail); latest keeps only the "
+            "newest; discard deletes the form after import (leanest repo). "
+            "Durable records — requirements, design, evidence, journals — are "
+            "kept either way."
+        ),
+        example="discard",
+        default="discard",
+        validator=lambda value: _choice_value(
+            value, ("versioned", "latest", "discard"), "stage_form_retention"
+        ),
+    ),
+    FieldSpec(
+        key="check_execution",
+        question="Who executes check commands?",
+        description=(
+            "external: the agent runs the commands itself and imports the "
+            "results as evidence (works in any environment); managed: the CLI "
+            "executes the imported commands itself (stronger evidence, "
+            "requires commands runnable from the CLI's environment)."
+        ),
+        example="external",
+        default="external",
+        validator=lambda value: _choice_value(
+            value, ("external", "managed"), "check_execution"
+        ),
+    ),
+    *tuple(
+        FieldSpec(
+            key=f"gate_{name}_mode",
+            question=f"Enable the {name} gate?",
+            description=(
+                f"When enforced, verification runs the {name} commands below "
+                "and a failure blocks validation until fixed or explicitly "
+                "waived with a recorded reason. When disabled, reports honestly "
+                "say 'disabled' — never 'passed'."
+            ),
+            example="disabled",
+            default="disabled",
+            validator=_mode_validator(f"gate_{name}_mode"),
+        )
+        for name in GATE_ORDER
     ),
     FieldSpec(
         key="secrets_mode",
-        description="Secret scanning mode.",
+        question="Scan for secrets before validation?",
+        description=(
+            "When enforced, tool input matching the patterns below is blocked "
+            "live during the session, and the working tree is scanned again at "
+            "validation (waivable with a recorded reason). Disabled means no "
+            "scanning."
+        ),
         example="disabled",
         default="disabled",
         validator=_mode_validator("secrets_mode"),
     ),
     FieldSpec(
         key="secret_patterns",
-        description="Python regular expressions used only when secret scanning is enforced.",
+        question="Which regular expressions identify a secret?",
+        description="Only read when secret scanning is enforced above; each is a Python regular expression checked against tool input and file contents.",
         example='["token-[0-9]+"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="protected_paths_mode",
-        description="Protected repository path mode.",
+        question="Protect specific paths from modification?",
+        description=(
+            "When enforced, the agent hooks deny reads and/or writes (per the "
+            "operations you choose below) to matching paths, and a matching "
+            "path left in the working tree is flagged as a blocking finding at "
+            "validation — useful for files an agent should never touch, e.g. "
+            "migrations or LICENSE.txt."
+        ),
         example="disabled",
         default="disabled",
         validator=_mode_validator("protected_paths_mode"),
     ),
     FieldSpec(
         key="protected_path_patterns",
-        description="Protected repository path globs used only in enforce mode.",
+        question="Which path globs are protected?",
+        description="Only read when protection is enforced above.",
         example='["private/**"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="protected_path_operations",
-        description="Protected operations: read and/or write.",
+        question="Protect against read, write, or both?",
+        description="Only read when protection is enforced above; read blocks the agent from opening matching files, write blocks it from editing them.",
         example='["read", "write"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="working_tree_mode",
-        description="Working-tree blocker mode.",
+        question="Block suspicious working-tree patterns?",
+        description=(
+            "When restricted, a file matching the patterns below (e.g. "
+            "credentials*, *.env) present anywhere in the working tree is "
+            "flagged as a blocking finding until it is removed or reviewed. "
+            "Unrestricted means no such check."
+        ),
         example="unrestricted",
         default="unrestricted",
         validator=_mode_validator("working_tree_mode"),
     ),
     FieldSpec(
         key="working_tree_blocked_patterns",
-        description="Working-tree blocker globs used only in restricted mode.",
+        question="Which path globs are blocked from the working tree?",
+        description="Only read when restricted above.",
         example='["dist/**"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="write_access_mode",
-        description="Write access policy mode.",
+        question="Restrict which folders may be written during each stage?",
+        description=(
+            "When stage_restricted, the agent hooks deny writes outside the "
+            "folders allowed for the current stage below — e.g. during the "
+            "check stage the agent may write only under tests/, which prevents "
+            "it from editing source code just to make its own test cases pass. "
+            "Unrestricted means no folder restriction."
+        ),
         example="unrestricted",
         default="unrestricted",
         validator=_mode_validator("write_access_mode"),
     ),
     FieldSpec(
         key="write_access_stages",
-        description="Complete stage-to-glob JSON mapping for stage_restricted mode.",
+        question="Which folders may each stage write to?",
+        description="Only read when write access is stage_restricted above; a complete mapping of every stage to its allowed write globs (an empty list means read-only for that stage).",
         example='{"intake": [], "implementation": ["src/**"]}',
         default={stage: [] for stage in ALL_STAGES},
         validator=normalize_stage_map,
     ),
     FieldSpec(
         key="scope_mode",
-        description="Repository scope checking mode.",
+        question="Check whether a run stays within its declared scope?",
+        description=(
+            "enforce blocks a run whose touched paths fall outside the allowed "
+            "roots below; advisory reports the same finding without blocking, "
+            "so scope creep is visible without stopping work; unrestricted "
+            "runs no such check."
+        ),
         example="unrestricted",
         default="unrestricted",
         validator=_mode_validator("scope_mode"),
     ),
     FieldSpec(
         key="scope_allowed_roots",
-        description="Allowed roots used only in advisory or enforce scope mode.",
+        question="Which roots are in scope?",
+        description="Only read in advisory or enforce scope mode above; a touched path outside every listed root triggers the finding.",
         example='["src"]',
         default=[],
         validator=normalize_rule_list,
     ),
     FieldSpec(
         key="delivery_mode",
-        description="Outward-delivery preflight hook mode.",
+        question="Guard outward delivery commands?",
+        description=(
+            "When enforced, a shell command containing one of the text "
+            "fragments below (e.g. git push, gh pr create) is blocked by the "
+            "agent hooks until deterministic verification passes and the "
+            "delivery stage is closed — the agent cannot push before the "
+            "workflow is complete."
+        ),
         example="disabled",
         default="disabled",
         validator=_mode_validator("delivery_mode"),
     ),
     FieldSpec(
         key="delivery_command_patterns",
-        description="Lowercase command fragments used only when delivery mode is enforce.",
+        question="Which command-text fragments count as outward delivery?",
+        description=(
+            "Only read when delivery guarding is enforced above; each is "
+            "matched as a lowercase substring of the command, not a glob "
+            "(e.g. 'git push', not 'git push*')."
+        ),
         example='["git push"]',
         default=[],
         validator=normalize_rule_list,
     ),
+)
+
+
+def _normalize_string_list(raw: Any) -> list[str]:
+    """
+    @brief      Validate a list-of-names answer (extensions/patterns for the
+                ``other`` language).
+    @param[in]  raw A comma-separated string (console input) or a sequence of
+                strings (answers file).
+    @return     The non-empty list of stripped values.
+    @exception  ValueError If no non-empty value is present.
+    """
+    if isinstance(raw, str):
+        items = [part.strip() for part in raw.split(",") if part.strip()]
+    elif isinstance(raw, Sequence):
+        items = [str(part).strip() for part in raw]
+    else:
+        raise ValueError("expected a comma-separated string or a list of strings")
+    if not items or any(not item for item in items):
+        raise ValueError("at least one non-empty value is required")
+    return items
+
+
+# @brief Extra answer fields required only when language == "other" (plan §7
+#        invariant 6). No default: they are genuinely required in that branch.
+#        Kept beside :data:`WORKFLOW_FIELD_SPECS` because both tables describe
+#        the same generator's answer surface — the durable answer key set and
+#        the workflow.toml reconstruction below are derived from the pair.
+OTHER_LANGUAGE_FIELD_SPECS: tuple[FieldSpec, ...] = (
+    FieldSpec(
+        key="source_extensions",
+        question="File extension of your source files?",
+        description=(
+            "Lets the traceability check resolve source files for a language it "
+            "has no built-in preset for."
+        ),
+        example=".sql, .prc",
+        validator=_normalize_string_list,
+    ),
+    FieldSpec(
+        key="test_file_patterns",
+        question="How is a single test file recognized in your test runner?",
+        description=(
+            "Lets the traceability check resolve 'this requirement is covered "
+            "by that test' for a language it has no built-in preset for."
+        ),
+        example="test_*.sql",
+        validator=_normalize_string_list,
+    ),
+)
+
+# @brief Every answer key this generator owns — the allowlist for the durable
+#        answer set persisted in the install manifest's ``configuration``.
+#        Derived from the spec tables so a new field joins it automatically.
+GENERATOR_ANSWER_KEYS: frozenset[str] = frozenset(
+    spec.key for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS)
+)
+
+# @brief Where each owned answer lands in workflow.toml, as
+#        ``(dotted section, key)``. Single source of truth: the generator builds
+#        its rewrite table from these entries, and
+#        :func:`derive_answers_from_workflow` reads the same entries back, so
+#        the two directions cannot drift apart.
+OWNED_ANSWER_LOCATIONS: dict[str, tuple[str, str]] = {
+    "source_roots": ("source", "roots"),
+    "test_roots": ("tests", "roots"),
+    "language": ("traceability", "language"),
+    "source_extensions": ("traceability", "source_extensions"),
+    "test_file_patterns": ("traceability", "test_file_patterns"),
+    "baseline_guard_mode": ("components.baseline_guard", "mode"),
+    "baseline_minimum_completion_level": (
+        "components.baseline_guard",
+        "minimum_completion_level",
+    ),
+    "coverage_mode": ("traceability.coverage", "mode"),
+    "coverage_roots": ("traceability.coverage", "coverable_roots"),
+    "coverage_exclude": ("traceability.coverage", "exclude"),
+    "source_changes_mode": ("adoption.source_changes", "mode"),
+    "alignment_enabled": ("alignment", "enabled"),
+    "alignment_protected_scope_mode": ("alignment.protected_scope", "mode"),
+    "alignment_protected_scope_patterns": ("alignment.protected_scope", "patterns"),
+    "stage_form_retention": ("interface", "stage_form_retention"),
+    "check_execution": ("interface", "check_execution"),
+    **{f"gate_{name}_mode": (f"gates.{name}", "mode") for name in GATE_ORDER},
+    **{f"gate_{name}_cmds": (f"gates.{name}", "commands") for name in GATE_ORDER},
+    "secrets_mode": ("guardrails.secrets", "mode"),
+    "secret_patterns": ("guardrails.secrets", "patterns"),
+    "protected_paths_mode": ("guardrails.protected_paths", "mode"),
+    "protected_path_patterns": ("guardrails.protected_paths", "patterns"),
+    "protected_path_operations": ("guardrails.protected_paths", "operations"),
+    "working_tree_mode": ("guardrails.working_tree", "mode"),
+    "working_tree_blocked_patterns": ("guardrails.working_tree", "blocked_patterns"),
+    "write_access_mode": ("guardrails.write_access", "mode"),
+    "write_access_stages": ("guardrails.write_access", "stages"),
+    "scope_mode": ("guardrails.scope", "mode"),
+    "scope_allowed_roots": ("guardrails.scope", "allowed_roots"),
+    "delivery_mode": ("guardrails.delivery", "mode"),
+    "delivery_command_patterns": ("guardrails.delivery", "command_patterns"),
+}
+
+# @brief Owned answers whose target is written only under a policy condition:
+#        the baseline threshold exists only while the guard is enforced, and the
+#        per-stage write table only while write access is stage-restricted.
+#        Every other owned answer is present in every generated file.
+CONDITIONAL_ANSWER_KEYS: frozenset[str] = frozenset(
+    {"baseline_minimum_completion_level", "write_access_stages"}
 )
 
 
@@ -960,9 +1152,6 @@ def resolve_language_preset(
     @exception  LanguagePresetError If the language is unsupported, or
                 ``"other"`` is chosen without both explicit lists, or an
                 explicit list is malformed.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     try:
         language = normalize_language(language)
@@ -986,7 +1175,7 @@ def resolve_language_preset(
     return preset
 
 
-# SCHEMA-VERSION-2 PUBLIC API
+# SCHEMA-VERSION-3 PUBLIC API
 
 
 def _schema_closed(
@@ -996,7 +1185,7 @@ def _schema_closed(
     unknown = [key for key in table if key not in allowed]
     if unknown:
         key_path = f"{dotted_path}.{unknown[0]}" if dotted_path else unknown[0]
-        raise InvariantViolationError(1, f"{key_path} is not part of schema version 2")
+        raise InvariantViolationError(1, f"{key_path} is not part of schema version 3")
 
 
 def _schema_table(
@@ -1174,15 +1363,12 @@ def verify_workflow_schema(
     document: Mapping[str, Any], *, repo_root: Path | None = None
 ) -> None:
     """
-    @brief      Validate the complete policy-neutral workflow schema version 2.
+    @brief      Validate the complete policy-neutral workflow schema version 3.
     @param[in]  document Parsed workflow.toml mapping.
     @param[in]  repo_root Optional repository root for filesystem-dependent
                 baseline-manifest validation.
     @return     None.
     @exception  InvariantViolationError If the schema or policy is invalid.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     top_level = (
         "schema_version",
@@ -1196,12 +1382,16 @@ def verify_workflow_schema(
         "traceability",
         "adoption",
         "alignment",
+        "interface",
         "gates",
         "guardrails",
     )
     _schema_closed(document, "", top_level)
     if type(document.get("schema_version")) is not int or document.get("schema_version") != SCHEMA_VERSION:
-        raise InvariantViolationError(1, "schema_version must be integer 2")
+        raise InvariantViolationError(
+            1,
+            "schema_version must be integer 3; WAEGIS does not migrate schema 2",
+        )
 
     source = _schema_table(document, "source", ("roots",))
     tests = _schema_table(document, "tests", ("roots",))
@@ -1374,14 +1564,31 @@ def verify_workflow_schema(
     if alignment_scope_mode == "enforce" and not alignment_enabled:
         raise InvariantViolationError(1, "protected alignment scope requires alignment.enabled = true")
 
-    gates = _schema_table(document, "gates", ("mode", "test", "lint"))
-    gates_mode = _schema_mode(gates, "gates", ("disabled", "enforce"))
-    gate_test = _schema_list(gates, "test", "gates.test")
-    gate_lint = _schema_list(gates, "lint", "gates.lint")
-    if gates_mode == "disabled" and (gate_test or gate_lint):
-        raise InvariantViolationError(1, "disabled gates require empty command lists")
-    if gates_mode == "enforce" and not (gate_test or gate_lint):
-        raise InvariantViolationError(1, "enforced gates require at least one command")
+    interface = _schema_table(
+        document, "interface", ("stage_form_retention", "check_execution")
+    )
+    _schema_choice(
+        interface,
+        "stage_form_retention",
+        "interface.stage_form_retention",
+        ("versioned", "latest", "discard"),
+    )
+    _schema_choice(
+        interface,
+        "check_execution",
+        "interface.check_execution",
+        ("external", "managed"),
+    )
+    _schema_table(document, "gates", GATE_ORDER)
+    for name in GATE_ORDER:
+        key_path = f"gates.{name}"
+        group = _schema_table(document, key_path, ("mode", "commands"))
+        mode = _schema_mode(group, key_path, ("disabled", "enforce"))
+        commands = _schema_list(group, "commands", f"{key_path}.commands")
+        if mode == "enforce" and not commands:
+            raise InvariantViolationError(
+                1, f"enforced {name} gate requires at least one command"
+            )
 
     _schema_table(
         document,
@@ -1502,8 +1709,9 @@ def verify_workflow_invariants(
 ) -> None:
     """
     @brief      Compatibility entry point for complete schema validation.
-    @details    Source/test roots are accepted for existing callers, but schema
-                version 2 no longer derives write or coverage policy from them.
+    @details    Source/test roots are accepted for existing callers, but the
+                current schema 3 policy is validated from the complete document;
+                unsupported schema-2 documents are not migrated.
     @param[in]  document Parsed workflow.toml mapping.
     @param[in]  source_roots Optional expected structural source roots.
     @param[in]  test_roots Optional expected structural test roots.
@@ -1511,9 +1719,6 @@ def verify_workflow_invariants(
                 baseline-manifest validation.
     @return     None.
     @exception  InvariantViolationError If schema validation fails.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    1.1.0
     """
     verify_workflow_schema(document, repo_root=repo_root)
     if source_roots is not None and list(document["source"]["roots"]) != list(source_roots):
@@ -1523,7 +1728,25 @@ def verify_workflow_invariants(
 
 
 def _insert_key(text: str, section: str, key: str, value: Any) -> str:
-    """@brief Insert a conditional key at the end of an existing TOML table."""
+    """
+    @brief      Set a conditional key in an existing TOML table, appending it
+                only when the table does not already carry it.
+    @details    A conditional key is written by a second pass over text the
+                answer rewrite already produced, and configure regenerates from
+                the repository's own workflow.toml rather than from the pristine
+                payload base. Appending unconditionally would therefore add a
+                duplicate assignment every time a repository that already has
+                the policy enabled is reconfigured, producing text that no
+                longer parses at all. Replacing in place instead keeps
+                regeneration byte-stable: the same answers applied to an
+                already-generated file reproduce that file exactly.
+    @param[in]  text The workflow text being generated.
+    @param[in]  section Dotted section name owning the key.
+    @param[in]  key The conditional key to set.
+    @param[in]  value The value to render.
+    @return     The text with the key set.
+    @exception  BaseFileMismatchError If the section is absent.
+    """
     lines = text.splitlines(keepends=True)
     header = f"[{section}]"
     start = next((index for index, line in enumerate(lines) if line.strip() == header), None)
@@ -1533,18 +1756,45 @@ def _insert_key(text: str, section: str, key: str, value: Any) -> str:
         (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
         len(lines),
     )
+    rendered = _toml_value(value)
+    for index in range(start + 1, end):
+        match = _KEY_RE.match(lines[index].rstrip("\r\n"))
+        if match is not None and match.group("key") == key:
+            lines[index] = f"{match.group('indent')}{key} = {rendered}{_line_ending(lines[index])}"
+            return "".join(lines)
     ending = "\r\n" if "\r\n" in text else "\n"
-    lines.insert(end, f"{key} = {_toml_value(value)}{ending}")
+    lines.insert(end, f"{key} = {rendered}{ending}")
     return "".join(lines)
 
 
 def _append_stage_table(text: str, stages: Mapping[str, Sequence[str]]) -> str:
-    """@brief Append the conditional complete write-access stage table."""
+    """
+    @brief      Write the conditional complete write-access stage table,
+                replacing an existing one rather than appending a second.
+    @details    Same regeneration contract as :func:`_insert_key`: a repository
+                already configured for stage-restricted write access carries
+                this table in its workflow.toml, and TOML rejects a duplicate
+                table outright.
+    @param[in]  text The workflow text being generated.
+    @param[in]  stages Complete stage-to-glob mapping.
+    @return     The text carrying exactly one stage table.
+    @exception  None
+    """
     ending = "\r\n" if "\r\n" in text else "\n"
-    suffix = "" if text.endswith(("\n", "\r")) else ending
-    rendered = ["[guardrails.write_access.stages]"]
+    header = "[guardrails.write_access.stages]"
+    rendered = [header]
     rendered.extend(f"{stage} = {_toml_value(list(stages[stage]))}" for stage in ALL_STAGES)
-    return text + suffix + ending + ending.join(rendered) + ending
+    block = ending.join(rendered) + ending
+    lines = text.splitlines(keepends=True)
+    start = next((index for index, line in enumerate(lines) if line.strip() == header), None)
+    if start is None:
+        suffix = "" if text.endswith(("\n", "\r")) else ending
+        return text + suffix + ending + block
+    end = next(
+        (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
+        len(lines),
+    )
+    return "".join(lines[:start]) + block + "".join(lines[end:])
 
 
 def generate_workflow_toml(
@@ -1553,8 +1803,11 @@ def generate_workflow_toml(
     source_roots: Sequence[str] | str,
     test_roots: Sequence[str] | str,
     language: str,
-    gate_test_cmds: Sequence[Any],
+    gate_build_cmds: Sequence[Any],
+    gate_typecheck_cmds: Sequence[Any],
     gate_lint_cmds: Sequence[Any],
+    gate_test_cmds: Sequence[Any],
+    gate_security_cmds: Sequence[Any],
     alignment_enabled: bool | str,
     source_extensions: Sequence[str] | None = None,
     test_file_patterns: Sequence[str] | None = None,
@@ -1566,7 +1819,13 @@ def generate_workflow_toml(
     source_changes_mode: str = "unrestricted",
     alignment_protected_scope_mode: str = "disabled",
     alignment_protected_scope_patterns: Sequence[str] = (),
-    gates_mode: str,
+    stage_form_retention: str = "discard",
+    check_execution: str = "external",
+    gate_build_mode: str = "disabled",
+    gate_typecheck_mode: str = "disabled",
+    gate_lint_mode: str = "disabled",
+    gate_test_mode: str = "disabled",
+    gate_security_mode: str = "disabled",
     secrets_mode: str = "disabled",
     secret_patterns: Sequence[str] = (),
     protected_paths_mode: str = "disabled",
@@ -1582,15 +1841,24 @@ def generate_workflow_toml(
     delivery_command_patterns: Sequence[str] = (),
 ) -> GeneratedWorkflow:
     """
-    @brief      Generate a complete schema-version-2 workflow configuration.
+    @brief      Generate a complete schema-version-3 workflow configuration.
     @details    Structural answers never imply repository policy. Every policy
                 mode and rule collection is emitted explicitly, and the
                 generated text is parsed and validated before it is returned.
     @return     Generated text plus applicable gate warnings.
-    @exception  WorkflowTomlError If the base or generated schema is invalid.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    1.1.0
+    @exception  ValueError If any answer fails its own normalizer (e.g. an
+                invalid root, language, gate command, boolean, policy mode, or
+                rule list).
+    @exception  LanguagePresetError If ``language`` is unsupported, or
+                ``"other"`` is chosen without explicit
+                ``source_extensions``/``test_file_patterns``.
+    @exception  BaseFileMismatchError If ``base_toml_text`` does not parse as
+                TOML, or lacks a section/key this generator owns.
+    @exception  InvariantViolationError If the base schema is invalid, or the
+                generated text fails to re-parse or disagrees with the
+                intended answers.
+    @exception  WorkflowTomlError If ``write_access_mode`` is
+                ``"stage_restricted"`` but ``write_access_stages`` is omitted.
     """
     roots = normalize_roots(source_roots)
     tests = normalize_roots(test_roots)
@@ -1599,15 +1867,27 @@ def generate_workflow_toml(
         source_extensions=source_extensions,
         test_file_patterns=test_file_patterns,
     )
-    test_cmds = normalize_gate_commands(gate_test_cmds)
-    lint_cmds = normalize_gate_commands(gate_lint_cmds)
+    gate_commands = {
+        "build": normalize_gate_commands(gate_build_cmds),
+        "typecheck": normalize_gate_commands(gate_typecheck_cmds),
+        "lint": normalize_gate_commands(gate_lint_cmds),
+        "test": normalize_gate_commands(gate_test_cmds),
+        "security": normalize_gate_commands(gate_security_cmds),
+    }
+    gate_modes = {
+        "build": gate_build_mode,
+        "typecheck": gate_typecheck_mode,
+        "lint": gate_lint_mode,
+        "test": gate_test_mode,
+        "security": gate_security_mode,
+    }
     alignment = normalize_bool(alignment_enabled)
     modes = {
         "baseline_guard_mode": baseline_guard_mode,
         "coverage_mode": coverage_mode,
         "source_changes_mode": source_changes_mode,
         "alignment_protected_scope_mode": alignment_protected_scope_mode,
-        "gates_mode": gates_mode,
+        **{f"gate_{name}_mode": gate_modes[name] for name in GATE_ORDER},
         "secrets_mode": secrets_mode,
         "protected_paths_mode": protected_paths_mode,
         "working_tree_mode": working_tree_mode,
@@ -1617,6 +1897,12 @@ def generate_workflow_toml(
     }
     for key, mode in modes.items():
         _mode_validator(key)(mode)
+    _choice_value(
+        stage_form_retention,
+        ("versioned", "latest", "discard"),
+        "stage_form_retention",
+    )
+    _choice_value(check_execution, ("external", "managed"), "check_execution")
 
     normalized_rules = {
         "coverage_roots": normalize_rule_list(coverage_roots),
@@ -1636,35 +1922,43 @@ def generate_workflow_toml(
         raise BaseFileMismatchError(f"base workflow.toml text is not valid TOML: {exc}") from exc
     verify_workflow_schema(base_document)
 
+    # Keyed by answer name, then mapped onto file locations through
+    # OWNED_ANSWER_LOCATIONS so the write path and the reconstruction path
+    # (derive_answers_from_workflow) share one table. The two conditional
+    # answers are applied below, after the unconditional rewrite.
+    owned_answers: dict[str, Any] = {
+        "source_roots": roots,
+        "test_roots": tests,
+        "language": preset.language,
+        "source_extensions": list(preset.source_extensions),
+        "test_file_patterns": list(preset.test_file_patterns),
+        "baseline_guard_mode": baseline_guard_mode,
+        "coverage_mode": coverage_mode,
+        "coverage_roots": normalized_rules["coverage_roots"],
+        "coverage_exclude": normalized_rules["coverage_exclude"],
+        "source_changes_mode": source_changes_mode,
+        "alignment_enabled": alignment,
+        "alignment_protected_scope_mode": alignment_protected_scope_mode,
+        "alignment_protected_scope_patterns": normalized_rules["alignment_protected_scope_patterns"],
+        "stage_form_retention": stage_form_retention,
+        "check_execution": check_execution,
+        **{f"gate_{name}_mode": gate_modes[name] for name in GATE_ORDER},
+        **{f"gate_{name}_cmds": gate_commands[name] for name in GATE_ORDER},
+        "secrets_mode": secrets_mode,
+        "secret_patterns": normalized_rules["secret_patterns"],
+        "protected_paths_mode": protected_paths_mode,
+        "protected_path_patterns": normalized_rules["protected_path_patterns"],
+        "protected_path_operations": normalized_rules["protected_path_operations"],
+        "working_tree_mode": working_tree_mode,
+        "working_tree_blocked_patterns": normalized_rules["working_tree_blocked_patterns"],
+        "write_access_mode": write_access_mode,
+        "scope_mode": scope_mode,
+        "scope_allowed_roots": normalized_rules["scope_allowed_roots"],
+        "delivery_mode": delivery_mode,
+        "delivery_command_patterns": normalized_rules["delivery_command_patterns"],
+    }
     owned: dict[tuple[str, str], Any] = {
-        ("source", "roots"): roots,
-        ("tests", "roots"): tests,
-        ("traceability", "language"): preset.language,
-        ("traceability", "source_extensions"): list(preset.source_extensions),
-        ("traceability", "test_file_patterns"): list(preset.test_file_patterns),
-        ("components.baseline_guard", "mode"): baseline_guard_mode,
-        ("traceability.coverage", "mode"): coverage_mode,
-        ("traceability.coverage", "coverable_roots"): normalized_rules["coverage_roots"],
-        ("traceability.coverage", "exclude"): normalized_rules["coverage_exclude"],
-        ("adoption.source_changes", "mode"): source_changes_mode,
-        ("alignment", "enabled"): alignment,
-        ("alignment.protected_scope", "mode"): alignment_protected_scope_mode,
-        ("alignment.protected_scope", "patterns"): normalized_rules["alignment_protected_scope_patterns"],
-        ("gates", "mode"): gates_mode,
-        ("gates", "test"): test_cmds,
-        ("gates", "lint"): lint_cmds,
-        ("guardrails.secrets", "mode"): secrets_mode,
-        ("guardrails.secrets", "patterns"): normalized_rules["secret_patterns"],
-        ("guardrails.protected_paths", "mode"): protected_paths_mode,
-        ("guardrails.protected_paths", "patterns"): normalized_rules["protected_path_patterns"],
-        ("guardrails.protected_paths", "operations"): normalized_rules["protected_path_operations"],
-        ("guardrails.working_tree", "mode"): working_tree_mode,
-        ("guardrails.working_tree", "blocked_patterns"): normalized_rules["working_tree_blocked_patterns"],
-        ("guardrails.write_access", "mode"): write_access_mode,
-        ("guardrails.scope", "mode"): scope_mode,
-        ("guardrails.scope", "allowed_roots"): normalized_rules["scope_allowed_roots"],
-        ("guardrails.delivery", "mode"): delivery_mode,
-        ("guardrails.delivery", "command_patterns"): normalized_rules["delivery_command_patterns"],
+        OWNED_ANSWER_LOCATIONS[key]: value for key, value in owned_answers.items()
     }
     generated_text = _apply_answers(base_toml_text, owned)
     if baseline_guard_mode == "enforce":
@@ -1676,7 +1970,7 @@ def generate_workflow_toml(
         )
     if write_access_mode == "stage_restricted":
         if write_access_stages is None:
-            raise ValueError("stage_restricted write access requires a complete stage mapping")
+            raise WorkflowTomlError("stage_restricted write access requires a complete stage mapping")
         generated_text = _append_stage_table(
             generated_text, normalize_stage_map(write_access_stages)
         )
@@ -1692,12 +1986,117 @@ def generate_workflow_toml(
     )
     return GeneratedWorkflow(
         text=generated_text,
-        warnings=(
-            _empty_gate_warnings(test_cmds, lint_cmds)
-            if gates_mode == "enforce"
-            else ()
-        ),
+        warnings=_empty_gate_warnings(gate_commands, gate_modes),
     )
+
+
+def normalize_stored_answers(answers: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    @brief      Reduce a raw answer mapping to the durable generator answer set.
+    @details    The single normalization every wizard applies before writing the
+                install manifest's ``configuration``, so two wizards recording
+                the same configuration record identical bytes. Keys outside
+                :data:`GENERATOR_ANSWER_KEYS` (wizard-only answers such as the
+                adoption branch or conflict table, and RepoWise runtime data)
+                never become durable configuration; a ``None`` placeholder for
+                an unasked field is dropped rather than stored as a value later
+                resolution would have to special-case; and each value is put
+                through its own field validator, so a stored answer is in the
+                same canonical form the generator writes to the file. Without
+                that last step an equivalent-but-differently-shaped value (an
+                argv list where the file holds a joined command) reads back as
+                a difference, and the next run reports a change and rewrites a
+                file that did not need rewriting. A value the validator rejects
+                is kept verbatim: this function records, it does not judge — the
+                resolution path reports an unusable answer with its own message.
+    @param[in]  answers Raw collected answers, possibly with extra keys.
+    @return     The allowlisted, canonicalized answer mapping, sorted by key.
+    @exception  None
+    """
+    specs = {spec.key: spec for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS)}
+    normalized: dict[str, Any] = {}
+    for key in sorted(answers):
+        value = answers[key]
+        if key not in GENERATOR_ANSWER_KEYS or value is None:
+            continue
+        try:
+            normalized[key] = specs[key].normalize(value)
+        except (ValidationError, ValueError):
+            normalized[key] = value
+    return normalized
+
+
+def _owned_table(document: Mapping[str, Any], dotted_section: str) -> Mapping[str, Any] | None:
+    """
+    @brief      Resolve one dotted section of a parsed workflow document.
+    @param[in]  document Parsed workflow.toml.
+    @param[in]  dotted_section Section path, e.g. ``"guardrails.secrets"``.
+    @return     The table, or ``None`` when the path is absent or not a table.
+    @exception  None
+    """
+    current: Any = document
+    for name in dotted_section.split("."):
+        if not isinstance(current, Mapping) or name not in current:
+            return None
+        current = current[name]
+    return current if isinstance(current, Mapping) else None
+
+
+def derive_answers_from_workflow(workflow_text: str) -> dict[str, Any]:
+    """
+    @brief      Reconstruct the generator answer set from a generated
+                workflow.toml.
+    @details    Every owned answer is written to exactly one documented location
+                (:data:`OWNED_ANSWER_LOCATIONS`), so a valid schema-version-3
+                file is a complete record of the answers that produced it. This
+                recovers that record for installs whose manifest predates
+                answer persistence, without asking the operator to restate
+                settings the file already holds. Only a file that passes the
+                schema check is read; an unreadable, unparseable, or invalid one
+                yields no answers rather than a guess. A value the current
+                validator rejects is skipped individually — reconstruction is a
+                best-effort recovery, never a second validation gate. The two
+                ``"other"``-language answers are returned only when the file's
+                language is ``"other"``, matching what an interview would have
+                collected (a preset language derives them instead).
+    @param[in]  workflow_text The workflow.toml text to read back.
+    @return     The reconstructed, allowlisted answer mapping; empty when the
+                text is not a valid schema-version-3 workflow file.
+    @exception  None
+    """
+    try:
+        document = tomllib.loads(workflow_text)
+    except tomllib.TOMLDecodeError:
+        return {}
+    try:
+        verify_workflow_schema(document)
+    except WorkflowTomlError:
+        return {}
+    specs = {spec.key: spec for spec in (*WORKFLOW_FIELD_SPECS, *OTHER_LANGUAGE_FIELD_SPECS)}
+    derived: dict[str, Any] = {}
+    for key, (section, name) in OWNED_ANSWER_LOCATIONS.items():
+        spec = specs.get(key)
+        if spec is None:
+            continue
+        table = _owned_table(document, section)
+        raw = table[name] if table is not None and name in table else None
+        if raw is None:
+            # A conditional answer is written only while its governing policy is
+            # on, so its absence is not missing information: it says the policy
+            # is off, and the effective value is the generator's own default.
+            # Recording that keeps the reconstruction complete, which is what
+            # lets a regeneration report honestly that nothing changed.
+            if key not in CONDITIONAL_ANSWER_KEYS:
+                continue
+            raw = spec.default_value()
+        try:
+            derived[key] = spec.normalize(raw)
+        except (ValidationError, ValueError):
+            continue
+    if derived.get("language") != "other":
+        derived.pop("source_extensions", None)
+        derived.pop("test_file_patterns", None)
+    return normalize_stored_answers(derived)
 
 
 # END OF FILE

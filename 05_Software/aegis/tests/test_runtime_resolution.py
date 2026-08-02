@@ -13,9 +13,6 @@
          empty ``PATH`` and no ``AEGIS_PYTHON`` override, so the only way
          either can find a Python interpreter is through the
          ``WAEGIS_HOME/runtime-python`` pointer file.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.1.0
 """
 
 # IMPORTS
@@ -48,9 +45,6 @@ def _runtime_environment(tmp_path: Path) -> dict[str, str]:
     @return     An environment mapping with ``WAEGIS_HOME`` set, ``PATH``
                 cleared, and any ``AEGIS_PYTHON`` override removed.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     home = tmp_path / "waegis-home"
     home.mkdir()
@@ -72,9 +66,6 @@ def test_hook_launcher_uses_registered_runtime_without_system_python(tmp_path: P
     @param[in]  tmp_path Pytest-provided temporary directory.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     node = shutil.which("node")
     if node is None:
@@ -108,9 +99,6 @@ def test_cli_wrapper_uses_registered_runtime_without_system_python(tmp_path: Pat
     @param[in]  tmp_path Pytest-provided temporary directory.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-16
-    @version    0.1.0
     """
     environment = _runtime_environment(tmp_path)
     if os.name == "nt":

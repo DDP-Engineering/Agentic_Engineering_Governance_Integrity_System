@@ -11,6 +11,466 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add a project-agnostic human explanation of the AEGIS adoption installation
+  baseline, including every installation-manifest and workflow configuration
+  field, the component inventory contract, and the requirements and knowledge
+  workspaces and their reusable templates, coverage waivers, and adoption
+  reports, plus workflow run records, their stage sequences, and every
+  stage-form and validation-summary field, plus hook integrations. Begin
+  splitting the combined explanation into lifecycle-oriented guides, starting
+  with installation payload and configuration, followed by agent adapters,
+  hooks, integrations, and skills, durable governance state, and workflow run
+  records, then maintenance, upgrades, transactions, and legacy history.
+
+### Fixed
+
+- Reconcile check evidence state instead of silently discarding it, closing
+  two defects found on a real downstream run. Reapplying the check stage now
+  preserves the red/green links and state of every check whose identity and
+  command are unchanged, re-deriving them from the active evidence the graph
+  still holds (`stage_forms._apply_checks` previously rebuilt every check
+  with default `unknown`/`None` link fields, so any reapply orphaned all
+  recorded evidence and INV-3 misreported green checks as missing red
+  evidence). Recording a check observation now supersedes its older active
+  evidence through the shared `check_execution._update_check_states` rule:
+  a new record retires prior active records with the same result, and a
+  genuine pass additionally retires earlier failed attempts from the
+  implementation/validation/delivery stages, so INV-4 stops reporting a
+  live regression for a check that later truly passed. The check-stage red
+  witness is never retired by a pass, and a new failure never retires an
+  older pass, keeping red-before-green and genuine regressions honest. Both
+  paths share the new `store.relink_check_evidence` helper, which never
+  leaves a link pointing at superseded evidence.
+
+### Changed
+
+- Let `check_execution.prepare_check_evidence` / `record_check_evidence` accept
+  a partial external evidence document. A check whose stage evidence blocker is
+  already covered by an active, exactly matching waiver is excused: it gets no
+  generated `[[result]]` row, and completeness is measured against the checks
+  that remain rather than every imported check. Excused status reuses the
+  blockers `stage_forms.stage_blockers` already evaluates
+  (`red-before-green:<check-id>` during check,
+  `stage:implementation:<check-id>:green-evidence` during implementation), so a
+  stale or absent waiver excuses nothing. Recording rejects a row submitted for
+  an excused check, and both commands refuse when every check is excused.
+  Previously the only way to record real evidence while one check stayed waived
+  was to fabricate a result for it.
+- Replace `requirements.update_requirement`'s 15-parameter (13 keyword-only)
+  signature with a single `patch: RequirementPatch` argument; the three
+  `value`/`clear_value` mutual-exclusion checks moved into
+  `RequirementPatch.__post_init__`. Updated call sites in
+  `requirements.activate_requirement` and
+  `stage_forms._activate_green_requirements`. No behavior change.
+- Fix `config.py`'s import block to sort alphabetically by module name
+  (matching `store.py`/`persistence.py`/`requirement_store.py`/
+  `stage_schema.py`), and add a `[tool.ruff.lint.isort]` config
+  (`force-sort-within-sections = true`) encoding that convention so
+  `ruff check --select I` can verify it.
+- Replace the `timeout: int = 300` literal duplicated in `gates.py`,
+  `verification.py`, and `check_execution.py` with a single
+  `gates.DEFAULT_GATE_TIMEOUT_SECONDS` constant.
+- Split `cli.py`'s `_verify_command` into one helper per verification action
+  (`_verify_run`, `_verify_status`, `_verify_gates`, `_verify_invariants`,
+  `_verify_audit`, `_verify_impact`, `_verify_working_tree`), mirroring the
+  existing `_stage_command`/`_check_command` pattern.
+- Split `repowise.py`'s `inspect_repowise` into `_missing_required_evidence`,
+  `_load_and_validate_artifacts`, `_compute_staleness_warnings`, and
+  `_write_discovery_snapshot` helpers.
+- Split `config.py`'s `_Parser.parse()` into section-sized private methods
+  (`_parse_source_tests_requirements`, `_parse_documentation_components`,
+  `_parse_knowledge_reports`, `_parse_traceability`, `_parse_adoption`,
+  `_parse_alignment`, `_parse_guardrails`). No behavior change in any of the
+  above; parsing/dispatch results and error codes are unchanged.
+- Deduplicate repository-path/glob normalization (`config.py`,
+  `requirement_store.py`) into shared `paths.normalize_repository_path` /
+  `paths.validate_glob`; each module still raises its own typed error with
+  unchanged codes and messages.
+- Deduplicate the evidence-form TOML load/quote/retire helpers
+  (`evidence_forms.py`, `check_execution.py`, and `stage_forms.py`'s
+  `_string`) into a shared internal `_form_io.py` module. No behavior change.
+
+### Fixed
+
+- Fix `gates._run_command` reporting a real gate as an unlaunchable
+  configuration error (exit 127) when Windows refuses direct exec with
+  `PermissionError` — a resolved directory, or a shim `CreateProcess` will not
+  launch itself. An argv-eligible command is now retried once through the
+  shell; a failing retry still synthesizes 124/127 on the normal evidence path.
+  Commands that already required shell mode, and non-Windows platforms, are
+  unchanged. Ported from the correction made in the AudioMancer payload.
+- Fix `waegis upgrade` reporting "upgrade failed and was rolled back" for every
+  apply-phase exception, including two cases where that was untrue: a
+  `TransactionCleanupError` raised *after* the commit marker (the payload was
+  durably upgraded on disk and nothing was rolled back) and a
+  `TransactionRollbackError` (rollback did not complete, so the repository may
+  be partially upgraded). `_apply_upgrade_transactional` now raises a typed
+  `UpgradeApplyError` carrying the transaction's terminal state, and the
+  command reports each outcome distinctly — matching the branch `configure` and
+  `repair` already had. A committed-but-cleanup-pending upgrade also journals as
+  a completed run instead of a failed one. The `--json` `result` mapping gained
+  `applied`, `rolled_back`, and `cleanup_pending`; upgrade exit codes are
+  unchanged.
+- Fix `SocketTransport.connect` (WAEGIS network probes) hanging well past its
+  `timeout` against a stalled DNS server: `socket.create_connection` resolves
+  the address before the socket carrying that timeout exists, so `getaddrinfo`
+  was unbounded. The TCP attempt now runs on a daemon worker thread joined for
+  at most `timeout`, and a resolver stall is reported as `timed_out`. The
+  thread is deliberately not pooled: `ThreadPoolExecutor` joins its workers in
+  an `atexit` hook, which would move the same stall from the probe to
+  interpreter shutdown. The `gaierror` -> `dns_failure`, refused, and TLS
+  classifications are unchanged.
+- Fix `engine.journal.Journal.flush` staging through a fixed
+  `<run-id>.json.tmp` sibling, the same shared-temp-path defect fixed in
+  `write_manifest`; it now uses a `uuid4`-suffixed name with
+  cleanup-on-failure.
+- Report that a `branch-commit` `waegis upgrade` whose apply left files on disk
+  did not commit them, naming the branch. The Git commit step runs only for a
+  clean apply, so a committed-but-cleanup-pending upgrade previously left the
+  new payload uncommitted in the working tree without saying so.
+- Fix `payload.manifest.write_manifest` staging through a fixed
+  `install-manifest.json.tmp` name shared by every caller, so two concurrent
+  WAEGIS invocations against one repository could clobber each other's staged
+  bytes and publish a broken manifest through an otherwise atomic
+  `os.replace`. It now uses a `uuid4`-suffixed temp name with
+  cleanup-on-failure, matching `io.answers.save_answers_file`.
+- Fix `io.prompts.ConsoleAsker.ask_field` letting `EOFError` from the secret
+  reader (`getpass` at closed/exhausted stdin) escape, contradicting its
+  documented `MissingAnswerError` contract and crashing an unattended run with
+  a raw traceback. EOF on a secret field now raises `MissingAnswerError(key)`,
+  the same as EOF on a plain field.
+- Fix `Graph.from_dict` (AEGIS core) to raise the documented `ValueError` when
+  `stage_records` is not an object, instead of leaking a raw `AttributeError`.
+
+## [WAEGIS 1.2.0] - 2026-08-01
+
+Component versions in this release: AEGIS payload 2.1.0 (content updated in
+place per owner decision — schema and version unchanged), WAEGIS 1.2.0, and
+optional bundled RepoWise 0.37.0. The WAEGIS MINOR bump carries the new
+public non-interactive decision keys (`accept_failing_gates`,
+`adopt_over_existing_install`, `accept_nested_repository`); see the
+Migration note below.
+
+### Added
+
+- Add the copied AEGIS merge/rebase playbook for concurrent `.agentic/` state,
+  including conflict resolution, post-merge staleness remediation, rebase
+  guidance, entry-point links, and an explicit WAEGIS payload-inventory check.
+- Add proportional `--quick` profiles for small fix/change runs. The declared
+  intake, implementation, validation, and delivery sequence preserves all four
+  human closes, journals the collapsed middle stages as `bypassed`, reports
+  absent-stage invariants/audits as not applicable, requires real
+  implementation evidence, and retains full verification for machinery that
+  still runs.
+- Add the optional `[quick.changed_paths]` soft advisory with closed
+  `disabled|advise` modes and a positive threshold. It ships disabled with an
+  effective default of 10 and only recommends restarting a full run when scope
+  grows; it never blocks or routes the active run.
+- Add exact per-step AEGIS waivers through `waive add` and `waive list`.
+  Human-approved reasons, CLI-minted IDs, run-local graph records, separate
+  journal events, and blocker-state digests make each exception visible,
+  auditable, and stale after relevant content changes.
+- Apply active waivers to stage readiness, red-before-green, blocking
+  invariants, enforced gates, traceability, coverage, and working-tree
+  findings while retaining the underlying failure and rendering it as
+  `WAIVED`, never passed. Schema corruption, persistence locks, and stale
+  updates remain non-waivable.
+- Report a waived failing quality gate in `waegis doctor`'s journal group.
+  Payload integrity and verification status are separate dimensions, so a
+  repository with zero drift no longer reads as healthy while its latest
+  wizard run holds an accepted failing gate. The warning names the gate, the
+  command, the run and its timestamp, and the evidence log, and clears only
+  when a later run records the same gate command as passing. In `--json` this
+  is one further finding object inside the existing `journal` group array; the
+  envelope shape, group names, and finding field names are unchanged, and
+  journals written before failed-gate evidence existed are read tolerantly.
+
+### Changed
+
+- Document the deployment self-containment contract: every RepoWise
+  deployment is exactly one of `source-only`, `external-runtime`, or
+  `offline-bundled-runtime`, and a Git clone versus a delivered working
+  directory have different self-containment properties whenever bundled
+  RepoWise is in play. The WAEGIS README states the contract and which
+  edition/answer combination produces each state, `waegis repowise status`
+  names the resulting state in human output, the bundled/external interview
+  questions state the portability consequence, the template's
+  `REPOWISE_INTEGRATION.md` and `GLOSSARY.md` use the same vocabulary, the
+  Complete delivery guidance ties it to the existing license/source/notices/
+  SBOM/provenance/hash requirements, and the WAEGIS V2 plan's D1 carries the
+  same terms forward. Documentation and message-string changes only; no
+  schema, CLI flag, or packaging behavior changed.
+- Separate general mutation consent from accepting a failing enforced quality
+  gate. `--yes` and `--non-interactive` approve the rendered filesystem/Git
+  mutation plan only; waiving a gate failure is now its own decision, stated by
+  the new `accept_failing_gates` answer key or by an interactive confirmation
+  that spells out the consequence. This is enforced structurally rather than
+  case by case: a scripted asker will not auto-answer "yes" to any
+  confirmation whose default is to refuse, so every present and future
+  default-refuse safety question inherits the rule. Two further questions of
+  that class gained answer keys so they stay answerable without a console —
+  `adopt_over_existing_install` (continue adopting over a repository that
+  already carries a valid install manifest) and `accept_nested_repository`
+  (create TARGET inside another Git work tree).
+  **Migration:** automation that previously relied on blanket `--yes` to carry
+  it past one of these questions now fails loudly, naming the missing decision;
+  add the corresponding key to its answers file. Absence of a key always means
+  refusal, never acceptance. Note one deliberate asymmetry: when an interactive
+  console is present, these decision questions are still asked on the console
+  even if the answers file carries the key — the decision keys are consumed
+  only where no operator can be asked (`--non-interactive`). Because this adds
+  public answer keys without removing or renaming anything, it is recommended
+  to ship as a MINOR release.
+
+- Canonicalize adoption and upgrade conflict decisions through one shared
+  payload normalizer while preserving the public upgrade exit aliases and the
+  deprecated always-false `conservative` report field.
+- Document the valid-manifest-only upgrade contract, release hygiene checklist,
+  and exact prerequisite/adoption workflow for retaining a future
+  self-governed AEGIS/WAEGIS release run.
+- Make AEGIS graph mutations, evidence-ID allocation, journal publication, and
+  same-requirement updates concurrency-safe with bounded repository/run or
+  requirement-scoped Windows/POSIX process locks, authoritative reloads, and
+  typed stale-update/lock-timeout failures.
+- Reuse one stdlib-only atomic writer for graph, journal, requirement,
+  active-run pointer, and AEGIS RepoWise JSON state: unique exclusive sibling
+  temporaries are flushed and fsynced before atomic replacement, unpublished
+  files are cleaned safely, and parent-directory durability is attempted where
+  supported.
+- Make the WAEGIS zipapp, Core/Complete ZIP and tar.gz archives, embedded
+  RepoWise source, normalized SBOM/manifests, release manifest, and checksums
+  byte-reproducible for identical declared source/runtime/wheel/epoch and
+  Python/uv/zlib toolchain inputs. One SOURCE_DATE_EPOCH/commit/fallback epoch
+  now drives explicit portable ordering, timestamps, modes, ownership, ZIP
+  creator/compression metadata, and the filename-free gzip header.
+- Assign explicit plumbing, mutation, and clone timeouts to all WAEGIS Git
+  operations, and centralize repeated probe timeout defaults within their
+  owning modules.
+
+### Fixed
+
+- Split configured quality-gate command strings with the host's own path
+  syntax. `shlex` defaults to POSIX mode, where a backslash is an escape
+  character, so on Windows every native path written unquoted lost its
+  separators before the child process started: the gate
+  `uv run --directory 05_Software\pkg python -m pytest` reached uv as
+  `--directory 05_Softwarepkg` and exited nonzero while the identical suite
+  passed by hand from the package root (a latent defect found while
+  investigating the AudioMancer gate observation, and distinct from it — the
+  deployment's own gate strings used forward slashes and were split
+  correctly). Escape processing is now disabled on
+  Windows while POSIX quote handling is kept, so a quoted path keeps working
+  and its quotes are still removed; on every other host the split is unchanged
+  byte for byte. Gate commands run from the repository root as before.
+- Make `RUN-POINTER-MISSING` state the recovery command. The worktree-local
+  active-run pointer is deliberately Git-ignored while runs under
+  `.agentic/runs/` are durable, so losing the pointer leaves the run fully
+  recoverable — but the message named neither the run nor `aegis run select`,
+  which is the command that recovers it. The guidance now names the exact
+  `aegis run select <id>` when a single incomplete run makes the choice
+  unambiguous, lists every candidate when it does not, and keeps the previous
+  start-a-run advice when there is nothing to select. A corrupt `graph.json`
+  no longer hides the runs beside it. The error code and result fields are
+  unchanged.
+
+- Retain enough evidence to diagnose a failed quality gate without rerunning
+  it. A failing gate command now records its argv, resolved working directory,
+  exit code, duration, timeout, and bounded stdout/stderr tails, and writes the
+  full output to one log file per failure under the WAEGIS home; the journal
+  and `--json` result carry the bounded tails plus the log path and the exact
+  reproduction command, so the envelope stays bounded while the evidence stays
+  complete. Both output surfaces show the one-line failure, the log path, and
+  the reproduction command. Everything persisted is redacted with the
+  repository's own configured secret patterns rather than a second list
+  invented for the purpose, and a passing gate still records its outcome and
+  nothing else. The result distinguishes a clean deployment, a rejected gate
+  failure, and a gate failure that was explicitly accepted, using the existing
+  outcome vocabulary unchanged.
+- Report a failed RepoWise synchronization in `waegis configure`'s human
+  output. A run whose configuration succeeded but whose indexing failed
+  previously printed only that the configuration was updated and verified,
+  which reads as an unqualified success; it now states the synchronization
+  status, the concise error, the isolated log path, and the resume command —
+  the same facts the JSON result already carried. A successful synchronization
+  adds no output.
+- Prevent Click's Windows-only pre-parser from expanding WAEGIS-managed
+  RepoWise exclusion globs into surplus positional paths when matches exist;
+  use literal option binding for wildcard-capable values, bypass the Complete
+  batch launcher during managed execution, preserve paths with spaces, and
+  restore RepoWise's unsolicited project-local MCP/VS Code setup before
+  artifact validation and receipt creation.
+- Persist the workflow answers in the install manifest when adopting an
+  existing repository, so a later configuration no longer has to restate the
+  whole workflow to request one setting. New and adopt now store one
+  allowlisted, canonically-normalized answer shape, which keeps adoption-only
+  answers and RepoWise runtime data out of the durable configuration.
+  Configuration of an install whose manifest records no answers reconstructs
+  them from the existing valid workflow file and writes the completed set back
+  after a successful run, so an earlier adoption is repaired in place without a
+  new command or flag. Regenerating from an already-generated file now replaces
+  the conditional baseline-threshold key and stage write-access table instead of
+  emitting a second copy of each.
+- Synchronize current AEGIS 2.1.0 / WAEGIS 1.1.0 template branding and schema
+  documentation, enforce structural version parity and an empty downstream
+  changelog, and exclude Python bytecode plus interpreter/test/coverage caches
+  from payload copying and release staging.
+- Normalize validated external check results, summaries, and output-log paths
+  before persistence; enforce the same stage, captured-mode, and non-empty
+  imported-check preconditions for preparation and recording; and reject an
+  incomplete, duplicate, unknown, malformed, command-mismatched, or
+  result/exit-status-inconsistent evidence document before graph mutation.
+- Restrict the AEGIS CLI blocked-response boundary to explicit configuration,
+  run-resolution, stage-operation, command-input, requirement, persistence, and
+  RepoWise integration errors so incidental `ValueError`, process-control
+  exceptions, and parser exits retain their normal diagnostic behavior.
+- Reject option-like, control-character, and invalid Git clone/branch inputs
+  before execution, use the documented clone option terminator, and scrub
+  embedded clone credentials from Git failure results.
+- Require explicit approval for every WAEGIS mutation, including programmatic,
+  JSON, non-interactive, transaction-recovery, journal, Git, and RepoWise
+  paths; preserve read-only dry runs/no-op plans, fail closed on EOF or an
+  exhausted scripted confirmation queue, and retain process-control semantics.
+- Move RepoWise policy, runtime metadata, and install-manifest updates into one
+  persistent WAEGIS transaction with verified policy/runtime writes, a
+  manifest-last barrier, truthful rollback/cleanup reporting, idempotent crash
+  recovery, and no-op detection.
+- Validate runtime locks as closed schemas; stream runtime downloads through
+  exclusive unique siblings with digest-before-replace cleanup; prevalidate and
+  deterministically materialize runtime link graphs; and verify exact internal
+  archive schema, target, safe membership, regular-file type, and digests while
+  rejecting duplicates, case collisions, undeclared files, encryption, links,
+  and special entries before atomic artifact publication.
+- Reject manual-evidence import before a current AEGIS stage is prepared, bound
+  requirement-ID collision retries, and normalize malformed nested graph
+  records to the graph loader's typed schema-error contract.
+- Preserve the missing-executable probe response while capturing other process
+  launch `OSError` variants, and require the stable AEGIS JSON response keys
+  during WAEGIS smoke verification.
+
+### Removed
+
+- Remove the two unreachable legacy upgrade implementations, the unused private
+  smoke verifier duplicate, dead conservative classification plumbing, stale
+  helper/exit documentation, confirmed unused imports/locals, and 75 ignored
+  Python bytecode files from the copied-verbatim template tree.
+
+### Security
+
+- Authenticate closed-schema WAEGIS transaction state with a protected
+  WAEGIS-home HMAC key and separately authenticated repository/operation
+  ownership records; bind backups by generated name, size, and SHA-256; reject
+  legacy or forged state, unowned storage, links, junctions, reparse points,
+  unsafe paths, and destination type substitution before target mutation.
+- Serialize WAEGIS recovery and transaction application with repository-scoped
+  cross-process locks, restore backups by exact-path atomic replacement, and
+  clean only individually validated transaction objects without recursive
+  deletion.
+
+## [2.1.0] - 2026-07-29
+
+Component versions in this release: AEGIS payload 2.1.0, WAEGIS 1.1.0, and
+optional bundled RepoWise 0.37.0. Workflow and run-graph schema remain 3;
+the RepoWise integration file uses schema 1.
+
+### Added
+
+- Add an optional, process-isolated RepoWise discovery bridge. AEGIS validates
+  policy, receipts, graph/state schemas, hashes, Git HEAD, and worktree
+  fingerprints before copying normalized proposals into a durable
+  run-local repository-discovery snapshot.
+- Add WAEGIS `repowise status` and `repowise sync`, interactive and
+  answers-file lifecycle configuration, deterministic and loopback-only Ollama
+  profiles, advisory/required enforcement, progress journaling, interruption
+  handling, and exact resume commands.
+- Add Core and Complete WAEGIS delivery editions. Complete packages can carry a
+  native, locked RepoWise 0.37.0 sidecar, exact source archive and commit/tag
+  provenance, hashes, notices, SBOM, package manifest, and unpacked-size data.
+- Add native Complete packaging for Windows x64 and Linux x64, clean exact-tag
+  source validation, binary-wheel-only dependency installation, path traversal
+  protection, disk-space checks, project-local sidecar installation, and
+  offline network guards. Cross-platform companions must identify the same
+  RepoWise tag and commit; stale Complete artifacts are rejected.
+- Pin a separate Python 3.12.13 runtime for the RepoWise sidecar so the locked
+  NumPy 1.26.4 native wheels remain installable; WAEGIS Core stays on its
+  existing Python 3.13 runtime.
+- Generate the corresponding RepoWise source ZIP directly from the pinned Git
+  commit so Windows and Linux Complete artifacts remain byte-identical despite
+  host line-ending filters.
+
+### Changed
+
+- Release AEGIS 2.1.0 and WAEGIS 1.1.0 while retaining WAEGIS compatibility
+  `>=2.0.0,<3.0.0`.
+- Make RepoWise an optional advisory discovery provider rather than
+  authoritative AEGIS state. Human-entered adoption discovery is never
+  silently replaced, and only explicitly `required` stale/unavailable data
+  blocks repository discovery.
+- Keep target installation and managed bundled indexing fully offline: no pip,
+  uv, GitHub, PyPI, telemetry, editor registration, agent setup, or external
+  update service is invoked.
+- Treat the mutable RepoWise policy as generated project configuration in the
+  WAEGIS install manifest. Repair reconstructs it from non-secret metadata;
+  explicit `new` or committed `adopt` selection records it in a separate,
+  policy-only commit while the default disabled Core path remains unchanged.
+- Refuse Complete-to-Core use while a project selects the bundled sidecar;
+  reconfigure the project to external or disabled first.
+
+### Security
+
+- Constrain managed bundled RepoWise network access to loopback and reject
+  non-loopback Ollama endpoints.
+- Preserve RepoWise as a separately installed AGPL sidecar and require exact
+  corresponding source and notices in Complete delivery artifacts.
+
+## [2.0.0] - 2026-07-29
+
+Component versions in this release: AEGIS payload 2.0.0, WAEGIS 1.0.0.
+
+### Added
+
+- Add the authoritative design stage between requirement and check, including
+  proposal revisions, requirement/document digests, approval invalidation, and
+  `INV-10 Solution design`.
+- Add schema-3 run-local stage forms with captured retention and check-execution
+  policy, atomic collection import, automatic IDs, reconstruction, routing, and
+  access-change controls.
+- Add external and managed deterministic check evidence, generated manual
+  evidence/supersession forms, red-before-green enforcement, and automatic
+  requirement activation at successful validation closure.
+- Add build, typecheck, lint, test, and security gate groups with independent
+  disabled/enforce modes and fixed execute-all ordering.
+- Add consolidated verification covering impact selection, enabled gates,
+  invariants, traceability, coverage, working-tree review, and validation
+  summary generation.
+- Add an offline ReportLab generator for the maintained new-project PDF guide.
+
+### Changed
+
+- Replace the flag-heavy CLI with the hard-break grouped interface:
+  `run`, `stage`, `requirement`, `check`, `evidence`, `verify`, `delivery`,
+  `adoption`, and `config`.
+- Make generated forms the input boundary for intent, alignment, requirements,
+  design, checks, implementation, validation, delivery, access changes,
+  routing, and evidence.
+- Keep requirement commands read-only and move all mutations into the
+  requirement stage.
+- Merge regression guidance into checks, implementation, validation, and
+  regression traceability, including contract variants, parity, stale-state
+  cleanup, rollback, boundaries, concurrency, and idempotency.
+- Release WAEGIS 1.0.0 with schema-3 generation, all five gate groups, AEGIS
+  compatibility `>=2.0.0,<3.0.0`, and cross-major upgrade rejection.
+- Update planning architecture, examples, template documents, agent adapters,
+  the start-guide PDF, and all five maintained presentation decks for the
+  eight-stage AEGIS 2.0 contract.
+
+### Removed
+
+- Remove all AEGIS 1.x command aliases, expert flags, schema-2 migration,
+  legacy graph loading, manual activation commands, and compatibility shims.
+- Remove cross-major WAEGIS upgrades.
+
 ## [1.4.1] - 2026-07-28
 
 Component versions in this release: AEGIS payload 1.4.1, WAEGIS 0.6.0. The two

@@ -27,9 +27,6 @@
          per AGENTS.md), degrading to ``None`` rather than raising.
 @details Pure resolution logic: no printing, no network, read-only filesystem
          access.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.2.0
 """
 
 # IMPORTS
@@ -66,9 +63,6 @@ _ZIPAPP_PAYLOAD_PREFIX = "waegis/_bundled_payload/"
 class PayloadLocateError(Exception):
     """
     @brief Base error for payload resolution failures.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -78,18 +72,12 @@ class InvalidPayloadError(PayloadLocateError):
     @details Raised only for the explicit-override case: the operator named a
              path, so a silent fallback to another candidate would hide their
              mistake.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
 class PayloadNotFoundError(PayloadLocateError):
     """
     @brief No payload candidate resolved to an existing payload root.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
 
@@ -104,9 +92,6 @@ def is_payload_root(path: str | PathLike[str]) -> bool:
     @param[in]  path Candidate payload root directory.
     @return     ``True`` when the marker is present.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     root = Path(path)
     return root.is_dir() and (root / PAYLOAD_MARKER).is_file()
@@ -121,9 +106,6 @@ def bundled_payload_root() -> Path | None:
                 extracts it once into a content-addressed per-user cache.
     @return     Resolved bundled payload root, or ``None`` for a source build.
     @exception  PayloadLocateError If a zipapp contains an unsafe payload entry.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     explicit = os.environ.get("WAEGIS_BUNDLED_PAYLOAD")
     candidates = []
@@ -195,9 +177,6 @@ def repo_checkout_payload_root() -> Path | None:
     @return     The template directory when it exists and looks like a payload
                 root, else ``None``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     candidate = Path(__file__).resolve().parents[4] / "aegis" / "template"
     return candidate if is_payload_root(candidate) else None
@@ -215,9 +194,6 @@ def locate_payload(explicit: str | PathLike[str] | None = None) -> Path:
                 payload root (missing directory or missing marker).
     @exception  PayloadNotFoundError If no candidate resolves to an existing
                 payload root.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     if explicit is not None:
         root = Path(explicit)
@@ -253,9 +229,6 @@ def read_payload_version(payload_root: str | PathLike[str]) -> str | None:
     @param[in]  payload_root Payload root directory.
     @return     The version string, or ``None`` when it cannot be determined.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     version_file = Path(payload_root) / PAYLOAD_VERSION_FILE
     try:

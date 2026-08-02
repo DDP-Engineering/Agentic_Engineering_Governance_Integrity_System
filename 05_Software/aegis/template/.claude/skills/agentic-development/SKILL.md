@@ -1,6 +1,6 @@
 ---
 name: agentic-development
-description: Use for feature, bug fix, or behavior-change work that should follow the shared agentic development workflow gates.
+description: Use for feature, bug fix, or behavior-change work that should follow the shared agentic development workflow gates, including the proportional --quick profile for genuinely small fixes and changes.
 ---
 
 <!--
@@ -13,7 +13,7 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 # Agentic Development
 
 Before invoking the shared procedure, run `<workflow> config validate --json`
-and `<workflow> config show --effective --json`. Report the effective write,
+and `<workflow> config show --json`. Report the effective write,
 protected-read/path, scope, secret, gate, coverage, and delivery modes and active
 rule counts, state the selected run when graph state is used, and distinguish
 AEGIS repository policy from external platform safety.

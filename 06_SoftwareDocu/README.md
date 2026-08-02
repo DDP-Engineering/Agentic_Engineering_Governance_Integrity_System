@@ -12,30 +12,51 @@ for the AEGIS and WAEGIS packages belong here. Canonical runnable-workflow
 documentation ships with the template:
 
 - `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md` - CLI
-  commands, evidence lifecycle, requirement activation, audits, and delivery
-  preflight.
+  command groups, stage-form lifecycle, evidence modes, verification, and
+  delivery handoff.
 - `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md` -
   intrinsic workflow contracts, repository-policy modes, external safety
   boundaries, and operator decisions.
 - `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md` -
   operator-ready prompts for each workflow gate.
 - `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md` -
-  complete schema-version-2 structure, validation, modes, traceability, gates,
-  and configured guardrails.
+  complete schema-3 structure, captured interface policy, five independent
+  optional deterministic gates, traceability, and guardrails.
+- `05_Software/aegis/template/.agentic/documents/REPOWISE_INTEGRATION.md` -
+  optional schema-1 RepoWise discovery policy, evidence freshness, offline
+  boundary, and authority model.
+- `AEGIS_PERSISTENCE_AND_CONCURRENCY.md` - graph, journal, requirement, and
+  sibling-JSON atomicity, process-locking, stale-update, and durability
+  contracts.
+- `WAEGIS_TRANSACTION_RECOVERY.md` - authenticated transaction state, external
+  ownership binding, strict recovery validation, repository-scoped
+  serialization, RepoWise manifest-last crash recovery, dry-run behavior,
+  legacy-state refusal, and manual remediation.
+- `WAEGIS_RELEASE_REPRODUCIBILITY.md` - canonical build epoch, byte-identity
+  inputs and toolchain limits, deterministic ZIP/tar/gzip metadata, strict
+  runtime locks/downloads, exact internal verification, link graphs, atomic
+  publication, and the real-artifact reproduction procedure.
+- `WAEGIS_REPOWISE_WINDOWS_EXECUTION.md` - Click wildcard expansion on Windows,
+  literal option serialization, shell-free Complete execution, project-local
+  setup restoration, and receipt/failure ordering.
+- `SELF_GOVERNED_RELEASE.md` - prerequisites, proposed root adoption commands,
+  retained release-run evidence, and the current missing-installation blocker.
 
-Presentation material maintained in this folder (WAEGIS 0.3.0):
+Presentation material maintained in this folder (AEGIS 2.1 / WAEGIS 1.1):
 
 - `WAEGIS_01_Setup_And_First_Adoption.pptx` - setup and first-adoption journey.
 - `WAEGIS_02_Architecture_Portability_And_MultiLanguage.pptx` - architecture,
   portability, and multi-language overview.
 - `WAEGIS_02_Safe_AEGIS_Upgrade.pptx` - moving an installed project to a new
-  AEGIS payload version without overwriting local work.
+  compatible AEGIS 2.x payload without overwriting local work; cross-major
+  upgrades are unsupported.
 
 Stakeholder architecture decks (split by scope, one shared visual system):
 
 - `WAEGIS_Architecture_Presentation.pptx` - WAEGIS as the deployment wizard: the
   five-phase run, the configuration interview, `new` versus `adopt`, and the
-  managed lifecycle.
+  managed lifecycle, including optional Core/Complete RepoWise discovery.
 - `AEGIS_Governance_Workflow_Presentation.pptx` - AEGIS as the governance
-  workflow: the seven development stages (input, gate, and output for each), the
-  enforcement layers, and the adoption track.
+  workflow: the eight development stages, file-first approvals, deterministic
+  verification, enforcement layers, and adoption track with validated
+  advisory discovery.

@@ -13,9 +13,6 @@
          subcommand, that every command has a dedicated parser and handler,
          and that representative command-specific help remains available.
          The suite runs entirely offline (no network access).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.5.0
 """
 
 # IMPORTS
@@ -49,9 +46,6 @@ def _run_module(*args: str) -> subprocess.CompletedProcess[str]:
     @param[in]  args Command-line arguments passed after ``-m waegis``.
     @return     Completed process with captured stdout/stderr.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     env = dict(os.environ)
     existing = env.get("PYTHONPATH", "")
@@ -74,9 +68,6 @@ def test_help_exits_zero_and_lists_subcommands() -> None:
                 subcommand (T0.1 acceptance).
     @return     None
     @exception  AssertionError On non-zero exit or a missing subcommand.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     result = _run_module("--help")
     assert result.returncode == 0, result.stderr
@@ -89,9 +80,6 @@ def test_cli_has_only_dedicated_command_handlers() -> None:
     @brief      Verify T14 removes the unreachable generic stub fallback.
     @return     None.
     @exception  AssertionError If dead stub symbols or unhandled commands remain.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     parser = cli_module.build_parser()
     subparsers = next(
@@ -112,9 +100,6 @@ def test_version_is_a_real_command(capsys: pytest.CaptureFixture[str]) -> None:
     @param[in]  capsys Pytest capture helper.
     @return     None
     @exception  AssertionError If version output or its exit code changes.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.7.0
     """
     assert main(["version"]) == 0
     assert f"WAEGIS {WIZARD_VERSION}" in capsys.readouterr().out
@@ -127,9 +112,6 @@ def test_upgrade_is_no_longer_a_stub() -> None:
                 generic not-implemented stub.
     @return     None
     @exception  AssertionError If the help exit code or flag list is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     result = _run_module("upgrade", "--help")
     assert result.returncode == 0, result.stderr
@@ -152,9 +134,6 @@ def test_new_is_no_longer_a_stub() -> None:
                 generic not-implemented stub.
     @return     None
     @exception  AssertionError If the help exit code or flag list is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     result = _run_module("new", "--help")
     assert result.returncode == 0, result.stderr
@@ -169,9 +148,6 @@ def test_adopt_is_no_longer_a_stub() -> None:
                 generic not-implemented stub.
     @return     None
     @exception  AssertionError If the help exit code or flag list is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-14
-    @version    0.1.0
     """
     result = _run_module("adopt", "--help")
     assert result.returncode == 0, result.stderr
@@ -187,9 +163,6 @@ def test_analyze_is_no_longer_a_stub(tmp_path) -> None:  # type: ignore[no-untyp
     @param[in]  tmp_path Pytest tmp_path fixture used as the analyzed repo.
     @return     None
     @exception  AssertionError If the exit code is not 0.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-13
-    @version    0.1.0
     """
     assert main(["analyze", "--repo", str(tmp_path)]) == 0
 
@@ -207,9 +180,6 @@ def test_doctor_is_no_longer_a_stub(tmp_path, monkeypatch) -> None:  # type: ign
                 never touched by this offline test.
     @return     None
     @exception  AssertionError If the exit code falls outside {0, 1, 2}.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     monkeypatch.setenv("WAEGIS_HOME", str(tmp_path / "waegis-home"))
     exit_code = main(["doctor", "--repo", str(tmp_path)])
@@ -223,9 +193,6 @@ def test_doctor_help_documents_repo_and_json_flags() -> None:
                 ``adopt``'s ``TARGET``-based shape).
     @return     None
     @exception  AssertionError If the help exit code or flag list is wrong.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-15
-    @version    0.1.0
     """
     result = _run_module("doctor", "--help")
     assert result.returncode == 0, result.stderr
@@ -239,9 +206,6 @@ def test_no_command_errors() -> None:
                 exit (code 2).
     @return     None
     @exception  AssertionError If argparse does not exit with code 2.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     with pytest.raises(SystemExit) as excinfo:
         main([])

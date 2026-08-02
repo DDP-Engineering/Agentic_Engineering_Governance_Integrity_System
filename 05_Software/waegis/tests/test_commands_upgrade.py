@@ -19,9 +19,6 @@
          table can be reproduced independently), plus one test that drives the
          REAL ``05_Software/aegis/template/`` tree as the "new" payload against
          an aged/edited install.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-20
-@version 0.2.0
 """
 
 # IMPORTS
@@ -29,16 +26,18 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import io
+import inspect
+import json
 import re
 from pathlib import Path
 
 import pytest
 
 from waegis.cli import main
+import waegis.commands.upgrade as upgrade_module
 from waegis.version import WIZARD_VERSION
-from waegis.commands.new import NO_ACTIVE_RUN_MARKER, _amend_manifest_generated, _wrapper_invocation
+from waegis.commands.new import NO_ACTIVE_RUN_MARKER, amend_manifest_generated, _wrapper_invocation
 from waegis.commands.upgrade import (
     EXIT_CONFLICTS,
     EXIT_ERROR,
@@ -53,8 +52,15 @@ from waegis.commands.upgrade import (
     run_upgrade,
     UpgradeError,
 )
+from waegis.io.envelope import EXIT_NEEDS_INPUT
+from waegis.io.prompts import ConsoleAsker
 from waegis.payload.copier import SIDECAR_SUFFIX, ConflictDecision, copy_payload
 from waegis.payload.locate import locate_payload
+from waegis.transaction import (
+    FileTransaction,
+    TransactionRollbackError,
+    pending_transaction_ids,
+)
 from waegis.payload.manifest import (
     FileEntry,
     Manifest,
@@ -74,8 +80,6 @@ def _write(path: Path, content: str) -> None:
     @param[in]  path File to write (parents created).
     @param[in]  content Text content (no newline translation).
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8", newline="")
@@ -86,8 +90,6 @@ def _entry(content: str) -> FileEntry:
     @brief      Build the :class:`FileEntry` a verbatim copy of ``content`` hashes to.
     @param[in]  content Text content.
     @return     A :class:`FileEntry` with the sha256/size of ``content``'s bytes.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     raw = content.encode("utf-8")
     return FileEntry(sha256=hashlib.sha256(raw).hexdigest(), size=len(raw))
@@ -108,7 +110,7 @@ def _make_manifest(
     *,
     generated: tuple[str, ...] = (),
     skipped: tuple[str, ...] = (),
-    payload_version: str = "0.4.0",
+    payload_version: str = "2.0.0",
     installed_at: str = "2026-01-01T00:00:00Z",
     mode: str = "new",
     product: str = "aegis",
@@ -126,8 +128,6 @@ def _make_manifest(
     @param[in]  mode Recorded install mode.
     @param[in]  product Recorded product name.
     @return     The written :class:`Manifest`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     manifest = Manifest(
         manifest_version=1,
@@ -154,8 +154,6 @@ def _make_payload(root: Path, files: dict[str, str], *, marker: bool = False, ve
     @param[in]  version When set, write a ``.agentic/cli/pyproject.toml`` so
                 ``read_payload_version`` returns it.
     @return     ``root``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     root.mkdir(parents=True, exist_ok=True)
     for path, content in files.items():
@@ -172,19 +170,20 @@ def _smoke_ok_runner(repo: Path) -> FakeCommandRunner:
     @brief      A fake runner that makes the post-apply smoke re-verify pass.
     @details    ``run.* --help`` exits 0; ``run.* status`` exits non-zero with
                 the coherent fresh-install marker (:data:`NO_ACTIVE_RUN_MARKER`),
-                which :func:`waegis.commands.upgrade._smoke_reverify` treats as
+                which :func:`waegis.verification.smoke_reverify` treats as
                 healthy.
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner`.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     return FakeCommandRunner(
         {
             ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             _wrapper_invocation(repo, "--help"): ok_result(),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                exit_code=2,
+                stderr=NO_ACTIVE_RUN_MARKER,
+            ),
         }
     )
 
@@ -194,15 +193,16 @@ def _smoke_fail_runner(repo: Path) -> FakeCommandRunner:
     @brief      A fake runner that makes the post-apply smoke re-verify FAIL.
     @param[in]  repo Repository root (determines the wrapper argv keys).
     @return     A scripted :class:`FakeCommandRunner` whose ``--help`` fails.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.2.0
     """
     return FakeCommandRunner(
         {
             ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             _wrapper_invocation(repo, "--help"): failing_result(exit_code=1, stderr="boom"),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
+            _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                exit_code=2,
+                stderr=NO_ACTIVE_RUN_MARKER,
+            ),
         }
     )
 
@@ -213,8 +213,6 @@ def _plan(repo: Path, new_payload: Path):
     @param[in]  repo Repository root.
     @param[in]  new_payload New payload root.
     @return     The computed plan.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return build_upgrade_plan(repo, new_payload_root=new_payload, load_result=load_manifest(repo))
 
@@ -226,12 +224,23 @@ def _action_of(plan, path: str) -> FileAction:
     @param[in]  path Repo-relative POSIX path.
     @return     The :class:`FileAction`.
     @exception  AssertionError If the path is not present exactly once.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     matches = [item.action for item in plan.items if item.path == path]
     assert len(matches) == 1, f"expected exactly one plan item for {path!r}, got {matches}"
     return matches[0]
+
+
+def test_upgrade_has_one_authoritative_smoke_verifier() -> None:
+    """
+    @brief      Prevent the removed private smoke implementation from returning.
+    @return     None.
+    @exception  AssertionError If upgrade ships a duplicate verifier or stale reference.
+    """
+    source = inspect.getsource(upgrade_module)
+
+    assert not hasattr(upgrade_module, "_smoke_reverify")
+    assert "_smoke_reverify" not in source
+    assert "smoke_reverify(" in source
 
 
 # ---------------------------------------------------------------------------
@@ -451,8 +460,6 @@ def test_generated_file_never_touched(tmp_path: Path) -> None:
 class _RecordingHook:
     """
     @brief Test hook recording every conflict path it is asked to resolve.
-    @author Eng. Dan Dumitru Pasare
-    @version 0.1.0
     """
 
     def __init__(self, decision: ConflictDecision) -> None:
@@ -468,8 +475,6 @@ def _mixed_scenario(tmp_path: Path) -> tuple[Path, Path]:
     """
     @brief      One repo/new pair with an unchanged, an auto-apply, and a
                 conflict file (for cardinality assertions).
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "a.txt", "X")  # unchanged
@@ -498,9 +503,6 @@ def test_rewritten_hook_config_is_reported_for_retrust(tmp_path: Path) -> None:
                 the smoke re-verify still passes, so this notice is the only
                 signal the operator gets that enforcement is now off.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {}}')
@@ -529,9 +531,6 @@ def test_untouched_hook_config_needs_no_retrust(tmp_path: Path) -> None:
     @details    Guards against a notice that fires on every upgrade: one the
                 operator learns to skip is worth no more than none at all.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {}}')
@@ -554,9 +553,6 @@ def test_keep_local_hook_config_needs_no_retrust(tmp_path: Path) -> None:
     @brief      A conflict resolved ``keep-local`` writes nothing, so the
                 existing hook trust survives and no re-review is demanded.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {"local": 1}}')  # L != O
@@ -575,9 +571,6 @@ def test_take_payload_hook_config_needs_retrust(tmp_path: Path) -> None:
     @brief      A conflict resolved ``take-payload`` does rewrite the file, so
                 it is reported for re-trust like any other write.
     @return     None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-28
-    @version    0.1.0
     """
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / ".codex/hooks.json", '{"hooks": {"local": 1}}')
@@ -627,7 +620,7 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")  # would auto-apply
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")  # would auto-apply
 
     manifest_path = repo / ".agentic" / "install-manifest.json"
     before = manifest_path.read_bytes()
@@ -658,7 +651,7 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
 def test_smoke_failure_leaves_manifest_untouched(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
-    _make_manifest(repo, {"file.txt": "X"}, payload_version="0.4.0")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
     _make_payload(new, {"file.txt": "Y"})
 
     manifest_before = (repo / ".agentic" / "install-manifest.json").read_bytes()
@@ -674,7 +667,7 @@ def test_smoke_failure_leaves_manifest_untouched(tmp_path: Path) -> None:
     # Files and manifest are both restored by the transaction rollback.
     assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
     assert (repo / ".agentic" / "install-manifest.json").read_bytes() == manifest_before
-    assert read_manifest(repo).payload_version == "0.4.0"
+    assert read_manifest(repo).payload_version == "2.0.0"
     assert read_manifest(repo).files["file.txt"] == _entry("X")
 
 
@@ -688,8 +681,8 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
     _write(repo / "auto.txt", "X")  # -> AUTO_APPLY_NEW
     _write(repo / "removed.txt", "X")  # -> DELETE_REMOVED
     _write(repo / "conflict.txt", "Z")  # -> CONFLICT (take-payload)
-    _make_manifest(repo, {"auto.txt": "X", "removed.txt": "X", "conflict.txt": "X"}, payload_version="0.4.0")
-    _make_payload(new, {"auto.txt": "Y", "conflict.txt": "Y"}, version="0.4.1")  # removed.txt dropped upstream
+    _make_manifest(repo, {"auto.txt": "X", "removed.txt": "X", "conflict.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"auto.txt": "Y", "conflict.txt": "Y"}, version="2.0.1")  # removed.txt dropped upstream
 
     # First run "stops before step 3": apply happens, but the smoke re-verify
     # fails so the manifest is NOT rewritten (simulating an abort after step 1).
@@ -697,7 +690,7 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
     hook = make_resolution_hook({"conflict.txt": "take-payload"}, None)
     report1 = apply_upgrade(plan1, hook=hook, runner=_smoke_fail_runner(repo))
     assert report1.manifest_written is False
-    assert read_manifest(repo).payload_version == "0.4.0"  # old manifest intact
+    assert read_manifest(repo).payload_version == "2.0.0"  # old manifest intact
     # Disk is restored completely.
     assert report1.rolled_back is True
     assert (repo / "auto.txt").read_text(encoding="utf-8") == "X"
@@ -713,7 +706,7 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
     report2 = apply_upgrade(plan2, hook=hook, runner=_smoke_ok_runner(repo))
     assert report2.manifest_written is True
     final = read_manifest(repo)
-    assert final.payload_version == "0.4.1"
+    assert final.payload_version == "2.0.1"
     assert final.files["auto.txt"] == _entry("Y")
     assert final.files["conflict.txt"] == _entry("Y")
     assert "removed.txt" not in final.files
@@ -723,7 +716,7 @@ def test_smoke_failure_rolls_back_and_clean_rerun_applies(tmp_path: Path) -> Non
 
 
 # ---------------------------------------------------------------------------
-# no-manifest conservative path
+# valid-manifest requirement
 # ---------------------------------------------------------------------------
 
 
@@ -736,7 +729,7 @@ def test_no_manifest_is_rejected(tmp_path: Path) -> None:
     _make_payload(
         new,
         {".agentic/collide.txt": "UPSTREAM", ".agentic/new-only.txt": "NEW", ".agentic/workflow.toml": "UP CONFIG"},
-        version="0.4.1",
+        version="2.0.1",
     )
 
     with pytest.raises(UpgradeError, match="valid current install manifest"):
@@ -762,7 +755,7 @@ def test_json_healthy_upgrade(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
 
     stream = io.StringIO()
     answers = _upgrade_answers(tmp_path / "answers.json")
@@ -782,9 +775,10 @@ def test_json_healthy_upgrade(tmp_path: Path) -> None:
     assert data["command"] == "upgrade"
     assert data["exit_code"] == EXIT_OK
     assert data["plan"]["repo"] == str(repo.resolve())
-    assert data["plan"]["new_payload_version"] == "0.4.1"
+    assert data["plan"]["new_payload_version"] == "2.0.1"
     assert "file.txt" in data["plan"]["actions"]["auto-apply-new"]
     report = data["result"]
+    assert report["conservative"] is False
     assert report["applied"] is True
     assert report["smoke_ok"] is True
     assert report["manifest_written"] is True
@@ -801,15 +795,12 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
     @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
     @return     None
     @exception  AssertionError If the upgrade fails or omits a Git operation.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.2.0
     """
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
-    branch = "waegis/upgrade-0.4.1"
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    branch = "waegis/upgrade-2.0.1"
     answers = tmp_path / "answers.json"
     _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
     runner = FakeCommandRunner(
@@ -818,9 +809,12 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
             ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
             ("git", "-C", str(repo), "checkout", "-b", branch): ok_result(),
             _wrapper_invocation(repo, "--help"): ok_result(),
-            _wrapper_invocation(repo, "status"): failing_result(exit_code=2, stderr=NO_ACTIVE_RUN_MARKER),
+                _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                    exit_code=2,
+                    stderr=NO_ACTIVE_RUN_MARKER,
+                ),
             ("git", "-C", str(repo), "add", "-A"): ok_result(),
-            ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1"): ok_result(),
+            ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 2.0.1"): ok_result(),
         }
     )
 
@@ -840,7 +834,7 @@ def test_branch_commit_upgrade_uses_git_operation_status_properties(tmp_path: Pa
     assert code == EXIT_OK
     assert ("git", "-C", str(repo), "checkout", "-b", branch) in runner.calls
     assert ("git", "-C", str(repo), "add", "-A") in runner.calls
-    assert ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 0.4.1") in runner.calls
+    assert ("git", "-C", str(repo), "commit", "-m", "Upgrade AEGIS to 2.0.1") in runner.calls
 
 
 def test_branch_commit_upgrade_reports_branch_creation_failure(tmp_path: Path) -> None:
@@ -851,15 +845,12 @@ def test_branch_commit_upgrade_reports_branch_creation_failure(tmp_path: Path) -
     @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
     @return     None
     @exception  AssertionError If the failure escapes or loses Git's detail.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-20
-    @version    0.1.0
     """
     repo, new = (tmp_path / "repo").resolve(), tmp_path / "new"
     _write(repo / "file.txt", "X")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
-    branch = "waegis/upgrade-0.4.1"
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    branch = "waegis/upgrade-2.0.1"
     answers = tmp_path / "answers.json"
     _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
     runner = FakeCommandRunner(
@@ -893,7 +884,7 @@ def test_json_conflict_stop_and_report(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "Z")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
 
     manifest_before = (repo / ".agentic" / "install-manifest.json").read_bytes()
 
@@ -925,7 +916,7 @@ def test_run_upgrade_resolutions_seam_applies(tmp_path: Path) -> None:
     repo, new = tmp_path / "repo", tmp_path / "new"
     _write(repo / "file.txt", "Z")
     _make_manifest(repo, {"file.txt": "X"})
-    _make_payload(new, {"file.txt": "Y"}, marker=True, version="0.4.1")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
 
     stream = io.StringIO()
     answers = _upgrade_answers(tmp_path / "answers.json")
@@ -951,6 +942,326 @@ def test_run_upgrade_missing_repo_is_operational_error(tmp_path: Path) -> None:
     assert code == EXIT_ERROR
 
 
+def _abandon_pending_transaction(repo: Path) -> str:
+    """
+    @brief      Leave one interrupted (non-terminal) transaction in ``repo``.
+    @param[in]  repo Repository root (created if absent).
+    @return     The pending transaction's id.
+    @exception  None
+    """
+    repo.mkdir(parents=True, exist_ok=True)
+    managed = repo / "managed.txt"
+    managed.write_text("original\n", encoding="utf-8")
+    transaction = FileTransaction.begin(repo, command="test", paths=("managed.txt",))
+    transaction.mark("applying")
+    managed.write_text("interrupted\n", encoding="utf-8")
+    transaction.abandon()
+    return str(transaction.state["id"])
+
+
+def test_recovery_decline_renders_recovery_only_plan_in_human_mode(tmp_path: Path) -> None:
+    """
+    @brief      Declining the transaction-recovery consent interactively must
+                render the recovery-only plan, not crash.
+    @details    Regression for the pre-existing latent crash (2026-07-31 review,
+                batch 13): the decline path emits ``{"recovery": [...]}`` as the
+                plan, and the human renderer read ``plan_data['repo']`` ->
+                ``KeyError``. The decline must stop with needs-input and leave
+                the interrupted transaction untouched for a later consent.
+    @param[in]  tmp_path Isolated repository root.
+    @return     None
+    @exception  AssertionError If the decline crashes, recovers, or mislabels.
+    """
+    repo = tmp_path / "repo"
+    transaction_id = _abandon_pending_transaction(repo)
+
+    stream = io.StringIO()
+    asker = ConsoleAsker(stdin=io.StringIO("no\n"), stdout=stream)
+    code = run_upgrade(repo, as_json=False, dry_run=False, stream=stream, asker=asker)
+
+    assert code == EXIT_NEEDS_INPUT
+    output = stream.getvalue()
+    assert "transaction recovery requires explicit approval" in output
+    assert transaction_id in output
+    # Nothing was recovered: the interrupted bytes and state are untouched.
+    assert (repo / "managed.txt").read_text(encoding="utf-8") == "interrupted\n"
+    assert len(pending_transaction_ids(repo)) == 1
+
+
+class _KeyboardInterruptRunner:
+    """
+    @brief Runner that raises ``KeyboardInterrupt`` at the smoke re-verify,
+           i.e. mid-apply: after the file writes, before the manifest rewrite.
+    """
+
+    def __init__(self, repo: Path) -> None:
+        """@brief Wrap the healthy scripted runner for ``repo``."""
+        self._inner = _smoke_ok_runner(repo)
+        self._interrupt_argv = _wrapper_invocation(repo, "--help")
+
+    def run(self, argv, *, timeout: float = 5.0, cwd=None):  # type: ignore[no-untyped-def]
+        """@brief Interrupt the smoke ``--help`` call; pass everything else."""
+        if tuple(argv) == self._interrupt_argv:
+            raise KeyboardInterrupt()
+        return self._inner.run(argv, timeout=timeout, cwd=cwd)
+
+
+def test_keyboard_interrupt_mid_apply_journals_rolls_back_and_reraises(tmp_path: Path) -> None:
+    """
+    @brief      A ``KeyboardInterrupt`` during apply must journal the step as
+                FAILED, finalize the journal, roll the transaction back, and
+                re-raise (the intended post-decomposition semantics).
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @return     None
+    @exception  AssertionError If the interrupt is swallowed, the journal is
+                left open, or the rollback leaves partial writes behind.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"})
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    manifest_before = (repo / ".agentic" / "install-manifest.json").read_bytes()
+    home = tmp_path / "home"
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    with pytest.raises(KeyboardInterrupt):
+        run_upgrade(
+            repo,
+            as_json=True,
+            dry_run=False,
+            stream=io.StringIO(),
+            payload=str(new),
+            answers_path=answers,
+            non_interactive=True,
+            yes=True,
+            runner=_KeyboardInterruptRunner(repo),
+            home=home,
+        )
+
+    # The transaction rolled back: applied bytes restored, manifest untouched,
+    # and no pending recovery is left behind.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
+    assert (repo / ".agentic" / "install-manifest.json").read_bytes() == manifest_before
+    assert pending_transaction_ids(repo) == ()
+    # The journal recorded the FAILED apply step and was finalized.
+    journals = sorted((home / "journals").glob("*.json"))
+    assert len(journals) == 1
+    document = json.loads(journals[0].read_text(encoding="utf-8"))
+    assert document["status"] == "failed"
+    assert document["stopped_at_step"] == "upgrade.apply"
+    steps = {step["id"]: step["status"] for step in document["steps"]}
+    assert steps["upgrade.apply"] == "failed"
+
+
+# ---------------------------------------------------------------------------
+# apply-failure outcomes must never be reported alike: committed-but-cleanup-
+# failed, rolled back, and rollback-did-not-complete are three different states
+# ---------------------------------------------------------------------------
+
+
+def _journal_document(home: Path) -> dict:
+    """
+    @brief      Read the single journal a run wrote under ``home``.
+    @param[in]  home Journal root the run was given.
+    @return     The parsed journal document.
+    @exception  AssertionError If the run did not write exactly one journal.
+    """
+    journals = sorted((home / "journals").glob("*.json"))
+    assert len(journals) == 1
+    return json.loads(journals[0].read_text(encoding="utf-8"))
+
+
+def test_cleanup_failure_after_commit_is_reported_as_a_committed_upgrade(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A ``TransactionCleanupError`` raised after the commit marker is
+                a SUCCESSFUL upgrade and must never be reported as
+                failed-and-rolled-back.
+    @details    The manifest rewrite and every file write are already durable
+                when post-commit storage cleanup fails, so the run reports
+                ``applied``/``cleanup_pending`` and journals as completed;
+                only the cleanup is left for recovery to retry.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @param[in]  monkeypatch Used to fail only the transaction storage cleanup.
+    @return     None
+    @exception  AssertionError If the committed upgrade is reported as a
+                failure or a rollback.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    home = tmp_path / "home"
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    def fail_cleanup(_transaction: FileTransaction) -> None:
+        """@brief Make only the post-commit storage cleanup fail."""
+        raise OSError("cleanup unavailable")
+
+    monkeypatch.setattr(FileTransaction, "cleanup", fail_cleanup)
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=_smoke_ok_runner(repo),
+        home=home,
+    )
+
+    assert code == EXIT_ERROR
+    data = json.loads(stream.getvalue())
+    message = data["messages"][0]
+    assert "upgrade committed, but transaction cleanup failed" in message
+    assert "rolled back" not in message
+    assert data["result"] == {
+        "applied": True,
+        "rolled_back": False,
+        "cleanup_pending": True,
+    }
+    # The upgrade really is on disk: reported state and actual state agree.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "Y"
+    assert read_manifest(repo).payload_version == "2.0.1"
+    assert read_manifest(repo).files["file.txt"] == _entry("Y")
+    document = _journal_document(home)
+    assert document["status"] == "completed"
+    assert document["stopped_at_step"] is None
+    steps = {step["id"]: step["status"] for step in document["steps"]}
+    assert steps["upgrade.apply"] == "done"
+
+
+def test_a_committed_cleanup_failure_says_the_branch_is_uncommitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      A ``branch-commit`` upgrade that committed on disk but failed
+                cleanup must say the changes were never committed to Git.
+    @details    The Git commit step only runs for a clean apply, so without this
+                the operator is told the upgrade committed and finds the new
+                payload sitting uncommitted in the working tree of a branch they
+                did not know was left dirty.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @param[in]  monkeypatch Used to fail only the transaction storage cleanup.
+    @return     None
+    @exception  AssertionError If the uncommitted branch is not named.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    branch = "waegis/upgrade-2.0.1"
+    answers = tmp_path / "answers.json"
+    _write(answers, json.dumps({"git_mode": "branch-commit", "git_branch": branch}))
+    runner = FakeCommandRunner(
+        {
+            ("git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"): ok_result(stdout="true\n"),
+            ("git", "-C", str(repo), "status", "--porcelain"): ok_result(),
+            ("git", "-C", str(repo), "checkout", "-b", branch): ok_result(),
+            _wrapper_invocation(repo, "--help"): ok_result(),
+            _wrapper_invocation(repo, "run", "status", "--json"): failing_result(
+                exit_code=2, stderr=NO_ACTIVE_RUN_MARKER,
+            ),
+        }
+    )
+
+    def fail_cleanup(_transaction: FileTransaction) -> None:
+        """@brief Make only the post-commit storage cleanup fail."""
+        raise OSError("cleanup unavailable")
+
+    monkeypatch.setattr(FileTransaction, "cleanup", fail_cleanup)
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=runner,
+        home=tmp_path / "home",
+    )
+
+    assert code == EXIT_ERROR
+    messages = json.loads(stream.getvalue())["messages"]
+    assert "upgrade committed, but transaction cleanup failed" in messages[0]
+    assert any("NOT committed" in message and branch in message for message in messages)
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "Y"
+
+
+def test_a_rollback_that_does_not_complete_is_reported_as_such(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    @brief      When rollback itself fails the run must say so, never claim the
+                repository was restored.
+    @details    The apply is forced to fail at the manifest rewrite (after the
+                file writes) and rollback is forced to raise, so the repository
+                is genuinely left partially upgraded — the one state the
+                previous "failed and was rolled back" message hid.
+    @param[in]  tmp_path Isolated repository, payload, answers, and journal root.
+    @param[in]  monkeypatch Used to fail the manifest rewrite and the rollback.
+    @return     None
+    @exception  AssertionError If the failed rollback is reported as a
+                completed one.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"}, payload_version="2.0.0")
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    home = tmp_path / "home"
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    def fail_manifest_write(_root: object, _manifest: object) -> Path:
+        """@brief Fail the step 3 manifest rewrite, inside the transaction."""
+        raise OSError("manifest volume unavailable")
+
+    def fail_rollback(_transaction: FileTransaction, *, _release_lock: bool = True) -> None:
+        """@brief Make restoration fail the way a locked destination would."""
+        raise TransactionRollbackError("rollback unavailable")
+
+    monkeypatch.setattr(upgrade_module, "write_manifest", fail_manifest_write)
+    monkeypatch.setattr(FileTransaction, "rollback", fail_rollback)
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=True,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        answers_path=answers,
+        non_interactive=True,
+        yes=True,
+        runner=_smoke_ok_runner(repo),
+        home=home,
+    )
+
+    assert code == EXIT_ERROR
+    data = json.loads(stream.getvalue())
+    message = data["messages"][0]
+    assert "rollback did not complete" in message
+    assert "may be partially upgraded" in message
+    assert "rollback unavailable" in message
+    assert "manifest volume unavailable" in message
+    assert data["result"]["rolled_back"] is False
+    assert data["result"]["applied"] is False
+    # Truthful: the write really was left in place and the old manifest stands.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "Y"
+    assert read_manifest(repo).payload_version == "2.0.0"
+    document = _journal_document(home)
+    assert document["status"] == "failed"
+    assert document["stopped_at_step"] == "upgrade.apply"
+
+
 # ---------------------------------------------------------------------------
 # realism: drive the REAL template as the "new" payload against an aged install
 # ---------------------------------------------------------------------------
@@ -962,14 +1273,11 @@ def test_real_template_as_new_payload(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary repository and payload workspace.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.1
     """
     real = locate_payload()  # the repo-checkout template
     repo = tmp_path / "repo"
     copy_payload(real, repo, mode="new")  # manifest O == real template hashes
-    _amend_manifest_generated(repo)  # move workflow.toml -> generated (as new.py does)
+    amend_manifest_generated(repo)  # move workflow.toml -> generated (as new.py does)
 
     # Build a NEW payload = a copy of the real template with realistic edits.
     new = tmp_path / "new"
@@ -1037,6 +1345,53 @@ def test_upgrade_help_exits_zero() -> None:
 
 def test_upgrade_missing_repo_via_cli(tmp_path: Path) -> None:
     assert main(["upgrade", "--repo", str(tmp_path / "nope")]) == EXIT_ERROR
+
+
+def test_interactive_consent_transcript_is_frozen(tmp_path: Path) -> None:
+    """
+    @brief Golden test: the exact human transcript up to a declined consent.
+    @details The operator's decision context — plan summary lines, their
+             order, the consent prompt wording, and the decline message — is
+             a de-facto contract. A refactor that reorders or rewords what
+             the operator sees before consenting must fail here, not ship
+             silently. The payload digest is deterministic because every
+             fixture byte is fixed.
+    @param[in] tmp_path Pytest temporary directory.
+    @return None
+    @exception AssertionError If the rendered transcript drifts.
+    """
+    repo, new = tmp_path / "repo", tmp_path / "new"
+    _write(repo / "file.txt", "X")
+    _make_manifest(repo, {"file.txt": "X"})
+    _make_payload(new, {"file.txt": "Y"}, marker=True, version="2.0.1")
+    answers = _upgrade_answers(tmp_path / "answers.json")
+
+    stream = io.StringIO()
+    code = run_upgrade(
+        repo,
+        as_json=False,
+        dry_run=False,
+        stream=stream,
+        payload=str(new),
+        runner=_smoke_ok_runner(repo),
+        home=tmp_path / "home",
+        answers_path=str(answers),
+        asker=ConsoleAsker(stdin=io.StringIO("n\n"), stdout=stream),
+    )
+
+    assert code == EXIT_NEEDS_INPUT
+    transcript = stream.getvalue().replace(str(repo), "<REPO>")
+    assert transcript == (
+        "Resolved upgrade plan for <REPO>\n"
+        "  payload: 2.0.1 (85c486276778)\n"
+        "  git mode: require-clean\n"
+        "  auto-apply-new: 1 file(s)\n"
+        "  add-new: 2 file(s)\n"
+        "Apply this fully resolved upgrade plan? [y/N]: "
+        "waegis upgrade: upgrade plan was not approved\n"
+    )
+    # Declined consent must leave the repository untouched.
+    assert (repo / "file.txt").read_text(encoding="utf-8") == "X"
 
 
 # END OF FILE

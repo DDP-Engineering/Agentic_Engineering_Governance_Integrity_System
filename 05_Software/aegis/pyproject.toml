@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aegis"
-version = "1.0.0"
+version = "2.1.0"
 description = "Agentic Engineering Governance & Integrity System"
 requires-python = ">=3.11"
 dependencies = []
@@ -26,3 +26,10 @@ where = ["template/.agentic/cli/src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["template/.agentic/cli/src", "../waegis/src"]
+
+[tool.ruff.lint.isort]
+# This project sorts "import x" and "from x import y" together in one
+# alphabetical order by module name, rather than ruff/isort's default of two
+# separate groups. Run `ruff check --select I` to check import order against
+# this convention.
+force-sort-within-sections = true

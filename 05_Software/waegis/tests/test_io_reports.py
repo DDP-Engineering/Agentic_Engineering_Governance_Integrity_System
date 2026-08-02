@@ -14,9 +14,6 @@
          set, and the blocking-point report's human render (all five required
          fields, stable order) plus its ``--json`` twin (same fields, stable
          keys).
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -44,8 +41,6 @@ def _sample_findings() -> list[ProbeFindingRecord]:
     @brief      A fixed mixed pass/fail set of probe findings for tests.
     @return     Three findings: one healthy, one warning, one failing (with
                 guidance).
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return [
         ProbeFindingRecord(name="python", status="ok", detail="3.11.6 found", guidance=None),
@@ -63,8 +58,6 @@ def _sample_blocking_report() -> BlockingPointReport:
     """
     @brief      A fixed blocking-point report for tests.
     @return     A report for a step blocked by a corporate proxy.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return BlockingPointReport(
         step_id="net.proxy",
@@ -88,8 +81,6 @@ def test_environment_report_renders_mixed_findings() -> None:
     @return     None
     @exception  AssertionError If a finding's name/status/detail/guidance is
                 missing from the rendered text.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     stream = io.StringIO()
     render_environment_report(_sample_findings(), stream)
@@ -108,8 +99,6 @@ def test_environment_report_json_shape() -> None:
                 guidance}]}`` shape.
     @return     None
     @exception  AssertionError If a key is missing or a value mismatches.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     findings = _sample_findings()
     as_dict = environment_report_to_dict(findings)
@@ -129,8 +118,6 @@ def test_blocking_point_report_human_output_has_all_fields_in_order() -> None:
                 alternatives) in a stable order.
     @return     None
     @exception  AssertionError If a field is missing or out of order.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     report = _sample_blocking_report()
     stream = io.StringIO()
@@ -156,8 +143,6 @@ def test_blocking_point_report_json_shape() -> None:
                 alternatives}`` shape under stable keys.
     @return     None
     @exception  AssertionError If a key is missing or a value mismatches.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     report = _sample_blocking_report()
     payload = json.loads(blocking_point_report_json(report))
@@ -182,8 +167,6 @@ def test_blocking_point_report_without_alternatives_says_so() -> None:
                 "(none known)" line rather than an empty section.
     @return     None
     @exception  AssertionError If the placeholder text is absent.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     report = BlockingPointReport(
         step_id="prereq.git",

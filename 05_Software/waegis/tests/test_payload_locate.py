@@ -14,9 +14,6 @@
 @details Strictly offline. Uses synthetic ``tmp_path`` payload trees plus the
          real ``05_Software/aegis/template/`` (read-only) for the
          checkout-fallback and version-reading cases.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -55,8 +52,6 @@ def _make_payload_root(root: Path) -> Path:
     @param[in]  root Directory to turn into a payload root.
     @return     ``root``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     marker = root / PAYLOAD_MARKER
     marker.parent.mkdir(parents=True, exist_ok=True)
@@ -73,8 +68,6 @@ def test_explicit_payload_override_used_when_valid(tmp_path: Path) -> None:
                 without consulting any fallback.
     @return     None
     @exception  AssertionError If the override is not honored.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload_root(tmp_path / "payload")
     assert locate_payload(payload) == payload.resolve()
@@ -87,8 +80,6 @@ def test_explicit_payload_override_rejected_without_marker(tmp_path: Path) -> No
                 a fallback.
     @return     None
     @exception  AssertionError If a non-payload directory is accepted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     not_a_payload = tmp_path / "just-a-dir"
     not_a_payload.mkdir()
@@ -102,8 +93,6 @@ def test_explicit_payload_override_rejected_when_missing(tmp_path: Path) -> None
                 an InvalidPayloadError.
     @return     None
     @exception  AssertionError If a missing path is accepted.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with pytest.raises(InvalidPayloadError):
         locate_payload(tmp_path / "no-such-dir")
@@ -115,8 +104,6 @@ def test_bundled_payload_root_is_stubbed_until_packaging() -> None:
                 T7.x introduces packaging.
     @return     None
     @exception  AssertionError If the stub reports a bundled payload.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     assert bundled_payload_root() is None
 
@@ -127,8 +114,6 @@ def test_repo_checkout_fallback_resolves_real_template() -> None:
                 real 05_Software/aegis/template/ payload.
     @return     None
     @exception  AssertionError If the checkout fallback misses the template.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     assert is_payload_root(REAL_TEMPLATE)
     assert repo_checkout_payload_root() == REAL_TEMPLATE
@@ -141,8 +126,6 @@ def test_error_when_no_candidate_resolves(monkeypatch: pytest.MonkeyPatch) -> No
                 locate_payload raises the distinct not-found error.
     @return     None
     @exception  AssertionError If the failure is not reported clearly.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     monkeypatch.setattr(locate, "bundled_payload_root", lambda: None)
     monkeypatch.setattr(locate, "repo_checkout_payload_root", lambda: None)
@@ -157,8 +140,6 @@ def test_read_payload_version_from_real_template() -> None:
                 independent tomllib parse of that file.
     @return     None
     @exception  AssertionError If the version differs from the declaration.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     with open(REAL_TEMPLATE / PAYLOAD_VERSION_FILE, "rb") as handle:
         expected = tomllib.load(handle)["project"]["version"]
@@ -174,8 +155,6 @@ def test_read_payload_version_degrades_to_none(tmp_path: Path) -> None:
                 rather than raising.
     @return     None
     @exception  AssertionError If any degraded case raises or returns a value.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     payload = _make_payload_root(tmp_path / "payload")
     assert read_payload_version(payload) is None

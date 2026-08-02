@@ -11,9 +11,6 @@
 @brief Embedded-runtime registration and payload-zipapp acceptance tests.
 @details Covers runtime discovery, reproducible source filtering, pinned
          runtime metadata, zipapp execution, and archive extraction safety.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-16
-@version 0.3.0
 """
 
 # IMPORTS
@@ -28,7 +25,10 @@ import re
 import subprocess
 import sys
 import tarfile
+import zipfile
 from pathlib import Path
+
+import pytest
 
 from waegis.runtime import python_probe_candidates, register_packaged_runtime, runtime_pointer_path
 
@@ -119,9 +119,6 @@ def test_release_artifact_names_carry_no_version(tmp_path: Path) -> None:
                 breaks them silently at the next release. The version is not
                 lost: it is recorded in ``release-manifest.json`` and reported
                 by the artifact itself.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.1.0
     """
     builder = _builder()
     sys.path.insert(0, str(PACKAGE_ROOT / "src"))
@@ -155,9 +152,6 @@ def test_release_metadata_uses_lf_line_endings(tmp_path: Path) -> None:
                 in a carriage return and fail every entry — indistinguishable,
                 to whoever downloaded it, from a corrupt artifact. A build must
                 produce the same bytes on Windows as on Linux.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.1.0
     """
     builder = _builder()
     output = tmp_path / "dist"
@@ -180,9 +174,6 @@ def test_default_build_output_is_the_single_delivery_dist(tmp_path: Path) -> Non
     @details    Builds overwrite that directory instead of leaving a versioned
                 set behind; the previous default scattered outputs across three
                 locations that nothing ever cleaned up.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-29
-    @version    0.1.0
     """
     builder = _builder()
 
@@ -191,11 +182,23 @@ def test_default_build_output_is_the_single_delivery_dist(tmp_path: Path) -> Non
 
 
 def test_runtime_lock_pins_both_release_assets() -> None:
-    """@brief The release builder has exact assets and hashes for both targets."""
+    """
+    @brief      Core and RepoWise pin compatible runtimes for both targets.
+    @details    WAEGIS Core retains Python 3.13, while the RepoWise sidecar uses
+                Python 3.12 because RepoWise 0.37.0 locks NumPy 1.26.4.
+    """
     lock = json.loads((PACKAGE_ROOT / "packaging/runtime-lock.json").read_text(encoding="utf-8"))
     assert lock["release"] == "20260510"
+    assert lock["python_version"] == "3.13.13"
     assert set(lock["targets"]) == {"windows-x64", "linux-x64"}
     assert all(len(entry["sha256"]) == 64 for entry in lock["targets"].values())
+    repowise_lock = json.loads(
+        (PACKAGE_ROOT / "packaging/repowise-runtime-lock.json").read_text(encoding="utf-8")
+    )
+    assert repowise_lock["release"] == "20260510"
+    assert repowise_lock["python_version"] == "3.12.13"
+    assert set(repowise_lock["targets"]) == {"windows-x64", "linux-x64"}
+    assert all(len(entry["sha256"]) == 64 for entry in repowise_lock["targets"].values())
 
 
 def test_release_copy_excludes_generated_payload_state(tmp_path: Path) -> None:
@@ -205,9 +208,6 @@ def test_release_copy_excludes_generated_payload_state(tmp_path: Path) -> None:
     @return     None.
     @exception  AssertionError If generated dependency, cache, metadata, or
                 bytecode state reaches the staged release tree.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     builder = _builder()
     source = tmp_path / "source"
@@ -220,11 +220,19 @@ def test_release_copy_excludes_generated_payload_state(tmp_path: Path) -> None:
         source / ".pytest_cache" / "README.md",
         source / ".mypy_cache" / "state.json",
         source / ".ruff_cache" / "state",
+        source / ".hypothesis" / "examples",
+        source / ".tox" / "state",
+        source / ".nox" / "state",
+        source / "htmlcov" / "index.html",
         source / ".pi" / "node_modules" / "package" / "index.js",
         source / ".pi" / ".vitest" / "results.json",
         source / ".uv-cache-build" / "archive.bin",
+        source / ".uv_cache" / "archive.bin",
+        source / ".coverage",
+        source / "coverage.xml",
         source / "package.egg-info" / "PKG-INFO",
         source / "standalone.pyc",
+        source / "optimized.pyo",
     )
     for path in excluded_files:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -243,9 +251,6 @@ def test_runtime_extraction_materializes_relative_symlinks(tmp_path: Path) -> No
     @param[in]  tmp_path Temporary runtime archive and extraction root.
     @return     None.
     @exception  AssertionError If link bytes or executable metadata are lost.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     builder = _builder()
     archive_path = tmp_path / "runtime.tar.gz"
@@ -277,9 +282,6 @@ def test_linux_tar_filter_normalizes_cross_build_modes() -> None:
     @return     None.
     @exception  AssertionError If directory, data, script, launcher, or runtime
                 modes are not deterministic and executable where required.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.2.0
     """
     builder = _builder()
     executable_paths = frozenset({"waegis", "runtime/python/bin/python3"})
@@ -306,6 +308,123 @@ def test_linux_tar_filter_normalizes_cross_build_modes() -> None:
     launcher_text = builder._linux_launcher("runtime/python/bin/python3")
     assert launcher_text.startswith("#!/usr/bin/env sh\n")
     assert "\r\n" not in launcher_text
+
+
+def test_complete_artifact_names_and_launchers_are_edition_explicit() -> None:
+    """@brief Core and Complete keep stable names and explicit launcher policy."""
+    builder = _builder()
+    assert builder.COMPLETE_WINDOWS_ARCHIVE_NAME == "waegis-complete-windows-x64.zip"
+    assert builder.COMPLETE_LINUX_ARCHIVE_NAME == "waegis-complete-linux-x64.tar.gz"
+    windows = builder._windows_launcher("runtime/python.exe", complete=True)
+    linux = builder._linux_launcher("runtime/python3", complete=True)
+    assert "WAEGIS_EDITION=complete" in windows
+    assert "WAEGIS_REPOWISE_BUNDLE=%~dp0repowise" in windows
+    assert "WAEGIS_EDITION=complete" in linux
+    assert 'WAEGIS_REPOWISE_BUNDLE="$ROOT/repowise"' in linux
+
+
+def test_complete_companions_require_matching_repowise_source(tmp_path: Path) -> None:
+    """
+    @brief      Cross-platform Complete companions share one source identity.
+    @details    A stale archive left by an earlier native build must not be
+                silently included in a new release manifest.
+    """
+    builder = _builder()
+    document = {
+        "schema_version": 1,
+        "build_epoch": 315532800,
+        "edition": "complete",
+        "repowise_version": builder.REPOWISE_VERSION,
+        "platform": "windows-x64",
+        "source": {
+            "tag": "v0.37.0",
+            "commit": "a" * 40,
+            "archive": builder.REPOWISE_SOURCE_ARCHIVE,
+        },
+    }
+    windows = tmp_path / builder.COMPLETE_WINDOWS_ARCHIVE_NAME
+    with zipfile.ZipFile(windows, "w") as bundle:
+        bundle.writestr(
+            "waegis-windows-x64/repowise/repowise-bundle-manifest.json",
+            json.dumps(document),
+        )
+    builder._validate_complete_companion(
+        windows,
+        expected_platform="windows-x64",
+        source_info={"tag": "v0.37.0", "commit": "a" * 40},
+    )
+
+    linux = tmp_path / builder.COMPLETE_LINUX_ARCHIVE_NAME
+    document["platform"] = "linux-x64"
+    encoded = json.dumps(document).encode("utf-8")
+    with tarfile.open(linux, "w:gz") as bundle:
+        member = tarfile.TarInfo(
+            "waegis-linux-x64/repowise/repowise-bundle-manifest.json"
+        )
+        member.size = len(encoded)
+        bundle.addfile(member, io.BytesIO(encoded))
+    builder._validate_complete_companion(
+        linux,
+        expected_platform="linux-x64",
+        source_info={"tag": "v0.37.0", "commit": "a" * 40},
+        expected_epoch=315532800,
+    )
+
+    with pytest.raises(builder.PackagingError, match="mismatched"):
+        builder._validate_complete_companion(
+            windows,
+            expected_platform="windows-x64",
+            expected_epoch=315532802,
+        )
+
+    with pytest.raises(builder.PackagingError, match="stale Complete companion"):
+        builder._validate_complete_companion(
+            windows,
+            expected_platform="windows-x64",
+            source_info={"tag": "v0.37.0", "commit": "b" * 40},
+        )
+
+
+def test_repowise_release_source_requires_exact_clean_tag(tmp_path: Path) -> None:
+    """
+    @brief      Complete packaging pins source blobs and rejects worktree drift.
+    """
+    builder = _builder()
+    source = tmp_path / "repowise"
+    source.mkdir()
+    (source / "pyproject.toml").write_text(
+        '[project]\nname = "repowise"\nversion = "0.37.0"\n',
+        encoding="utf-8",
+    )
+    (source / "LICENSE").write_text("AGPL-3.0-or-later\n", encoding="utf-8")
+    (source / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(["git", "-C", str(source), "config", "user.name", "Test"], check=True)
+    subprocess.run(["git", "-C", str(source), "config", "user.email", "test@example.invalid"], check=True)
+    subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(source), "commit", "-qm", "source"], check=True)
+    subprocess.run(["git", "-C", str(source), "tag", "v0.37.0"], check=True)
+
+    info = builder._validate_repowise_source(source)
+    assert info["tag"] == "v0.37.0"
+    assert len(info["commit"]) == 40
+    first_archive = tmp_path / "first-source.zip"
+    second_archive = tmp_path / "second-source.zip"
+    builder._write_repowise_source_archive(info, first_archive)
+    builder._write_repowise_source_archive(info, second_archive)
+    assert builder.sha256_file(first_archive) == builder.sha256_file(second_archive)
+    with zipfile.ZipFile(first_archive) as archive:
+        archived = archive.read("repowise-0.37.0/pyproject.toml")
+    committed = subprocess.run(
+        ["git", "-C", str(source), "show", "HEAD:pyproject.toml"],
+        check=True,
+        capture_output=True,
+    ).stdout
+    assert archived == committed
+
+    (source / "untracked.txt").write_text("dirty\n", encoding="utf-8")
+    with pytest.raises(builder.PackagingError, match="must be clean"):
+        builder._validate_repowise_source(source)
 
 
 # END OF FILE

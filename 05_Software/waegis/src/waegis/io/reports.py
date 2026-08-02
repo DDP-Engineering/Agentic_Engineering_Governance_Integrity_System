@@ -32,9 +32,6 @@
 
          These field names are a public, frozen integration contract; changing
          them is a wizard MAJOR version bump.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -58,9 +55,6 @@ class ProbeFinding(Protocol):
              ``"ok"``, ``"warn"``, ``"fail"``); ``detail`` is the one-line
              human summary; ``guidance`` is optional fix-it text shown when the
              status is not healthy.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     name: str
@@ -74,9 +68,6 @@ class ProbeFindingRecord:
     """
     @brief Concrete :class:`ProbeFinding` implementation for direct use and
            tests.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     name: str
@@ -93,9 +84,6 @@ class BlockingPointReport:
     @details Field order mirrors the plan's exact template: what was
              attempted, what happened, why the wizard needs it, the copyable
              ask-IT request text, and the alternative paths available.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     step_id: str
@@ -112,9 +100,6 @@ class BlockingPointReport:
         @return     Mapping keyed ``step_id, title, attempted, what_happened,
                     why, it_request, alternatives``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-12
-        @version    0.1.0
         """
         return {
             "step_id": self.step_id,
@@ -136,9 +121,6 @@ def _finding_to_dict(finding: ProbeFinding) -> dict[str, Any]:
     @param[in]  finding Any object satisfying the :class:`ProbeFinding` protocol.
     @return     Mapping keyed ``name, status, detail, guidance``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return {
         "name": finding.name,
@@ -162,9 +144,6 @@ def render_environment_report(findings: Sequence[ProbeFinding], stream: IO[str])
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     stream.write("Environment report\n")
     stream.write("-------------------\n")
@@ -180,9 +159,6 @@ def environment_report_to_dict(findings: Sequence[ProbeFinding]) -> dict[str, An
     @param[in]  findings Probe findings to serialize, in the given order.
     @return     Mapping ``{"findings": [{name, status, detail, guidance}, ...]}``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return {"findings": [_finding_to_dict(f) for f in findings]}
 
@@ -193,9 +169,6 @@ def environment_report_json(findings: Sequence[ProbeFinding]) -> str:
     @param[in]  findings Probe findings to serialize, in the given order.
     @return     JSON text of :func:`environment_report_to_dict`.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return json.dumps(environment_report_to_dict(findings), indent=2, ensure_ascii=False)
 
@@ -208,9 +181,6 @@ def render_blocking_point_report(report: BlockingPointReport, stream: IO[str]) -
     @param[in]  stream Output stream (real console or injected buffer for tests).
     @return     None
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     stream.write(f"BLOCKED: {report.title} ({report.step_id})\n")
     stream.write(f"Attempted:    {report.attempted}\n")
@@ -232,9 +202,6 @@ def blocking_point_report_json(report: BlockingPointReport) -> str:
     @param[in]  report The :class:`BlockingPointReport` to serialize.
     @return     JSON text of ``report.to_dict()``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-12
-    @version    0.1.0
     """
     return json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
 

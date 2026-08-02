@@ -13,9 +13,6 @@
          points behavior-changing work at the shared neutral workflow skills,
          the plugin maps OpenCode tool events to policy-neutral shared Python
          hooks, and the scaffolder copies the adapter.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-02
-@version 0.4.0
 """
 
 # IMPORTS
@@ -60,9 +57,6 @@ def test_opencode_adapter_files_exist() -> None:
     @brief      Verify the OpenCode adapter file layout exists.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-02
-    @version    0.2.0
     """
     assert (TEMPLATE / "opencode.json").exists()
     assert (OPENCODE_DIR / "README.md").exists()
@@ -80,9 +74,6 @@ def test_opencode_config_has_no_repository_policy_duplication() -> None:
     @brief      Verify project config avoids model locks and repository rules.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-02
-    @version    0.3.0
     """
     config = json.loads((TEMPLATE / "opencode.json").read_text(encoding="utf-8"))
 
@@ -102,9 +93,6 @@ def test_opencode_default_agent_loads_aegis() -> None:
     @brief      Verify the default OpenCode agent hardens workflow selection.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-02
-    @version    0.1.0
     """
     text = (OPENCODE_DIR / "agents" / f"{WORKFLOW_AGENT}.md").read_text(encoding="utf-8")
 
@@ -123,9 +111,6 @@ def test_opencode_skill_wrappers_reuse_shared_engine_skills() -> None:
     @brief      Verify OpenCode skill wrappers point to shared neutral skills.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-25
-    @version    0.1.0
     """
     for name in SKILL_NAMES:
         text = (OPENCODE_DIR / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
@@ -141,14 +126,11 @@ def test_opencode_commands_delegate_to_project_local_runner() -> None:
     @brief      Verify command prompts use the local workflow runner.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-02
-    @version    0.2.0
     """
     expected_targets = {
-        "workflow-status": "status",
-        "workflow-preflight": "delivery-preflight",
-        "workflow-report": "report",
+        "workflow-status": "run status",
+        "workflow-preflight": "verify run",
+        "workflow-report": "delivery report",
     }
     for command_name, workflow_command in expected_targets.items():
         text = (OPENCODE_DIR / "commands" / f"{command_name}.md").read_text(encoding="utf-8")
@@ -162,9 +144,6 @@ def test_opencode_plugin_maps_tools_to_shared_hooks() -> None:
     @brief      Verify the plugin references every shared Python guard hook.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-25
-    @version    0.1.0
     """
     plugin = (OPENCODE_DIR / "plugins" / "agentic-guard.mjs").read_text(encoding="utf-8")
     for hook in (
@@ -188,9 +167,6 @@ def test_opencode_plugin_delegates_protected_reads_without_native_patterns() -> 
     @brief      Verify reads use the shared hook without native patterns.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-25
-    @version    0.2.0
     """
     plugin = (OPENCODE_DIR / "plugins" / "agentic-guard.mjs").read_text(encoding="utf-8")
     assert "guard_read_path.py" in plugin
@@ -204,9 +180,6 @@ def test_scaffold_copies_opencode_adapter(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary destination directory for the copied template.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-02
-    @version    0.3.0
     """
     target = tmp_path / "new-project"
 

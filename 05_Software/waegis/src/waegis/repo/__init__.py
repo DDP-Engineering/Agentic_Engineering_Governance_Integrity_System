@@ -11,9 +11,6 @@
 @brief Package marker for the WAEGIS repository-operations layer.
 @details Holds git operations, repo analysis heuristics, and workflow.toml
          generation (plan §7/§9, M4/M5). Populated by later tasks.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # END OF FILE

@@ -12,9 +12,6 @@
 @details Verifies the Pi adapter files exist, the package manifest is valid and
          noncommercial-safe, repository policy is delegated to shared Python
          hooks, and scaffolding excludes vitest dev artifacts.
-@author Eng. Dan Dumitru Pasare
-@date 2026-06-20
-@version 0.3.0
 """
 
 # IMPORTS
@@ -52,9 +49,6 @@ def read_manifest() -> dict:
     @brief      Read and parse the Pi package manifest.
     @return     Parsed ``template/.pi/package.json`` as a dictionary.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     return json.loads((PI_DIR / "package.json").read_text(encoding="utf-8"))
 
@@ -67,9 +61,6 @@ def test_pi_adapter_files_exist() -> None:
     @brief      Handle the Pi adapter file presence workflow behavior.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     assert (PI_DIR / "package.json").exists()
     assert (PI_DIR / "settings.json").exists()
@@ -85,9 +76,6 @@ def test_manifest_is_noncommercial_safe() -> None:
     @brief      Verify the manifest keeps the package off public npm.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     manifest = read_manifest()
     assert manifest.get("private") is True
@@ -108,9 +96,6 @@ def test_manifest_declares_the_supported_node_floor() -> None:
                 by every host as a *non-blocking* hook error, letting the tool
                 call through unguarded.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     engines = read_manifest().get("engines", {})
     assert "node" in engines, "the Node requirement must be declared, not implied"
@@ -122,9 +107,6 @@ def test_manifest_declares_extension_and_reuses_shared_skills() -> None:
     @brief      Verify the manifest wires the extension and reuses engine skills.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     manifest = read_manifest()
     pi_key = manifest.get("pi", {})
@@ -139,9 +121,6 @@ def test_reused_skill_paths_resolve_to_shared_engine() -> None:
     @brief      Verify the manifest skills path resolves to the six SKILL.md files.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     manifest = read_manifest()
     rel = manifest["pi"]["skills"][0]
@@ -156,9 +135,6 @@ def test_extension_sources_carry_license_header() -> None:
     @brief      Verify each new TypeScript source carries the license header.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.1.0
     """
     for source in ("index.ts", "bridge.ts", "hook-bridge.ts"):
         text = (EXTENSION / source).read_text(encoding="utf-8")
@@ -170,9 +146,6 @@ def test_bridge_maps_pi_tools_to_python_hooks() -> None:
     @brief      Verify the bridge references every shared Python guard hook.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     bridge = (EXTENSION / "bridge.ts").read_text(encoding="utf-8")
     for hook in (
@@ -203,9 +176,6 @@ def test_scaffold_copies_pi_adapter_and_skips_node_modules(tmp_path: Path) -> No
     @param[in]  tmp_path Temporary destination directory for the copied template.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-06-20
-    @version    0.2.0
     """
     target = tmp_path / "new-project"
 

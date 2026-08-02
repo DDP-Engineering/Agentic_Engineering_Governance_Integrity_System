@@ -9,12 +9,9 @@
 """
 @file __init__.py
 @brief Package marker for the WAEGIS command handlers.
-@details Holds the per-subcommand handlers (new, adopt, analyze, doctor,
-         upgrade) that the CLI dispatches to (plan §5). Populated by later
-         tasks; the CLI currently uses stubs.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
+@details Holds the per-subcommand handlers (new, adopt, analyze, configure,
+         doctor, repair, repowise, upgrade, version) that the CLI dispatches
+         to (plan §5).
 """
 
 # END OF FILE

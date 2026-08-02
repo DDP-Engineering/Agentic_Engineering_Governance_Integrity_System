@@ -16,9 +16,6 @@
          These tests cover the apply-phase seam in the copier, the transaction
          scope built on it, and an end-to-end failure midway through a real
          adoption copy.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-23
-@version 0.1.0
 """
 
 # IMPORTS
@@ -57,9 +54,6 @@ def _make_payload(root: Path) -> Path:
     @param[in]  root Directory to populate.
     @return     ``root``.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     (root / ".agentic").mkdir(parents=True)
     (root / ".agentic" / "workflow.toml").write_bytes(b"[workflow]\nname = 'toy'\n")
@@ -72,9 +66,6 @@ def _make_payload(root: Path) -> Path:
 class _RecordingScope:
     """
     @brief Apply-phase scope that records the paths it was handed.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-23
-    @version 0.1.0
     """
 
     def __init__(self) -> None:
@@ -82,9 +73,6 @@ class _RecordingScope:
         @brief      Start with no recorded invocation.
         @return     None
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-23
-        @version    0.1.0
         """
         self.calls: list[tuple[str, ...]] = []
 
@@ -94,9 +82,6 @@ class _RecordingScope:
         @param[in]  paths Paths the apply phase is about to write.
         @return     Self, used as the context manager.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-23
-        @version    0.1.0
         """
         self.calls.append(paths)
         return self
@@ -126,9 +111,6 @@ def _fail_after_payload_copies(count: int, payload: Path):
                 then pass without ever proving that an overwritten file is
                 restored.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     state = {"copies": 0}
     real = copier_module.shutil.copy2
@@ -155,9 +137,6 @@ def test_apply_scope_receives_exactly_the_paths_that_will_be_written(tmp_path: P
     @details    A journal staged over a superset would back up files the copy
                 never touches; a subset would leave writes unprotected.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     scope = _RecordingScope()
@@ -174,9 +153,6 @@ def test_apply_scope_includes_write_new_sidecars(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary root for the payload and target.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -203,9 +179,6 @@ def test_apply_scope_is_not_opened_on_a_dry_run(tmp_path: Path) -> None:
     @param[in]  tmp_path Temporary root for the payload and target.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     scope = _RecordingScope()
@@ -223,9 +196,6 @@ def test_apply_scope_is_not_opened_when_strict_mode_refuses(tmp_path: Path) -> N
     @details    The refusal happens before the apply phase, so there is nothing
                 to protect and no transaction directory should appear.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -246,9 +216,6 @@ def test_apply_scope_is_not_opened_when_a_conflict_hook_raises(tmp_path: Path) -
     @param[in]  tmp_path Temporary root for the payload and target.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     target = tmp_path / "target"
@@ -276,9 +243,6 @@ def test_payload_transaction_commits_and_removes_its_directory(tmp_path: Path) -
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -298,9 +262,6 @@ def test_payload_transaction_restores_every_destination_on_failure(tmp_path: Pat
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -339,9 +300,6 @@ def test_an_interrupted_adoption_copy_leaves_the_repository_unchanged(
                 overwritten `AGENTS.md` stay on disk with no manifest recording
                 either.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     payload = _make_payload(tmp_path / "payload")
     repo = tmp_path / "repo"
@@ -384,9 +342,6 @@ def test_a_killed_run_is_rolled_back_by_the_next_command(tmp_path: Path) -> None
                 never reaches it, so the persisted journal must carry the
                 recovery.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -398,6 +353,7 @@ def test_a_killed_run_is_rolled_back_by_the_next_command(tmp_path: Path) -> None
     (repo / "AGENTS.md").write_text("payload\n", encoding="utf-8")
     (repo / "src").mkdir()
     (repo / "src" / "app.py").write_text("payload\n", encoding="utf-8")
+    transaction.abandon()
 
     recovered = recover_incomplete_transactions(repo)
 
@@ -418,9 +374,6 @@ def test_recovery_skips_a_directory_that_holds_no_transaction_state(tmp_path: Pa
                 directory that carries no journal at all would make the whole
                 tool unusable until it was deleted by hand.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     (repo / TRANSACTION_DIRECTORY / "leftover").mkdir(parents=True)
@@ -437,9 +390,6 @@ def test_recovery_still_raises_for_a_malformed_transaction_state(tmp_path: Path)
                 whose recovery record was damaged; ignoring it would strand a
                 partially applied change.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     directory = repo / TRANSACTION_DIRECTORY / "20260723T101010Z-abcdef12"
@@ -462,15 +412,13 @@ def _stage_interrupted_transaction(repo: Path) -> FileTransaction:
                 the operator's file is overwritten and the journal still holds
                 the original.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo.mkdir(parents=True, exist_ok=True)
     (repo / "AGENTS.md").write_text("original\n", encoding="utf-8")
     transaction = FileTransaction.begin(repo, command="adopt", paths=("AGENTS.md",))
     transaction.mark("applying")
     (repo / "AGENTS.md").write_text("half-applied\n", encoding="utf-8")
+    transaction.abandon()
     return transaction
 
 
@@ -483,9 +431,6 @@ def test_run_new_recovers_an_interrupted_transaction_before_running(tmp_path: Pa
                 what matters is that recovery already happened by then, because
                 a journal nothing ever reads would leave the fix incomplete.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     target = tmp_path / "project"
     _stage_interrupted_transaction(target)
@@ -501,9 +446,6 @@ def test_run_adopt_recovers_an_interrupted_transaction_before_running(tmp_path: 
     @param[in]  tmp_path Temporary repository root.
     @return     None.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     repo = tmp_path / "repo"
     _stage_interrupted_transaction(repo)
@@ -521,9 +463,6 @@ def test_a_dry_run_never_recovers_because_it_must_not_mutate(tmp_path: Path) -> 
     @details    A dry run promises to change nothing, and rolling a prior run
                 back is a change.
     @exception  None
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-23
-    @version    0.1.0
     """
     target = tmp_path / "project"
     transaction = _stage_interrupted_transaction(target)

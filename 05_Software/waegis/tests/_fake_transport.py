@@ -19,9 +19,6 @@
          :class:`waegis.probes.network.WindowsProxySetting` (or ``None``).
          Every network probe test uses these instead of touching a real
          socket or registry.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-12
-@version 0.1.0
 """
 
 # IMPORTS
@@ -36,9 +33,6 @@ from waegis.probes.network import CertificateInfo, ConnectResult, WindowsProxySe
 class FakeTransport:
     """
     @brief Scripted, offline stand-in for :class:`waegis.probes.network.Transport`.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, responses: dict[tuple[str, int, bool], ConnectResult]) -> None:
@@ -47,8 +41,6 @@ class FakeTransport:
                     ``(host, port, use_tls) -> ConnectResult`` mapping.
         @param[in]  responses Mapping of exact connect keys to the scripted
                     result the fake returns.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self._responses = dict(responses)
         self.calls: list[tuple[str, int, bool]] = []
@@ -65,8 +57,6 @@ class FakeTransport:
         @exception  AssertionError If ``(host, port, use_tls)`` was not
                     scripted — an unscripted connect attempt is a test bug,
                     not a "not found" outcome.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         key = (host, port, use_tls)
         self.calls.append(key)
@@ -79,9 +69,6 @@ class FakeRegistryReader:
     """
     @brief Scripted, offline stand-in for
            :class:`waegis.probes.network.RegistryReader`.
-    @author Eng. Dan Dumitru Pasare
-    @date 2026-07-12
-    @version 0.1.0
     """
 
     def __init__(self, setting: WindowsProxySetting | None) -> None:
@@ -90,8 +77,6 @@ class FakeRegistryReader:
                     ``setting``.
         @param[in]  setting The canned :class:`WindowsProxySetting` to
                     return, or ``None``.
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self._setting = setting
         self.calls = 0
@@ -101,8 +86,6 @@ class FakeRegistryReader:
         @brief      Return the canned setting, recording the call.
         @return     The canned :class:`WindowsProxySetting`, or ``None``.
         @exception  None
-        @author     Eng. Dan Dumitru Pasare
-        @version    0.1.0
         """
         self.calls += 1
         return self._setting
@@ -117,8 +100,6 @@ def connected(issuer: str = "", subject: str = "") -> ConnectResult:
     @return     ``ConnectResult(outcome="connected", certificate=...)`` when
                 ``issuer`` or ``subject`` is non-empty, otherwise no
                 certificate.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     if issuer or subject:
         return ConnectResult(outcome="connected", certificate=CertificateInfo(issuer=issuer, subject=subject))
@@ -129,8 +110,6 @@ def timed_out() -> ConnectResult:
     """
     @brief      Build a ``"timed_out"`` :class:`ConnectResult`.
     @return     ``ConnectResult(outcome="timed_out")``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return ConnectResult(outcome="timed_out")
 
@@ -139,8 +118,6 @@ def refused() -> ConnectResult:
     """
     @brief      Build a ``"refused"`` :class:`ConnectResult`.
     @return     ``ConnectResult(outcome="refused")``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return ConnectResult(outcome="refused")
 
@@ -149,8 +126,6 @@ def dns_failure() -> ConnectResult:
     """
     @brief      Build a ``"dns_failure"`` :class:`ConnectResult`.
     @return     ``ConnectResult(outcome="dns_failure")``.
-    @author     Eng. Dan Dumitru Pasare
-    @version    0.1.0
     """
     return ConnectResult(outcome="dns_failure")
 

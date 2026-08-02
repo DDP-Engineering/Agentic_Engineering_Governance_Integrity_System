@@ -9,11 +9,8 @@
 """
 @file conftest.py
 @brief Shared pytest fixtures for the AEGIS package test suite.
-@details Provides the complete schema-version-2 unrestricted workflow
+@details Provides the complete schema-version-3 unrestricted workflow
          configuration used consistently by configuration consumers.
-@author Eng. Dan Dumitru Pasare
-@date 2026-07-22
-@version 0.3.0
 """
 
 # IMPORTS
@@ -36,10 +33,7 @@ WORKFLOW_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "workflow_unrestric
 def unrestricted_workflow_toml() -> str:
     """
     @brief      Return the complete unrestricted workflow TOML fixture.
-    @return     UTF-8 TOML text conforming to the ratified schema version 2.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
+    @return     UTF-8 TOML text conforming to the ratified schema version 3.
     """
     return WORKFLOW_FIXTURE_PATH.read_text(encoding="utf-8")
 
@@ -50,12 +44,9 @@ def write_unrestricted_workflow_toml(
 ) -> Callable[[Path], Path]:
     """
     @brief      Provide a factory that installs the shared workflow fixture.
-    @param[in]  unrestricted_workflow_toml Complete schema-version-2 fixture.
+    @param[in]  unrestricted_workflow_toml Complete schema-version-3 fixture.
     @return     Factory accepting a repository root and returning the written
                 `.agentic/workflow.toml` path.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
 
     def _write(repo_root: Path) -> Path:
@@ -63,9 +54,6 @@ def write_unrestricted_workflow_toml(
         @brief      Write the shared fixture below one repository root.
         @param[in]  repo_root Repository root that receives `.agentic`.
         @return     Path of the written workflow configuration.
-        @author     Eng. Dan Dumitru Pasare
-        @date       2026-07-22
-        @version    0.1.0
         """
         path = repo_root / ".agentic" / "workflow.toml"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,14 +72,11 @@ def configured_temporary_repository(
     """
     @brief      Give every temporary test repository a complete valid config.
     @param[in]  tmp_path Pytest temporary repository root.
-    @param[in]  unrestricted_workflow_toml Shared schema-version-2 fixture.
+    @param[in]  unrestricted_workflow_toml Shared schema-version-3 fixture.
     @return     None.
     @details    Tests exercising missing/invalid configuration remove or
                 replace this file explicitly. This prevents unrelated tests
                 from relying on the retired implicit Python configuration.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
     if request.node.path.name in {"test_root_discovery.py", "test_store.py"}:
         return
@@ -106,9 +91,6 @@ def replace_workflow_toml(tmp_path: Path) -> Callable[[str, str], Path]:
     @brief      Provide exact replacement edits over the complete shared config.
     @param[in]  tmp_path Temporary repository root.
     @return     Editor accepting one expected fragment and its replacement.
-    @author     Eng. Dan Dumitru Pasare
-    @date       2026-07-22
-    @version    0.1.0
     """
 
     def _replace(old: str, new: str) -> Path:
