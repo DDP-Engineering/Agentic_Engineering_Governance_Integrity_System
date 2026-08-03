@@ -74,6 +74,9 @@ walks the stages. Check where things stand at any time with:
 python .agentic/aegis.py status
 ```
 
+`status` lists **open** tasks; delivered ones (`stage: done`) are hidden
+with a count — add `--all` to see them too.
+
 and get the advisory findings report with:
 
 ```bash
