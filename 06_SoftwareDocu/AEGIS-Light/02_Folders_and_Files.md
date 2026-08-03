@@ -55,7 +55,16 @@ updated = 2026-08-02
 ```
 
 Write the prose self-contained — no ticket numbers, no "see TASK-1234"
-(`aegis check` flags those patterns). `affected_paths` and
+(`aegis check` flags those patterns).
+
+**Recommended shape: EARS.** Pick the one pattern that fits — ubiquitous
+(`The <system> shall <response>.`), event (`When <trigger>, …`), state
+(`While <state>, …`), unwanted (`If <condition>, then …`) or optional
+(`Where <feature is included>, …`). The point is not the syntax: a
+stated trigger or condition is exactly what a test has to *arrange*, so
+naming it is what makes the behavior testable. Two "shall" clauses means
+two behaviors — split them. It is guidance, not a validated rule; a
+constraint that reads better plainly is better plainly. `affected_paths` and
 `linked_tests` are what make focused regression (`aegis test
 --impacted`) and the traceability findings work — keeping them current
 pays off immediately.
