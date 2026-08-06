@@ -24,7 +24,6 @@ from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from hashlib import sha256
-import json
 import os
 from pathlib import Path
 import re
@@ -37,6 +36,7 @@ from .paths import RepositoryPathError
 from .paths import normalize_repository_path as _normalize_repository_path
 from .paths import validate_glob as _validate_glob_syntax
 from .persistence import (
+    atomic_write_bytes,
     atomic_write_text,
     create_temporary_text,
     locked,
@@ -82,6 +82,15 @@ ID_PATTERN = re.compile(
     r"([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$"
 )
 TIMESTAMP_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_TOML_ESCAPES = {
+    "\\": "\\\\",
+    '"': '\\"',
+    "\b": "\\b",
+    "\t": "\\t",
+    "\n": "\\n",
+    "\f": "\\f",
+    "\r": "\\r",
+}
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -129,7 +138,8 @@ class RequirementConflictError(RequirementValidationError):
             path,
             "stale_update",
             f"{self.code}: requirement changed after it was loaded; "
-            "reload it and retry the update",
+            "reload it and retry the update. Run `aegis requirement show "
+            "<id>` to see the current content, then retry.",
         )
 
 
@@ -496,7 +506,7 @@ def publish_requirement_records(
             )
         )
 
-    targets: list[tuple[Path, Path, str | None, str | None]] = []
+    targets: list[tuple[Path, Path, bytes | None, str | None]] = []
     try:
         with ExitStack() as locks:
             for record in sorted(normalized_records, key=lambda item: item.id):
@@ -506,11 +516,13 @@ def publish_requirement_records(
             for record in sorted(normalized_records, key=lambda item: item.id):
                 target = repo_root / str(record.source_file)
                 target.parent.mkdir(parents=True, exist_ok=True)
-                previous = (
-                    target.read_text(encoding="utf-8")
-                    if target.is_file()
-                    else None
-                )
+                # Read as bytes. `read_text` raises `UnicodeDecodeError` on a
+                # legacy-encoded requirement file - a `ValueError`, so neither
+                # handler below caught it, and every temporary already staged
+                # for this publish leaked as an invisible `.tmp` sibling that
+                # `rglob("*.toml")` never sees and that accumulates on retry.
+                # Bytes also drop the encode/decode round-trip in the rollback.
+                previous = target.read_bytes() if target.is_file() else None
                 previous_digest = (
                     _file_digest(target) if target.is_file() else None
                 )
@@ -537,7 +549,7 @@ def publish_requirement_records(
         for _target, temporary, _previous, _digest in targets:
             temporary.unlink(missing_ok=True)
         raise
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         unrestored: list[str] = []
         for target, temporary, previous, _digest in reversed(targets):
             try:
@@ -547,7 +559,7 @@ def publish_requirement_records(
                         target.unlink()
                         sync_directory(target.parent)
                 else:
-                    _atomic_replace(target, previous)
+                    atomic_write_bytes(target, previous)
             except OSError as restore_error:
                 unrestored.append(
                     f"{_relative(target, repo_root)} ({restore_error})"
@@ -623,7 +635,13 @@ def validate_requirement_record(
     if record.category not in CATEGORY_IDENTITIES:
         raise RequirementValidationError(source, "category", f"expected one of {', '.join(CATEGORY_IDENTITIES)}")
     if record.category != id_category:
-        raise RequirementValidationError(source, "category", "does not match the category code in id")
+        raise RequirementValidationError(
+            source,
+            "category",
+            "does not match the category code in id; regenerate the form with "
+            "`aegis stage add --category <category>` rather than editing "
+            "either field",
+        )
     if record.status not in VALID_STATUS:
         raise RequirementValidationError(source, "status", f"expected one of {', '.join(VALID_STATUS)}")
     if record.priority not in VALID_PRIORITY:
@@ -835,20 +853,54 @@ def _render_array(name: str, values: tuple[str, ...]) -> list[str]:
 
 
 def _toml_string(value: str) -> str:
-    """@brief Encode a Python string as a TOML-compatible basic string."""
-    return json.dumps(value, ensure_ascii=False)
+    """
+    @brief Encode a Python string as a TOML-compatible basic string.
+    @details JSON's escape set is not TOML's. `json.dumps` escapes the whole C0
+             range but emits U+007F raw, and TOML's `ASCII_CTRL` includes
+             U+007F - so a single DEL byte in requirement prose produced a file
+             that `tomllib` could no longer parse, taking the whole register
+             with it. `_form_io.quote_toml_string` carries the same body for
+             the same reason; the two are deliberately not merged (see
+             `stage_forms._q`, whose `str()` coercion is load-bearing).
+    """
+    encoded = []
+    for character in value:
+        if character in _TOML_ESCAPES:
+            encoded.append(_TOML_ESCAPES[character])
+        elif character < " " or character == "\x7f":
+            encoded.append(f"\\u{ord(character):04X}")
+        else:
+            encoded.append(character)
+    return '"' + "".join(encoded) + '"'
 
 
 def _publish_exclusive(path: Path, content: str) -> bool:
     """
     @brief Atomically publish content only when the destination is absent.
+    @details `os.link` gives the exclusive create, but hard links are not
+             available everywhere: exFAT/FAT32 removable drives, many SMB/CIFS
+             shares, and some virtualized Windows mounts reject it with an
+             `OSError` that is not `FileExistsError`. Left to propagate, that
+             surfaced as a raw traceback and made requirement creation
+             impossible on such a host with no actionable message. The
+             `O_CREAT | O_EXCL` fallback is exclusive for the same reason.
     """
     temporary = _write_temporary(path, content)
     try:
-        os.link(temporary, path)
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            return False
+        except OSError:
+            try:
+                descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                return False
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(content.encode("utf-8"))
+                stream.flush()
+                os.fsync(stream.fileno())
         sync_directory(path.parent)
-    except FileExistsError:
-        return False
     finally:
         temporary.unlink(missing_ok=True)
     return True

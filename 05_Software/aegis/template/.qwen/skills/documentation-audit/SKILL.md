@@ -25,5 +25,6 @@ Read and follow these shared workflow rule sources:
 
 Qwen Code invocation: model-invoked when relevant, or select it from `/skills`.
 
-If a deterministic documentation audit exists in the target repository, run it.
-Otherwise perform the manual review described by the shared skill.
+If a deterministic documentation audit exists in the target repository, run it
+in changed-only mode. Otherwise perform the manual review described by the
+shared skill.

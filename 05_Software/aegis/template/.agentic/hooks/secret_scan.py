@@ -27,6 +27,18 @@ import re
 import sys
 from pathlib import Path
 
+# CONSTANTS
+
+# @brief Repository-relative suffix of the file this hook's policy is loaded
+#        from. A hook that cannot load it denies every call, including the edit
+#        that would repair it.
+WORKFLOW_CONFIG_SUFFIX = ".agentic/workflow.toml"
+
+# @brief Tool-input keys that name a single target file across the supported
+#        adapters. Only these are read; a patch envelope is deliberately not
+#        parsed here, so a bulk patch never reaches the deadlock exception.
+PATH_KEYS = ("file_path", "path", "filePath", "absolute_path", "notebook_path")
+
 # PUBLIC API
 
 
@@ -47,6 +59,8 @@ def main() -> int:
 
         policy = load_workflow_config(cwd).secrets
     except Exception as exc:
+        if targets_workflow_config_only(payload.get("tool_input", {})):
+            return 0
         return deny(str(exc))
     if policy.mode == "disabled":
         return 0
@@ -59,6 +73,33 @@ def main() -> int:
     if any(pattern.search(text) for pattern in compiled_patterns):
         return deny("Possible secret detected by configured workflow policy.")
     return 0
+
+
+def targets_workflow_config_only(tool_input: object) -> bool:
+    """
+    @brief      Report whether the call names the workflow config and nothing else.
+    @param[in]  tool_input Adapter tool-input mapping.
+    @return     ``True`` only when at least one path was named and every one of
+                them is `.agentic/workflow.toml`.
+    @details    Used exclusively to break the config-typo deadlock: a malformed
+                `workflow.toml` makes this hook deny every call, including the
+                edit that would repair it, so the agent cannot recover from a
+                typo without a human editing the file outside the session.
+                Every other call is still denied on an internal failure.
+    """
+    if not isinstance(tool_input, dict):
+        return False
+    paths = [
+        value
+        for key in PATH_KEYS
+        if isinstance(value := tool_input.get(key), str) and value
+    ]
+    if not paths:
+        return False
+    return all(
+        item.replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
+        for item in paths
+    )
 
 
 def deny(message: str) -> int:

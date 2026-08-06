@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -179,9 +180,25 @@ def test_gate_groups_run_in_fixed_order_and_continue_after_failure(
 def test_command_launch_and_timeout_become_deterministic_failures(
     tmp_path: Path,
 ) -> None:
-    """@brief Convert missing executables and timeouts into exit evidence values."""
+    """
+    @brief Convert missing executables and timeouts into exit evidence values.
+    @param[in] tmp_path Temporary repository root.
+    @return None.
+    @details Windows retries every refused argv launch through the shell,
+             because that is the only way a PATH-resolved `.cmd`/`.bat` shim
+             (`npm`, `npx`, `yarn`, `tsc`, `eslint`) starts at all: CreateProcess
+             does not apply `PATHEXT` and raises `FileNotFoundError` for it. A
+             genuinely missing executable is indistinguishable at that point, so
+             it too reaches the shell and carries the shell's own non-zero
+             status rather than the synthesized 127. What the gate contract
+             requires on every platform is the same: a recorded failure naming
+             the command, not a raised exception.
+    """
     missing = _run_command(tmp_path, "aegis-executable-that-does-not-exist", 5)
-    assert missing.returncode == 127
+    assert missing.returncode != 0
+    if os.name != "nt":
+        assert missing.returncode == 127
+    assert "aegis-executable-that-does-not-exist" in missing.stderr
     timed_out = _run_command(
         tmp_path,
         f'"{sys.executable}" -c "import time; time.sleep(2)"',

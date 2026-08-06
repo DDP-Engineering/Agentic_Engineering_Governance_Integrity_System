@@ -25,6 +25,11 @@
 @details Gate subprocesses (1.2.0) execute without the run-scoped graph lock.
          The graph transaction is reacquired only to verify the captured stage,
          allocate evidence identifiers, and publish the collected results.
+@details Gate evidence is superseded on publication the way check evidence
+         already was, so a fixed gate can go green again instead of keeping its
+         failure active forever, and each gate record carries an `output_log`
+         path so a failure is diagnosable from the evidence itself rather than
+         only from the journal, which has no CLI read surface.
 """
 
 # IMPORTS
@@ -45,6 +50,7 @@ from .store import (
     graph_transaction,
     load_graph,
     next_evidence_id,
+    run_dir,
     save_graph,
 )
 from .waivers import Blocker, active_waiver, state_digests
@@ -119,6 +125,9 @@ def run_gates(
         )
         if graph.stage != captured_stage or current_revision != captured_revision:
             raise GraphConflictError(graph.run_id)
+        log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
+        log_root.mkdir(parents=True, exist_ok=True)
+        ordinals: dict[str, int] = {}
         for name, command, result in completed:
             if command is None:
                 append_journal(
@@ -129,8 +138,18 @@ def run_gates(
                 )
                 continue
             assert result is not None
+            ordinals[name] = ordinals.get(name, 0) + 1
+            evidence_id = next_evidence_id(graph)
+            log_path = (
+                log_root
+                / f"gate-{name}-{ordinals[name]}-{graph.stage}-{evidence_id}.log"
+            )
+            log_path.write_text(
+                f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}\n",
+                encoding="utf-8",
+            )
             evidence = Evidence(
-                id=next_evidence_id(graph),
+                id=evidence_id,
                 kind="gate",
                 result="pass" if result.returncode == 0 else "fail",
                 summary=f"{name}: {command}",
@@ -138,7 +157,9 @@ def run_gates(
                 stage=graph.stage,
                 gate_name=name,
                 exit_status=result.returncode,
+                output_log=log_path.relative_to(repo_root).as_posix(),
             )
+            _supersede_prior_gate_evidence(graph, evidence)
             graph = add_evidence(repo_root, graph, evidence)
             append_journal(
                 repo_root,
@@ -222,6 +243,45 @@ def gate_failure_blockers(
 # HELPER FUNCTIONS
 
 
+def _supersede_prior_gate_evidence(graph: Graph, evidence: Evidence) -> None:
+    """
+    @brief      Retire stale active gate evidence replaced by a newer run.
+    @param[in,out] graph Authoritative graph, not yet carrying `evidence`.
+    @param[in]  evidence Freshly created gate record about to be appended.
+    @return     None.
+    @details    Mirrors `check_execution._update_check_states` for gate
+                evidence, which carries `check_id = None` and therefore falls
+                outside that function. A rerun of the same gate command
+                replaces its predecessor rather than accumulating beside it,
+                and a pass additionally retires an older fail for the same
+                command — the failed attempt at green. Without this a fixed
+                gate stays `failed` forever: `_gate_result`,
+                `gate_failure_blockers`, and INV-4 all read active records, so
+                `verify run` would keep exiting 1 after the failure was fixed.
+                A new fail never retires an older pass: keeping both visible is
+                what lets INV-4 report a genuine regression instead of hiding
+                that the command once passed.
+    @exception  None
+    """
+    for prior in graph.evidence:
+        if (
+            prior.status != "active"
+            or prior.kind != "gate"
+            or prior.gate_name != evidence.gate_name
+            or prior.command != evidence.command
+        ):
+            continue
+        same_result = prior.result == evidence.result
+        failed_attempt = evidence.result == "pass" and prior.result == "fail"
+        if not (same_result or failed_attempt):
+            continue
+        prior.status = "superseded"
+        prior.superseded_by = evidence.id
+        prior.supersede_reason = (
+            "superseded by a newer run of the same gate command"
+        )
+
+
 def _run_command(repo_root: Path, command: str, timeout: int) -> subprocess.CompletedProcess[str]:
     """
     @brief      Run one gate command, synthesizing a failed result rather
@@ -233,14 +293,22 @@ def _run_command(repo_root: Path, command: str, timeout: int) -> subprocess.Comp
     @return     Completed process, synthesized as a failure (exit 127 for an
                 unlaunchable executable, 124 for a timeout) when the command
                 could not run to completion.
-    @details    Windows refuses direct exec with `PermissionError` for targets
-                CreateProcess cannot launch itself, such as a resolved
-                directory or a shim the loader will not run. The command is
-                still a real gate, so it is retried once through the shell
-                rather than reported as an unlaunchable configuration error.
-                Only argv-eligible commands retry: they were accepted by
+    @details    Windows refuses direct exec for targets CreateProcess cannot
+                launch itself: `PermissionError` for a resolved directory or a
+                shim the loader will not run, and `FileNotFoundError`
+                (WinError 2) for a PATH-resolved `.cmd`/`.bat` shim such as
+                `npm`, `npx`, `yarn`, `tsc`, or `eslint`, because CreateProcess
+                does not apply `PATHEXT`. Every such launch refusal is an
+                `OSError`, so the retry covers `OSError` rather than
+                `PermissionError` alone — otherwise a command that succeeds on
+                Linux/macOS is recorded as a failing gate on Windows. The
+                command is still a real gate, so it is retried once through the
+                shell rather than reported as an unlaunchable configuration
+                error. Only argv-eligible commands retry: they were accepted by
                 `_argv_for_simple_command` and therefore carry no shell
                 metacharacter, so shell mode changes launch behavior only.
+                `subprocess.TimeoutExpired` is handled first; it is not an
+                `OSError` and a timed-out command must not be relaunched.
     @exception  None
     """
     argv = _argv_for_simple_command(repo_root, command)
@@ -268,7 +336,9 @@ def _run_command(repo_root: Path, command: str, timeout: int) -> subprocess.Comp
             timeout=timeout,
             check=False,
         )
-    except PermissionError as exc:
+    except subprocess.TimeoutExpired as exc:
+        return _failed_process(command, 124, exc)
+    except OSError as exc:
         if argv and os.name == "nt":
             try:
                 return subprocess.run(
@@ -286,10 +356,6 @@ def _run_command(repo_root: Path, command: str, timeout: int) -> subprocess.Comp
                 return _failed_process(command, 124, retry_exc)
             except OSError as retry_exc:
                 return _failed_process(command, 127, retry_exc)
-        return _failed_process(command, 127, exc)
-    except subprocess.TimeoutExpired as exc:
-        return _failed_process(command, 124, exc)
-    except OSError as exc:
         return _failed_process(command, 127, exc)
 
 

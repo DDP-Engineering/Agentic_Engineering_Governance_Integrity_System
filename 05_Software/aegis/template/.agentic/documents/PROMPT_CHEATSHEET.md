@@ -107,6 +107,9 @@ groups as disabled, not passed. Do not invent a security command.
 
 ## Adoption Discovery
 
+Run this from the WAEGIS host, not inside the governed repository — WAEGIS is
+never copied into a governed repo, so `waegis` is not on `PATH` there.
+
 ```text
 Run `waegis repowise status --repo "<project>"`. If configured RepoWise is
 stale, ask before synchronizing it. During repo-discovery, report validation

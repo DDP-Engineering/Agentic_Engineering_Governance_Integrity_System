@@ -150,6 +150,15 @@ def normalize_repository_path(value: str, *, allow_glob: bool = False) -> str:
     while normalized.startswith("./"):
         normalized = normalized[2:]
     normalized = re.sub(r"/{2,}", "/", normalized).rstrip("/")
+    # Drop *interior* `.` segments too, not only a leading `./`. An accepted
+    # `tests/./unit/test_auth.py` validates and persists, then matches no
+    # Git-reported or `rglob`-derived path, so the requirement linking to it is
+    # reported as uncovered although the link exists - a wrong traceability
+    # result with no error anywhere. Placed before the escape check so a bare
+    # `"."` reduces to `""` and is rejected as `escapes-root`.
+    normalized = "/".join(
+        segment for segment in normalized.split("/") if segment != "."
+    )
     if (
         not normalized
         or normalized.startswith(("/", "~"))

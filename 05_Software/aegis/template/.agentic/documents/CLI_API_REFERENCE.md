@@ -36,6 +36,39 @@ artifact: <path-or-none>
 next: <exact-command-or-none>
 ```
 
+### Additional response keys by command
+
+The four keys above are present on every response. Several commands add more,
+depending on what they report:
+
+| Key | Present on | Meaning |
+|---|---|---|
+| `run_profile` | `run status`, `verify run` (JSON), `delivery report` | `"quick"` when the selected run used the proportional profile; absent otherwise. |
+| `bypass_status` | `run status`, `verify run` (JSON), `delivery report` | `"bypassed"` once a quick run's intake approval has closed. |
+| `bypassed_stages` | Same as `bypass_status` | The four stages a quick run skips. |
+| `readiness` | `stage close` (blocked response) | The full stage-readiness blocker set evaluated for the current close attempt. |
+| `waived_blockers` | `stage close` (blocked response) | The subset of `readiness` currently covered by an active waiver. |
+| `waived_gates` | `verify run` | Gate-failure blockers currently covered by an active waiver. |
+| `advisories` | Commands with a non-blocking finding to surface (for example an advisory scope violation) | Human-readable advisory text; never affects `status` or the exit code. |
+| `eligible_blockers` | `waive list` | Every blocker ID currently eligible for `aegis waive add`, with its description and state digest. |
+| `waiver_history` | `waive list` | Previously recorded waivers for the selected run, including stale ones. |
+
+### Exit-code contract
+
+```text
+0   status: ok        — the command succeeded outright
+1   status: blocked    — a typed AEGIS error or an unwaived blocking finding
+                          (ConfigurationError, PersistenceError,
+                          RequirementValidationError, RunResolutionError,
+                          StageOperationError, or a non-zero verification result)
+2   (argparse)          — malformed invocation: unknown group/action, missing
+                          required argument, or an invalid choice
+```
+
+Only exit code 0 means proceed without inspecting the response body further;
+1 and 2 both require reading `error` (exit 1) or the parser's own stderr
+(exit 2) before retrying.
+
 ## Command Inventory
 
 The complete top-level interface is:
@@ -62,6 +95,8 @@ aegis run start <feature|fix|change|adoption> [--quick]
 aegis run status
 aegis run resume
 aegis run select <run-id>
+aegis run list
+aegis run abandon --reason "<text>"
 ```
 
 `run start` creates and selects a draft run, prepares the intake form, and
@@ -80,19 +115,23 @@ report repeat this state; no surface reports bypassed work as passed.
 
 ```text
 aegis stage prepare
-aegis stage add
+aegis stage add [--category <category>]
 aegis stage show
 aegis stage apply
-aegis stage close
+aegis stage close [--approver <identity>]
 ```
 
 - `prepare` creates or reconstructs the current form.
-- `add` creates another CLI-identified requirement/check form.
+- `add` creates another CLI-identified requirement/check form. `--category`
+  selects the requirement category (defaults to `functional`); ignored at the
+  check stage.
 - `show` reports files, revision, readiness, and blockers.
 - `apply` validates the entire stage directory before importing and does not
   advance.
 - `close` is the explicit human approval action. It journals approval, advances,
-  and prepares the next stage.
+  and prepares the next stage. `--approver` names who is attributed with the
+  approval; when omitted it defaults to `Name <email>` from the repository's
+  git identity, falling back to `"human"` when git has none configured.
 
 The standard stages are:
 
@@ -124,6 +163,26 @@ Their common `[control]` table carries a requested access-mode change and
 rationale, optional human-approved routing to an earlier stage and rationale,
 the stage summary, and unresolved questions.
 
+### Where state lives
+
+Run state is spread across a fixed set of files, all under
+`.agentic/runs/<run-id>/` unless noted otherwise. No command output collects
+this list, so it is worth having in one place:
+
+| Path | Contents |
+|---|---|
+| `graph.json` | The authoritative run graph — stage records, checks, evidence, waivers, solution design pin, completion/outcome. Every command reads and writes through this file. |
+| `journal.jsonl` | Append-only event log for the run: one JSON record per stage transition, evidence capture, waiver, and gate run. Never rewritten, only appended. |
+| `design.md` | The human-authored solution design document once the design stage is prepared; its content digest is pinned by INV-10. |
+| `report.md` | The delivery report generated for human handoff review. |
+| `validation-summary.json` | `verify run`'s persisted verdict: per-invariant results, gate status by group, and (for quick runs) `run_profile`/`bypass_status`/`bypassed_stages`. |
+| `stages/<stage>/*.toml` | Generated and imported stage forms — see "Stage Lifecycle" above. |
+| `.agentic/.workspace/state/current_run` | Worktree-local pointer naming the selected run ID; not part of the run directory and not tracked by Git — see `.gitignore`. |
+
+`.agentic/requirements/` is separate from all of the above: it is the durable,
+repository-wide requirement register, not run-local state, and survives every
+run's completion.
+
 ## Requirements and Design
 
 ```text
@@ -135,9 +194,9 @@ Requirement commands are read-only. Mutations occur only through requirement
 stage forms. AEGIS generates UUID-backed IDs and durable companion specs.
 Successful validation closure activates eligible Planned requirements.
 
-Quick runs have no requirement or design collection stage. INV-1, INV-2,
-INV-8, and INV-10 therefore report `not-applicable` with `holds=null`; this is
-an explicit quick-run state, not a pass or waiver.
+Quick runs have no requirement, check, or design collection stage. INV-1,
+INV-2, INV-3, INV-8, and INV-10 therefore report `not-applicable` with
+`holds=null`; this is an explicit quick-run state, not a pass or waiver.
 
 The authoritative design is:
 
@@ -245,11 +304,14 @@ legacy `non-waivable` policy label. Its failing process blocker is nevertheless
 eligible in `waive list`; when covered, its effective policy is reported
 `blocking` alongside `waived=true`, never as `WAIVED (non-waivable)`.
 
-`waive add` records one explicit human approval. The reason must contain
-non-whitespace text, the blocker must be currently eligible, and the ID must be
-exact; wildcard, bulk, and force forms do not exist. The CLI mints a
-`WVR-<uuid>` ID, appends the schema-3 waiver record to the selected run graph,
-and appends a separate `waiver.added` journal event.
+`waive add <blocker-id> --reason "<reason>" [--approver <identity>]` records one
+explicit human approval. The reason must contain non-whitespace text, the
+blocker must be currently eligible, and the ID must be exact; wildcard, bulk,
+and force forms do not exist. `--approver` names who is attributed with the
+approval; when omitted it defaults to `Name <email>` from the repository's git
+identity, falling back to `"human"` when git has none configured. The CLI
+mints a `WVR-<uuid>` ID, appends the schema-3 waiver record to the selected
+run graph, and appends a separate `waiver.added` journal event.
 
 Every waiver is scoped to the selected run. It also stores the current blocker
 state digests, so a later change to pinned content makes the record stale and
@@ -327,8 +389,23 @@ earlier legacy graphs without migration or fallback.
 
 The schema-3 run graph has an additive `profile` field: its absence means
 `full`, preserving existing graphs and full-run serialization; `quick` is valid
-only with `fix` or `change`. Hand-edited kind/profile/stage mismatches return a
-typed stage-operation block.
+only with `fix` or `change`. Hand-edited kind/profile/stage *mismatches* — a
+stage name invalid for the run's kind/profile, or stage records that conflict
+with it — return a typed stage-operation block. This is not tamper-proofing
+against a hostile user (per policy, out of scope — see "What is working and
+should not be touched"); it exists so a genuine authoring mistake fails loudly
+rather than corrupting state.
+
+That check does not by itself catch a hand-edit that *jumps* `graph.stage`
+forward to a stage the schema does consider legitimate for that kind/profile,
+skipping the stages between (for example editing `"stage": "intake"` directly
+to `"stage": "delivery"`). What actually stops that case from completing a run
+with zero recorded work is a second, independent mechanism: `stage close` at
+`delivery` and `adoption-delivery` re-checks every blocking invariant and
+refuses to close while one fails un-waived (B18, 2026-08-04) — so a jump to
+delivery with no requirement, check, or evidence work done fails on INV-6 (and
+usually others) at the close attempt, even though the jump itself was never
+independently detected.
 
 The optional proportionality policy is:
 

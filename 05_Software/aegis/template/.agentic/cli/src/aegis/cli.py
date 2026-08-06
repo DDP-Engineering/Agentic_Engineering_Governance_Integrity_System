@@ -22,6 +22,7 @@ import argparse
 from dataclasses import asdict
 import json
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any
 
@@ -65,6 +66,7 @@ from .repowise import (
     inspect_repowise,
 )
 from .requirement_store import (
+    CATEGORY_IDENTITIES,
     RequirementValidationError,
     normalize_repository_path,
 )
@@ -81,8 +83,10 @@ from .stage_forms import (
 )
 from .store import (
     RunResolutionError,
+    abandon_run_id,
     add_waiver,
     init_graph,
+    list_runs,
     load_graph,
     repo_root_from,
     resolve_run_id,
@@ -142,7 +146,12 @@ def main(argv: list[str] | None = None) -> None:
             return
 
         config = load_config(root)
+        if args.group == "run" and args.action == "list":
+            _respond(_run_list(root), args.json)
+            return
+
         if args.group == "run" and args.action == "start":
+            abandoned_warning = _incomplete_run_warning(root)
             profile = "quick" if args.quick else "full"
             graph = init_graph(root, args.kind, "", profile=profile)
             artifact = prepare_stage(root, graph, config)
@@ -152,6 +161,8 @@ def main(argv: list[str] | None = None) -> None:
             }
             if graph.profile == "quick":
                 details["run_profile"] = graph.profile
+            if abandoned_warning:
+                details["warnings"] = [abandoned_warning]
             _respond(
                 _payload(
                     graph,
@@ -163,11 +174,35 @@ def main(argv: list[str] | None = None) -> None:
             )
             return
 
+        if args.group == "run" and args.action == "abandon":
+            # Deliberately resolved without loading the graph: this is the
+            # exit from a run that has gone wrong, and a run whose `graph.json`
+            # is unreadable is the one that most needs it.
+            _respond(_run_abandon(root, args), args.json)
+            return
+
         if args.group == "run" and args.action == "select":
             run_id = resolve_run_id(root, args.run_id)
             graph = load_graph(root, run_id)
+            if graph.outcome == "abandoned":
+                raise CommandInputError(
+                    f"run {run_id} was abandoned and cannot be selected. "
+                    "Read it without selecting it using "
+                    f"`aegis --run {run_id} run status`, list the others with "
+                    "`aegis run list`, or start a new run with "
+                    "`aegis run start <kind>`."
+                )
             write_current_run(root, run_id)
             _respond(_run_status(root, graph), args.json)
+            return
+
+        if args.group == "requirement":
+            # B20: reading the durable requirement store has nothing to do
+            # with runs, so a stale or missing pointer must not wedge it. The
+            # run is still resolved when it can be, because the response
+            # envelope carries the stage and the next command.
+            graph = _optional_active_graph(root, args.run)
+            _respond(_requirement_command(root, graph, config, args), args.json)
             return
 
         graph = _load_active_graph(root, args.run)
@@ -224,13 +259,28 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run_sub.add_parser("status")
     run_sub.add_parser("resume")
+    run_sub.add_parser("list")
     select = run_sub.add_parser("select")
     select.add_argument("run_id")
+    abandon = run_sub.add_parser("abandon")
+    abandon.add_argument("--reason", required=True)
 
     stage = groups.add_parser("stage", help="operate the current stage forms")
     stage_sub = stage.add_subparsers(dest="action", required=True)
-    for action in ("prepare", "add", "show", "apply", "close"):
+    for action in ("prepare", "show", "apply"):
         stage_sub.add_parser(action)
+    stage_add = stage_sub.add_parser("add")
+    stage_add.add_argument(
+        "--category",
+        choices=tuple(CATEGORY_IDENTITIES),
+        default="functional",
+        help="requirement category; ignored at the check stage",
+    )
+    stage_close = stage_sub.add_parser("close")
+    stage_close.add_argument(
+        "--approver",
+        help="identity approving this stage; defaults to the git user",
+    )
 
     requirement = groups.add_parser("requirement", help="read durable requirements")
     requirement_sub = requirement.add_subparsers(dest="action", required=True)
@@ -257,6 +307,10 @@ def _build_parser() -> argparse.ArgumentParser:
     waive_add = waive_sub.add_parser("add")
     waive_add.add_argument("blocker_id")
     waive_add.add_argument("--reason", required=True)
+    waive_add.add_argument(
+        "--approver",
+        help="identity accepting this risk; defaults to the git user",
+    )
     waive_sub.add_parser("list")
 
     verify = groups.add_parser("verify", help="run deterministic verification")
@@ -307,26 +361,6 @@ def _dispatch(
         return _run_status(root, graph), 0
     if args.group == "stage":
         return _stage_command(root, graph, config, args), 0
-    if args.group == "requirement":
-        records = (
-            [show_requirement(root, args.id, config)]
-            if args.action == "show"
-            else list_requirements(root, config=config)
-        )
-        artifact = (
-            records[0].source_file
-            if args.action == "show"
-            else config.requirement_roots[0]
-        )
-        return (
-            _payload(
-                graph,
-                artifact or "none",
-                next_command(graph, root),
-                requirements=[item.to_dict() for item in records],
-            ),
-            0,
-        )
     if args.group == "check":
         return _check_command(root, graph, args), 0
     if args.group == "evidence":
@@ -368,7 +402,7 @@ def _stage_command(
             next_command(graph, root),
         )
     if args.action == "add":
-        artifact = add_stage_item(root, graph)
+        artifact = add_stage_item(root, graph, args.category)
         return _payload(
             graph,
             artifact.relative_to(root).as_posix(),
@@ -392,9 +426,11 @@ def _stage_command(
             digest=record.digest,
         )
     closing_stage = graph.stage
-    graph, artifact = close_stage(root, graph, config)
+    approver = _resolve_approver(root, args.approver)
+    graph, artifact = close_stage(root, graph, config, approver)
     details: dict[str, Any] = {
         "complete": graph.complete,
+        "approver": approver,
         **_quick_run_details(graph),
     }
     if closing_stage == "implementation":
@@ -525,6 +561,7 @@ def _waive_command(
         target.id,
         reason,
         target.state_digests,
+        approver=_resolve_approver(root, args.approver),
         expected_source_digest=expected_source_digest,
     )
     return _payload(
@@ -579,7 +616,14 @@ def _verify_run(
 
 
 def _verify_status(root: Path, graph: Graph) -> tuple[dict[str, Any], int]:
-    """@brief Report the durable validation summary without re-running it."""
+    """
+    @brief Report the durable validation summary without re-running it.
+    @details The exit code mirrors `verify run`'s verdict on the summary being
+             reported, so an agent polling this command to decide whether it
+             may proceed gets the same answer the run itself gave. A summary
+             written before 2.1.0 carries no `status`; it is reported as it
+             always was rather than guessed at.
+    """
     summary = read_validation_summary(root, graph)
     return (
         _payload(
@@ -588,7 +632,7 @@ def _verify_status(root: Path, graph: Graph) -> tuple[dict[str, Any], int]:
             next_command(graph, root),
             verification=summary,
         ),
-        0,
+        1 if summary.get("status") == "failed" else 0,
     )
 
 
@@ -768,16 +812,30 @@ def _adoption_command(
 
 
 def _config_command(root: Path, args: argparse.Namespace) -> dict[str, Any]:
-    """@brief Validate schema-3 policy and optional integration configuration."""
+    """
+    @brief Validate schema-3 policy and optional integration configuration.
+    @details `next` used to be the literal `aegis run start feature`. Five
+             documents order the agent to run `config validate` at the start of
+             every skill, and the protocol trains it to obey `next` verbatim —
+             so an agent bootstrapping a skill midway through a run was told by
+             AEGIS itself to start a second run. It now reports the selected
+             run's own next command, and falls back to starting a run only when
+             there is genuinely no live run to continue.
+    """
     config = load_config(root)
     data = effective_config_dict(config)
     integration = effective_repowise_config(root)
     inspection = inspect_repowise(root)
+    graph = _optional_active_graph(root, getattr(args, "run", None))
     return {
         "status": "ok",
-        "stage": "none",
+        "stage": graph.stage if graph and not graph.complete else "none",
         "artifact": ".agentic/workflow.toml",
-        "next": "aegis run start feature",
+        "next": (
+            next_command(graph, root)
+            if graph is not None and not graph.complete
+            else "aegis run start feature"
+        ),
         **(
             {
                 "config": data,
@@ -804,6 +862,11 @@ def _config_command(root: Path, args: argparse.Namespace) -> dict[str, Any]:
 def _run_status(root: Path, graph: Graph) -> dict[str, Any]:
     """
     @brief Build status/resume output from authoritative run state.
+    @details An abandoned run reports exactly what it is: `complete: true`,
+             `outcome: "abandoned"`, and `next: "none"` — the same shape a run
+             that reached delivery reports, distinguished by `outcome`. The
+             field is omitted entirely for every other run, so nothing changes
+             for a run that ended normally or is still live.
     """
     shown = show_stage(root, graph) if not graph.complete else {}
     evidence = [
@@ -824,8 +887,186 @@ def _run_status(root: Path, graph: Graph) -> dict[str, Any]:
         complete=graph.complete,
         readiness=shown,
         evidence=evidence,
+        **({"outcome": graph.outcome} if graph.outcome else {}),
         **_quick_run_details(graph),
     )
+
+
+def _run_list(root: Path) -> dict[str, Any]:
+    """
+    @brief Enumerate every run in the repository without resolving one.
+    @param[in] root Repository root.
+    @return Stable response carrying one row per discoverable run.
+    @details Deliberately run-independent: this is the command an operator
+             reaches for precisely when they do not know which run they have,
+             so it must work with a missing, stale, or unreadable pointer.
+    """
+    runs = list_runs(root)
+    selected = next((item["run_id"] for item in runs if item["selected"]), None)
+    live = [
+        item["run_id"]
+        for item in runs
+        if not item["complete"] and item["stage"] != "unreadable"
+    ]
+    if selected is not None:
+        exact_next = "aegis run status"
+    elif len(live) == 1:
+        exact_next = f"aegis run select {live[0]}"
+    else:
+        exact_next = "aegis run start feature"
+    return {
+        "status": "ok",
+        "stage": "none",
+        "artifact": ".agentic/runs",
+        "next": exact_next,
+        "runs": runs,
+    }
+
+
+def _run_abandon(root: Path, args: argparse.Namespace) -> dict[str, Any]:
+    """
+    @brief End a run without driving it through delivery.
+    @param[in] root Repository root.
+    @param[in] args Parsed action carrying the mandatory reason.
+    @return Stable response naming the abandoned run, carrying `graph_error`
+            when the run was ended without a readable graph.
+    @details The run is addressed by ID, not by a loaded graph, so a corrupt
+             or schema-invalid `graph.json` does not remove the only exit a run
+             has. The response is assembled directly rather than through
+             `_payload` for the same reason: there may be no graph to describe.
+    @exception CommandInputError If the reason is empty.
+    @exception RunResolutionError If no run is selected or the ID is unknown.
+    @exception StageOperationError If a readable run has already ended.
+    """
+    reason = args.reason.strip()
+    if not reason:
+        raise CommandInputError("abandon reason must not be empty")
+    run_id = resolve_run_id(root, args.run, verify_graph=False)
+    row = abandon_run_id(root, run_id, reason)
+    return {
+        "status": "ok",
+        "stage": row["stage"],
+        "artifact": "none",
+        "next": "aegis run start <kind>",
+        "reason": reason,
+        **row,
+    }
+
+
+def _requirement_command(
+    root: Path,
+    graph: Graph | None,
+    config: WorkflowConfig,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    """
+    @brief Read the durable requirement register, with or without a run.
+    @param[in] root Repository root.
+    @param[in] graph Selected run, or `None` when none could be resolved.
+    @param[in] config Validated workflow configuration.
+    @param[in] args Parsed requirement action.
+    @return Stable response carrying the requested requirement records.
+    @exception RequirementValidationError If the register is malformed.
+    """
+    records = (
+        [show_requirement(root, args.id, config)]
+        if args.action == "show"
+        else list_requirements(root, config=config)
+    )
+    artifact = (
+        (records[0].source_file if records else None)
+        if args.action == "show"
+        else config.requirement_roots[0]
+    )
+    requirements = [item.to_dict() for item in records]
+    if graph is None:
+        return {
+            "status": "ok",
+            "stage": "none",
+            "artifact": artifact or "none",
+            "next": "aegis run list",
+            "requirements": requirements,
+        }
+    return _payload(
+        graph,
+        artifact or "none",
+        next_command(graph, root),
+        requirements=requirements,
+    )
+
+
+def _incomplete_run_warning(root: Path) -> str | None:
+    """
+    @brief Warn when `run start` is about to leave a live run behind.
+    @param[in] root Repository root.
+    @return Warning text naming the run and how to recover or end it, or
+            `None` when the worktree selects no live run.
+    @details `run start` repoints the worktree silently. Nothing wedges — the
+             run is recoverable — but only if the operator still knows the ID,
+             which is exactly what they lose by not being told.
+    @exception None All resolution failures mean there is nothing to warn about.
+    """
+    try:
+        current = next(
+            (item for item in list_runs(root) if item["selected"]),
+            None,
+        )
+    except OSError:
+        return None
+    if current is None or current["complete"]:
+        return None
+    return (
+        f"run {current['run_id']} is still incomplete at stage "
+        f"{current['stage']} and is no longer selected. Return to it with "
+        f"`aegis run select {current['run_id']}`, or end it with "
+        f"`aegis --run {current['run_id']} run abandon --reason \"<text>\"`."
+    )
+
+
+def _resolve_approver(root: Path, explicit: str | None) -> str:
+    """
+    @brief Resolve the identity to attribute one approval to.
+    @param[in] root Repository root, used as the git working directory.
+    @param[in] explicit Value of `--approver`, when the operator gave one.
+    @return The explicit value, else `Name <email>` from git, else "human".
+    @details Approvals were recorded as the literal "human" and could not be
+             attributed to anyone, which makes a waiver useless as evidence of
+             who accepted a risk. Git already knows who is working, so it is
+             the default; "human" survives as the fallback so a repository
+             with no configured identity behaves exactly as before.
+    @exception CommandInputError If `--approver` was given but is empty.
+    """
+    if explicit is not None:
+        approver = explicit.strip()
+        if not approver:
+            raise CommandInputError("approver must not be empty")
+        return approver
+    name = _git_config_value(root, "user.name")
+    email = _git_config_value(root, "user.email")
+    if name and email:
+        return f"{name} <{email}>"
+    return name or email or "human"
+
+
+def _git_config_value(root: Path, key: str) -> str:
+    """
+    @brief Read one git configuration value, tolerating every failure.
+    @param[in] root Repository root used as the working directory.
+    @param[in] key Configuration key to read.
+    @return The trimmed value, or an empty string when git reports nothing.
+    @exception None Git being absent, failing, or unset is not an error here.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "config", "--get", key],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, ValueError):
+        return ""
+    return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
 def _quick_run_details(graph: Graph) -> dict[str, Any]:
@@ -853,6 +1094,23 @@ def _load_active_graph(root: Path, explicit: str | None) -> Graph:
     return load_graph(root, run_id)
 
 
+def _optional_active_graph(root: Path, explicit: str | None) -> Graph | None:
+    """
+    @brief Resolve the active run for a command that does not require one.
+    @param[in] root Repository root.
+    @param[in] explicit Value of the global `--run`, when given.
+    @return The resolved graph, or `None` when no run resolves.
+    @details Used only by read-only commands. Commands that mutate state keep
+             going through :func:`_load_active_graph`, so an unresolvable run
+             is still a hard failure wherever a run genuinely matters.
+    @exception None Resolution failures are the answer, not an error.
+    """
+    try:
+        return _load_active_graph(root, explicit)
+    except (RunResolutionError, StageOperationError, PersistenceError, OSError):
+        return None
+
+
 def _payload(
     graph: Graph,
     artifact: str,
@@ -870,7 +1128,15 @@ def _payload(
 
 
 def _respond(payload: dict[str, Any], json_output: bool) -> None:
-    """@brief Emit stable JSON or concise line-oriented text."""
+    """
+    @brief Emit stable JSON or concise line-oriented text.
+    @details The non-`--json` surface used to serialize nested values on one
+             line, which for `verify run` meant a single unwrapped ~4 KB JSON
+             line — unreadable in a terminal, and so no different from
+             `--json` except worse. Nested values are now indented under their
+             key. Scalars keep their exact one-line `key: value` shape, which
+             is what every existing reader parses.
+    """
     if json_output:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return
@@ -879,12 +1145,18 @@ def _respond(payload: dict[str, Any], json_output: bool) -> None:
     for key, value in payload.items():
         if key in {"status", "stage", "artifact", "next"}:
             continue
-        rendered = (
-            value
-            if isinstance(value, (str, int, float, bool)) or value is None
-            else json.dumps(value, ensure_ascii=False, sort_keys=True)
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            print(f"{key}: {value}")
+            continue
+        print(f"{key}:")
+        rendered = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
         )
-        print(f"{key}: {rendered}")
+        for line in rendered.splitlines():
+            print(f"  {line}")
 
 
 def _normalize_global_options(argv: list[str]) -> list[str]:

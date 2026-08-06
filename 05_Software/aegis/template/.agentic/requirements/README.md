@@ -14,7 +14,9 @@ promises.
 
 ## Identity And Layout
 
-Use the workflow CLI to create IDs. An ID has the form
+Use the workflow CLI to create IDs; pass the category you want with
+`aegis stage add --category <category>`, which mints the matching ID and
+writes the same category into the generated form. An ID has the form
 `REQ-<CATEGORY-CODE>-<lowercase UUIDv4>` and its filename is exactly
 `<id>.toml` below the matching category directory:
 
@@ -106,9 +108,14 @@ appended during updates. Empty arrays never inherit earlier values.
 
 `requirement` stays a single testable sentence; the concrete detail that keeps an
 implementation from drifting lives in a companion spec artifact referenced by
-`spec_ref`. Use `spec_template.md` as the starting point and record there the data
-structures, interface or message formats, exact dialog and copy text, example
-payloads, and worked acceptance examples the behavior depends on.
+`spec_ref`. During a run, `aegis stage add` at the requirement stage generates
+this scaffold automatically at `spec_ref` when the requirement item is created;
+there is nothing to author by hand in that case. `spec_template.md` is a
+reference structure for the less common case of hand-placing a companion spec
+*outside* a run — for example when drafting one ahead of time for review. In
+either case, record the data structures, interface or message formats, exact
+dialog and copy text, example payloads, and worked acceptance examples the
+behavior depends on.
 
 - `spec_ref` is an optional repository-relative path (no globs). Empty string
   means no companion spec.

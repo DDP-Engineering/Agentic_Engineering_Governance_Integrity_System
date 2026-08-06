@@ -177,14 +177,23 @@ def _initialize_git_repository(repo_root: Path) -> None:
         cwd=repo_root,
         check=True,
     )
+    # Persisted, not passed per-command: the CLI reads `git config` to attribute
+    # approvals, so the identity has to be readable from the repository rather
+    # than only from the commit invocation.
+    subprocess.run(
+        ["git", "config", "user.name", "AEGIS Tests"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "aegis-tests@example.invalid"],
+        cwd=repo_root,
+        check=True,
+    )
     subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
     subprocess.run(
         [
             "git",
-            "-c",
-            "user.name=AEGIS Tests",
-            "-c",
-            "user.email=aegis-tests@example.invalid",
             "commit",
             "--quiet",
             "-m",
@@ -467,7 +476,9 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
     assert bypass_data["profile"] == "quick"
     assert bypass_data["status"] == "bypassed"
     assert bypass_data["stages"] == QUICK_BYPASSED_STAGES
-    assert bypass_data["approver"] == "human"
+    # The literal "human" until 2.1.0 (B19); the approval is now attributable
+    # and defaults to the repository's own git identity.
+    assert bypass_data["approver"] == "AEGIS Tests <aegis-tests@example.invalid>"
     assert all(
         not (
             entry["event"] == "stage.approved"
@@ -559,7 +570,7 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
     _replace(
         delivery,
         {
-            'preflight = ""': f'preflight = "{verification_path}"',
+            'preflight_reference = ""': f'preflight_reference = "{verification_path}"',
             'report = ""': f'report = "{report_relative}"',
             'decision = "pending"': 'decision = "approved"',
             'summary = ""': 'summary = "Quick run ready for handoff"',
@@ -708,7 +719,7 @@ def test_quick_run_with_waived_enforced_gate_completes_and_reports_honestly(
     _replace(
         delivery,
         {
-            'preflight = ""': f'preflight = "{verification_path}"',
+            'preflight_reference = ""': f'preflight_reference = "{verification_path}"',
             'report = ""': f'report = "{report_relative}"',
             'decision = "pending"': 'decision = "approved"',
             'summary = ""': 'summary = "Quick run ready for handoff"',

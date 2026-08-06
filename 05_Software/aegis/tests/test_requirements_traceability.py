@@ -23,19 +23,24 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tomllib
 import uuid
 
 import pytest
 
+from aegis._form_io import quote_toml_string
 from aegis.cli import main
 from aegis.config import WorkflowConfig, load_config
 from aegis.invariants import evaluate
 from aegis.models import Check, Graph, Intent
+from aegis import requirement_store
 from aegis.requirement_store import (
     RequirementRecord,
     RequirementValidationError,
+    _toml_string,
     create_requirement_record,
     load_requirement_file,
+    publish_requirement_records,
     render_requirement_toml,
 )
 from aegis.requirements import (
@@ -160,6 +165,59 @@ def create_fixed_record(
 # TESTS
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "\x7f",
+        "\x00",
+        "\n",
+        "\t",
+        '"',
+        "\\",
+        "\r",
+        "\x1f",
+        "before\x7fafter",
+        "café \U0001f600",
+    ],
+    ids=[
+        "del",
+        "nul",
+        "newline",
+        "tab",
+        "quote",
+        "backslash",
+        "carriage-return",
+        "unit-separator",
+        "embedded-del",
+        "non-ascii",
+    ],
+)
+@pytest.mark.parametrize(
+    "quote",
+    [_toml_string, quote_toml_string],
+    ids=["requirement_store", "form_io"],
+)
+def test_toml_quoting_round_trips_every_control_character(
+    quote: Callable[[str], str],
+    value: str,
+) -> None:
+    """
+    @brief      Both TOML quoters produce something `tomllib` can read back.
+    @param[in]  quote The quoting helper under test.
+    @param[in]  value Prose that has to survive a write/read round trip.
+    @return     None.
+    @details    Both helpers used `json.dumps`, whose escape set is not TOML's:
+                it escapes the whole C0 range but emits U+007F raw, and TOML's
+                `ASCII_CTRL` includes U+007F. One DEL byte pasted from a
+                terminal into requirement prose therefore published a file the
+                reader could not parse, and `load_all_requirement_records` has
+                no per-file tolerance - so the entire register became
+                unloadable, and the write that caused it had reported success.
+    @exception  None
+    """
+    assert tomllib.loads("k = " + quote(value))["k"] == value
+
+
 def test_uuid_identity_and_deterministic_toml_round_trip(tmp_path: Path) -> None:
     """
     @brief Verify the canonical UUIDv4 identity and deterministic schema order.
@@ -243,6 +301,100 @@ def test_uuid_collision_retries_without_overwrite(tmp_path: Path) -> None:
     assert second.id == REQ_TWO
     assert (tmp_path / first.source_file).read_text(encoding="utf-8") == original
     assert len(load_all_requirements(tmp_path, config)) == 2
+
+
+def test_creation_falls_back_when_the_filesystem_has_no_hard_links(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Publish a new requirement on a filesystem that rejects `os.link`.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest monkeypatch fixture.
+    @return None.
+    @details Regression test (B4, 2026-08-04): `_publish_exclusive` handled only
+             `FileExistsError`, so any other `OSError` propagated. Hard links
+             are unavailable on exFAT/FAT32 removable drives, many SMB/CIFS
+             shares, and some virtualized Windows mounts - on such a host
+             requirement creation raised a raw traceback instead of a typed
+             error, and was simply impossible. The `O_CREAT | O_EXCL` fallback
+             is exclusive for the same reason, so the collision behavior above
+             is unchanged.
+    @exception None
+    """
+    config = configure_repository(tmp_path)
+
+    def unsupported(*_arguments: object, **_keywords: object) -> None:
+        """@brief Simulate a filesystem without hard-link support."""
+        raise OSError(1, "operation not permitted")
+
+    monkeypatch.setattr(requirement_store.os, "link", unsupported)
+
+    record = create_fixed_record(tmp_path, config, linked_tests=())
+
+    assert record.id == REQ_ONE
+    assert [item.id for item in load_all_requirements(tmp_path, config)] == [REQ_ONE]
+
+
+def test_publishing_over_a_non_utf8_requirement_file_succeeds(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief A legacy-encoded predecessor no longer aborts the publish.
+    @param[in] tmp_path Temporary repository root.
+    @return None.
+    @details Regression test (B8, 2026-08-04): the publish path read the
+             previous content with `read_text`, whose `UnicodeDecodeError` is a
+             `ValueError` - neither an `OSError` nor a `RequirementConflictError`
+             - so it escaped both handlers and every temporary already staged
+             leaked. They are invisible to `rglob("*.toml")`, so a register
+             imported from a legacy tool accumulated orphans on every retry.
+             The previous content is only ever written back verbatim, so bytes
+             are the right type for it.
+    @exception None
+    """
+    config = configure_repository(tmp_path)
+    record = create_fixed_record(tmp_path, config, linked_tests=())
+    target = tmp_path / str(record.source_file)
+    target.write_bytes('requirement = "caf\xe9"\n'.encode("latin-1"))
+
+    publish_requirement_records(tmp_path, [record], config)
+
+    assert list(target.parent.glob(f".{target.name}.*.tmp")) == []
+    assert [item.id for item in load_all_requirements(tmp_path, config)] == [record.id]
+
+
+def test_publish_rollback_restores_non_utf8_bytes_verbatim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Rollback restores the previous file byte-exactly, whatever its encoding.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest monkeypatch fixture.
+    @return None.
+    @details Companion to the B8 read fix: the rollback writes the captured
+             bytes back, so it neither re-encodes nor fails on content it
+             cannot decode.
+    @exception None
+    """
+    config = configure_repository(tmp_path)
+    record = create_fixed_record(tmp_path, config, linked_tests=())
+    target = tmp_path / str(record.source_file)
+    original = 'requirement = "caf\xe9"\n'.encode("latin-1")
+    target.write_bytes(original)
+
+    def fail_replace(*_arguments: object, **_keywords: object) -> None:
+        """@brief Interrupt publication at the replacement boundary."""
+        raise OSError("injected replacement failure")
+
+    monkeypatch.setattr(requirement_store, "replace_temporary", fail_replace)
+
+    with pytest.raises(RequirementValidationError, match="atomic import failed"):
+        publish_requirement_records(tmp_path, [record], config)
+
+    assert target.read_bytes() == original
+    assert list(target.parent.glob(f".{target.name}.*.tmp")) == []
 
 
 def test_uuid_collision_retry_limit_reports_clear_error(tmp_path: Path) -> None:

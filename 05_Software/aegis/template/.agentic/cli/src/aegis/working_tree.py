@@ -85,14 +85,36 @@ def audit_working_tree(
                     "Adoption delivery cannot include application source changes.",
                 )
             )
+        # Both of these test every path the entry names, not only
+        # `entry["path"]`: for a rename or copy that field is the
+        # *destination*, so `git mv config/secrets.yaml config/legacy.yaml`
+        # moved a protected file out of its protected location without
+        # producing a finding. The secret scan below stays on the destination -
+        # the source path no longer exists on disk after a rename.
+        protected_hit = next(
+            (
+                candidate
+                for candidate in entry_paths
+                if _matches_any(candidate, config.protected_paths.patterns)
+            ),
+            None,
+        )
         if (
             config.protected_paths.mode == "enforce"
             and "write" in config.protected_paths.operations
-            and _matches_any(path, config.protected_paths.patterns)
+            and protected_hit
         ):
-            findings.append(_finding("protected-path", path, "Protected path is present in the working tree."))
-        if _matches_any(path, config.working_tree.blocked_patterns):
-            findings.append(_finding("blocked-pattern", path, "Path matches a configured working-tree blocker."))
+            findings.append(_finding("protected-path", protected_hit, "Protected path is present in the working tree."))
+        blocked_hit = next(
+            (
+                candidate
+                for candidate in entry_paths
+                if _matches_any(candidate, config.working_tree.blocked_patterns)
+            ),
+            None,
+        )
+        if blocked_hit:
+            findings.append(_finding("blocked-pattern", blocked_hit, "Path matches a configured working-tree blocker."))
         secret = _secret_match(repo_root / path, config.secrets.patterns)
         if secret:
             findings.append(_finding("secret-pattern", path, f"Configured secret pattern matched: {secret}"))
@@ -160,9 +182,14 @@ def _git_status(repo_root: Path) -> tuple[list[dict[str, str]], str | None]:
         # because it has no special characters.
         if ("R" in status or "C" in status) and " -> " in path:
             previous_path, path = path.split(" -> ", 1)
-        entry = {"status": status, "path": _unquote_git_path(path).replace("\\", "/")}
+        # No separator translation: Git emits `/` on every platform, so the
+        # only backslash that can survive unquoting is one that is genuinely
+        # part of the filename (legal on POSIX). Replacing it produced a path
+        # that does not exist, against which no protected pattern could match
+        # and the secret scan read the wrong file or nothing at all.
+        entry = {"status": status, "path": _unquote_git_path(path)}
         if previous_path:
-            entry["previous_path"] = _unquote_git_path(previous_path).replace("\\", "/")
+            entry["previous_path"] = _unquote_git_path(previous_path)
         entries.append(entry)
     return entries, None
 

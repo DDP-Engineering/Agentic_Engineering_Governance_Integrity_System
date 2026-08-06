@@ -27,21 +27,42 @@ import pytest
 import aegis.gates as gates_module
 from aegis.cli import main
 from aegis.config import DEFAULT_GATE_TIMEOUT_SECONDS, ConfigurationError, load_config
-from aegis.gates import _argv_for_simple_command, _run_command, run_gates
-from aegis.store import init_graph, load_graph, set_access_mode
+from aegis.gates import (
+    _argv_for_simple_command,
+    _run_command,
+    gate_failure_blockers,
+    run_gates,
+)
+from aegis.invariants import _no_regression
+from aegis.models import Graph
+from aegis.store import init_graph, load_graph, save_graph, set_access_mode
+from aegis.verification import _gate_result
 
 # TESTS
 
 
-def test_windows_permission_error_retries_the_command_through_the_shell(
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        PermissionError(5, "Access is denied"),
+        FileNotFoundError(2, "The system cannot find the file specified"),
+    ],
+    ids=["permission-denied", "pathext-shim-not-found"],
+)
+def test_windows_launch_refusal_retries_the_command_through_the_shell(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    refusal: OSError,
 ) -> None:
     """
     @brief Launch an argv-eligible gate through the shell when direct exec is
            refused by Windows.
     @param[in] tmp_path Temporary repository root.
     @param[in] monkeypatch Pytest replacement helper.
+    @param[in] refusal Launch refusal raised by direct exec; `PermissionError`
+               for an unlaunchable target and `FileNotFoundError` for a
+               PATH-resolved `.cmd`/`.bat` shim such as `npm`, which
+               CreateProcess cannot find because it does not apply `PATHEXT`.
     @return None.
     """
     monkeypatch.setattr("os.name", "nt")
@@ -51,16 +72,45 @@ def test_windows_permission_error_retries_the_command_through_the_shell(
         """@brief Refuse direct exec once, then complete through the shell."""
         calls.append(bool(kwargs["shell"]))
         if not kwargs["shell"]:
-            raise PermissionError(5, "Access is denied")
-        return subprocess.CompletedProcess("pytest -q", 0, "passed", "")
+            raise refusal
+        return subprocess.CompletedProcess("npm run build", 0, "built", "")
 
     monkeypatch.setattr(subprocess, "run", refuse_then_succeed)
 
-    result = _run_command(tmp_path, "pytest -q", 30)
+    result = _run_command(tmp_path, "npm run build", 30)
 
     assert calls == [False, True]
     assert result.returncode == 0
-    assert result.stdout == "passed"
+    assert result.stdout == "built"
+
+
+def test_timeout_is_never_relaunched_through_the_shell(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Keep a timed-out gate on the timeout path instead of retrying it.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @details `subprocess.TimeoutExpired` is not an `OSError`, so the broadened
+             Windows launch-refusal retry must not reach it.
+    """
+    monkeypatch.setattr("os.name", "nt")
+    calls: list[bool] = []
+
+    def time_out(*args: object, **kwargs: object) -> object:
+        """@brief Time out on every launch attempt."""
+        calls.append(bool(kwargs["shell"]))
+        raise subprocess.TimeoutExpired("pytest -q", 30)
+
+    monkeypatch.setattr(subprocess, "run", time_out)
+
+    result = _run_command(tmp_path, "pytest -q", 30)
+
+    assert calls == [False]
+    assert result.returncode == 124
+    assert "TimeoutExpired" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -350,6 +400,252 @@ def test_slow_gate_does_not_block_concurrent_graph_operation(
     assert [(item.gate_name, item.result) for item in persisted.evidence] == [
         ("test", "pass")
     ]
+
+
+def _enforced_test_gate_graph(
+    repo_root: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    stage: str = "implementation",
+) -> Graph:
+    """
+    @brief Enforce the `test` gate and persist a graph at a scanned stage.
+    @param[in] repo_root Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] stage Active stage the gate evidence is recorded at.
+    @return Persisted graph ready for `run_gates`.
+    """
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "enforce"\ncommands = ["test-cmd"]',
+    )
+    graph = init_graph(repo_root, "fix", "Exercise gate evidence supersession")
+    graph.stage = stage  # type: ignore[assignment]
+    save_graph(repo_root, graph)
+    return graph
+
+
+def _scripted_gate_runner(
+    monkeypatch: pytest.MonkeyPatch,
+    *results: tuple[int, str, str],
+) -> None:
+    """
+    @brief Return one scripted gate result per `run_gates` command execution.
+    @param[in] monkeypatch Pytest replacement helper.
+    @param[in] results Ordered `(returncode, stdout, stderr)` triples.
+    @return None.
+    """
+    pending = list(results)
+
+    def scripted(
+        _repo_root: Path,
+        command: str,
+        _timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        """@brief Hand back the next scripted result for this command."""
+        returncode, stdout, stderr = pending.pop(0)
+        return subprocess.CompletedProcess(command, returncode, stdout, stderr)
+
+    monkeypatch.setattr(gates_module, "_run_command", scripted)
+
+
+def test_passing_gate_rerun_supersedes_the_prior_failure(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Let a fixed gate go green again instead of failing forever.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @details Without supersession the first failing record stays `active`, so
+             `_gate_result` keeps reporting `failed`, `gate_failure_blockers`
+             keeps yielding `gate:test`, and INV-4 keeps reporting a live
+             regression after the failure was already fixed.
+    """
+    graph = _enforced_test_gate_graph(tmp_path, replace_workflow_toml)
+    config = load_config(tmp_path)
+    _scripted_gate_runner(monkeypatch, (1, "", "assertion failed"), (0, "ok", ""))
+
+    assert run_gates(tmp_path, graph.run_id, config, ["test"]) == 1
+    assert run_gates(tmp_path, graph.run_id, config, ["test"]) == 0
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    failed, passed = persisted.evidence
+    assert (failed.result, failed.status) == ("fail", "superseded")
+    assert failed.superseded_by == passed.id
+    assert failed.supersede_reason is not None
+    assert (passed.result, passed.status) == ("pass", "active")
+    assert _gate_result(persisted, "test") == "passed"
+    assert gate_failure_blockers(persisted, config, ["test"]) == []
+    assert _no_regression(persisted, config).holds is True
+
+
+def test_failing_gate_rerun_never_retires_an_earlier_pass(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Keep an earlier pass active so INV-4 still sees a regression.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @details Retiring the pass would hide that the command once succeeded,
+             which is exactly the regression signal INV-4 exists to report.
+    """
+    graph = _enforced_test_gate_graph(tmp_path, replace_workflow_toml)
+    config = load_config(tmp_path)
+    _scripted_gate_runner(monkeypatch, (0, "ok", ""), (1, "", "assertion failed"))
+
+    assert run_gates(tmp_path, graph.run_id, config, ["test"]) == 0
+    assert run_gates(tmp_path, graph.run_id, config, ["test"]) == 1
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    passed, failed = persisted.evidence
+    assert (passed.result, passed.status) == ("pass", "active")
+    assert (failed.result, failed.status) == ("fail", "active")
+    assert _gate_result(persisted, "test") == "failed"
+    assert _no_regression(persisted, config).holds is False
+
+
+def test_same_result_gate_rerun_supersedes_its_predecessor(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Replace a repeated identical observation rather than accumulate it.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    """
+    graph = _enforced_test_gate_graph(tmp_path, replace_workflow_toml)
+    config = load_config(tmp_path)
+    _scripted_gate_runner(monkeypatch, (1, "", "first"), (1, "", "second"))
+
+    run_gates(tmp_path, graph.run_id, config, ["test"])
+    run_gates(tmp_path, graph.run_id, config, ["test"])
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    first, second = persisted.evidence
+    assert first.status == "superseded"
+    assert first.superseded_by == second.id
+    assert second.status == "active"
+    assert _gate_result(persisted, "test") == "failed"
+
+
+def test_check_stage_gate_failure_is_retired_by_a_later_validation_pass(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Keep the summary status and the exit code telling the same story.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @details At the check stage tests are red by design, so an enforced gate
+             fails there. INV-4 ignores that record because it scans only
+             implementation/validation/delivery, so `verify run` at validation
+             exits 0 — while `_gate_result` reads every active record and would
+             report `failed` in `validation-summary.json`. Supersession is what
+             removes the divergence: the validation pass retires the
+             check-stage failure of the same command across stages.
+    """
+    graph = _enforced_test_gate_graph(
+        tmp_path, replace_workflow_toml, stage="check"
+    )
+    config = load_config(tmp_path)
+    _scripted_gate_runner(monkeypatch, (1, "", "red by design"), (0, "ok", ""))
+    run_gates(tmp_path, graph.run_id, config, ["test"])
+
+    graph = load_graph(tmp_path, graph.run_id)
+    graph.stage = "validation"  # type: ignore[assignment]
+    save_graph(tmp_path, graph)
+    assert run_gates(tmp_path, graph.run_id, config, ["test"]) == 0
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    red, green = persisted.evidence
+    assert (red.stage, red.status) == ("check", "superseded")
+    assert (green.stage, green.status) == ("validation", "active")
+    assert _gate_result(persisted, "test") == "passed"
+    assert _no_regression(persisted, config).holds is True
+
+
+def test_gate_evidence_records_the_captured_output_log(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief Persist gate stdout/stderr so a failure is diagnosable.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @details The journal already carries a `gate.output` event, but it has no
+             CLI read surface, so the evidence record must carry the log path.
+    """
+    graph = _enforced_test_gate_graph(tmp_path, replace_workflow_toml)
+    config = load_config(tmp_path)
+    _scripted_gate_runner(
+        monkeypatch,
+        (1, "collected 1 item", "ModuleNotFoundError: No module named 'numpy'"),
+    )
+
+    run_gates(tmp_path, graph.run_id, config, ["test"])
+
+    recorded = load_graph(tmp_path, graph.run_id).evidence[0]
+    assert recorded.output_log is not None
+    log_path = tmp_path / recorded.output_log
+    assert log_path.is_file()
+    captured = log_path.read_text(encoding="utf-8")
+    assert "collected 1 item" in captured
+    assert "ModuleNotFoundError: No module named 'numpy'" in captured
+
+
+def test_superseded_gate_evidence_keeps_its_own_output_log(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    @brief A superseded gate record's log is not overwritten by the rerun.
+    @param[in] tmp_path Temporary repository root.
+    @param[in] replace_workflow_toml Workflow configuration editor.
+    @param[in] monkeypatch Pytest replacement helper.
+    @return None.
+    @details Regression test (B24, 2026-08-04): the log filename was
+             `gate-<name>-<ordinal>-<stage>.log`, so a rerun of the same gate at
+             the same stage reused the same ordinal/stage pair and overwrote the
+             file. Before B11 added supersession there was no historical gate
+             record left pointing at it; after B11, every rerun creates one, and
+             the record whose log gets clobbered is precisely the failure an
+             agent would want to read. The fix folds the evidence ID — unique
+             and stable — into the filename.
+    """
+    graph = _enforced_test_gate_graph(tmp_path, replace_workflow_toml)
+    config = load_config(tmp_path)
+    _scripted_gate_runner(monkeypatch, (1, "", "first failure"), (0, "ok", ""))
+
+    run_gates(tmp_path, graph.run_id, config, ["test"])
+    run_gates(tmp_path, graph.run_id, config, ["test"])
+
+    persisted = load_graph(tmp_path, graph.run_id)
+    failed, passed = persisted.evidence
+    assert failed.status == "superseded"
+    assert failed.output_log != passed.output_log
+    failed_log = tmp_path / failed.output_log
+    passed_log = tmp_path / passed.output_log
+    assert failed_log.is_file()
+    assert passed_log.is_file()
+    assert "first failure" in failed_log.read_text(encoding="utf-8")
+    assert "first failure" not in passed_log.read_text(encoding="utf-8")
 
 
 # END OF FILE

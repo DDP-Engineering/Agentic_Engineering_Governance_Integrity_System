@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import replace
 import json
 import multiprocessing
+import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -297,6 +298,51 @@ def test_atomic_replacement_publishes_complete_content_and_ignores_fixed_temp(
         "items": [1, 2, 3],
     }
     assert predictable.read_text(encoding="utf-8") == "unrelated sentinel\n"
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX file modes do not apply on Windows.",
+)
+def test_atomic_write_preserves_the_destination_mode(tmp_path: Path) -> None:
+    """
+    @brief A rewrite keeps the file's existing permissions.
+    @details Regression test (B5, 2026-08-04): `tempfile.mkstemp` creates at
+             0o600 and ignores the umask, and `os.replace` publishes that inode
+             with that mode. Since this is the single write path for
+             `graph.json`, `journal.jsonl`, `current_run`, requirement TOMLs and
+             integration state, every AEGIS-managed file silently became
+             owner-only after its first rewrite. Git tracks only the exec bit,
+             so `git status` showed nothing and a second developer or CI
+             account simply got `PermissionError`.
+    """
+    path = tmp_path / "state" / "graph.json"
+    atomic_write_json(path, {"generation": "old"})
+    os.chmod(path, 0o644)
+
+    atomic_write_json(path, {"generation": "new"})
+
+    assert path.stat().st_mode & 0o777 == 0o644
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX file modes do not apply on Windows.",
+)
+def test_atomic_write_creates_a_new_file_at_the_umask_default(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief A file that did not exist is created at the umask default, not 0600.
+    """
+    path = tmp_path / "state" / "journal.jsonl"
+    previous = os.umask(0o022)
+    try:
+        atomic_write_text(path, "{}\n")
+    finally:
+        os.umask(previous)
+
+    assert path.stat().st_mode & 0o777 == 0o644
 
 
 def test_stale_direct_graph_save_is_rejected_without_overwrite(

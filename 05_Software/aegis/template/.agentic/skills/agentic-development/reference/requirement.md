@@ -8,7 +8,11 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 # Stage: Requirement
 
 Run `stage prepare`, then `stage add` for each additional atomic requirement.
-AEGIS generates every requirement ID and companion specification.
+AEGIS generates every requirement ID and companion specification. Choose the
+category when you add it — `stage add --category <functional|ux|non_functional|
+security|data_privacy|platform|release|testing>` — because the ID's category
+code and the form's `category` field must agree and neither may be hand-edited.
+Omitting the flag files the requirement as `functional`.
 
 Each requirement states one independently observable contract: behavior,
 acceptance criterion, format, error, user-facing text, or non-functional

@@ -173,6 +173,8 @@ WAEGIS 1.2 supports AEGIS `>=2.0.0,<3.0.0`. It can generate, inspect,
 configure, optionally execute, and report all five gate groups. Upgrading an
 AEGIS 1.x installation across the major boundary is unsupported; make a fresh
 AEGIS 2.x deployment after preserving project-owned artifacts deliberately.
+See `UPGRADING.md` for the ownership manifest, the schema-2 → 3 config delta,
+and confirmation that requirement snapshots carry over untouched.
 
 <!-- pdf-pagebreak -->
 

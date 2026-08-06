@@ -7,7 +7,15 @@
 set -euo pipefail
 
 # @brief Directory containing this installer after transboarding.
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# @details Resolved with parameter expansion rather than `dirname`, matching
+#          `run.sh`. `dirname` is an external binary, so an empty or minimal
+#          `PATH` makes the substitution yield nothing and `SCRIPT_DIR` collapse
+#          to the caller's working directory. `cd` and `pwd` are builtins.
+_aegis_source="${BASH_SOURCE[0]}"
+_aegis_dir="${_aegis_source%/*}"
+[ "$_aegis_dir" = "$_aegis_source" ] && _aegis_dir="."
+SCRIPT_DIR="$(cd -- "$_aegis_dir" && pwd)"
+unset _aegis_source _aegis_dir
 # @brief Root of the target repository after the template is transboarded.
 PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 # @brief Embedded CLI package installed by this helper.

@@ -185,6 +185,8 @@ def test_cli_add_mints_persists_and_journals_one_waiver(
             "INV-6",
             "--reason",
             "Proceed with evidence captured by the next step.",
+            "--approver",
+            "Ada Lovelace <ada@example.invalid>",
             "--json",
         ]
     )
@@ -193,7 +195,9 @@ def test_cli_add_mints_persists_and_journals_one_waiver(
     assert waiver["id"].startswith("WVR-")
     assert uuid.UUID(waiver["id"].removeprefix("WVR-")).version == 4
     assert waiver["blocker_id"] == "INV-6"
-    assert waiver["approver"] == "human"
+    # The literal "human" until 2.1.0 (B19); a waiver is evidence of who
+    # accepted the risk, so the identity is now recorded.
+    assert waiver["approver"] == "Ada Lovelace <ada@example.invalid>"
 
     persisted = load_graph(tmp_path, graph.run_id)
     assert [item.id for item in persisted.waivers] == [waiver["id"]]
@@ -696,15 +700,23 @@ def test_same_requirement_traceability_findings_have_independent_targets(
     assert all(item["waived"] is True for item in second_pass)
 
 
-def test_invalid_required_integration_is_not_a_waiver_target(
+def test_invalid_required_integration_is_a_waiver_target(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    @brief Keep malformed required integration state in the structural floor.
+    @brief Malformed required integration state is a blocker with a way out.
     @param[in] tmp_path Configured temporary repository.
     @param[in] monkeypatch Pytest environment fixture.
     @return None.
+    @details Edited 2026-08-05 (W7). This test previously asserted
+             `targets == []` - that this blocker sat in a non-waivable
+             structural floor. That floor was the finding: it left an adoption
+             run with no override at all when the required integration was
+             unreadable, and the sibling branch it shared covered any transient
+             `OSError` reading a cited requirement. The blocker is unchanged
+             and still stands; only the escape hatch was added, and a human
+             still approves the waiver individually.
     """
     graph = init_graph(tmp_path, "adoption", "Reject integration corruption")
     graph.stage = "repo-discovery"
@@ -736,7 +748,8 @@ def test_invalid_required_integration_is_not_a_waiver_target(
         "required RepoWise discovery is not current: "
         "knowledge-graph schema is malformed"
     ]
-    assert targets == []
+    assert [item.description for item in targets] == blockers
+    assert targets[0].id.startswith("stage:repo-discovery:")
 
 
 def test_stale_graph_conflict_cannot_be_bypassed_by_adding_waiver(

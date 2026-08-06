@@ -115,6 +115,31 @@ def test_normalize_repository_path_rejects_root_escape() -> None:
     assert excinfo.value.reason == "escapes-root"
 
 
+def test_normalize_repository_path_drops_interior_dot_segments() -> None:
+    """
+    @brief      Collapse `a/./b` to `a/b` and reduce a bare `.` to a rejection.
+    @return     None.
+    @details    Regression test (B6, 2026-08-04): the normalizer stripped only a
+                *leading* `./` and collapsed repeated slashes, so
+                `tests/./unit/test_auth.py` validated and persisted unchanged.
+                Every later comparison against a Git-reported or
+                `rglob`-derived path then failed to match, and the requirement
+                linking to it was reported as having no covering test although
+                the link existed - a wrong traceability result with no error
+                anywhere. `_normalize_set` could not see the two spellings as
+                the same selector either, so both could coexist in one record.
+    @exception  None
+    """
+    assert (
+        normalize_repository_path("tests/./unit/test_auth.py")
+        == "tests/unit/test_auth.py"
+    )
+    for value in (".", "./", "././"):
+        with pytest.raises(RepositoryPathError) as excinfo:
+            normalize_repository_path(value)
+        assert excinfo.value.reason == "escapes-root"
+
+
 def test_normalize_repository_path_rejects_globs_unless_allowed() -> None:
     """@brief Reject glob metacharacters unless allow_glob=True is set."""
     with pytest.raises(RepositoryPathError) as excinfo:

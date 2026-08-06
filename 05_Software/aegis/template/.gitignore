@@ -32,3 +32,9 @@ __pycache__/
 node_modules/
 .vitest/
 .opencode-cache/
+
+# The CLI virtualenv is created by install.ps1 on every host; it is never
+# repository source material. Without this entry a fresh project that follows
+# the docs commits its own virtualenv (B23).
+.venv/
+.agentic/.venv/

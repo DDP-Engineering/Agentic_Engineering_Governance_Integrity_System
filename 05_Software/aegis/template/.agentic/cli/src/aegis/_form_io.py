@@ -28,6 +28,18 @@ from typing import Any
 
 from .stage_schema import StageOperationError
 
+# CONSTANTS
+
+_TOML_ESCAPES = {
+    "\\": "\\\\",
+    '"': '\\"',
+    "\b": "\\b",
+    "\t": "\\t",
+    "\n": "\\n",
+    "\f": "\\f",
+    "\r": "\\r",
+}
+
 # PUBLIC API
 
 
@@ -61,8 +73,25 @@ def read_string_field(data: dict[str, Any], key: str, path: Path) -> str:
 
 
 def quote_toml_string(value: str) -> str:
-    """@brief Quote one TOML basic string."""
-    return json.dumps(value, ensure_ascii=False)
+    """
+    @brief      Quote one TOML basic string.
+    @details    JSON's escape set is not TOML's. `json.dumps` escapes the whole
+                C0 range but emits U+007F raw, and TOML's `ASCII_CTRL` includes
+                U+007F - so a single DEL byte produced a form that `tomllib`
+                could no longer parse. `requirement_store._toml_string` carries
+                the same body for the same reason; the two are deliberately not
+                merged (see `stage_forms._q`, whose `str()` coercion is
+                load-bearing).
+    """
+    encoded = []
+    for character in value:
+        if character in _TOML_ESCAPES:
+            encoded.append(_TOML_ESCAPES[character])
+        elif character < " " or character == "\x7f":
+            encoded.append(f"\\u{ord(character):04X}")
+        else:
+            encoded.append(character)
+    return '"' + "".join(encoded) + '"'
 
 
 def retire_form(path: Path, retention: str, revision_name: str) -> None:

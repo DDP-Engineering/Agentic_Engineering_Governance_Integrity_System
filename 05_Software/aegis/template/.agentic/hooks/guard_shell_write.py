@@ -49,6 +49,12 @@ from pathlib import Path
 #        Qwen Code sends ``run_shell_command``.
 SHELL_TOOLS = frozenset({"Bash", "run_shell_command"})
 
+# @brief Repository-relative suffix of the file every hook's policy is loaded
+#        from. A hook that cannot load it denies every write, including writes
+#        to this file, so the config typo that caused the denial cannot be
+#        repaired from inside the session.
+WORKFLOW_CONFIG_SUFFIX = ".agentic/workflow.toml"
+
 # @brief Control operators that separate one command from the next. Splitting on
 #        these before tokenizing keeps a redirection or write command scoped to
 #        its own command. A well-formed segment then tokenizes cleanly, and an
@@ -108,6 +114,8 @@ def main() -> int:
             sys.path.insert(0, source_text)
         from aegis.paths import contained_relative_path, matches_pattern
     except Exception as exc:
+        if targets_workflow_config_only(targets):
+            return 0
         return deny(str(exc))
 
     in_repo = []
@@ -127,6 +135,8 @@ def main() -> int:
             _, stage, access_mode = read_run_state(repo_root)
             zones = None if access_mode == "repo-wide" else config.write_access.stages[stage]
     except Exception as exc:
+        if targets_workflow_config_only(in_repo):
+            return 0
         return deny(str(exc))
 
     if zones == ():
@@ -308,6 +318,23 @@ def is_protected_path(path: str, policy, matcher) -> bool:  # type: ignore[no-un
         policy.mode == "enforce"
         and "write" in policy.operations
         and any(matcher(path, pattern) for pattern in policy.patterns)
+    )
+
+
+def targets_workflow_config_only(paths: list[str]) -> bool:
+    """
+    @brief      Report whether every named target is the workflow config file.
+    @param[in]  paths Raw or repository-relative target paths.
+    @return     ``True`` only for a non-empty list naming nothing else.
+    @details    Used exclusively to break the config-typo deadlock: an internal
+                failure still denies every other path, but repairing the file
+                that caused the failure stays possible from inside the session.
+    """
+    if not paths:
+        return False
+    return all(
+        str(item).replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
+        for item in paths
     )
 
 

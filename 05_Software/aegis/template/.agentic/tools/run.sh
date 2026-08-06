@@ -7,7 +7,20 @@
 set -euo pipefail
 
 # @brief Directory containing this wrapper after transboarding.
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# @details Resolved with parameter expansion rather than `dirname`, because
+#          `dirname` is an external binary and every other command this script
+#          relies on is a shell builtin. The one configuration this wrapper
+#          exists to serve — a machine with no system Python, where the
+#          interpreter comes from the WAEGIS runtime pointer — is also the one
+#          where `PATH` may be empty. There `dirname` is unresolvable, the
+#          substitution yields nothing, `cd -- ""` is a no-op, and `SCRIPT_DIR`
+#          silently becomes the caller's working directory instead of this
+#          script's own. `cd` and `pwd` are builtins and survive an empty `PATH`.
+_aegis_source="${BASH_SOURCE[0]}"
+_aegis_dir="${_aegis_source%/*}"
+[ "$_aegis_dir" = "$_aegis_source" ] && _aegis_dir="."
+SCRIPT_DIR="$(cd -- "$_aegis_dir" && pwd)"
+unset _aegis_source _aegis_dir
 # @brief Project-local Python launcher for the embedded workflow CLI.
 LAUNCHER="$SCRIPT_DIR/run_aegis.py"
 

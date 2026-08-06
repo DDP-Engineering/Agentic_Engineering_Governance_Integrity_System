@@ -6,7 +6,9 @@
 them with gates, traceability, coverage, impact, and working-tree review. A
 full run evaluates all ten. A quick run reports INV-1, INV-2, INV-3, INV-8,
 and INV-10 as `not-applicable`, because it has no requirement, check, or design
-collection stage. `not-applicable` is neither passed nor waived.
+collection stage. An adoption run reports INV-6 as `not-applicable` for the
+same reason: it has no evidence-producing stage. `not-applicable` is neither
+passed nor waived.
 
 For an eligible failed process rule, first run `aegis waive list`, obtain
 human approval, then use the exact reported ID with
@@ -16,9 +18,9 @@ schema, graph, persistence, or stale-update integrity failures.
 
 | ID | Name | Policy | Protects | Evaluates / trips when | Waivable | Primary remediation |
 | --- | --- | --- | --- | --- | --- | --- |
-| INV-1 | Coverage | Blocking | Every non-retired requirement has a check. | Verification; one or more non-retired snapshots have no citing check. | Yes | Add or correct checks in the requirement/check stages, then `aegis verify invariants`. |
+| INV-1 | Coverage | Blocking | Every non-retired requirement **this run owns** has a check. | Verification; one or more non-retired snapshots this run owns have no citing check. | Yes | Add or correct checks in the requirement/check stages, then `aegis verify invariants`. |
 | INV-2 | Citation | Blocking | Checks refer to real requirements. | Verification; a check has no citation or cites a missing snapshot. | Yes | Correct the check collection through `aegis stage prepare`, `aegis stage apply`, and `aegis stage close`; then verify. |
-| INV-3 | Red-before-green | Blocking | A full-run fix was reproduced before it was declared fixed. | Verification; a green check lacks red evidence. | Yes | Record red evidence with `aegis check prepare` / `aegis check record` or `aegis check run`, then record green evidence and verify. |
+| INV-3 | Red-before-green | Blocking | Every full run's check was reproduced (red) before it was declared passing (green) — feature, fix, and change alike. | Verification; a green check lacks red evidence. | Yes | Record red evidence with `aegis check prepare` / `aegis check record` or `aegis check run`, then record green evidence and verify. |
 | INV-4 | No regression | Blocking | Failed implementation, validation, or delivery test/gate evidence remains visible. | Verification; active gate or test-run evidence in those stages failed. | Yes, for the exact eligible failure | Fix and rerun the relevant `aegis verify gates` or `aegis check run`, then verify. |
 | INV-5 | In scope | Blocking when scope enforces; advisory otherwise | Recorded changed paths stay inside configured scope and the repository. | Verification; paths escape the repository or violate enforced allowed roots. | Yes when scope is `enforce`; advisory findings are not waiver targets | Correct changed paths through the implementation form, or consciously revise `workflow.toml`; then `aegis verify invariants`. |
 | INV-6 | Evidence | Blocking | The run has durable evidence. | Verification; no evidence is recorded. | Yes | Use `aegis check prepare` / `aegis check record`, `aegis check run`, or `aegis evidence prepare add` / `aegis evidence apply`; then verify. |
@@ -30,8 +32,16 @@ schema, graph, persistence, or stale-update integrity failures.
 ## INV-1 — Coverage
 
 This rule prevents requirements from becoming promises with no planned
-verification. Add a check that cites each non-retired requirement, import and
-close the applicable forms, then run `aegis verify invariants`.
+verification. It is scoped to the requirements **this run owns** — the ones
+its own requirement stage record names, plus any it cites in an approved
+design — not the repository-wide requirement register: checks are run-local
+state with no durable register behind them, so a repository-wide comparison
+would fail every full run from the second one onward, listing every
+requirement earlier runs left uncited by this run's checks. Repository-wide
+coverage across the whole register is reported separately by
+`audit_traceability` as `REQ-LINK-MISSING`. Add a check that cites each
+non-retired requirement this run owns, import and close the applicable forms,
+then run `aegis verify invariants`.
 
 ## INV-2 — Citation
 
@@ -41,9 +51,10 @@ then run `aegis verify invariants`.
 
 ## INV-3 — Red-before-green
 
-This rule prevents a full-run fix from claiming success without a demonstrated
-failure first. Record the red result before its green result using the configured
-external (`aegis check prepare` then `aegis check record`) or managed
+This rule prevents any full run — feature, fix, or change alike — from
+claiming a check passes without a demonstrated failure first. Record the red
+result before its green result using the configured external
+(`aegis check prepare` then `aegis check record`) or managed
 (`aegis check run`) path, then verify. It is not applicable to quick runs.
 
 ## INV-4 — No regression
@@ -64,7 +75,9 @@ advisory scope mode it reports but does not block.
 
 This rule ensures the run contains at least one durable evidence record. Record
 check evidence through `aegis check record` or `aegis check run`, or add manual
-evidence through `aegis evidence prepare add` and `aegis evidence apply`.
+evidence through `aegis evidence prepare add` and `aegis evidence apply`. It
+reports `not-applicable` for adoption runs, exactly as it does for quick runs:
+adoption has no evidence-producing stage, so the rule can never hold for it.
 
 ## INV-7 — Clean secrets
 

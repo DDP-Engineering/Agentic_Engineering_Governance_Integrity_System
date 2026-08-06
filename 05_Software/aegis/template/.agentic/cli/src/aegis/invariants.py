@@ -28,6 +28,15 @@
 @details Quick runs render collapsed requirement, check, and design invariants
          as an explicit not-applicable state rather than a successful result,
          without loading storage owned by those absent stages.
+@details INV-1 (2.1.0) scopes coverage to the requirements the current run
+         owns. Checks live only in the run graph, so comparing them against the
+         durable repository-wide register made the rule unsatisfiable from the
+         second full run onward. Repository-wide coverage is reported by
+         `audit_traceability` as `REQ-LINK-MISSING`.
+@details An unloadable requirement register (2.1.0) is reported by the four
+         requirement-reading invariants as a waivable blocking failure instead
+         of raising, so one malformed file cannot take `waive list` - the
+         escape hatch for that very blocker - down with it.
 """
 
 # IMPORTS
@@ -46,7 +55,7 @@ from .config import WorkflowConfig
 from .gates import gate_failure_blockers
 from .models import STAGES, Graph, Waiver
 from .paths import contained_relative_path, matches_pattern
-from .requirement_store import RequirementRecord
+from .requirement_store import RequirementRecord, RequirementValidationError
 from .requirements import load_requirement_index
 from .stage_schema import run_stage_spec
 from .waivers import (
@@ -149,27 +158,37 @@ def evaluate(
                 any eligible failure's inherited waiver already attached.
     @exception  StageOperationError If the graph's kind/profile/stage do not
                 match a declared run-stage schema.
-    @exception  RequirementValidationError If a requirement snapshot is
-                malformed or a requirement ID is duplicated (full runs only).
     """
     quick = bool(run_stage_spec(graph).bypassed_stages)
     # Full runs load the requirement index once for the four consumers. Quick
     # runs do not own requirement collection, so malformed or absent
     # requirement storage cannot turn their honest N/A results into a crash.
-    requirements = (
-        {}
-        if quick
-        else load_requirement_index(repo_root, config).by_id
-    )
+    requirements: dict[str, RequirementRecord] = {}
+    index_error: str | None = None
+    if not quick:
+        try:
+            requirements = load_requirement_index(repo_root, config).by_id
+        except RequirementValidationError as exc:
+            # One malformed requirement file must not abort the whole pass:
+            # `waive list` and `verify run` both evaluate invariants, so
+            # raising here takes the blocker's own escape hatch down with it.
+            # The four requirement-reading invariants report the parse error
+            # instead, each as an ordinary waivable blocking failure.
+            index_error = str(exc)
+    owned = _run_owned_requirement_ids(graph)
     results = [
         (
             _quick_not_applicable("INV-1", "Coverage")
             if quick
-            else _coverage(requirements, graph)
+            else _requirement_index_unreadable("INV-1", "Coverage", index_error)
+            if index_error
+            else _coverage(requirements, owned, graph)
         ),
         (
             _quick_not_applicable("INV-2", "Citation")
             if quick
+            else _requirement_index_unreadable("INV-2", "Citation", index_error)
+            if index_error
             else _citation(requirements, graph)
         ),
         (
@@ -179,17 +198,33 @@ def evaluate(
         ),
         _no_regression(graph, config),
         _in_scope(repo_root, graph, config),
-        _evidence(graph),
+        (
+            # An adoption run has no evidence-producing stage, so INV-6 can
+            # never hold for one. Reporting it not-applicable is the honest
+            # answer; reporting a failure would demand a standing waiver for a
+            # condition the workflow itself creates.
+            _quick_not_applicable("INV-6", "Evidence", "adoption run")
+            if graph.intent.kind == "adoption"
+            else _evidence(graph)
+        ),
         _clean_secrets(repo_root, config),
         (
             _quick_not_applicable("INV-8", "Green requirements active")
             if quick
+            else _requirement_index_unreadable(
+                "INV-8", "Green requirements active", index_error
+            )
+            if index_error
             else _green_requirements_active(requirements, graph)
         ),
         _component_baseline_scope(repo_root, graph, config),
         (
             _quick_not_applicable("INV-10", "Solution design")
             if quick
+            else _requirement_index_unreadable(
+                "INV-10", "Solution design", index_error
+            )
+            if index_error
             else _solution_design(repo_root, graph, requirements)
         ),
     ]
@@ -197,6 +232,13 @@ def evaluate(
         if result.holds is not False or not result.can_waive:
             continue
         if not result.state_digests:
+            # Digest the message alongside the identity. The message is
+            # derived from the offender list, so it changes only when that set
+            # does - and when it does, the human's approval no longer covers
+            # what is now failing. Digesting the identity alone would silently
+            # extend an approval of offenders A and B to a later C nobody
+            # reviewed. Invariants whose waiver must track richer state pin
+            # their own `state_digests` above and never reach this fallback.
             result.state_digests = state_digests(
                 f"invariant:{result.id}",
                 {"id": result.id, "message": result.message},
@@ -232,21 +274,82 @@ def blocking_failures(results: list[InvariantResult]) -> list[InvariantResult]:
 # HELPER FUNCTIONS
 
 
-def _quick_not_applicable(invariant_id: str, name: str) -> InvariantResult:
+def _quick_not_applicable(
+    invariant_id: str,
+    name: str,
+    reason: str = "quick run",
+) -> InvariantResult:
     """
-    @brief Render one collapsed quick-run invariant as its own honest state.
+    @brief Render one collapsed invariant as its own honest state.
     @param[in] invariant_id Stable invariant identifier.
     @param[in] name Human-readable invariant name.
+    @param[in] reason Why the rule cannot apply to this run shape.
     @return Non-blocking not-applicable result that is neither pass nor fail.
+    @details Named for its first caller, the quick-run collapse, but the shape
+             is the same wherever a run profile structurally cannot satisfy a
+             rule: `holds` is ``None``, so the result is neither a pass to be
+             trusted nor a failure to be waived.
     """
     return InvariantResult(
         invariant_id,
         name,
         None,
         "not-applicable",
-        "Not applicable - quick run.",
+        f"Not applicable - {reason}.",
         status="not-applicable",
     )
+
+
+def _requirement_index_unreadable(
+    invariant_id: str,
+    name: str,
+    error: str,
+) -> InvariantResult:
+    """
+    @brief Report an unloadable requirement register as a waivable failure.
+    @param[in] invariant_id Stable invariant identifier.
+    @param[in] name Human-readable invariant name.
+    @param[in] error Validation error text, which names the file and key.
+    @return Blocking, waivable failure instead of an aborted evaluation pass.
+    """
+    return InvariantResult(
+        invariant_id,
+        name,
+        False,
+        "blocking",
+        "Requirement register cannot be read, so this rule cannot be "
+        f"evaluated: {error}",
+    )
+
+
+def _run_owned_requirement_ids(graph: Graph) -> set[str] | None:
+    """
+    @brief Determine which requirement IDs the current run itself owns.
+    @param[in] graph Active workflow graph.
+    @return The owned IDs; an empty set when the run has not yet imported a
+            requirement stage record; ``None`` when an authoritative record
+            exists but names no reconstructable requirement.
+    @details Ownership is deliberately never widened to the repository-wide
+             register. The register accumulates across every prior run, and
+             there is no durable check register to match it against, so a
+             repository-wide reading of INV-1 is unsatisfiable from the second
+             full run onward. Repository-wide coverage is reported by
+             `audit_traceability` as `REQ-LINK-MISSING` instead.
+    """
+    record = graph.stage_records.get("requirement")
+    snapshots = record.payload.get("requirements") if record else None
+    owned = {
+        item["id"]
+        for item in (snapshots if isinstance(snapshots, list) else [])
+        if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"]
+    }
+    if graph.design:
+        owned |= set(graph.design.requirement_digests)
+    if owned:
+        return owned
+    if record is not None and record.status in {"applied", "closed"}:
+        return None
+    return set()
 
 
 def _digest_differs(path: Path, expected: str) -> bool:
@@ -331,31 +434,65 @@ def _solution_design_state_digests(
 
 def _coverage(
     requirements: dict[str, RequirementRecord],
+    owned: set[str] | None,
     graph: Graph,
 ) -> InvariantResult:
     """
-    @brief      INV-1: every non-Retired requirement must be cited by a check.
+    @brief      INV-1: every non-Retired requirement this run owns must be
+                cited by a check.
     @param[in]  requirements Pre-loaded requirement records by identity.
+    @param[in]  owned Requirement IDs this run owns, or ``None`` when the run's
+                own ownership record is present but unreadable.
     @param[in]  graph Active workflow graph whose checks are inspected.
-    @return     Pass when no non-Retired requirement is uncited.
+    @return     Pass when no owned non-Retired requirement is uncited.
+    @details    Checks are run-local state with no durable register behind
+                them, so the comparison set must be run-local too. A run that
+                has not imported its requirement stage yet owns nothing and
+                passes vacuously, exactly as a first run always did against an
+                empty register. An authoritative record that names nothing is
+                reported as that specific defect rather than silently widened
+                back to the repository-wide register.
     @exception  None
     """
+    if owned is None:
+        return InvariantResult(
+            "INV-1",
+            "Coverage",
+            False,
+            "blocking",
+            "The imported requirement stage record names no requirement. "
+            "Re-run `aegis stage prepare` and `aegis stage apply` at the "
+            "requirement stage to restore it.",
+        )
+    if not owned:
+        return InvariantResult(
+            "INV-1",
+            "Coverage",
+            True,
+            "blocking",
+            "This run owns no requirements yet.",
+        )
     covered_ids = {
         requirement_id
         for check in graph.checks
         for requirement_id in check.cites_requirement
     }
-    missing = [
+    # Sorted: the message is part of this result's waiver digest, so an
+    # offender list ordered by the register walk would stale an accepted
+    # waiver on ordering alone, without the offender set having changed.
+    missing = sorted(
         item.id
         for item in requirements.values()
-        if item.status != "Retired" and item.id not in covered_ids
-    ]
+        if item.id in owned
+        and item.status != "Retired"
+        and item.id not in covered_ids
+    )
     return InvariantResult(
         "INV-1",
         "Coverage",
         not missing,
         "blocking",
-        "All non-retired requirements have checks."
+        "All non-retired requirements owned by this run have checks."
         if not missing
         else f"Missing checks for: {', '.join(missing)}",
     )
@@ -373,7 +510,8 @@ def _citation(
     @exception  None
     """
     requirement_ids = set(requirements)
-    bad = [
+    # Sorted for waiver-digest stability; see the note in `_coverage`.
+    bad = sorted(
         check.id
         for check in graph.checks
         if not check.cites_requirement
@@ -381,7 +519,7 @@ def _citation(
             requirement_id not in requirement_ids
             for requirement_id in check.cites_requirement
         )
-    ]
+    )
     return InvariantResult(
         "INV-2",
         "Citation",
@@ -401,11 +539,14 @@ def _red_before_green(graph: Graph) -> InvariantResult:
                 any matching per-check waivers already attached.
     @exception  None
     """
-    missing = [
+    # Sorted for waiver-digest stability; see the note in `_coverage`. Both the
+    # message and `state_digests` below are derived from this list, so graph
+    # ordering alone would otherwise stale an INV-3 waiver.
+    missing = sorted(
         check.id
         for check in graph.checks
         if check.state == "green" and not check.red_evidence
-    ]
+    )
     blockers = [
         red_before_green_blocker(graph, check_id)
         for check_id in missing
@@ -631,15 +772,14 @@ def _component_baseline_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig
     touched = [path for unit in graph.change_units for path in unit.touched_paths]
     if not touched:
         return InvariantResult("INV-9", "Component baseline scope", True, "blocking", "No change units recorded yet.")
-    issues = audit_local_scope(
-        repo_root, touched, cfg, cfg.adoption_default_completion_level
-    )
+    issues = audit_local_scope(repo_root, touched, cfg)
     if not issues:
         return InvariantResult("INV-9", "Component baseline scope", True, "blocking", "Mapped component paths meet baseline scope.")
-    messages = [
+    # Sorted for waiver-digest stability; see the note in `_coverage`.
+    messages = sorted(
         f"{issue.code} {issue.name or 'component'} {issue.path or ''}".strip()
         for issue in issues
-    ]
+    )
     return InvariantResult("INV-9", "Component baseline scope", False, "blocking", "; ".join(messages))
 
 
@@ -687,13 +827,14 @@ def _in_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig) -> InvariantRe
         return InvariantResult(
             "INV-5", "In scope", True, severity, "Touched paths are in configured scope."
         )
+    # Sorted for waiver-digest stability; see the note in `_coverage`.
     parts = []
     if out_of_scope:
-        parts.append(f"Out-of-scope paths: {', '.join(out_of_scope)}")
+        parts.append(f"Out-of-scope paths: {', '.join(sorted(out_of_scope))}")
     if escaping:
         parts.append(
             "Paths outside the repository (re-record them relative to the repository root): "
-            f"{', '.join(escaping)}"
+            f"{', '.join(sorted(escaping))}"
         )
     return InvariantResult("INV-5", "In scope", False, severity, "; ".join(parts))
 

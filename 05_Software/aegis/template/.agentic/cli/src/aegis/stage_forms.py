@@ -31,6 +31,7 @@ from typing import Any
 
 from ._form_io import read_string_field as _string
 from .config import GATE_ORDER, WorkflowConfig, load_config
+from .invariants import evaluate
 from .models import (
     STAGES,
     ChangeUnit,
@@ -46,6 +47,7 @@ from .paths import relative_to_root
 from .requirement_store import (
     CATEGORY_IDENTITIES,
     RequirementRecord,
+    RequirementValidationError,
     find_requirement_record,
     load_all_requirement_records,
     publish_requirement_records,
@@ -63,7 +65,9 @@ from .store import (
     set_access_mode,
 )
 from .stage_schema import (
+    PENDING_OR_APPROVED,
     REQUIRED_STAGE_VALUE,
+    REVIEW_DECISIONS,
     STAGE_FIELD_SPECS,
     StageOperationError,
     StageFieldSpec,
@@ -200,7 +204,10 @@ def prepare_stage(
     """
     run_stage_spec(graph)
     if graph.complete:
-        raise StageOperationError("run is complete; no stage can be prepared")
+        raise StageOperationError(
+            "run is complete; no stage can be prepared. Start a follow-up run "
+            'with `aegis run start fix --quick`; a closed run is never reopened.'
+        )
     current = graph.stage_records.get(graph.stage)
     directory = stage_directory(repo_root, graph)
     primary = _primary_form(directory, graph.stage)
@@ -235,17 +242,34 @@ def prepare_stage(
 
 
 @serialized_graph_mutation
-def add_stage_item(repo_root: Path, graph: Graph) -> Path:
+def add_stage_item(
+    repo_root: Path,
+    graph: Graph,
+    category: str = "functional",
+) -> Path:
     """
     @brief      Generate another CLI-identified requirement or check form.
     @param[in]  repo_root Repository root.
     @param[in,out] graph Active workflow graph.
+    @param[in]  category Requirement category whose code goes into the minted
+                ID; ignored at the check stage.
     @return     Newly generated item form.
+    @details    The category was hardcoded to `functional` until 2.1.0, while
+                the validator requires `category` to agree with the ID's
+                category code and the CLI owns every durable ID. That left no
+                legal way to file the seven other categories the requirement
+                documentation asks for, so the category is now chosen when the
+                ID is minted and written into the form to match.
     @exception  StageOperationError If the stage is not a requirement/check
-                collection stage, is not yet prepared, or the next numbered
-                form path already exists.
+                collection stage, is not yet prepared, the category is not a
+                known one, or the next numbered form path already exists.
     """
     run_stage_spec(graph)
+    if category not in CATEGORY_IDENTITIES:
+        raise StageOperationError(
+            f"unknown requirement category {category!r}; expected one of "
+            f"{', '.join(CATEGORY_IDENTITIES)}"
+        )
     if graph.stage not in COLLECTION_STAGES:
         raise StageOperationError(
             "stage add is valid only during requirement or check"
@@ -264,10 +288,11 @@ def add_stage_item(repo_root: Path, graph: Graph) -> Path:
     path = directory / f"{graph.stage}-{number:03d}.toml"
     if path.exists():
         raise StageOperationError(
-            f"refusing to overwrite existing form {path.name}"
+            f"refusing to overwrite existing form {path.name}. Delete it, or "
+            "run `aegis stage prepare` to regenerate the set."
         )
     if graph.stage == "requirement":
-        requirement_id = _new_requirement_id("functional")
+        requirement_id = _new_requirement_id(category)
         spec_path = (
             run_dir(repo_root, graph.run_id)
             / "requirements"
@@ -285,6 +310,7 @@ def add_stage_item(repo_root: Path, graph: Graph) -> Path:
                 record,
                 requirement_id,
                 spec_path.relative_to(repo_root).as_posix(),
+                category,
             ),
             encoding="utf-8",
         )
@@ -420,31 +446,62 @@ def close_stage(
     repo_root: Path,
     graph: Graph,
     config: WorkflowConfig,
+    approver: str = "human",
 ) -> tuple[Graph, Path | None]:
     """
     @brief      Journal human approval, close the stage, and prepare its successor.
     @param[in]  repo_root Repository root.
     @param[in,out] graph Active workflow graph.
     @param[in]  config Current workspace configuration.
+    @param[in]  approver Identity recorded on the approval events; the
+                unattributable "human" remains the default and the fallback.
     @return     Updated graph and next prepared artifact, or `None` on completion.
     @exception  StageOperationError If the stage has not been applied yet or
                 authoritative readiness blockers remain.
     @note       Invoking this command is the explicit human approval action.
+    @details    Closing with `control.route_to` set is not an approval of the
+                current stage - it is the decision to go back and redo an
+                earlier one - so the evidence this stage would have produced is
+                deferred rather than demanded. Without that, correcting a wrong
+                contract at implementation costs red *and* green evidence for
+                checks that are about to be deleted, which is more expensive
+                than pressing forward dishonestly. Structural and control
+                validity are still enforced, and the deferred blockers are
+                named on the `stage.routed` event so nothing is hidden.
     """
     run_stage_spec(graph)
     record = graph.stage_records.get(graph.stage)
     if not record or record.status != "applied":
         raise StageOperationError("run `aegis stage apply` before stage close")
     blockers = stage_blockers(repo_root, graph)
+    deferred_blockers: list[str] = []
+    if blockers and record.route_to:
+        evidence_blockers = set(_evidence_stage_blockers(graph, record))
+        deferred_blockers = [
+            blocker for blocker in blockers if blocker in evidence_blockers
+        ]
+        blockers = [
+            blocker for blocker in blockers if blocker not in evidence_blockers
+        ]
     if blockers:
-        raise StageOperationError("; ".join(blockers))
+        raise StageOperationError(
+            "; ".join(blockers) + ". Run `aegis waive list` for waivable "
+            "blocker IDs."
+        )
     closing_stage, deferred_events = _approve_stage(
         repo_root,
         graph,
         config,
         record,
+        approver,
     )
-    if _advance_stage(repo_root, graph, record, closing_stage):
+    if _advance_stage(
+        repo_root,
+        graph,
+        record,
+        closing_stage,
+        deferred_blockers,
+    ):
         return graph, None
     if deferred_events:
         save_graph_with_journal_events(repo_root, graph, deferred_events)
@@ -494,7 +551,12 @@ def stage_blocker_details(repo_root: Path, graph: Graph) -> list[Blocker]:
     @param[in]  graph Active workflow graph.
     @return     Deterministically ordered structured, human-waivable blockers.
     @exception  StageOperationError If the graph conflicts with its run profile.
-    @note       Lifecycle guidance and structural integrity failures are omitted.
+    @note       Lifecycle guidance (not prepared, not applied) is omitted, as
+                it names an action rather than a risk to accept. Every stage
+                readiness failure is waivable: a transient filesystem error
+                while reading a cited requirement used to be terminal with no
+                override, which is a dead end rather than an integrity floor.
+                The human still approves each waiver individually.
     """
     run_stage_spec(graph)
     record = graph.stage_records.get(graph.stage)
@@ -534,8 +596,18 @@ def next_command(graph: Graph, repo_root: Path | None = None) -> str:
             return "aegis evidence prepare add"
         return "aegis stage apply"
     if record.status == "applied":
-        if repo_root is not None and not stage_blockers(repo_root, graph):
-            return "aegis stage close"
+        if repo_root is not None:
+            remaining = stage_blockers(repo_root, graph)
+            if remaining and record.route_to:
+                # `close_stage` defers exactly these when a route is set, so
+                # guidance has to defer them too. Otherwise the agent is told
+                # to gather evidence for checks it is about to delete - the
+                # friction W3 removed, re-introduced through the one output
+                # the protocol trusts most.
+                deferred = set(_evidence_stage_blockers(graph, record))
+                remaining = [item for item in remaining if item not in deferred]
+            if not remaining:
+                return "aegis stage close"
         if graph.profile == "quick" and graph.stage == "implementation":
             linked = record.payload.get("linked_check_evidence")
             active_ids = {
@@ -608,8 +680,6 @@ def _stage_blocker_details(
     specific: dict[str, Blocker] = {}
     generic_ids: dict[str, str] = {}
     for description in descriptions:
-        if _is_non_waivable_stage_blocker(repo_root, graph, description):
-            continue
         blocker = _specific_stage_blocker(graph, record, description)
         if blocker is not None:
             specific[description] = blocker
@@ -745,33 +815,6 @@ def _generic_stage_blocker_id(stage: Stage, description: str) -> str:
     return f"stage:{stage}:{slug}"
 
 
-def _is_non_waivable_stage_blocker(
-    repo_root: Path,
-    graph: Graph,
-    description: str,
-) -> bool:
-    """
-    @brief Identify structural integrity failures outside process waivers.
-    @return True for design or required-integration schema corruption.
-    """
-    if description.startswith(
-        "cited requirement integrity cannot be verified:"
-    ):
-        return True
-    if (
-        graph.stage == "repo-discovery"
-        and description.startswith(
-            "required RepoWise discovery is not current:"
-        )
-    ):
-        inspection = inspect_repowise(repo_root)
-        return (
-            inspection.mode == "required"
-            and inspection.status == "invalid"
-        )
-    return False
-
-
 def _prepare_stage_record(
     repo_root: Path,
     graph: Graph,
@@ -837,9 +880,11 @@ def _approve_stage(
     graph: Graph,
     config: WorkflowConfig,
     record: StageRecord,
+    approver: str = "human",
 ) -> tuple[Stage, list[tuple[str, dict[str, Any]]]]:
     """
     @brief Apply approval-side mutations and journal the approval.
+    @param[in] approver Identity recorded on the journalled approval events.
     @return Closing stage and any events deferred for graph-coupled publication.
     """
     closing_stage = graph.stage
@@ -876,7 +921,7 @@ def _approve_stage(
     approval_data = {
         "stage": closing_stage,
         "revision": record.revision,
-        "approver": "human",
+        "approver": approver,
     }
     if defer_events:
         journal_events.append(("stage.approved", approval_data))
@@ -900,7 +945,7 @@ def _approve_stage(
                     "status": "bypassed",
                     "stages": list(spec.bypassed_stages),
                     "reason": "quick run type",
-                    "approver": "human",
+                    "approver": approver,
                     "intake_revision": record.revision,
                 },
             )
@@ -913,9 +958,12 @@ def _advance_stage(
     graph: Graph,
     record: StageRecord,
     closing_stage: Stage,
+    deferred_blockers: list[str] | None = None,
 ) -> bool:
     """
     @brief Apply routing or advance to the next configured lifecycle stage.
+    @param[in] deferred_blockers Evidence blockers this route did not require;
+               recorded on the routing event so the deferral stays visible.
     @return True when the run completed.
     """
     route = record.route_to
@@ -932,6 +980,7 @@ def _advance_stage(
                 "from": closing_stage,
                 "to": route,
                 "reason": record.route_rationale,
+                "blockers_deferred": list(deferred_blockers or ()),
             },
         )
         return False
@@ -971,10 +1020,122 @@ def _standard_stage_blockers(
         blockers.append("at least one atomic requirement is required")
     if graph.stage == "design":
         blockers.extend(_design_blockers(repo_root, graph))
+    if graph.stage == "validation" and graph.profile != "quick":
+        blockers.extend(_requirement_pin_drift_blockers(repo_root, graph))
     if graph.stage in {"delivery", "adoption-delivery"}:
         if record.payload.get("decision") != "approved":
             blockers.append("final human handoff decision is not approved")
+        blockers.extend(_delivery_invariant_blockers(repo_root, graph))
     return blockers
+
+
+def _requirement_pin_drift_blockers(repo_root: Path, graph: Graph) -> list[str]:
+    """
+    @brief Refuse to absorb a post-approval human edit into the INV-10 pin.
+    @return One blocker per requirement whose file already differs from the
+            digest the approved design pinned for it.
+    @details Closing validation activates green requirements and re-takes their
+             pinned digest, because AEGIS itself rewrote the lifecycle field
+             (B26). Taken after that write, the new digest also captures
+             anything a *human* changed in the same file since the design was
+             approved, silently absorbing the exact drift INV-10 exists to
+             catch. So the pin is verified before it is refreshed. The result is
+             an ordinary waivable stage blocker naming the requirement, not a
+             hard stop: a deliberate post-approval edit is still deliverable,
+             it just has to be approved as one.
+    @details Scoped to the records activation would actually touch. Drift in a
+             pinned requirement this close will not rewrite is not absorbed by
+             anything, and INV-10 already reports it at delivery; blocking on it
+             here would be a new gate rather than a fix.
+    """
+    design = graph.design
+    if not design or not design.requirement_digests:
+        return []
+    blockers: list[str] = []
+    try:
+        candidates = _activatable_requirements(
+            repo_root, graph, load_config(repo_root)
+        )
+    except (OSError, ValueError) as exc:
+        return [f"pinned requirement integrity cannot be verified: {exc}"]
+    for requirement in candidates:
+        pinned = design.requirement_digests.get(requirement.id)
+        if pinned is None:
+            continue
+        try:
+            current = _file_digest(repo_root / str(requirement.source_file))
+        except OSError as exc:
+            blockers.append(
+                f"{requirement.id} pinned digest cannot be verified: {exc}"
+            )
+            continue
+        if current != pinned:
+            blockers.append(
+                f"{requirement.id} changed after design approval; activating it "
+                "would pin that edit over the approved snapshot"
+            )
+    return blockers
+
+
+def _activatable_requirements(
+    repo_root: Path,
+    graph: Graph,
+    config: WorkflowConfig,
+) -> list[RequirementRecord]:
+    """
+    @brief Select the Planned requirements a validation close would activate.
+    @details Shared by the activation itself and by the drift check that must
+             run against exactly the same set immediately before it.
+    """
+    selected: list[RequirementRecord] = []
+    for requirement in load_all_requirement_records(repo_root, config):
+        if requirement.status != "Planned":
+            continue
+        cited = [
+            check for check in graph.checks if requirement.id in check.cites_requirement
+        ]
+        if not cited or any(
+            not _has_check_evidence(graph, check.id, "pass") for check in cited
+        ):
+            continue
+        selected.append(requirement)
+    return selected
+
+
+def _delivery_invariant_blockers(repo_root: Path, graph: Graph) -> list[str]:
+    """
+    @brief Re-check blocking invariants before the delivery stage may close.
+    @return One blocker per failing, unwaived blocking invariant.
+    @details Delivery was the one stage that closed without consulting the
+             invariants, so a run could reach `complete: true` while the report
+             it had just generated said `INV-6 FAIL (blocking)`. That is an
+             internal inconsistency, not a tampering concern: every other stage
+             already re-checks its own readiness, and each of these blockers
+             stays individually waivable - as does the invariant behind it.
+    @details Applied at `adoption-delivery` as well. It was initially scoped to
+             `delivery` only because INV-6 would have failed on every adoption
+             run - they have no evidence-producing stage - and demanded a
+             standing waiver for a condition the workflow itself creates. That
+             was settled by making INV-6 report `not-applicable` for adoption
+             runs (`invariants.evaluate`), so both close paths can now
+             re-check the same blocking invariants without an unsatisfiable
+             one among them.
+    """
+    try:
+        results = evaluate(repo_root, graph, load_config(repo_root))
+    except (OSError, ValueError) as exc:
+        return [f"invariants could not be evaluated: {exc}"]
+    # Advisory results are excluded; `non-waivable` is not. INV-7 carries that
+    # policy because it is the *strongest* one, not a weaker one - a live
+    # secret match must stop delivery exactly as a blocking failure does.
+    return [
+        f"invariant {result.id} does not hold; "
+        "run `aegis verify invariants` for detail"
+        for result in results
+        if result.holds is False
+        and result.policy != "advisory"
+        and not result.waived
+    ]
 
 
 def _evidence_stage_blockers(
@@ -1218,12 +1379,13 @@ def _requirement_form(
     record: StageRecord,
     requirement_id: str,
     spec_ref: str,
+    category: str = "functional",
 ) -> str:
     """@brief Render one atomic requirement input form."""
     lines = [
         *_base_lines(graph, record),
         f"id = {_q(requirement_id)}",
-        'category = "functional"',
+        f"category = {_q(category)}",
         'priority = "Must"',
         'requirement = ""',
         'rationale = ""',
@@ -1332,6 +1494,10 @@ def _single_form_text(
 ) -> str:
     """
     @brief Render the current single-artifact stage form from its field schema.
+    @details Each field is preceded by its schema help as a TOML comment, and
+             by its accepted tokens where the field takes a closed set. TOML
+             comments are not part of the parsed table, so this is presentation
+             only - the imported payload is byte-identical either way.
     """
     lines = _base_lines(graph, record)
     for field in _stage_field_specs(graph.stage):
@@ -1340,6 +1506,7 @@ def _single_form_text(
             field.name,
             default,
         )
+        lines.append(f"# {_field_guidance(field)}")
         lines.append(f"{field.name} = {_render_stage_field(field, value)}")
     lines.extend(_control_lines(values.get("control", {})))
     return "\n".join(lines) + "\n"
@@ -1383,7 +1550,8 @@ def _load_single_stage_form(
     for field in fields:
         if field.name not in data:
             raise StageOperationError(
-                f"{path}: missing required key {field.name}"
+                f"{path}: missing required key {field.name}. Run "
+                "`aegis stage prepare` to regenerate the current-revision form."
             )
     _validate_stage_values(data, graph.stage, path)
     data["control"] = _control(data.get("control"), path)
@@ -1409,16 +1577,30 @@ def _apply_requirements(
         _validate_identity(data, graph, record, path)
         for key in REQUIREMENT_FORM_KEYS:
             if key not in data:
-                raise StageOperationError(f"{path}: missing required key {key}")
+                raise StageOperationError(
+                    f"{path}: missing required key {key}. Run "
+                    "`aegis stage prepare` to regenerate the current-revision form."
+                )
         spec_path = repo_root / _string(data, "spec_ref", path)
         if not spec_path.is_file():
             raise StageOperationError(f"{path}: companion specification is missing")
+        # A rehydrated form carries the same requirement ID, so a second apply
+        # of this stage - the normal consequence of routing backwards - must
+        # not republish an already-Active requirement as brand new. `status` is
+        # durable lifecycle state owned by `_activate_green_requirements`, and
+        # `created_on` exists nowhere but this TOML, so overwriting it loses it
+        # irrecoverably.
+        existing = _existing_requirement(
+            repo_root,
+            config,
+            _string(data, "id", path),
+        )
         records.append(
             RequirementRecord(
                 schema_version=1,
                 id=_string(data, "id", path),
                 category=_string(data, "category", path),
-                status="Planned",
+                status=existing.status if existing else "Planned",
                 priority=_string(data, "priority", path),
                 requirement=_nonempty(data, "requirement", path),
                 rationale=_nonempty(data, "rationale", path),
@@ -1426,12 +1608,30 @@ def _apply_requirements(
                 spec_ref=_string(data, "spec_ref", path),
                 affected_paths=tuple(_strings(data, "affected_paths", path)),
                 linked_tests=tuple(_strings(data, "linked_tests", path)),
-                created_on=timestamp,
+                created_on=existing.created_on if existing else timestamp,
                 last_updated=timestamp,
             )
         )
     imported = publish_requirement_records(repo_root, records, config)
     return {"requirements": [item.to_dict() for item in imported]}
+
+
+def _existing_requirement(
+    repo_root: Path,
+    config: WorkflowConfig,
+    requirement_id: str,
+) -> RequirementRecord | None:
+    """
+    @brief Load the durable snapshot behind a requirement form, if it exists.
+    @return The published record, or `None` when this ID is new or unreadable.
+    @details An unreadable record is treated as absent rather than raised on:
+             the form itself is authoritative for everything except `status`
+             and `created_on`, and publication re-validates the result anyway.
+    """
+    try:
+        return find_requirement_record(repo_root, requirement_id, config)
+    except (RequirementValidationError, OSError, ValueError, KeyError):
+        return None
 
 
 def _apply_checks(
@@ -1451,7 +1651,10 @@ def _apply_checks(
         _validate_identity(data, graph, record, path)
         for key in CHECK_FORM_KEYS:
             if key not in data:
-                raise StageOperationError(f"{path}: missing required key {key}")
+                raise StageOperationError(
+                    f"{path}: missing required key {key}. Run "
+                    "`aegis stage prepare` to regenerate the current-revision form."
+                )
         check_id = _nonempty(data, "id", path)
         if check_id in seen:
             raise StageOperationError(f"{path}: duplicate check ID {check_id}")
@@ -1512,19 +1715,19 @@ def _import_single_stage(
     elif graph.stage == "component-adoption":
         _import_component_adoption(repo_root, graph, data)
     elif graph.stage == "component-map":
-        _validate_import_decision(
+        _validate_import_enum(
             data,
             "component-map",
             "approval_decision",
-            "component-map approval_decision must be pending or approved",
+            PENDING_OR_APPROVED,
         )
     elif graph.stage == "baseline-review":
-        _validate_import_decision(
-            data,
-            "baseline-review",
-            "decision",
-            "baseline-review decision must be pending or approved",
-        )
+        _validate_import_enum(data, "baseline-review", "decision", PENDING_OR_APPROVED)
+    elif graph.stage == "validation":
+        for key in ("diff_review", "documentation_review", "style_review"):
+            _validate_import_enum(data, "validation", key, REVIEW_DECISIONS)
+    elif graph.stage in {"delivery", "adoption-delivery"}:
+        _validate_import_enum(data, graph.stage, "decision", PENDING_OR_APPROVED)
 
 
 def _import_intake(graph: Graph, data: dict[str, Any]) -> None:
@@ -1687,18 +1890,27 @@ def _import_component_adoption(
     ]
 
 
-def _validate_import_decision(
+def _validate_import_enum(
     data: dict[str, Any],
     stage: str,
     key: str,
-    message: str,
+    accepted: tuple[str, ...],
 ) -> None:
     """
-    @brief Validate one imported pending-or-approved decision.
+    @brief Validate one imported closed-vocabulary stage field at apply time.
+    @details Validating these at close instead meant a wrong token was accepted
+             silently by `stage apply` and only rejected a command later, by a
+             message that named neither the offending value nor the tokens that
+             would have worked. `accepted` is the same tuple the generated form
+             advertises in its field comment.
+    @exception StageOperationError If the value is outside the accepted set.
     """
-    decision = _string(data, key, Path(f"{stage}.toml"))
-    if decision not in {"pending", "approved"}:
-        raise StageOperationError(message)
+    value = _string(data, key, Path(f"{stage}.toml"))
+    if value not in accepted:
+        raise StageOperationError(
+            f"{stage} {key} must be {_accepted_values(accepted)} "
+            f'(got "{value}")'
+        )
 
 
 def _normalized_changed_paths(
@@ -1791,23 +2003,31 @@ def _activate_green_requirements(
 ) -> None:
     """
     @brief Activate cited green requirements through serialized stale-safe updates.
+    @details Activation rewrites the requirement TOML, which is the same file
+             `graph.design.requirement_digests` pins for INV-10. The pinned
+             digest is therefore re-taken for every record this function
+             touches: INV-10 exists to catch a *human* editing a cited
+             requirement after the design was approved, and AEGIS flipping its
+             own lifecycle field is not that. Without the refresh, INV-10 fails
+             for the remainder of every full run the moment `validation`
+             closes - which no waiver can honestly resolve, because nothing
+             actually changed.
+    @details The refresh is only safe because `_requirement_pin_drift_blockers`
+             has already established, over this same record set, that no pinned
+             file differs from its approved snapshot yet. Without that gate the
+             re-pin would absorb a concurrent human edit (B27).
     """
-    for requirement in load_all_requirement_records(repo_root, config):
-        if requirement.status != "Planned":
-            continue
-        cited = [
-            check for check in graph.checks if requirement.id in check.cites_requirement
-        ]
-        if not cited or any(
-            not _has_check_evidence(graph, check.id, "pass") for check in cited
-        ):
-            continue
+    for requirement in _activatable_requirements(repo_root, graph, config):
         update_requirement(
             repo_root,
             requirement.id,
             config=config,
             patch=RequirementPatch(status="Active", timestamp=utc_timestamp()),
         )
+        if graph.design and requirement.id in graph.design.requirement_digests:
+            graph.design.requirement_digests[requirement.id] = _file_digest(
+                repo_root / str(requirement.source_file)
+            )
         append_journal(
             repo_root,
             graph.run_id,
@@ -2022,7 +2242,10 @@ def _closed_keys(data: dict[str, Any], expected: tuple[str, ...], path: Path) ->
     """@brief Enforce exact key sets for strict schema-3 stage forms."""
     unknown = sorted(set(data) - set(expected))
     if unknown:
-        raise StageOperationError(f"{path}: unknown key {unknown[0]}")
+        raise StageOperationError(
+            f"{path}: unknown key {unknown[0]}. Run `aegis stage prepare` to "
+            "regenerate the current-revision form."
+        )
 
 
 def _stage_field_specs(stage: Stage) -> tuple[StageFieldSpec, ...]:
@@ -2052,6 +2275,23 @@ def _render_stage_field(field: StageFieldSpec, value: Any) -> str:
     if field.kind == "bool":
         return "true" if value else "false"
     return _q(value)
+
+
+def _field_guidance(field: StageFieldSpec) -> str:
+    """
+    @brief Render one field's schema help, with its accepted tokens if closed.
+    """
+    if not field.accepted:
+        return field.help
+    return f"{field.help} Accepted: {' | '.join(field.accepted)}"
+
+
+def _accepted_values(accepted: tuple[str, ...]) -> str:
+    """@brief Render an accepted-token set as readable quoted prose."""
+    quoted = [f'"{item}"' for item in accepted]
+    if len(quoted) == 1:
+        return quoted[0]
+    return ", ".join(quoted[:-1]) + " or " + quoted[-1]
 
 
 def _nonempty(data: dict[str, Any], key: str, path: Path) -> str:
@@ -2199,9 +2439,46 @@ def _design_template(graph: Graph) -> str:
 """
 
 
+_TOML_ESCAPES = {
+    "\\": "\\\\",
+    '"': '\\"',
+    "\b": "\\b",
+    "\t": "\\t",
+    "\n": "\\n",
+    "\f": "\\f",
+    "\r": "\\r",
+}
+
+
+def _toml_escape(value: str) -> str:
+    """
+    @brief      Quote one TOML basic string.
+    @details    `json.dumps` escapes the whole C0 range but emits U+007F (DEL)
+                raw, which TOML's `ASCII_CTRL` rejects (see B3, B25). This is a
+                deliberate third copy of the same escaping logic used by
+                `_form_io.quote_toml_string` and `requirement_store._toml_string`
+                — see H1 for why the three are not merged into one helper.
+    """
+    encoded = []
+    for character in value:
+        if character in _TOML_ESCAPES:
+            encoded.append(_TOML_ESCAPES[character])
+        elif character < " " or character == "\x7f":
+            encoded.append(f"\\u{ord(character):04X}")
+        else:
+            encoded.append(character)
+    return '"' + "".join(encoded) + '"'
+
+
 def _q(value: Any) -> str:
-    """@brief Quote a scalar as a TOML basic string."""
-    return json.dumps(str(value), ensure_ascii=False)
+    """
+    @brief      Quote a scalar as a TOML basic string.
+    @details    The `str()` coercion is load-bearing: this function must accept
+                non-string scalars (bools, ints, enums) and always emit a TOML
+                *string*, never a bare `true`/`1`. Do not replace it with
+                `_form_io.quote_toml_string` — see H1 in `03_CODE_HEALTH.md`.
+    """
+    return _toml_escape(str(value))
 
 
 def _array(values: Any) -> str:

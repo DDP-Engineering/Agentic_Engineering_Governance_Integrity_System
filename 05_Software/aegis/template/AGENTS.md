@@ -55,6 +55,7 @@ Every stage follows:
 <workflow> stage prepare
 # edit generated TOML and referenced Markdown
 <workflow> stage apply
+<workflow> stage show
 # review imported state and ask for explicit human approval
 <workflow> stage close
 ```
@@ -113,8 +114,9 @@ default threshold of 10, and an advisory never blocks or changes the run.
   structures, algorithms, boundaries, and sequencing belong in design.
 - Design is authoritative in `.agentic/runs/<run-id>/design.md`; it must cite
   unchanged requirement snapshots and record an explicit selected option.
-- Checks cite requirement IDs and assert observable behavior. A fix requires
-  reproducing red evidence before implementation.
+- Checks cite requirement IDs and assert observable behavior. Every full run —
+  feature, fix, or change alike — requires reproducing red evidence before
+  implementation.
 - Implementation follows the approved design and records changed paths,
   documentation effects, and linked evidence in its form.
 - Validation runs `<workflow> verify run` before interpretive diff review.
@@ -195,6 +197,29 @@ for stage-specific guidance.
   section with a rationale. Routing to requirement or design invalidates design
   approval.
 
+## Changing Direction Mid-Run
+
+Discovering that a contract is wrong is normal work, not a failure. Set
+`control.route_to` to an earlier stage and `control.route_rationale` in the
+current form, then `aegis stage apply` and `aegis stage close`. Routing takes
+effect at close.
+
+Closing with a route is not an approval of the stage you are leaving, so the
+evidence that stage would have produced is not demanded. Blockers shaped
+`<check-id> is missing prior red evidence` and
+`<check-id> has no active green evidence` are deferred, and the deferred list is
+written to the `stage.routed` journal event as `blockers_deferred`. Structural
+and control validity are still enforced: the route must name an earlier stage in
+this run's lifecycle, it needs a rationale, and every non-evidence blocker still
+stands.
+
+Routing to `requirement` or `design` invalidates design approval. Requirement
+`status` and `created_on` are durable and survive a re-apply, so going back
+costs no lifecycle history.
+
+If the run itself should not continue at all, end it with
+`aegis run abandon --reason "<text>"` rather than leaving it open.
+
 ## Component Documentation Contract
 
 Add or update `.agentic/knowledge/components/*.md` when a component is new or
@@ -211,6 +236,6 @@ Artifact: <path or none>
 Imported revision: <number or none>
 Evidence: <ids/results or none>
 Blockers: <none or exact blockers>
-Needs human: approve close, revise, route earlier, add a recorded waiver for <blocker-id> where offered, or abort
+Needs human: approve close, revise, route earlier, add a recorded waiver for <blocker-id> where offered, or abandon the run with `aegis run abandon --reason "<text>"`
 Next command: <exact command>
 ```

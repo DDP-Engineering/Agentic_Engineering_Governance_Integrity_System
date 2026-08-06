@@ -96,6 +96,11 @@ PATH_LIST_KEYS = ("paths", "filenames", "include", "includes")
 #        as a path; `Glob`'s names the paths themselves.
 GLOB_PATTERN_TOOLS = frozenset({"Glob", "glob", "GlobTool", "FindFiles", "find"})
 
+# @brief Repository-relative suffix of the file this hook's policy is loaded
+#        from. A hook that cannot load it denies every read, including the read
+#        of the file that would explain the failure.
+WORKFLOW_CONFIG_SUFFIX = ".agentic/workflow.toml"
+
 
 # PUBLIC API
 
@@ -134,13 +139,30 @@ def main() -> int:
                 return 0
             return deny("Protected-read policy could not determine the requested path.")
 
-        from aegis.paths import matches_pattern, relative_to_root
+        from aegis.paths import contained_relative_path, matches_pattern
 
         for target in targets:
-            relative_path = relative_to_root(target, repo_root)
+            # A target outside the repository is not a protected-path concern:
+            # this policy governs repository globs only, and the sibling shell
+            # write guard already ignores escapes. `relative_to_root` raised
+            # "Path escapes workspace root" for every out-of-repo read, which
+            # the blanket handler below turned into a denial carrying a
+            # containment message for a policy that never mentions containment.
+            relative_path = contained_relative_path(target, repo_root)
+            if relative_path is None:
+                continue
             if any(matches_pattern(relative_path, pattern) for pattern in policy.patterns):
                 return deny(f"Reading configured protected path is blocked: {relative_path}")
     except Exception as exc:
+        if targets_workflow_config_only(
+            extract_target_paths(
+                payload.get("tool_input", {}),
+                payload.get("tool_name")
+                if isinstance(payload.get("tool_name"), str)
+                else "",
+            )
+        ):
+            return 0
         return deny(str(exc))
     return 0
 
@@ -184,6 +206,24 @@ def extract_target_paths(tool_input: object, tool_name: str = "") -> list[str]:
     if tool_name in GLOB_PATTERN_TOOLS:
         add(tool_input.get("pattern"))
     return found
+
+
+def targets_workflow_config_only(paths: list[str]) -> bool:
+    """
+    @brief      Report whether every named target is the workflow config file.
+    @param[in]  paths Raw target paths as the tool named them.
+    @return     ``True`` only for a non-empty list naming nothing else.
+    @details    Used exclusively to break the config-typo deadlock: a malformed
+                `workflow.toml` denied reading the very file that had to be read
+                to repair it. Every other path is still denied on an internal
+                failure.
+    """
+    if not paths:
+        return False
+    return all(
+        str(item).replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
+        for item in paths
+    )
 
 
 def deny(message: str) -> int:

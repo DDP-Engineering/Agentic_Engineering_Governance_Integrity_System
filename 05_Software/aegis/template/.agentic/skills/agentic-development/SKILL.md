@@ -64,7 +64,8 @@ For every stage:
 <workflow> stage prepare
 # edit the generated TOML/Markdown
 <workflow> stage apply
-# show the imported state and request explicit human approval
+<workflow> stage show
+# request explicit human approval
 <workflow> stage close
 ```
 
@@ -89,8 +90,9 @@ Load only the current reference:
 
 - Requirements define observable contracts; design owns internal structures,
   boundaries, algorithms, compatibility choices, and implementation sequence.
-- A full fix needs a reproducing red check before implementation. For a quick
-  fix, red-before-green is explicitly `not-applicable`, never passed.
+- Every full run — feature, fix, or change alike — needs a reproducing red
+  check before implementation. For a quick run, red-before-green is explicitly
+  `not-applicable`, never passed.
 - Record red and green check evidence through the configured external or managed
   path. Never invent IDs; AEGIS generates them.
 - Do not edit check artifacts during implementation. Route back through a stage
@@ -115,6 +117,6 @@ Artifact: <path>
 Imported revision: <number>
 Evidence: <ids and results>
 Blockers: <none or exact blockers>
-Needs human: approve close, revise artifact, route earlier, add a recorded waiver for <blocker-id> where offered, or abort
+Needs human: approve close, revise artifact, route earlier, add a recorded waiver for <blocker-id> where offered, or abandon the run with `aegis run abandon --reason "<text>"`
 Next command: <exact command>
 ```
