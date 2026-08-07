@@ -2320,12 +2320,28 @@ def _apply_retention(
 
 
 def _stage_digest(directory: Path) -> str:
-    """@brief Digest every current transient form in deterministic order."""
+    """
+    @brief Digest every current transient form by its parsed TOML semantics.
+    @param[in] directory Stage form directory to digest.
+    @return SHA-256 digest of sorted form names and canonical TOML payloads.
+    @details TOML comments and formatting do not express submitted workflow
+             state. Hashing the canonical parsed payload therefore preserves
+             digest identity for comment-only form edits while retaining every
+             typed field and collection order that stage import consumes.
+    """
     digest = sha256()
     for path in sorted(item for item in directory.iterdir() if item.is_file()):
         digest.update(path.name.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        payload = _load_toml(path)
+        digest.update(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        )
         digest.update(b"\0")
     return digest.hexdigest()
 

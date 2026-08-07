@@ -16,6 +16,9 @@ Integrity System. The runnable Python package is embedded under
 - stage lifecycle: prepare, optional add, apply, explicit human close;
 - strict configuration/run graph schema 3 with no schema-2 migration;
 - file-first forms for intent, requirements, checks, evidence, and stage control;
+- canonical stage completion checklists generated as TOML comments from one
+  CLI-owned contract, with tested `Done when` projections in the standard,
+  adoption, and delivery references;
 - authoritative run-local `design.md` and blocking design invariant;
 - external or managed red-before-green check evidence;
 - canonical, complete-document external evidence validation before graph
@@ -56,6 +59,14 @@ aegis stage close
 Repeat prepare/apply/close through delivery. Use `stage add` for requirement and
 check collections, `check prepare/record` or `check run` for evidence, and
 `verify run` at validation.
+
+Each primary stage form begins with its generated completion checklist. The
+checklist is presentation guidance, not submitted TOML data: AEGIS imports the
+same payload and records the same stage digest when comments alone change.
+`requirement` and `check` show the checklist once in their shared `stage.toml`;
+the item forms do not repeat it. The `Done when` list in each standard,
+adoption, and delivery reference is a tested projection of the same CLI-owned
+contract, so it cannot drift from the generated form.
 
 For a genuinely small fix, use `aegis run start fix --quick` (or
 `change --quick`). Quick runs keep intake, implementation changed paths plus

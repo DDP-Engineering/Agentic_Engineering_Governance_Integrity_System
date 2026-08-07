@@ -34,6 +34,7 @@ from aegis.requirement_store import find_requirement_record
 from aegis.requirements import RequirementPatch, update_requirement
 from aegis.stage_forms import (
     _q,
+    _stage_digest,
     apply_stage,
     close_stage,
     next_command,
@@ -222,6 +223,29 @@ def test_generated_primary_forms_render_stable_completion_comments(
 
     assert lines[: len(expected)] == expected
     assert "Completion checklist" not in tomllib.loads(form.read_text(encoding="utf-8"))
+
+
+def test_stage_digest_ignores_comment_only_form_mutations(tmp_path: Path) -> None:
+    """@brief WP1 gives identical parsed forms one semantic stage digest."""
+    form = tmp_path / "intake.toml"
+    form.write_text(
+        "# Initial operator guidance.\n"
+        'statement = "Record the requested behaviour."\n'
+        "scope_hints = [\"src/example.py\"]\n",
+        encoding="utf-8",
+    )
+    initial_payload = tomllib.loads(form.read_text(encoding="utf-8"))
+    initial_digest = _stage_digest(tmp_path)
+
+    form.write_text(
+        "# Revised completion checklist comment.\n"
+        'statement = "Record the requested behaviour." # Inline comment.\n'
+        "scope_hints = [\"src/example.py\"]\n",
+        encoding="utf-8",
+    )
+
+    assert tomllib.loads(form.read_text(encoding="utf-8")) == initial_payload
+    assert _stage_digest(tmp_path) == initial_digest
 
 
 def test_collection_forms_render_completion_comments_only_in_stage_control(

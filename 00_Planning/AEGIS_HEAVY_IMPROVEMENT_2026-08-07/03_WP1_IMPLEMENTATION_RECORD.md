@@ -40,8 +40,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 - Compatibility behavior: checklists render only as TOML comments. They do not
   become parsed payload fields; collection guidance appears once in `stage.toml`
   and not in individual requirement or check forms. Re-preparation keeps the
-  comments deterministic. Existing form identity, import, and digest paths are
-  otherwise unchanged.
+  comments deterministic. Stage digests serialize each parsed TOML payload in
+  canonical JSON order, so comment-only or formatting-only edits do not alter
+  the submitted state identity.
 
 ## Validation
 
@@ -61,6 +62,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   `uv run --group dev python -B -m waegis --help` all passed. The direct
   `py_compile` generated template bytecode, which was removed before the final
   AEGIS suite; the final suite confirmed the copied template is cache-free.
+- Review-correction validation: focused lifecycle/documentation tests passed
+  (`56 passed`); the corrected full AEGIS suite passed (`578 passed, 3
+  skipped`); the full WAEGIS suite passed (`699 passed, 8 skipped`); and both
+  `python -B -m aegis --help` and `python -B -m waegis --help` passed.
 
 ## Context effect
 
@@ -70,15 +75,18 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 ## Review
 
-- Reviewer host/model/effort: pending independent review.
-- Findings: implementation self-review found and corrected the missing
-  `ALL_STAGES` import and reference-order assertion before full validation.
-- Resolution: focused and complete suites are green; the boundary is ready for
-  a fresh independent WP1 review.
+- Reviewer host/model/effort: independent review findings supplied by the
+  task owner; host/model/effort not exposed in the task record.
+- Findings: the independent WP1 review found that raw form-byte hashing made a
+  generated completion comment alter `StageRecord.digest`; it also requested
+  package README coverage of the canonical checklist projection.
+- Resolution: form digests now hash canonical parsed TOML payloads, a regression
+  test proves comment-only mutations retain the digest, and the package README
+  documents the generated-form/reference relationship.
 
 ## Remaining risk
 
-- Unverified behavior: independent fresh-session review is pending; WP2
-  context budgets and bootstrap behaviour remain intentionally unimplemented.
+- Unverified behavior: WP2 context budgets and bootstrap behaviour remain
+  intentionally unimplemented.
 - Next allowed package: WP2 after independent review and approval of this WP1
   boundary.
