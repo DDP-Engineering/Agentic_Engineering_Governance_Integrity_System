@@ -78,6 +78,27 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 - Resolution: removed only those verified generated cache files, then reran
   AEGIS release hygiene through the clean full suite.
 
+## Correction after independent review
+
+- Finding: external quick evidence recording saved `graph.json` before
+  publishing `check.evidence.recorded`. An injected journal-write failure left
+  active evidence in the graph without its matching journal record.
+- Resolution: external evidence recording and managed check execution now use
+  the existing `save_graph_with_journal_events` transaction. Managed execution
+  batches its `check.output` observations with `check.evidence.recorded`, so a
+  failed journal replacement restores the pre-execution graph in both public
+  quick-check paths.
+- Regression coverage: public `aegis check record --json` and
+  `aegis check run <id> --json` paths each inject the journal replacement
+  failure and assert byte-for-byte unchanged graph and journal files, no
+  persisted evidence, and an unknown check state.
+- Correction validation: focused AEGIS coverage passed (`148 passed`); the
+  complete AEGIS suite passed (`597 passed, 3 skipped`), and the complete
+  WAEGIS suite passed (`699 passed, 8 skipped`). Both `aegis --help` and
+  `waegis --help` succeeded. `py_compile` passed for every changed Python file;
+  its one generated payload cache was removed before the final template-hygiene
+  audit.
+
 ## Remaining risk
 
 - Unverified behavior: an independent other-provider review remains required

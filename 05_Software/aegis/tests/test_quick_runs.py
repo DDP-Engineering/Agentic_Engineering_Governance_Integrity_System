@@ -1253,6 +1253,118 @@ def test_quick_check_registration_rejects_full_runs_and_rolls_back_journal(
     assert load_graph(tmp_path, graph.run_id).checks == []
 
 
+def test_quick_external_evidence_rolls_back_when_journal_publication_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Keep quick external evidence absent when its journal event cannot publish.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    @details Exercises the public prepare/record path rather than a helper.
+    """
+    monkeypatch.chdir(tmp_path)
+    run_id, _closed = _complete_quick_intake(tmp_path, capsys)
+    created = _invoke_json(capsys, ["check", "create"])
+    definition = tmp_path / str(created["artifact"])
+    _replace(definition, {'command = ""': 'command = "python -c \\"pass\\""'})
+    _invoke_json(capsys, ["check", "register"])
+    prepared = _invoke_json(capsys, ["check", "prepare"])
+    _replace(
+        tmp_path / str(prepared["artifact"]),
+        {
+            'result = ""': 'result = "fail"',
+            "exit_status = 0": "exit_status = 1",
+            'summary = ""': 'summary = "Reproduced the bounded defect"',
+        },
+    )
+    persisted = graph_path(tmp_path, run_id)
+    journal = tmp_path / ".agentic" / "runs" / run_id / "journal.jsonl"
+    before_graph = persisted.read_bytes()
+    before_journal = journal.read_bytes()
+    original_atomic_write = store_module.atomic_write_bytes
+
+    def fail_evidence_journal(path: Path, content: bytes) -> None:
+        """@brief Fail only the atomic quick evidence journal publication."""
+        if path.name == "journal.jsonl" and b"check.evidence.recorded" in content:
+            raise OSError("injected external evidence journal failure")
+        original_atomic_write(path, content)
+
+    monkeypatch.setattr(store_module, "atomic_write_bytes", fail_evidence_journal)
+    with pytest.raises(OSError, match="injected external evidence journal failure"):
+        main(["check", "record", "--json"])
+
+    assert persisted.read_bytes() == before_graph
+    assert journal.read_bytes() == before_journal
+    rolled_back = load_graph(tmp_path, run_id)
+    assert rolled_back.evidence == []
+    assert rolled_back.checks[0].state == "unknown"
+    assert rolled_back.checks[0].red_evidence is None
+    assert rolled_back.checks[0].green_evidence is None
+
+
+def test_quick_managed_evidence_rolls_back_when_journal_publication_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Keep quick managed evidence absent when its journal events cannot publish.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    @details Executes the public managed command before injecting publication failure.
+    """
+    workflow = tmp_path / ".agentic" / "workflow.toml"
+    workflow.write_text(
+        workflow.read_text(encoding="utf-8").replace(
+            'check_execution = "external"', 'check_execution = "managed"'
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    monkeypatch.chdir(tmp_path)
+    run_id, _closed = _complete_quick_intake(tmp_path, capsys)
+    created = _invoke_json(capsys, ["check", "create"])
+    definition = tmp_path / str(created["artifact"])
+    _replace(
+        definition,
+        {'command = ""': 'command = "python -c \\"import sys; sys.exit(1)\\""'},
+    )
+    registered = _invoke_json(capsys, ["check", "register"])
+    checks = registered["checks"]
+    assert isinstance(checks, list) and len(checks) == 1
+    check = checks[0]
+    assert isinstance(check, dict)
+    persisted = graph_path(tmp_path, run_id)
+    journal = tmp_path / ".agentic" / "runs" / run_id / "journal.jsonl"
+    before_graph = persisted.read_bytes()
+    before_journal = journal.read_bytes()
+    original_atomic_write = store_module.atomic_write_bytes
+
+    def fail_evidence_journal(path: Path, content: bytes) -> None:
+        """@brief Fail only the atomic managed evidence journal publication."""
+        if path.name == "journal.jsonl" and b"check.evidence.recorded" in content:
+            raise OSError("injected managed evidence journal failure")
+        original_atomic_write(path, content)
+
+    monkeypatch.setattr(store_module, "atomic_write_bytes", fail_evidence_journal)
+    with pytest.raises(OSError, match="injected managed evidence journal failure"):
+        main(["check", "run", str(check["id"]), "--json"])
+
+    assert persisted.read_bytes() == before_graph
+    assert journal.read_bytes() == before_journal
+    rolled_back = load_graph(tmp_path, run_id)
+    assert rolled_back.evidence == []
+    assert rolled_back.checks[0].state == "unknown"
+    assert rolled_back.checks[0].red_evidence is None
+    assert rolled_back.checks[0].green_evidence is None
+
+
 def test_legacy_quick_graph_reports_inv_three_as_not_applicable(
     tmp_path: Path,
 ) -> None:

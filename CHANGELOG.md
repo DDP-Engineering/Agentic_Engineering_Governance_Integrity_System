@@ -39,6 +39,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Publish external and managed quick-check evidence with its journal events as
+  one rollback-capable transaction. A journal-write failure now restores the
+  preceding graph and leaves no active evidence persisted.
+
 - Correct WP2 fresh-session context recovery: `adoption-delivery` now routes to
   the adoption skill and reference, and a missing current form is explicitly
   unavailable with a safe recovery command rather than being advertised as a

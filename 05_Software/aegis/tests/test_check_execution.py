@@ -26,6 +26,7 @@ import pytest
 
 import aegis.check_execution as check_execution_module
 import aegis.stage_forms as stage_forms_module
+import aegis.store as store_module
 from aegis.check_execution import (
     prepare_check_evidence,
     record_check_evidence,
@@ -236,15 +237,15 @@ def test_form_is_not_retired_when_journal_persistence_fails(
     form = prepare_check_evidence(tmp_path, graph)
     _complete_results(form, result="pass", exit_status=0)
 
-    def fail_journal(*args: object, **kwargs: object) -> None:
-        """@brief Inject a durable-journal publication failure."""
-        raise OSError("journal unavailable")
+    original_atomic_write = store_module.atomic_write_bytes
 
-    monkeypatch.setattr(
-        check_execution_module,
-        "append_journal",
-        fail_journal,
-    )
+    def fail_journal(path: Path, content: bytes) -> None:
+        """@brief Inject the journal replacement failure after graph save."""
+        if path == journal_path(tmp_path, graph.run_id):
+            raise OSError("journal unavailable")
+        original_atomic_write(path, content)
+
+    monkeypatch.setattr(store_module, "atomic_write_bytes", fail_journal)
 
     with pytest.raises(OSError, match="journal unavailable"):
         record_check_evidence(tmp_path, graph)

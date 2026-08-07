@@ -40,7 +40,7 @@ from .store import (
     next_evidence_id,
     relink_check_evidence,
     run_dir,
-    save_graph,
+    save_graph_with_journal_events,
     serialized_graph_mutation,
 )
 from .waivers import (
@@ -237,12 +237,15 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
         )
     graph.evidence.extend(imported)
     _update_check_states(graph, imported)
-    save_graph(repo_root, graph)
-    append_journal(
+    save_graph_with_journal_events(
         repo_root,
-        graph.run_id,
-        "check.evidence.recorded",
-        {"stage": graph.stage, "evidence": [item.id for item in imported]},
+        graph,
+        [
+            (
+                "check.evidence.recorded",
+                {"stage": graph.stage, "evidence": [item.id for item in imported]},
+            )
+        ],
     )
     _retire_form(
         path,
@@ -268,6 +271,8 @@ def run_checks(
     @exception  StageOperationError If policy, stage, or selection is invalid.
     @exception  GraphConflictError If execution preconditions changed while
                 subprocesses were running.
+    @details    Output observations, evidence state, and their journal records
+                publish together; a journal failure restores the prior graph.
     """
     with graph_transaction(repo_root, graph):
         _require_mode(graph, "managed")
@@ -314,6 +319,7 @@ def run_checks(
         log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
         log_root.mkdir(parents=True, exist_ok=True)
         imported: list[Evidence] = []
+        events: list[tuple[str, dict[str, object]]] = []
         for check, result in completed:
             observed = "pass" if result.returncode == 0 else "fail"
             log_path = log_root / f"{check.id}-{captured_stage}.log"
@@ -338,20 +344,26 @@ def run_checks(
                 output_log=log_path.relative_to(repo_root).as_posix(),
             )
             imported.append(evidence)
-            append_journal(
-                repo_root,
-                graph.run_id,
-                "check.output",
-                {
-                    "check_id": check.id,
-                    "returncode": result.returncode,
-                    "stdout_tail": result.stdout[-4000:],
-                    "stderr_tail": result.stderr[-4000:],
-                },
+            events.append(
+                (
+                    "check.output",
+                    {
+                        "check_id": check.id,
+                        "returncode": result.returncode,
+                        "stdout_tail": result.stdout[-4000:],
+                        "stderr_tail": result.stderr[-4000:],
+                    },
+                )
             )
         graph.evidence.extend(imported)
         _update_check_states(graph, imported)
-        save_graph(repo_root, graph)
+        events.append(
+            (
+                "check.evidence.recorded",
+                {"stage": captured_stage, "evidence": [item.id for item in imported]},
+            )
+        )
+        save_graph_with_journal_events(repo_root, graph, events)
         return imported
 
 
