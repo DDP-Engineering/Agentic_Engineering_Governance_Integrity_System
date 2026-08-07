@@ -32,7 +32,7 @@ from .check_execution import (
     run_checks,
 )
 from .components import (
-    audit_local_scope,
+    audit_scope_check,
     load_components,
 )
 from .config import (
@@ -58,7 +58,9 @@ from .requirements import (
     audit_traceability,
     impact,
     list_requirements,
+    seed_coverage_waivers,
     show_requirement,
+    uncovered_coverable_files,
 )
 from .repowise import (
     RepoWiseIntegrationError,
@@ -337,6 +339,12 @@ def _build_parser() -> argparse.ArgumentParser:
     scope = adoption_sub.add_parser("scope-check")
     scope.add_argument("paths", nargs="+")
     adoption_sub.add_parser("baseline")
+    coverage_waivers = adoption_sub.add_parser("coverage-waivers")
+    coverage_waivers.add_argument(
+        "--write",
+        action="store_true",
+        help="append the listed paths to the coverage waiver file",
+    )
 
     config = groups.add_parser("config", help="inspect workspace policy")
     config_sub = config.add_subparsers(dest="action", required=True)
@@ -530,6 +538,13 @@ def _waive_command(
             active_waivers=[
                 item for item in history if item["status"] == "active"
             ],
+            # Called out beside the active list rather than left for the reader
+            # to find in the history: a waiver that stops applying used to just
+            # disappear from `active_waivers`, so the blocker it had covered
+            # came back with nothing anywhere saying why.
+            stale_waivers=[
+                item for item in history if item["status"] == "stale"
+            ],
             waiver_history=history,
             eligible_blockers=[
                 blocker_to_dict(blocker, graph) for blocker in targets
@@ -691,7 +706,14 @@ def _verify_audit(
     config: WorkflowConfig,
     args: argparse.Namespace,
 ) -> tuple[dict[str, Any], int]:
-    """@brief Run the traceability or coverage audit, skipping quick runs."""
+    """
+    @brief Run the traceability or coverage audit, skipping quick runs.
+    @details A disabled coverage policy used to return the same `issues: []`
+             a clean enforced audit returns, so the one command an operator
+             runs to review coverage could not tell "nothing wrong" from
+             "switched off". It now reports the same `audit_status` shape the
+             quick-run bypass already uses.
+    """
     if graph.profile == "quick":
         return (
             _payload(
@@ -703,6 +725,25 @@ def _verify_audit(
                     {
                         "status": "not-applicable",
                         "message": "Not applicable - quick run.",
+                    }
+                ],
+            ),
+            0,
+        )
+    if args.action == "coverage" and config.coverage.mode == "disabled":
+        return (
+            _payload(
+                graph,
+                "none",
+                next_command(graph, root),
+                audit_status="not-enforced",
+                issues=[
+                    {
+                        "status": "not-enforced",
+                        "message": (
+                            "Not enforced - traceability.coverage.mode is "
+                            "disabled."
+                        ),
                     }
                 ],
             ),
@@ -783,16 +824,25 @@ def _adoption_command(
             0,
         )
     if args.action == "scope-check":
-        issues = audit_local_scope(root, args.paths, config)
+        guard = config.component_baseline_guard
+        issues = audit_scope_check(root, args.paths, config)
         return (
             _payload(
                 graph,
                 config.component_manifest,
                 next_command(graph, root),
+                enforcement=(
+                    "not-enforced"
+                    if guard.minimum_completion_level is None
+                    else "enforced"
+                ),
+                minimum_completion_level=guard.minimum_completion_level,
                 issues=[asdict(item) for item in issues],
             ),
             1 if any(item.blocking for item in issues) else 0,
         )
+    if args.action == "coverage-waivers":
+        return _adoption_coverage_waivers(root, graph, config, args), 0
     baseline = {
         "minimum_completion_level": (
             config.component_baseline_guard.minimum_completion_level
@@ -808,6 +858,51 @@ def _adoption_command(
             baseline=baseline,
         ),
         0,
+    )
+
+
+def _adoption_coverage_waivers(
+    root: Path,
+    graph: Graph,
+    config: WorkflowConfig,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    """
+    @brief Offer, and on request write, the legacy coverage-waiver seed set.
+    @details Reports the modules the coverage policy finds uncovered and
+             writes none of them without `--write`. The waiver file is
+             documented for exactly this case but ships empty, so enabling
+             `traceability.coverage.mode` after an adoption run used to mean
+             transcribing one path per legacy module by hand at the moment the
+             operator is trying to turn enforcement on. Disabled mode has no
+             coverable roots to enumerate - the schema forbids them - so it
+             says so rather than reporting an empty list as a clean answer.
+    """
+    uncovered = uncovered_coverable_files(root, config)
+    details: dict[str, Any] = {
+        "coverage_mode": config.coverage.mode,
+        "uncovered": uncovered,
+        "written": False,
+    }
+    if config.coverage.mode == "disabled":
+        details["note"] = (
+            "traceability.coverage.mode is disabled and has no coverable "
+            "roots; seed this file after enabling coverage, before the first "
+            "enforced audit."
+        )
+    if args.write and uncovered:
+        details["written"] = True
+        details["waiver_file"] = seed_coverage_waivers(
+            root,
+            config,
+            uncovered,
+            graph.run_id,
+        )
+    return _payload(
+        graph,
+        details.get("waiver_file", "none"),
+        next_command(graph, root),
+        coverage_waivers=details,
     )
 
 

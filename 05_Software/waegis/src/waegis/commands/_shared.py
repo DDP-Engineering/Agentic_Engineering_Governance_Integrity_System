@@ -417,7 +417,15 @@ def wizard_resume_setup(
         payload_digest=payload_digest,
     )
     state_home = home if home is not None else waegis_home()
-    resume = None if dry_run else find_resume_journal(state_home, expected_fingerprints=fingerprints)
+    resume = (
+        None
+        if dry_run
+        else find_resume_journal(
+            state_home,
+            expected_fingerprints=fingerprints,
+            current_answers=answers,
+        )
+    )
     if resume is not None:
         prior_answers = replay_answers(
             resume,
@@ -433,6 +441,7 @@ def wizard_journal_factory(
     target_path: Path,
     home: Path | None,
     fingerprints: Mapping[str, str],
+    answers: Mapping[str, Any] | None = None,
 ) -> Callable[[], Journal]:
     """
     @brief      Build the deferred journal factory the engine calls only after
@@ -441,6 +450,8 @@ def wizard_journal_factory(
     @param[in]  target_path Resolved TARGET path.
     @param[in]  home WAEGIS home override.
     @param[in]  fingerprints Journal fingerprints for resume compatibility.
+    @param[in]  answers Answers this run started with, recorded so a later
+                resume can tell an added answer from a changed one.
     @return     A zero-argument factory creating the mutation journal.
     @exception  None
     """
@@ -454,6 +465,7 @@ def wizard_journal_factory(
             dry_run=False,
             home=home,
             fingerprints=fingerprints,
+            initial_answers=dict(answers or {}),
         )
 
     return begin_journal

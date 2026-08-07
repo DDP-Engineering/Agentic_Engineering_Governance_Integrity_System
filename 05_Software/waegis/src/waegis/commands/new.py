@@ -2571,6 +2571,7 @@ def _apply_new(plan: NewPlan) -> NewOutcome:
         journal_factory=None if options.dry_run else wizard_journal_factory(
             command="new", target_path=resolved.context.target_path,
             home=options.home, fingerprints=resolved.fingerprints,
+            answers=resolved.answers,
         ),
         additional_mutations=repowise_additional_mutations(resolved.answers),
     )

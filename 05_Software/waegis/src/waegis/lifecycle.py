@@ -91,15 +91,50 @@ def build_journal_fingerprints(
     }
 
 
+def answers_still_compatible(
+    journal: Journal, current_answers: Mapping[str, Any]
+) -> bool:
+    """
+    @brief      Report whether a journal's answers still hold in this run.
+    @details    Compatible means *nothing the earlier run already relied on has
+                changed*: every answer recorded when the journal began must
+                still carry the same value. Answers that were merely **added**
+                since are not a conflict — they are the normal way forward.
+                Every default-refuse stop ends by naming an answer to set
+                ("set 'accept_failing_gates' in the answers file"), so under
+                plain fingerprint equality the documented fix silently
+                disqualified the resume it was meant to unblock, and the run
+                restarted from step one against a half-installed repository.
+    @param[in]  journal A candidate resume journal.
+    @param[in]  current_answers The answers this run starts with.
+    @return     ``True`` when every recorded answer is unchanged.
+    @exception  None
+    """
+    return all(
+        key in current_answers and current_answers[key] == value
+        for key, value in journal.initial_answers.items()
+    )
+
+
 def find_resume_journal(
     home: Path,
     *,
     expected_fingerprints: Mapping[str, str],
+    current_answers: Mapping[str, Any] | None = None,
 ) -> Journal | None:
     """
-    @brief      Find the newest incomplete journal matching every fingerprint.
+    @brief      Find the newest incomplete journal compatible with this run.
+    @details    The structural fingerprints (command, catalog, target, payload)
+                must match exactly — a different catalog or a different payload
+                is a different operation. The ``answers`` dimension is compared
+                by value instead, through :func:`answers_still_compatible`, so
+                supplying one more answer resumes rather than restarts. When the
+                caller passes no answers, or the journal predates the recorded
+                answers mapping, the original strict fingerprint equality
+                applies.
     @param[in]  home WAEGIS state root.
     @param[in]  expected_fingerprints Current operation fingerprints.
+    @param[in]  current_answers Answers this run starts with, when available.
     @return     Matching journal or ``None``.
     @exception  None Corrupt/unreadable journals are ignored.
     """
@@ -108,6 +143,8 @@ def find_resume_journal(
     directory = home / "journals"
     if not directory.is_dir():
         return None
+    expected = dict(expected_fingerprints)
+    structural = {key: value for key, value in expected.items() if key != "answers"}
     for path in sorted(directory.glob("*.json"), reverse=True):
         try:
             journal = Journal.load(path)
@@ -115,7 +152,14 @@ def find_resume_journal(
             continue
         if journal.status not in INCOMPLETE_JOURNAL_STATUSES:
             continue
-        if journal.fingerprints == dict(expected_fingerprints):
+        if journal.fingerprints == expected:
+            return journal
+        if current_answers is None or not journal.initial_answers:
+            continue
+        recorded = {
+            key: value for key, value in journal.fingerprints.items() if key != "answers"
+        }
+        if recorded == structural and answers_still_compatible(journal, current_answers):
             return journal
     return None
 

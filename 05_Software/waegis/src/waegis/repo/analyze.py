@@ -175,6 +175,32 @@ _SWIFT_SOURCE_DIR = "Sources"
 _CONVENTIONAL_TEST_DIRS: tuple[str, ...] = ("tests", "test", "spec")
 _COLOCATED_TEST_DIR_NAME = "__tests__"
 
+# @brief Largest number of below-root project directories the nested sweeps
+#        consider. The sweeps exist so a project parked one or two levels down
+#        (`04_Software/Thing/src`) is found at all; without a cap a large
+#        monorepo would emit a proposal per package and bury the operator. The
+#        shallowest paths win, which is where a single-project repository keeps
+#        its real roots.
+_MAX_NESTED_PROPOSALS = 8
+
+# @brief Build-marker basenames the nested gate sweep looks for below the root.
+#        `setup.py`/`setup.cfg` are absent deliberately: no reader derives a
+#        gate command from them, so finding one would add a directory to scan
+#        and no candidate to show for it.
+_NESTED_BUILD_MARKERS: frozenset[str] = frozenset(
+    ("pyproject.toml", "Makefile", "package.json")
+)
+
+# @brief Package-manager flag that runs a script from another directory. Used
+#        only for a below-root `package.json`; the root case keeps its bare
+#        invocation so the proposed command stays the one an operator would
+#        type by hand.
+_PACKAGE_MANAGER_DIR_FLAG: dict[str, str] = {
+    "npm": "--prefix",
+    "pnpm": "--dir",
+    "yarn": "--cwd",
+}
+
 # @brief Fallback source-root coverage target: minimal set of top-level dirs
 #        covering at least this share of code files (plan §9).
 _COVERAGE_TARGET = 0.90
@@ -226,6 +252,72 @@ _BLOCK_SCALAR_MARKERS = frozenset({"|", ">", "|-", ">-", "|+", ">+"})
 def _is_workflow_infrastructure(path: str) -> bool:
     """@brief Report whether a relative path belongs to WAEGIS infrastructure."""
     return path.split("/", 1)[0] in _WORKFLOW_INFRASTRUCTURE_DIRS
+
+
+def _overlaps(left: str, right: str) -> bool:
+    """
+    @brief      Report whether two directory paths claim overlapping trees.
+    @param[in]  left First repo-relative directory.
+    @param[in]  right Second repo-relative directory.
+    @return     ``True`` when they are equal or either contains the other.
+    @exception  None
+    """
+    return left == right or left.startswith(right + "/") or right.startswith(left + "/")
+
+
+def _nested_convention_dirs(paths: Sequence[str], names: Sequence[str]) -> list[str]:
+    """
+    @brief      Find directories matching a convention name *below* the root.
+    @details    The root-level checks elsewhere in this module match a
+                convention only as the first path segment, which finds nothing
+                in a repository that parks its project one or more levels down
+                (`04_Software/VoiceWeaver/tests`). That layout is ordinary, not
+                exotic, so the same names are swept at any depth here. Only
+                directories that actually hold one of ``paths`` are returned,
+                so an empty directory is never proposed. Shallowest first, then
+                alphabetical, so the result is deterministic and the most
+                likely root leads.
+    @param[in]  paths Repo-relative forward-slash file paths to sweep.
+    @param[in]  names Convention directory names to match against a segment.
+    @return     Matching directory paths, shallowest first, root-level entries
+                excluded (the callers handle those with their own confidence
+                and wording).
+    @exception  None
+    """
+    wanted = set(names)
+    found: set[str] = set()
+    for path in paths:
+        if _is_workflow_infrastructure(path):
+            continue
+        segments = path.split("/")[:-1]
+        for index, segment in enumerate(segments):
+            if index > 0 and segment in wanted:
+                found.add("/".join(segments[: index + 1]))
+    return sorted(found, key=lambda entry: (entry.count("/"), entry))
+
+
+def _nested_project_dirs(inventory: Inventory) -> list[str]:
+    """
+    @brief      Find below-root directories holding a build-system marker.
+    @details    Every gate-candidate reader anchors on the repository root, so
+                a project whose ``pyproject.toml`` sits one level down
+                contributes no gate candidates at all and every gate is
+                deployed disabled. This sweep gives those readers the
+                directories to also look in. Capped at
+                :data:`_MAX_NESTED_PROPOSALS`, shallowest first.
+    @param[in]  inventory The file inventory.
+    @return     Repo-relative directory paths, shallowest first.
+    @exception  None
+    """
+    found: set[str] = set()
+    for record in inventory.files:
+        if _is_workflow_infrastructure(record.path):
+            continue
+        head, _, name = record.path.rpartition("/")
+        if head and name in _NESTED_BUILD_MARKERS:
+            found.add(head)
+    ordered = sorted(found, key=lambda entry: (entry.count("/"), entry))
+    return ordered[:_MAX_NESTED_PROPOSALS]
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -675,6 +767,19 @@ def _propose_test_roots(inventory: Inventory) -> tuple[RootProposal, ...]:
     for name in _CONVENTIONAL_TEST_DIRS:
         if any(path.startswith(name + "/") for path in paths):
             _add(name, "high", f"conventional top-level '{name}' directory")
+    for directory in _nested_convention_dirs(paths, _CONVENTIONAL_TEST_DIRS):
+        # Skip both directions of overlap. A directory inside an already
+        # proposed root adds nothing; a directory *containing* one would
+        # widen it — `src/test` around the Maven `src/test/java` is exactly
+        # that, and it would quietly reclaim the whole Maven test tree.
+        if any(_overlaps(directory, root) for root in seen):
+            continue
+        _add(
+            directory,
+            "medium",
+            f"conventional '{directory.rsplit('/', 1)[-1]}' directory below the "
+            "repository root",
+        )
     colocated_dirs: set[str] = set()
     for path in paths:
         parts = path.split("/")[:-1]
@@ -755,6 +860,18 @@ def _propose_source_roots(
     for directory in sorted({path.split("/", 1)[0] for path in all_paths if "/" in path}):
         if f"{directory}/__init__.py" in path_set:
             _add(directory, "medium", f"top-level Python package ('{directory}/__init__.py' present)")
+    for directory in _nested_convention_dirs(code_files, _CONVENTIONAL_SOURCE_DIRS):
+        # A nested root overlapping something already proposed adds nothing,
+        # and one overlapping a test root would hand production-code status to
+        # tests.
+        if any(_overlaps(directory, root) for root in (*seen, *test_root_paths)):
+            continue
+        _add(
+            directory,
+            "medium",
+            f"conventional '{directory.rsplit('/', 1)[-1]}' directory below the "
+            "repository root, holding code files",
+        )
 
     if not proposals and code_files:
         dir_counts: Counter[str] = Counter(
@@ -896,7 +1013,18 @@ def _string_candidate(gate: str, text: str, source_file: str, source_detail: str
     )
 
 
-def _package_json_candidates(repo: Path) -> list[GateCandidate]:
+def _in_dir(subdir: str, name: str) -> str:
+    """
+    @brief      Join a below-root project directory to a file or path name.
+    @param[in]  subdir Repo-relative directory, or ``""`` for the repo root.
+    @param[in]  name File or path name to place inside it.
+    @return     ``name`` at the root, otherwise ``subdir/name``.
+    @exception  None
+    """
+    return f"{subdir}/{name}" if subdir else name
+
+
+def _package_json_candidates(repo: Path, subdir: str = "") -> list[GateCandidate]:
     """
     @brief      Extract gate candidates from the root ``package.json``
                 ``scripts.test``/``scripts.lint``.
@@ -913,7 +1041,8 @@ def _package_json_candidates(repo: Path) -> list[GateCandidate]:
                 entry (build, typecheck, lint, test, security).
     @exception  None
     """
-    text = _read_text(repo / "package.json")
+    project = repo / subdir if subdir else repo
+    text = _read_text(project / "package.json")
     if text is None:
         return []
     try:
@@ -924,10 +1053,17 @@ def _package_json_candidates(repo: Path) -> list[GateCandidate]:
     if not isinstance(scripts, dict):
         return []
     manager = "npm"
-    if (repo / "pnpm-lock.yaml").is_file():
-        manager = "pnpm"
-    elif (repo / "yarn.lock").is_file():
-        manager = "yarn"
+    # The lockfile beside a below-root package.json wins; a root lockfile still
+    # decides when the nested project has none of its own.
+    for base in (project, repo):
+        if (base / "pnpm-lock.yaml").is_file():
+            manager = "pnpm"
+            break
+        if (base / "yarn.lock").is_file():
+            manager = "yarn"
+            break
+        if (base / "package-lock.json").is_file():
+            break
     candidates: list[GateCandidate] = []
     for gate, script_name in (
         ("build", "build"),
@@ -943,17 +1079,18 @@ def _package_json_candidates(repo: Path) -> list[GateCandidate]:
             or (gate == "test" and _NPM_PLACEHOLDER_MARKER in script)
         ):
             continue
+        location = (_PACKAGE_MANAGER_DIR_FLAG[manager], subdir) if subdir else ()
         argv = (
-            (manager, "test")
+            (manager, *location, "test")
             if gate == "test" and manager == "npm"
-            else (manager, "run", script_name)
+            else (manager, *location, "run", script_name)
         )
         candidates.append(
             GateCandidate(
                 gate=gate,
                 argv=argv,
                 raw=script,
-                source_file="package.json",
+                source_file=_in_dir(subdir, "package.json"),
                 source_detail=f"scripts.{script_name}",
                 needs_review=False,
             )
@@ -961,7 +1098,7 @@ def _package_json_candidates(repo: Path) -> list[GateCandidate]:
     return candidates
 
 
-def _pyproject_candidates(repo: Path) -> list[GateCandidate]:
+def _pyproject_candidates(repo: Path, subdir: str = "") -> list[GateCandidate]:
     """
     @brief      Extract gate candidates from ``pyproject.toml`` tool sections.
     @details    Presence-based: a ``[tool.pytest]``/``[tool.pytest.ini_options]``
@@ -973,7 +1110,7 @@ def _pyproject_candidates(repo: Path) -> list[GateCandidate]:
     @return     Zero, one, or two candidates.
     @exception  None
     """
-    text = _read_text(repo / "pyproject.toml")
+    text = _read_text((repo / subdir if subdir else repo) / "pyproject.toml")
     if text is None:
         return []
     try:
@@ -983,27 +1120,34 @@ def _pyproject_candidates(repo: Path) -> list[GateCandidate]:
     tool = data.get("tool")
     if not isinstance(tool, dict):
         return []
+    source_file = _in_dir(subdir, "pyproject.toml")
+    # Both tools take the project directory as a positional argument, and both
+    # then read that directory's own configuration — so the below-root form is
+    # the same command pointed one level down, not a different command.
+    target = subdir or "."
     candidates: list[GateCandidate] = []
     pytest_table = tool.get("pytest")
     if isinstance(pytest_table, dict):
         section = "[tool.pytest.ini_options]" if "ini_options" in pytest_table else "[tool.pytest]"
+        argv = ("pytest", "-q", subdir) if subdir else ("pytest", "-q")
         candidates.append(
             GateCandidate(
-                gate="test", argv=("pytest", "-q"), raw="pytest -q",
-                source_file="pyproject.toml", source_detail=section, needs_review=False,
+                gate="test", argv=argv, raw=" ".join(argv),
+                source_file=source_file, source_detail=section, needs_review=False,
             )
         )
     if isinstance(tool.get("ruff"), dict):
+        argv = ("ruff", "check", target)
         candidates.append(
             GateCandidate(
-                gate="lint", argv=("ruff", "check", "."), raw="ruff check .",
-                source_file="pyproject.toml", source_detail="[tool.ruff]", needs_review=False,
+                gate="lint", argv=argv, raw=" ".join(argv),
+                source_file=source_file, source_detail="[tool.ruff]", needs_review=False,
             )
         )
     return candidates
 
 
-def _makefile_candidates(repo: Path) -> list[GateCandidate]:
+def _makefile_candidates(repo: Path, subdir: str = "") -> list[GateCandidate]:
     """
     @brief      Extract gate candidates from ``Makefile`` ``test:``/``lint:``
                 targets (simple line-scan, plan §9 — no Makefile parser).
@@ -1015,7 +1159,7 @@ def _makefile_candidates(repo: Path) -> list[GateCandidate]:
                 typecheck, type-check, lint, test, security).
     @exception  None
     """
-    text = _read_text(repo / "Makefile")
+    text = _read_text((repo / subdir if subdir else repo) / "Makefile")
     if text is None:
         return []
     candidates: list[GateCandidate] = []
@@ -1028,11 +1172,15 @@ def _makefile_candidates(repo: Path) -> list[GateCandidate]:
         if target in seen:
             continue
         seen.add(target)
+        # `make -C <dir>` is make's own way of running a makefile from another
+        # directory, so the below-root form stays a single make invocation.
+        argv = ("make", "-C", subdir, target) if subdir else ("make", target)
         candidates.append(
             GateCandidate(
                 gate="typecheck" if target == "type-check" else target,
-                argv=("make", target), raw=line.strip(),
-                source_file="Makefile", source_detail=f"target '{target}'", needs_review=False,
+                argv=argv, raw=line.strip(),
+                source_file=_in_dir(subdir, "Makefile"),
+                source_detail=f"target '{target}'", needs_review=False,
             )
         )
     return candidates
@@ -1141,6 +1289,7 @@ def _gitlab_ci_candidates(repo: Path) -> list[GateCandidate]:
 
 def _extract_gate_candidates(
     repo: Path,
+    nested_dirs: Sequence[str] = (),
 ) -> tuple[tuple[GateCandidate, ...], ...]:
     """
     @brief      Gather gate candidates from every supported source, in a
@@ -1157,9 +1306,12 @@ def _extract_gate_candidates(
     @exception  None
     """
     collected: list[GateCandidate] = []
-    collected.extend(_package_json_candidates(repo))
-    collected.extend(_pyproject_candidates(repo))
-    collected.extend(_makefile_candidates(repo))
+    # Root first, then each below-root project directory shallowest-first, so a
+    # repository that has both keeps the root's candidates leading.
+    for subdir in ("", *nested_dirs):
+        collected.extend(_package_json_candidates(repo, subdir))
+        collected.extend(_pyproject_candidates(repo, subdir))
+        collected.extend(_makefile_candidates(repo, subdir))
     collected.extend(_github_workflow_candidates(repo))
     collected.extend(_gitlab_ci_candidates(repo))
 
@@ -1354,7 +1506,7 @@ def analyze_inventory(repo: str | os.PathLike[str], inventory: Inventory) -> Rep
         gate_lint_cmds,
         gate_test_cmds,
         gate_security_cmds,
-    ) = _extract_gate_candidates(repo_path)
+    ) = _extract_gate_candidates(repo_path, _nested_project_dirs(inventory))
     risk_flags = _collect_risk_flags(repo_path, inventory)
     return RepoAnalysis(
         repo=str(repo_path),

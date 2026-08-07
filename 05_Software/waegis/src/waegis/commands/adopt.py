@@ -111,6 +111,7 @@ from ..repo.gitops import (
 )
 from ..repo.workflow_toml import (
     GATE_ORDER,
+    POLICY_MODE_CHOICES,
     WORKFLOW_FIELD_SPECS,
     generate_workflow_toml,
     normalize_stored_answers,
@@ -143,6 +144,7 @@ from .new import (
     OTHER_LANGUAGE_FIELD_SPECS,
     SHARED_ANSWERS,
     SHARED_CLONE_URL,
+    SHARED_GATE_OUTCOMES,
     SHARED_HOME,
     SHARED_PAYLOAD_OVERRIDE,
     SHARED_REGISTRY_READER,
@@ -171,6 +173,10 @@ SHARED_ANALYSIS = "analysis"
 SHARED_ANALYSIS_ANSWERS = "analysis_answers"
 SHARED_ANALYSIS_HEAD = "analysis_head"
 SHARED_PRIOR_INSTALL_ROUTE = "prior_install_route"
+# @brief Run id of the incomplete run this one resumes, or ``None``. Read by
+#        repo.prior-install so a half-finished adoption is not mistaken for
+#        somebody else's completed install.
+SHARED_RESUMED_RUN = "resumed_run_id"
 SHARED_CONFLICT_DECISIONS = "adoption_conflicts"
 SHARED_ADOPTION_COPY_RESULT = "adoption_copy_result"
 
@@ -626,6 +632,43 @@ def _on_fail_validate_existing(ctx: EngineContext) -> Remediation:
 # --- step: repo.prior-install --------------------------------------------------
 
 
+def _note_inactive_policies(ctx: EngineContext) -> None:
+    """
+    @brief      Name the policies the generated configuration leaves inactive.
+    @details    Every guardrail defaults to its permissive mode, and gates are
+                enabled only where the analysis proposed a command, so a
+                repository can finish adoption reporting success while
+                enforcing almost nothing. The defaults themselves are
+                deliberate - a fresh adopter should not be blocked on day one -
+                but leaving them *unstated* is what made the emptiness
+                invisible, especially since a disabled policy's audit command
+                reports "no issues" rather than "not enforced". Naming them
+                here keeps the choice with the operator instead of hiding it.
+    @param[in]  ctx Active engine context.
+    @return     None
+    @exception  None
+    """
+    answers = get_answers(ctx)
+    # The first choice of every policy is its permissive value ("disabled" or
+    # "unrestricted"), which is what makes this a single comparison.
+    inactive = sorted(
+        key
+        for key, choices in POLICY_MODE_CHOICES.items()
+        if str(answers.get(key, choices[0])) == choices[0]
+    )
+    if not inactive:
+        return
+    ctx.note(
+        f"{len(inactive)} policy setting(s) are inactive in the generated "
+        ".agentic/workflow.toml: " + ", ".join(inactive)
+    )
+    ctx.note(
+        "That is the default and nothing is wrong; it does mean the workflow "
+        "records work rather than restricting it until you turn them on with "
+        f"'waegis configure --repo {get_target(ctx)}'."
+    )
+
+
 def _record_route(ctx: EngineContext, route: str) -> None:
     """
     @brief      Record the prior-install route on the shared contract and journal.
@@ -665,6 +708,20 @@ def _act_prior_install(ctx: EngineContext) -> None:
         installed = load.manifest.payload_version
         if current_version is not None and installed == current_version:
             _record_route(ctx, "current")
+            # An adoption that stopped part-way has already written the
+            # payload, so on the way back in it finds its own install and
+            # would otherwise stop again - on a question whose suggested
+            # alternative ('waegis doctor') cannot finish an adoption. A run
+            # resuming a compatible incomplete run is continuing its own work,
+            # not adopting over somebody else's install, so it continues.
+            resumed = ctx.shared.get(SHARED_RESUMED_RUN)
+            if resumed:
+                ctx.note(
+                    f"AEGIS payload {installed} is present from the incomplete run {resumed} "
+                    "this run resumes; continuing that adoption rather than treating it as a "
+                    "prior install."
+                )
+                return
             ctx.note(
                 f"AEGIS payload {installed} is already installed and matches the bundled payload; "
                 f"consider 'waegis doctor --repo {target}'."
@@ -725,10 +782,24 @@ def _on_fail_prior_install(ctx: EngineContext) -> Remediation:
     @exception  None
     """
     route = ctx.shared.get(SHARED_PRIOR_INSTALL_ROUTE)
+    # Both suggestions name the answer key as well as the alternative command.
+    # An adoption that stopped part-way *has* an install now, so it lands on
+    # this step on the way back in, and 'doctor' cannot finish what it started:
+    # it neither commits the adoption branch nor emits the hand-off.
     if route == "current":
-        remediation = "Run 'waegis doctor --repo TARGET' to check the existing install instead of re-adopting."
+        remediation = (
+            "If this install is a completed one, run 'waegis doctor --repo TARGET' "
+            "to check it instead of re-adopting. If an earlier adoption stopped "
+            "part-way and you are resuming it, set "
+            f"'{ADOPT_OVER_EXISTING_INSTALL_KEY} = true' in the answers file (or "
+            "answer yes when prompted) - doctor cannot finish an adoption."
+        )
     elif route == "older":
-        remediation = "Run 'waegis upgrade --repo TARGET' to move the existing install to the bundled payload."
+        remediation = (
+            "Run 'waegis upgrade --repo TARGET' to move the existing install to "
+            f"the bundled payload, or set '{ADOPT_OVER_EXISTING_INSTALL_KEY} = true' "
+            "in the answers file to adopt over it deliberately."
+        )
     else:
         remediation = "Re-run 'waegis adopt' and choose to continue when prompted."
     return Remediation(
@@ -1193,6 +1264,7 @@ def _act_handoff_adoption(ctx: EngineContext) -> None:
     adapters = [name for name in ADAPTER_DIR_NAMES if (target / name).is_dir()]
     if adapters:
         ctx.note("Agent adapters present (use the one your team runs): " + ", ".join(adapters))
+    _note_inactive_policies(ctx)
     prompt = _adoption_operator_prompt(target)
     if prompt:
         ctx.note(
@@ -1205,15 +1277,34 @@ def _act_handoff_adoption(ctx: EngineContext) -> None:
             "See '## Adopt An Existing Project' in .agentic/documents/PROMPT_CHEATSHEET.md for the "
             "adoption-intake prompt."
         )
-    branch_state = (
-        "a verified adoption, left uncommitted for you to commit yourself"
-        if ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED)
-        else "a verified, committed adoption branch"
+    # "Verified" is claimed only when it is true. An accepted-failing gate
+    # means the operator deliberately continued past a gate that did not pass,
+    # and the closing sentence is the last thing they read - saying "verified"
+    # there buried the one fact that most needed carrying forward.
+    outcomes = ctx.shared.get(SHARED_GATE_OUTCOMES) or {}
+    accepted_failing = sorted(
+        label for label, outcome in outcomes.items() if outcome == "accepted-failing"
     )
+    quality = "an unverified" if accepted_failing else "a verified"
+    branch_state = (
+        f"{quality} adoption, left uncommitted for you to commit yourself"
+        if ctx.shared.get(SHARED_ADOPTION_COMMIT_SKIPPED)
+        else f"{quality}, committed adoption branch"
+    )
+    if accepted_failing:
+        ctx.note(
+            f"{len(accepted_failing)} gate command(s) were accepted while failing, so this "
+            "repository's verification status is unproven: "
+            + "; ".join(accepted_failing)
+        )
+        ctx.note(
+            f"Fix them and re-run the gate, then confirm with 'waegis doctor --repo {target}'."
+        )
     ctx.note(
         f"That prompt starts the agentic-adoption skill at adoption-intake; WAEGIS's job ends here with {branch_state}."
     )
     ctx.record_answer("payload_version", payload_version)
+    ctx.record_answer("accepted_failing_gates", accepted_failing)
 
 
 # STEP CATALOG
@@ -1527,6 +1618,9 @@ def _adopt_shared(
         SHARED_ANSWERS: resolved.answers, SHARED_CLONE_URL: "",
         SHARED_HOME: context.options.home,
         SHARED_CONFLICT_DECISIONS: dict(conflict_table),
+        SHARED_RESUMED_RUN: (
+            resolved.resume.run_id if resolved.resume is not None else None
+        ),
     }
     if analysis is not None:
         shared[SHARED_ANALYSIS] = analysis
@@ -1555,6 +1649,7 @@ def _apply_adopt(plan: AdoptPlan) -> AdoptOutcome:
         journal_factory=None if options.dry_run else wizard_journal_factory(
             command="adopt", target_path=resolved.context.target_path,
             home=options.home, fingerprints=resolved.fingerprints,
+            answers=resolved.answers,
         ),
         additional_mutations=repowise_additional_mutations(resolved.answers),
     )

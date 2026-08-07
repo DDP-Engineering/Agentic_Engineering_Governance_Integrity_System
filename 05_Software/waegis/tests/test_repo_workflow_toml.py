@@ -453,4 +453,44 @@ def test_golden_question_rendering_for_representative_fields() -> None:
     ) in output
 
 
+# --- write_access_stages ergonomics (W13) -------------------------------------
+
+
+def test_incomplete_stage_map_error_carries_a_paste_ready_skeleton() -> None:
+    """
+    @brief      A partial stage mapping is rejected with the full skeleton.
+    @details    The field needs all fifteen stages named exactly and no shipped
+                document lists them, so the set was previously discovered one
+                rejected attempt at a time. The mapping stays exact — an
+                unlisted stage cannot be defaulted to "may write nothing"
+                without silently walling it off — so the error carries the
+                skeleton instead.
+    @return     None
+    @exception  AssertionError If the skeleton is absent from the rejection.
+    """
+    from waegis.repo.workflow_toml import normalize_stage_map
+
+    with pytest.raises(ValueError) as error:
+        normalize_stage_map({"implementation": ["src/**"]})
+
+    message = str(error.value)
+    assert "[write_access_stages]" in message
+    assert "intake = []" in message
+    assert '"component-adoption" = []' in message
+
+
+def test_stage_map_skeleton_names_every_stage() -> None:
+    """
+    @brief      The skeleton covers exactly the stages the validator demands.
+    @return     None
+    @exception  AssertionError If a stage is missing from the skeleton.
+    """
+    from waegis.repo.workflow_toml import ALL_STAGES, stage_map_skeleton
+
+    skeleton = stage_map_skeleton()
+
+    for stage in ALL_STAGES:
+        assert stage in skeleton
+
+
 # END OF FILE

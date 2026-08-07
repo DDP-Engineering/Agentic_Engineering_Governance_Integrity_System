@@ -105,6 +105,26 @@ Show the schema-3 interface policy and all five gate groups. Report disabled
 groups as disabled, not passed. Do not invent a security command.
 ```
 
+## Adopt An Existing Project
+
+The first prompt to run in a repository WAEGIS has just deployed into. It starts
+the adoption route, which describes what already exists; it changes no
+application behavior.
+
+```text
+Run `aegis config validate --json` and `aegis config show --json`, then
+`aegis run start adoption`. Open the returned adoption-intake form and complete
+the statement, the single adoption slice you propose to adopt first, the access
+mode you need and why, and any unresolved questions. Report which policies the
+generated workflow.toml leaves inactive. Stop for my approval before
+`stage close`.
+```
+
+The route continues `adoption-intake → adoption-alignment → repo-discovery →
+component-map → component-adoption → baseline-review → adoption-delivery`, one
+human approval per stage. Load only the reference for the current stage from the
+`agentic-adoption` skill.
+
 ## Adoption Discovery
 
 Run this from the WAEGIS host, not inside the governed repository — WAEGIS is

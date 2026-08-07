@@ -268,4 +268,59 @@ def test_invalid_conflict_decision_fails_cleanly(tmp_path) -> None:  # type: ign
     assert "CLAUDE.md" in out.getvalue()
 
 
+# --- handoff honesty and prompt sourcing (W7, W8, W9) -------------------------
+
+
+def test_handoff_names_inactive_policies(tmp_path: Path) -> None:
+    """
+    @brief      The hand-off states which policies the generated file leaves off.
+    @details    Every guardrail defaults to permissive, so an adoption could
+                report success while enforcing nothing and never say so.
+    @param[in]  tmp_path Unused target parent (the helper builds the fixture).
+    @return     None
+    @exception  AssertionError If the inactive policies are not named.
+    """
+    from waegis.commands.adopt import _note_inactive_policies
+
+    notes: list[str] = []
+
+    class _Ctx:
+        """@brief Minimal EngineContext stand-in capturing notes."""
+
+        shared = {"answers": {"coverage_mode": "enforce"}, "target": tmp_path}
+
+        def note(self, message: str) -> None:
+            """@brief Capture one note."""
+            notes.append(message)
+
+    _note_inactive_policies(_Ctx())
+    joined = "\n".join(notes)
+
+    assert "inactive" in joined
+    assert "baseline_guard_mode" in joined
+    # The one policy that was switched on must not be reported as inactive.
+    assert "coverage_mode" not in joined
+    assert "waegis configure" in joined
+
+
+def test_adoption_prompt_is_sourced_from_the_shipped_cheatsheet() -> None:
+    """
+    @brief      The hand-off's cheat-sheet section exists in the payload.
+    @details    The hand-off extracts its prompt from the "## Adopt An Existing
+                Project" heading of PROMPT_CHEATSHEET.md and otherwise tells
+                the operator to go read that heading. The heading did not
+                exist, so the wizard's last instruction pointed nowhere.
+    @return     None
+    @exception  AssertionError If the section or its prompt block is missing.
+    """
+    from waegis.commands.adopt import _ADOPTION_PROMPT_RE
+    from waegis.payload.locate import locate_payload
+
+    cheatsheet = locate_payload() / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md"
+    match = _ADOPTION_PROMPT_RE.search(cheatsheet.read_text(encoding="utf-8"))
+
+    assert match is not None
+    assert "run start adoption" in match.group("prompt")
+
+
 # END OF FILE

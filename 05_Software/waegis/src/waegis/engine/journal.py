@@ -127,6 +127,7 @@ class Journal:
         stopped_at_step: str | None = None,
         results: list[StepResult] | None = None,
         fingerprints: dict[str, str] | None = None,
+        initial_answers: dict[str, Any] | None = None,
     ) -> None:
         """
         @brief      Construct a journal from its fields. Prefer :meth:`begin` /
@@ -158,6 +159,13 @@ class Journal:
         self.finished_at = finished_at
         self.stopped_at_step = stopped_at_step
         self.fingerprints = dict(fingerprints or {})
+        # Recorded beside the answers *fingerprint*, not instead of it: a hash
+        # can only answer "identical or not", and resume needs to answer "did
+        # anything the earlier run already relied on change?". Without the
+        # mapping, supplying the one extra answer a default-refuse stop asks
+        # for changed the hash and silently disqualified the resume it was
+        # meant to unblock.
+        self.initial_answers = dict(initial_answers or {})
         self._results: list[StepResult] = list(results) if results else []
 
     @classmethod
@@ -170,6 +178,7 @@ class Journal:
         dry_run: bool = False,
         home: Path | None = None,
         fingerprints: dict[str, str] | None = None,
+        initial_answers: dict[str, Any] | None = None,
     ) -> "Journal":
         """
         @brief      Start a new journal under the WAEGIS home and write its
@@ -196,6 +205,7 @@ class Journal:
             started_at=utc_now_iso(),
             path=path,
             fingerprints=fingerprints,
+            initial_answers=initial_answers,
         )
         journal.flush()
         return journal
@@ -248,6 +258,9 @@ class Journal:
             stopped_at_step=data["stopped_at_step"],
             results=results,
             fingerprints=dict(data["fingerprints"]),
+            # Optional on purpose: journals written before this field existed
+            # still load, and fall back to strict fingerprint equality.
+            initial_answers=dict(data.get("initial_answers") or {}),
         )
 
     @staticmethod
@@ -348,6 +361,7 @@ class Journal:
             "status": self.status,
             "stopped_at_step": self.stopped_at_step,
             "fingerprints": dict(sorted(self.fingerprints.items())),
+            "initial_answers": dict(sorted(self.initial_answers.items())),
             "steps": [r.to_dict() for r in self._results],
         }
 

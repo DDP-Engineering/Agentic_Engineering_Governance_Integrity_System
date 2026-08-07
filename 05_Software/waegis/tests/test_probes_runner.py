@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -150,6 +151,85 @@ def test_subprocess_command_runner_decodes_non_ascii_output_as_utf8() -> None:
     assert result.found is True
     assert result.exit_code == 0
     assert result.stdout == "Ё.txt"
+
+
+# --- relative executable resolution (W5) --------------------------------------
+
+
+def test_relative_executable_resolves_against_the_child_cwd(tmp_path: Path) -> None:
+    """
+    @brief      A relative ``argv[0]`` is resolved against the given ``cwd``.
+    @details    ``subprocess`` resolves it against the parent's directory
+                instead, so a gate command written relative to the repository
+                root — which is how `workflow.toml` documents them — failed to
+                launch even though the reproduction line printed beside the
+                failure succeeded.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None
+    @exception  AssertionError If the command still fails to launch.
+    """
+    bin_dir = tmp_path / "tools" / "bin"
+    bin_dir.mkdir(parents=True)
+    script = bin_dir / "echo_ok.py"
+    script.write_text("print('ok')\n", encoding="utf-8")
+
+    result = SubprocessCommandRunner().run(
+        (sys.executable, "tools/bin/echo_ok.py"), cwd=tmp_path
+    )
+
+    assert result.found is True
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "ok"
+
+
+def test_relative_executable_launches_from_the_repository_root(tmp_path: Path) -> None:
+    """
+    @brief      An interpreter named by a repo-relative path launches.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None
+    @exception  AssertionError If the relative interpreter is not found.
+    """
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    copy = tools / Path(sys.executable).name
+    copy.write_bytes(Path(sys.executable).read_bytes())
+
+    result = SubprocessCommandRunner().run(
+        (f"tools/{copy.name}", "-c", "print('launched')"), cwd=tmp_path
+    )
+
+    assert result.found is True
+    assert result.stdout.strip() == "launched"
+
+
+def test_bare_executable_name_still_resolves_through_path(tmp_path: Path) -> None:
+    """
+    @brief      A bare command name keeps resolving through ``PATH``.
+    @details    Only a path-like ``argv[0]`` is rewritten; rewriting a bare
+                name would break every probe that relies on ``PATH``.
+    @param[in]  tmp_path Working directory holding no such executable.
+    @return     None
+    @exception  AssertionError If the PATH lookup stopped working.
+    """
+    result = SubprocessCommandRunner().run(
+        (Path(sys.executable).name, "-c", "print('path')"), cwd=tmp_path
+    )
+
+    assert result.found is True
+    assert result.stdout.strip() == "path"
+
+
+def test_missing_relative_executable_still_reports_not_found(tmp_path: Path) -> None:
+    """
+    @brief      A relative path that resolves to nothing stays "not found".
+    @param[in]  tmp_path Working directory holding no such executable.
+    @return     None
+    @exception  AssertionError If the missing-executable contract changed.
+    """
+    result = SubprocessCommandRunner().run(("no/such/tool.exe",), cwd=tmp_path)
+
+    assert result.found is False
+    assert result.exit_code is None
 
 
 # END OF FILE

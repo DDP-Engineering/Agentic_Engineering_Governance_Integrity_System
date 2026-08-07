@@ -122,9 +122,12 @@ aegis stage close [--approver <identity>]
 ```
 
 - `prepare` creates or reconstructs the current form.
-- `add` creates another CLI-identified requirement/check form. `--category`
-  selects the requirement category (defaults to `functional`); ignored at the
-  check stage.
+- `add` creates another CLI-identified requirement/check form. It is accepted
+  at the `requirement`, `check`, and `component-adoption` stages, and rejected
+  everywhere else. `--category` selects the requirement category (defaults to
+  `functional`); ignored at the check stage. At `component-adoption` it mints
+  a requirement form, which is how an adoption run records the behavior it
+  found in existing code.
 - `show` reports files, revision, readiness, and blockers.
 - `apply` validates the entire stage directory before importing and does not
   advance.
@@ -293,16 +296,20 @@ aegis waive list
 ```
 
 `waive list` reports the currently eligible exact blocker IDs, active waivers,
-and the complete run-local waiver history classified as `active`, `stale`, or
-`inactive`. Eligible IDs include failing invariants such as `INV-10`, enforced
-gate failures such as `gate:test`, per-check red-before-green failures such as
-`red-before-green:<check-id>`, and exact stage, traceability, coverage, and
-working-tree findings.
+the waivers that have gone stale, and the complete run-local waiver history
+classified as `active`, `stale`, or `inactive`. Eligible IDs include failing
+invariants such as `INV-10`, enforced gate failures such as `gate:test`,
+per-check red-before-green failures such as `red-before-green:<check-id>`, and
+exact stage, traceability, coverage, and working-tree findings.
 
-For zero-waiver output compatibility, an ordinary unwaived `INV-7` retains its
-legacy `non-waivable` policy label. Its failing process blocker is nevertheless
-eligible in `waive list`; when covered, its effective policy is reported
-`blocking` alongside `waived=true`, never as `WAIVED (non-waivable)`.
+A waiver whose pinned state has moved leaves `active_waivers` and appears under
+`stale_waivers`, so the blocker returning is always accompanied by the record
+that stopped covering it.
+
+`INV-7` reports the `blocking` policy it enforces. It previously carried a
+legacy `non-waivable` label while being offered by `waive list` and accepted by
+`waive add`; the secrets scan matches unanchored substrings over whole changed
+files, so it needs the escape hatch every other blocking rule has.
 
 `waive add <blocker-id> --reason "<reason>" [--approver <identity>]` records one
 explicit human approval. The reason must contain non-whitespace text, the
@@ -379,10 +386,29 @@ aegis delivery report
 aegis adoption component-status
 aegis adoption scope-check <path>...
 aegis adoption baseline
+aegis adoption coverage-waivers [--write]
 
 aegis config validate
 aegis config show
 ```
+
+`scope-check` reports `enforcement` (`enforced` or `not-enforced`) and
+`minimum_completion_level` beside its `issues`, so a disabled component
+baseline guard is distinguishable from a clean result. Its issue list carries
+non-blocking advisories — `COMPONENT-GUARD-NOT-ENFORCED`,
+`COMPONENT-PATH-UNMAPPED` (no component owns the path), and
+`COMPONENT-PATH-NOT-FOUND` (the path is not in the working tree) — alongside
+the blocking `COMPONENT-BASELINE-MISSING`. Only blocking issues set the exit
+code. `verify coverage` reports `audit_status = "not-enforced"` for the same
+reason when `traceability.coverage.mode` is disabled.
+
+`coverage-waivers` lists every coverable module with no Active test-linked
+requirement that is not already waived. It writes nothing without `--write`,
+which appends the list to the first requirement root's
+`coverage_waivers.txt` under a comment naming the run it came from. Use it
+immediately after enabling `traceability.coverage.mode`, so pre-existing
+legacy modules do not have to be transcribed by hand; it reports nothing while
+coverage is disabled, where the schema forbids coverable roots.
 
 Configuration and run graphs require schema 3. AEGIS 2.1 rejects schema 2 and
 earlier legacy graphs without migration or fallback.

@@ -33,6 +33,13 @@
          durable repository-wide register made the rule unsatisfiable from the
          second full run onward. Repository-wide coverage is reported by
          `audit_traceability` as `REQ-LINK-MISSING`.
+@details INV-7 (2.1.0, lifecycle field test) excludes AEGIS's own generated run
+         artifacts from its scan surface, names the files it matched, and
+         reports the waivable `blocking` policy it actually enforces instead of
+         a `non-waivable` label that `waive list` and `waive add` both ignored.
+         It also excludes the `[guardrails.secrets]` table of
+         `.agentic/workflow.toml`, which is the pattern list itself and so
+         matched its own declaration.
 @details An unloadable requirement register (2.1.0) is reported by the four
          requirement-reading invariants as a waivable blocking failure instead
          of raising, so one malformed file cannot take `waive list` - the
@@ -66,7 +73,18 @@ from .waivers import (
     state_digests,
     waiver_metadata,
 )
-from .working_tree import MAX_SECRET_SCAN_BYTES
+from .working_tree import (
+    GENERATED_RUN_ARTIFACT_ROOT,
+    MAX_SECRET_SCAN_BYTES,
+    without_secret_policy,
+)
+
+# CONSTANTS
+
+# Everything except AEGIS's own generated run output. Applied as a Git pathspec
+# rather than filtered in Python so exclusion never depends on parsing a diff
+# header - a path Git reports is a path Git can also exclude.
+_SCAN_PATHSPEC = ("--", ".", f":(exclude){GENERATED_RUN_ARTIFACT_ROOT}")
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -875,6 +893,29 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
                 never-committed file would slip through both. The cached diff
                 covers exactly that gap and is a harmless superset of `git diff
                 HEAD` once a `HEAD` exists.
+    @details    The scan surface excludes AEGIS's own generated run artifacts
+                (2.1.0, lifecycle field test). `verify run` writes
+                `validation-summary.json`, `report.md`, and `graph.json` into
+                `.agentic/runs/<run-id>/`, and all three embed this invariant's
+                own name and its own passing message, so a configured pattern
+                as ordinary as `(?i)secret` matched the invariant's own output
+                and no repository could satisfy INV-7 at all. It also made the
+                escape hatch self-defeating: `waive add INV-7` writes the
+                waiver into `graph.json`, which moved the very blocker state
+                the new waiver had just pinned.
+    @details    The scan surface also excludes the `[guardrails.secrets]` table
+                of `.agentic/workflow.toml` (2.1.0, batch 2). That table is the
+                pattern list, so `(?i)secret` matched its own table header and
+                each configured pattern matched its own declaration: any run
+                that edited the configuration failed INV-7 on the file that
+                declares the rule, and a freshly deployed repository failed it
+                before the first commit, when the whole untracked file is read.
+                Only that table is dropped; a credential pasted into a gate
+                command elsewhere in the same file is still found.
+    @details    A failure names the files it matched, not only the patterns
+                (2.1.0, lifecycle field test); the matched text itself is never
+                echoed. Paths come from the diff's own file headers, so a match
+                AEGIS cannot attribute to a file simply contributes no path.
     @exception  None
     """
     if cfg.secrets.mode == "disabled":
@@ -882,7 +923,7 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
             "INV-7",
             "Clean secrets",
             True,
-            "non-waivable",
+            "blocking",
             "Secret scanning is disabled by workflow.toml.",
             waiver_eligible=True,
         )
@@ -892,40 +933,50 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
             "INV-7",
             "Clean secrets",
             True,
-            "non-waivable",
+            "blocking",
             "No secret patterns configured.",
             waiver_eligible=True,
         )
     try:
-        text = (
-            _tracked_changes_text(repo_root)
-            + "\n"
-            + _staged_changes_text(repo_root)
-            + "\n"
-            + _untracked_files_text(repo_root)
-        )
+        sections = [
+            (path, without_secret_policy(path, text))
+            for path, text in (
+                _diff_sections(_tracked_changes_text(repo_root))
+                + _diff_sections(_staged_changes_text(repo_root))
+                + _untracked_file_sections(repo_root)
+            )
+        ]
     except (OSError, subprocess.TimeoutExpired):
         return InvariantResult(
             "INV-7",
             "Clean secrets",
             False,
-            "non-waivable",
+            "blocking",
             "Could not inspect git diff for secrets.",
             waiver_eligible=True,
         )
     matches = []
     matched_sites: dict[str, list[str]] = {}
+    matched_paths: set[str] = set()
     for pattern in patterns:
-        found = sorted(item.group(0) for item in re.finditer(pattern, text))
+        found: list[str] = []
+        for path, text in sections:
+            hits = [item.group(0) for item in re.finditer(pattern, text)]
+            if hits and path:
+                matched_paths.add(path)
+            found.extend(hits)
         if found:
             matches.append(pattern)
-            matched_sites[pattern] = found
+            # Sorted and pattern-keyed, deliberately without the path: this
+            # feeds the waiver state digest below, and an accepted waiver
+            # should survive the same secret text merely moving between files.
+            matched_sites[pattern] = sorted(found)
     result = InvariantResult(
         "INV-7",
         "Clean secrets",
         not matches,
-        "non-waivable",
-        "No configured secret pattern found in diff or untracked files." if not matches else f"Secret pattern matched: {', '.join(matches)}",
+        "blocking",
+        "No configured secret pattern found in diff or untracked files." if not matches else _secret_match_message(matches, matched_paths),
         waiver_eligible=True,
     )
     if matches:
@@ -940,16 +991,68 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
     return result
 
 
+def _secret_match_message(matches: list[str], matched_paths: set[str]) -> str:
+    """
+    @brief      Render the INV-7 failure the operator is stopped with.
+    @param[in]  matches Configured patterns that matched, in configured order.
+    @param[in]  matched_paths Repository paths the matches were attributed to.
+    @return     Message naming the patterns and, when known, the files.
+    @details    Names files rather than the matched text: the operator needs to
+                know where to look, and repeating a real credential into the
+                machine summary, `report.md`, and the terminal would spread it
+                further than the change that introduced it.
+    @exception  None
+    """
+    message = f"Secret pattern matched: {', '.join(matches)}"
+    if matched_paths:
+        message += f" in {', '.join(sorted(matched_paths))}"
+    return message
+
+
+def _diff_sections(diff_text: str) -> list[tuple[str, str]]:
+    """
+    @brief      Split unified diff text into one section per changed file.
+    @param[in]  diff_text Complete `git diff` output.
+    @return     `(path, section text)` pairs; the path is empty for any section
+                whose file header could not be read.
+    @details    The path is taken from the section's `+++ b/` header, falling
+                back to `--- a/` for a deletion, whose `+++` line is
+                `/dev/null`. This attribution only feeds the failure message -
+                the run artifacts INV-7 must not scan are already excluded by
+                pathspec at the Git call, so a header this cannot parse costs a
+                path hint, never a wrong verdict.
+    @exception  None
+    """
+    sections: list[tuple[str, str]] = []
+    path = ""
+    lines: list[str] = []
+    for line in diff_text.splitlines(keepends=True):
+        if line.startswith("diff --git "):
+            if lines:
+                sections.append((path, "".join(lines)))
+            path = ""
+            lines = [line]
+            continue
+        # `+++ b/` names the destination and always wins; `--- a/` is the
+        # fallback for a deletion, whose `+++` line is `/dev/null`.
+        if line.startswith("+++ b/") or (line.startswith("--- a/") and not path):
+            path = line[6:].strip()
+        lines.append(line)
+    if lines:
+        sections.append((path, "".join(lines)))
+    return sections
+
+
 def _tracked_changes_text(repo_root: Path) -> str:
     """
     @brief      Return staged and unstaged changes against HEAD as diff text.
     @param[in]  repo_root Repository the diff is read for.
-    @return     Combined `git diff HEAD` text.
+    @return     Combined `git diff HEAD` text, excluding generated run output.
     @exception  OSError Raised when Git cannot be invoked.
     @exception  subprocess.TimeoutExpired Raised when Git does not finish in time.
     """
     return subprocess.run(
-        ["git", "diff", "--no-ext-diff", "HEAD"],
+        ["git", "diff", "--no-ext-diff", "HEAD", *_SCAN_PATHSPEC],
         cwd=repo_root,
         text=True,
         encoding="utf-8",
@@ -964,7 +1067,7 @@ def _staged_changes_text(repo_root: Path) -> str:
     """
     @brief      Return staged changes against the index as diff text.
     @param[in]  repo_root Repository the staged diff is read for.
-    @return     `git diff --cached` text.
+    @return     `git diff --cached` text, excluding generated run output.
     @details    Unlike `git diff HEAD`, this works in a repository with no
                 commits yet: with no `HEAD` to diff against, staged files show
                 as additions against the empty tree. Once a `HEAD` exists this
@@ -974,7 +1077,7 @@ def _staged_changes_text(repo_root: Path) -> str:
     @exception  subprocess.TimeoutExpired Raised when Git does not finish in time.
     """
     return subprocess.run(
-        ["git", "diff", "--no-ext-diff", "--cached"],
+        ["git", "diff", "--no-ext-diff", "--cached", *_SCAN_PATHSPEC],
         cwd=repo_root,
         text=True,
         encoding="utf-8",
@@ -985,11 +1088,12 @@ def _staged_changes_text(repo_root: Path) -> str:
     ).stdout
 
 
-def _untracked_files_text(repo_root: Path) -> str:
+def _untracked_file_sections(repo_root: Path) -> list[tuple[str, str]]:
     """
-    @brief      Return the concatenated content of untracked, non-ignored files.
+    @brief      Return the content of untracked, non-ignored files by path.
     @param[in]  repo_root Repository the untracked-file listing is read for.
-    @return     Concatenated file content, best-effort.
+    @return     `(path, file content)` pairs, best-effort, excluding generated
+                run output.
     @details    A brand-new file has no HEAD to diff against, so its content
                 would never appear in `git diff HEAD`; this reads it directly.
                 Files larger than `MAX_SECRET_SCAN_BYTES` are skipped rather
@@ -998,7 +1102,7 @@ def _untracked_files_text(repo_root: Path) -> str:
     @exception  subprocess.TimeoutExpired Raised when Git does not finish in time.
     """
     listing = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        ["git", "ls-files", "--others", "--exclude-standard", *_SCAN_PATHSPEC],
         cwd=repo_root,
         text=True,
         encoding="utf-8",
@@ -1007,15 +1111,17 @@ def _untracked_files_text(repo_root: Path) -> str:
         timeout=30,
         check=False,
     ).stdout
-    chunks = []
+    sections: list[tuple[str, str]] = []
     for line in listing.splitlines():
         path = repo_root / line
         try:
             if path.is_file() and path.stat().st_size <= MAX_SECRET_SCAN_BYTES:
-                chunks.append(path.read_text(encoding="utf-8", errors="ignore"))
+                sections.append(
+                    (line, path.read_text(encoding="utf-8", errors="ignore"))
+                )
         except OSError:
             continue
-    return "\n".join(chunks)
+    return sections
 
 
 def _root_patterns(roots: list[str]) -> list[str]:

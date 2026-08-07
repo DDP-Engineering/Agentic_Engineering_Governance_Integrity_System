@@ -258,11 +258,21 @@ def _resolve_answers(
     @exception  PromptsError If a required/invalid value is encountered.
     """
     resolved: dict[str, Any] = {}
+    # Answers-file failures are collected rather than raised one at a time.
+    # A hand-written policy set routinely trips several fields at once, and
+    # fixing them one per invocation turned one edit into a sequence of
+    # re-runs. Interactive answers still fail immediately: the asker re-prompts
+    # the operator on the spot, so there is nothing to batch.
+    rejected: list[str] = []
     for spec in WORKFLOW_FIELD_SPECS:
         default = stored.get(spec.key, proposals.get(spec.key, spec.default))
         dynamic = replace(spec, default=default)
         if spec.key in supplied:
-            resolved[spec.key] = dynamic.normalize(supplied[spec.key])
+            try:
+                resolved[spec.key] = dynamic.normalize(supplied[spec.key])
+            except (PromptsError, ValueError) as exc:
+                rejected.append(f"{spec.key}: {exc}")
+                resolved[spec.key] = default
         elif non_interactive:
             resolved[spec.key] = dynamic.normalize(default)
         else:
@@ -272,6 +282,11 @@ def _resolve_answers(
                     "(no interactive console is available)"
                 )
             resolved[spec.key] = asker.ask_field(dynamic)
+    if rejected:
+        raise PromptsError(
+            f"{len(rejected)} supplied answer(s) were rejected:\n  - "
+            + "\n  - ".join(rejected)
+        )
     if resolved["language"] == "other":
         for spec in OTHER_LANGUAGE_FIELD_SPECS:
             default = stored.get(spec.key)

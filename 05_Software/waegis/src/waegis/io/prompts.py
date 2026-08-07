@@ -200,7 +200,10 @@ class FieldSpec:
         if raw is None or raw == "":
             if self.default is not None:
                 return self.default_value()
-            raise ValidationError(f"{self.key} has no default; a value is required")
+            hint = f" Expected {self.example}." if self.example else ""
+            raise ValidationError(
+                f"{self.key} has no default; a value is required.{hint}"
+            )
         if self.validator is None:
             return raw
         try:
@@ -221,11 +224,32 @@ class FieldSpec:
         if self.example is not None:
             bits.append(f"e.g. {self.example}")
         if self.default is not None:
-            bits.append(f"default: {self.default}")
+            bits.append(f"default: {_display_value(self.default)}")
         return f" ({'; '.join(bits)})" if bits else ""
 
 
 # HELPER FUNCTIONS
+
+
+def _display_value(value: Any) -> str:
+    """
+    @brief      Render one answer value the way an operator would type it.
+    @details    A list default reached the prompt through f-string formatting,
+                so a root proposal was offered as ``default: ['04_Software']``
+                — Python list syntax in operator-facing text, and not a string
+                the operator could copy back. Sequences render as the same
+                comma-separated form the validators already accept.
+    @param[in]  value The default to render.
+    @return     Display text for the prompt hint.
+    @exception  None
+    """
+    if isinstance(value, (list, tuple)) and value:
+        return ", ".join(str(item) for item in value)
+    # Everything else keeps its literal form on purpose. A mapping default is
+    # shown beside a JSON example (`{"CLAUDE.md": "keep-local"}`), so `{}` is
+    # the form the operator would type; an empty list is likewise clearer as
+    # `[]` than as prose.
+    return str(value)
 
 
 def _as_bool(key: str, raw: Any) -> bool:

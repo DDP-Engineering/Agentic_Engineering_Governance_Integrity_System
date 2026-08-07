@@ -532,4 +532,89 @@ def test_render_summary_states_proposals_only(tmp_path: Path) -> None:
     assert "proposals with provenance" in text
 
 
+# --- below-root project layouts (W1, W2, W4) ----------------------------------
+
+
+# @brief A project parked two levels down, the numbered-folder convention this
+#        estate uses. Before the depth-aware sweep this proposed the whole
+#        `04_Software` tree as source and no test root at all.
+_NESTED_LAYOUT: tuple[str, ...] = (
+    "04_Software/VoiceWeaver/pyproject.toml",
+    "04_Software/VoiceWeaver/src/voiceweaver/__init__.py",
+    "04_Software/VoiceWeaver/src/voiceweaver/config.py",
+    "04_Software/VoiceWeaver/src/voiceweaver/domain/parsing.py",
+    "04_Software/VoiceWeaver/tests/test_config.py",
+    "04_Software/VoiceWeaver/tests/test_domain.py",
+    "01_Documentation/rules.md",
+)
+
+
+def test_below_root_test_directory_is_proposed(tmp_path: Path) -> None:
+    """
+    @brief      A `tests/` directory below the repository root is proposed.
+    @details    The root-only match left `test_roots` empty, which is the one
+                field that makes `--non-interactive` adoption impossible.
+    @return     None
+    @exception  AssertionError If the nested test root is not proposed.
+    """
+    result = analyze.analyze_repo(
+        tmp_path, runner=_FakeGitRunner(tmp_path, _NESTED_LAYOUT)
+    )
+
+    assert [p.path for p in result.test_roots] == ["04_Software/VoiceWeaver/tests"]
+    assert result.test_roots[0].confidence == "medium"
+
+
+def test_below_root_source_directory_beats_the_coverage_fallback(tmp_path: Path) -> None:
+    """
+    @brief      A nested `src/` is proposed instead of the whole numbered tree.
+    @details    The coverage fallback previously proposed `04_Software`, which
+                also owns build output, models, and virtual environments.
+    @return     None
+    @exception  AssertionError If the fallback still wins.
+    """
+    result = analyze.analyze_repo(
+        tmp_path, runner=_FakeGitRunner(tmp_path, _NESTED_LAYOUT)
+    )
+
+    assert [p.path for p in result.source_roots] == ["04_Software/VoiceWeaver/src"]
+    assert "fallback" not in result.source_roots[0].reason
+
+
+def test_below_root_tests_are_not_reported_as_colocated(tmp_path: Path) -> None:
+    """
+    @brief      Finding the nested test root clears the colocated-tests flag.
+    @details    With no test root detected, every `test_*.py` looked colocated
+                and the operator was advised to switch to file-pattern write
+                zones for an ordinary `tests/` directory.
+    @return     None
+    @exception  AssertionError If colocation is still reported.
+    """
+    result = analyze.analyze_repo(
+        tmp_path, runner=_FakeGitRunner(tmp_path, _NESTED_LAYOUT)
+    )
+
+    assert result.colocated_tests.detected is False
+
+
+def test_nested_roots_never_overlap_a_named_convention(tmp_path: Path) -> None:
+    """
+    @brief      A nested sweep hit never widens an already-proposed root.
+    @details    `src/test` matches the `test` convention at depth one and would
+                otherwise be proposed alongside the Maven `src/test/java` it
+                contains.
+    @return     None
+    @exception  AssertionError If an overlapping root is proposed.
+    """
+    files = (
+        "src/main/java/com/example/App.java",
+        "src/test/java/com/example/AppTest.java",
+    )
+
+    result = analyze.analyze_repo(tmp_path, runner=_FakeGitRunner(tmp_path, files))
+
+    assert [p.path for p in result.test_roots] == ["src/test/java"]
+    assert [p.path for p in result.source_roots] == ["src/main/java"]
+
+
 # END OF FILE

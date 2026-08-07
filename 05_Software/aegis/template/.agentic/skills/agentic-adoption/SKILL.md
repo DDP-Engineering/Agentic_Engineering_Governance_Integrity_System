@@ -56,7 +56,12 @@ Ground rules:
 - Keep discovered behavior separate from desired behavior.
 - Stop for map approval and for unclear scope, ownership, or risk.
 - Use `<workflow> adoption component-status`, `scope-check`, and `baseline` for
-  read-only inspection after a run is selected.
+  read-only inspection after a run is selected. `scope-check` reports
+  `enforcement` beside its issues; `not-enforced` means only its advisory
+  findings apply.
+- Record discovered behavior as requirements with `<workflow> stage add` at the
+  `component-adoption` stage. That stage is the only place an adoption run can
+  create them.
 - Route earlier and request access changes only through the stage control form.
 
 At each stop, report the stage, artifact, imported revision, component scope,

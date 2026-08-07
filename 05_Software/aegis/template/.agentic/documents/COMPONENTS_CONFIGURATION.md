@@ -102,7 +102,9 @@ A bare directory path such as `src/package/storage` owns that directory and its
 entire subtree, using the same tree-root semantics as configured stage paths. An
 explicit `src/package/storage/**` pattern remains supported. Matching retains
 Python `fnmatch` semantics, so `*` can cross `/`; use deliberate component
-boundaries and verify them with `adoption scope-check`.
+boundaries and verify them with `adoption scope-check`, which reports an
+unowned path as `COMPONENT-PATH-UNMAPPED` whether or not the baseline guard is
+enforced.
 
 ## Adoption Status Levels
 

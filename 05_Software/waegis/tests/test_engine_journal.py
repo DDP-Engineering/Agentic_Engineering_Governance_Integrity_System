@@ -219,4 +219,148 @@ def test_two_interleaved_journal_flushes_never_publish_a_mixed_document(
     assert leftovers == []
 
 
+# --- resume across an added answer (W6) ---------------------------------------
+
+
+def _fingerprints_for(answers: dict) -> dict:
+    """
+    @brief      Build a full fingerprint set whose answers dimension is real.
+    @param[in]  answers The answers mapping to fingerprint.
+    @return     A five-key fingerprint mapping.
+    @exception  None
+    """
+    return {
+        "command": stable_fingerprint("adopt"),
+        "catalog": stable_fingerprint(["a", "b"]),
+        "target": stable_fingerprint("target"),
+        "answers": stable_fingerprint(answers),
+        "payload": stable_fingerprint("payload"),
+    }
+
+
+def test_resume_survives_supplying_one_more_answer(tmp_path: Path) -> None:
+    """
+    @brief      Adding the answer a default-refuse stop asks for still resumes.
+    @details    Every such stop ends by naming a key to set in the answers
+                file. Under plain fingerprint equality, doing so changed the
+                answers hash and disqualified the resume, so the wizard
+                restarted from step one against a half-installed repository —
+                and then refused, because the payload it had just written now
+                looked like a prior install.
+    @param[in]  tmp_path WAEGIS home for the journal.
+    @return     None
+    @exception  AssertionError If the journal is no longer a resume candidate.
+    """
+    started_with = {"adoption_branch": "chore/aegis-adoption"}
+    journal = Journal.begin(
+        mode="adopt",
+        wizard_version=WIZARD_VERSION,
+        home=tmp_path,
+        fingerprints=_fingerprints_for(started_with),
+        initial_answers=started_with,
+    )
+
+    now_with = {**started_with, "accept_failing_gates": True}
+    found = find_resume_journal(
+        tmp_path,
+        expected_fingerprints=_fingerprints_for(now_with),
+        current_answers=now_with,
+    )
+
+    assert found is not None
+    assert found.path == journal.path
+
+
+def test_resume_is_refused_when_an_existing_answer_changed(tmp_path: Path) -> None:
+    """
+    @brief      Changing an answer the earlier run used still refuses resume.
+    @details    Additions are safe; a changed value means the earlier steps
+                were decided on inputs that no longer hold.
+    @param[in]  tmp_path WAEGIS home for the journal.
+    @return     None
+    @exception  AssertionError If a changed answer is accepted as compatible.
+    """
+    started_with = {"adoption_branch": "chore/aegis-adoption"}
+    Journal.begin(
+        mode="adopt",
+        wizard_version=WIZARD_VERSION,
+        home=tmp_path,
+        fingerprints=_fingerprints_for(started_with),
+        initial_answers=started_with,
+    )
+
+    changed = {"adoption_branch": "something/else"}
+    assert (
+        find_resume_journal(
+            tmp_path,
+            expected_fingerprints=_fingerprints_for(changed),
+            current_answers=changed,
+        )
+        is None
+    )
+
+
+def test_resume_still_refuses_a_different_payload(tmp_path: Path) -> None:
+    """
+    @brief      The structural dimensions stay strict.
+    @details    A different payload or catalog is a different operation, and
+                the answers-compatibility rule must not weaken that.
+    @param[in]  tmp_path WAEGIS home for the journal.
+    @return     None
+    @exception  AssertionError If a structural mismatch is accepted.
+    """
+    answers = {"adoption_branch": "chore/aegis-adoption"}
+    Journal.begin(
+        mode="adopt",
+        wizard_version=WIZARD_VERSION,
+        home=tmp_path,
+        fingerprints=_fingerprints_for(answers),
+        initial_answers=answers,
+    )
+
+    incompatible = _fingerprints_for(answers)
+    incompatible["payload"] = stable_fingerprint("different-payload")
+
+    assert (
+        find_resume_journal(
+            tmp_path, expected_fingerprints=incompatible, current_answers=answers
+        )
+        is None
+    )
+
+
+def test_initial_answers_survive_a_journal_round_trip(tmp_path: Path) -> None:
+    """
+    @brief      The recorded answers persist and reload.
+    @param[in]  tmp_path WAEGIS home for the journal.
+    @return     None
+    @exception  AssertionError If the mapping is lost on reload.
+    """
+    answers = {"adoption_branch": "chore/aegis-adoption", "alignment_enabled": True}
+    journal = Journal.begin(
+        mode="adopt",
+        wizard_version=WIZARD_VERSION,
+        home=tmp_path,
+        fingerprints=_fingerprints_for(answers),
+        initial_answers=answers,
+    )
+
+    assert Journal.load(journal.path).initial_answers == answers
+
+
+def test_journal_without_recorded_answers_still_loads(tmp_path: Path) -> None:
+    """
+    @brief      A journal written before this field existed still loads.
+    @param[in]  tmp_path WAEGIS home for the journal.
+    @return     None
+    @exception  AssertionError If the optional field became required.
+    """
+    journal = Journal.begin(mode="test", wizard_version=WIZARD_VERSION, home=tmp_path)
+    document = journal.to_dict()
+    del document["initial_answers"]
+    journal.path.write_text(json.dumps(document), encoding="utf-8")
+
+    assert Journal.load(journal.path).initial_answers == {}
+
+
 # END OF FILE

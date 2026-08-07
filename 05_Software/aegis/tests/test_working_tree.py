@@ -210,6 +210,99 @@ def test_backslash_in_a_posix_filename_is_not_translated(tmp_path: Path) -> None
     assert report["untracked"] == [{"status": "??", "path": "data\\report.csv"}]
 
 
+def test_secret_scan_skips_generated_run_artifacts(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """
+    @brief      AEGIS's own run output is not scanned for secrets.
+    @param[in]  tmp_path Temporary repository root.
+    @param[in]  replace_workflow_toml Exact workflow configuration editor.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06): every file
+                `verify run` writes under `.agentic/runs/<run-id>/` embeds the
+                secrets invariant's own name and message, so the delivery
+                preflight raised a `secret-pattern` finding against AEGIS's own
+                `validation-summary.json`. A file beside it that AEGIS did not
+                write is still scanned.
+    @exception  None
+    """
+    replace_workflow_toml(
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = ["(?i)secret"]',
+    )
+    _init_repo(tmp_path)
+    run_directory = tmp_path / ".agentic" / "runs" / "RUN-20260806-000000"
+    run_directory.mkdir(parents=True)
+    (run_directory / "validation-summary.json").write_text(
+        '{"name": "Clean secrets"}\n', encoding="utf-8"
+    )
+    (tmp_path / "authored.md").write_text("my secret token\n", encoding="utf-8")
+
+    report = audit_working_tree(tmp_path, load_config(tmp_path))
+
+    assert [
+        finding["path"]
+        for finding in report["blocking_findings"]
+        if finding["code"] == "secret-pattern"
+    ] == ["authored.md"]
+
+
+def test_secret_scan_skips_the_secrets_policy_declaration(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """
+    @brief      The table declaring the patterns is not scanned with them.
+    @param[in]  tmp_path Temporary repository root.
+    @param[in]  replace_workflow_toml Exact workflow configuration editor.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2):
+                editing `.agentic/workflow.toml` put it in the working tree, and
+                `(?i)secret` then matched the `[guardrails.secrets]` header that
+                declares it - so every run that touched the configuration raised
+                a `secret-pattern` finding against the configuration. A
+                credential pasted elsewhere in the same file is still found.
+    @exception  None
+    """
+    replace_workflow_toml(
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = ["(?i)secret"]',
+    )
+    _init_repo(tmp_path)
+    config_path = tmp_path / ".agentic" / "workflow.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            'patterns = ["(?i)secret"]', 'patterns = ["(?i)secret", "(?i)token"]'
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    exempt = audit_working_tree(tmp_path, load_config(tmp_path))
+
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            '[gates.security]\nmode = "disabled"\ncommands = []',
+            '[gates.security]\nmode = "enforce"\ncommands = ["scan --secret abc"]',
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    elsewhere = audit_working_tree(tmp_path, load_config(tmp_path))
+
+    assert [
+        finding["path"]
+        for finding in exempt["blocking_findings"]
+        if finding["code"] == "secret-pattern"
+    ] == []
+    assert [
+        finding["path"]
+        for finding in elsewhere["blocking_findings"]
+        if finding["code"] == "secret-pattern"
+    ] == [".agentic/workflow.toml"]
+
+
 def _git(repo_root: Path, *arguments: str) -> None:
     """@brief Run one Git command in the fixture repository."""
     subprocess.run(

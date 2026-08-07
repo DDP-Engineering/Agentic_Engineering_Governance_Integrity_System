@@ -108,8 +108,9 @@ appended during updates. Empty arrays never inherit earlier values.
 
 `requirement` stays a single testable sentence; the concrete detail that keeps an
 implementation from drifting lives in a companion spec artifact referenced by
-`spec_ref`. During a run, `aegis stage add` at the requirement stage generates
-this scaffold automatically at `spec_ref` when the requirement item is created;
+`spec_ref`. During a run, `aegis stage add` at the requirement or
+`component-adoption` stage generates this scaffold automatically at
+`spec_ref` when the requirement item is created;
 there is nothing to author by hand in that case. `spec_template.md` is a
 reference structure for the less common case of hand-placing a companion spec
 *outside* a run — for example when drafting one ahead of time for review. In
@@ -136,8 +137,13 @@ verification. `aegis verify traceability` reports missing links and validation
 closure blocks until linked checks and evidence are green. Retired requirements
 are exempt.
 
-Create or revise requirements only through requirement-stage forms. Use
-`aegis stage add` for another item and `aegis stage apply` for atomic
-publication; AEGIS creates each durable ID and companion spec. The public
-`aegis requirement list/show` commands are read-only. Successful validation
-closure activates eligible Planned snapshots automatically.
+Create or revise requirements only through stage forms. Use `aegis stage add`
+for another item and `aegis stage apply` for atomic publication; AEGIS creates
+each durable ID and companion spec. `stage add` is accepted at the requirement
+stage of a standard run and at the `component-adoption` stage of an adoption
+run, which is how an adoption route records the behavior it found in existing
+code — an adoption run has no requirement stage. The public `aegis requirement
+list/show` commands are read-only. Successful validation closure activates
+eligible Planned snapshots automatically; an adoption run has no validation
+stage, so requirements it records stay `Planned` until a later standard run
+covers them.

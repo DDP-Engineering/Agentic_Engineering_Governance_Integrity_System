@@ -187,6 +187,182 @@ def test_clean_secrets_passes_for_untracked_file_without_secret(tmp_path: Path) 
     assert result.holds is True
 
 
+def test_clean_secrets_ignores_generated_run_artifacts(tmp_path: Path) -> None:
+    """
+    @brief      AEGIS's own run artifacts are outside the INV-7 scan surface.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06): `verify run`
+                writes `validation-summary.json`, `report.md`, and `graph.json`
+                into the untracked run directory, and every one of them embeds
+                INV-7's own name and its own passing message verbatim. With the
+                obvious `(?i)secret` pattern configured the invariant matched
+                its own output, so a repository with nothing wrong in it could
+                never satisfy INV-7 and never close a stage.
+    @exception  None
+    """
+    init_repo_with_commit(tmp_path)
+    # `workflow.toml` names the secrets policy itself, so commit it first: this
+    # test is about the run directory, not the configuration file.
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "config"], cwd=tmp_path, check=True, capture_output=True)
+    run_directory = tmp_path / ".agentic" / "runs" / "RUN-20260806-000000"
+    run_directory.mkdir(parents=True)
+    (run_directory / "validation-summary.json").write_text(
+        '{"name": "Clean secrets", "message": "No configured secret pattern '
+        'found in diff or untracked files."}\n',
+        encoding="utf-8",
+    )
+    (run_directory / "report.md").write_text(
+        "INV-7 Clean secrets PASS - no configured secret pattern found.\n",
+        encoding="utf-8",
+    )
+    config = replace(
+        load_config(tmp_path),
+        secrets=RuleSetPolicy(mode="enforce", patterns=(r"(?i)secret",)),
+    )
+
+    untracked = _clean_secrets(tmp_path, config)
+
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "run"], cwd=tmp_path, check=True, capture_output=True)
+    (run_directory / "report.md").write_text(
+        "INV-7 Clean secrets PASS - rewritten by a later verify run.\n",
+        encoding="utf-8",
+    )
+    tracked = _clean_secrets(tmp_path, config)
+
+    assert untracked.holds is True
+    assert tracked.holds is True
+
+
+def test_clean_secrets_ignores_the_secrets_policy_declaration(tmp_path: Path) -> None:
+    """
+    @brief      The table declaring the patterns is outside the scan surface.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2):
+                `[guardrails.secrets]` *is* the pattern list, so `(?i)secret`
+                matched its own table header and every configured pattern
+                matched its own declaration. A freshly deployed repository
+                failed INV-7 before its first commit, when the whole untracked
+                configuration is read, and any later run that edited the
+                configuration failed it again - the diff's context lines carry
+                the whole three-line table.
+    @exception  None
+    """
+    init_repo_with_commit(tmp_path)
+    replace_fragment = (
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\n'
+        'patterns = ["(?i)api[_-]?key", "(?i)secret", "(?i)password"]',
+    )
+    config_path = tmp_path / ".agentic" / "workflow.toml"
+    text = config_path.read_text(encoding="utf-8")
+    assert text.count(replace_fragment[0]) == 1
+    config_path.write_text(
+        text.replace(*replace_fragment), encoding="utf-8", newline="\n"
+    )
+    config = load_config(tmp_path)
+
+    untracked = _clean_secrets(tmp_path, config)
+
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "config"], cwd=tmp_path, check=True, capture_output=True)
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            '"(?i)password"]', '"(?i)password", "(?i)token"]'
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    edited = _clean_secrets(tmp_path, load_config(tmp_path))
+
+    assert untracked.holds is True
+    assert edited.holds is True
+
+
+def test_clean_secrets_still_scans_the_rest_of_the_configuration(tmp_path: Path) -> None:
+    """
+    @brief      Only the secrets table is exempt, not the whole config file.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @details    Boundary of the exemption above (batch 2): a gate command is a
+                plausible place for a credential to be pasted, so the rest of
+                `.agentic/workflow.toml` stays on the scan surface.
+    @exception  None
+    """
+    init_repo_with_commit(tmp_path)
+    config_path = tmp_path / ".agentic" / "workflow.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            '[gates.security]\nmode = "disabled"\ncommands = []',
+            '[gates.security]\nmode = "enforce"\n'
+            'commands = ["scanner --token sk-abcdefghijklmnopqrstuvwx"]',
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    result = _clean_secrets(tmp_path, secret_config(tmp_path))
+
+    assert result.holds is False
+    assert ".agentic/workflow.toml" in result.message
+
+
+def test_clean_secrets_names_the_matching_file(tmp_path: Path) -> None:
+    """
+    @brief      A failing INV-7 names the file it matched, not just the pattern.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06): `Secret
+                pattern matched: <pattern>` was the entire diagnostic an
+                operator was stopped with, and finding the culprit took a manual
+                sweep of every changed and untracked file. The matched text
+                itself stays out of the message.
+    @exception  None
+    """
+    init_repo_with_commit(tmp_path)
+    (tmp_path / "untracked.py").write_text(
+        "TOKEN = 'sk-abcdefghijklmnopqrstuvwx'\n", encoding="utf-8"
+    )
+    (tmp_path / "README.md").write_text(
+        "hello\nTOKEN = 'sk-zyxwvutsrqponmlkjihgf'\n", encoding="utf-8"
+    )
+
+    result = _clean_secrets(tmp_path, secret_config(tmp_path))
+
+    assert result.holds is False
+    assert "untracked.py" in result.message
+    assert "README.md" in result.message
+    assert "sk-abcdefghijklmnopqrstuvwx" not in result.message
+
+
+def test_clean_secrets_reports_a_waivable_blocking_policy(tmp_path: Path) -> None:
+    """
+    @brief      INV-7 reports the policy it actually enforces.
+    @param[in]  tmp_path Temporary repository root.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06): INV-7
+                reported `non-waivable` while appearing in `eligible_blockers`
+                and accepting `waive add`, after which the same invariant
+                reported `blocking`. One of the two labels had to go; the
+                enforced behavior is the waivable one.
+    @exception  None
+    """
+    init_repo_with_commit(tmp_path)
+    (tmp_path / "untracked.py").write_text(
+        "TOKEN = 'sk-abcdefghijklmnopqrstuvwx'\n", encoding="utf-8"
+    )
+
+    failed = _clean_secrets(tmp_path, secret_config(tmp_path))
+    disabled = _clean_secrets(tmp_path, load_config(tmp_path))
+
+    assert failed.policy == "blocking"
+    assert failed.can_waive is True
+    assert disabled.policy == "blocking"
+
+
 def test_green_rerun_retires_failed_attempts_for_inv4_and_inv3(
     tmp_path: Path,
 ) -> None:

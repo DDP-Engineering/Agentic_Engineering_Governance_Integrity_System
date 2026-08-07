@@ -386,12 +386,39 @@ def normalize_stage_map(raw: Any) -> dict[str, list[str]]:
         except json.JSONDecodeError as exc:
             raise ValueError("expected a JSON object mapping every stage to a list") from exc
     if not isinstance(raw, Mapping):
-        raise ValueError("expected a mapping from stage names to glob lists")
+        raise ValueError(
+            "expected a mapping from stage names to glob lists, one entry per "
+            f"stage:\n{stage_map_skeleton()}"
+        )
     if set(raw) != set(ALL_STAGES):
         missing = sorted(set(ALL_STAGES) - set(raw))
         unknown = sorted(set(raw) - set(ALL_STAGES))
-        raise ValueError(f"stage mapping must be exact; missing={missing}, unknown={unknown}")
+        # The stage list is not written down in any shipped document, and an
+        # unlisted stage cannot be defaulted safely - "may write nothing" would
+        # silently wall off whichever stage was forgotten. So the mapping stays
+        # exact and the error carries a skeleton to fill in instead.
+        detail = f"stage mapping must be exact; missing={missing}, unknown={unknown}"
+        if missing:
+            detail += f"\nEvery stage must appear:\n{stage_map_skeleton()}"
+        raise ValueError(detail)
     return {stage: normalize_rule_list(raw[stage]) for stage in ALL_STAGES}
+
+
+def stage_map_skeleton() -> str:
+    """
+    @brief      Render a paste-ready `write_access_stages` answers-file table.
+    @details    Filling this field means naming all fifteen stages exactly, and
+                nothing shipped lists them, so the operator discovered the set
+                one rejected attempt at a time. Emitting the skeleton turns
+                that into a copy, an edit, and a re-run.
+    @return     TOML text for the complete mapping, every stage empty.
+    @exception  None
+    """
+    lines = ["[write_access_stages]"]
+    for stage in ALL_STAGES:
+        key = f'"{stage}"' if "-" in stage else stage
+        lines.append(f"{key} = []")
+    return "\n".join(lines)
 
 
 def _mode_validator(key: str) -> Callable[[Any], str]:

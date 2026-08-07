@@ -242,26 +242,32 @@ def test_store_rejects_empty_waiver_reason(
     )
 
 
-def test_zero_waiver_inv7_preserves_legacy_policy_shape(
+def test_inv7_reports_one_policy_before_and_after_a_waiver(
     tmp_path: Path,
 ) -> None:
     """
-    @brief Preserve ordinary INV-7 output while making failures eligible.
+    @brief Report INV-7 under the single policy it actually enforces.
     @param[in] tmp_path Configured temporary repository.
     @return None.
+    @details Regression test (lifecycle field test, 2026-08-06): INV-7 carried
+             a legacy `non-waivable` label for zero-waiver output compatibility
+             while `waive list` offered it and `waive add` accepted it, and the
+             same invariant then reported `blocking` once waived. The label was
+             the part that was wrong: an unanchored substring scan over changed
+             files needs its escape hatch, so `blocking` is the honest one.
     """
     config = load_config(tmp_path)
     graph = init_graph(tmp_path, "feature", "Preserve zero-waiver output")
 
     inv_7 = _invariant(tmp_path, graph, config, "INV-7")
 
-    assert inv_7.policy == "non-waivable"
+    assert inv_7.policy == "blocking"
     assert inv_7.can_waive is True
     assert inv_7.to_dict() == {
         "id": "INV-7",
         "name": "Clean secrets",
         "holds": True,
-        "policy": "non-waivable",
+        "policy": "blocking",
         "message": "Secret scanning is disabled by workflow.toml.",
     }
 
@@ -976,6 +982,93 @@ def test_inv7_waiver_goes_stale_when_new_secret_matches_same_pattern(
     assert stale.holds is False
     assert stale.waivers == ()
     assert [item.id for item in blocking_failures([stale])] == ["INV-7"]
+
+
+def test_inv7_waiver_survives_being_written_into_the_run_graph(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Recording an INV-7 waiver must not invalidate that same waiver.
+    @param[in] tmp_path Configured temporary repository.
+    @return None.
+    @details Regression test (lifecycle field test, 2026-08-06): `waive add`
+             writes the waiver's reason and blocker ID into `graph.json`, which
+             INV-7 used to scan, so the blocker state moved the instant the
+             waiver pinned it and the waiver was stale before it was ever
+             checked. `stage close` then refused, `waive list` showed no active
+             waiver, and the identical command had to be issued a second time.
+             State an invariant reads must not be state that waiving it writes.
+    """
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    path = tmp_path / ".agentic" / "workflow.toml"
+    text = path.read_text(encoding="utf-8")
+    old = '[guardrails.secrets]\nmode = "disabled"\npatterns = []'
+    new = '[guardrails.secrets]\nmode = "enforce"\npatterns = ["(?i)secret"]'
+    assert text.count(old) == 1
+    path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "feature", "Waive a secret finding")
+    (tmp_path / "fixture.txt").write_text(
+        "documented example secret value\n", encoding="utf-8"
+    )
+
+    first = _invariant(tmp_path, graph, config, "INV-7")
+    assert first.holds is False
+    add_waiver(
+        tmp_path,
+        graph,
+        "INV-7",
+        "Known documentation fixture, not a live secret",
+        dict(first.state_digests),
+    )
+    graph = load_graph(tmp_path, graph.run_id)
+
+    waived = _invariant(tmp_path, graph, config, "INV-7")
+
+    assert waived.waivers
+    assert blocking_failures([waived]) == []
+
+
+def test_waive_list_names_the_waivers_that_went_stale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief A waiver that stops applying is reported, not silently dropped.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    @details Regression test (lifecycle field test, 2026-08-06): when a waiver
+             went stale it vanished from `active_waivers` with nothing saying
+             so, and the operator had to notice its status buried in
+             `waiver_history` to understand why the blocker was back.
+    """
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    config = _configure_secret_scanning(tmp_path)
+    graph = init_graph(tmp_path, "feature", "Report stale waivers")
+    (tmp_path / "fixture.txt").write_text(
+        "example key AKIAAAAAAAAAAAAAAAAA\n", encoding="utf-8"
+    )
+    first = _invariant(tmp_path, graph, config, "INV-7")
+    add_waiver(
+        tmp_path,
+        graph,
+        "INV-7",
+        "Known documentation fixture value",
+        dict(first.state_digests),
+    )
+    (tmp_path / "second.txt").write_text(
+        "another key AKIABBBBBBBBBBBBBBBB\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    main(["waive", "list", "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["active_waivers"] == []
+    assert [item["blocker_id"] for item in payload["stale_waivers"]] == ["INV-7"]
 
 
 # END OF FILE

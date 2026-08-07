@@ -251,4 +251,66 @@ def test_every_gate_candidate_names_its_source_file(tmp_path: Path) -> None:
         assert candidate.source_detail
 
 
+# --- below-root build files (W3) ----------------------------------------------
+
+
+def test_below_root_pyproject_yields_gate_candidates(tmp_path: Path) -> None:
+    """
+    @brief      A `pyproject.toml` one level down still proposes gates.
+    @details    Reading only the root build file meant a project parked in a
+                subdirectory proposed no gate at all, and every gate was then
+                deployed disabled.
+    @return     None
+    @exception  AssertionError If no candidate is extracted, or the proposed
+                command does not point at the project directory.
+    """
+    _write(tmp_path, "app/pkg/pyproject.toml", "[tool.pytest.ini_options]\n[tool.ruff]\n")
+    _write(tmp_path, "app/pkg/src/thing.py", "x = 1\n")
+
+    result = _analyze(tmp_path)
+
+    test = next(c for c in result.gate_test_cmds if c.source_file == "app/pkg/pyproject.toml")
+    lint = next(c for c in result.gate_lint_cmds if c.source_file == "app/pkg/pyproject.toml")
+    assert test.argv == ("pytest", "-q", "app/pkg")
+    assert lint.argv == ("ruff", "check", "app/pkg")
+    assert test.needs_review is False
+
+
+def test_below_root_makefile_uses_make_dash_c(tmp_path: Path) -> None:
+    """
+    @brief      A nested Makefile is invoked with make's own `-C` flag.
+    @return     None
+    @exception  AssertionError If the proposed argv does not change directory.
+    """
+    _write(tmp_path, "services/api/Makefile", "test:\n\tpytest -q\n")
+    _write(tmp_path, "services/api/main.py", "x = 1\n")
+
+    result = _analyze(tmp_path)
+
+    test = next(c for c in result.gate_test_cmds if c.source_file == "services/api/Makefile")
+    assert test.argv == ("make", "-C", "services/api", "test")
+
+
+def test_root_build_file_commands_are_unchanged(tmp_path: Path) -> None:
+    """
+    @brief      The root case keeps the bare command an operator would type.
+    @details    The below-root support must not rewrite the common layout into
+                a needlessly qualified form.
+    @return     None
+    @exception  AssertionError If a root-level proposal gained a directory.
+    """
+    _write(tmp_path, "pyproject.toml", "[tool.pytest.ini_options]\n[tool.ruff]\n")
+    _write(tmp_path, "Makefile", "lint:\n\truff check .\n")
+    _write(tmp_path, "src/thing.py", "x = 1\n")
+
+    result = _analyze(tmp_path)
+
+    test = next(c for c in result.gate_test_cmds if c.source_file == "pyproject.toml")
+    lint = next(c for c in result.gate_lint_cmds if c.source_file == "pyproject.toml")
+    make = next(c for c in result.gate_lint_cmds if c.source_file == "Makefile")
+    assert test.argv == ("pytest", "-q")
+    assert lint.argv == ("ruff", "check", ".")
+    assert make.argv == ("make", "lint")
+
+
 # END OF FILE

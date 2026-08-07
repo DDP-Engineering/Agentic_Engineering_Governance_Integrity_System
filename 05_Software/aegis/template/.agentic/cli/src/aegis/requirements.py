@@ -640,6 +640,71 @@ def iter_coverable_files(repo_root: Path, config: WorkflowConfig) -> list[str]:
     return sorted(found)
 
 
+def uncovered_coverable_files(
+    repo_root: Path, config: WorkflowConfig
+) -> list[str]:
+    """
+    @brief List coverable modules with no Active test-linked requirement.
+    @return Sorted repository-relative paths that are not already waived.
+    @details Empty in disabled mode, where the schema also requires
+             `coverable_roots` to be empty and there is nothing to enumerate.
+    @exception RequirementValidationError If a snapshot is malformed or a
+               requirement ID is duplicated.
+    """
+    records = load_all_requirement_records(repo_root, config)
+    build_requirement_index(records)
+    waived = set(load_waivers(repo_root, config))
+    cache: dict[str, tuple[bool, str]] = {}
+    return [
+        relative_path
+        for relative_path in iter_coverable_files(repo_root, config)
+        if relative_path not in waived
+        and not _is_covered(repo_root, records, relative_path, config, cache)
+    ]
+
+
+def seed_coverage_waivers(
+    repo_root: Path,
+    config: WorkflowConfig,
+    paths: list[str],
+    run_id: str,
+) -> str:
+    """
+    @brief Append pre-existing uncovered modules to the coverage waiver file.
+    @param[in] repo_root Repository root.
+    @param[in] config Validated workflow configuration.
+    @param[in] paths Repository-relative paths to waive, already normalized.
+    @param[in] run_id Run recorded as the provenance of this block.
+    @return Repository-relative path of the waiver file that was written.
+    @details Appends rather than rewrites, so a hand-authored waiver and its
+             comment survive. Turning coverage enforcement on after adoption
+             otherwise reports one finding per legacy module, none of them
+             caused by the run that hits them, and the documented escape hatch
+             ships empty.
+    @exception OSError If the waiver file cannot be written.
+    """
+    relative = (
+        Path(config.requirement_roots[0]) / "coverage_waivers.txt"
+    ).as_posix()
+    path = repo_root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    block = [
+        "",
+        f"# Seeded from run {run_id} on {utc_timestamp()} by",
+        "# `aegis adoption coverage-waivers --write`. Pre-existing modules with",
+        "# no Active test-linked requirement at that point; remove each line as",
+        "# the module gains coverage.",
+        *paths,
+    ]
+    separator = "" if not existing or existing.endswith("\n") else "\n"
+    path.write_text(
+        existing + separator + "\n".join(block) + "\n",
+        encoding="utf-8",
+    )
+    return relative
+
+
 # LOCAL HELPERS
 
 

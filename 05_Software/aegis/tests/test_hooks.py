@@ -988,6 +988,154 @@ def test_secret_scan_denies_configured_pattern(tmp_path: Path, monkeypatch) -> N
     assert "Possible secret" in output
 
 
+def enforce_broad_secret_patterns(tmp_path: Path) -> None:
+    """
+    @brief      Enable the pattern set a real deployment ships with.
+    @param[in]  tmp_path Temporary repository containing ``workflow.toml``.
+    @return     None.
+    @details    These four are what the deployment wizard writes when an
+                operator switches secret scanning on, so they are what the
+                false positives below are measured against.
+    @exception  None
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = '
+        '["(?i)api[_-]?key", "(?i)secret", "(?i)password", "(?i)token"]',
+    )
+
+
+def test_secret_scan_ignores_the_target_path(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A file's name is not scanned as if it were its content.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2): the
+                whole serialized tool input was scanned, so `(?i)token` denied
+                opening `token_store.py` and `(?i)secret` denied reading this
+                hook's own source. Path policy is `guardrails.protected_paths`,
+                enforced by the read and write guards.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    named = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": "src/app/token_store.py"},
+    }
+    own_source = {
+        **named,
+        "tool_input": {"file_path": ".agentic/hooks/secret_scan.py"},
+    }
+
+    assert run_hook(secret_main, named, monkeypatch) == ""
+    assert run_hook(secret_main, own_source, monkeypatch) == ""
+
+
+def test_secret_scan_ignores_text_an_edit_removes(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      An edit is judged on what it writes, not what it deletes.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2): the
+                replaced text is quoted from what the file already holds, so the
+                one edit that deletes a hardcoded credential was denied while
+                the file keeping it was left alone. The same edit reversed still
+                denies.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    removal = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Edit",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": "src/app/config.py",
+            "old_string": 'BACKEND_PASSWORD = "hunter2-live"',
+            "new_string": "BACKEND_CREDENTIAL = _keyring_lookup()",
+        },
+    }
+    introduction = {
+        **removal,
+        "tool_input": {
+            "file_path": "src/app/config.py",
+            "old_string": "BACKEND_CREDENTIAL = _keyring_lookup()",
+            "new_string": 'BACKEND_PASSWORD = "hunter2-live"',
+        },
+    }
+
+    assert run_hook(secret_main, removal, monkeypatch) == ""
+    assert "Possible secret" in run_hook(secret_main, introduction, monkeypatch)
+
+
+def test_secret_scan_allows_narrowing_its_own_patterns(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A match cannot deny the edit that corrects the pattern.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2):
+                narrowing an over-broad pattern means quoting it, and the
+                pattern then matched its own removal. With the only remedy
+                denied, an agent stopped by a false positive had nowhere to go.
+                The hook already makes this carve-out when the configuration
+                fails to load; a match is the same deadlock.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Edit",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": ".agentic/workflow.toml",
+            "old_string": 'patterns = ["(?i)api[_-]?key", "(?i)secret", '
+            '"(?i)password", "(?i)token"]',
+            "new_string": 'patterns = ["(?i)api[_-]?key"]',
+        },
+    }
+
+    assert run_hook(secret_main, payload, monkeypatch) == ""
+
+
+def test_secret_scan_denial_names_the_pattern_and_the_way_out(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A denial says which pattern fired and what to do about it.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2):
+                `Possible secret detected by configured workflow policy.` was
+                the whole diagnostic, so an agent writing a requirement about
+                token handling could not tell a real credential from a match on
+                the word, and the message named no remedy. The matched text
+                itself stays out of the message.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": ".agentic/requirements/specs/REQ-0042.md",
+            "content": "The API token is read from the operating system keyring.\n",
+        },
+    }
+
+    output = run_hook(secret_main, payload, monkeypatch)
+
+    assert "(?i)token" in output
+    assert "workflow.toml" in output
+    assert "operating system keyring" not in output
+
+
 def test_secret_scan_invalid_configured_regex_denies(tmp_path: Path, monkeypatch) -> None:
     """
     @brief      Deny when the canonical parser rejects an invalid regex.

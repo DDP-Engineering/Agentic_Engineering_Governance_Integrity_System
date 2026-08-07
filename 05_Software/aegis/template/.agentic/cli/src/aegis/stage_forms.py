@@ -86,6 +86,15 @@ from .waivers import (
 
 FORM_SCHEMA_VERSION = 3
 COLLECTION_STAGES = ("requirement", "check")
+# @brief Stages where `stage add` mints a requirement form. The adoption route
+#        has no requirement stage, so before 2.1.0 a repository that completed
+#        all seven adoption stages ended with an empty requirement register
+#        even though the component-adoption form ships `requirement_links` and
+#        the adoption skill says adoption may update requirements. The forms
+#        are named `requirement-NNN.toml` in every case, so one importer and
+#        one rehydrator serve both stages.
+REQUIREMENT_ITEM_STAGES = ("requirement", "component-adoption")
+ADD_ITEM_STAGES = ("requirement", "check", "component-adoption")
 BLOCKER_SLUG_LIMIT = 72
 COMMON_CONTROL_KEYS = (
     "requested_access_mode",
@@ -260,8 +269,8 @@ def add_stage_item(
                 legal way to file the seven other categories the requirement
                 documentation asks for, so the category is now chosen when the
                 ID is minted and written into the form to match.
-    @exception  StageOperationError If the stage is not a requirement/check
-                collection stage, is not yet prepared, the category is not a
+    @exception  StageOperationError If the stage does not collect requirement
+                or check items, is not yet prepared, the category is not a
                 known one, or the next numbered form path already exists.
     """
     run_stage_spec(graph)
@@ -270,28 +279,29 @@ def add_stage_item(
             f"unknown requirement category {category!r}; expected one of "
             f"{', '.join(CATEGORY_IDENTITIES)}"
         )
-    if graph.stage not in COLLECTION_STAGES:
+    if graph.stage not in ADD_ITEM_STAGES:
         raise StageOperationError(
-            "stage add is valid only during requirement or check"
+            "stage add is valid only during " + ", ".join(ADD_ITEM_STAGES)
         )
     record = graph.stage_records.get(graph.stage)
     if not record or record.status != "prepared":
         raise StageOperationError("run `aegis stage prepare` before stage add")
     directory = stage_directory(repo_root, graph)
-    existing = sorted(directory.glob(f"{graph.stage}-*.toml"))
+    prefix = "requirement" if graph.stage in REQUIREMENT_ITEM_STAGES else graph.stage
+    existing = sorted(directory.glob(f"{prefix}-*.toml"))
     numbers = [
         int(item.stem.rsplit("-", 1)[-1])
         for item in existing
         if item.stem.rsplit("-", 1)[-1].isdigit()
     ]
     number = max(numbers, default=0) + 1
-    path = directory / f"{graph.stage}-{number:03d}.toml"
+    path = directory / f"{prefix}-{number:03d}.toml"
     if path.exists():
         raise StageOperationError(
             f"refusing to overwrite existing form {path.name}. Delete it, or "
             "run `aegis stage prepare` to regenerate the set."
         )
-    if graph.stage == "requirement":
+    if graph.stage in REQUIREMENT_ITEM_STAGES:
         requirement_id = _new_requirement_id(category)
         spec_path = (
             run_dir(repo_root, graph.run_id)
@@ -411,6 +421,16 @@ def apply_stage(
         form_path = _primary_form(directory, graph.stage)
         payload = _load_single_stage_form(form_path, graph, record)
         _import_single_stage(repo_root, graph, config, payload)
+        if graph.stage == "component-adoption" and any(
+            directory.glob("requirement-*.toml")
+        ):
+            payload["requirements"] = _apply_requirements(
+                repo_root,
+                graph,
+                config,
+                directory,
+                record,
+            )["requirements"]
         control = payload["control"]
 
     _validate_control(graph, control)
@@ -485,8 +505,8 @@ def close_stage(
         ]
     if blockers:
         raise StageOperationError(
-            "; ".join(blockers) + ". Run `aegis waive list` for waivable "
-            "blocker IDs."
+            "; ".join(_blocker_error_entries(repo_root, graph, blockers))
+            + ". Run `aegis waive list` for waivable blocker IDs."
         )
     closing_stage, deferred_events = _approve_stage(
         repo_root,
@@ -665,6 +685,37 @@ def _stage_readiness_descriptions(
     descriptions.extend(_evidence_stage_blockers(graph, record))
     descriptions.extend(_adoption_stage_blockers(repo_root, graph, record))
     return sorted(set(descriptions))
+
+
+def _blocker_error_entries(
+    repo_root: Path,
+    graph: Graph,
+    blockers: list[str],
+) -> list[str]:
+    """
+    @brief Render close-time blocker text with the ID needed to waive it.
+    @param[in]  repo_root Repository root.
+    @param[in]  graph Active workflow graph.
+    @param[in]  blockers Unwaived readiness text in its established order.
+    @return One `<text> [<blocker id>]` entry per blocker, text alone when the
+            blocker has no waiver target.
+    @details The raw readiness text used to be the whole message, so a blocker
+             raised from an unresolved question ended in that question's own
+             full stop - doubled by the sentence the message appends - and
+             named no ID, while the ID it tells the operator to look up is a
+             slugified prefix of the same text plus a hash. Neither was
+             recoverable from what the operator was shown.
+    """
+    identifiers = {
+        blocker.description: blocker.id
+        for blocker in stage_blocker_details(repo_root, graph)
+    }
+    entries: list[str] = []
+    for description in blockers:
+        text = description.rstrip().removesuffix(".")
+        blocker_id = identifiers.get(description)
+        entries.append(f"{text} [{blocker_id}]" if blocker_id else text)
+    return entries
 
 
 def _stage_blocker_details(
@@ -872,7 +923,10 @@ def _write_prepared_stage_forms(
     if graph.stage == "check":
         _write_control_form(directory / "stage.toml", graph, record)
         return _rehydrate_check_forms(repo_root, graph, record)
-    return _write_single_stage_form(repo_root, graph, record)
+    primary = _write_single_stage_form(repo_root, graph, record)
+    if graph.stage == "component-adoption":
+        _rehydrate_adopted_requirement_forms(repo_root, graph, record)
+    return primary
 
 
 def _approve_stage(
@@ -1125,9 +1179,8 @@ def _delivery_invariant_blockers(repo_root: Path, graph: Graph) -> list[str]:
         results = evaluate(repo_root, graph, load_config(repo_root))
     except (OSError, ValueError) as exc:
         return [f"invariants could not be evaluated: {exc}"]
-    # Advisory results are excluded; `non-waivable` is not. INV-7 carries that
-    # policy because it is the *strongest* one, not a weaker one - a live
-    # secret match must stop delivery exactly as a blocking failure does.
+    # Advisory results are excluded; every other policy is not. A live secret
+    # match stops delivery exactly as any other blocking failure does.
     return [
         f"invariant {result.id} does not hold; "
         "run `aegis verify invariants` for detail"
@@ -1347,6 +1400,31 @@ def _rehydrate_requirement_forms(
     if first is None:
         raise StageOperationError("authoritative requirement payload is empty")
     return first
+
+
+def _rehydrate_adopted_requirement_forms(
+    repo_root: Path,
+    graph: Graph,
+    record: StageRecord,
+) -> None:
+    """
+    @brief Reconstruct component-adoption requirement forms, if any exist.
+    @details Unlike the requirement stage, adoption requirements are optional:
+             a component-adoption stage that recorded none re-prepares with no
+             requirement form and nothing to fill in, so the route is not
+             turned into a requirement-authoring obligation.
+    """
+    snapshots = record.payload.get("requirements", []) if record.payload else []
+    directory = stage_directory(repo_root, graph)
+    for number, snapshot in enumerate(snapshots, start=1):
+        if not isinstance(snapshot, dict):
+            raise StageOperationError(
+                "authoritative requirement payload is not reconstructable"
+            )
+        (directory / f"requirement-{number:03d}.toml").write_text(
+            _requirement_form_from_snapshot(graph, record, snapshot),
+            encoding="utf-8",
+        )
 
 
 def _rehydrate_check_forms(

@@ -806,3 +806,53 @@ def test_q_still_coerces_non_string_scalars() -> None:
     """
     assert tomllib.loads("k = " + _q(True))["k"] == "True"
     assert tomllib.loads("k = " + _q(1))["k"] == "1"
+
+
+def test_close_error_names_the_blocker_id_and_ends_one_sentence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief      A close refused by an unresolved question names its blocker ID.
+    @param[in]  tmp_path Configured temporary repository.
+    @param[in]  monkeypatch Working-directory fixture.
+    @param[in]  capsys Captured CLI output.
+    @return     None.
+    @details    The blocker ID for an unresolved question is a slugified
+                60-character prefix of the question plus a hash, so the error
+                that tells the operator to look it up has to carry it. The
+                question's own full stop was also doubled by the sentence the
+                error appends.
+    @exception  None
+    """
+    monkeypatch.chdir(tmp_path)
+    main(["run", "start", "adoption", "--json"])
+    artifact = json.loads(capsys.readouterr().out)["artifact"]
+    question = "The test suite cannot run in full: the venv has no pip to install it."
+    _replace(
+        tmp_path / artifact,
+        {
+            'statement = ""': 'statement = "Adopt the billing component"',
+            'adoption_slice = ""': 'adoption_slice = "billing"',
+            'summary = ""': 'summary = "Adoption intake approved"',
+            "unresolved_questions = []": (
+                f"unresolved_questions = [{json.dumps(question)}]"
+            ),
+        },
+    )
+    main(["stage", "apply", "--json"])
+    capsys.readouterr()
+    main(["waive", "list", "--json"])
+    blocker_id = json.loads(capsys.readouterr().out)["eligible_blockers"][0]["id"]
+
+    with pytest.raises(SystemExit):
+        main(["stage", "close", "--json"])
+    error = json.loads(capsys.readouterr().out)["error"]
+
+    assert blocker_id.startswith("stage:adoption-intake:")
+    assert f"[{blocker_id}]" in error
+    assert ".." not in error
+
+
+# END OF FILE

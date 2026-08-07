@@ -47,6 +47,7 @@ from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol, Sequence, runtime_checkable
 
 # CONSTANTS
@@ -133,6 +134,47 @@ class CommandRunner(Protocol):
 # PUBLIC API
 
 
+def _resolved_argv(
+    argv: Sequence[str], cwd: str | os.PathLike[str] | None
+) -> list[str]:
+    """
+    @brief      Resolve a relative executable path against the child's ``cwd``.
+    @details    ``subprocess`` resolves ``argv[0]`` against the *parent*
+                process's working directory, not the ``cwd`` the child is given.
+                A gate command stored as
+                ``04_Software/Thing/.venv/Scripts/python.exe -m pytest`` — which
+                ``workflow.toml`` documents as running "from the repo root" —
+                therefore failed to launch with "command not found", while the
+                reproduction line WAEGIS printed beside the failure (``cd <repo>
+                && <command>``) succeeded, and AEGIS ran the identical stored
+                string successfully because its gate runner goes through a
+                shell. This restores the shell's own rule so the two agree.
+    @details    Only a path-like ``argv[0]`` is rewritten: a bare name such as
+                ``git`` or ``pytest`` must keep resolving through ``PATH``, as
+                a shell would. The rewrite is also skipped when nothing exists
+                at the resolved location, so a genuinely missing executable
+                still reports the same not-found result against the name the
+                operator wrote.
+    @param[in]  argv Argument vector; ``argv[0]`` is the executable.
+    @param[in]  cwd Working directory the child will run in, or ``None``.
+    @return     The argument vector to launch, as a list.
+    @exception  None
+    """
+    command = list(argv)
+    if cwd is None or not command:
+        return command
+    executable = command[0]
+    if "/" not in executable and "\\" not in executable:
+        return command
+    candidate = Path(executable)
+    if candidate.is_absolute():
+        return command
+    resolved = Path(cwd) / candidate
+    if resolved.exists():
+        command[0] = str(resolved)
+    return command
+
+
 class SubprocessCommandRunner:
     """
     @brief Real, subprocess-backed :class:`CommandRunner` implementation.
@@ -169,7 +211,7 @@ class SubprocessCommandRunner:
         """
         try:
             completed = subprocess.run(
-                list(argv),
+                _resolved_argv(argv, cwd),
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

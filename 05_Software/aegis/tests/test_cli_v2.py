@@ -489,6 +489,135 @@ def test_complete_adoption_flow_uses_stage_specific_forms(
     assert all(record.status == "closed" for record in graph.stage_records.values())
 
 
+def test_component_adoption_stage_can_create_requirements(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief Publish a requirement minted by `stage add` during adoption."""
+    monkeypatch.chdir(tmp_path)
+    main(["run", "start", "adoption", "--json"])
+    run_id = json.loads(capsys.readouterr().out)["run_id"]
+    _drive_to_component_adoption(tmp_path, run_id, capsys)
+
+    main(["stage", "add", "--category", "functional", "--json"])
+    added = json.loads(capsys.readouterr().out)
+    form = tmp_path / added["artifact"]
+    assert form.name == "requirement-001.toml"
+    _replace(
+        form,
+        {
+            'requirement = ""': (
+                'requirement = "The billing component shall reject an '
+                'invoice with no line items."'
+            ),
+            'rationale = ""': 'rationale = "Documents adopted legacy behavior"',
+            'verification = ""': (
+                'verification = "Manual: inspect the adopted billing module"'
+            ),
+        },
+    )
+    _replace(
+        _artifact(tmp_path, run_id),
+        {
+            "adopted_components = []": 'adopted_components = ["billing"]',
+            "requirement_links = []": 'requirement_links = ["billing baseline"]',
+            'summary = ""': 'summary = "Billing component adopted"',
+        },
+    )
+    _apply_close(capsys)
+
+    main(["requirement", "list", "--json"])
+    listed = json.loads(capsys.readouterr().out)["requirements"]
+    assert len(listed) == 1
+    assert listed[0]["category"] == "functional"
+    main(["verify", "traceability", "--json"])
+    assert json.loads(capsys.readouterr().out)["issues"] == []
+
+
+def test_component_adoption_rehydrates_its_requirement_forms(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief Rebuild adoption requirement forms from the imported payload."""
+    monkeypatch.chdir(tmp_path)
+    main(["run", "start", "adoption", "--json"])
+    run_id = json.loads(capsys.readouterr().out)["run_id"]
+    _drive_to_component_adoption(tmp_path, run_id, capsys)
+
+    main(["stage", "add", "--json"])
+    form = tmp_path / json.loads(capsys.readouterr().out)["artifact"]
+    requirement_id = _toml_value(form, "id")
+    _replace(
+        form,
+        {
+            'requirement = ""': 'requirement = "The billing component shall bill."',
+            'rationale = ""': 'rationale = "Documents adopted legacy behavior"',
+            'verification = ""': 'verification = "Manual: inspect the module"',
+        },
+    )
+    _replace(
+        _artifact(tmp_path, run_id),
+        {
+            "adopted_components = []": 'adopted_components = ["billing"]',
+            'summary = ""': 'summary = "Billing component adopted"',
+        },
+    )
+    main(["stage", "apply", "--json"])
+    capsys.readouterr()
+    main(["stage", "prepare", "--json"])
+    capsys.readouterr()
+
+    rehydrated = _stage_dir(tmp_path, run_id, "component-adoption") / "requirement-001.toml"
+    assert _toml_value(rehydrated, "id") == requirement_id
+
+
+def _drive_to_component_adoption(
+    tmp_path: Path,
+    run_id: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief Close the four adoption stages preceding component-adoption."""
+    _replace(
+        _artifact(tmp_path, run_id),
+        {
+            'statement = ""': 'statement = "Adopt the billing component"',
+            'adoption_slice = ""': 'adoption_slice = "billing"',
+            'summary = ""': 'summary = "Adoption intake approved"',
+        },
+    )
+    _apply_close(capsys)
+    _replace(
+        _artifact(tmp_path, run_id),
+        {
+            'understanding = ""': 'understanding = "Map billing without behavior changes"',
+            "in_scope = []": 'in_scope = ["src/billing"]',
+            "acceptance_criteria = []": 'acceptance_criteria = ["billing baseline documented"]',
+            'summary = ""': 'summary = "Adoption alignment approved"',
+        },
+    )
+    _apply_close(capsys)
+    _replace(
+        _artifact(tmp_path, run_id),
+        {
+            "candidate_components = []": 'candidate_components = ["billing"]',
+            'summary = ""': 'summary = "Repository discovery complete"',
+        },
+    )
+    _apply_close(capsys)
+    _replace(
+        _artifact(tmp_path, run_id),
+        {
+            "components = []": 'components = ["billing"]',
+            "approved_slice = []": 'approved_slice = ["billing"]',
+            'approval_decision = "pending"': 'approval_decision = "approved"',
+            'summary = ""': 'summary = "Component map approved"',
+        },
+    )
+    _apply_close(capsys)
+
+
 def _apply_close(capsys: pytest.CaptureFixture[str]) -> None:
     """@brief Apply and close the current prepared stage."""
     main(["stage", "apply", "--json"])
