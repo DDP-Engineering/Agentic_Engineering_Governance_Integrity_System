@@ -378,6 +378,7 @@ aegis verify invariants
 aegis verify traceability
 aegis verify coverage
 aegis verify impact [paths-file]
+aegis verify impact [paths-file] --run
 aegis verify working-tree
 ```
 
@@ -402,6 +403,16 @@ registered red/green evidence; legacy graphs retain the explicit N/A result.
 Impact analysis, enabled gates, the secrets scan, remaining invariants, scope
 advisory, and working-tree review still execute. The summary includes the quick
 profile and the explicit bypassed-stage list.
+
+`verify impact` without `--run` is reporting-only. With `--run`, AEGIS builds a
+stable union of linked selectors and appends them as individual argv entries to
+`[gates.test].impacted_command`; it never interpolates them into a shell
+command. Any uncovered source, requirement without a linked test, unsafe
+selector, empty selection, or missing focused prefix selects `full-fallback`
+and runs every configured full test command instead. The response and journal
+name `focused` or `full-fallback`, the selectors, and the precise fallback
+reason. If neither route can launch a command, the explicit request returns
+non-zero `nothing-ran`.
 
 The security group runs only explicitly configured deterministic tooling. Its
 result is evidence from that tooling, not an authoritative security-assurance

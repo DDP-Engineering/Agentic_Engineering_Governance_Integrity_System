@@ -275,6 +275,34 @@ def test_gate_timeout_rejects_a_non_positive_value(
     assert raised.value.key_path == "gates.test.timeout"
 
 
+def test_impacted_command_is_optional_argv_and_rejects_control_characters(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Preserve schema-3 omission while rejecting unsafe argv prefixes."""
+    assert load_config(tmp_path).gates.test.impacted_command == ()
+
+    replace_workflow_toml(
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []\n'
+        'impacted_command = ["python", "-m", "pytest", "-q"]',
+    )
+    assert load_config(tmp_path).gates.test.impacted_command == (
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+    )
+
+    replace_workflow_toml(
+        'impacted_command = ["python", "-m", "pytest", "-q"]',
+        'impacted_command = ["python\\n-m"]',
+    )
+    with pytest.raises(ConfigurationError) as raised:
+        load_config(tmp_path)
+    assert raised.value.key_path == "gates.test.impacted_command"
+
+
 def test_run_gates_uses_each_groups_own_configured_timeout(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],

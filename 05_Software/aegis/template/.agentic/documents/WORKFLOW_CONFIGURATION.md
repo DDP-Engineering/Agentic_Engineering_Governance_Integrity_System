@@ -110,6 +110,7 @@ commands = []
 [gates.test]
 mode = "disabled"
 commands = []
+impacted_command = []
 
 [gates.security]
 mode = "disabled"

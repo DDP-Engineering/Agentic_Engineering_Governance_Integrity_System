@@ -93,6 +93,10 @@ commands = []
 [gates.test]
 mode = "disabled"
 commands = []
+# Optional argv-only prefix for `aegis verify impact --run`. AEGIS appends
+# each resolved linked-test selector as one separate argument and never invokes
+# this prefix through a shell. Leave empty to use the complete test gate.
+# impacted_command = ["python", "-m", "pytest", "-q"]
 
 [gates.security]
 mode = "disabled"

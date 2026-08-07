@@ -48,7 +48,12 @@ from .evidence_forms import (
     show_evidence,
 )
 from .errors import CommandInputError
-from .gates import gate_failure_blockers, run_gates_with_outcome
+from .gates import (
+    gate_failure_blockers,
+    plan_impact_test_execution,
+    run_gates_with_outcome,
+    run_impact_test_execution,
+)
 from .invariants import blocking_failures, evaluate
 from .models import Graph
 from .persistence import PersistenceError
@@ -332,6 +337,12 @@ def _build_parser() -> argparse.ArgumentParser:
     verify_sub.add_parser("coverage")
     verify_impact = verify_sub.add_parser("impact")
     verify_impact.add_argument("paths_file", nargs="?")
+    verify_impact.add_argument(
+        "--run",
+        dest="run_impact",
+        action="store_true",
+        help="execute the focused test selection or its safe full-test fallback",
+    )
     verify_sub.add_parser("working-tree")
 
     delivery = groups.add_parser("delivery", help="inspect delivery handoff")
@@ -825,7 +836,29 @@ def _verify_impact(
     """@brief Report the change-impact set for the configured or given paths."""
     paths = _read_paths_file(root, args.paths_file) if args.paths_file else None
     report = impact(root, paths, config=config)
-    return _payload(graph, "none", next_command(graph, root), impact=report), 0
+    if not args.run_impact:
+        return _payload(graph, "none", next_command(graph, root), impact=report), 0
+    plan = plan_impact_test_execution(report, config)
+    outcome = run_impact_test_execution(root, graph.run_id, config, plan)
+    graph = load_graph(root, graph.run_id)
+    impact_execution: dict[str, object] = {
+        "mode": plan.mode,
+        "selectors": list(plan.selectors),
+    }
+    if plan.fallback_reason:
+        impact_execution["fallback_reason"] = plan.fallback_reason
+    details: dict[str, object] = {
+        "impact": report,
+        "impact_execution": impact_execution,
+        "execution_status": outcome.execution_status,
+        "executed_count": outcome.executed_count,
+    }
+    if outcome.reason:
+        details["reason"] = outcome.reason
+    return (
+        _payload(graph, "none", next_command(graph, root), **details),
+        outcome.exit_code,
+    )
 
 
 def _verify_working_tree(
@@ -1315,6 +1348,8 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
         token = argv[index]
         if token == "--json":
             globals_.append(token)
+        elif token == "--run" and _is_impact_run_option(argv, index):
+            command.append(token)
         elif token == "--run":
             if index + 1 >= len(argv):
                 command.append(token)
@@ -1327,6 +1362,15 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
             command.append(token)
         index += 1
     return [*globals_, *command]
+
+
+def _is_impact_run_option(argv: list[str], index: int) -> bool:
+    """@brief Distinguish `verify impact --run` from global `--run <id>`."""
+    return (
+        "verify" in argv[:index]
+        and "impact" in argv[:index]
+        and (index + 1 == len(argv) or argv[index + 1].startswith("-"))
+    )
 
 
 def _read_paths_file(root: Path, value: str) -> list[str]:

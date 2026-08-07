@@ -15,7 +15,9 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 1. Run `<workflow> config validate --json` and
    `<workflow> config show --json`.
 2. Run `<workflow> verify traceability`, `<workflow> verify coverage`, and
-   `<workflow> verify impact [paths-file]`.
+   `<workflow> verify impact [paths-file]`. When the reviewed impact set is
+   complete and `[gates.test].impacted_command` is configured, use
+   `<workflow> verify impact --run`; otherwise use the full test gate.
 3. Treat impacted requirements as observable contracts. Mutate them only
    through requirement-stage forms after human approval.
 4. For a fix, reproduce the exact failure as red evidence before

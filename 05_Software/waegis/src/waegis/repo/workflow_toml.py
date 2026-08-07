@@ -330,6 +330,33 @@ def normalize_gate_commands(raw: Any) -> list[str]:
     return commands
 
 
+def normalize_impacted_command(raw: Any) -> list[str]:
+    """
+    @brief Validate one optional argv prefix for focused impact testing.
+    @details Unlike ordinary gate commands, this is one command's already split
+             argv. Its values are passed directly to ``subprocess`` with no
+             shell interpretation, so repeated options remain meaningful.
+    """
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                "impacted command must be JSON argv, e.g. [\"python\", \"-m\", \"pytest\", \"-q\"]"
+            ) from exc
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+        raise ValueError("impacted command must be a list of argv strings")
+    argv: list[str] = []
+    for value in raw:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("each impacted argv entry must be a non-empty string")
+        normalized = value.strip()
+        if "\x00" in normalized or "\n" in normalized or "\r" in normalized:
+            raise ValueError("impacted argv entries must not contain NUL or newline characters")
+        argv.append(normalized)
+    return argv
+
+
 def normalize_bool(raw: Any) -> bool:
     """
     @brief      Validate/normalize a boolean answer (alignment_enabled).
@@ -1611,13 +1638,29 @@ def verify_workflow_schema(
     _schema_table(document, "gates", GATE_ORDER)
     for name in GATE_ORDER:
         key_path = f"gates.{name}"
-        group = _schema_table(document, key_path, ("mode", "commands"))
+        keys = ("mode", "commands", "timeout")
+        conditional = ("timeout",)
+        if name == "test":
+            keys += ("impacted_command",)
+            conditional += ("impacted_command",)
+        group = _schema_table(document, key_path, keys, conditional=conditional)
         mode = _schema_mode(group, key_path, ("disabled", "enforce"))
         commands = _schema_list(group, "commands", f"{key_path}.commands")
         if mode == "enforce" and not commands:
             raise InvariantViolationError(
                 1, f"enforced {name} gate requires at least one command"
             )
+        if "timeout" in group and _schema_integer(
+            group, "timeout", f"{key_path}.timeout"
+        ) <= 0:
+            raise InvariantViolationError(1, f"{key_path}.timeout must be greater than zero")
+        if name == "test" and "impacted_command" in group:
+            try:
+                normalize_impacted_command(group["impacted_command"])
+            except ValueError as exc:
+                raise InvariantViolationError(
+                    1, f"{key_path}.impacted_command is invalid: {exc}"
+                ) from exc
 
     _schema_table(
         document,

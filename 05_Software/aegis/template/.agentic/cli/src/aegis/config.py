@@ -202,6 +202,7 @@ class GateGroupPolicy:
     mode: str
     commands: tuple[str, ...]
     timeout: int
+    impacted_command: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -806,12 +807,17 @@ class _Parser:
         groups: dict[str, GateGroupPolicy] = {}
         for name in GATE_ORDER:
             key_path = f"gates.{name}"
+            keys = ("mode", "commands", "timeout")
+            conditional = ("timeout",)
+            if name == "test":
+                keys += ("impacted_command",)
+                conditional += ("impacted_command",)
             group = self._table(
                 table,
                 name,
                 key_path,
-                ("mode", "commands", "timeout"),
-                conditional=("timeout",),
+                keys,
+                conditional=conditional,
             )
             mode = self._choice(
                 group, "mode", f"{key_path}.mode", ("disabled", "enforce")
@@ -833,7 +839,21 @@ class _Parser:
                     )
             else:
                 timeout = DEFAULT_GATE_TIMEOUT_SECONDS
-            groups[name] = GateGroupPolicy(mode, commands, timeout)
+            impacted_command = (
+                self._argv(
+                    group,
+                    "impacted_command",
+                    f"{key_path}.impacted_command",
+                )
+                if name == "test" and "impacted_command" in group
+                else ()
+            )
+            groups[name] = GateGroupPolicy(
+                mode,
+                commands,
+                timeout,
+                impacted_command,
+            )
         return GatePolicy(**groups)
 
     def _rule_policy(
@@ -1186,6 +1206,20 @@ class _Parser:
     ) -> tuple[str, ...]:
         return self._strings(table, key, key_path, non_empty=False)
 
+    def _argv(
+        self, table: dict[str, Any], key: str, key_path: str
+    ) -> tuple[str, ...]:
+        """@brief Parse an optional argv prefix without shell interpretation."""
+        values = self._strings(table, key, key_path, non_empty=False)
+        for value in values:
+            if "\x00" in value or "\n" in value or "\r" in value:
+                self._rule_invalid(
+                    key_path,
+                    value,
+                    "argv strings without NUL or newline characters",
+                )
+        return values
+
     def _normalize_path(
         self, value: str, key_path: str, *, allow_glob: bool = False
     ) -> str:
@@ -1410,6 +1444,15 @@ def effective_config_dict(config: WorkflowConfig) -> dict[str, object]:
                 getattr(config.gates, name).mode,
                 commands=list(getattr(config.gates, name).commands),
                 timeout=getattr(config.gates, name).timeout,
+                **(
+                    {
+                        "impacted_command": list(
+                            getattr(config.gates, name).impacted_command
+                        )
+                    }
+                    if name == "test"
+                    else {}
+                ),
             )
             for name in GATE_ORDER
         },

@@ -159,6 +159,21 @@ looking successful. This is deliberately different from `<workflow> verify
 run`: it performs an aggregate audit, reports disabled gates as
 `not-enforced`, and still evaluates its deterministic non-gate checks.
 
+For a bounded focused regression after reviewing the report, configure
+`[gates.test].impacted_command` as an argv prefix and run:
+
+```text
+<workflow> verify impact --run
+```
+
+AEGIS resolves the complete linked-test union in sorted order and appends each
+selector as one argv element with no shell. If a changed source is uncovered, a
+related requirement has no linked test, a selector is unsafe, no selector is
+resolved, or no focused prefix is configured, it reports the exact reason and
+runs every configured full test command. The result records `focused` or
+`full-fallback`, selectors, outputs, evidence, and its journal event together;
+no executable route is a non-zero `nothing-ran` outcome.
+
 **Delivery.** The final handoff: preflight references, remaining risks, and
 the human decision to hand the work off. Closing delivery marks the AEGIS run
 complete. It is deliberately inert beyond that — no Git push, no pull

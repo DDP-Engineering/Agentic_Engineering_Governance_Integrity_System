@@ -29,6 +29,8 @@ Integrity System. The runnable Python package is embedded under
 - deterministic build, typecheck, lint, test, and security gates, all optional;
 - explicit `nothing-ran` outcomes for managed checks and explicitly requested
   gate execution that launch zero commands;
+- safe `verify impact --run` focused test execution through a configured argv
+  prefix, with deterministic selector selection and a complete-test fallback;
 - consolidated impact/gates/invariants/traceability/coverage/working-tree
   verification before human diff review;
 - exact human-approved, run-local process waivers with mandatory reasons,
@@ -71,6 +73,14 @@ reason; it journals that outcome and writes no passing evidence. A command that
 does launch remains `pass`, `fail`, or `waived` as its observed result requires.
 `verify run` is an aggregate audit instead: disabled gate groups are reported
 as `not-enforced`, not as a failed nothing-ran execution.
+
+When `[gates.test].impacted_command` is configured as an argv prefix, `aegis
+verify impact [paths-file] --run` appends the complete, sorted linked-test set
+as individual argv values with `shell = false`. Any incomplete coverage, unsafe
+selector, empty selection, or omitted prefix reports the exact reason and runs
+every configured full test command. If no focused or full test command can
+launch, the explicit request is non-zero `nothing-ran`; normal gate evidence,
+logs, waiver behavior, and transactional publication still apply.
 
 For a fresh stage session, read `AGENTS.md`, run `aegis run context --json`,
 then follow `unavailable_current_artifact` recovery exactly; never prepare an

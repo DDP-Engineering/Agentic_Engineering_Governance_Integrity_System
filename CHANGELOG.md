@@ -13,6 +13,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add safe `aegis verify impact [paths-file] --run` execution. The optional
+  `[gates.test].impacted_command` is an argv-only focused-test prefix; AEGIS
+  appends deterministic, deduplicated selectors with no shell interpolation,
+  falls back to every full test command for incomplete or unsafe impact, and
+  records focused/full-fallback mode, evidence, output, and journal state
+  atomically. A no-command request remains explicit non-zero `nothing-ran`.
+
 - Add an explicit `nothing-ran` execution outcome for managed checks and
   explicitly requested gate runs. When no command launches, the command exits
   non-zero, returns `execution_status`, `executed_count`, and a reason, writes

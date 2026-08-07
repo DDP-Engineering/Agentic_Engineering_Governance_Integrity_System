@@ -102,6 +102,7 @@ command in that group):
 mode = "enforce"
 commands = ["pytest -q"]
 timeout = 2400
+impacted_command = ["python", "-m", "pytest", "-q"]
 ```
 
 Omitted, it defaults to 1800 seconds (30 minutes). Raise it for a genuinely
@@ -109,6 +110,14 @@ slow suite rather than letting AEGIS report a false `fail` for a command that
 was still running — the recorded evidence for a timed-out command is
 indistinguishable from a real failure unless you already know to expect it,
 so a too-short timeout on a slow gate quietly produces misleading history.
+
+`impacted_command` is optional and is deliberately different from `commands`:
+it is one already-split argv prefix for `aegis verify impact --run`, never a
+shell template. AEGIS appends each safe, resolved selector as one argument.
+When the impact set is incomplete or unsafe, or the prefix is absent, it prints
+the fallback reason and uses every full `commands` entry instead. Leave it as
+an empty list (or omit it in an existing schema-3 file) when full-gate fallback
+is the only approved regression path.
 
 A reasonable adoption order: turn on `test` first (you likely already run
 tests), then `build` and `typecheck` if your language has them, then `lint`,

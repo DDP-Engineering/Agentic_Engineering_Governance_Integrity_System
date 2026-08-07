@@ -36,7 +36,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import os
 import shlex
 import subprocess
@@ -72,6 +72,17 @@ class GateExecutionOutcome:
     executed_count: int
     reason: str
     exit_code: int
+
+
+@dataclass(frozen=True)
+class ImpactExecutionPlan:
+    """@brief One resolved focused or fail-safe full impact-test execution."""
+
+    mode: str
+    selectors: tuple[str, ...]
+    fallback_reason: str
+    focused_argv: tuple[str, ...]
+    full_commands: tuple[str, ...]
 
 
 def run_gates(
@@ -318,7 +329,288 @@ def gate_failure_blockers(
     return blockers
 
 
+def plan_impact_test_execution(
+    report: list[dict[str, object]],
+    config: WorkflowConfig,
+) -> ImpactExecutionPlan:
+    """
+    @brief Select argv-only focused testing or a complete full-test fallback.
+    @param[in] report Deterministic impact rows from :func:`requirements.impact`.
+    @param[in] config Validated workflow configuration.
+    @return Focused argv or the exact reason and commands for full fallback.
+    """
+    selectors: set[str] = set()
+    reason = ""
+    for item in report:
+        path = str(item.get("file", ""))
+        requirements = item.get("requirements", [])
+        linked = item.get("linked_tests", [])
+        if _is_changed_source(path, config) and not requirements:
+            reason = f"uncovered changed source: {path}"
+            break
+        if item.get("uncovered"):
+            reason = f"uncovered changed source: {path}"
+            break
+        if requirements and not linked:
+            reason = f"changed requirement has no linked tests: {path}"
+            break
+        if not isinstance(linked, list) or any(
+            not isinstance(selector, str) for selector in linked
+        ):
+            reason = f"unsafe selector set for changed path: {path}"
+            break
+        for selector in linked:
+            assert isinstance(selector, str)
+            unsafe = _unsafe_impact_selector(selector, config)
+            if unsafe:
+                reason = f"unsafe selector ({unsafe}): {selector!r}"
+                break
+            selectors.add(selector)
+        if reason:
+            break
+    ordered_selectors = tuple(sorted(selectors))
+    test_gate = config.gates.test
+    if not reason and not ordered_selectors:
+        reason = "impact analysis produced no linked test selectors"
+    if not reason and not test_gate.impacted_command:
+        reason = "gates.test.impacted_command is not configured"
+    if test_gate.mode != "enforce":
+        reason = "test gate is disabled"
+    if reason:
+        return ImpactExecutionPlan(
+            "full-fallback",
+            ordered_selectors,
+            reason,
+            (),
+            test_gate.commands if test_gate.mode == "enforce" else (),
+        )
+    return ImpactExecutionPlan(
+        "focused",
+        ordered_selectors,
+        "",
+        (*test_gate.impacted_command, *ordered_selectors),
+        (),
+    )
+
+
+def run_impact_test_execution(
+    repo_root: Path,
+    run_id: str,
+    config: WorkflowConfig,
+    plan: ImpactExecutionPlan,
+) -> GateExecutionOutcome:
+    """
+    @brief Execute a resolved impact plan and atomically publish test evidence.
+    @param[in] repo_root Repository root where commands execute.
+    @param[in] run_id Selected run identifier.
+    @param[in] config Validated workflow configuration.
+    @param[in] plan Resolved focused or full-fallback command plan.
+    @return Explicit pass, fail, waived, or nothing-ran execution outcome.
+    """
+    graph = load_graph(repo_root, run_id)
+    captured_stage = graph.stage
+    captured_record = graph.stage_records.get(captured_stage)
+    captured_revision = (
+        (captured_record.revision, captured_record.digest)
+        if captured_record is not None
+        else None
+    )
+    completed: list[tuple[str, subprocess.CompletedProcess[str]]] = []
+    if plan.mode == "focused":
+        completed.append(
+            (_command_text(plan.focused_argv), _run_argv_command(
+                repo_root,
+                list(plan.focused_argv),
+                config.gates.test.timeout,
+            ))
+        )
+    else:
+        completed.extend(
+            (command, _run_command(repo_root, command, config.gates.test.timeout))
+            for command in plan.full_commands
+        )
+
+    with graph_transaction(repo_root, graph):
+        current_record = graph.stage_records.get(captured_stage)
+        current_revision = (
+            (current_record.revision, current_record.digest)
+            if current_record is not None
+            else None
+        )
+        if graph.stage != captured_stage or current_revision != captured_revision:
+            raise GraphConflictError(graph.run_id)
+        if not completed:
+            reason = "No executable focused or full test command is configured."
+            save_graph_with_journal_events(
+                repo_root,
+                graph,
+                [
+                    (
+                        "impact.execution",
+                        {
+                            "mode": plan.mode,
+                            "selectors": list(plan.selectors),
+                            "fallback_reason": plan.fallback_reason,
+                            "execution_status": "nothing-ran",
+                            "executed_count": 0,
+                            "reason": reason,
+                        },
+                    )
+                ],
+            )
+            return GateExecutionOutcome("nothing-ran", 0, reason, 1)
+
+        log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
+        created_logs: list[Path] = []
+        events: list[tuple[str, dict[str, object]]] = []
+        try:
+            log_root.mkdir(parents=True, exist_ok=True)
+            for ordinal, (command, result) in enumerate(completed, start=1):
+                evidence_id = next_evidence_id(graph)
+                log_path = log_root / (
+                    f"gate-test-{ordinal}-{graph.stage}-{evidence_id}.log"
+                )
+                created_logs.append(log_path)
+                log_path.write_text(
+                    f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}\n",
+                    encoding="utf-8",
+                )
+                evidence = Evidence(
+                    id=evidence_id,
+                    kind="gate",
+                    result="pass" if result.returncode == 0 else "fail",
+                    summary=f"test: {command}",
+                    command=command,
+                    stage=graph.stage,
+                    gate_name="test",
+                    exit_status=result.returncode,
+                    output_log=log_path.relative_to(repo_root).as_posix(),
+                )
+                _supersede_prior_gate_evidence(graph, evidence)
+                graph.evidence.append(evidence)
+                events.extend(
+                    [
+                        ("evidence.recorded", asdict(evidence)),
+                        (
+                            "gate.output",
+                            {
+                                "gate": "test",
+                                "command": command,
+                                "returncode": result.returncode,
+                                "stdout_tail": result.stdout[-4000:],
+                                "stderr_tail": result.stderr[-4000:],
+                            },
+                        ),
+                    ]
+                )
+            events.append(
+                (
+                    "impact.execution",
+                    {
+                        "mode": plan.mode,
+                        "selectors": list(plan.selectors),
+                        "fallback_reason": plan.fallback_reason,
+                        "execution_status": "pass" if all(
+                            result.returncode == 0 for _, result in completed
+                        ) else "fail",
+                        "executed_count": len(completed),
+                    },
+                )
+            )
+            save_graph_with_journal_events(repo_root, graph, events)
+        except BaseException:
+            for path in created_logs:
+                path.unlink(missing_ok=True)
+            try:
+                log_root.rmdir()
+            except OSError:
+                pass
+            raise
+
+        blockers = {
+            blocker.id: blocker
+            for blocker in gate_failure_blockers(graph, config, ["test"])
+        }
+        exit_code = 0
+        saw_failure = False
+        for _command, result in completed:
+            if result.returncode == 0:
+                continue
+            saw_failure = True
+            blocker = blockers.get("gate:test")
+            if blocker is None or active_waiver(graph, blocker) is None:
+                exit_code = result.returncode
+    if saw_failure and exit_code == 0:
+        return GateExecutionOutcome("waived", len(completed), "", 0)
+    return GateExecutionOutcome(
+        "fail" if exit_code else "pass",
+        len(completed),
+        "",
+        exit_code,
+    )
+
+
 # HELPER FUNCTIONS
+
+
+def _is_changed_source(path: str, config: WorkflowConfig) -> bool:
+    """@brief Return whether one impact row names configured source material."""
+    normalized = path.replace("\\", "/")
+    return (
+        any(
+            normalized == root or normalized.startswith(f"{root}/")
+            for root in config.source_roots
+        )
+        and Path(normalized).suffix in config.source_extensions
+    )
+
+
+def _unsafe_impact_selector(selector: str, config: WorkflowConfig) -> str:
+    """@brief Return an actionable reason when a selector is unsafe for argv."""
+    if selector.startswith("-"):
+        return "starts with an option"
+    if "\x00" in selector:
+        return "contains NUL"
+    if "\n" in selector or "\r" in selector:
+        return "contains newline"
+    try:
+        from .requirement_store import normalize_linked_test
+
+        normalized = normalize_linked_test(selector, config.test_roots)
+    except ValueError:
+        return "escapes the repository or configured test roots"
+    if normalized != selector:
+        return "cannot be represented as one stable argv element"
+    return ""
+
+
+def _command_text(argv: tuple[str, ...]) -> str:
+    """@brief Render an argv list only for evidence display; never for execution."""
+    return subprocess.list2cmdline(list(argv))
+
+
+def _run_argv_command(
+    repo_root: Path,
+    argv: list[str],
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    """@brief Execute one focused command through argv-only subprocess mode."""
+    try:
+        return subprocess.run(
+            argv,
+            cwd=repo_root,
+            shell=False,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return _failed_process(_command_text(tuple(argv)), 124, exc)
+    except OSError as exc:
+        return _failed_process(_command_text(tuple(argv)), 127, exc)
 
 
 def _supersede_prior_gate_evidence(graph: Graph, evidence: Evidence) -> None:

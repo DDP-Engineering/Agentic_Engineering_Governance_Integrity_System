@@ -34,6 +34,7 @@ from waegis.repo.workflow_toml import (
     WORKFLOW_FIELD_SPECS,
     generate_workflow_toml,
     normalize_gate_commands,
+    normalize_impacted_command,
     normalize_roots,
     normalize_stage_map,
     verify_workflow_invariants,
@@ -211,6 +212,37 @@ def test_gate_commands_are_emitted_as_canonical_strings(base_text: str) -> None:
         "commands": ["ruff check ."],
     }
     assert normalize_gate_commands('["pytest -q"]') == ["pytest -q"]
+
+
+def test_generator_and_validator_preserve_an_argv_only_impact_prefix(
+    base_text: str,
+) -> None:
+    """@brief WAEGIS generates and validates the optional focused-test argv."""
+    configured_base = base_text.replace(
+        '[gates.test]\nmode = "disabled"\ncommands = []\n',
+        '[gates.test]\nmode = "disabled"\ncommands = []\n'
+        'impacted_command = ["python", "-m", "pytest", "-q"]\n',
+        1,
+    )
+    result = _generate(configured_base)
+    document = tomllib.loads(result.text)
+
+    assert document["gates"]["test"]["impacted_command"] == [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+    ]
+    verify_workflow_schema(document)
+    assert normalize_impacted_command('["python", "-m", "pytest"]') == [
+        "python",
+        "-m",
+        "pytest",
+    ]
+
+    document["gates"]["test"]["impacted_command"] = ["python\n-m"]
+    with pytest.raises(InvariantViolationError, match="impacted_command"):
+        verify_workflow_schema(document)
 
 
 def test_generator_supports_all_restrictive_policy_modes(base_text: str) -> None:

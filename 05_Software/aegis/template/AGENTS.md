@@ -205,6 +205,13 @@ Run linked checks first. Use full regression for shared, cross-cutting, or
 untraced changes. Cover relevant variants, response shapes, stale-state cleanup,
 rollback, errors, boundaries, concurrency, and idempotency.
 
+When `[gates.test].impacted_command` is an explicit argv prefix, run
+`<workflow> verify impact --run` after reviewing the impact report. AEGIS adds
+the resolved linked-test selectors as separate argv values with no shell. It
+uses focused mode only for complete, safe coverage; otherwise it prints the
+fallback reason and executes every configured full test command. A focused or
+fallback request that cannot launch any command is `nothing-ran`, not a pass.
+
 ## Recorded Waivers
 
 When a process blocker should be overcome once, show the human the exact
