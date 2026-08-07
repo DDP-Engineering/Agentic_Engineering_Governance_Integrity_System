@@ -80,3 +80,22 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   behavior are omitted under the user scope override. Any WAEGIS continuity or
   simplification work remains outside WP7.
 - Next allowed package: WP8 only after the required acceptance review.
+
+## Correction after parity review
+
+- Finding: the adapter map stated the bounded fresh-session route, while
+  `AGENTS.md` and host documentation still required `config validate --json`
+  and broad `config show --json` output before every repository action. That
+  contradicted the `run context` pack by adding a non-required read and a large
+  diagnostic payload.
+- Resolution: `run context` is now documented as the configuration-validating
+  fresh-session entry point. `config validate` confirms a configuration repair;
+  `config show` is explicit diagnosis only. The map and regression suite now
+  enumerate and protect the root host notes, every host README, the OpenCode
+  primary agent, all adapter wrappers, and the mapped configuration/plugin
+  entry files.
+- Correction validation: focused documentation, adapter, and context coverage
+  passed (`62 passed`); changed-test Ruff, Python compilation, and AEGIS CLI
+  help passed. Full AEGIS validation passed (`622 passed, 3 skipped`). Final
+  whitespace, genericity, scope, copied-template cache, empty starter
+  changelog, and file-size checks passed; no WAEGIS path changed.

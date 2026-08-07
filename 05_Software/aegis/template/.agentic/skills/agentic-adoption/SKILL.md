@@ -12,11 +12,13 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # Agentic Adoption
 
-Adoption uses the same file-first lifecycle as standard work:
+Adoption uses the same file-first lifecycle as standard work. The run-start
+command validates the workflow configuration before it acts. Use
+`<workflow> config validate --json` after a configuration repair and
+`<workflow> config show --json` only for explicit policy diagnosis; neither is
+a fresh-session bootstrap step.
 
 ```text
-<workflow> config validate --json
-<workflow> config show --json
 <workflow> run start adoption
 <workflow> run resume
 <workflow> stage prepare
@@ -31,11 +33,10 @@ decisions in flags. The human explicitly approves every `stage close`.
 
 Read `AGENTS.md`, run `<workflow> run context --json`, then read only its
 `required_reads`: named skill, reference, current form, and retained previous
-form. If
-`unavailable_current_artifact` is present, run only its recovery command;
-never prepare an already applied stage. Do not recover ordinary adoption work
-by reading `graph.json` or `journal.jsonl`; use `run
-status` only for detailed diagnosis.
+form. If `unavailable_current_artifact` is present, run only its recovery
+command; never prepare an already applied stage. Do not recover ordinary
+adoption work by reading `graph.json` or `journal.jsonl`; use `run status` only
+for detailed diagnosis.
 
 The required order is:
 

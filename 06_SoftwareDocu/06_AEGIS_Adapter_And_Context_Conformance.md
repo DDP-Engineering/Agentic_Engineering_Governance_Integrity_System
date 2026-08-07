@@ -30,15 +30,19 @@ reference, current primary form, and at most the retained immediately preceding
 form. It excludes evidence history, full configuration, requirements, reports,
 `graph.json`, and `journal.jsonl`. Recovery and metadata documentation remain
 available for diagnosis, but they are outside the ordinary forward context
-pack. The copied `ADAPTER_CONFORMANCE.md` inventories every supported host
+pack. `run context` validates the workflow configuration before it responds.
+`config validate` is the explicit confirmation after a configuration repair;
+`config show` is policy diagnosis only. Neither belongs in the fresh-session
+sequence. The copied `ADAPTER_CONFORMANCE.md` inventories every supported host
 entry point and its payload-owned source.
 
 ## Compatibility Policy
 
 Host adapters must not reimplement stage lists, completion conditions, quick
-rules, or CLI fallback logic. Each same-named host skill delegates to its
-same-named payload skill. Pi reuses `.agentic/skills` directly through its
-package manifest. Adapter tests reject stage instructions in host wrappers,
+rules, CLI fallback logic, or another bootstrap sequence. Each same-named host
+skill delegates to its same-named payload skill. Pi reuses `.agentic/skills`
+directly through its package manifest. Adapter tests cover every mapped
+Markdown entry point and wrapper, reject local configuration bootstrap,
 references to all stage modules at once, and ordinary-recovery instructions to
 read internal graph or journal files.
 

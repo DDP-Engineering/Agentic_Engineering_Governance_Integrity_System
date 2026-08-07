@@ -15,11 +15,10 @@ source for gate order, requirements, documentation rules, safety rules, and stop
 format. `settings.json` sets `context.fileName` to `["AGENTS.md", "QWEN.md"]` so
 Qwen loads `AGENTS.md` first and treats `QWEN.md` only as the adapter note.
 
-Before repository work, run the project-local `config validate --json` and
-`config show --json` commands. Report write, protected-read/path,
-scope, secret, gate, coverage, and delivery modes and active rule counts, plus
-the selected worktree run or explicit `--run`. AEGIS policy comes only from
-the validated file; Qwen trust and host controls remain separate.
+`run context` validates the workflow before it responds. Use `config validate`
+only to confirm a configuration repair and `config show` only for explicit
+policy diagnosis; neither command belongs in the fresh-session context pack.
+Qwen trust and host controls remain separate from AEGIS policy.
 
 For a fresh stage session, use the payload-owned canonical route: `AGENTS.md`
 then project-local `run context --json`, then only its named recovery command

@@ -350,7 +350,7 @@ def test_template_adapters_route_fresh_sessions_through_bounded_context() -> Non
 
 
 def test_adapter_entry_points_delegate_to_payload_owned_contracts() -> None:
-    """@brief AEGIS-WP7 keeps host workflow routes thin and bounded."""
+    """@brief AEGIS-WP7 keeps every mapped host route thin and bounded."""
     template_root = PACKAGE_ROOT / "template"
     adapter_contract = (
         template_root / ".agentic" / "documents" / "ADAPTER_CONFORMANCE.md"
@@ -369,16 +369,74 @@ def test_adapter_entry_points_delegate_to_payload_owned_contracts() -> None:
         "python-codestyle-audit",
         "write-component-documentation",
     )
+    fresh_entry_points = (
+        template_root / "AGENTS.md",
+        template_root / ".codex" / "README.md",
+        template_root / "CLAUDE.md",
+        template_root / ".claude" / "README.md",
+        template_root / ".pi" / "README.md",
+        template_root / ".opencode" / "README.md",
+        template_root / ".opencode" / "agents" / "aegis.md",
+        template_root / "QWEN.md",
+        template_root / ".qwen" / "README.md",
+    )
+    mapped_paths = (
+        "AGENTS.md",
+        ".agentic/tools/run.ps1",
+        ".agentic/tools/run.sh",
+        ".codex/README.md",
+        ".codex/config.toml",
+        ".codex/hooks.json",
+        "CLAUDE.md",
+        ".claude/README.md",
+        ".claude/settings.json",
+        ".pi/README.md",
+        ".pi/package.json",
+        ".pi/settings.json",
+        ".pi/extensions/agentic-guard/",
+        "opencode.json",
+        ".opencode/README.md",
+        ".opencode/agents/aegis.md",
+        ".opencode/commands/",
+        ".opencode/plugins/",
+        "QWEN.md",
+        ".qwen/README.md",
+        ".qwen/settings.json",
+        ".qwen/commands/",
+    )
 
     for host in ("Codex", "Claude Code", "Pi", "OpenCode", "Qwen Code"):
         assert host in adapter_contract
+    for path in mapped_paths:
+        assert path in adapter_contract
     for text in (adapter_contract, deep_contract):
-        assert "run context --json" in text
-        assert "stage prepare only when named" in text
-        assert "graph.json" in text
-        assert "journal.jsonl" in text
-        assert "nothing-ran" in text
-        assert "verify impact --run" in text
+        normalized = " ".join(text.split())
+        assert "run context --json" in normalized
+        assert "stage prepare only when named" in normalized
+        assert "graph.json" in normalized
+        assert "journal.jsonl" in normalized
+        assert "nothing-ran" in normalized
+        assert "verify impact --run" in normalized
+        assert "config show" in normalized
+        assert "not" in normalized and "fresh-session" in normalized
+
+    for path in fresh_entry_points:
+        text = path.read_text(encoding="utf-8")
+        normalized = " ".join(text.split())
+        for token in ("AGENTS.md", "run context --json", "stage prepare", "required_reads"):
+            assert token in normalized, path
+        assert normalized.index("AGENTS.md") < normalized.index("run context --json"), path
+        assert normalized.index("run context --json") < normalized.index("required_reads"), path
+        assert "reference/" not in text, path
+        for internal_name in ("graph.json", "journal.jsonl"):
+            for match in re.finditer(re.escape(internal_name), text):
+                guidance = text[max(0, match.start() - 100):match.end()].lower()
+                assert "do not" in guidance or "outside" in guidance, path
+
+    agents = (template_root / "AGENTS.md").read_text(encoding="utf-8")
+    normalized_agents = " ".join(agents.split())
+    assert "config show --json` only for explicit policy diagnosis" in normalized_agents
+    assert "must not be added to the bounded context pack" in normalized_agents
 
     for host in (".codex", ".claude", ".opencode", ".qwen"):
         for name in skill_names:
@@ -388,6 +446,8 @@ def test_adapter_entry_points_delegate_to_payload_owned_contracts() -> None:
             assert "reference/" not in text, path
             assert "graph.json" not in text, path
             assert "journal.jsonl" not in text, path
+            assert "config validate --json" not in text, path
+            assert "config show --json" not in text, path
 
         for name in ("agentic-adoption", "agentic-development", "agentic-delivery"):
             path = template_root / host / "skills" / name / "SKILL.md"
@@ -397,6 +457,15 @@ def test_adapter_entry_points_delegate_to_payload_owned_contracts() -> None:
             assert "stage prepare" in text, path
             assert "required_reads" in text, path
             assert "config validate --json" not in text, path
+
+        for name in (
+            "regression-traceability",
+            "documentation-audit",
+            "python-codestyle-audit",
+            "write-component-documentation",
+        ):
+            path = template_root / host / "skills" / name / "SKILL.md"
+            assert "adds no bootstrap, recovery, or policy procedure" in path.read_text(encoding="utf-8"), path
 
     pi_manifest = (template_root / ".pi" / "package.json").read_text(encoding="utf-8")
     assert '"../.agentic/skills"' in pi_manifest
@@ -408,6 +477,13 @@ def test_adapter_entry_points_delegate_to_payload_owned_contracts() -> None:
     ):
         text = path.read_text(encoding="utf-8")
         assert "reference/" not in text, path
+
+    assert (template_root / ".codex" / "config.toml").is_file()
+    assert (template_root / ".codex" / "hooks.json").is_file()
+    assert (template_root / ".claude" / "settings.json").is_file()
+    assert (template_root / "opencode.json").is_file()
+    assert (template_root / ".opencode" / "plugins" / "agentic-guard.mjs").is_file()
+    assert (template_root / ".qwen" / "settings.json").is_file()
 
 
 def test_maintained_documentation_names_latest_as_retention_default() -> None:
@@ -906,48 +982,43 @@ def test_template_text_files_have_legal_header() -> None:
     assert missing == []
 
 
-def test_agent_instructions_route_configuration_through_canonical_skills() -> None:
+def test_agent_instructions_keep_configuration_diagnosis_outside_fresh_recovery() -> None:
     """
-    @brief      Verify canonical skills own configuration bootstrap instructions.
+    @brief      Verify fresh recovery does not inject broad configuration output.
     @return     None.
     @exception  None
     """
     template_root = PACKAGE_ROOT / "template"
-    skill_names = {
-        "agentic-adoption",
-        "agentic-development",
-        "agentic-delivery",
-        "documentation-audit",
-        "python-codestyle-audit",
-        "regression-traceability",
-        "write-component-documentation",
-    }
-
     agents = (template_root / "AGENTS.md").read_text(encoding="utf-8")
     assert "<workflow> config validate --json" in agents
     assert "<workflow> config show --json" in agents
+    normalized_agents = " ".join(agents.split())
+    assert "only for explicit policy diagnosis" in normalized_agents
+    assert "not a fresh-session bootstrap input" in normalized_agents
     assert "--run <run-id>" in agents
 
-    for name in skill_names:
-        canonical = (
-            template_root / ".agentic" / "skills" / name / "SKILL.md"
-        ).read_text(encoding="utf-8")
-        assert "<workflow> config validate" in canonical
-        assert "<workflow> config show --json" in canonical
+    for name in ("agentic-adoption", "agentic-development"):
+        canonical = (template_root / ".agentic" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "after a configuration repair" in canonical
+        assert "fresh-session bootstrap step" in canonical
 
-        for adapter in (".codex", ".claude", ".opencode", ".qwen"):
+    for adapter in (".codex", ".claude", ".opencode", ".qwen"):
+        for name in (
+            "agentic-adoption",
+            "agentic-development",
+            "agentic-delivery",
+            "documentation-audit",
+            "python-codestyle-audit",
+            "regression-traceability",
+            "write-component-documentation",
+        ):
             wrapper = (
                 template_root / adapter / "skills" / name / "SKILL.md"
             ).read_text(encoding="utf-8")
             assert "AGENTS.md" in wrapper
             assert f".agentic/skills/{name}/SKILL.md" in wrapper
-            if name in {
-                "agentic-adoption",
-                "agentic-development",
-                "agentic-delivery",
-            }:
-                assert "defines no stage procedure" in wrapper
-                assert "<workflow> config validate" not in wrapper
+            assert "config validate --json" not in wrapper
+            assert "config show --json" not in wrapper
 
 
 def test_operator_documents_describe_only_current_workflow_contracts() -> None:

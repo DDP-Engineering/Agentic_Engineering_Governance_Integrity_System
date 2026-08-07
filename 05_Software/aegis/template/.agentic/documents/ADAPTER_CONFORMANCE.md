@@ -23,18 +23,21 @@ primary form, and at most the retained preceding form. Do not inject all stage
 references. Do not read `graph.json` or `journal.jsonl` for ordinary recovery;
 use the recovery command named by `run context`. The CLI API reference and
 metadata guide remain discoverable diagnostic material outside this forward
-context pack.
+context pack. `run context` validates the workflow configuration before it
+responds. `config validate` confirms a configuration repair, while `config
+show` is explicit policy diagnosis only; neither command belongs in this
+fresh-session sequence.
 
 ## Entry-Point Map
 
 | Consumer | Host entry points | Payload-owned source |
 | --- | --- | --- |
-| Direct CLI | `.agentic/tools/run.ps1`, `.agentic/tools/run.sh` | `AGENTS.md`, this document, and `CLI_API_REFERENCE.md` |
-| Codex | `.codex/config.toml`, `.codex/hooks.json`, and `.codex/skills/<name>/SKILL.md` | `.agentic/hooks/` and `.agentic/skills/<name>/SKILL.md` |
-| Claude Code | `CLAUDE.md`, `.claude/settings.json`, and `.claude/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
-| Pi | `.pi/package.json`, `.pi/settings.json`, and `.pi/extensions/agentic-guard/` | `AGENTS.md`, `.agentic/hooks/`, and the `pi.skills` path `../.agentic/skills` |
-| OpenCode | `opencode.json`, `.opencode/agents/aegis.md`, `.opencode/commands/`, `.opencode/plugins/`, and `.opencode/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/tools/run_aegis.py`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
-| Qwen Code | `QWEN.md`, `.qwen/settings.json`, `.qwen/commands/`, and `.qwen/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/tools/run_aegis.py`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
+| Direct CLI | `AGENTS.md`, `.agentic/tools/run.ps1`, and `.agentic/tools/run.sh` | `AGENTS.md`, this document, and `CLI_API_REFERENCE.md` |
+| Codex | `.codex/README.md`, `.codex/config.toml`, `.codex/hooks.json`, and `.codex/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
+| Claude Code | `CLAUDE.md`, `.claude/README.md`, `.claude/settings.json`, and `.claude/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
+| Pi | `.pi/README.md`, `.pi/package.json`, `.pi/settings.json`, and `.pi/extensions/agentic-guard/` | `AGENTS.md`, `.agentic/hooks/`, and the `pi.skills` path `../.agentic/skills` |
+| OpenCode | `opencode.json`, `.opencode/README.md`, `.opencode/agents/aegis.md`, `.opencode/commands/`, `.opencode/plugins/`, and `.opencode/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/tools/run_aegis.py`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
+| Qwen Code | `QWEN.md`, `.qwen/README.md`, `.qwen/settings.json`, `.qwen/commands/`, and `.qwen/skills/<name>/SKILL.md` | `AGENTS.md`, `.agentic/tools/run_aegis.py`, `.agentic/hooks/`, and `.agentic/skills/<name>/SKILL.md` |
 
 `<name>` is one of `agentic-adoption`, `agentic-development`,
 `agentic-delivery`, `regression-traceability`, `documentation-audit`,

@@ -15,18 +15,17 @@ New to AEGIS? Read `.agentic/documents/WHY_AEGIS.md` first, then use
 references. When integrating another branch's AEGIS state, follow
 `.agentic/documents/MERGE_AND_REBASE.md` before resolving or validating it.
 
-## Mandatory Bootstrap
+## Policy Validation and Diagnosis
 
-Before repository work:
-
-1. Run `<workflow> config validate --json`.
-2. Run `<workflow> config show --json`.
-3. Report the captured interface policy, five gate modes, guardrails,
-   traceability policy, quick changed-path policy, and selected run.
-4. Use `--run <run-id>` only when an operation must pin a run explicitly.
+Every AEGIS command, including `run context`, validates the configured workflow
+before it acts. If configuration is missing or invalid, correct it and use
+`<workflow> config validate --json` to confirm the repair. Use
+`<workflow> config show --json` only for explicit policy diagnosis; it is not a
+fresh-session bootstrap input and must not be added to the bounded context pack.
 
 Do not infer fallback policy when configuration is missing or invalid. AEGIS
-policy supplements host, sandbox, approval, and operating-system controls.
+policy supplements host, sandbox, approval, and operating-system controls. Use
+`--run <run-id>` only when an operation must pin a run explicitly.
 
 `<workflow>` means the project-local wrapper:
 

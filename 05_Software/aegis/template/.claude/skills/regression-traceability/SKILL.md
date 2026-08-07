@@ -12,11 +12,7 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # Regression Traceability
 
-Before invoking the shared procedure, run `<workflow> config validate --json`
-and `<workflow> config show --json`. Report the effective write,
-protected-read/path, scope, secret, gate, coverage, and delivery modes and active
-rule counts, state the selected run when graph state is used, and distinguish
-AEGIS repository policy from external platform safety.
+This Claude Code entry point adds no bootstrap, recovery, or policy procedure.
 
 Read and follow these shared workflow rule sources:
 

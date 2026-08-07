@@ -24,11 +24,14 @@ Use AEGIS as an eight-stage, file-first full lifecycle:
 The human approves every transition. Host plan mode may support discussion but
 does not replace the imported design or `stage close` approval journal.
 
-## Bootstrap
+## Starting a New Run
 
-1. Run `<workflow> config validate --json`.
-2. Run `<workflow> config show --json`.
-3. Start or resume:
+The run-start command validates the workflow configuration before it acts. Use
+`<workflow> config validate --json` after a configuration repair and
+`<workflow> config show --json` only for explicit policy diagnosis; neither is
+a fresh-session bootstrap step.
+
+Start or resume:
 
    ```text
    <workflow> run start <feature|fix|change>
@@ -36,8 +39,8 @@ does not replace the imported design or `stage close` approval journal.
    <workflow> run resume
    ```
 
-4. Open the returned artifact. Do not encode statements, paths, decisions, or
-   evidence in CLI flags.
+Open the returned artifact. Do not encode statements, paths, decisions, or
+evidence in CLI flags.
 
 ## Fresh Stage Sessions
 

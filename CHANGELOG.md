@@ -58,6 +58,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Keep the canonical fresh-session route bounded. `run context --json` now
+  supplies the validating entry point; `config validate` is reserved for
+  repaired configuration and `config show` for explicit diagnosis, not routine
+  host bootstrap. Adapter regressions now cover root host notes, host READMEs,
+  the OpenCode primary agent, all wrappers, and mapped entry files.
+
 - Correct the shared development router so new quick runs require registered
   run-local checks and red-before-green evidence, matching the existing CLI,
   form, and verification contracts.

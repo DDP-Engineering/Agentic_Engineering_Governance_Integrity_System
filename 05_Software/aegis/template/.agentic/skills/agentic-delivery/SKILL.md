@@ -19,8 +19,7 @@ pushing, publishing, merging, or opening a pull request.
 
 **Read first:**
 
-- `<workflow> config validate --json`, `<workflow> config show --json`, then
-  `AGENTS.md` and `<workflow> run context --json` for the selected run.
+- `AGENTS.md`, then `<workflow> run context --json` for the selected run.
 - Only `required_reads`: the named delivery router, current form, and retained
   previous form.
   If `unavailable_current_artifact` is present, run only its recovery command;
@@ -29,7 +28,7 @@ pushing, publishing, merging, or opening a pull request.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare` only when `run status` reports it as `next`.
+1. Run `<workflow> stage prepare` only when `run context` names it.
 2. If validation is not closed, complete it first: run `<workflow> verify run`,
    review its summary and the diff, apply the validation form, and request its
    human close approval.
