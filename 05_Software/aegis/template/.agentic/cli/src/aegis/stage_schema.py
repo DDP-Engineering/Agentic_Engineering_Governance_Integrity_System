@@ -23,6 +23,7 @@ import uuid
 
 from .models import (
     ADOPTION_STAGES,
+    ALL_STAGES,
     QUICK_STAGES,
     STAGES,
     Graph,
@@ -51,6 +52,21 @@ class StageFieldSpec:
     default: Any
     help: str
     accepted: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class StageChecklistItem:
+    """
+    @brief Describe one deterministic stage-completion checklist item.
+    @details A machine item names the command that verifies or records it. A
+             human item is an explicit approval or judgement boundary and has
+             no command. The text is projected into both generated forms and
+             the matching stage reference.
+    """
+
+    text: str
+    command: str = ""
+    human: bool = False
 
 
 @dataclass(frozen=True)
@@ -307,5 +323,159 @@ STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
     ),
     "adoption-delivery": _DELIVERY_FIELDS,
 }
+
+
+# DECLARATIVE COMPLETION CHECKLISTS
+
+STAGE_DONE_WHEN: dict[Stage, tuple[StageChecklistItem, ...]] = {
+    "intake": (
+        StageChecklistItem(
+            "The form records an observable intent, expected paths, and access mode.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported intake form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "alignment": (
+        StageChecklistItem(
+            "The form records scope, acceptance criteria, risks, and a decision.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported alignment form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "requirement": (
+        StageChecklistItem(
+            "Every accepted behaviour has one independently observable requirement.",
+            "stage apply",
+        ),
+        StageChecklistItem("The requirement collection imports atomically.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "design": (
+        StageChecklistItem(
+            "The design cites its requirements, alternatives, and selected option.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported design form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "check": (
+        StageChecklistItem(
+            "Every check names its contract, command, and test path.", "stage apply"
+        ),
+        StageChecklistItem("Active red evidence is recorded for every check.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "implementation": (
+        StageChecklistItem(
+            "Changed paths and active green check evidence are recorded.", "stage apply"
+        ),
+        StageChecklistItem("Every green check has prior red evidence.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "validation": (
+        StageChecklistItem(
+            "Deterministic verification and all required reviews are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("All validation blockers are resolved or waived.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "delivery": (
+        StageChecklistItem(
+            "The preflight and delivery report references are recorded.", "stage apply"
+        ),
+        StageChecklistItem("The handoff decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "adoption-intake": (
+        StageChecklistItem(
+            "The form records the adoption slice, bundle rationale, and access mode.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported adoption-intake form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "adoption-alignment": (
+        StageChecklistItem(
+            "The form records adoption scope, acceptance criteria, risks, and a decision.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported adoption-alignment form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "repo-discovery": (
+        StageChecklistItem(
+            "Repository roots, gates, components, dependencies, and evidence are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported discovery form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "component-map": (
+        StageChecklistItem(
+            "The component manifest, mapped components, and approved slice are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("The component-map decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "component-adoption": (
+        StageChecklistItem(
+            "The approved component scope, documentation, links, and gaps are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("The adoption preserves runtime behaviour.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "baseline-review": (
+        StageChecklistItem(
+            "Reviewed components and remaining baseline gaps are classified.", "stage apply"
+        ),
+        StageChecklistItem("The baseline-review decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "adoption-delivery": (
+        StageChecklistItem(
+            "The adoption report and preflight references are recorded.", "stage apply"
+        ),
+        StageChecklistItem("The handoff decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+}
+
+
+def validate_stage_done_when(
+    mapping: dict[Stage, tuple[StageChecklistItem, ...]] = STAGE_DONE_WHEN,
+) -> None:
+    """
+    @brief Validate that every lifecycle stage has a classified checklist.
+    @param[in] mapping Candidate completion checklist mapping.
+    @exception StageOperationError If a stage is omitted, unknown, empty, or
+               contains an unclassified item.
+    """
+    expected = set(ALL_STAGES)
+    actual = set(mapping)
+    if actual != expected or len(mapping) != len(ALL_STAGES):
+        missing = ", ".join(sorted(expected - actual))
+        unknown = ", ".join(sorted(actual - expected))
+        details = []
+        if missing:
+            details.append("missing: " + missing)
+        if unknown:
+            details.append("unknown: " + unknown)
+        raise StageOperationError("invalid stage checklist mapping (" + "; ".join(details) + ")")
+    for stage in ALL_STAGES:
+        items = mapping[stage]
+        if not items:
+            raise StageOperationError(f"{stage} checklist must not be empty")
+        for item in items:
+            if not item.text.strip():
+                raise StageOperationError(f"{stage} checklist item text must not be empty")
+            if item.human == bool(item.command.strip()):
+                raise StageOperationError(
+                    f"{stage} checklist item must be either machine or human"
+                )
 
 # END OF FILE

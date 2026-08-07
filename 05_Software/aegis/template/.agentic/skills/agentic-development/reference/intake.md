@@ -52,14 +52,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] `statement` names an observable outcome, not a cause or a fix
-- [ ] `scope_hints` lists the paths you expect to touch
-- [ ] `access_mode` is set, with a rationale if it is `repo-wide`
-- [ ] `control.summary` is written
-- [ ] every open question is either answered or recorded in
-      `control.unresolved_questions`
-- [ ] `<workflow> stage apply` succeeded and reported a digest
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] The form records an observable intent, expected paths, and access mode.
+- [ ] [machine] The imported intake form has a digest.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** Never. Every run starts at intake, including the quick path. A
 run with no recorded intent cannot be checked against anything later, and the

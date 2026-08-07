@@ -58,17 +58,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] `<workflow> verify run` completed and its summary was read first
-- [ ] every enabled gate passed, or each failure is recorded and accepted
-- [ ] `<workflow> verify invariants` holds, or each failure is waived with a
-      reason
-- [ ] every component page named in `documentation_effects` is updated
-- [ ] the diff was reviewed hunk by hunk for scope creep, weakened assertions,
-      and secrets (human judgement, recorded as `diff_review`)
-- [ ] `diff_review`, `documentation_review`, and `style_review` are each `pass`
-      or `not-applicable` — none left `pending`
-- [ ] `deterministic_verification` has at least one entry
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] Deterministic verification and all required reviews are recorded.
+- [ ] [machine] All validation blockers are resolved or waived.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** Never, on either path. The quick path reaches validation with
 fewer stages behind it, not with less verification in front of it.

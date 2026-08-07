@@ -25,7 +25,8 @@ from pathlib import Path
 from aegis.cli import _build_parser, _normalize_global_options
 from aegis.config import load_config
 from aegis.invariants import evaluate
-from aegis.models import ChangeUnit, Check, Graph, Intent, StageRecord
+from aegis.models import ALL_STAGES, ChangeUnit, Check, Graph, Intent, StageRecord
+from aegis.stage_schema import STAGE_DONE_WHEN
 from aegis.stage_forms import next_command
 
 # CONSTANTS
@@ -49,6 +50,16 @@ _DEVELOPMENT_STAGE_REFERENCES = (
     "check",
     "implementation",
     "validation",
+)
+
+_ADOPTION_STAGE_REFERENCES = (
+    "adoption-intake",
+    "adoption-alignment",
+    "repo-discovery",
+    "component-map",
+    "component-adoption",
+    "baseline-review",
+    "adoption-delivery",
 )
 
 _GRAPH_SIZE_CLAIM = re.compile(
@@ -477,6 +488,54 @@ def test_development_stage_references_have_operational_structure() -> None:
     assert "`not-applicable`" in check
     assert "<workflow> evidence prepare add" in check
     assert "still records a red result" not in check
+
+
+def test_stage_reference_checklists_match_the_canonical_contract() -> None:
+    """@brief WP1 keeps all lifecycle-reference checklists in exact parity."""
+    skills_root = PACKAGE_ROOT / "template" / ".agentic" / "skills"
+    references = {
+        **{
+            stage: skills_root / "agentic-development" / "reference" / f"{stage}.md"
+            for stage in _DEVELOPMENT_STAGE_REFERENCES
+        },
+        **{
+            stage: skills_root / "agentic-adoption" / "reference" / f"{stage}.md"
+            for stage in _ADOPTION_STAGE_REFERENCES
+        },
+        "delivery": skills_root / "agentic-delivery" / "SKILL.md",
+    }
+
+    assert set(references) == set(ALL_STAGES)
+    assert len(references) == len(ALL_STAGES)
+    for stage, path in references.items():
+        text = path.read_text(encoding="utf-8")
+        assert all(
+            section in text
+            for section in (
+                "**Purpose:**",
+                "**Read first:**",
+                "**Steps:**",
+                "**Outputs:**",
+                "**Done when:**",
+                "**Skip when:**",
+            )
+        ), path
+        section = text.split("**Done when:**", 1)[1].split("**Skip when:**", 1)[0]
+        actual = [
+            (" ".join(match.group(2).split()), match.group(1) == "human")
+            for match in re.finditer(
+                r"^- \[ \] \[(machine|human)\] (.+)$",
+                section,
+                flags=re.MULTILINE,
+            )
+        ]
+        expected = [
+            (" ".join(item.text.split()), item.human)
+            for item in STAGE_DONE_WHEN[stage]
+        ]
+
+        assert actual == expected, path
+        assert path.stat().st_size <= 5 * 1024, path
 
 
 def test_documented_workflow_commands_match_the_cli_parser() -> None:

@@ -53,14 +53,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] `understanding` states current behaviour and desired behaviour separately
-- [ ] `out_of_scope` is non-empty, or the work genuinely has no adjacent area
-- [ ] every entry in `acceptance_criteria` is independently checkable
-- [ ] every open question has a recommended answer beside it
-- [ ] `risk` and `decision` are set, and `decision` respects the configured
-      pause rules
-- [ ] no solution design appears anywhere in the form (human)
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] The form records scope, acceptance criteria, risks, and a decision.
+- [ ] [machine] The imported alignment form has a digest.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** The quick path bypasses this stage by profile, recording it as
 `bypassed`, which is its own audit state - never report a bypass as passed or

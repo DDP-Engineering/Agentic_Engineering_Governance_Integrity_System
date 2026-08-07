@@ -68,10 +68,12 @@ from .stage_schema import (
     PENDING_OR_APPROVED,
     REQUIRED_STAGE_VALUE,
     REVIEW_DECISIONS,
+    STAGE_DONE_WHEN,
     STAGE_FIELD_SPECS,
     StageOperationError,
     StageFieldSpec,
     run_stage_spec,
+    validate_stage_done_when,
 )
 from .waivers import (
     Blocker,
@@ -1340,6 +1342,28 @@ def _base_lines(graph: Graph, record: StageRecord) -> list[str]:
     ]
 
 
+def _completion_checklist_lines(stage: Stage) -> list[str]:
+    """
+    @brief Render the canonical completion checklist as presentation comments.
+    @param[in] stage Lifecycle stage whose primary form is being rendered.
+    @return TOML comment lines in declarative checklist order.
+    @exception StageOperationError If the checklist contract is invalid.
+    @details The lines remain TOML comments. They never become input payload
+             keys and are rendered only in the primary stage form.
+    """
+    validate_stage_done_when()
+    return [
+        "# Completion checklist:",
+        *[
+            "# [human] " + item.text
+            if item.human
+            else f"# [machine: {item.command}] {item.text}"
+            for item in STAGE_DONE_WHEN[stage]
+        ],
+        "",
+    ]
+
+
 def _control_lines(values: dict[str, Any] | None = None) -> list[str]:
     """@brief Render the common control table for every stage form."""
     data = {
@@ -1367,7 +1391,14 @@ def _write_control_form(path: Path, graph: Graph, record: StageRecord) -> None:
     """@brief Write the collection-stage control form."""
     values = record.payload.get("control", {}) if record.payload else {}
     path.write_text(
-        "\n".join([*_base_lines(graph, record), *_control_lines(values)]) + "\n",
+        "\n".join(
+            [
+                *_completion_checklist_lines(graph.stage),
+                *_base_lines(graph, record),
+                *_control_lines(values),
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -1577,7 +1608,7 @@ def _single_form_text(
              comments are not part of the parsed table, so this is presentation
              only - the imported payload is byte-identical either way.
     """
-    lines = _base_lines(graph, record)
+    lines = [*_completion_checklist_lines(graph.stage), *_base_lines(graph, record)]
     for field in _stage_field_specs(graph.stage):
         default = _stage_field_default(field, graph)
         value = values[field.name] if default is REQUIRED_STAGE_VALUE else values.get(

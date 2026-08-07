@@ -29,7 +29,7 @@ import pytest
 from aegis.cli import main
 from aegis.config import WorkflowConfig, load_config
 from aegis.invariants import evaluate
-from aegis.models import Check, Evidence, Graph, SolutionDesign, StageRecord
+from aegis.models import ALL_STAGES, Check, Evidence, Graph, SolutionDesign, StageRecord
 from aegis.requirement_store import find_requirement_record
 from aegis.requirements import RequirementPatch, update_requirement
 from aegis.stage_forms import (
@@ -41,7 +41,12 @@ from aegis.stage_forms import (
     stage_blockers,
     stage_directory,
 )
-from aegis.stage_schema import StageOperationError
+from aegis.stage_schema import (
+    STAGE_DONE_WHEN,
+    StageChecklistItem,
+    StageOperationError,
+    validate_stage_done_when,
+)
 from aegis.store import init_graph, save_graph
 
 # LOCAL HELPERS
@@ -165,6 +170,101 @@ def _place_at_implementation(
 
 
 # TESTS
+
+
+def test_stage_done_when_covers_every_stage_with_classified_items() -> None:
+    """@brief WP1 keeps the canonical checklist complete and classified."""
+    validate_stage_done_when()
+
+    assert tuple(STAGE_DONE_WHEN) == tuple(ALL_STAGES)
+    assert all(STAGE_DONE_WHEN[stage] for stage in ALL_STAGES)
+    assert all(
+        item.human != bool(item.command)
+        for items in STAGE_DONE_WHEN.values()
+        for item in items
+    )
+
+
+def test_stage_done_when_rejects_empty_or_unclassified_items() -> None:
+    """@brief WP1 rejects incomplete declarative completion contracts."""
+    empty = dict(STAGE_DONE_WHEN)
+    empty["intake"] = ()
+    with pytest.raises(StageOperationError, match="intake checklist must not be empty"):
+        validate_stage_done_when(empty)
+
+    unclassified = dict(STAGE_DONE_WHEN)
+    unclassified["intake"] = (StageChecklistItem("Missing classification."),)
+    with pytest.raises(StageOperationError, match="must be either machine or human"):
+        validate_stage_done_when(unclassified)
+
+
+def test_generated_primary_forms_render_stable_completion_comments(
+    tmp_path: Path,
+) -> None:
+    """@brief WP1 renders validation checklist comments in canonical order."""
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "feature", "Render stage completion guidance")
+    graph.stage = "validation"
+    save_graph(tmp_path, graph)
+
+    form = prepare_stage(tmp_path, graph, config)
+    lines = form.read_text(encoding="utf-8").splitlines()
+    expected = [
+        "# Completion checklist:",
+        *[
+            "# [human] " + item.text
+            if item.human
+            else f"# [machine: {item.command}] {item.text}"
+            for item in STAGE_DONE_WHEN["validation"]
+        ],
+        "",
+    ]
+
+    assert lines[: len(expected)] == expected
+    assert "Completion checklist" not in tomllib.loads(form.read_text(encoding="utf-8"))
+
+
+def test_collection_forms_render_completion_comments_only_in_stage_control(
+    tmp_path: Path,
+) -> None:
+    """@brief WP1 keeps collection guidance out of every check item form."""
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "feature", "Render collection completion guidance")
+    graph.stage = "check"
+    save_graph(tmp_path, graph)
+
+    prepare_stage(tmp_path, graph, config)
+    control = stage_directory(tmp_path, graph) / "stage.toml"
+    item = next(stage_directory(tmp_path, graph).glob("check-*.toml"))
+
+    assert control.read_text(encoding="utf-8").count("# Completion checklist:") == 1
+    assert "Completion checklist" not in item.read_text(encoding="utf-8")
+
+
+def test_reprepared_forms_retain_completion_comments_and_payload_shape(
+    tmp_path: Path,
+) -> None:
+    """@brief WP1 preserves comment guidance across form rehydration."""
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "feature", "Rehydrate completion guidance")
+    graph.stage = "intake"
+    save_graph(tmp_path, graph)
+    form = prepare_stage(tmp_path, graph, config)
+    initial_payload = tomllib.loads(form.read_text(encoding="utf-8"))
+
+    record = graph.stage_records["intake"]
+    record.status = "applied"
+    record.payload = initial_payload
+    save_graph(tmp_path, graph)
+
+    rehydrated = prepare_stage(tmp_path, graph, config)
+    rehydrated_text = rehydrated.read_text(encoding="utf-8")
+    rehydrated_payload = tomllib.loads(rehydrated_text)
+
+    assert "# Completion checklist:" in rehydrated_text
+    assert "Completion checklist" not in rehydrated_payload
+    assert rehydrated_payload["statement"] == initial_payload["statement"]
+    assert rehydrated_payload["control"] == initial_payload["control"]
 
 
 def test_routing_back_from_implementation_preserves_requirement_lifecycle(

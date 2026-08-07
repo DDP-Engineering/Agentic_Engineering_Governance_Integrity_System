@@ -66,13 +66,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] every acceptance criterion from alignment maps to at least one requirement
-- [ ] each requirement states exactly one behaviour
-- [ ] each has `rationale`, `verification`, `affected_paths`, `linked_tests`
-- [ ] `linked_tests` selectors are the exact ones the check stage will create
-- [ ] every `spec_ref` that is set names a file that exists
-- [ ] `<workflow> requirement list` shows no semantically duplicate contract
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] Every accepted behaviour has one independently observable requirement.
+- [ ] [machine] The requirement collection imports atomically.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** The quick path bypasses this stage by profile, recording it as
 `bypassed`. Never report a bypass as passed or waived. If the work turns out to

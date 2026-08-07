@@ -61,14 +61,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] every check for this run has active green evidence
-- [ ] every green check has prior red evidence — `<workflow> verify invariants`
-      shows INV-3 holding
-- [ ] `changed_paths` lists every changed file and nothing else
-- [ ] `linked_check_evidence` cites only active, current-stage IDs
-- [ ] no test file was changed during this stage
-- [ ] `<workflow> verify run` gates pass, or each failure is recorded
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] Changed paths and active green check evidence are recorded.
+- [ ] [machine] Every green check has prior red evidence.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** Never. Every run that changes behaviour passes through
 implementation, including the quick path.

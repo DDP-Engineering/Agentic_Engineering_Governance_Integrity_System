@@ -46,6 +46,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Make stage completion guidance declarative for all standard and adoption
+  lifecycle stages. AEGIS now renders the canonical machine and human
+  completion checklist as TOML comments in each primary stage form (once in a
+  collection stage's `stage.toml`), while standard, adoption, and delivery
+  references are tested projections of the same contract.
 - Change the shipped and WAEGIS-proposed stage-form retention default from
   `discard` to `latest`, keeping each stage's final form available for a fresh
   agent session without retaining superseded revisions. Correct the WAEGIS

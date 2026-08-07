@@ -123,6 +123,15 @@ table: `requested_access_mode`, `access_rationale`, `route_to`,
 form plus one item form per requirement or check. Item forms use the common
 identity fields but do not repeat the control table.
 
+Every primary stage form also begins with a deterministic completion checklist
+rendered as TOML comments. The checklist is presentation guidance only: it
+does not add TOML keys or alter the imported form payload. Its machine items
+name the command that records or verifies the condition, and its human items
+name an explicit approval boundary. Collection-stage guidance appears once in
+`stage.toml`, never in each requirement or check item. The matching standard,
+adoption, and delivery references are checked projections of the same CLI-owned
+stage contract, so their `Done when` lists cannot drift from generated forms.
+
 | Stage | Stage-specific fields and purpose |
 | --- | --- |
 | `intake` | `statement` defines requested work; `scope_hints` gives initial boundaries; `access_mode` requests repository access. |

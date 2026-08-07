@@ -60,14 +60,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] every requirement this run owns is cited by at least one check
-- [ ] every check names an exact `command` and `path`
-- [ ] every check was run and observed red, for the intended reason
-- [ ] red evidence is recorded and active for every check
-- [ ] no production source file was changed during this stage
-- [ ] `<workflow> stage close` was accepted — it refuses without active red
-      evidence, which is the stage's real gate
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] Every check names its contract, command, and test path.
+- [ ] [machine] Active red evidence is recorded for every check.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** The quick path bypasses the check *collection* stage by profile,
 recording it as `bypassed`. Under the current quick-run contract, INV-3 is

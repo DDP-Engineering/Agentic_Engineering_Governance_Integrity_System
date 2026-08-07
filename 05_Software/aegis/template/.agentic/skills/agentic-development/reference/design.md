@@ -50,13 +50,9 @@ reported command using the retained current form and this reference.
 
 **Done when:**
 
-- [ ] every requirement this run owns is cited in `cited_requirement_ids`
-- [ ] at least two alternatives are recorded with the reason the loser lost
-- [ ] the implementation sequence is concrete enough to follow without rereading
-      the requirements
-- [ ] compatibility implications are stated, including "none, and here is why"
-- [ ] every judgement call that could have gone the other way is named (human)
-- [ ] the human approved `stage close` (human)
+- [ ] [machine] The design cites its requirements, alternatives, and selected option.
+- [ ] [machine] The imported design form has a digest.
+- [ ] [human] The human approves stage close.
 
 **Skip when:** The quick path bypasses this stage by profile, recording it as
 `bypassed`. A full run never skips design. For a small change with one obvious

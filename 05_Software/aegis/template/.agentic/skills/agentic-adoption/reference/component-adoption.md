@@ -1,30 +1,39 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
+<!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
 # Stage: component-adoption
 
-Load this module only while in the `component-adoption` stage.
+**Purpose:** Capture durable component knowledge without changing runtime behaviour.
 
-- Work only inside the approved local component scope or approved bundle
-  exception.
-- Run `<workflow> adoption scope-check <paths>` for planned touched paths when
-  the component manifest is available. Read `enforcement` before the issue
-  list: `not-enforced` means the baseline guard is off and only the advisory
-  findings apply. `COMPONENT-PATH-UNMAPPED` means no component owns that path;
-  `COMPONENT-PATH-NOT-FOUND` means the path is not in the working tree, which
-  is expected for a path this run will create and a typo otherwise.
-- Add or update component documentation, requirement links, known test commands,
-  and adoption notes for the approved slice.
-- Record the behavior the adopted code already promises as requirements with
-  `<workflow> stage add --category <category>`, one per minted form, then
-  `<workflow> stage apply`. This stage is the only place an adoption run can
-  create requirements; the route has no requirement stage. They publish as
-  `Planned` because an adoption run has no validation stage to activate them.
-  Adding none is allowed when the slice promises nothing worth recording yet.
-- Preserve behavior. If implementation changes appear necessary, stop and ask to
-  switch to an `agentic-development` run.
-- Record what was adopted and which gaps remain.
+**Read first:**
+
+- `<workflow> run status`, the approved component map, and the current form.
+- Component documentation, requirements, tests, and ownership for the selected slice.
+
+**Steps:**
+
+1. Run `<workflow> stage prepare` only when `run status` requests it.
+2. Work only in the approved component scope. Use
+   `<workflow> adoption scope-check <paths>` when the manifest is available.
+3. Update component documentation, requirement links, known tests, and adoption
+   notes. Add existing behavioural contracts with `<workflow> stage add --category <category>`.
+4. Record adopted components, paths, documentation, links, gaps, and behaviour
+   status. Stop if runtime behaviour would need to change.
+5. Run `<workflow> stage apply`, review it, then request human approval for
+   `<workflow> stage close`.
+
+**Outputs:**
+
+- Applied adoption metadata and optional Planned requirements for the slice.
+
+**Done when:**
+
+- [ ] [machine] The approved component scope, documentation, links, and gaps are recorded.
+- [ ] [machine] The adoption preserves runtime behaviour.
+- [ ] [human] The human approves stage close.
+
+**Skip when:** Never. Move behaviour changes to a standard development run.
+
+## If you are stuck
+
+If scope-check reports an unmapped path, return to component-map or request an
+approved scope change; do not use adoption to implement the change.
