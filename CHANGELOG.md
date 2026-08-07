@@ -46,6 +46,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Keep aggregate `verify run` gate journaling truthful when every gate policy
+  is disabled. It now reports and journals those groups only as
+  `not-enforced`; the explicit `gate.execution.nothing-ran` event remains
+  exclusive to `verify gates` requests that launch zero commands.
+
 - Publish external and managed quick-check evidence with its journal events as
   one rollback-capable transaction. A journal-write failure now restores the
   preceding graph and leaves no active evidence persisted.

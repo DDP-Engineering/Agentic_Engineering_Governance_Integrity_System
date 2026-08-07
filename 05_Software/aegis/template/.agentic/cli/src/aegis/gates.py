@@ -97,11 +97,13 @@ def run_gates(
     @exception  GraphConflictError If the graph's captured stage advanced
                 before the collected evidence could be published.
     """
-    outcome = run_gates_with_outcome(repo_root, run_id, config, names)
-    # `run_gates` is the aggregate-verification compatibility surface. A
-    # disabled policy contributes no gate failure there; only the explicit
-    # `verify gates` CLI path treats a zero-launch request as nothing-ran.
-    return 0 if outcome.execution_status == "nothing-ran" else outcome.exit_code
+    return run_gates_with_outcome(
+        repo_root,
+        run_id,
+        config,
+        names,
+        explicit_execution=False,
+    ).exit_code
 
 
 def run_gates_with_outcome(
@@ -109,6 +111,8 @@ def run_gates_with_outcome(
     run_id: str,
     config: WorkflowConfig,
     names: list[str] | None = None,
+    *,
+    explicit_execution: bool = True,
 ) -> GateExecutionOutcome:
     """
     @brief Execute gates and return their explicit execution outcome.
@@ -116,12 +120,16 @@ def run_gates_with_outcome(
     @param[in] run_id Already resolved run ID selected by CLI orchestration.
     @param[in] config Validated workflow configuration.
     @param[in] names Gate group names to run, or every group when omitted.
+    @param[in] explicit_execution Whether zero launches are an explicit
+                execution request rather than aggregate verification.
     @return Gate outcome, including `nothing-ran` when no command launched.
     @exception ValueError If a requested gate name is unsupported.
     @exception GraphConflictError If the captured stage advanced before
                collected evidence could be published.
-    @details The compatibility wrapper :func:`run_gates` retains its integer
-             return contract for aggregate verification callers.
+    @details Only explicit execution emits a `nothing-ran` outcome event. The
+             compatibility wrapper :func:`run_gates` retains its integer
+             aggregate-verification contract and reports an all-disabled
+             policy as `not-enforced` without that event.
     """
     unknown = sorted(set(names or ()) - set(GATE_ORDER))
     if unknown:
@@ -215,7 +223,7 @@ def run_gates_with_outcome(
             )
         executed_count = sum(result is not None for _, _, result in completed)
         reason = ""
-        if executed_count == 0:
+        if executed_count == 0 and explicit_execution:
             reason = (
                 "No configured gate command executed; every selected gate is "
                 "disabled."
@@ -244,8 +252,10 @@ def run_gates_with_outcome(
             blocker = blockers.get(f"gate:{name}")
             if blocker is None or active_waiver(graph, blocker) is None:
                 exit_code = result.returncode
-    if executed_count == 0:
+    if executed_count == 0 and explicit_execution:
         return GateExecutionOutcome("nothing-ran", 0, reason, 1)
+    if executed_count == 0:
+        return GateExecutionOutcome("not-enforced", 0, "", 0)
     if saw_failure and exit_code == 0:
         return GateExecutionOutcome("waived", executed_count, "", 0)
     return GateExecutionOutcome(

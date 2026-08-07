@@ -96,3 +96,24 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   zero-launch outcome when neither its focused nor fallback command executes.
 - Next allowed package: WP5 after independent review and approval of this WP4
   boundary.
+
+## Correction after review
+
+- Finding: aggregate `verify run` called the detailed gate helper, which
+  journaled `gate.execution.nothing-ran` before the aggregate wrapper returned
+  its zero exit status. The validation summary said `not-enforced`, but the
+  durable journal falsely described an explicit execution request.
+- Resolution: gate execution now receives an explicit-execution boundary.
+  Aggregate `run_gates` passes `explicit_execution=False`, produces a zero
+  `not-enforced` outcome, and never appends the explicit nothing-ran event.
+  The CLI `verify gates` path retains the default explicit behavior.
+- Regression coverage: public CLI `verify run` and public
+  `run_verification()` both assert `not-enforced` summaries and the absence of
+  `gate.execution.nothing-ran`; the existing explicit-command checks retain
+  their required event assertions.
+- Correction validation: focused AEGIS outcome/gate/CLI/quick coverage passed
+  (`92 passed`); the full AEGIS suite passed (`606 passed, 3 skipped`); the
+  full WAEGIS suite passed (`699 passed, 8 skipped`); changed-file Ruff and
+  Python compilation passed; both CLI help commands passed. Full AEGIS Ruff
+  still reports the pre-existing untouched `requirement_store.py` F401 noted
+  above.

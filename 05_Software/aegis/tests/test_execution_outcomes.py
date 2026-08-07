@@ -32,6 +32,7 @@ from aegis.config import load_config
 from aegis.gates import run_gates_with_outcome
 from aegis.models import Check, StageRecord
 from aegis.store import init_graph, journal_path, load_graph, save_graph
+from aegis.verification import run_verification
 
 # TESTS
 
@@ -161,7 +162,7 @@ def test_verify_run_keeps_disabled_gates_not_enforced_not_nothing_ran(
     """
     monkeypatch.chdir(tmp_path)
     main(["run", "start", "fix", "--json"])
-    capsys.readouterr()
+    run_id = json.loads(capsys.readouterr().out)["run_id"]
 
     with pytest.raises(SystemExit):
         main(["verify", "run", "--json"])
@@ -172,6 +173,37 @@ def test_verify_run_keeps_disabled_gates_not_enforced_not_nothing_ran(
         item["status"]
         for item in payload["verification"]["gates"].values()
     } == {"not-enforced"}
+    events = [
+        json.loads(line)["event"]
+        for line in journal_path(tmp_path, run_id).read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert "gate.execution.nothing-ran" not in events
+
+
+def test_run_verification_does_not_journal_an_explicit_gate_outcome(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Preserve aggregate gate journal semantics through the public API.
+    @param[in] tmp_path Configured temporary repository.
+    @return None.
+    """
+    graph = init_graph(tmp_path, "fix", "Aggregate verification outcome")
+
+    summary, _exit_code = run_verification(tmp_path, graph, load_config(tmp_path))
+
+    assert {
+        item["status"] for item in summary["gates"].values()
+    } == {"not-enforced"}
+    events = [
+        json.loads(line)["event"]
+        for line in journal_path(tmp_path, graph.run_id).read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert "gate.execution.nothing-ran" not in events
 
 
 def test_managed_check_run_with_empty_set_reports_nothing_ran(
