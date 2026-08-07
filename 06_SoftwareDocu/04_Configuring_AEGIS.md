@@ -35,7 +35,7 @@ restriction below is something you opt into, not something you opt out of.
 
 ```toml
 [interface]
-stage_form_retention = "discard"
+stage_form_retention = "latest"
 check_execution = "external"
 ```
 
@@ -46,8 +46,8 @@ delivery reports are always kept regardless of this setting).
 
 | Value | What happens |
 | --- | --- |
-| `discard` (default) | The prepared form is deleted once no longer needed. Lowest disk footprint; nothing to review after the fact beyond the durable record. |
-| `latest` | The most recently prepared form stays in place, overwritten by the next `prepare`. Useful if you sometimes want to glance back at exactly what was submitted. |
+| `discard` | The prepared form is deleted once no longer needed. Lowest disk footprint; nothing to review after the fact beyond the durable record. |
+| `latest` (default) | The most recently prepared form stays in place, overwritten by the next `prepare`. This supports a fresh-session handoff without retaining superseded revisions. |
 | `versioned` | Every closed revision is kept under the stage's `revisions/` folder. Choose this if you want a full paper trail of every draft, not just the final durable state. |
 
 A retention change only affects the *next* prepared revision — it never

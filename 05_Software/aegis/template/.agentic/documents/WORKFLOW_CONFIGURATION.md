@@ -52,13 +52,15 @@ mutation. There is no migration.
 
 ```toml
 [interface]
-stage_form_retention = "discard"
+stage_form_retention = "latest"
 check_execution = "external"
 ```
 
 Retention is `versioned`, `latest`, or `discard`. It applies only to transient
 input forms; design, requirement/spec snapshots, graph state, evidence,
-journals, validation summaries, and delivery reports are always durable.
+journals, validation summaries, and delivery reports are always durable. The
+shipped `latest` default preserves the final form for cross-session handoff
+without retaining superseded revisions.
 
 The policy is captured when a stage is prepared. Configuration changes affect
 the next prepared revision, never the current one.

@@ -6,6 +6,10 @@
 changed — by running the deterministic verification first and only then reading
 the diff with your own judgement.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status`, then the validation form `stage prepare` generates.
@@ -15,7 +19,9 @@ the diff with your own judgement.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare` and open the form.
+1. If `run status` reports `stage prepare`, run `<workflow> stage prepare` and
+   open the form. Otherwise keep the current revision and resume at the reported
+   `next` command.
 2. Run `<workflow> verify run`. This performs impact selection, the enabled
    build, typecheck, lint, test, and security gates, the invariants,
    traceability, coverage, and working-tree review, in that deterministic order,

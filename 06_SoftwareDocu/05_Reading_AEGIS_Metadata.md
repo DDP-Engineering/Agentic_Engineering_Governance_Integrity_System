@@ -61,9 +61,10 @@ results) and `manual-evidence.toml` (manual evidence add/supersede forms).
 Both are described further below.
 
 Whether anything survives here after a stage closes depends entirely on the
-configured `stage_form_retention` policy: `discard` (the default) deletes it,
-`latest` leaves the final version in place until the next `prepare`
-overwrites it, and `versioned` keeps every closed revision under a
+configured `stage_form_retention` policy. The shipped policy is
+`stage_form_retention = "latest"`: `discard` deletes the form, `latest` leaves
+the final version in place until the next `prepare` overwrites it, and
+`versioned` keeps every closed revision under a
 `revisions/` subfolder, each with its own `digest.json`. None of this
 affects the durable record described below — retention only governs the
 convenience copy.
@@ -134,7 +135,9 @@ Where that evidence came from differs by mode:
 - **External check evidence** is recorded through
   `stages/<stage>/evidence.toml` — one result row per check, with the exact
   command, result, exit status, and output log — before being folded into
-  `graph.json` and then normally discarded per the retention policy.
+  `graph.json`. The transient form is then retained, versioned, or deleted
+  according to `stage_form_retention`; the shipped `latest` policy leaves the
+  final form in place.
 - **Managed check evidence** (`check run`) has no intermediate form at all:
   AEGIS runs the command itself, writes the full output to
   `.agentic/runs/<run-id>/evidence/logs/<check-id>-<stage>.log`, and records

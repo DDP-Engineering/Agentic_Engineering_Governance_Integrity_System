@@ -6,6 +6,10 @@
 for the right reason before any production code exists — so that when they pass
 later, the passing means something.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status`, then the `check-001.toml` form and `stage.toml` that
@@ -15,8 +19,10 @@ later, the passing means something.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare`. It generates the first check form with an ID
-   already minted. Never invent an ID.
+1. If `run status` reports `stage prepare`, run `<workflow> stage prepare`. It
+   generates the first check form with an ID already minted. Otherwise keep the
+   current revision and resume at the reported `next` command. Never invent an
+   ID.
 2. For each additional check, run `<workflow> stage add`. One check per
    behaviour, following the design's implementation sequence.
 3. For each check, set `cites_requirement` to the exact requirement IDs it

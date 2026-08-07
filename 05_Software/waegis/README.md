@@ -104,9 +104,12 @@ WAEGIS generates and validates:
 
 ```toml
 [interface]
-stage_form_retention = "discard"
+stage_form_retention = "latest"
 check_execution = "external"
 ```
+
+The `latest` default keeps the final form from each stage available for a fresh
+agent session. Operators may still select `discard` or `versioned` explicitly.
 
 It also handles independent `build`, `typecheck`, `lint`, `test`, and `security`
 gate groups. Each group has `mode = "disabled"|"enforce"` and `commands = []`.
@@ -295,7 +298,7 @@ or disabled first.
 
 ```powershell
 uv sync --group dev
-uv run --group dev python -m waegis --help
+uv run --group dev python -B -m waegis --help
 uv run --group dev python -m pytest -q tests
 ```
 

@@ -6,6 +6,10 @@
 alternatives you rejected, so implementation is transcription rather than
 invention and a reviewer can check the reasoning instead of re-deriving it.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status`, then the `design.md` document and the `design.toml`
@@ -16,8 +20,10 @@ invention and a reviewer can check the reasoning instead of re-deriving it.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare`. It writes a `design.md` skeleton with the
-   sections to fill and a `design.toml` form that cites it.
+1. If `run status` reports `stage prepare`, run `<workflow> stage prepare`. It
+   writes a `design.md` skeleton with the sections to fill and a `design.toml`
+   form that cites it. Otherwise keep the current revision and resume at the
+   reported `next` command.
 2. Fill `design.md` section by section. The sections that carry the weight are:
    - **Relevant Existing Architecture** — what is there now, so the change is
      placed rather than bolted on.
@@ -53,10 +59,9 @@ invention and a reviewer can check the reasoning instead of re-deriving it.
 - [ ] the human approved `stage close` (human)
 
 **Skip when:** The quick path bypasses this stage by profile, recording it as
-`bypassed`. Beyond that, a change with no structural choice to make — one file,
-one obvious edit, no interface or compatibility consequence — has nothing for a
-design to decide; say so in `control.summary` rather than writing a design
-document that restates the requirement.
+`bypassed`. A full run never skips design. For a small change with one obvious
+implementation, keep the required design brief: cite every requirement, record
+the obvious option and why alternatives add no value, and select that option.
 
 ---
 

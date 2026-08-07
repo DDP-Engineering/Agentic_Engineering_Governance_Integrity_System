@@ -146,14 +146,14 @@ From `05_Software/aegis/`:
 ```powershell
 uv sync --group dev
 uv run --group dev python -m pytest -q tests
-uv run --group dev python -m aegis --help
+uv run --group dev python -B -m aegis --help
 ```
 
 For editable development installs:
 
 ```powershell
 uv sync --group dev
-uv run --group dev aegis --help
+uv run --group dev python -B -m aegis --help
 ```
 
 ## Deploying The Template CLI

@@ -6,6 +6,10 @@
 separating what the code does today from what the human wants it to do, and
 recording the acceptance criteria both sides will be held to.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status`, then the alignment form `stage prepare` generates.
@@ -15,7 +19,9 @@ recording the acceptance criteria both sides will be held to.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare` and open the form.
+1. If `run status` reports `stage prepare`, run `<workflow> stage prepare` and
+   open the form. Otherwise keep the current revision and resume at the reported
+   `next` command.
 2. Write `understanding`: what the code does **today**, in observable terms, and
    why that is a problem. Keep discovered current behaviour and desired future
    behaviour in separate sentences. Mixing them is the most common way a run
@@ -56,10 +62,9 @@ recording the acceptance criteria both sides will be held to.
 - [ ] no solution design appears anywhere in the form (human)
 - [ ] the human approved `stage close` (human)
 
-**Skip when:** The `[alignment] enabled = false` policy switches this stage off
-for the whole repository, and the quick path bypasses it by profile. Both record
-it as `bypassed`, which is its own audit state — never report a bypass as passed
-or waived.
+**Skip when:** The quick path bypasses this stage by profile, recording it as
+`bypassed`, which is its own audit state - never report a bypass as passed or
+waived. A full run never skips alignment.
 
 ---
 

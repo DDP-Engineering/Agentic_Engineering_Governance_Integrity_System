@@ -21,6 +21,7 @@ import json
 from pathlib import Path
 import tomllib
 
+from waegis.commands.adopt import _seeded_workflow_specs
 from waegis.probes.runner import CommandRunner
 from waegis.repo.analyze import analyze_repo
 from waegis.repo.workflow_toml import (
@@ -74,6 +75,15 @@ def test_generator_emits_schema_three_interface_and_five_gates() -> None:
     }
     assert tuple(document["gates"]) == GATE_ORDER
     assert all(document["gates"][name]["mode"] == "disabled" for name in GATE_ORDER)
+
+
+def test_adoption_proposes_shared_latest_retention_default() -> None:
+    """@brief Verify adoption does not override the shared interface default."""
+    proposals = {
+        spec.key: spec.default for spec in _seeded_workflow_specs(None)
+    }
+
+    assert proposals["stage_form_retention"] == "latest"
 
 
 def test_analysis_proposes_security_only_from_explicit_script(

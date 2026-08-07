@@ -39,7 +39,7 @@ options are `--run` and `--json`.
 
 ```powershell
 uv sync --group dev
-uv run --group dev python -m aegis --help
+uv run --group dev python -B -m aegis --help
 uv run --group dev python -m pytest -q tests
 ```
 
@@ -92,8 +92,10 @@ Everything under `template/` is copied verbatim into downstream projects:
 - `CHANGELOG.md` — deliberately empty downstream starter.
 
 Project-specific policy belongs in schema-3 `.agentic/workflow.toml`. The
-default interface is `discard` retention plus `external` check execution; all
-five gates ship disabled. The optional `[quick.changed_paths]` policy accepts
+default interface is `stage_form_retention = "latest"` plus external check
+execution, so the final form from each stage remains available for a fresh
+session; all five gates ship disabled. The optional `[quick.changed_paths]`
+policy accepts
 `disabled|advise` plus a positive `max_paths`; absence is disabled with a
 retained threshold of 10, and an above-threshold response is advisory only.
 

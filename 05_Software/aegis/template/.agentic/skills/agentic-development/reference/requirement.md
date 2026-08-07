@@ -6,6 +6,10 @@
 snapshot in the repository register, so the contract outlives this run and a
 later change can be traced back to what it was supposed to preserve.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status`, then the `requirement-001.toml` form and the
@@ -17,9 +21,10 @@ later change can be traced back to what it was supposed to preserve.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare`. It generates the first requirement form with
-   an ID already minted and a companion spec scaffold at `spec_ref`. Never
-   invent an ID.
+1. If `run status` reports `stage prepare`, run `<workflow> stage prepare`. It
+   generates the first requirement form with an ID already minted and a
+   companion spec scaffold at `spec_ref`. Otherwise keep the current revision
+   and resume at the reported `next` command. Never invent an ID.
 2. For each additional requirement, run
    `<workflow> stage add --category <category>`. Categories are `functional`,
    `ux`, `non_functional`, `security`, `data_privacy`, `platform`, `release`,

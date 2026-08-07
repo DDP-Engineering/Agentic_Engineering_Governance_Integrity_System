@@ -37,14 +37,16 @@ The shipped defaults favor small/offline models:
 
 ```toml
 [interface]
-stage_form_retention = "discard"
+stage_form_retention = "latest"
 check_execution = "external"
 ```
 
 Retention may be `versioned`, `latest`, or `discard`. The selected value is
 captured when a stage is prepared. It affects transient forms only; design,
 requirements/specs, graph state, evidence, journals, validation summaries, and
-delivery reports remain durable.
+delivery reports remain durable. The shipped `latest` default keeps each
+stage's final form available to a later session without retaining superseded
+revisions.
 
 Use `external` when the agent or operator will execute check commands and fill
 the generated evidence form. Use `managed` when AEGIS should execute imported

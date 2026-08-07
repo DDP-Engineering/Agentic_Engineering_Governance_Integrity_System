@@ -46,6 +46,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Change the shipped and WAEGIS-proposed stage-form retention default from
+  `discard` to `latest`, keeping each stage's final form available for a fresh
+  agent session without retaining superseded revisions. Correct the WAEGIS
+  adoption proposal, setup and metadata documentation, and stage guidance so
+  copied instructions describe only implemented lifecycle and form behavior.
 - Let `check_execution.prepare_check_evidence` / `record_check_evidence` accept
   a partial external evidence document. A check whose stage evidence blocker is
   already covered by an active, exactly matching waiver is excused: it gets no

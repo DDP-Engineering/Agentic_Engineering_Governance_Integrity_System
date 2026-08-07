@@ -71,7 +71,7 @@ def test_start_intake_apply_close_prepares_alignment(
     replace_workflow_toml: Callable[[str, str], Path],
 ) -> None:
     """
-    @brief Exercise a schema-3 stage lifecycle using default discard retention.
+    @brief Exercise a schema-3 lifecycle using explicit discard then latest.
     @param[in] tmp_path Configured temporary repository.
     @param[in] monkeypatch Pytest environment fixture.
     @param[in] capsys Pytest capture fixture.

@@ -444,7 +444,7 @@ def _seeded_workflow_specs(analysis: RepoAnalysis | None) -> list[FieldSpec]:
             )
             for name in GATE_ORDER
         },
-        "stage_form_retention": "discard",
+        "stage_form_retention": "latest",
         "check_execution": "external",
         "alignment_enabled": True,
     }

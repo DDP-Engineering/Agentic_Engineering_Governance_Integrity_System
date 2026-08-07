@@ -6,6 +6,10 @@
 agreed scope, so every later stage can be checked against something the human
 approved rather than against your memory of the conversation.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status` — the run id, the stage, the artifact path.
@@ -20,7 +24,9 @@ approved rather than against your memory of the conversation.
    genuinely small `fix` or `change`; when the ask looks small, offer the route
    explicitly — `small scope - suggest: <workflow> run start fix --quick` — and
    let the human choose.
-2. Run `<workflow> stage prepare` and open the form it names.
+2. If `run status` reports `stage prepare`, run `<workflow> stage prepare` and
+   open the form it names. Otherwise keep the current revision and resume at the
+   reported `next` command.
 3. Write `statement`: what the human asked for, in your words, as the observable
    outcome they want. Not the cause, not the fix. If you cannot state it without
    guessing, that guess belongs in `control.unresolved_questions`.

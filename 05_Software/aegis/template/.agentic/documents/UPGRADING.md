@@ -60,7 +60,7 @@ edits:
 
    ```toml
    [interface]
-   stage_form_retention = "discard"   # "versioned" | "latest" | "discard"
+   stage_form_retention = "latest"    # "versioned" | "latest" | "discard"
    check_execution = "external"       # "external" | "managed"
    ```
 

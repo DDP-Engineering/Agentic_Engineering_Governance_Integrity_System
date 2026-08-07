@@ -5,6 +5,10 @@
 **Purpose:** Make the checks pass by changing production source only, so that
 every green check has a recorded red result before it.
 
+**Resume rule:** Run `<workflow> stage prepare` only when `<workflow> run status`
+reports it as `next`. Otherwise do not prepare a new revision; resume at the
+reported command using the retained current form and this reference.
+
 **Read first:**
 
 - `<workflow> run status`, then the implementation form `stage prepare`
@@ -16,8 +20,9 @@ every green check has a recorded red result before it.
 
 **Steps:**
 
-1. Run `<workflow> stage prepare`. The form arrives with a change-unit ID already
-   minted. Never invent an ID.
+1. If `run status` reports `stage prepare`, run `<workflow> stage prepare`. The
+   form arrives with a change-unit ID already minted. Otherwise keep the current
+   revision and resume at the reported `next` command. Never invent an ID.
 2. Work one check at a time, in the design's implementation sequence. Do not open
    several at once.
 3. Write the smallest change that makes that check pass. Add no behaviour no

@@ -39,32 +39,40 @@ An installed `aegis` or `python -m aegis` is also valid.
 
 ## Resuming In A Fresh Session
 
-Every stage is independently startable. A session that did not run the earlier
-stages needs four commands and no other context:
+A session that did not run the earlier stages can reconstruct the current stage
+from repository state. Start with two read-only discovery commands:
 
 ```text
 <workflow> config validate --json    # bootstrap, as above
 <workflow> run status                # stage, artifact path, next command
-<workflow> stage prepare             # regenerates the current stage's form
 ```
 
-Then read, in this order and no further:
+Treat the reported `next` command as the authoritative lifecycle state. Never
+run `stage prepare` unless `next` reports it: preparing an already prepared or
+applied stage creates a new revision and discards that stage's current
+prepared/applied state.
 
-1. The form `stage prepare` just wrote — it carries this stage's fields, their
-   accepted values, and its "Done when" list as comments.
-2. The previous stage's retained form under
-   `.agentic/runs/<run-id>/stages/<previous-stage>/`.
-3. The reference for the current stage only, from the `agentic-development`
-   skill.
+- If `next` is `<workflow> stage prepare`, read the reference for the current
+  stage, run that command, and open the generated form.
+- If `next` reports apply, evidence, or verification work, continue from the
+  retained current form and the inputs named by the current-stage reference.
+- If `next` is `<workflow> stage close`, run `<workflow> stage show`, review the
+  applied state and its retained form, obtain explicit human approval, and only
+  then close it. Do not prepare it again.
+
+Depending on the stage, the named inputs may include the preceding retained
+form, requirements/specs, the approved design, imported checks, component
+documentation, or the source files being changed.
 
 Do not read `graph.json` or `journal.jsonl` to recover context. They are the
 run's internal state and its append-only audit trail; they can be substantially
-larger than the focused stage forms, and everything a stage needs is in the two
-forms above. Read them only when diagnosing AEGIS itself.
+larger than the focused stage inputs. Read them only when diagnosing AEGIS
+itself.
 
-This depends on `[interface] stage_form_retention` keeping forms after import
-(`latest` or `versioned`). Under `discard` the previous stage's form is deleted
-and this handoff does not work.
+Retained-form review depends on `[interface] stage_form_retention` keeping forms
+after import (`latest` or `versioned`). Under `discard`, use `stage show` and the
+durable artifacts named by the stage reference because the imported form is
+deleted.
 
 ## Standard Lifecycle
 

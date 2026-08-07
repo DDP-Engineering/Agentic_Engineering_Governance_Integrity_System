@@ -84,13 +84,13 @@ For Python changes inside
 
 ```powershell
 python -m py_compile <changed_file.py>
-python -m pytest -q tests
+uv run --group dev python -m pytest -q tests
 ```
 
 For CLI changes, also verify:
 
 ```powershell
-python -m aegis --help
+uv run --group dev python -B -m aegis --help
 ```
 
 For Python changes inside `05_Software/waegis/`, run at minimum:
@@ -98,7 +98,7 @@ For Python changes inside `05_Software/waegis/`, run at minimum:
 ```powershell
 python -m py_compile <changed_file.py>
 uv run --group dev python -m pytest -q tests
-python -m waegis --help
+uv run --group dev python -B -m waegis --help
 ```
 
 When behavior changes:

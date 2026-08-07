@@ -25,7 +25,8 @@ from pathlib import Path
 from aegis.cli import _build_parser, _normalize_global_options
 from aegis.config import load_config
 from aegis.invariants import evaluate
-from aegis.models import ChangeUnit, Graph, Intent
+from aegis.models import ChangeUnit, Check, Graph, Intent, StageRecord
+from aegis.stage_forms import next_command
 
 # CONSTANTS
 
@@ -233,6 +234,129 @@ def test_template_declares_alignment_workflow_contract() -> None:
     assert "<workflow> stage close" in adoption
 
 
+def test_template_fresh_session_guidance_matches_current_form_contract() -> None:
+    """@brief Keep copied restart guidance within implemented CLI behavior."""
+    template_root = PACKAGE_ROOT / "template"
+    agents = (template_root / "AGENTS.md").read_text(encoding="utf-8")
+    references = (
+        template_root
+        / ".agentic"
+        / "skills"
+        / "agentic-development"
+        / "reference"
+    )
+    alignment = (references / "alignment.md").read_text(encoding="utf-8")
+    design = (references / "design.md").read_text(encoding="utf-8")
+    applied_graph = Graph(
+        run_id="RUN-0001",
+        stage="intake",
+        intent=Intent(id="I-0001", kind="feature", statement="Resume safely"),
+        stage_records={
+            "intake": StageRecord(
+                stage="intake",
+                revision=1,
+                status="applied",
+                retention="latest",
+                check_execution="external",
+            )
+        },
+    )
+    applied_check_graph = Graph(
+        run_id="RUN-0002",
+        stage="check",
+        intent=Intent(id="I-0002", kind="feature", statement="Resume evidence"),
+        checks=[Check(id="CHK-0001", level="unit", cites_spec=[])],
+        stage_records={
+            "check": StageRecord(
+                stage="check",
+                revision=1,
+                status="applied",
+                retention="latest",
+                check_execution="external",
+            )
+        },
+    )
+    applied_validation_graph = Graph(
+        run_id="RUN-0003",
+        stage="validation",
+        intent=Intent(id="I-0003", kind="feature", statement="Resume verification"),
+        stage_records={
+            "validation": StageRecord(
+                stage="validation",
+                revision=1,
+                status="applied",
+                retention="latest",
+                check_execution="external",
+                payload={},
+            )
+        },
+    )
+
+    assert next_command(applied_graph) == "aegis stage close"
+    assert next_command(applied_check_graph) == "aegis check prepare"
+    assert next_command(applied_validation_graph) == "aegis verify run"
+    assert "Start with two read-only discovery commands" in agents
+    assert re.search(
+        r"Never\s+run `stage prepare` unless `next` reports it",
+        agents,
+    )
+    assert "If `next` is `<workflow> stage close`" in agents
+    assert "Do not prepare it again" in agents
+    assert "needs three commands" not in agents
+    assert 'its "Done when" list as comments' not in agents
+    assert "everything a stage needs is in the two forms above" not in agents
+    assert "[alignment] enabled = false" not in alignment
+    assert "The quick path bypasses this stage by profile" in alignment
+    assert "Beyond that" not in design
+    assert "A full run never skips design" in design
+    for stage in _DEVELOPMENT_STAGE_REFERENCES:
+        reference = (references / f"{stage}.md").read_text(encoding="utf-8")
+        assert "**Resume rule:**" in reference
+        assert "reports it as `next`" in reference
+        assert "Otherwise do not prepare a new revision" in reference
+
+
+def test_maintained_documentation_names_latest_as_retention_default() -> None:
+    """@brief Keep maintained setup and metadata guides on the shipped default."""
+    repository_root = PACKAGE_ROOT.parents[1]
+    documents = (
+        PACKAGE_ROOT / "README.md",
+        PACKAGE_ROOT
+        / "template"
+        / ".agentic"
+        / "documents"
+        / "How_To_Start_A_New_Project.md",
+        PACKAGE_ROOT
+        / "template"
+        / ".agentic"
+        / "documents"
+        / "WORKFLOW_CONFIGURATION.md",
+        PACKAGE_ROOT
+        / "template"
+        / ".agentic"
+        / "documents"
+        / "UPGRADING.md",
+        repository_root / "06_SoftwareDocu" / "04_Configuring_AEGIS.md",
+        repository_root / "06_SoftwareDocu" / "05_Reading_AEGIS_Metadata.md",
+        repository_root / "05_Software" / "waegis" / "README.md",
+    )
+
+    for path in documents:
+        text = path.read_text(encoding="utf-8")
+        assert 'stage_form_retention = "latest"' in text, path
+        assert "`discard` (the default)" not in text, path
+
+
+def test_repository_validation_guidance_preserves_template_hygiene() -> None:
+    """@brief Keep repository CLI checks from writing copied-template bytecode."""
+    repository_root = PACKAGE_ROOT.parents[1]
+    readme = (repository_root / "README.md").read_text(encoding="utf-8")
+
+    assert "uv run --group dev python -B -m aegis --help" in readme
+    assert "uv run --group dev python -m aegis --help" not in readme
+    assert "uv run --group dev aegis --help" not in readme
+
+
 def test_installable_template_includes_bundled_skills() -> None:
     """
     @brief      Handle test installable template includes bundled skills workflow behavior.
@@ -355,7 +479,7 @@ def test_development_stage_references_have_operational_structure() -> None:
     assert "still records a red result" not in check
 
 
-def test_development_stage_reference_commands_match_the_cli_parser() -> None:
+def test_documented_workflow_commands_match_the_cli_parser() -> None:
     """
     @brief Verify every documented workflow invocation is accepted by the CLI parser.
     @return None.
@@ -369,22 +493,40 @@ def test_development_stage_reference_commands_match_the_cli_parser() -> None:
         / "agentic-development"
         / "reference"
     )
-    parser = _build_parser()
+    sources = [
+        (PACKAGE_ROOT / "template" / "AGENTS.md").read_text(encoding="utf-8"),
+        *(
+            (reference_dir / f"{stage}.md").read_text(encoding="utf-8")
+            for stage in _DEVELOPMENT_STAGE_REFERENCES
+        ),
+    ]
+    commands = {
+        match.split("#", 1)[0].strip()
+        for text in sources
+        for match in re.findall(r"<workflow>\s+([^`\r\n]+)", text)
+    }
+    required_commands = {
+        "config validate --json",
+        "config show --json",
+        "run start fix --quick",
+        "stage show",
+        "evidence prepare <add|supersede>",
+    }
+    assert required_commands <= commands
 
-    for stage in _DEVELOPMENT_STAGE_REFERENCES:
-        text = (reference_dir / f"{stage}.md").read_text(encoding="utf-8")
-        commands = re.findall(r"`<workflow>\s+([^`\r\n]+)`", text)
-        assert commands
-        for command in commands:
-            concrete = (
-                command.replace("<feature|fix|change>", "fix")
-                .replace("[<check-id>...]", "CHK-0001")
-                .replace("<check-id>", "CHK-0001")
-                .replace("<category>", "functional")
-                .replace("<blocker-id>", "INV-1")
-                .replace('"<reason>"', '"approved reason"')
-            )
-            parser.parse_args(_normalize_global_options(shlex.split(concrete)))
+    parser = _build_parser()
+    for command in sorted(commands):
+        concrete = (
+            command.replace("<feature|fix|change>", "fix")
+            .replace("<add|supersede>", "add")
+            .replace("[<check-id>...]", "CHK-0001")
+            .replace("<check-id>", "CHK-0001")
+            .replace("<category>", "functional")
+            .replace("<blocker-id>", "INV-1")
+            .replace("<human-approved reason>", "approved reason")
+            .replace('"<reason>"', '"approved reason"')
+        )
+        parser.parse_args(_normalize_global_options(shlex.split(concrete)))
 
 
 def test_copied_template_material_avoids_project_specific_measurements() -> None:
