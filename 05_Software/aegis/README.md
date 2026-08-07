@@ -19,6 +19,9 @@ Integrity System. The runnable Python package is embedded under
 - canonical stage completion checklists generated as TOML comments from one
   CLI-owned contract, with tested `Done when` projections in the standard,
   adoption, and delivery references;
+- a versioned, read-only `run context --json` bootstrap response that names
+  only the selected stage's router, reference, primary form, and retained
+  predecessor form, independent of evidence-history size;
 - authoritative run-local `design.md` and blocking design invariant;
 - external or managed red-before-green check evidence;
 - canonical, complete-document external evidence validation before graph
@@ -59,6 +62,12 @@ aegis stage close
 Repeat prepare/apply/close through delivery. Use `stage add` for requirement and
 check collections, `check prepare/record` or `check run` for evidence, and
 `verify run` at validation.
+
+For a fresh stage session, read `AGENTS.md`, run `aegis run context --json`,
+prepare only an absent current form, then read only the returned router,
+reference, current form, and retained predecessor form. `run status` remains
+the detailed diagnostic command; routine recovery never reads `graph.json` or
+`journal.jsonl`.
 
 Each primary stage form begins with its generated completion checklist. The
 checklist is presentation guidance, not submitted TOML data: AEGIS imports the

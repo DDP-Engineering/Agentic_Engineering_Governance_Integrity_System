@@ -103,6 +103,27 @@ RUN_STAGE_SCHEMAS: dict[tuple[RunKind, RunProfile], RunStageSpec] = {
     ("change", "quick"): _QUICK_RUN_SPEC,
 }
 
+# The context command resolves the one stage reference a fresh session needs
+# from this mapping. Delivery guidance lives in its router rather than a second
+# reference file, so it deliberately appears as both the skill and reference.
+STAGE_REFERENCE_PATHS: dict[Stage, str] = {
+    "intake": ".agentic/skills/agentic-development/reference/intake.md",
+    "alignment": ".agentic/skills/agentic-development/reference/alignment.md",
+    "requirement": ".agentic/skills/agentic-development/reference/requirement.md",
+    "design": ".agentic/skills/agentic-development/reference/design.md",
+    "check": ".agentic/skills/agentic-development/reference/check.md",
+    "implementation": ".agentic/skills/agentic-development/reference/implementation.md",
+    "validation": ".agentic/skills/agentic-development/reference/validation.md",
+    "delivery": ".agentic/skills/agentic-delivery/SKILL.md",
+    "adoption-intake": ".agentic/skills/agentic-adoption/reference/adoption-intake.md",
+    "adoption-alignment": ".agentic/skills/agentic-adoption/reference/adoption-alignment.md",
+    "repo-discovery": ".agentic/skills/agentic-adoption/reference/repo-discovery.md",
+    "component-map": ".agentic/skills/agentic-adoption/reference/component-map.md",
+    "component-adoption": ".agentic/skills/agentic-adoption/reference/component-adoption.md",
+    "baseline-review": ".agentic/skills/agentic-adoption/reference/baseline-review.md",
+    "adoption-delivery": ".agentic/skills/agentic-adoption/reference/adoption-delivery.md",
+}
+
 
 def run_stage_spec(graph: Graph) -> RunStageSpec:
     """

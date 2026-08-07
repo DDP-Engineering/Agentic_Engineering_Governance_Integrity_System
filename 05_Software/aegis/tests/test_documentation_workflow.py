@@ -306,13 +306,10 @@ def test_template_fresh_session_guidance_matches_current_form_contract() -> None
     assert next_command(applied_graph) == "aegis stage close"
     assert next_command(applied_check_graph) == "aegis check prepare"
     assert next_command(applied_validation_graph) == "aegis verify run"
-    assert "Start with two read-only discovery commands" in agents
-    assert re.search(
-        r"Never\s+run `stage prepare` unless `next` reports it",
-        agents,
-    )
-    assert "If `next` is `<workflow> stage close`" in agents
-    assert "Do not prepare it again" in agents
+    assert "bootstrap sequence:" in agents
+    assert "<workflow> run context --json" in agents
+    assert "named in required_reads" in agents
+    assert "Do not read `graph.json` or `journal.jsonl`" in agents
     assert "needs three commands" not in agents
     assert 'its "Done when" list as comments' not in agents
     assert "everything a stage needs is in the two forms above" not in agents
@@ -325,6 +322,29 @@ def test_template_fresh_session_guidance_matches_current_form_contract() -> None
         assert "**Resume rule:**" in reference
         assert "reports it as `next`" in reference
         assert "Otherwise do not prepare a new revision" in reference
+
+
+def test_template_adapters_route_fresh_sessions_through_bounded_context() -> None:
+    """@brief Requirement AEGIS-WP2-CTX keeps every adapter on one bootstrap."""
+    template_root = PACKAGE_ROOT / "template"
+    adapters = (
+        template_root / ".codex" / "README.md",
+        template_root / ".claude" / "README.md",
+        template_root / ".pi" / "README.md",
+        template_root / ".opencode" / "README.md",
+        template_root / ".qwen" / "README.md",
+    )
+    routers = (
+        template_root / ".agentic" / "skills" / "agentic-development" / "SKILL.md",
+        template_root / ".agentic" / "skills" / "agentic-adoption" / "SKILL.md",
+        template_root / ".agentic" / "skills" / "agentic-delivery" / "SKILL.md",
+    )
+
+    for path in (*adapters, *routers):
+        text = " ".join(path.read_text(encoding="utf-8").split())
+        assert "run context --json" in text, path
+    for path in adapters:
+        assert "read graph.json" not in path.read_text(encoding="utf-8"), path
 
 
 def test_maintained_documentation_names_latest_as_retention_default() -> None:

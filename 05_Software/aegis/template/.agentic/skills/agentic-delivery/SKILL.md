@@ -19,9 +19,11 @@ pushing, publishing, merging, or opening a pull request.
 
 **Read first:**
 
-- `<workflow> config validate --json`, `<workflow> config show --json`, and
-  `<workflow> run status` for the selected run.
-- The validation form, validation summary, and current delivery form.
+- `<workflow> config validate --json`, `<workflow> config show --json`, then
+  `AGENTS.md` and `<workflow> run context --json` for the selected run.
+- Only the named delivery router, current form, and retained previous form.
+  Run `<workflow> stage prepare` only if the current form is absent; use
+  `run status` only for detailed diagnosis.
 
 **Steps:**
 

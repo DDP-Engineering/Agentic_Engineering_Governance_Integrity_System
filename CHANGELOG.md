@@ -13,6 +13,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add the versioned, read-only `aegis run context --json` bootstrap contract.
+  It provides the current stage's single router/reference and bounded primary
+  forms without serializing graph, journal, evidence, requirement, report, or
+  configuration history; automated tests enforce its 4 KiB response and 30 KiB
+  installable-template bootstrap-pack limits.
+
 - Add a project-agnostic human explanation of the AEGIS adoption installation
   baseline, including every installation-manifest and workflow configuration
   field, the component inventory contract, and the requirements and knowledge

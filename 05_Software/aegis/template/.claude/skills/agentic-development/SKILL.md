@@ -18,6 +18,9 @@ protected-read/path, scope, secret, gate, coverage, and delivery modes and activ
 rule counts, state the selected run when graph state is used, and distinguish
 AEGIS repository policy from external platform safety.
 
+For a fresh stage session, read `AGENTS.md`, run `<workflow> run context --json`,
+prepare only an absent current form, then read only the paths it names.
+
 Read and follow these shared workflow rule sources:
 
 - `AGENTS.md`

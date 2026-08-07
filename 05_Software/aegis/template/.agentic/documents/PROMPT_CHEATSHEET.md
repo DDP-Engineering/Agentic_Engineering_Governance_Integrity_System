@@ -26,6 +26,13 @@ Run `aegis run resume`, open the active artifact, summarize imported state and
 blockers, and continue only within the current stage.
 ```
 
+```text
+In this fresh session, read AGENTS.md, run `aegis run context --json`, prepare
+the stage only if its current form is absent, then read only the returned skill,
+reference, current form, and retained prior form. Do not read graph.json or
+journal.jsonl.
+```
+
 ## Alignment
 
 ```text

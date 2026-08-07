@@ -22,6 +22,10 @@ scope, secret, gate, coverage, and delivery modes and active rule counts, plus
 the selected worktree run or explicit `--run`. AEGIS policy comes only from
 the validated file; Pi trust and host controls remain separate.
 
+For a fresh stage session, read `AGENTS.md`, run the project-local `run context
+--json` command, prepare only an absent current form, and read only the named
+router, reference, and forms.
+
 ## Contents
 
 - `package.json` - Pi package manifest. Declares the `agentic-guard` extension

@@ -27,6 +27,14 @@ Adoption uses the same file-first lifecycle as standard work:
 Open and edit the returned artifact. Do not put scope, access, routing, or
 decisions in flags. The human explicitly approves every `stage close`.
 
+## Fresh Stage Sessions
+
+Read `AGENTS.md`, run `<workflow> run context --json`, then read only its
+named skill, reference, current form, and retained previous form. Run
+`<workflow> stage prepare` only when the current form is absent. Do not recover
+ordinary adoption work by reading `graph.json` or `journal.jsonl`; use `run
+status` only for detailed diagnosis.
+
 The required order is:
 
 `adoption-intake → adoption-alignment → repo-discovery → component-map → component-adoption → baseline-review → adoption-delivery`

@@ -39,6 +39,15 @@ does not replace the imported design or `stage close` approval journal.
 4. Open the returned artifact. Do not encode statements, paths, decisions, or
    evidence in CLI flags.
 
+## Fresh Stage Sessions
+
+When resuming work without prior chat history, read `AGENTS.md`, run
+`<workflow> run context --json`, then read only its named skill, reference,
+current form, and retained previous form. Run `<workflow> stage prepare` only
+when the current form is absent. `run context` is bounded and read-only; use
+`run status` only for detailed diagnosis. Never read `graph.json` or
+`journal.jsonl` for ordinary stage recovery.
+
 When the human describes a genuinely small fix, offer the route explicitly:
 `small scope - suggest: aegis run start fix --quick`. A quick run is valid only
 for `fix` and `change`, and its real lifecycle is intake, implementation,

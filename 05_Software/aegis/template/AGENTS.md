@@ -40,25 +40,30 @@ An installed `aegis` or `python -m aegis` is also valid.
 ## Resuming In A Fresh Session
 
 A session that did not run the earlier stages can reconstruct the current stage
-from repository state. Start with two read-only discovery commands:
+from repository state without reading the graph or journal. Use this bounded
+bootstrap sequence:
 
 ```text
-<workflow> config validate --json    # bootstrap, as above
-<workflow> run status                # stage, artifact path, next command
+1. Read AGENTS.md.
+2. Run `<workflow> run context --json`.
+3. If the returned current form is absent, run `<workflow> stage prepare`.
+4. Read only the skill, reference, current form, and retained previous form
+   named in required_reads.
+5. Perform only the reported current stage and stop at stage close for human approval.
 ```
 
-Treat the reported `next` command as the authoritative lifecycle state. Never
-run `stage prepare` unless `next` reports it: preparing an already prepared or
-applied stage creates a new revision and discards that stage's current
-prepared/applied state.
+`run context` is the normal first AEGIS command in a fresh session. Its
+versioned response names only the selected stage's router/reference and bounded
+form inputs; it omits evidence, requirements, reports, configuration, and other
+run-history data. Use `run status` only for detailed diagnosis.
 
-- If `next` is `<workflow> stage prepare`, read the reference for the current
-  stage, run that command, and open the generated form.
-- If `next` reports apply, evidence, or verification work, continue from the
-  retained current form and the inputs named by the current-stage reference.
-- If `next` is `<workflow> stage close`, run `<workflow> stage show`, review the
-  applied state and its retained form, obtain explicit human approval, and only
-  then close it. Do not prepare it again.
+- If `unavailable_previous_stage_artifacts` is non-empty, use its named
+  recovery command instead of guessing from internal state.
+- Treat the current form's state and the current-stage reference as the
+  authoritative work boundary. If the form is already prepared or applied, do
+  not prepare a new revision merely to resume it.
+- Before applying or closing, use the stage-specific command in the reference
+  when evidence or verification remains outstanding.
 
 Depending on the stage, the named inputs may include the preceding retained
 form, requirements/specs, the approved design, imported checks, component

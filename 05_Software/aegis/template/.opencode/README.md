@@ -67,6 +67,10 @@ active rule counts, plus the selected worktree run or explicit `--run`.
 AEGIS policy comes only from the validated file; OpenCode platform permissions
 remain separate.
 
+For a fresh stage session, read `AGENTS.md`, run `<workflow> run context --json`,
+prepare only an absent current form, and read only the named router, reference,
+and forms.
+
 OpenCode command shortcuts are available from the TUI:
 
 ```text

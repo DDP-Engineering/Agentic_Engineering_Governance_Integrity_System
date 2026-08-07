@@ -93,6 +93,7 @@ Legacy AEGIS 1.x commands and mutation flags do not exist.
 ```text
 aegis run start <feature|fix|change|adoption> [--quick]
 aegis run status
+aegis run context
 aegis run resume
 aegis run select <run-id>
 aegis run list
@@ -104,6 +105,15 @@ returns its path. Put the statement, scope hints, and access mode in the form.
 `--quick` selects the proportional profile and is valid only for `fix` and
 `change`; feature and adoption starts return a typed blocked response before
 run state is created.
+
+`run context --json` is the read-only fresh-session bootstrap surface. Its
+versioned response names only `AGENTS.md`, the current stage's router and
+reference, the prepared primary form, and the immediately preceding retained
+primary form when available. It excludes `graph.json`, `journal.jsonl`,
+evidence, requirement indexes, reports, and full configuration. If a preceding
+form is unavailable, `unavailable_previous_stage_artifacts` gives a reason and
+recovery command. Use `run status` for detailed diagnostics, not normal
+bootstrap.
 
 After quick-run intake closes, `run status` reports `run_profile="quick"`,
 `bypass_status="bypassed"`, and the four bypassed stages. The intake approval

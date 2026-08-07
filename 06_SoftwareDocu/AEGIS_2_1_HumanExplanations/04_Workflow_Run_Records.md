@@ -47,6 +47,21 @@ The fixed sequence exists so the workflow can distinguish an intentionally
 bypassed stage from a completed one and can verify that important decisions
 occur before dependent work.
 
+## Fresh-session context
+
+`aegis run context --json` is the compact recovery view for an agent session
+that has no earlier conversation. It reports the selected run, kind/profile and
+stage; one payload-owned skill and one stage reference; the current primary
+form; and the immediately previous retained primary form when one exists. It
+also names the common apply/close commands and the human approval boundary.
+
+The response is deliberately not another run summary. It omits `graph.json`,
+`journal.jsonl`, evidence rows, requirement indexes, reports, and the complete
+workflow configuration, so its size does not increase as the run gathers
+history. When a prior form was discarded or is missing, the response records the
+reason and a recovery command instead of silently expanding the agent's read
+set. `aegis run status` remains available for detailed diagnosis.
+
 ## The run graph
 
 `graph.json` is a living snapshot, not an append-only history.

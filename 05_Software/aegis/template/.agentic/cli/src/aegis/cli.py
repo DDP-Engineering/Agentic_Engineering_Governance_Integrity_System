@@ -83,6 +83,7 @@ from .stage_forms import (
     quick_scope_advisory,
     show_stage,
 )
+from .stage_context import build_stage_context
 from .store import (
     RunResolutionError,
     abandon_run_id,
@@ -260,6 +261,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="use the proportional four-stage profile for fix/change runs",
     )
     run_sub.add_parser("status")
+    run_sub.add_parser("context")
     run_sub.add_parser("resume")
     run_sub.add_parser("list")
     select = run_sub.add_parser("select")
@@ -366,6 +368,8 @@ def _dispatch(
     @brief Dispatch one parsed grouped command.
     """
     if args.group == "run":
+        if args.action == "context":
+            return build_stage_context(root, graph), 0
         return _run_status(root, graph), 0
     if args.group == "stage":
         return _stage_command(root, graph, config, args), 0
