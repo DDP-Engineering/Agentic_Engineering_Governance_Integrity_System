@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Expand the constrained local-model pilot into an append-only, Bonsai-only
+  controlled full/quick AEGIS experiment. It preserves model discovery and
+  exact request evidence, labels unverified context/thinking claims honestly,
+  records one empty transcript per stage, and retains failed attempts.
+
 - Add a constrained, stdlib-only local-model bootstrap pilot harness for
   disposable AEGIS payload copies. It accepts only an explicit loopback `/v1`
   endpoint, records raw API/command telemetry, prevents model-controlled shell
@@ -62,6 +67,9 @@ All notable changes to this project will be documented in this file.
   records, then maintenance, upgrades, transactions, and legacy history.
 
 ### Fixed
+
+- Make `aegis stage show --json` report an unavailable prepared artifact
+  without crashing from a duplicate `artifact` payload argument.
 
 - Keep the canonical fresh-session route bounded. `run context --json` now
   supplies the validating entry point; `config validate` is reserved for

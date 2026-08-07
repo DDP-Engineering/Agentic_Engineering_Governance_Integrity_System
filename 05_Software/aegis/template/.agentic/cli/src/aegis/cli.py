@@ -437,9 +437,10 @@ def _stage_command(
         )
     if args.action == "show":
         shown = show_stage(root, graph)
+        artifact = str(shown.pop("artifact", "")) or "none"
         return _payload(
             graph,
-            shown.get("artifact") or "none",
+            artifact,
             next_command(graph, root),
             **shown,
         )

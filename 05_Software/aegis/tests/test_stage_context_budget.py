@@ -310,6 +310,38 @@ def test_discarded_current_form_uses_non_mutating_recovery(
     assert graph_path(tmp_path, run_id).read_bytes() == graph_before
 
 
+def test_missing_prepared_form_stage_show_reports_state_without_recreating_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief AEGIS-WP8-PILOT preserves prepared-state recovery through stage show."""
+    monkeypatch.chdir(tmp_path)
+    started = _invoke(capsys, ["run", "start", "change"])
+    run_id = str(started["run_id"])
+    graph = load_graph(tmp_path, run_id)
+    artifact = tmp_path / graph.stage_records["intake"].artifact
+    artifact.unlink()
+    graph_before = graph_path(tmp_path, run_id).read_bytes()
+
+    context = _invoke(capsys, ["run", "context"])
+    shown = _invoke(capsys, ["stage", "show"])
+
+    assert context["unavailable_current_artifact"] == {
+        "stage": "intake",
+        "reason": "the current prepared form is unavailable",
+        "recovery_command": "aegis stage show",
+    }
+    assert shown["stage"] == "intake"
+    assert shown["artifact"] == graph.stage_records["intake"].artifact
+    assert shown["state"] == "prepared"
+    assert shown["revision"] == 1
+    assert shown["imported_revision"] == 0
+    assert shown["files"] == []
+    assert not artifact.exists()
+    assert graph_path(tmp_path, run_id).read_bytes() == graph_before
+
+
 def test_adoption_delivery_context_uses_the_adoption_router(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

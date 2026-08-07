@@ -69,24 +69,28 @@ check collections, `check prepare/record` or `check run` for evidence, and
 
 ## Local-model bootstrap pilot
 
-`tools/local_model_pilot.py` exercises only the bounded fresh-session startup
-and named recovery contract in a disposable copy of `template/`. It accepts one
-explicit loopback OpenAI-compatible `/v1` endpoint, gives the model one
-zero-argument bootstrap tool, and lets the harness—not model output—run its
-small command allowlist. The JSON output records observed API usage, response
-and command evidence, bootstrap bytes, files read, failures, and retries; it
-refuses to overwrite an earlier result.
+`tools/local_model_pilot.py` runs a fixed full-change and quick-fix workflow in
+disposable copies of `template/`, with a fresh one-message model transcript at
+every stage. It accepts one explicit loopback OpenAI-compatible `/v1` endpoint,
+gives the model one zero-argument bootstrap tool, and lets the harness—not model
+output—run its small command allowlist. Fixed human gate approvals are recorded
+only for disposable experiments. The JSON output preserves `/v1/models`, exact
+request options, response/command evidence, bootstrap bytes, files read,
+failures, and append-only attempt links; it refuses to overwrite an earlier
+result.
 
 ```powershell
 uv run --group dev python -B tools/local_model_pilot.py `
   --model <local-model-id> `
+  --previous-attempt <prior-result.json> `
   --output <new-pilot-result.json>
 ```
 
-The harness is not a substitute for a human-approved full workflow: it does not
-edit forms, apply stages, close stages, create waivers, or execute model-supplied
-commands. Use its result to identify bootstrap/recovery findings before any
-separate, explicitly approved end-to-end pilot.
+The context profile is evidence-labelled: a local API without a context-setting
+parameter cannot verify a per-request context window. The harness consequently
+distinguishes its 32K workflow budget from a user-configured server profile, and
+records response reasoning-token fields as evidence without claiming API control
+of thinking. Model text never controls a shell command or a form edit.
 
 An explicit `check run` or `verify gates` request that launches no command exits
 non-zero with `execution_status = "nothing-ran"`, `executed_count = 0`, and a

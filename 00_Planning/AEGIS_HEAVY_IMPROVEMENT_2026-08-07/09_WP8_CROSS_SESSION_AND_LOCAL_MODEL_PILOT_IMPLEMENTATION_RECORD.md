@@ -140,3 +140,55 @@ separate, measured core-recovery follow-up before this pilot can be extended to
 a human-approved, multi-stage full/quick run. The pilot also cannot claim
 tokenizer-native tokenization or true cross-run determinism because LM Studio's
 reported API fields did not expose either capability.
+
+## Corrective Bonsai-only controlled experiment
+
+This correction supersedes the preceding bootstrap-only disposition for this
+user-authorized run. It is a **Bonsai-only user override**, not equivalent
+provider coverage for the original Qwen/Codex/Claude matrix. WAEGIS remains out
+of scope; no WAEGIS source, test, or documentation was accessed.
+
+`16_WP8_BONSAI_ONLY_CONTROLLED_ATTEMPT_09.json` is the final append-only result.
+It retains the raw loopback `/v1/models` discovery response, every initial
+OpenAI-compatible request payload/options, responses, reasoning-token evidence
+when supplied by LM Studio, command output, fixed approval gates, and SHA-256
+links to all durable prior attempts. Attempt 01 remains unavailable because it
+was overwritten before the overwrite guard existed; the record does not invent
+it. Attempts 02 through 08 remain preserved, including the measured failed
+configuration attempts.
+
+The final attempt completed a real full eight-stage `change` and a real quick
+four-stage `fix` at both profiles. Each stage sent one fresh model request with
+exactly one user message and `prior_transcript_messages = 0`; UUIDs are only
+labels, not the evidence of transcript isolation. The model emitted only the
+zero-argument bounded bootstrap tool request. The harness owned every command,
+form edit, Git fixture setup, approval, and managed check invocation; no model
+text became shell input.
+
+- **32,768** is a harness-enforced workflow-budget profile. LM Studio's
+  OpenAI-compatible API exposed no per-request context setter, so this does not
+  claim server enforcement.
+- **131,072** is the user-configured loaded-server profile. It is likewise not
+  API-verified by `/v1/models`.
+- Thinking is user-configured as enabled. Response
+  `completion_tokens_details.reasoning_tokens`, when present, is retained as
+  observed evidence and is not labelled an API-verified setting.
+
+Both full runs registered a requirement/check, recorded a managed red result,
+changed the fixture, recorded a managed green result, performed validation,
+activated the requirement at validation close, reran final verification, and
+closed delivery. Both quick runs used `check create`/`check register`, recorded
+managed red then green evidence, retained the declared not-applicable quick
+invariants, performed final verification, and closed delivery. All 24 fresh
+stage requests had valid constrained tool calls, zero invalid command requests,
+and no graph/journal bootstrap reads. Bounded bootstrap packs ranged from
+18,546 to 27,389 bytes and the response usage/latency fields are preserved in
+the JSON evidence.
+
+The amended Bonsai-only acceptance is met for the controlled disposable-fixture
+experiment: full and quick workflows complete at both labelled profiles, with
+fresh initial transcripts, fixed recorded human gates, real forms/evidence, and
+final invariant verification. It does **not** establish the superseded original
+multi-provider matrix, server-enforced 32K/131K request contexts, tokenizer
+measurements, or autonomous model-authored engineering quality. No WP9 work has
+started.

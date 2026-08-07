@@ -181,4 +181,33 @@ def test_main_refuses_to_overwrite_existing_pilot_evidence(tmp_path: Path) -> No
         pilot.main(["--model", "prism-ml/bonsai-27b", "--output", str(output)])
 
 
+def test_fresh_model_request_records_exact_transcript_and_options(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief AEGIS-WP8-PILOT proves each stage starts from one transcript-empty request."""
+    pilot = _load_pilot_module()
+    response = _valid_tool_response(pilot)
+    monkeypatch.setattr(pilot, "_post_json", lambda *_args: (response, 42, 7))
+    monkeypatch.setattr(pilot, "_run_bounded_bootstrap", lambda *_args: {})
+
+    observation = pilot._run_model_session(
+        "http://127.0.0.1:1234/v1",
+        "prism-ml/bonsai-27b",
+        tmp_path,
+        "RUN-1",
+        pilot.PilotProfile(32768, "enabled", 0.0, None),
+        "stage:intake",
+        1.0,
+    )
+
+    assert observation.outcome_class == "success"
+    assert observation.fresh_transcript
+    assert observation.prior_transcript_messages == 0
+    assert len(observation.api_request["messages"]) == 1
+    assert observation.api_request["model"] == "prism-ml/bonsai-27b"
+    assert observation.api_request["temperature"] == 0.0
+    assert observation.transcript_sha256
+
+
 # END OF FILE

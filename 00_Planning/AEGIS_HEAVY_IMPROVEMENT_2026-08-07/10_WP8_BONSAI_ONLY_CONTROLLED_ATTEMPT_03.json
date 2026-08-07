@@ -1,0 +1,2284 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-08-07T18:53:32.456420Z",
+  "endpoint": "http://127.0.0.1:1234/v1",
+  "model": "prism-ml/bonsai-27b",
+  "provider_coverage": {
+    "scope": "Bonsai-only user override",
+    "covered": [
+      "prism-ml/bonsai-27b"
+    ],
+    "not_equivalent_to": [
+      "original Qwen/Codex/Claude provider matrix"
+    ]
+  },
+  "discovery": {
+    "request": {
+      "method": "GET",
+      "url": "http://127.0.0.1:1234/v1/models",
+      "headers": {}
+    },
+    "response_bytes": 1864,
+    "latency_ms": 27,
+    "response": {
+      "data": [
+        {
+          "id": "prism-ml/bonsai-27b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-35b-a3b-mtp",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "google/gemma-4-12b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "google/gemma-4-12b-qat",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-27b-mtp",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-27b-fable-fusion-711-uncensored-heretic-nm-dau-neo-max-mtp",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-27b-ltspice-v2",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-27b-uncensored-hauhaucs-aggressive-mtp",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-35b-a3b-uncensored-genesis-hermes-v5",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen3.6-35b-a3b-uncensored-hauhaucs-aggressive",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "google/gemma-4-26b-a4b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "google/gemma-4-31b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "openai/gpt-oss-20b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "qwen/qwen3-coder-30b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "text-embedding-nomic-embed-text-v1.5",
+          "object": "model",
+          "owned_by": "organization_owner"
+        }
+      ],
+      "object": "list"
+    }
+  },
+  "runner": "LM Studio OpenAI-compatible API",
+  "model_build": "not exposed by the configured /v1/models response",
+  "tokenizer": "not exposed by the configured /v1/models or completion responses",
+  "template_version": "2.1.0",
+  "profiles": [
+    {
+      "profile": {
+        "context_window": 32768,
+        "thinking": "enabled",
+        "temperature": 0.0,
+        "seed": null,
+        "context_claim": "harness-enforced workflow budget; server context not API-verified"
+      },
+      "context_verification": "harness-enforced workflow budget; server context not API-verified",
+      "thinking_verification": "user-configured; response reasoning evidence retained when present",
+      "trials": [
+        {
+          "label": "full-change",
+          "run_id": "change-2026-08-07T185333Z-60c580aa",
+          "setup_commands": [
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "init",
+                "--quiet",
+                "--initial-branch=main"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 96,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.name",
+                "AEGIS Pilot"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 61,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.email",
+                "aegis-pilot@example.invalid"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 60,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "add",
+                "."
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 350,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "commit",
+                "--quiet",
+                "-m",
+                "pilot baseline"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 245,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            }
+          ],
+          "sessions": [
+            {
+              "session_id": "fb0858a5-e9cb-4605-a0b1-ead3fcae3c87",
+              "scenario": "stage:intake",
+              "started_at": "2026-08-07T18:53:33.719030Z",
+              "prompt_bytes": 338,
+              "transcript_sha256": "eaffbf8856dd01b90e62ff59da5920dbcdeece525e1c6aaffdc50c1f20bbbc58",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\full-change-32768\nAEGIS run ID: change-2026-08-07T185333Z-60c580aa\nModel context profile: 32768\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 1815,
+              "latency_ms": 4660,
+              "model_usage": {
+                "prompt_tokens": 381,
+                "completion_tokens": 229,
+                "total_tokens": 610,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 208
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-7688mysd3a9bs78kodf5ji",
+                    "object": "chat.completion",
+                    "created": 1786128813,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available functions: `run_bounded_aegis_bootstrap`.\nThis function description says \"Run the fixed bounded AEGIS startup/recovery sequence.\" and takes no parameters.\nThe user provided specific details (Repository path, AEGIS run ID, Model context profile), but the tool definition does not have parameters to accept these. It seems this is a \"fixed\" bootstrap sequence as per the name.\nTherefore, I should call `run_bounded_aegis_bootstrap`.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. Return the result.\n\nNo shell commands are requested or allowed (\"Do not propose or execute shell commands\").\nThe user explicitly asked to \"Invoke the only available tool now.\"\n\nLet's proceed with the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "VWM4F41WMFNLI2nvxses3HNjPhdFpYgr",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 381,
+                      "completion_tokens": 229,
+                      "total_tokens": 610,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 208
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 864,
+                  "stderr_bytes": 0,
+                  "latency_ms": 215,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"change-2026-08-07T185333Z-60c580aa\",\n  \"kind\": \"change\",\n  \"profile\": \"full\",\n  \"stage\": \"intake\",\n  \"reference\": \".agentic/skills/agentic-development/reference/intake.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/intake.md\",\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 262,
+                  "stderr_bytes": 0,
+                  "latency_ms": 227,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"intake\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml\",\n  \"next\": \"aegis stage close\",\n  \"revision\": 1,\n  \"digest\": \"bfa1e5ecc4a00295aaf0d39ede6173198fe258fa7bbe0ab7b6bd3df5005c228b\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage close",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "close",
+                    "--approver",
+                    "AEGIS Pilot <aegis-pilot@example.invalid>",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 254,
+                  "stderr_bytes": 0,
+                  "latency_ms": 225,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"alignment\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml\",\n  \"next\": \"aegis stage apply\",\n  \"complete\": false,\n  \"approver\": \"AEGIS Pilot <aegis-pilot@example.invalid>\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/intake.md",
+                ".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 25127,
+              "bootstrap_context_bytes": 864,
+              "stage_apply_attempts": 1,
+              "stage_close_attempts": 1,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [
+                "standing user-authorized fixed approval at stage close"
+              ],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            },
+            {
+              "session_id": "de09ffbc-3715-4d61-8a2a-4e01e02fa36b",
+              "scenario": "stage:alignment",
+              "started_at": "2026-08-07T18:53:39.049102Z",
+              "prompt_bytes": 338,
+              "transcript_sha256": "eaffbf8856dd01b90e62ff59da5920dbcdeece525e1c6aaffdc50c1f20bbbc58",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\full-change-32768\nAEGIS run ID: change-2026-08-07T185333Z-60c580aa\nModel context profile: 32768\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 1814,
+              "latency_ms": 4127,
+              "model_usage": {
+                "prompt_tokens": 381,
+                "completion_tokens": 229,
+                "total_tokens": 610,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 208
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-cngvezdsbvpwtbykbmqav",
+                    "object": "chat.completion",
+                    "created": 1786128819,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available functions: `run_bounded_aegis_bootstrap`.\nThis function description says \"Run the fixed bounded AEGIS startup/recovery sequence.\" and takes no parameters.\nThe user provided specific details (Repository path, AEGIS run ID, Model context profile), but the tool definition does not have parameters to accept these. It seems this is a \"fixed\" bootstrap sequence as per the name.\nTherefore, I should call `run_bounded_aegis_bootstrap`.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. Return the result.\n\nNo shell commands are requested or allowed (\"Do not propose or execute shell commands\").\nThe user explicitly asked to \"Invoke the only available tool now.\"\n\nLet's proceed with the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "PgzS52XGZ6tDDTGUaAGyPJ3SnYwNMrI9",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 381,
+                      "completion_tokens": 229,
+                      "total_tokens": 610,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 208
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 1051,
+                  "stderr_bytes": 0,
+                  "latency_ms": 213,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"change-2026-08-07T185333Z-60c580aa\",\n  \"kind\": \"change\",\n  \"profile\": \"full\",\n  \"stage\": \"alignment\",\n  \"reference\": \".agentic/skills/agentic-development/reference/alignment.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml\"\n  ],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/alignment.md\",\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml\",\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 271,
+                  "stderr_bytes": 0,
+                  "latency_ms": 224,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"alignment\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml\",\n  \"next\": \"aegis stage close\",\n  \"revision\": 1,\n  \"digest\": \"5185b1ebcd3307f12ea0ff49eeb262b6768c700cd95677e85540759355d08953\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage close",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "close",
+                    "--approver",
+                    "AEGIS Pilot <aegis-pilot@example.invalid>",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 264,
+                  "stderr_bytes": 0,
+                  "latency_ms": 246,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"requirement\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/requirement/requirement-001.toml\",\n  \"next\": \"aegis stage apply\",\n  \"complete\": false,\n  \"approver\": \"AEGIS Pilot <aegis-pilot@example.invalid>\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/alignment.md",
+                ".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml",
+                ".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 26216,
+              "bootstrap_context_bytes": 1051,
+              "stage_apply_attempts": 1,
+              "stage_close_attempts": 1,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [
+                "standing user-authorized fixed approval at stage close"
+              ],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            },
+            {
+              "session_id": "85650250-a355-4f60-a4ff-3704a9011734",
+              "scenario": "stage:requirement",
+              "started_at": "2026-08-07T18:53:43.863169Z",
+              "prompt_bytes": 338,
+              "transcript_sha256": "eaffbf8856dd01b90e62ff59da5920dbcdeece525e1c6aaffdc50c1f20bbbc58",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\full-change-32768\nAEGIS run ID: change-2026-08-07T185333Z-60c580aa\nModel context profile: 32768\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 1814,
+              "latency_ms": 4151,
+              "model_usage": {
+                "prompt_tokens": 381,
+                "completion_tokens": 229,
+                "total_tokens": 610,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 208
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-y9rrovld6dajb4heclo6c",
+                    "object": "chat.completion",
+                    "created": 1786128823,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available functions: `run_bounded_aegis_bootstrap`.\nThis function description says \"Run the fixed bounded AEGIS startup/recovery sequence.\" and takes no parameters.\nThe user provided specific details (Repository path, AEGIS run ID, Model context profile), but the tool definition does not have parameters to accept these. It seems this is a \"fixed\" bootstrap sequence as per the name.\nTherefore, I should call `run_bounded_aegis_bootstrap`.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. Return the result.\n\nNo shell commands are requested or allowed (\"Do not propose or execute shell commands\").\nThe user explicitly asked to \"Invoke the only available tool now.\"\n\nLet's proceed with the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "PwtJEG8Qi2CiaeIg1v3lpF4fUXlypSsu",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 381,
+                      "completion_tokens": 229,
+                      "total_tokens": 610,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 208
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 1065,
+                  "stderr_bytes": 0,
+                  "latency_ms": 215,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"change-2026-08-07T185333Z-60c580aa\",\n  \"kind\": \"change\",\n  \"profile\": \"full\",\n  \"stage\": \"requirement\",\n  \"reference\": \".agentic/skills/agentic-development/reference/requirement.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/requirement/stage.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml\"\n  ],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/requirement.md\",\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/requirement/stage.toml\",\n    \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage add",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "add",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 184,
+                  "stderr_bytes": 0,
+                  "latency_ms": 229,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"requirement\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/requirement/requirement-002.toml\",\n  \"next\": \"aegis stage apply\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 1,
+                  "stdout_bytes": 423,
+                  "stderr_bytes": 0,
+                  "latency_ms": 213,
+                  "stdout_evidence": "{\n  \"status\": \"blocked\",\n  \"stage\": \"requirement\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/requirement/requirement-001.toml\",\n  \"next\": \"aegis stage apply\",\n  \"error\": \"C:\\\\Users\\\\dpasare\\\\AppData\\\\Local\\\\Temp\\\\aegis-local-model-pilot-m45raofw\\\\full-change-32768\\\\.agentic\\\\runs\\\\change-2026-08-07T185333Z-60c580aa\\\\stages\\\\requirement\\\\requirement-001.toml: requirement must not be empty\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/requirement.md",
+                ".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/requirement/stage.toml",
+                ".agentic/runs/change-2026-08-07T185333Z-60c580aa/stages/alignment/alignment.toml"
+              ],
+              "bootstrap_bytes": 27188,
+              "bootstrap_context_bytes": 1065,
+              "stage_apply_attempts": 0,
+              "stage_close_attempts": 0,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            }
+          ],
+          "complete": false,
+          "outcome_class": "command-failure",
+          "failure": "aegis stage apply failed with exit code 1"
+        },
+        {
+          "label": "quick-fix",
+          "run_id": "fix-2026-08-07T185349Z-bfcde19a",
+          "setup_commands": [
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "init",
+                "--quiet",
+                "--initial-branch=main"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 90,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.name",
+                "AEGIS Pilot"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 63,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.email",
+                "aegis-pilot@example.invalid"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 61,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "add",
+                "."
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 360,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "commit",
+                "--quiet",
+                "-m",
+                "pilot baseline"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 240,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            }
+          ],
+          "sessions": [
+            {
+              "session_id": "e81fcd3f-1868-4bec-bd4c-7d888ec05179",
+              "scenario": "stage:intake",
+              "started_at": "2026-08-07T18:53:49.998648Z",
+              "prompt_bytes": 333,
+              "transcript_sha256": "55aa45d84a896668f21d1669e4e97f33fa1e0538d95edbe5d8c0723ffc9508ce",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\quick-fix-32768\nAEGIS run ID: fix-2026-08-07T185349Z-bfcde19a\nModel context profile: 32768\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 2388,
+              "latency_ms": 6752,
+              "model_usage": {
+                "prompt_tokens": 379,
+                "completion_tokens": 367,
+                "total_tokens": 746,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 346
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-7gh8penjmqannt6j4nqtbf",
+                    "object": "chat.completion",
+                    "created": 1786128830,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available tools: `run_bounded_aegis_bootstrap`.\nThis tool description says \"Run the fixed bounded AEGIS startup/recovery sequence.\"\nThe parameters for this tool are empty (properties: {}, additionalProperties: false).\nTherefore, I should call this tool to fulfill the user's request.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. No arguments are needed.\n\nConstraint Checklist & Confidence Score:\n1. Follow repository AGENTS.md? Yes (implied by context).\n2. Fresh session? Yes.\n3. Do not propose shell commands? Yes.\n4. Invoke only available tool now? Yes.\n\nConfidence Score: 5/5\n\nMental Sandbox:\n- The user provided specific details like path and run ID, but the tool `run_bounded_aegis_bootstrap` takes no arguments. This suggests the tool might rely on environment variables or internal state to find these paths, or it's a simplified interface for this specific task. Since I must invoke the *only* available tool now, I will proceed with calling it without parameters.\n\nKey learnings from previous interactions (none provided here, but general behavior):\n- If a tool exists that matches the user's intent (\"AEGIS run\"), use it.\n- Do not hallucinate arguments if the schema is empty.\n\nStrategizing complete. I will now generate the response to call the function.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "NtKw3KquuHqdcIiO9WnzMbpg5uvnxY8e",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 379,
+                      "completion_tokens": 367,
+                      "total_tokens": 746,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 346
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 853,
+                  "stderr_bytes": 0,
+                  "latency_ms": 214,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"fix-2026-08-07T185349Z-bfcde19a\",\n  \"kind\": \"fix\",\n  \"profile\": \"quick\",\n  \"stage\": \"intake\",\n  \"reference\": \".agentic/skills/agentic-development/reference/intake.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/intake.md\",\n    \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 259,
+                  "stderr_bytes": 0,
+                  "latency_ms": 227,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"intake\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml\",\n  \"next\": \"aegis stage close\",\n  \"revision\": 1,\n  \"digest\": \"66916b31db507846b7ef3d81b7ab409951df6f2e3581b23b414e2502e3dea6fe\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage close",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "close",
+                    "--approver",
+                    "AEGIS Pilot <aegis-pilot@example.invalid>",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 414,
+                  "stderr_bytes": 0,
+                  "latency_ms": 233,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"implementation\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/implementation/implementation.toml\",\n  \"next\": \"aegis check create\",\n  \"complete\": false,\n  \"approver\": \"AEGIS Pilot <aegis-pilot@example.invalid>\",\n  \"run_profile\": \"quick\",\n  \"bypass_status\": \"bypassed\",\n  \"bypassed_stages\": [\n    \"alignment\",\n    \"requirement\",\n    \"design\",\n    \"check\"\n  ]\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/intake.md",
+                ".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 25113,
+              "bootstrap_context_bytes": 853,
+              "stage_apply_attempts": 1,
+              "stage_close_attempts": 1,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [
+                "standing user-authorized fixed approval at stage close"
+              ],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            },
+            {
+              "session_id": "e77b3907-3a4c-41b7-b5ff-5f33d88cbbe9",
+              "scenario": "stage:implementation",
+              "started_at": "2026-08-07T18:53:57.428831Z",
+              "prompt_bytes": 333,
+              "transcript_sha256": "55aa45d84a896668f21d1669e4e97f33fa1e0538d95edbe5d8c0723ffc9508ce",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\quick-fix-32768\nAEGIS run ID: fix-2026-08-07T185349Z-bfcde19a\nModel context profile: 32768\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 2387,
+              "latency_ms": 6527,
+              "model_usage": {
+                "prompt_tokens": 379,
+                "completion_tokens": 367,
+                "total_tokens": 746,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 346
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-315r2h5r687wnqb2ds3mk",
+                    "object": "chat.completion",
+                    "created": 1786128837,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available tools: `run_bounded_aegis_bootstrap`.\nThis tool description says \"Run the fixed bounded AEGIS startup/recovery sequence.\"\nThe parameters for this tool are empty (properties: {}, additionalProperties: false).\nTherefore, I should call this tool to fulfill the user's request.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. No arguments are needed.\n\nConstraint Checklist & Confidence Score:\n1. Follow repository AGENTS.md? Yes (implied by context).\n2. Fresh session? Yes.\n3. Do not propose shell commands? Yes.\n4. Invoke only available tool now? Yes.\n\nConfidence Score: 5/5\n\nMental Sandbox:\n- The user provided specific details like path and run ID, but the tool `run_bounded_aegis_bootstrap` takes no arguments. This suggests the tool might rely on environment variables or internal state to find these paths, or it's a simplified interface for this specific task. Since I must invoke the *only* available tool now, I will proceed with calling it without parameters.\n\nKey learnings from previous interactions (none provided here, but general behavior):\n- If a tool exists that matches the user's intent (\"AEGIS run\"), use it.\n- Do not hallucinate arguments if the schema is empty.\n\nStrategizing complete. I will now generate the response to call the function.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "9KPJPxHg4acNyABd4BP1t8hZWeSdw7qA",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 379,
+                      "completion_tokens": 367,
+                      "total_tokens": 746,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 346
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 1069,
+                  "stderr_bytes": 0,
+                  "latency_ms": 220,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"fix-2026-08-07T185349Z-bfcde19a\",\n  \"kind\": \"fix\",\n  \"profile\": \"quick\",\n  \"stage\": \"implementation\",\n  \"reference\": \".agentic/skills/agentic-development/reference/implementation.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/implementation/implementation.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [\n    \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml\"\n  ],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/implementation.md\",\n    \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/implementation/implementation.toml\",\n    \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "check create",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "check",
+                    "create",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 227,
+                  "stderr_bytes": 0,
+                  "latency_ms": 220,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"implementation\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/implementation/quick-check-CHK-cf1e0b00-dc41-4d38-b50e-f5389ccf53d6.toml\",\n  \"next\": \"aegis check register\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "check register",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "check",
+                    "register",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 553,
+                  "stderr_bytes": 0,
+                  "latency_ms": 229,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"implementation\",\n  \"artifact\": \"none\",\n  \"next\": \"aegis check prepare\",\n  \"checks\": [\n    {\n      \"id\": \"CHK-cf1e0b00-dc41-4d38-b50e-f5389ccf53d6\",\n      \"level\": \"test\",\n      \"cites_spec\": [],\n      \"cites_requirement\": [],\n      \"command\": \"python tests/check_pilot_state.py\",\n      \"path\": null,\n      \"state\": \"unknown\",\n      \"red_evidence\": null,\n      \"green_evidence\": null,\n      \"contract_variants\": [],\n      \"concerns\": [\n        \"stale state is not accepted\"\n      ],\n      \"parity_targets\": []\n    }\n  ]\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "check run",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "check",
+                    "run",
+                    "CHK-cf1e0b00-dc41-4d38-b50e-f5389ccf53d6",
+                    "--json"
+                  ],
+                  "exit_code": 1,
+                  "stdout_bytes": 267,
+                  "stderr_bytes": 0,
+                  "latency_ms": 209,
+                  "stdout_evidence": "{\n  \"status\": \"blocked\",\n  \"stage\": \"implementation\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/implementation/implementation.toml\",\n  \"next\": \"aegis check prepare\",\n  \"error\": \"check execution mode is external; use `aegis check prepare`\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/implementation.md",
+                ".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/implementation/implementation.toml",
+                ".agentic/runs/fix-2026-08-07T185349Z-bfcde19a/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 27227,
+              "bootstrap_context_bytes": 1069,
+              "stage_apply_attempts": 0,
+              "stage_close_attempts": 0,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            }
+          ],
+          "complete": false,
+          "outcome_class": "command-failure",
+          "failure": "aegis check run CHK-cf1e0b00-dc41-4d38-b50e-f5389ccf53d6 failed with exit code 1"
+        }
+      ]
+    },
+    {
+      "profile": {
+        "context_window": 131072,
+        "thinking": "enabled",
+        "temperature": 0.0,
+        "seed": null,
+        "context_claim": "user-configured server profile; not API-verified by the OpenAI-compatible API"
+      },
+      "context_verification": "user-configured server profile; not API-verified by the OpenAI-compatible API",
+      "thinking_verification": "user-configured; response reasoning evidence retained when present",
+      "trials": [
+        {
+          "label": "full-change",
+          "run_id": "change-2026-08-07T185406Z-48b579ac",
+          "setup_commands": [
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "init",
+                "--quiet",
+                "--initial-branch=main"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 94,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.name",
+                "AEGIS Pilot"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 63,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.email",
+                "aegis-pilot@example.invalid"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 63,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "add",
+                "."
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 363,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "commit",
+                "--quiet",
+                "-m",
+                "pilot baseline"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 251,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            }
+          ],
+          "sessions": [
+            {
+              "session_id": "782caefd-9a13-4ce2-8650-82e50e557027",
+              "scenario": "stage:intake",
+              "started_at": "2026-08-07T18:54:06.195139Z",
+              "prompt_bytes": 340,
+              "transcript_sha256": "8f6c1446cf3772bd0d7c9ddecbad4a142b916bc886845ae400b5dba304849a10",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\full-change-131072\nAEGIS run ID: change-2026-08-07T185406Z-48b579ac\nModel context profile: 131072\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 1814,
+              "latency_ms": 4379,
+              "model_usage": {
+                "prompt_tokens": 383,
+                "completion_tokens": 229,
+                "total_tokens": 612,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 208
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-mmzpkif9s7sd9awj0zkg9",
+                    "object": "chat.completion",
+                    "created": 1786128846,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available functions: `run_bounded_aegis_bootstrap`.\nThis function description says \"Run the fixed bounded AEGIS startup/recovery sequence.\" and takes no parameters.\nThe user provided specific details (Repository path, AEGIS run ID, Model context profile), but the tool definition does not have parameters to accept these. It seems this is a \"fixed\" bootstrap sequence as per the name.\nTherefore, I should call `run_bounded_aegis_bootstrap`.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. Return the result.\n\nNo shell commands are requested or allowed (\"Do not propose or execute shell commands\").\nThe user explicitly asked to \"Invoke the only available tool now.\"\n\nLet's proceed with the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "9sTfUWqISV7cZqXg9jz2hlWXvb1WQZmD",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 383,
+                      "completion_tokens": 229,
+                      "total_tokens": 612,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 208
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 864,
+                  "stderr_bytes": 0,
+                  "latency_ms": 222,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"change-2026-08-07T185406Z-48b579ac\",\n  \"kind\": \"change\",\n  \"profile\": \"full\",\n  \"stage\": \"intake\",\n  \"reference\": \".agentic/skills/agentic-development/reference/intake.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/intake.md\",\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 262,
+                  "stderr_bytes": 0,
+                  "latency_ms": 221,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"intake\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml\",\n  \"next\": \"aegis stage close\",\n  \"revision\": 1,\n  \"digest\": \"b87962ab6653574f51e364a283e3934785f3352d54ad317b4c083f88b66b9e17\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage close",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "close",
+                    "--approver",
+                    "AEGIS Pilot <aegis-pilot@example.invalid>",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 254,
+                  "stderr_bytes": 0,
+                  "latency_ms": 221,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"alignment\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml\",\n  \"next\": \"aegis stage apply\",\n  \"complete\": false,\n  \"approver\": \"AEGIS Pilot <aegis-pilot@example.invalid>\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/intake.md",
+                ".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 25127,
+              "bootstrap_context_bytes": 864,
+              "stage_apply_attempts": 1,
+              "stage_close_attempts": 1,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [
+                "standing user-authorized fixed approval at stage close"
+              ],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            },
+            {
+              "session_id": "e00509f3-cb3a-4478-b0d5-fec89e2ca4eb",
+              "scenario": "stage:alignment",
+              "started_at": "2026-08-07T18:54:11.239388Z",
+              "prompt_bytes": 340,
+              "transcript_sha256": "8f6c1446cf3772bd0d7c9ddecbad4a142b916bc886845ae400b5dba304849a10",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\full-change-131072\nAEGIS run ID: change-2026-08-07T185406Z-48b579ac\nModel context profile: 131072\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 1815,
+              "latency_ms": 4177,
+              "model_usage": {
+                "prompt_tokens": 383,
+                "completion_tokens": 229,
+                "total_tokens": 612,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 208
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-us6jln23pgs3ifem1ooibg",
+                    "object": "chat.completion",
+                    "created": 1786128851,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available functions: `run_bounded_aegis_bootstrap`.\nThis function description says \"Run the fixed bounded AEGIS startup/recovery sequence.\" and takes no parameters.\nThe user provided specific details (Repository path, AEGIS run ID, Model context profile), but the tool definition does not have parameters to accept these. It seems this is a \"fixed\" bootstrap sequence as per the name.\nTherefore, I should call `run_bounded_aegis_bootstrap`.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. Return the result.\n\nNo shell commands are requested or allowed (\"Do not propose or execute shell commands\").\nThe user explicitly asked to \"Invoke the only available tool now.\"\n\nLet's proceed with the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "pvWgksJo8isUDqtQIXGwr2t585ZRJ3rN",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 383,
+                      "completion_tokens": 229,
+                      "total_tokens": 612,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 208
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 1051,
+                  "stderr_bytes": 0,
+                  "latency_ms": 212,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"change-2026-08-07T185406Z-48b579ac\",\n  \"kind\": \"change\",\n  \"profile\": \"full\",\n  \"stage\": \"alignment\",\n  \"reference\": \".agentic/skills/agentic-development/reference/alignment.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml\"\n  ],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/alignment.md\",\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml\",\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 271,
+                  "stderr_bytes": 0,
+                  "latency_ms": 221,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"alignment\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml\",\n  \"next\": \"aegis stage close\",\n  \"revision\": 1,\n  \"digest\": \"60882b815167ec4221af923943f933129e3c7538028b7aed9a7c448360a40cb7\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage close",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "close",
+                    "--approver",
+                    "AEGIS Pilot <aegis-pilot@example.invalid>",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 264,
+                  "stderr_bytes": 0,
+                  "latency_ms": 239,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"requirement\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/requirement/requirement-001.toml\",\n  \"next\": \"aegis stage apply\",\n  \"complete\": false,\n  \"approver\": \"AEGIS Pilot <aegis-pilot@example.invalid>\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/alignment.md",
+                ".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml",
+                ".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 26216,
+              "bootstrap_context_bytes": 1051,
+              "stage_apply_attempts": 1,
+              "stage_close_attempts": 1,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [
+                "standing user-authorized fixed approval at stage close"
+              ],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            },
+            {
+              "session_id": "7dd1bca8-c292-4c0a-852e-4e6ddd51d491",
+              "scenario": "stage:requirement",
+              "started_at": "2026-08-07T18:54:16.092282Z",
+              "prompt_bytes": 340,
+              "transcript_sha256": "8f6c1446cf3772bd0d7c9ddecbad4a142b916bc886845ae400b5dba304849a10",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\full-change-131072\nAEGIS run ID: change-2026-08-07T185406Z-48b579ac\nModel context profile: 131072\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 1815,
+              "latency_ms": 4124,
+              "model_usage": {
+                "prompt_tokens": 383,
+                "completion_tokens": 229,
+                "total_tokens": 612,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 208
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-7zdto8nlxamugih75oy5gm",
+                    "object": "chat.completion",
+                    "created": 1786128856,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available functions: `run_bounded_aegis_bootstrap`.\nThis function description says \"Run the fixed bounded AEGIS startup/recovery sequence.\" and takes no parameters.\nThe user provided specific details (Repository path, AEGIS run ID, Model context profile), but the tool definition does not have parameters to accept these. It seems this is a \"fixed\" bootstrap sequence as per the name.\nTherefore, I should call `run_bounded_aegis_bootstrap`.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. Return the result.\n\nNo shell commands are requested or allowed (\"Do not propose or execute shell commands\").\nThe user explicitly asked to \"Invoke the only available tool now.\"\n\nLet's proceed with the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "NE3pdSoKBd1Gwp73KdTazBq5VRzVRQUH",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 383,
+                      "completion_tokens": 229,
+                      "total_tokens": 612,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 208
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 1065,
+                  "stderr_bytes": 0,
+                  "latency_ms": 220,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"change-2026-08-07T185406Z-48b579ac\",\n  \"kind\": \"change\",\n  \"profile\": \"full\",\n  \"stage\": \"requirement\",\n  \"reference\": \".agentic/skills/agentic-development/reference/requirement.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/requirement/stage.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml\"\n  ],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/requirement.md\",\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/requirement/stage.toml\",\n    \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage add",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "add",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 184,
+                  "stderr_bytes": 0,
+                  "latency_ms": 230,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"requirement\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/requirement/requirement-002.toml\",\n  \"next\": \"aegis stage apply\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 1,
+                  "stdout_bytes": 424,
+                  "stderr_bytes": 0,
+                  "latency_ms": 215,
+                  "stdout_evidence": "{\n  \"status\": \"blocked\",\n  \"stage\": \"requirement\",\n  \"artifact\": \".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/requirement/requirement-001.toml\",\n  \"next\": \"aegis stage apply\",\n  \"error\": \"C:\\\\Users\\\\dpasare\\\\AppData\\\\Local\\\\Temp\\\\aegis-local-model-pilot-m45raofw\\\\full-change-131072\\\\.agentic\\\\runs\\\\change-2026-08-07T185406Z-48b579ac\\\\stages\\\\requirement\\\\requirement-001.toml: requirement must not be empty\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/requirement.md",
+                ".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/requirement/stage.toml",
+                ".agentic/runs/change-2026-08-07T185406Z-48b579ac/stages/alignment/alignment.toml"
+              ],
+              "bootstrap_bytes": 27188,
+              "bootstrap_context_bytes": 1065,
+              "stage_apply_attempts": 0,
+              "stage_close_attempts": 0,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            }
+          ],
+          "complete": false,
+          "outcome_class": "command-failure",
+          "failure": "aegis stage apply failed with exit code 1"
+        },
+        {
+          "label": "quick-fix",
+          "run_id": "fix-2026-08-07T185422Z-10511e40",
+          "setup_commands": [
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "init",
+                "--quiet",
+                "--initial-branch=main"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 89,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.name",
+                "AEGIS Pilot"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 68,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "config",
+                "user.email",
+                "aegis-pilot@example.invalid"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 64,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "add",
+                "."
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 371,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            },
+            {
+              "action": "fixture git",
+              "argv": [
+                "git",
+                "commit",
+                "--quiet",
+                "-m",
+                "pilot baseline"
+              ],
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 0,
+              "latency_ms": 249,
+              "stdout_evidence": "",
+              "stderr_evidence": ""
+            }
+          ],
+          "sessions": [
+            {
+              "session_id": "0554540b-05d9-4655-949c-38a6100e9c23",
+              "scenario": "stage:intake",
+              "started_at": "2026-08-07T18:54:22.254232Z",
+              "prompt_bytes": 335,
+              "transcript_sha256": "4de110df1066588f0a055e24077acaf92995da7d8d489c7f603093bd34bfeb75",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\quick-fix-131072\nAEGIS run ID: fix-2026-08-07T185422Z-10511e40\nModel context profile: 131072\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 2434,
+              "latency_ms": 6709,
+              "model_usage": {
+                "prompt_tokens": 384,
+                "completion_tokens": 369,
+                "total_tokens": 753,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 348
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-aby8f8q431w9l7dyogc0vl",
+                    "object": "chat.completion",
+                    "created": 1786128862,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available tools: `run_bounded_aegis_bootstrap`.\nThis tool description says \"Run the fixed bounded AEGIS startup/recovery sequence.\"\nThe parameters for this tool are empty (properties: {}, additionalProperties: false).\nTherefore, I should call this tool to fulfill the user's request.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. No arguments are needed.\n\nConstraint Checklist & Confidence Score:\n1. Follow repository AGENTS.md? Yes (implied by context).\n2. Fresh session? Yes.\n3. Do not propose shell commands? Yes.\n4. Invoke only available tool now? Yes.\n\nConfidence Score: 5/5\n\nMental Sandbox:\n- The user provided specific paths and IDs, but the tool `run_bounded_aegis_bootstrap` takes no arguments. This suggests the environment or context is already set up for this specific run, or the tool relies on global state/environment variables that are already populated with the provided details (Repository path, AEGIS run ID, etc.).\n- The instruction \"Invoke the only available tool now\" strongly implies I should just call it without arguments.\n\nKey learnings from similar tasks: Usually, when a tool exists for a specific action and takes no parameters, and the user provides context that matches the action, calling the tool is the correct step.\n\nStrategizing complete. I will now generate the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "LCGZfk7le9pNVsAIlakBdUhKjqq9fdCB",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 384,
+                      "completion_tokens": 369,
+                      "total_tokens": 753,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 348
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 853,
+                  "stderr_bytes": 0,
+                  "latency_ms": 214,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"fix-2026-08-07T185422Z-10511e40\",\n  \"kind\": \"fix\",\n  \"profile\": \"quick\",\n  \"stage\": \"intake\",\n  \"reference\": \".agentic/skills/agentic-development/reference/intake.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/intake.md\",\n    \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage apply",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "apply",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 259,
+                  "stderr_bytes": 0,
+                  "latency_ms": 227,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"intake\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml\",\n  \"next\": \"aegis stage close\",\n  \"revision\": 1,\n  \"digest\": \"64bbf36d543cc433d6108eac3228265ef698106b7b36ed2b0a997acdd3f8c3cd\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "stage close",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "stage",
+                    "close",
+                    "--approver",
+                    "AEGIS Pilot <aegis-pilot@example.invalid>",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 414,
+                  "stderr_bytes": 0,
+                  "latency_ms": 236,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"implementation\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/implementation/implementation.toml\",\n  \"next\": \"aegis check create\",\n  \"complete\": false,\n  \"approver\": \"AEGIS Pilot <aegis-pilot@example.invalid>\",\n  \"run_profile\": \"quick\",\n  \"bypass_status\": \"bypassed\",\n  \"bypassed_stages\": [\n    \"alignment\",\n    \"requirement\",\n    \"design\",\n    \"check\"\n  ]\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/intake.md",
+                ".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 25113,
+              "bootstrap_context_bytes": 853,
+              "stage_apply_attempts": 1,
+              "stage_close_attempts": 1,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [
+                "standing user-authorized fixed approval at stage close"
+              ],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            },
+            {
+              "session_id": "7928d5eb-997f-4a0c-a0d6-be4497442857",
+              "scenario": "stage:implementation",
+              "started_at": "2026-08-07T18:54:29.644206Z",
+              "prompt_bytes": 335,
+              "transcript_sha256": "4de110df1066588f0a055e24077acaf92995da7d8d489c7f603093bd34bfeb75",
+              "fresh_transcript": true,
+              "prior_transcript_messages": 0,
+              "api_request": {
+                "model": "prism-ml/bonsai-27b",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Repository path: C:\\Users\\dpasare\\AppData\\Local\\Temp\\aegis-local-model-pilot-m45raofw\\quick-fix-131072\nAEGIS run ID: fix-2026-08-07T185422Z-10511e40\nModel context profile: 131072\nFollow repository AGENTS.md. This is a fresh session with no prior transcript. Do not propose or execute shell commands. Invoke the only available tool now."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "run_bounded_aegis_bootstrap",
+                      "description": "Run the fixed bounded AEGIS startup/recovery sequence.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "tool_choice": "required",
+                "temperature": 0.0
+              },
+              "response_bytes": 2433,
+              "latency_ms": 6569,
+              "model_usage": {
+                "prompt_tokens": 384,
+                "completion_tokens": 369,
+                "total_tokens": 753,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 348
+                }
+              },
+              "tool_request_valid": true,
+              "invalid_command_count": 0,
+              "response_evidence": [
+                {
+                  "truncated": false,
+                  "payload": {
+                    "id": "chatcmpl-7v6ssh9v0wmtaf2dndfqi",
+                    "object": "chat.completion",
+                    "created": 1786128869,
+                    "model": "prism-ml/bonsai-27b",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "",
+                          "reasoning_content": "The user wants to run the AEGIS bootstrap sequence based on the provided context (Repository path, AEGIS run ID, Model context profile).\nI need to check if there is a function available that matches this request.\nLooking at the available tools: `run_bounded_aegis_bootstrap`.\nThis tool description says \"Run the fixed bounded AEGIS startup/recovery sequence.\"\nThe parameters for this tool are empty (properties: {}, additionalProperties: false).\nTherefore, I should call this tool to fulfill the user's request.\n\nPlan:\n1. Call `run_bounded_aegis_bootstrap`.\n2. No arguments are needed.\n\nConstraint Checklist & Confidence Score:\n1. Follow repository AGENTS.md? Yes (implied by context).\n2. Fresh session? Yes.\n3. Do not propose shell commands? Yes.\n4. Invoke only available tool now? Yes.\n\nConfidence Score: 5/5\n\nMental Sandbox:\n- The user provided specific paths and IDs, but the tool `run_bounded_aegis_bootstrap` takes no arguments. This suggests the environment or context is already set up for this specific run, or the tool relies on global state/environment variables that are already populated with the provided details (Repository path, AEGIS run ID, etc.).\n- The instruction \"Invoke the only available tool now\" strongly implies I should just call it without arguments.\n\nKey learnings from similar tasks: Usually, when a tool exists for a specific action and takes no parameters, and the user provides context that matches the action, calling the tool is the correct step.\n\nStrategizing complete. I will now generate the function call.\n",
+                          "tool_calls": [
+                            {
+                              "type": "function",
+                              "id": "9bhQkvTtFtunlGqpEv3LVHicNCQ6Lsfv",
+                              "function": {
+                                "name": "run_bounded_aegis_bootstrap",
+                                "arguments": "{}"
+                              }
+                            }
+                          ]
+                        },
+                        "logprobs": null,
+                        "finish_reason": "tool_calls"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 384,
+                      "completion_tokens": 369,
+                      "total_tokens": 753,
+                      "completion_tokens_details": {
+                        "reasoning_tokens": 348
+                      }
+                    },
+                    "stats": {},
+                    "system_fingerprint": "prism-ml/bonsai-27b"
+                  }
+                }
+              ],
+              "commands": [
+                {
+                  "action": "run context",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "run",
+                    "context",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 1069,
+                  "stderr_bytes": 0,
+                  "latency_ms": 219,
+                  "stdout_evidence": "{\n  \"context_schema_version\": 1,\n  \"run_id\": \"fix-2026-08-07T185422Z-10511e40\",\n  \"kind\": \"fix\",\n  \"profile\": \"quick\",\n  \"stage\": \"implementation\",\n  \"reference\": \".agentic/skills/agentic-development/reference/implementation.md\",\n  \"skill\": \".agentic/skills/agentic-development/SKILL.md\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/implementation/implementation.toml\",\n  \"unavailable_current_artifact\": null,\n  \"previous_stage_artifacts\": [\n    \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml\"\n  ],\n  \"unavailable_previous_stage_artifacts\": [],\n  \"required_reads\": [\n    \"AGENTS.md\",\n    \".agentic/skills/agentic-development/SKILL.md\",\n    \".agentic/skills/agentic-development/reference/implementation.md\",\n    \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/implementation/implementation.toml\",\n    \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml\"\n  ],\n  \"next_commands\": [\n    \"aegis stage prepare\",\n    \"aegis stage apply\",\n    \"aegis stage close\"\n  ],\n  \"human_gate\": \"stage close\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "check create",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "check",
+                    "create",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 227,
+                  "stderr_bytes": 0,
+                  "latency_ms": 220,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"implementation\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/implementation/quick-check-CHK-cb73ea36-6f0a-4bdb-b5ee-b6b831650de7.toml\",\n  \"next\": \"aegis check register\"\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "check register",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "check",
+                    "register",
+                    "--json"
+                  ],
+                  "exit_code": 0,
+                  "stdout_bytes": 553,
+                  "stderr_bytes": 0,
+                  "latency_ms": 238,
+                  "stdout_evidence": "{\n  \"status\": \"ok\",\n  \"stage\": \"implementation\",\n  \"artifact\": \"none\",\n  \"next\": \"aegis check prepare\",\n  \"checks\": [\n    {\n      \"id\": \"CHK-cb73ea36-6f0a-4bdb-b5ee-b6b831650de7\",\n      \"level\": \"test\",\n      \"cites_spec\": [],\n      \"cites_requirement\": [],\n      \"command\": \"python tests/check_pilot_state.py\",\n      \"path\": null,\n      \"state\": \"unknown\",\n      \"red_evidence\": null,\n      \"green_evidence\": null,\n      \"contract_variants\": [],\n      \"concerns\": [\n        \"stale state is not accepted\"\n      ],\n      \"parity_targets\": []\n    }\n  ]\n}\n",
+                  "stderr_evidence": ""
+                },
+                {
+                  "action": "check run",
+                  "argv": [
+                    "C:\\Users\\dpasare\\.codex\\worktrees\\6d63\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\.venv\\Scripts\\python.exe",
+                    "-B",
+                    "-m",
+                    "aegis",
+                    "check",
+                    "run",
+                    "CHK-cb73ea36-6f0a-4bdb-b5ee-b6b831650de7",
+                    "--json"
+                  ],
+                  "exit_code": 1,
+                  "stdout_bytes": 267,
+                  "stderr_bytes": 0,
+                  "latency_ms": 212,
+                  "stdout_evidence": "{\n  \"status\": \"blocked\",\n  \"stage\": \"implementation\",\n  \"artifact\": \".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/implementation/implementation.toml\",\n  \"next\": \"aegis check prepare\",\n  \"error\": \"check execution mode is external; use `aegis check prepare`\"\n}\n",
+                  "stderr_evidence": ""
+                }
+              ],
+              "files_read": [
+                "AGENTS.md",
+                ".agentic/skills/agentic-development/SKILL.md",
+                ".agentic/skills/agentic-development/reference/implementation.md",
+                ".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/implementation/implementation.toml",
+                ".agentic/runs/fix-2026-08-07T185422Z-10511e40/stages/intake/intake.toml"
+              ],
+              "bootstrap_bytes": 27227,
+              "bootstrap_context_bytes": 1069,
+              "stage_apply_attempts": 0,
+              "stage_close_attempts": 0,
+              "route_backs": 0,
+              "waivers": [],
+              "human_interventions": [],
+              "final_evidence_state": "not executed; bootstrap-only pilot",
+              "final_invariant_state": "not executed; bootstrap-only pilot",
+              "correctness": {
+                "fresh_session": true,
+                "allowed_tool_requested": true,
+                "forbidden_recovery_reads": false,
+                "named_recovery_executed": true,
+                "score": 3,
+                "out_of": 3
+              },
+              "failure": null,
+              "outcome_class": "success"
+            }
+          ],
+          "complete": false,
+          "outcome_class": "command-failure",
+          "failure": "aegis check run CHK-cb73ea36-6f0a-4bdb-b5ee-b6b831650de7 failed with exit code 1"
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "model_output_is_untrusted": true,
+    "tool_permissions": [
+      "run_bounded_aegis_bootstrap"
+    ],
+    "harness_allowlisted_actions": [
+      "check create",
+      "check prepare",
+      "check record",
+      "check register",
+      "check run",
+      "delivery report",
+      "run context",
+      "run start",
+      "stage add",
+      "stage apply",
+      "stage close",
+      "stage prepare",
+      "stage show",
+      "verify run"
+    ],
+    "network_scope": "single configured loopback OpenAI-compatible endpoint"
+  },
+  "finished_at": "2026-08-07T18:54:38.170125Z",
+  "attempt_chain": [
+    {
+      "path": "..\\..\\00_Planning\\AEGIS_HEAVY_IMPROVEMENT_2026-08-07\\09_WP8_LOCAL_MODEL_PILOT_ATTEMPT_02.json",
+      "sha256": "7831e9e78c63989f757b8b17fd4ad54e46d8f54064632bac425f1987b46c05fa",
+      "preserved": true
+    },
+    {
+      "path": "..\\..\\00_Planning\\AEGIS_HEAVY_IMPROVEMENT_2026-08-07\\09_WP8_LOCAL_MODEL_PILOT_RESULTS.json",
+      "sha256": "f03632fc78127ebe1356dddf6abbce7ba384912557cd04754f115f18954d8d8d",
+      "preserved": true
+    }
+  ]
+}
