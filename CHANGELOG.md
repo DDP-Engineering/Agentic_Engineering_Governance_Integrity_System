@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add a constrained, stdlib-only local-model bootstrap pilot harness for
+  disposable AEGIS payload copies. It accepts only an explicit loopback `/v1`
+  endpoint, records raw API/command telemetry, prevents model-controlled shell
+  execution, and preserves earlier evidence by refusing result overwrites.
+
 - Add a payload-owned adapter conformance map and structural regressions for
   direct CLI, Codex, Claude Code, Pi, OpenCode, and Qwen Code. Host wrappers
   now route the canonical bounded bootstrap into shared skills without local

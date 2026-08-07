@@ -67,6 +67,27 @@ Repeat prepare/apply/close through delivery. Use `stage add` for requirement and
 check collections, `check prepare/record` or `check run` for evidence, and
 `verify run` at validation.
 
+## Local-model bootstrap pilot
+
+`tools/local_model_pilot.py` exercises only the bounded fresh-session startup
+and named recovery contract in a disposable copy of `template/`. It accepts one
+explicit loopback OpenAI-compatible `/v1` endpoint, gives the model one
+zero-argument bootstrap tool, and lets the harness—not model output—run its
+small command allowlist. The JSON output records observed API usage, response
+and command evidence, bootstrap bytes, files read, failures, and retries; it
+refuses to overwrite an earlier result.
+
+```powershell
+uv run --group dev python -B tools/local_model_pilot.py `
+  --model <local-model-id> `
+  --output <new-pilot-result.json>
+```
+
+The harness is not a substitute for a human-approved full workflow: it does not
+edit forms, apply stages, close stages, create waivers, or execute model-supplied
+commands. Use its result to identify bootstrap/recovery findings before any
+separate, explicitly approved end-to-end pilot.
+
 An explicit `check run` or `verify gates` request that launches no command exits
 non-zero with `execution_status = "nothing-ran"`, `executed_count = 0`, and a
 reason; it journals that outcome and writes no passing evidence. A command that
