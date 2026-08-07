@@ -53,6 +53,9 @@ either retain those raw bytes or normalize the same way before comparison.
 - Removed the unused `RepositoryPathError` import from
   `template/.agentic/cli/src/aegis/requirement_store.py`. This is a lint-only
   correction; it changes no public CLI or workflow behavior.
+- Removed the UTF-8 byte-order mark from the repository-root `.gitattributes`
+  so Git recognizes its first line as a comment and applies the declared text
+  attributes without a parse warning.
 - Added this durable AEGIS-only WP9 audit and disposition record.
 - Did not modify WAEGIS, external repositories, WP8 raw pilot evidence,
   versions, release artifacts, or `template/CHANGELOG.md`.
@@ -112,9 +115,32 @@ The public missing-prepared-form regression passed. It confirms the current
 the graph or recreating a form; the WP8-recorded duplicate-`artifact` crash is
 not present in the current AEGIS source.
 
+### POSIX validation follow-up
+
+The same AEGIS-only suite was run under Ubuntu 24.04 on WSL2 with CPython
+3.12.3, uv 0.11.32, and native Linux Node 24.18.0. The Node archive was kept
+outside the repository and verified against the official Node.js
+`SHASUMS256.txt` before use.
+
+```bash
+uv run --frozen --group dev python -B -m pytest -q -rs tests \
+  --ignore=tests/test_opencode_adapter.py \
+  --ignore=tests/test_pi_adapter.py \
+  --ignore=tests/test_qwen_adapter.py \
+  --ignore=tests/test_release_hygiene.py \
+  --ignore=tests/test_scaffold.py
+```
+
+Result: `589 passed in 45.65s`, with zero skips. The complete Ruff audit and
+the public `aegis`, `run`, `stage show`, `verify gates`, and `verify impact`
+help commands also passed in Ubuntu. The ignored modules remain the same five
+WAEGIS-importing scope exclusions used for the Windows runs.
+
 ### Template, version, and cumulative-diff checks
 
 - `git diff --check` passed.
+- `git check-attr` recognizes the root `.gitattributes` and copied workflow
+  configuration as `text` with `eol=lf`, without the former BOM parse warning.
 - The copied template has zero `__pycache__`, `.pyc`, and `.pyo` artifacts.
 - `template/CHANGELOG.md` is exactly zero bytes.
 - AEGIS version declarations are all `2.1.0`: the embedded package, embedded
@@ -143,7 +169,7 @@ not present in the current AEGIS source.
 | Context limits | Pass for automated/fixture evidence | Current tests and accepted fixture evidence remain within the 4 KiB/30 KiB and observed 8K-token boundaries. |
 | At least 90% first correctly filled forms | Unmeasured for soak | The controlled harness owns form edits; it cannot provide the required field-session rate. |
 | No unresolved severity-1 or severity-2 AEGIS source finding | Pass for current source audit | The current `stage show` recovery regression, full Ruff audit, repeated AEGIS-only suites, CLI checks, and whitespace audit are green. |
-| AEGIS suite on Windows and POSIX | **No-go** | Windows AEGIS-only validation is green; no POSIX result is available. |
+| AEGIS suite on Windows and POSIX | Pass | Repeated Windows AEGIS-only validation is green; the Ubuntu 24.04 WSL2 run passed all 589 in-scope tests with native Linux Node and no skips. |
 | Installer/doctor/upgrade replay and project-owned-file preservation | Scope exclusion / **No-go** | These are WAEGIS-owned paths and are prohibited by the user scope override. They were not run and are not claimed. |
 | Owner go/no-go signature | **No-go** | No owner signature has been supplied. |
 
@@ -186,9 +212,9 @@ changed for this decision.
 
 **NO-GO: do not release, version, archive a variant, or claim daily-development
 stability.** The AEGIS source and AEGIS-only repeated validation are green after
-the lint correction, but the mandatory field soak is absent, POSIX coverage is
-absent, WAEGIS-owned release gates are intentionally excluded, and owner
-approval is absent.
+the lint correction, and the Ubuntu POSIX suite is green. The mandatory field
+soak is absent, WAEGIS-owned release gates are intentionally excluded, and
+owner approval is absent.
 
 ## Remaining risk
 
@@ -197,6 +223,5 @@ approval is absent.
 - Collect the complete 20-task field soak across two owner-approved
   repositories, including all required task categories and failed/abandoned
   runs.
-- Run the applicable AEGIS release suite on a POSIX runner.
 - Have the owner separately decide and sign the final go/no-go after all
   mandatory gates have evidence.

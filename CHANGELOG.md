@@ -77,6 +77,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Remove the UTF-8 byte-order mark from the root `.gitattributes` so Git parses
+  the first comment and applies repository attributes without a warning.
+
 - Remove an unused AEGIS requirement-store import so the complete Ruff audit
   remains clean.
 
