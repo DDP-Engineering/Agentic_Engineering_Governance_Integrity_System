@@ -595,7 +595,7 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
     gates = summary["gates"]
     assert isinstance(gates, dict)
     assert all(
-        isinstance(value, dict) and value["status"] == "disabled"
+        isinstance(value, dict) and value["status"] == "not-enforced"
         for value in gates.values()
     )
 

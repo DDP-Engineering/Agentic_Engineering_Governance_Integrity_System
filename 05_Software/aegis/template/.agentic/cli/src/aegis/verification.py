@@ -377,7 +377,11 @@ def _gate_status(
     @return Stable status/commands mapping with conditional waiver metadata.
     """
     group = getattr(config.gates, name)
-    status = "disabled" if group.mode == "disabled" else _gate_result(graph, name)
+    status = (
+        "not-enforced"
+        if group.mode == "disabled"
+        else _gate_result(graph, name)
+    )
     payload: dict[str, Any] = {
         "status": status,
         "commands": list(group.commands),

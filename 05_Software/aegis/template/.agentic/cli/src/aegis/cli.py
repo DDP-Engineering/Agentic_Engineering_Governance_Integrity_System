@@ -29,7 +29,7 @@ from typing import Any
 from .check_execution import (
     prepare_check_evidence,
     record_check_evidence,
-    run_checks,
+    run_checks_with_outcome,
 )
 from .components import (
     audit_scope_check,
@@ -48,7 +48,7 @@ from .evidence_forms import (
     show_evidence,
 )
 from .errors import CommandInputError
-from .gates import gate_failure_blockers, run_gates
+from .gates import gate_failure_blockers, run_gates_with_outcome
 from .invariants import blocking_failures, evaluate
 from .models import Graph
 from .persistence import PersistenceError
@@ -378,7 +378,7 @@ def _dispatch(
     if args.group == "stage":
         return _stage_command(root, graph, config, args), 0
     if args.group == "check":
-        return _check_command(root, graph, args), 0
+        return _check_command(root, graph, args)
     if args.group == "evidence":
         return _evidence_command(root, graph, args), 0
     if args.group == "waive":
@@ -465,7 +465,7 @@ def _check_command(
     root: Path,
     graph: Graph,
     args: argparse.Namespace,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], int]:
     """
     @brief Execute one external or managed check command.
     """
@@ -475,7 +475,7 @@ def _check_command(
             graph,
             path.relative_to(root).as_posix(),
             "aegis check register",
-        )
+        ), 0
     if args.action == "register":
         checks = register_quick_checks(root, graph)
         return _payload(
@@ -483,24 +483,36 @@ def _check_command(
             "none",
             next_command(graph, root),
             checks=[asdict(item) for item in checks],
-        )
+        ), 0
     if args.action == "prepare":
         path = prepare_check_evidence(root, graph)
         return _payload(
             graph,
             path.relative_to(root).as_posix(),
             "aegis check record",
-        )
+        ), 0
     if args.action == "record":
         evidence = record_check_evidence(root, graph)
     else:
-        evidence = run_checks(root, graph, args.check_ids)
+        outcome = run_checks_with_outcome(root, graph, args.check_ids)
+        return (
+            _payload(
+                graph,
+                "none",
+                next_command(graph, root),
+                evidence=[asdict(item) for item in outcome.evidence],
+                execution_status=outcome.execution_status,
+                executed_count=outcome.executed_count,
+                **({"reason": outcome.reason} if outcome.reason else {}),
+            ),
+            1 if outcome.execution_status == "nothing-ran" else 0,
+        )
     return _payload(
         graph,
         "none",
         next_command(graph, root),
         evidence=[asdict(item) for item in evidence],
-    )
+    ), 0
 
 
 def _evidence_command(
@@ -681,7 +693,12 @@ def _verify_gates(
     args: argparse.Namespace,
 ) -> tuple[dict[str, Any], int]:
     """@brief Execute the selected (or complete) gate set and report modes."""
-    code = run_gates(root, graph.run_id, config, args.gate_names or None)
+    outcome = run_gates_with_outcome(
+        root,
+        graph.run_id,
+        config,
+        args.gate_names or None,
+    )
     graph = load_graph(root, graph.run_id)
     modes = {
         name: getattr(config.gates, name).mode
@@ -696,12 +713,18 @@ def _verify_gates(
         )
         if active_waiver(graph, blocker) is not None
     ]
-    details: dict[str, Any] = {"gates": modes}
+    details: dict[str, Any] = {
+        "gates": modes,
+        "execution_status": outcome.execution_status,
+        "executed_count": outcome.executed_count,
+    }
+    if outcome.reason:
+        details["reason"] = outcome.reason
     if waived_gates:
         details["waived_gates"] = waived_gates
     return (
         _payload(graph, "none", next_command(graph, root), **details),
-        1 if code else 0,
+        outcome.exit_code,
     )
 
 
@@ -1258,6 +1281,8 @@ def _respond(payload: dict[str, Any], json_output: bool) -> None:
     if json_output:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return
+    if payload.get("execution_status") == "nothing-ran":
+        print(f"NOTHING RAN: {payload.get('reason', 'No reason recorded.')}")
     for key in ("status", "stage", "artifact", "next"):
         print(f"{key}: {payload.get(key, 'none')}")
     for key, value in payload.items():

@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 
 from ._form_io import load_evidence_form as _load
@@ -63,6 +64,22 @@ RESULT_KEYS = (
 )
 
 # PUBLIC API
+
+
+@dataclass(frozen=True)
+class ManagedCheckExecutionOutcome:
+    """
+    @brief Describe one managed check execution request.
+    @param[in] evidence Evidence persisted for launched commands.
+    @param[in] execution_status Distinct execution state.
+    @param[in] executed_count Number of commands launched.
+    @param[in] reason Explanation for a nothing-ran result.
+    """
+
+    evidence: list[Evidence]
+    execution_status: str
+    executed_count: int
+    reason: str = ""
 
 
 @serialized_graph_mutation
@@ -274,6 +291,31 @@ def run_checks(
     @details    Output observations, evidence state, and their journal records
                 publish together; a journal failure restores the prior graph.
     """
+    outcome = run_checks_with_outcome(repo_root, graph, check_ids, timeout)
+    if outcome.execution_status == "nothing-ran":
+        raise StageOperationError("no checks selected")
+    return outcome.evidence
+
+
+def run_checks_with_outcome(
+    repo_root: Path,
+    graph: Graph,
+    check_ids: list[str] | None = None,
+    timeout: int = DEFAULT_GATE_TIMEOUT_SECONDS,
+) -> ManagedCheckExecutionOutcome:
+    """
+    @brief Execute managed checks and return a distinct execution outcome.
+    @param[in] repo_root Repository root.
+    @param[in,out] graph Active workflow graph.
+    @param[in] check_ids Optional immutable check selection.
+    @param[in] timeout Per-command timeout in seconds.
+    @return Managed outcome, including `nothing-ran` for an empty selection.
+    @exception StageOperationError If policy, stage, or selection is invalid.
+    @exception GraphConflictError If execution preconditions changed while
+               subprocesses were running.
+    @details :func:`run_checks` remains a compatibility wrapper for callers
+             that expect evidence or the historical empty-selection error.
+    """
     with graph_transaction(repo_root, graph):
         _require_mode(graph, "managed")
         if graph.stage not in {"check", "implementation"}:
@@ -290,7 +332,23 @@ def run_checks(
             if not check_ids or check.id in check_ids
         ]
         if not selected:
-            raise StageOperationError("no checks selected")
+            reason = "No managed check command was selected for execution."
+            save_graph_with_journal_events(
+                repo_root,
+                graph,
+                [
+                    (
+                        "check.execution.nothing-ran",
+                        {
+                            "stage": graph.stage,
+                            "selected_check_ids": list(check_ids or ()),
+                            "executed_count": 0,
+                            "reason": reason,
+                        },
+                    )
+                ],
+            )
+            return ManagedCheckExecutionOutcome([], "nothing-ran", 0, reason)
         captured_stage = graph.stage
         record = graph.stage_records[captured_stage]
         captured_revision = (record.revision, record.digest)
@@ -364,7 +422,11 @@ def run_checks(
             )
         )
         save_graph_with_journal_events(repo_root, graph, events)
-        return imported
+        return ManagedCheckExecutionOutcome(
+            imported,
+            "fail" if any(item.result == "fail" for item in imported) else "pass",
+            len(imported),
+        )
 
 
 # LOCAL HELPERS

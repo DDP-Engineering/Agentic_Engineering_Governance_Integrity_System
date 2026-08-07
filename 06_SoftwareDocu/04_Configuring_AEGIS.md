@@ -80,6 +80,14 @@ build, typecheck, lint, test, security — every enabled one runs even if an
 earlier one already failed, so you see the complete picture in one pass
 rather than fixing issues one at a time across repeated runs.
 
+`verify gates [names...]` deliberately has stricter execution feedback than
+the aggregate verification command. If every selected group is disabled, it
+launches zero commands and returns non-zero `nothing-ran` output with an
+execution count and reason; it writes no passing evidence. `verify run` still
+records those policy-disabled groups as `not-enforced` while it continues with
+invariants and the applicable audits. AEGIS never guesses that a command ran
+nothing from framework stdout; configure the framework to fail zero collection.
+
 The security gate deserves a specific caution: its result is evidence from
 whatever tool you configured, not a general claim that the change is secure.
 Configure a real tool (a dependency scanner, a static analyzer) rather than a

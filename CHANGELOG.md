@@ -13,6 +13,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add an explicit `nothing-ran` execution outcome for managed checks and
+  explicitly requested gate runs. When no command launches, the command exits
+  non-zero, returns `execution_status`, `executed_count`, and a reason, writes
+  an outcome journal event, and creates no passing evidence. Ordinary
+  `verify run` keeps disabled gates distinct as `not-enforced` rather than
+  falsely reporting an execution failure.
+
 - Add a file-first quick-run check contract. New quick graphs persist a required
   red/green policy, mint and register run-local check definitions during
   implementation, reuse external or managed evidence recording for a real red

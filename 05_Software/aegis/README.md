@@ -27,6 +27,8 @@ Integrity System. The runnable Python package is embedded under
 - canonical, complete-document external evidence validation before graph
   mutation, with immutable check identity and command matching;
 - deterministic build, typecheck, lint, test, and security gates, all optional;
+- explicit `nothing-ran` outcomes for managed checks and explicitly requested
+  gate execution that launch zero commands;
 - consolidated impact/gates/invariants/traceability/coverage/working-tree
   verification before human diff review;
 - exact human-approved, run-local process waivers with mandatory reasons,
@@ -62,6 +64,13 @@ aegis stage close
 Repeat prepare/apply/close through delivery. Use `stage add` for requirement and
 check collections, `check prepare/record` or `check run` for evidence, and
 `verify run` at validation.
+
+An explicit `check run` or `verify gates` request that launches no command exits
+non-zero with `execution_status = "nothing-ran"`, `executed_count = 0`, and a
+reason; it journals that outcome and writes no passing evidence. A command that
+does launch remains `pass`, `fail`, or `waived` as its observed result requires.
+`verify run` is an aggregate audit instead: disabled gate groups are reported
+as `not-enforced`, not as a failed nothing-ran execution.
 
 For a fresh stage session, read `AGENTS.md`, run `aegis run context --json`,
 then follow `unavailable_current_artifact` recovery exactly; never prepare an

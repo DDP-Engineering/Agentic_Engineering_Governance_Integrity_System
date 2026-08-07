@@ -36,6 +36,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import shlex
 import subprocess
@@ -46,16 +47,31 @@ from .models import Evidence, Graph
 from .store import (
     GraphConflictError,
     add_evidence,
-    append_journal,
     graph_transaction,
     load_graph,
     next_evidence_id,
     run_dir,
-    save_graph,
+    save_graph_with_journal_events,
 )
 from .waivers import Blocker, active_waiver, state_digests
 
 # PUBLIC API
+
+
+@dataclass(frozen=True)
+class GateExecutionOutcome:
+    """
+    @brief Describe the result of one explicit or aggregate gate execution.
+    @param[in] execution_status Distinct execution state.
+    @param[in] executed_count Number of commands launched.
+    @param[in] reason Human-readable explanation for a nothing-ran outcome.
+    @param[in] exit_code Aggregate process or policy result.
+    """
+
+    execution_status: str
+    executed_count: int
+    reason: str
+    exit_code: int
 
 
 def run_gates(
@@ -80,6 +96,32 @@ def run_gates(
     @exception  ValueError If a requested gate name is unsupported.
     @exception  GraphConflictError If the graph's captured stage advanced
                 before the collected evidence could be published.
+    """
+    outcome = run_gates_with_outcome(repo_root, run_id, config, names)
+    # `run_gates` is the aggregate-verification compatibility surface. A
+    # disabled policy contributes no gate failure there; only the explicit
+    # `verify gates` CLI path treats a zero-launch request as nothing-ran.
+    return 0 if outcome.execution_status == "nothing-ran" else outcome.exit_code
+
+
+def run_gates_with_outcome(
+    repo_root: Path,
+    run_id: str,
+    config: WorkflowConfig,
+    names: list[str] | None = None,
+) -> GateExecutionOutcome:
+    """
+    @brief Execute gates and return their explicit execution outcome.
+    @param[in] repo_root Repository root the gate commands run in.
+    @param[in] run_id Already resolved run ID selected by CLI orchestration.
+    @param[in] config Validated workflow configuration.
+    @param[in] names Gate group names to run, or every group when omitted.
+    @return Gate outcome, including `nothing-ran` when no command launched.
+    @exception ValueError If a requested gate name is unsupported.
+    @exception GraphConflictError If the captured stage advanced before
+               collected evidence could be published.
+    @details The compatibility wrapper :func:`run_gates` retains its integer
+             return contract for aggregate verification callers.
     """
     unknown = sorted(set(names or ()) - set(GATE_ORDER))
     if unknown:
@@ -128,13 +170,11 @@ def run_gates(
         log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
         log_root.mkdir(parents=True, exist_ok=True)
         ordinals: dict[str, int] = {}
+        events: list[tuple[str, dict[str, object]]] = []
         for name, command, result in completed:
             if command is None:
-                append_journal(
-                    repo_root,
-                    graph.run_id,
-                    "gate.disabled",
-                    {"gate": name, "status": "disabled"},
+                events.append(
+                    ("gate.disabled", {"gate": name, "status": "disabled"})
                 )
                 continue
             assert result is not None
@@ -161,10 +201,9 @@ def run_gates(
             )
             _supersede_prior_gate_evidence(graph, evidence)
             graph = add_evidence(repo_root, graph, evidence)
-            append_journal(
-                repo_root,
-                graph.run_id,
-                "gate.output",
+            events.append(
+                (
+                    "gate.output",
                 {
                     "gate": name,
                     "command": command,
@@ -172,20 +211,49 @@ def run_gates(
                     "stdout_tail": result.stdout[-4000:],
                     "stderr_tail": result.stderr[-4000:],
                 },
+                )
             )
-        save_graph(repo_root, graph)
+        executed_count = sum(result is not None for _, _, result in completed)
+        reason = ""
+        if executed_count == 0:
+            reason = (
+                "No configured gate command executed; every selected gate is "
+                "disabled."
+            )
+            events.append(
+                (
+                    "gate.execution.nothing-ran",
+                    {
+                        "selected_gates": selected,
+                        "executed_count": executed_count,
+                        "reason": reason,
+                    },
+                )
+            )
+        save_graph_with_journal_events(repo_root, graph, events)
         blockers = {
             blocker.id: blocker
             for blocker in gate_failure_blockers(graph, config, selected)
         }
         exit_code = 0
+        saw_failure = False
         for name, _command, result in completed:
             if result is None or result.returncode == 0:
                 continue
+            saw_failure = True
             blocker = blockers.get(f"gate:{name}")
             if blocker is None or active_waiver(graph, blocker) is None:
                 exit_code = result.returncode
-    return exit_code
+    if executed_count == 0:
+        return GateExecutionOutcome("nothing-ran", 0, reason, 1)
+    if saw_failure and exit_code == 0:
+        return GateExecutionOutcome("waived", executed_count, "", 0)
+    return GateExecutionOutcome(
+        "fail" if exit_code else "pass",
+        executed_count,
+        "",
+        exit_code,
+    )
 
 
 def gate_failure_blockers(

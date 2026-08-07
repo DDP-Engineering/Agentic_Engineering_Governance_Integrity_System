@@ -246,6 +246,12 @@ aegis check run
 aegis check run <check-id>...
 ```
 
+An explicit managed `check run` that resolves no check command exits non-zero
+with `execution_status = "nothing-ran"`, `executed_count = 0`, and a reason. It
+journals the outcome but creates no passing evidence. A launched command is
+reported as an observed `pass` or `fail`; AEGIS does not infer zero collection
+from a test framework's output.
+
 The captured workspace policy permits one path. The wrong path returns the
 configured mode and correct command. Check closure requires red evidence;
 implementation closure requires prior red and current green evidence.
@@ -379,8 +385,15 @@ aegis verify working-tree
 fixed order shown above, invariants, traceability, coverage, working-tree review,
 and then writes a validation summary for the human diff review. Every enabled
 group executes even if an earlier group fails. Disabled groups are reported
-`disabled`, never `passed`. Waived failures are reported `waived` with their
+`not-enforced`, never `passed`. Waived failures are reported `waived` with their
 original failed state, reason, and timestamp; they are never reported `passed`.
+
+`verify gates [names...]` is an explicit execution request. If every selected
+group is disabled and no command launches, it exits non-zero and reports
+`execution_status = "nothing-ran"`, `executed_count = 0`, and a reason in both
+JSON and plain output (`NOTHING RAN`). It writes an outcome journal event and
+no passing evidence. This does not change aggregate `verify run`: disabled
+groups there remain `not-enforced`, and its other audits still run normally.
 
 For a quick run, requirement/check traceability and coverage audits, plus
 INV-1, INV-2, INV-8, and INV-10, report `not-applicable - quick run` and cannot
