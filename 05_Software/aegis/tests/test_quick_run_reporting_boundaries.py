@@ -33,7 +33,7 @@ from aegis.verification import run_verification
 # CONSTANTS
 
 QUICK_BYPASSED_STAGES = ["alignment", "requirement", "design", "check"]
-NOT_APPLICABLE_INVARIANTS = ("INV-1", "INV-2", "INV-3", "INV-8", "INV-10")
+NOT_APPLICABLE_INVARIANTS = ("INV-1", "INV-2", "INV-8", "INV-10")
 
 # LOCAL HELPERS
 
@@ -216,6 +216,8 @@ def test_quick_verification_skips_malformed_requirement_storage_but_runs_gates(
     for invariant_id in NOT_APPLICABLE_INVARIANTS:
         assert invariants[invariant_id]["status"] == "not-applicable"
         assert invariants[invariant_id]["holds"] is None
+    assert invariants["INV-3"]["holds"] is True
+    assert "status" not in invariants["INV-3"]
     assert invariants["INV-4"]["holds"] is False
     assert summary["traceability"] == [
         {

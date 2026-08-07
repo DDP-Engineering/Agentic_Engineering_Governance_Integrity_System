@@ -57,19 +57,22 @@ small scope - suggest: <workflow> run start fix --quick
 Skipping alignment/requirement/design/check does not mean skipping
 everything:
 
-- **Changed paths and evidence still matter.** Quick implementation still
-  requires linking evidence to the change. The exact next command after
-  intake closes is `<workflow> evidence prepare add`; apply that form, copy
-  its CLI-minted active ID into the implementation form's
-  `linked_check_evidence` field, then apply the implementation form. AEGIS
-  rejects missing, invented, superseded, or wrong-stage evidence — a quick
-  run does not get to skip having *some* real evidence, only the separate
-  formal check-writing stage.
+- **Changed paths and check evidence still matter.** New quick implementation
+  begins with `<workflow> check create`; fill the run-local definition, then
+  `<workflow> check register` before changing source. Requirement and
+  specification citations are intentionally empty on this proportional path.
+  Record a real red result, make the repair, then record green through
+  `<workflow> check prepare`/`<workflow> check record` or
+  `<workflow> check run <check-id>`. Link every active green check-evidence ID
+  in `linked_check_evidence` before applying implementation. Manual evidence,
+  invented IDs, superseded IDs, and other-stage evidence cannot substitute for
+  a registered quick check.
 - **Enabled gates, secrets scanning, and working-tree review still run** at
   validation, exactly as they would in a full run.
-- **Red-before-green is explicitly not-applicable**, not passed. Since there
-  is no check stage to reproduce a defect in, that invariant reports
-  `not-applicable` rather than a false pass.
+- **Red-before-green still applies to new quick runs.** The run-local check
+  definition preserves the reproducing red result even though the ordinary
+  check collection stage is bypassed. Only a historical quick graph that lacks
+  the persisted policy reports INV-3 as `legacy-not-applicable`.
 - **Requirement/check/design-dependent invariants and audits report
   `not-applicable`** with a null result — again, an honest "this doesn't
   apply here," never a silent pass.

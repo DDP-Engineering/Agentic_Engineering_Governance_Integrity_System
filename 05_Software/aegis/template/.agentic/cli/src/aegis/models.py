@@ -26,6 +26,7 @@ from typing import Any, Literal
 
 RunKind = Literal["feature", "fix", "change", "adoption"]
 RunProfile = Literal["full", "quick"]
+RedGreenPolicy = Literal["legacy-not-applicable", "required"]
 # How a complete run ended. The empty string is "ran to delivery", which is
 # what every graph written before 2.1.0 records by absence of the key.
 RunOutcome = Literal["", "abandoned"]
@@ -279,6 +280,7 @@ class Graph:
     stage: Stage
     intent: Intent
     profile: RunProfile = "full"
+    red_green_policy: RedGreenPolicy = "required"
     schema_version: int = 3
     access_mode: AccessMode = "standard"
     complete: bool = False
@@ -337,7 +339,13 @@ class Graph:
         # `outcome` joins `profile` and `waivers` as optional-by-absence, so
         # every graph written before 2.1.0 still loads against the closed
         # schema without a migration.
-        allowed = {*required, "profile", "waivers", "outcome"}
+        allowed = {
+            *required,
+            "profile",
+            "red_green_policy",
+            "waivers",
+            "outcome",
+        }
         if data.get("schema_version") != 3:
             raise ValueError(
                 "unsupported run graph schema; AEGIS requires schema_version 3"
@@ -358,6 +366,20 @@ class Graph:
             raise ValueError(
                 "graph record does not match schema 3: "
                 "profile must be full or quick"
+            )
+        red_green_policy = data.get(
+            "red_green_policy",
+            "legacy-not-applicable" if profile == "quick" else "required",
+        )
+        if red_green_policy not in {"legacy-not-applicable", "required"}:
+            raise ValueError(
+                "graph record does not match schema 3: red_green_policy must be "
+                "legacy-not-applicable or required"
+            )
+        if profile != "quick" and red_green_policy != "required":
+            raise ValueError(
+                "graph record does not match schema 3: full runs require "
+                "red_green_policy required"
             )
         outcome = data.get("outcome", "")
         if not isinstance(outcome, str) or outcome not in {"", "abandoned"}:
@@ -382,6 +404,7 @@ class Graph:
                 stage=data["stage"],
                 intent=Intent(**data["intent"]),
                 profile=profile,
+                red_green_policy=red_green_policy,
                 schema_version=3,
                 access_mode=data["access_mode"],
                 complete=data["complete"],

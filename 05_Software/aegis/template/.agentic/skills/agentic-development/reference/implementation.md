@@ -20,6 +20,15 @@ reported command using the retained current form and this reference.
 
 **Steps:**
 
+For a new quick run, first run `<workflow> check create`, fill its generated
+run-local definition, and run `<workflow> check register` before changing
+source. Its requirement and specification citations are explicitly empty.
+Record the command's non-zero reproducing result through
+`<workflow> check prepare`/`<workflow> check record` or
+`<workflow> check run <check-id>`, then make the bounded change and record the
+green result through the same mode. Manual evidence does not satisfy the quick
+check contract.
+
 1. If `run status` reports `stage prepare`, run `<workflow> stage prepare`. The
    form arrives with a change-unit ID already minted. Otherwise keep the current
    revision and resume at the reported `next` command. Never invent an ID.

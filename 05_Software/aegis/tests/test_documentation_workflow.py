@@ -506,9 +506,10 @@ def test_development_stage_references_have_operational_structure() -> None:
 
     check = (reference_dir / "check.md").read_text(encoding="utf-8")
     assert "INV-3" in check
-    assert "`not-applicable`" in check
-    assert "<workflow> evidence prepare add" in check
-    assert "still records a red result" not in check
+    assert "<workflow> check create" in check
+    assert "<workflow> check register" in check
+    assert "real red/green evidence" in check
+    assert "evidence prepare add" not in check
 
 
 def test_stage_reference_checklists_match_the_canonical_contract() -> None:
@@ -589,6 +590,8 @@ def test_documented_workflow_commands_match_the_cli_parser() -> None:
         "config validate --json",
         "config show --json",
         "run start fix --quick",
+        "check create",
+        "check register",
         "stage show",
         "evidence prepare <add|supersede>",
     }

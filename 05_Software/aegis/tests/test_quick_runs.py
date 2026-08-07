@@ -28,6 +28,7 @@ import pytest
 import aegis.store as store_module
 from aegis.cli import main
 from aegis.config import load_config
+from aegis.invariants import evaluate
 from aegis.models import (
     ADOPTION_STAGES,
     QUICK_STAGES,
@@ -38,12 +39,12 @@ from aegis.models import (
 )
 from aegis.stage_schema import RUN_STAGE_SCHEMAS, StageOperationError, run_stage_spec
 from aegis.stage_forms import close_stage
-from aegis.store import init_graph, load_graph, save_graph
+from aegis.store import graph_path, init_graph, load_graph, save_graph
 
 # CONSTANTS
 
 QUICK_BYPASSED_STAGES = ["alignment", "requirement", "design", "check"]
-NOT_APPLICABLE_INVARIANTS = ("INV-1", "INV-2", "INV-3", "INV-8", "INV-10")
+NOT_APPLICABLE_INVARIANTS = ("INV-1", "INV-2", "INV-8", "INV-10")
 
 # LOCAL HELPERS
 
@@ -114,7 +115,7 @@ def _complete_quick_intake(
     _invoke_json(capsys, ["stage", "apply"])
     closed = _invoke_json(capsys, ["stage", "close"])
     assert closed["stage"] == "implementation"
-    assert closed["next"] == "aegis evidence prepare add"
+    assert closed["next"] == "aegis check create"
     return run_id, closed
 
 
@@ -137,8 +138,60 @@ def _record_manual_evidence(
     applied = _invoke_json(capsys, ["evidence", "apply"])
     result = applied["result"]
     assert isinstance(result, dict)
-    assert applied["next"] == "aegis stage apply"
+    assert applied["next"] == "aegis check create"
     return str(result["evidence_id"])
+
+
+def _record_quick_check_evidence(
+    repo_root: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> str:
+    """
+    @brief Register one quick check and record its required red then green evidence.
+    @param[in] repo_root Configured temporary repository.
+    @param[in] capsys Pytest capture fixture.
+    @return Active green evidence ID for the registered check.
+    """
+    created = _invoke_json(capsys, ["check", "create"])
+    definition = repo_root / str(created["artifact"])
+    _replace(
+        definition,
+        {
+            'command = ""': 'command = "python -c \\"pass\\""',
+            "concerns = []": 'concerns = ["bounded repair"]',
+        },
+    )
+    registered = _invoke_json(capsys, ["check", "register"])
+    checks = registered["checks"]
+    assert isinstance(checks, list) and len(checks) == 1
+
+    red_prepared = _invoke_json(capsys, ["check", "prepare"])
+    red_form = repo_root / str(red_prepared["artifact"])
+    _replace(
+        red_form,
+        {
+            'result = ""': 'result = "fail"',
+            "exit_status = 0": "exit_status = 1",
+            'summary = ""': 'summary = "Reproduced the bounded defect"',
+        },
+    )
+    _invoke_json(capsys, ["check", "record"])
+
+    green_prepared = _invoke_json(capsys, ["check", "prepare"])
+    green_form = repo_root / str(green_prepared["artifact"])
+    _replace(
+        green_form,
+        {
+            'result = ""': 'result = "pass"',
+            'summary = ""': 'summary = "Verified the bounded repair"',
+        },
+    )
+    green = _invoke_json(capsys, ["check", "record"])
+    evidence = green["evidence"]
+    assert isinstance(evidence, list) and len(evidence) == 1
+    item = evidence[0]
+    assert isinstance(item, dict)
+    return str(item["id"])
 
 
 def _configure_quick_path_policy(
@@ -493,7 +546,7 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
     assert status["bypass_status"] == "bypassed"
     assert status["bypassed_stages"] == QUICK_BYPASSED_STAGES
 
-    evidence_id = _record_manual_evidence(tmp_path, capsys)
+    evidence_id = _record_quick_check_evidence(tmp_path, capsys)
     source = tmp_path / "src" / "state.py"
     source.write_text("STATE = 'repaired'\n", encoding="utf-8", newline="\n")
     implementation = tmp_path / str(intake_closed["artifact"])
@@ -537,6 +590,8 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
         assert item["holds"] is None
         assert item["status"] == "not-applicable"
         assert item["message"] == "Not applicable - quick run."
+    assert invariant_by_id["INV-3"]["holds"] is True
+    assert "status" not in invariant_by_id["INV-3"]
     gates = summary["gates"]
     assert isinstance(gates, dict)
     assert all(
@@ -595,12 +650,14 @@ def test_complete_quick_fix_lifecycle_reports_bypassed_stages_honestly(
         assert any(
             marker in line.upper() for marker in ("N/A", "NOT APPLICABLE")
         )
+    assert "`INV-3` PASS" in report
 
     graph = load_graph(tmp_path, run_id)
     assert graph.complete
     assert set(graph.stage_records) == set(QUICK_STAGES)
     assert all(record.status == "closed" for record in graph.stage_records.values())
-    assert [item.id for item in graph.evidence] == [evidence_id]
+    assert graph.evidence[-1].id == evidence_id
+    assert any(item.result == "fail" for item in graph.evidence)
 
 
 def test_quick_run_with_waived_enforced_gate_completes_and_reports_honestly(
@@ -638,7 +695,7 @@ def test_quick_run_with_waived_enforced_gate_completes_and_reports_honestly(
     )
     monkeypatch.chdir(tmp_path)
     run_id, intake_closed = _complete_quick_intake(tmp_path, capsys)
-    evidence_id = _record_manual_evidence(tmp_path, capsys)
+    evidence_id = _record_quick_check_evidence(tmp_path, capsys)
     source = tmp_path / "src" / "state.py"
     source.write_text("STATE = 'repaired'\n", encoding="utf-8", newline="\n")
     implementation = tmp_path / str(intake_closed["artifact"])
@@ -771,7 +828,7 @@ def test_quick_changed_path_advisory_is_soft_and_mode_controlled(
     _configure_quick_path_policy(tmp_path, mode, max_paths=1)
     monkeypatch.chdir(tmp_path)
     _run_id, intake_closed = _complete_quick_intake(tmp_path, capsys)
-    evidence_id = _record_manual_evidence(tmp_path, capsys)
+    evidence_id = _record_quick_check_evidence(tmp_path, capsys)
     implementation = tmp_path / str(intake_closed["artifact"])
     _replace(
         implementation,
@@ -841,7 +898,9 @@ def test_quick_implementation_requires_real_active_evidence(
     empty_payload = json.loads(capsys.readouterr().out)
     assert empty_error.value.code == 1
     assert empty_payload["status"] == "blocked"
-    assert "must not be empty" in str(empty_payload["error"])
+    assert "registered quick check" in str(empty_payload["error"])
+
+    evidence_id = _record_quick_check_evidence(tmp_path, capsys)
 
     _replace(
         implementation,
@@ -858,7 +917,6 @@ def test_quick_implementation_requires_real_active_evidence(
     assert unknown_payload["status"] == "blocked"
     assert "E-9999" in str(unknown_payload["error"])
 
-    evidence_id = _record_manual_evidence(tmp_path, capsys)
     _replace(
         implementation,
         {
@@ -992,6 +1050,279 @@ def test_full_start_without_quick_preserves_legacy_shape_and_sequence(
         entry["event"] == "run.stages_bypassed"
         for entry in _journal(tmp_path, run_id)
     )
+
+
+def test_new_quick_run_mints_a_file_first_check_definition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Require the quick-only check creation command at implementation.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    """
+    monkeypatch.chdir(tmp_path)
+    run_id, _closed = _complete_quick_intake(tmp_path, capsys)
+
+    created = _invoke_json(capsys, ["check", "create"])
+
+    artifact = tmp_path / str(created["artifact"])
+    text = artifact.read_text(encoding="utf-8")
+    assert artifact.name.startswith("quick-check-")
+    assert 'id = "CHK-' in text
+    assert "cites_requirement = []" in text
+    assert "cites_spec = []" in text
+    assert created["next"] == "aegis check register"
+    assert load_graph(tmp_path, run_id).red_green_policy == "required"
+
+
+def test_new_quick_implementation_rejects_manual_evidence_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Reject manual evidence as a substitute for a registered quick check.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    """
+    monkeypatch.chdir(tmp_path)
+    _run_id, intake_closed = _complete_quick_intake(tmp_path, capsys)
+    evidence_id = _record_manual_evidence(tmp_path, capsys)
+    implementation = tmp_path / str(intake_closed["artifact"])
+    _replace(
+        implementation,
+        {
+            "changed_paths = []": 'changed_paths = ["src/fix.py"]',
+            "linked_check_evidence = []": (
+                f'linked_check_evidence = ["{evidence_id}"]'
+            ),
+            'summary = ""': 'summary = "Manual evidence is not a quick check"',
+        },
+    )
+    with pytest.raises(SystemExit) as error:
+        main(["stage", "apply", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert error.value.code == 1
+    assert payload["status"] == "blocked"
+    assert "registered quick check" in str(payload["error"])
+
+
+def test_schema_three_quick_graph_without_policy_is_legacy_not_applicable(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Preserve historical quick graphs as explicit INV-3 N/A records.
+    @param[in] tmp_path Configured temporary repository.
+    @return None.
+    """
+    graph = init_graph(tmp_path, "fix", "Preserve historical quick state", profile="quick")
+    payload = graph.to_dict()
+    payload.pop("red_green_policy", None)
+
+    legacy = Graph.from_dict(payload)
+
+    assert legacy.red_green_policy == "legacy-not-applicable"
+
+
+def test_new_quick_green_without_prior_red_cannot_close(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Block a managed quick green observation that lacks its red witness.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    """
+    workflow = tmp_path / ".agentic" / "workflow.toml"
+    text = workflow.read_text(encoding="utf-8")
+    workflow.write_text(
+        text.replace('check_execution = "external"', 'check_execution = "managed"'),
+        encoding="utf-8",
+        newline="\n",
+    )
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "fixed.flag").write_text("fixed\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    _run_id, intake_closed = _complete_quick_intake(tmp_path, capsys)
+    created = _invoke_json(capsys, ["check", "create"])
+    definition = tmp_path / str(created["artifact"])
+    _replace(
+        definition,
+        {
+            'command = ""': 'command = "python -c \\"pass\\""',
+        },
+    )
+    registered = _invoke_json(capsys, ["check", "register"])
+    checks = registered["checks"]
+    assert isinstance(checks, list) and len(checks) == 1
+    check = checks[0]
+    assert isinstance(check, dict)
+    green = _invoke_json(capsys, ["check", "run", str(check["id"])])
+    evidence = green["evidence"]
+    assert isinstance(evidence, list) and len(evidence) == 1
+    green_item = evidence[0]
+    assert isinstance(green_item, dict)
+
+    implementation = tmp_path / str(intake_closed["artifact"])
+    _replace(
+        implementation,
+        {
+            "changed_paths = []": 'changed_paths = ["src/fixed.flag"]',
+            "linked_check_evidence = []": (
+                f'linked_check_evidence = ["{green_item["id"]}"]'
+            ),
+            'summary = ""': 'summary = "Observed green without a red witness"',
+        },
+    )
+    _invoke_json(capsys, ["stage", "apply"])
+
+    with pytest.raises(SystemExit) as error:
+        main(["stage", "close", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert error.value.code == 1
+    assert "missing prior red evidence" in str(payload["error"])
+
+
+def test_quick_check_registration_rejects_full_runs_and_rolls_back_journal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Reject full registration and roll back a failed quick registration.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    """
+    monkeypatch.chdir(tmp_path)
+    _invoke_json(capsys, ["run", "start", "fix"])
+    with pytest.raises(SystemExit) as full_error:
+        main(["check", "create", "--json"])
+    full_payload = json.loads(capsys.readouterr().out)
+    assert full_error.value.code == 1
+    assert "new quick runs" in str(full_payload["error"])
+    with pytest.raises(SystemExit) as full_register_error:
+        main(["check", "register", "--json"])
+    full_register_payload = json.loads(capsys.readouterr().out)
+    assert full_register_error.value.code == 1
+    assert "new quick runs" in str(full_register_payload["error"])
+
+    started = _invoke_json(capsys, ["run", "start", "fix", "--quick"])
+    _replace(
+        tmp_path / str(started["artifact"]),
+        {
+            'statement = ""': 'statement = "Repair a bounded defect"',
+            'summary = ""': 'summary = "Quick intake approved"',
+        },
+    )
+    _invoke_json(capsys, ["stage", "apply"])
+    _invoke_json(capsys, ["stage", "close"])
+    created = _invoke_json(capsys, ["check", "create"])
+    definition = tmp_path / str(created["artifact"])
+    _replace(definition, {'command = ""': 'command = "python -c \\"pass\\""'})
+    graph = load_graph(tmp_path, str(started["run_id"]))
+    before_graph = graph_path(tmp_path, graph.run_id).read_bytes()
+    journal = tmp_path / ".agentic" / "runs" / graph.run_id / "journal.jsonl"
+    before_journal = journal.read_bytes()
+    original_atomic_write = store_module.atomic_write_bytes
+
+    def fail_quick_registration(path: Path, content: bytes) -> None:
+        """@brief Fail only the quick registration journal publication."""
+        if path.name == "journal.jsonl" and b"quick.check.registered" in content:
+            raise OSError("injected quick registration journal failure")
+        original_atomic_write(path, content)
+
+    monkeypatch.setattr(store_module, "atomic_write_bytes", fail_quick_registration)
+    with pytest.raises(OSError, match="injected quick registration journal failure"):
+        main(["check", "register", "--json"])
+
+    assert graph_path(tmp_path, graph.run_id).read_bytes() == before_graph
+    assert journal.read_bytes() == before_journal
+    assert load_graph(tmp_path, graph.run_id).checks == []
+
+
+def test_legacy_quick_graph_reports_inv_three_as_not_applicable(
+    tmp_path: Path,
+) -> None:
+    """
+    @brief Keep a policy-less historical quick graph readable and explicitly N/A.
+    @param[in] tmp_path Configured temporary repository.
+    @return None.
+    """
+    graph = init_graph(tmp_path, "fix", "Read historical quick graph", profile="quick")
+    path = graph_path(tmp_path, graph.run_id)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.pop("red_green_policy")
+    path.write_text(json.dumps(payload), encoding="utf-8", newline="\n")
+
+    legacy = load_graph(tmp_path, graph.run_id)
+    inv_three = next(
+        item for item in evaluate(tmp_path, legacy, load_config(tmp_path)) if item.id == "INV-3"
+    )
+
+    assert inv_three.status == "not-applicable"
+    assert inv_three.holds is None
+    assert inv_three.message == "Not applicable - legacy quick run."
+
+
+def test_quick_external_evidence_rejects_nonzero_green_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Reject a claimed quick green result whose recorded exit is non-zero.
+    @param[in] tmp_path Configured temporary repository.
+    @param[in] monkeypatch Pytest environment fixture.
+    @param[in] capsys Pytest capture fixture.
+    @return None.
+    """
+    monkeypatch.chdir(tmp_path)
+    _run_id, _closed = _complete_quick_intake(tmp_path, capsys)
+    created = _invoke_json(capsys, ["check", "create"])
+    definition = tmp_path / str(created["artifact"])
+    _replace(definition, {'command = ""': 'command = "python -c \\"pass\\""'})
+    _invoke_json(capsys, ["check", "register"])
+    red_prepared = _invoke_json(capsys, ["check", "prepare"])
+    red_form = tmp_path / str(red_prepared["artifact"])
+    _replace(
+        red_form,
+        {
+            'result = ""': 'result = "fail"',
+            "exit_status = 0": "exit_status = 1",
+            'summary = ""': 'summary = "Reproduced the defect"',
+        },
+    )
+    _invoke_json(capsys, ["check", "record"])
+    prepared = _invoke_json(capsys, ["check", "prepare"])
+    evidence_form = tmp_path / str(prepared["artifact"])
+    _replace(
+        evidence_form,
+        {
+            'result = ""': 'result = "pass"',
+            "exit_status = 0": "exit_status = 1",
+            'summary = ""': 'summary = "Incorrectly claimed green"',
+        },
+    )
+
+    with pytest.raises(SystemExit) as error:
+        main(["check", "record", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert error.value.code == 1
+    assert "inconsistent" in str(payload["error"])
 
 
 # END OF FILE

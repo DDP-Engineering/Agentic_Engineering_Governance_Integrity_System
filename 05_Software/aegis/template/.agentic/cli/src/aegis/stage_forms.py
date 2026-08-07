@@ -136,6 +136,7 @@ CHECK_FORM_KEYS = (
     "concerns",
     "parity_targets",
 )
+QUICK_CHECK_FORM_PREFIX = "quick-check-"
 
 # PUBLIC API
 
@@ -338,6 +339,78 @@ def add_stage_item(
         {"stage": graph.stage, "path": path.relative_to(repo_root).as_posix()},
     )
     return path
+
+
+@serialized_graph_mutation
+def create_quick_check(repo_root: Path, graph: Graph) -> Path:
+    """
+    @brief Create one AEGIS-minted quick-run check definition.
+    @param[in] repo_root Repository root carrying the active run.
+    @param[in,out] graph Active quick graph at prepared implementation.
+    @return Newly written strict TOML definition path.
+    @exception StageOperationError If the graph is not eligible for quick check
+               registration or a generated path would be overwritten.
+    """
+    record = _require_quick_check_registration_stage(graph)
+    check_id = f"CHK-{uuid.uuid4()}"
+    path = stage_directory(repo_root, graph) / f"{QUICK_CHECK_FORM_PREFIX}{check_id}.toml"
+    if path.exists():
+        raise StageOperationError(f"refusing to overwrite existing form {path.name}")
+    path.write_text(_check_form(graph, record, check_id), encoding="utf-8")
+    append_journal(
+        repo_root,
+        graph.run_id,
+        "quick.check.created",
+        {"stage": graph.stage, "check_id": check_id, "path": path.relative_to(repo_root).as_posix()},
+    )
+    return path
+
+
+@serialized_graph_mutation
+def register_quick_checks(repo_root: Path, graph: Graph) -> list[Check]:
+    """
+    @brief Validate and atomically register pending quick-run check definitions.
+    @param[in] repo_root Repository root carrying the active run.
+    @param[in,out] graph Active quick graph at prepared implementation.
+    @return Newly registered checks in deterministic definition-file order.
+    @exception StageOperationError If definitions are missing, malformed, or
+               conflict with an already registered immutable definition.
+    """
+    record = _require_quick_check_registration_stage(graph)
+    forms = sorted(stage_directory(repo_root, graph).glob(f"{QUICK_CHECK_FORM_PREFIX}*.toml"))
+    if not forms:
+        raise StageOperationError("no quick check definitions; run `aegis check create`")
+    registered = {check.id: check for check in graph.checks}
+    additions: list[Check] = []
+    for path in forms:
+        check = _load_quick_check_form(path, graph, record)
+        previous = registered.get(check.id)
+        if previous is not None:
+            if _check_definition(previous) != _check_definition(check):
+                raise StageOperationError(
+                    f"{path}: registered quick check {check.id} is immutable"
+                )
+            continue
+        registered[check.id] = check
+        additions.append(check)
+    if not additions:
+        raise StageOperationError("no unregistered quick check definitions")
+    graph.checks.extend(additions)
+    save_graph_with_journal_events(
+        repo_root,
+        graph,
+        [
+            (
+                "quick.check.registered",
+                {
+                    "stage": graph.stage,
+                    "checks": [check.id for check in additions],
+                    "paths": [path.relative_to(repo_root).as_posix() for path in forms],
+                },
+            )
+        ],
+    )
+    return additions
 
 
 def show_stage(repo_root: Path, graph: Graph) -> dict[str, Any]:
@@ -610,12 +683,9 @@ def next_command(graph: Graph, repo_root: Path | None = None) -> str:
         if (
             graph.profile == "quick"
             and graph.stage == "implementation"
-            and not any(
-                item.status == "active" and item.stage == "implementation"
-                for item in graph.evidence
-            )
+            and graph.red_green_policy == "required"
         ):
-            return "aegis evidence prepare add"
+            return _quick_check_next_command(graph, record)
         return "aegis stage apply"
     if record.status == "applied":
         if repo_root is not None:
@@ -631,17 +701,15 @@ def next_command(graph: Graph, repo_root: Path | None = None) -> str:
             if not remaining:
                 return "aegis stage close"
         if graph.profile == "quick" and graph.stage == "implementation":
+            if graph.red_green_policy == "required":
+                return _quick_check_next_command(graph, record)
             linked = record.payload.get("linked_check_evidence")
             active_ids = {
                 item.id
                 for item in graph.evidence
                 if item.status == "active" and item.stage == "implementation"
             }
-            if (
-                not isinstance(linked, list)
-                or not linked
-                or any(item not in active_ids for item in linked)
-            ):
+            if not isinstance(linked, list) or not linked or any(item not in active_ids for item in linked):
                 return "aegis evidence prepare add"
         elif graph.stage in {"check", "implementation"}:
             if graph.stage == "check":
@@ -1208,7 +1276,18 @@ def _evidence_stage_blockers(
             if not _has_check_evidence(graph, check.id, "fail"):
                 blockers.append(f"{check.id} has no active red evidence")
     if graph.stage == "implementation":
-        if graph.profile == "quick":
+        if graph.profile == "quick" and graph.red_green_policy == "required":
+            if not graph.checks:
+                blockers.append("at least one registered quick check is required")
+            for check in graph.checks:
+                if not _has_check_evidence(graph, check.id, "fail"):
+                    blockers.append(f"{check.id} is missing prior red evidence")
+                if not _has_check_evidence(graph, check.id, "pass"):
+                    blockers.append(f"{check.id} has no active green evidence")
+                elif check.state != "green":
+                    blockers.append(f"{check.id} is not currently green")
+            blockers.extend(_quick_linked_check_blockers(graph, record))
+        elif graph.profile == "quick":
             linked = record.payload.get("linked_check_evidence")
             linked_ids = (
                 linked
@@ -1743,6 +1822,166 @@ def _existing_requirement(
         return None
 
 
+def _require_quick_check_registration_stage(graph: Graph) -> StageRecord:
+    """
+    @brief Require the bounded quick-check registration window.
+    @param[in] graph Active graph to validate.
+    @return Prepared implementation record that owns the definitions.
+    @exception StageOperationError If this is a full, legacy, or wrong-stage run.
+    """
+    run_stage_spec(graph)
+    if graph.profile != "quick" or graph.red_green_policy != "required":
+        raise StageOperationError(
+            "quick check registration is valid only for new quick runs"
+        )
+    if graph.stage != "implementation":
+        raise StageOperationError(
+            "quick check registration is valid only during implementation"
+        )
+    record = graph.stage_records.get(graph.stage)
+    if record is None or record.status != "prepared":
+        raise StageOperationError(
+            "run `aegis stage prepare` before quick check registration"
+        )
+    return record
+
+
+def _load_quick_check_form(
+    path: Path,
+    graph: Graph,
+    record: StageRecord,
+) -> Check:
+    """
+    @brief Load one strict quick-only check definition.
+    @param[in] path Candidate quick-check TOML path.
+    @param[in] graph Active quick graph.
+    @param[in] record Prepared implementation record.
+    @return Validated check with explicitly inapplicable citations.
+    @exception StageOperationError If form identity or quick contract is invalid.
+    """
+    data = _load_toml(path)
+    _closed_keys(data, CHECK_FORM_KEYS, path)
+    _validate_identity(data, graph, record, path)
+    missing = sorted(set(CHECK_FORM_KEYS) - set(data))
+    if missing:
+        raise StageOperationError(f"{path}: missing required key {missing[0]}")
+    check_id = _nonempty(data, "id", path)
+    expected_id = path.stem.removeprefix(QUICK_CHECK_FORM_PREFIX)
+    if not expected_id or check_id != expected_id or not check_id.startswith("CHK-"):
+        raise StageOperationError(f"{path}: id must match its AEGIS-minted filename")
+    cites_requirement = _strings(data, "cites_requirement", path)
+    cites_spec = _strings(data, "cites_spec", path)
+    if cites_requirement or cites_spec:
+        raise StageOperationError(
+            f"{path}: quick checks require empty requirement and specification citations"
+        )
+    return Check(
+        id=check_id,
+        level=_nonempty(data, "level", path),
+        cites_spec=cites_spec,
+        cites_requirement=cites_requirement,
+        command=_nonempty(data, "command", path),
+        path=_string(data, "path", path) or None,
+        contract_variants=_strings(data, "contract_variants", path),
+        concerns=_strings(data, "concerns", path),
+        parity_targets=_strings(data, "parity_targets", path),
+    )
+
+
+def _check_definition(check: Check) -> tuple[object, ...]:
+    """@brief Return an immutable quick-check registration comparison key."""
+    return (
+        check.id,
+        check.level,
+        tuple(check.cites_spec),
+        tuple(check.cites_requirement),
+        check.command,
+        check.path,
+        tuple(check.contract_variants),
+        tuple(check.concerns),
+        tuple(check.parity_targets),
+    )
+
+
+def _quick_check_next_command(graph: Graph, record: StageRecord) -> str:
+    """@brief Return the next deterministic check command for a new quick run."""
+    if not graph.checks:
+        return "aegis check create"
+    if any(not _has_check_evidence(graph, check.id, "fail") for check in graph.checks):
+        return (
+            "aegis check prepare"
+            if record.check_execution == "external"
+            else "aegis check run"
+        )
+    if any(
+        not _has_check_evidence(graph, check.id, "pass")
+        or check.state != "green"
+        for check in graph.checks
+    ):
+        return (
+            "aegis check prepare"
+            if record.check_execution == "external"
+            else "aegis check run"
+        )
+    return "aegis stage apply"
+
+
+def _validate_quick_linked_check_evidence(
+    graph: Graph,
+    linked_evidence: list[str],
+) -> None:
+    """
+    @brief Require one active managed or external green record per quick check.
+    @param[in] graph New quick graph with registered checks.
+    @param[in] linked_evidence Evidence IDs imported from implementation TOML.
+    @return None.
+    @exception StageOperationError If a manual, stale, red, or incomplete link is used.
+    """
+    if not linked_evidence:
+        raise StageOperationError(
+            "quick implementation linked_check_evidence must not be empty"
+        )
+    if len(set(linked_evidence)) != len(linked_evidence):
+        raise StageOperationError(
+            "quick implementation linked_check_evidence contains duplicates"
+        )
+    by_id = {item.id: item for item in graph.evidence if item.status == "active"}
+    expected = {check.id for check in graph.checks}
+    linked_checks: set[str] = set()
+    for evidence_id in linked_evidence:
+        item = by_id.get(evidence_id)
+        if (
+            item is None
+            or item.kind != "test-run"
+            or item.stage != "implementation"
+            or item.result != "pass"
+            or item.check_id not in expected
+        ):
+            raise StageOperationError(
+                "quick implementation evidence must name active green "
+                "registered check evidence: " + evidence_id
+            )
+        linked_checks.add(str(item.check_id))
+    if linked_checks != expected:
+        missing = ", ".join(sorted(expected - linked_checks))
+        raise StageOperationError(
+            "quick implementation must link green evidence for every registered "
+            f"quick check: {missing}"
+        )
+
+
+def _quick_linked_check_blockers(graph: Graph, record: StageRecord) -> list[str]:
+    """@brief Re-evaluate applied quick evidence links at the close boundary."""
+    linked = record.payload.get("linked_check_evidence")
+    if not isinstance(linked, list) or not all(isinstance(item, str) for item in linked):
+        return ["quick implementation requires linked active check evidence"]
+    try:
+        _validate_quick_linked_check_evidence(graph, linked)
+    except StageOperationError as exc:
+        return [str(exc)]
+    return []
+
+
 def _apply_checks(
     graph: Graph,
     directory: Path,
@@ -1944,7 +2183,13 @@ def _import_implementation(
             "implementation changed_paths must not be empty"
         )
     linked_evidence = _strings(data, "linked_check_evidence", path)
-    if graph.profile == "quick":
+    if graph.profile == "quick" and graph.red_green_policy == "required":
+        if not graph.checks:
+            raise StageOperationError(
+                "quick implementation requires at least one registered quick check"
+            )
+        _validate_quick_linked_check_evidence(graph, linked_evidence)
+    elif graph.profile == "quick":
         if not linked_evidence:
             raise StageOperationError(
                 "quick implementation linked_check_evidence must not be empty"

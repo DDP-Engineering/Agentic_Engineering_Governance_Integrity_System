@@ -84,6 +84,14 @@ four human closes. Requirement/check/design-dependent invariants and audits are
 explicitly not applicable, while enabled gates, secrets, scope, and
 working-tree review still run. Feature and adoption runs cannot use `--quick`.
 
+New quick runs register one or more run-local check definitions during
+implementation with `check create` and `check register`, record a real red
+result before their green result through the existing external or managed check
+paths, and link the resulting active green check evidence in the implementation
+form. They evaluate INV-3; only schema-3 quick graphs written before this
+policy retain explicit legacy INV-3 not-applicable reporting. Manual evidence
+does not substitute for a quick check.
+
 When an eligible process blocker must be overcome once, inspect exact IDs with
 `aegis waive list`, obtain explicit human approval, and record
 `aegis waive add <blocker-id> --reason "<reason>"`. A waiver stays local to the

@@ -142,8 +142,8 @@ Where that evidence came from differs by mode:
   AEGIS runs the command itself, writes the full output to
   `.agentic/runs/<run-id>/evidence/logs/<check-id>-<stage>.log`, and records
   the result directly.
-- **Manual evidence** (used by quick runs, and any time evidence needs to be
-  attached without a formal check) goes through
+- **Manual evidence** (used when evidence needs to be attached without a
+  formal check) goes through
   `stages/<stage>/manual-evidence.toml`.
 - **Gate evidence** (from `verify run`) has no separate log file — its
   output tail lives only in the journal's `gate.output` event, while the

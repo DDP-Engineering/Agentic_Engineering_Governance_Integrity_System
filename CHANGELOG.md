@@ -13,6 +13,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add a file-first quick-run check contract. New quick graphs persist a required
+  red/green policy, mint and register run-local check definitions during
+  implementation, reuse external or managed evidence recording for a real red
+  then green result, and reject manual evidence as a substitute. Historical
+  schema-3 quick graphs without the field remain readable with explicit legacy
+  INV-3 not-applicable reporting.
+
 - Add the versioned, read-only `aegis run context --json` bootstrap contract.
   It provides the current stage's single router/reference and bounded primary
   forms without serializing graph, journal, evidence, requirement, report, or

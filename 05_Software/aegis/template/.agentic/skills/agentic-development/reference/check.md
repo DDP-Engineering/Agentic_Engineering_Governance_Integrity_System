@@ -64,11 +64,13 @@ reported command using the retained current form and this reference.
 - [ ] [machine] Active red evidence is recorded for every check.
 - [ ] [human] The human approves stage close.
 
-**Skip when:** The quick path bypasses the check *collection* stage by profile,
-recording it as `bypassed`. Under the current quick-run contract, INV-3 is
-`not-applicable` because no check is collected; implementation instead records
-durable manual evidence through `<workflow> evidence prepare add`. Never invent
-check IDs or report the bypassed check stage as passed or waived.
+**Skip when:** The quick path bypasses this ordinary check *collection* stage by
+profile, recording it as `bypassed`. New quick runs instead mint a run-local
+definition with `<workflow> check create`, register it with
+`<workflow> check register`, and record real red/green evidence during
+implementation. INV-3 remains evaluated for that policy; only a historical
+quick graph without the policy reports legacy not-applicable. Never invent
+check IDs or report the bypassed collection stage as passed or waived.
 
 ---
 

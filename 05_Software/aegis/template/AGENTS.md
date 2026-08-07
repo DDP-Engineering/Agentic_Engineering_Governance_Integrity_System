@@ -128,17 +128,23 @@ requirement, design, and check as `bypassed` by the quick run type. Run status,
 the validation summary, and `report.md` repeat that state; bypassed never means
 passed or waived.
 
-Because a quick run has no requirement, check, or design collection stage,
-INV-1, INV-2, INV-3 (red-before-green), INV-8, and INV-10, plus the standalone
-traceability and coverage audits, report `not-applicable` for the quick run.
-Intake, implementation changed paths and evidence, enabled gates, secrets and
-working-tree review, scope analysis, validation, delivery reporting, and all
-four human closes still execute normally.
+Because a quick run has no requirement, design, or ordinary check collection
+stage, INV-1, INV-2, INV-8, and INV-10, plus the standalone traceability and
+coverage audits, report `not-applicable`. New quick runs still evaluate INV-3:
+each registered check needs a recorded red result before its green result.
+Only historical quick graphs without the persisted policy report INV-3 as
+`legacy-not-applicable`.
 
-At quick implementation, follow the returned `aegis evidence prepare add`
-command, complete and apply the manual-evidence form, and place its CLI-minted
-active ID in `linked_check_evidence` before applying the implementation form.
-Invented, missing, superseded, or other-stage evidence does not satisfy close.
+At quick implementation, run `<workflow> check create`, fill the generated
+definition with the command and optional path/variants/concerns, then run
+`<workflow> check register` before changing source. Requirement and
+specification citations stay empty because this proportional path has no
+collection stages. Record a real red result, make the bounded repair, then
+record green through `<workflow> check prepare`/`<workflow> check record` or
+`<workflow> check run <check-id>`. Put every active green check-evidence ID in
+`linked_check_evidence` before applying the implementation form. Manual,
+invented, missing, superseded, or other-stage evidence never satisfies this
+quick-check contract.
 
 Quick runs cannot route into a bypassed stage. If scope grows, preserve the
 recorded context and restart as a full run with `aegis run start <fix|change>`.

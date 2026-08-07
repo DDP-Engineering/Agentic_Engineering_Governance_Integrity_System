@@ -78,9 +78,11 @@ from .stage_forms import (
     apply_stage,
     bypassed_stages,
     close_stage,
+    create_quick_check,
     next_command,
     prepare_stage,
     quick_scope_advisory,
+    register_quick_checks,
     show_stage,
 )
 from .stage_context import build_stage_context
@@ -294,6 +296,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     check = groups.add_parser("check", help="record deterministic check evidence")
     check_sub = check.add_subparsers(dest="action", required=True)
+    check_sub.add_parser("create")
+    check_sub.add_parser("register")
     check_sub.add_parser("prepare")
     check_sub.add_parser("record")
     check_run = check_sub.add_parser("run")
@@ -465,6 +469,21 @@ def _check_command(
     """
     @brief Execute one external or managed check command.
     """
+    if args.action == "create":
+        path = create_quick_check(root, graph)
+        return _payload(
+            graph,
+            path.relative_to(root).as_posix(),
+            "aegis check register",
+        )
+    if args.action == "register":
+        checks = register_quick_checks(root, graph)
+        return _payload(
+            graph,
+            "none",
+            next_command(graph, root),
+            checks=[asdict(item) for item in checks],
+        )
     if args.action == "prepare":
         path = prepare_check_evidence(root, graph)
         return _payload(

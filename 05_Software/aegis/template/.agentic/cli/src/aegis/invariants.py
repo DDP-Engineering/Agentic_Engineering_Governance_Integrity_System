@@ -210,8 +210,12 @@ def evaluate(
             else _citation(requirements, graph)
         ),
         (
-            _quick_not_applicable("INV-3", "Red-before-green")
-            if quick
+            _quick_not_applicable(
+                "INV-3",
+                "Red-before-green",
+                "legacy quick run",
+            )
+            if quick and graph.red_green_policy == "legacy-not-applicable"
             else _red_before_green(graph)
         ),
         _no_regression(graph, config),
@@ -614,6 +618,12 @@ def _no_regression(
         for item in graph.evidence
         if item.kind in {"gate", "test-run"} and item.stage in {"implementation", "validation", "delivery"} and item.result == "fail"
         and item.status != "superseded"
+        and not (
+            graph.profile == "quick"
+            and graph.red_green_policy == "required"
+            and item.kind == "test-run"
+            and item.stage == "implementation"
+        )
     ]
     gate_blockers = {
         blocker.id: blocker

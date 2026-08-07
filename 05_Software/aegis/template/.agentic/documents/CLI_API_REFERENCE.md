@@ -212,9 +212,11 @@ Requirement commands are read-only. Mutations occur only through requirement
 stage forms. AEGIS generates UUID-backed IDs and durable companion specs.
 Successful validation closure activates eligible Planned requirements.
 
-Quick runs have no requirement, check, or design collection stage. INV-1,
-INV-2, INV-3, INV-8, and INV-10 therefore report `not-applicable` with
-`holds=null`; this is an explicit quick-run state, not a pass or waiver.
+Quick runs have no requirement, design, or ordinary check collection stage.
+INV-1, INV-2, INV-8, and INV-10 report `not-applicable` with `holds=null`.
+New quick runs evaluate INV-3 through their run-local checks; only a historical
+quick graph without the persisted red/green policy reports INV-3 as
+`legacy-not-applicable`.
 
 The authoritative design is:
 
@@ -248,14 +250,13 @@ The captured workspace policy permits one path. The wrong path returns the
 configured mode and correct command. Check closure requires red evidence;
 implementation closure requires prior red and current green evidence.
 
-Quick runs have no check collection stage. Red-before-green (INV-3) is
-`not-applicable` for that profile, but implementation changed paths and linked
-manual evidence remain required and are validated normally.
-
-On entry to quick implementation, the exact next command is
-`aegis evidence prepare add`. Apply that form, copy its CLI-minted active ID
-into `linked_check_evidence`, then apply the implementation form. Missing,
-invented, superseded, or non-implementation evidence is rejected.
+Quick runs have no ordinary check collection stage. New quick implementation
+starts with `aegis check create`; fill the generated run-local definition and
+run `aegis check register` before changing source. Its requirement and
+specification citations are explicitly empty. Record a real red result, make
+the repair, then record green through the external or managed path. The
+implementation form must link every active green registered-check evidence ID;
+manual, invented, superseded, red, or other-stage evidence is rejected.
 
 External preparation and recording are valid only during check or
 implementation, require a captured external mode and at least one imported
@@ -382,11 +383,12 @@ group executes even if an earlier group fails. Disabled groups are reported
 original failed state, reason, and timestamp; they are never reported `passed`.
 
 For a quick run, requirement/check traceability and coverage audits, plus
-INV-1, INV-2, INV-3, INV-8, and INV-10, report `not-applicable - quick run` and
-cannot become pass results or waiver targets. Impact analysis, enabled gates,
-the secrets scan, remaining invariants, scope advisory, and working-tree review
-still execute. The summary includes the quick profile and the explicit
-bypassed-stage list.
+INV-1, INV-2, INV-8, and INV-10, report `not-applicable - quick run` and cannot
+become pass results or waiver targets. New quick runs evaluate INV-3 from their
+registered red/green evidence; legacy graphs retain the explicit N/A result.
+Impact analysis, enabled gates, the secrets scan, remaining invariants, scope
+advisory, and working-tree review still execute. The summary includes the quick
+profile and the explicit bypassed-stage list.
 
 The security group runs only explicitly configured deterministic tooling. Its
 result is evidence from that tooling, not an authoritative security-assurance

@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
 
 from ._form_io import load_evidence_form as _load
 from ._form_io import quote_toml_string as _q
@@ -83,7 +82,7 @@ def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     excused = _require_external_evidence_preconditions(graph)
     path = stage_directory(repo_root, graph) / "evidence.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    expected = "fail" if graph.stage == "check" else "pass"
+    expected = _expected_result(graph)
     lines = [
         f"schema_version = {EVIDENCE_SCHEMA_VERSION}",
         f"run_id = {_q(graph.run_id)}",
@@ -153,7 +152,7 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
                 else f"missing key {missing[0]}"
             )
         )
-    expected = "fail" if graph.stage == "check" else "pass"
+    expected = _expected_result(graph)
     identity = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "run_id": graph.run_id,
@@ -293,7 +292,7 @@ def run_checks(
         captured_mode = record.check_execution
         captured_checks = _check_definition_snapshot(graph.checks)
 
-    expected = "fail" if captured_stage == "check" else "pass"
+    expected = _expected_result(graph)
     completed = []
     for check in selected:
         if not check.command:
@@ -383,6 +382,23 @@ def _check_definition_snapshot(checks: list[Check]) -> tuple[tuple[object, ...],
         )
         for check in checks
     )
+
+
+def _expected_result(graph: Graph) -> str:
+    """
+    @brief Return the next required observation for the active check set.
+    @param[in] graph Active run graph at check or implementation.
+    @return ``fail`` for required red evidence, otherwise ``pass``.
+    """
+    if graph.stage == "check":
+        return "fail"
+    if (
+        graph.profile == "quick"
+        and graph.red_green_policy == "required"
+        and any(not check.red_evidence for check in graph.checks)
+    ):
+        return "fail"
+    return "pass"
 
 
 def _require_external_evidence_preconditions(graph: Graph) -> set[str]:
@@ -523,6 +539,10 @@ def _update_check_states(graph: Graph, evidence: list[Evidence]) -> None:
                 item.result == "pass"
                 and prior.result == "fail"
                 and prior.stage in _GREEN_ATTEMPT_STAGES
+                and not (
+                    graph.profile == "quick"
+                    and graph.red_green_policy == "required"
+                )
             )
             if not (same_result or failed_green_attempt):
                 continue
