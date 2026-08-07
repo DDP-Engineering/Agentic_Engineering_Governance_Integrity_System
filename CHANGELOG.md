@@ -77,6 +77,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Remove an unused AEGIS requirement-store import so the complete Ruff audit
+  remains clean.
+
 - Make `aegis stage show --json` report an unavailable prepared artifact
   without crashing from a duplicate `artifact` payload argument.
 

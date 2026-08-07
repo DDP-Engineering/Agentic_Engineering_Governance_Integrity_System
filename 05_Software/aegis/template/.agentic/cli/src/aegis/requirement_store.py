@@ -32,7 +32,6 @@ import uuid
 from typing import Any, Callable
 
 from .config import WorkflowConfig
-from .paths import RepositoryPathError
 from .paths import normalize_repository_path as _normalize_repository_path
 from .paths import validate_glob as _validate_glob_syntax
 from .persistence import (
