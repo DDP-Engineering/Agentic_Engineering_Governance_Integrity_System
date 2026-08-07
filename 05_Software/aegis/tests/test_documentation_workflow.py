@@ -343,6 +343,7 @@ def test_template_adapters_route_fresh_sessions_through_bounded_context() -> Non
     for path in (*adapters, *routers):
         text = " ".join(path.read_text(encoding="utf-8").split())
         assert "run context --json" in text, path
+        assert "unavailable_current_artifact" in text, path
     for path in adapters:
         assert "read graph.json" not in path.read_text(encoding="utf-8"), path
 

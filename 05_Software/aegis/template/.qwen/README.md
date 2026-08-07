@@ -22,8 +22,8 @@ the selected worktree run or explicit `--run`. AEGIS policy comes only from
 the validated file; Qwen trust and host controls remain separate.
 
 For a fresh stage session, read `AGENTS.md`, run the project-local `run context
---json` command, prepare only an absent current form, and read only the named
-router, reference, and forms.
+--json` command, then follow `unavailable_current_artifact` recovery exactly;
+never prepare an already applied stage.
 
 ## Contents
 

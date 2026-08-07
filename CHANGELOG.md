@@ -32,6 +32,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Correct WP2 fresh-session context recovery: `adoption-delivery` now routes to
+  the adoption skill and reference, and a missing current form is explicitly
+  unavailable with a safe recovery command rather than being advertised as a
+  readable artifact. Public lifecycle budget coverage now measures indented CLI
+  output after full, quick, and adoption handoffs with 1,000 evidence rows.
+
 - Reconcile check evidence state instead of silently discarding it, closing
   two defects found on a real downstream run. Reapplying the check stage now
   preserves the red/green links and state of every check whose identity and

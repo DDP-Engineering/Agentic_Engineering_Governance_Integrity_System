@@ -64,10 +64,10 @@ check collections, `check prepare/record` or `check run` for evidence, and
 `verify run` at validation.
 
 For a fresh stage session, read `AGENTS.md`, run `aegis run context --json`,
-prepare only an absent current form, then read only the returned router,
-reference, current form, and retained predecessor form. `run status` remains
-the detailed diagnostic command; routine recovery never reads `graph.json` or
-`journal.jsonl`.
+then follow `unavailable_current_artifact` recovery exactly; never prepare an
+already applied stage. Read only the returned router, reference, current form,
+and retained predecessor form. `run status` remains the detailed diagnostic
+command; routine recovery never reads `graph.json` or `journal.jsonl`.
 
 Each primary stage form begins with its generated completion checklist. The
 checklist is presentation guidance, not submitted TOML data: AEGIS imports the

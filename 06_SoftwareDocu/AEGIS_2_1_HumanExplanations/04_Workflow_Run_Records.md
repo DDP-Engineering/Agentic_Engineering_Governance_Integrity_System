@@ -60,7 +60,10 @@ The response is deliberately not another run summary. It omits `graph.json`,
 workflow configuration, so its size does not increase as the run gathers
 history. When a prior form was discarded or is missing, the response records the
 reason and a recovery command instead of silently expanding the agent's read
-set. `aegis run status` remains available for detailed diagnosis.
+set. The same rule applies to the current form: it is reported as `none` with
+an explicit recovery command when unavailable. An applied stage recovers via
+`aegis stage show`, never by preparing a revision that would regress it.
+`aegis run status` remains available for detailed diagnosis.
 
 ## The run graph
 

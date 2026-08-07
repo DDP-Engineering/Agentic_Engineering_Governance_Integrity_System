@@ -27,10 +27,10 @@ blockers, and continue only within the current stage.
 ```
 
 ```text
-In this fresh session, read AGENTS.md, run `aegis run context --json`, prepare
-the stage only if its current form is absent, then read only the returned skill,
-reference, current form, and retained prior form. Do not read graph.json or
-journal.jsonl.
+In this fresh session, read AGENTS.md, run `aegis run context --json`, and if
+`unavailable_current_artifact` is present run only its recovery command. Never
+prepare an already applied stage. Then read only the returned skill, reference,
+current form, and retained prior form. Do not read graph.json or journal.jsonl.
 ```
 
 ## Alignment

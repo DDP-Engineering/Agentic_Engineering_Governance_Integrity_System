@@ -89,3 +89,26 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 - Unverified behavior: the offline byte gate is complete, but Qwen tokenizer
   telemetry and genuinely fresh-model sessions remain WP8 acceptance work.
 - Next allowed package: WP3 after the required independent package review.
+
+## Correction after independent review
+
+- Review findings: adoption-delivery incorrectly selected the standard delivery
+  router; discarded applied forms were still named as readable current inputs;
+  and the initial byte tests did not cover captured public CLI output after
+  realistic lifecycle handoffs.
+- Resolution: adoption-delivery now selects the adoption router/reference.
+  `run context` returns `artifact = "none"`,
+  `unavailable_current_artifact`, and only `aegis stage show` when an applied
+  form was discarded, so guidance never tells a fresh session to prepare a
+  revision that regresses applied state. The budget suite now drives full,
+  quick, and adoption runs through real CLI handoffs (including prepared
+  adoption-delivery), adds 1,000 evidence rows, and compares captured indented
+  public JSON bytes before and after the history expansion.
+- Correction validation:
+  - `uv run --group dev python -m pytest -q tests/test_stage_context_budget.py tests/test_documentation_workflow.py tests/test_cli_surface.py`
+    -> `70 passed`.
+  - AEGIS full suite -> `588 passed, 3 skipped`.
+  - WAEGIS full suite -> `699 passed, 8 skipped`.
+  - AEGIS/WAEGIS CLI help and Python compilation passed. `py_compile` created
+    one verified payload cache directory, which was removed before the final
+    AEGIS hygiene run.

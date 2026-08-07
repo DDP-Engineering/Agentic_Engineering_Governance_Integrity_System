@@ -50,15 +50,17 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
              omitting it, so an agent has a deterministic recovery route.
     """
     spec = run_stage_spec(graph)
-    current_form = _primary_form_path(repo_root, graph, graph.stage)
-    artifact = _relative(repo_root, current_form)
+    artifact, current_unavailable = _current_form(repo_root, graph)
     skill = _skill_path(graph.stage)
     reference = STAGE_REFERENCE_PATHS[graph.stage]
     previous, unavailable = _previous_stage_forms(repo_root, graph, spec.stages)
-    required_reads = _unique_existing_paths(
-        repo_root,
-        [_AGENTS_PATH, skill, reference, artifact, *previous],
-    )
+    required_reads = _unique_paths([
+        _AGENTS_PATH,
+        skill,
+        reference,
+        *([artifact] if artifact != "none" else []),
+        *previous,
+    ])
     return {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "run_id": graph.run_id,
@@ -68,14 +70,19 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
         "reference": reference,
         "skill": skill,
         "artifact": artifact,
+        "unavailable_current_artifact": current_unavailable,
         "previous_stage_artifacts": previous,
         "unavailable_previous_stage_artifacts": unavailable,
         "required_reads": required_reads,
-        "next_commands": [
-            "aegis stage prepare",
-            "aegis stage apply",
-            "aegis stage close",
-        ],
+        "next_commands": (
+            [current_unavailable["recovery_command"]]
+            if current_unavailable is not None
+            else [
+                "aegis stage prepare",
+                "aegis stage apply",
+                "aegis stage close",
+            ]
+        ),
         "human_gate": "stage close",
     }
 
@@ -85,7 +92,7 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
 
 def _skill_path(stage: Stage) -> str:
     """@brief Return the router that owns one stage's procedure."""
-    if stage in {"delivery", "adoption-delivery"}:
+    if stage == "delivery":
         return _DELIVERY_SKILL
     if stage.startswith("adoption-") or stage in {
         "repo-discovery",
@@ -95,6 +102,29 @@ def _skill_path(stage: Stage) -> str:
     }:
         return _ADOPTION_SKILL
     return _DEVELOPMENT_SKILL
+
+
+def _current_form(repo_root: Path, graph: Graph) -> tuple[str, dict[str, str] | None]:
+    """@brief Resolve the readable current form or its non-mutating recovery."""
+    source = _primary_form_path(repo_root, graph, graph.stage)
+    if source.is_file():
+        return _relative(repo_root, source), None
+    record = graph.stage_records.get(graph.stage)
+    if record is None:
+        return "none", {
+            "stage": graph.stage,
+            "reason": "the current stage has not been prepared",
+            "recovery_command": "aegis stage prepare",
+        }
+    if record.status == "applied":
+        reason = "the applied stage form is unavailable under its captured retention policy"
+    else:
+        reason = "the current prepared form is unavailable"
+    return "none", {
+        "stage": graph.stage,
+        "reason": reason,
+        "recovery_command": "aegis stage show",
+    }
 
 
 def _previous_stage_forms(
@@ -146,8 +176,8 @@ def _relative(repo_root: Path, path: Path) -> str:
     return path.relative_to(repo_root).as_posix()
 
 
-def _unique_existing_paths(repo_root: Path, paths: list[str]) -> list[str]:
-    """@brief Preserve path order while keeping the expected bootstrap contract."""
+def _unique_paths(paths: list[str]) -> list[str]:
+    """@brief Preserve the declared bootstrap path order without duplicates."""
     unique: list[str] = []
     for path in paths:
         if path not in unique:

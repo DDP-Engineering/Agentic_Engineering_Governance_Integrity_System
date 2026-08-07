@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 from aegis.cli import main
-from aegis.models import ALL_STAGES, Evidence, StageRecord
+from aegis.models import ALL_STAGES, Evidence
 from aegis.stage_schema import STAGE_REFERENCE_PATHS
 from aegis.store import graph_path, load_graph, save_graph
 
@@ -44,10 +44,109 @@ def _invoke(capsys: pytest.CaptureFixture[str], arguments: list[str]) -> dict:
     return json.loads(capsys.readouterr().out)
 
 
+def _invoke_output(
+    capsys: pytest.CaptureFixture[str],
+    arguments: list[str],
+) -> tuple[dict, bytes]:
+    """@brief Invoke a public JSON command and retain its emitted UTF-8 bytes."""
+    main([*arguments, "--json"])
+    output = capsys.readouterr().out
+    return json.loads(output), output.encode("utf-8")
+
+
+def _replace(path: Path, replacements: dict[str, str]) -> None:
+    """@brief Apply exact form edits through the file-first CLI workflow."""
+    text = path.read_text(encoding="utf-8")
+    for old, new in replacements.items():
+        assert text.count(old) == 1, (path, old)
+        text = text.replace(old, new)
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def _enable_latest_retention(root: Path) -> None:
+    """@brief Keep closed primary forms available for a realistic handoff."""
+    path = root / ".agentic" / "workflow.toml"
+    text = path.read_text(encoding="utf-8")
+    assert text.count('stage_form_retention = "discard"') == 1
+    path.write_text(
+        text.replace('stage_form_retention = "discard"', 'stage_form_retention = "latest"'),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def _apply_close(capsys: pytest.CaptureFixture[str]) -> dict:
+    """@brief Apply and human-close the current form through the public CLI."""
+    _invoke(capsys, ["stage", "apply"])
+    return _invoke(capsys, ["stage", "close"])
+
+
+def _start_and_close_intake(
+    root: Path,
+    capsys: pytest.CaptureFixture[str],
+    kind: str,
+    *,
+    quick: bool = False,
+) -> tuple[str, dict]:
+    """@brief Create a real full, quick, or adoption handoff from intake."""
+    started = _invoke(capsys, ["run", "start", kind, *(["--quick"] if quick else [])])
+    edits = {
+        'statement = ""': 'statement = "Record a bounded context handoff"',
+        'summary = ""': 'summary = "Intake approved"',
+    }
+    if kind == "adoption":
+        edits['adoption_slice = ""'] = 'adoption_slice = "billing"'
+    _replace(root / str(started["artifact"]), edits)
+    return str(started["run_id"]), _apply_close(capsys)
+
+
+def _advance_adoption_to_delivery(root: Path, capsys: pytest.CaptureFixture[str]) -> str:
+    """@brief Drive actual adoption forms to the prepared adoption-delivery stage."""
+    run_id, closed = _start_and_close_intake(root, capsys, "adoption")
+    assert closed["stage"] == "adoption-alignment"
+    stage_edits = (
+        {
+            'understanding = ""': 'understanding = "Document billing without behavior changes"',
+            "in_scope = []": 'in_scope = ["src/billing"]',
+            "acceptance_criteria = []": 'acceptance_criteria = ["billing baseline documented"]',
+            'summary = ""': 'summary = "Adoption alignment approved"',
+        },
+        {
+            "candidate_components = []": 'candidate_components = ["billing"]',
+            'summary = ""': 'summary = "Repository discovery complete"',
+        },
+        {
+            "components = []": 'components = ["billing"]',
+            "approved_slice = []": 'approved_slice = ["billing"]',
+            'approval_decision = "pending"': 'approval_decision = "approved"',
+            'summary = ""': 'summary = "Component map approved"',
+        },
+        {
+            "adopted_components = []": 'adopted_components = ["billing"]',
+            "changed_paths = []": 'changed_paths = [".agentic/knowledge/components/billing.md"]',
+            "documentation = []": 'documentation = [".agentic/knowledge/components/billing.md"]',
+            'summary = ""': 'summary = "Billing component adopted"',
+        },
+        {
+            "reviewed_components = []": 'reviewed_components = ["billing"]',
+            'decision = "pending"': 'decision = "approved"',
+            'summary = ""': 'summary = "Baseline review approved"',
+        },
+    )
+    for edits in stage_edits:
+        graph = load_graph(root, run_id)
+        artifact = graph.stage_records[graph.stage].artifact
+        _replace(root / artifact, edits)
+        _apply_close(capsys)
+    assert load_graph(root, run_id).stage == "adoption-delivery"
+    return run_id
+
+
 def _bootstrap_bytes(
     payload_root: Path,
     run_root: Path,
     context: dict,
+    context_output: bytes,
 ) -> tuple[int, dict[str, int]]:
     """
     @brief Measure the exact UTF-8 bootstrap components named by context.
@@ -61,9 +160,7 @@ def _bootstrap_bytes(
     for path in paths:
         source_root = run_root if path.startswith(".agentic/runs/") else payload_root
         components[path] = len((source_root / path).read_bytes())
-    components["run-context.json"] = len(
-        json.dumps(context, indent=2, ensure_ascii=False).encode("utf-8")
-    )
+    components["run-context.json"] = len(context_output)
     return sum(components.values()), components
 
 
@@ -119,6 +216,7 @@ def test_run_context_is_bounded_for_full_quick_and_adoption_starts(
     assert context["skill"] == expected_skill
     assert context["reference"] == expected_reference
     assert context["artifact"] in context["required_reads"]
+    assert context["unavailable_current_artifact"] is None
     assert context["previous_stage_artifacts"] == []
     assert context["unavailable_previous_stage_artifacts"] == []
     assert all("graph.json" not in path and "journal.jsonl" not in path for path in context["required_reads"])
@@ -131,125 +229,102 @@ def test_run_context_is_bounded_for_full_quick_and_adoption_starts(
     assert len(json.dumps(context, ensure_ascii=False).encode("utf-8")) <= CONTEXT_LIMIT_BYTES
 
 
-def test_run_context_does_not_grow_with_evidence_history(
+@pytest.mark.parametrize(
+    ("kind", "quick", "expected_stage"),
+    (
+        ("feature", False, "alignment"),
+        ("fix", True, "implementation"),
+        ("adoption", False, "adoption-delivery"),
+    ),
+)
+def test_public_lifecycle_context_stays_bounded_with_evidence_history(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    kind: str,
+    quick: bool,
+    expected_stage: str,
 ) -> None:
-    """@brief A thousand evidence rows cannot enlarge the context response."""
+    """@brief WP2 bounds real full, quick, and adoption handoff context output."""
     monkeypatch.chdir(tmp_path)
-    run_id = str(_invoke(capsys, ["run", "start", "feature"])["run_id"])
-    graph_before = graph_path(tmp_path, run_id).read_bytes()
-    before = _invoke(capsys, ["run", "context"])
-    assert graph_path(tmp_path, run_id).read_bytes() == graph_before
+    _enable_latest_retention(tmp_path)
+    if kind == "adoption":
+        run_id = _advance_adoption_to_delivery(tmp_path, capsys)
+    else:
+        run_id, closed = _start_and_close_intake(tmp_path, capsys, kind, quick=quick)
+        assert closed["stage"] == expected_stage
 
+    before, before_output = _invoke_output(capsys, ["run", "context"])
     graph = load_graph(tmp_path, run_id)
     graph.evidence.extend(
         Evidence(id=f"EV-{index:04d}", kind="note", result="info", summary="history")
         for index in range(1_000)
     )
     save_graph(tmp_path, graph)
+    graph_before_context = graph_path(tmp_path, run_id).read_bytes()
+    after, after_output = _invoke_output(capsys, ["run", "context"])
 
-    after = _invoke(capsys, ["run", "context"])
+    total, components = _bootstrap_bytes(
+        PACKAGE_ROOT / "template",
+        tmp_path,
+        after,
+        after_output,
+    )
 
-    assert after == before
+    assert after["stage"] == expected_stage
+    assert after["previous_stage_artifacts"]
+    assert before == after
+    assert before_output == after_output
+    assert graph_path(tmp_path, run_id).read_bytes() == graph_before_context
+    assert len(after_output) <= CONTEXT_LIMIT_BYTES, components
+    assert total <= BOOTSTRAP_LIMIT_BYTES, components
+    assert all("graph.json" not in path and "journal.jsonl" not in path for path in after["required_reads"])
 
 
-def test_run_context_names_or_explains_the_immediately_previous_form(
+def test_discarded_current_form_uses_non_mutating_recovery(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """@brief Retention determines the sole predecessor form a session may read."""
+    """@brief An applied discarded form is never advertised as a readable input."""
     monkeypatch.chdir(tmp_path)
     run_id = str(_invoke(capsys, ["run", "start", "feature"])["run_id"])
     graph = load_graph(tmp_path, run_id)
-    graph.stage = "alignment"
-    graph.stage_records["intake"].status = "closed"
-    graph.stage_records["intake"].retention = "latest"
-    graph.stage_records["alignment"] = StageRecord(
-        stage="alignment",
-        revision=1,
-        status="prepared",
-        retention="latest",
-        check_execution="external",
-    )
-    current = tmp_path / ".agentic" / "runs" / run_id / "stages" / "alignment" / "alignment.toml"
-    current.parent.mkdir(parents=True)
-    current.write_text("schema_version = 3\n", encoding="utf-8")
-    save_graph(tmp_path, graph)
+    form = tmp_path / graph.stage_records["intake"].artifact
+    _replace(form, {
+        'statement = ""': 'statement = "Keep applied state safe"',
+        'summary = ""': 'summary = "Applied intake"',
+    })
+    _invoke(capsys, ["stage", "apply"])
+    graph_before = graph_path(tmp_path, run_id).read_bytes()
+    context, _ = _invoke_output(capsys, ["run", "context"])
 
-    retained = _invoke(capsys, ["run", "context"])
-
-    assert retained["previous_stage_artifacts"] == [
-        f".agentic/runs/{run_id}/stages/intake/intake.toml"
-    ]
-    assert retained["unavailable_previous_stage_artifacts"] == []
-
-    graph = load_graph(tmp_path, run_id)
-    graph.stage_records["intake"].retention = "discard"
-    save_graph(tmp_path, graph)
-    discarded = _invoke(capsys, ["run", "context"])
-
-    assert discarded["previous_stage_artifacts"] == []
-    assert discarded["unavailable_previous_stage_artifacts"] == [{
+    assert context["artifact"] == "none"
+    assert context["unavailable_current_artifact"] == {
         "stage": "intake",
-        "reason": "the captured retention policy discarded the form",
+        "reason": "the applied stage form is unavailable under its captured retention policy",
         "recovery_command": "aegis stage show",
-    }]
+    }
+    assert context["next_commands"] == ["aegis stage show"]
+    assert all("/intake/intake.toml" not in path for path in context["required_reads"])
+    assert graph_path(tmp_path, run_id).read_bytes() == graph_before
 
 
-@pytest.mark.parametrize(
-    ("kind", "quick"),
-    (("feature", False), ("fix", True), ("adoption", False)),
-)
-def test_template_bootstrap_pack_stays_within_budget(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    kind: str,
-    quick: bool,
-) -> None:
-    """@brief The installable payload supplies every measured bootstrap file."""
-    monkeypatch.chdir(tmp_path)
-    _invoke(capsys, ["run", "start", kind, *( ["--quick"] if quick else [])])
-    context = _invoke(capsys, ["run", "context"])
-
-    total, components = _bootstrap_bytes(PACKAGE_ROOT / "template", tmp_path, context)
-
-    assert len(json.dumps(context, ensure_ascii=False).encode("utf-8")) <= CONTEXT_LIMIT_BYTES, components
-    assert total <= BOOTSTRAP_LIMIT_BYTES, components
-
-
-def test_template_bootstrap_pack_includes_retained_previous_form(
+def test_adoption_delivery_context_uses_the_adoption_router(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """@brief The pack budget includes both required stage forms after a handoff."""
+    """@brief Public CLI context keeps adoption-delivery out of standard delivery."""
     monkeypatch.chdir(tmp_path)
-    run_id = str(_invoke(capsys, ["run", "start", "feature"])["run_id"])
-    graph = load_graph(tmp_path, run_id)
-    graph.stage = "alignment"
-    graph.stage_records["intake"].status = "closed"
-    graph.stage_records["intake"].retention = "latest"
-    graph.stage_records["alignment"] = StageRecord(
-        stage="alignment",
-        revision=1,
-        status="prepared",
-        retention="latest",
-        check_execution="external",
-    )
-    current = tmp_path / ".agentic" / "runs" / run_id / "stages" / "alignment" / "alignment.toml"
-    current.parent.mkdir(parents=True)
-    current.write_text("schema_version = 3\n", encoding="utf-8")
-    save_graph(tmp_path, graph)
+    _enable_latest_retention(tmp_path)
+    _advance_adoption_to_delivery(tmp_path, capsys)
 
     context = _invoke(capsys, ["run", "context"])
-    total, components = _bootstrap_bytes(PACKAGE_ROOT / "template", tmp_path, context)
 
-    assert context["previous_stage_artifacts"]
-    assert total <= BOOTSTRAP_LIMIT_BYTES, components
+    assert context["stage"] == "adoption-delivery"
+    assert context["skill"] == ".agentic/skills/agentic-adoption/SKILL.md"
+    assert context["reference"] == ".agentic/skills/agentic-adoption/reference/adoption-delivery.md"
 
 
 # END OF FILE

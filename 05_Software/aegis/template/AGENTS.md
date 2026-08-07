@@ -46,7 +46,9 @@ bootstrap sequence:
 ```text
 1. Read AGENTS.md.
 2. Run `<workflow> run context --json`.
-3. If the returned current form is absent, run `<workflow> stage prepare`.
+3. If `unavailable_current_artifact` is present, run only its recovery command.
+   Run `<workflow> stage prepare` only when that command is named; never
+   prepare an already applied stage.
 4. Read only the skill, reference, current form, and retained previous form
    named in required_reads.
 5. Perform only the reported current stage and stop at stage close for human approval.

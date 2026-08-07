@@ -43,9 +43,9 @@ does not replace the imported design or `stage close` approval journal.
 
 When resuming work without prior chat history, read `AGENTS.md`, run
 `<workflow> run context --json`, then read only its named skill, reference,
-current form, and retained previous form. Run `<workflow> stage prepare` only
-when the current form is absent. `run context` is bounded and read-only; use
-`run status` only for detailed diagnosis. Never read `graph.json` or
+current form, and retained previous form. If `unavailable_current_artifact` is
+present, run only its recovery command; never prepare an already applied stage.
+`run context` is bounded and read-only; use `run status` only for detailed diagnosis. Never read `graph.json` or
 `journal.jsonl` for ordinary stage recovery.
 
 When the human describes a genuinely small fix, offer the route explicitly:

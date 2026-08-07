@@ -115,6 +115,11 @@ form is unavailable, `unavailable_previous_stage_artifacts` gives a reason and
 recovery command. Use `run status` for detailed diagnostics, not normal
 bootstrap.
 
+When the current primary form is unavailable, `artifact` is `"none"` and
+`unavailable_current_artifact` gives the sole safe recovery command. A missing
+form from an already applied stage is recovered with `stage show`, never by
+preparing a revision that would regress applied state.
+
 After quick-run intake closes, `run status` reports `run_profile="quick"`,
 `bypass_status="bypassed"`, and the four bypassed stages. The intake approval
 also creates one `run.stages_bypassed` journal event with the human approver,
