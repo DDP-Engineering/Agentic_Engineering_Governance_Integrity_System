@@ -210,4 +210,95 @@ def test_fresh_model_request_records_exact_transcript_and_options(
     assert observation.transcript_sha256
 
 
+def test_context_budget_accepts_request_one_token_under_harness_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief AEGIS-WP8-PILOT permits a request only when its conservative budget fits."""
+    pilot = _load_pilot_module()
+    monkeypatch.setattr(pilot, "_post_json", lambda *_args: (_valid_tool_response(pilot), 42, 7))
+    monkeypatch.setattr(pilot, "_run_bounded_bootstrap", lambda *_args: {})
+    initial_profile = pilot.PilotProfile(2000, "enabled", 0.0, None)
+    initial = pilot._run_model_session(
+        "http://127.0.0.1:1234/v1", "prism-ml/bonsai-27b", tmp_path, "RUN-1", initial_profile,
+        "stage:intake", 1.0,
+    )
+    profile = pilot.PilotProfile(initial.context_budget["combined_token_upper_bound"] + 1, "enabled", 0.0, None)
+    observation = pilot._run_model_session(
+        "http://127.0.0.1:1234/v1", "prism-ml/bonsai-27b", tmp_path, "RUN-1", profile,
+        "stage:intake", 1.0,
+    )
+
+    assert observation.outcome_class == "success"
+    assert observation.context_budget["within_budget"]
+    assert observation.context_budget["context_window_budget"] - observation.context_budget["combined_token_upper_bound"] == 1
+
+
+def test_context_budget_rejects_before_network_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """@brief AEGIS-WP8-PILOT does not contact LM Studio after an over-budget preflight."""
+    pilot = _load_pilot_module()
+    calls = 0
+
+    def post_json(*_args: object) -> tuple[dict, int, int]:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("budget-rejected request reached the network")
+
+    monkeypatch.setattr(pilot, "_post_json", post_json)
+    observation = pilot._run_model_session(
+        "http://127.0.0.1:1234/v1", "prism-ml/bonsai-27b", tmp_path, "RUN-1",
+        pilot.PilotProfile(1, "enabled", 0.0, None), "stage:intake", 1.0,
+    )
+
+    assert calls == 0
+    assert observation.outcome_class == "budget-rejected"
+    assert observation.context_budget["within_budget"] is False
+    assert observation.correctness["budget_rejected_pre_network"] is True
+
+
+def test_context_budget_records_exact_payload_and_output_allowance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief AEGIS-WP8-PILOT records the bytes and options used by the guard and API."""
+    pilot = _load_pilot_module()
+    monkeypatch.setattr(pilot, "_post_json", lambda *_args: (_valid_tool_response(pilot), 42, 7))
+    monkeypatch.setattr(pilot, "_run_bounded_bootstrap", lambda *_args: {})
+    observation = pilot._run_model_session(
+        "http://127.0.0.1:1234/v1", "prism-ml/bonsai-27b", tmp_path, "RUN-1",
+        pilot.PilotProfile(32768, "enabled", 0.0, None), "stage:intake", 1.0,
+    )
+
+    serialized = observation.request_serialization["exact_json"].encode("utf-8")
+    assert observation.api_request["max_tokens"] == pilot.MAX_COMPLETION_TOKENS
+    assert observation.context_budget["requested_output_max_tokens"] == pilot.MAX_COMPLETION_TOKENS
+    assert observation.context_budget["input_token_upper_bound"] == len(serialized)
+    assert observation.request_serialization["bytes"] == len(serialized)
+    assert json.loads(observation.request_serialization["exact_json"]) == observation.api_request
+    assert observation.correctness["budget_within_harness_limit"] is True
+    assert observation.correctness["score"] == observation.correctness["out_of"] == 4
+
+
+def test_attempt_outcome_is_not_retry_lineage(tmp_path: Path) -> None:
+    """@brief AEGIS-WP8-PILOT keeps historical failures distinct from current success."""
+    pilot = _load_pilot_module()
+    previous = tmp_path / "previous.json"
+    previous.write_text(
+        json.dumps({"profiles": [{"trials": [{"outcome_class": "timeout"}]}]}), encoding="utf-8"
+    )
+    chain, lineage = pilot._attempt_lineage([previous])
+    current = pilot._current_attempt_outcome({
+        "profiles": [{"trials": [{"outcome_class": "success"}, {"outcome_class": "success"}]}],
+    })
+
+    assert chain[0]["preserved"]
+    assert lineage == {
+        "has_prior_attempts": True,
+        "prior_attempt_count": 1,
+        "follows_prior_failures": True,
+        "retry_is_lineage_only": True,
+    }
+    assert current == "success"
+
+
 # END OF FILE

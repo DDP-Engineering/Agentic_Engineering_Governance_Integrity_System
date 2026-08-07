@@ -87,10 +87,16 @@ uv run --group dev python -B tools/local_model_pilot.py `
 ```
 
 The context profile is evidence-labelled: a local API without a context-setting
-parameter cannot verify a per-request context window. The harness consequently
-distinguishes its 32K workflow budget from a user-configured server profile, and
-records response reasoning-token fields as evidence without claiming API control
-of thinking. Model text never controls a shell command or a form edit.
+parameter cannot verify a per-request context window. Before every API call,
+the harness serializes the exact messages, tool schema, and options, treats its
+UTF-8 byte count as a conservative tokenizer-independent input-token upper
+bound, adds the explicit `max_tokens = 1024` output allowance, and rejects an
+over-budget request without network access. It applies that deterministic guard
+to both the 32K workflow budget and the user-configured server profile; neither
+is a claim of native LM Studio context enforcement. The JSON evidence retains
+the serialized request, calculation, and result. It also records response
+reasoning-token fields as evidence without claiming API control of thinking.
+Model text never controls a shell command or a form edit.
 
 An explicit `check run` or `verify gates` request that launches no command exits
 non-zero with `execution_status = "nothing-ran"`, `executed_count = 0`, and a

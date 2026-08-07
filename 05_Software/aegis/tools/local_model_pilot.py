@@ -43,6 +43,7 @@ from uuid import uuid4
 DEFAULT_ENDPOINT = "http://127.0.0.1:1234/v1"
 DEFAULT_CONTEXT_PROFILES = (32768, 131072)
 MAX_RESPONSE_EVIDENCE_BYTES = 32768
+MAX_COMPLETION_TOKENS = 1024
 BOOTSTRAP_TOOL_NAME = "run_bounded_aegis_bootstrap"
 ALLOWED_AEGIS_ACTIONS = frozenset({
     "run start", "run context", "stage prepare", "stage show", "stage add", "stage apply", "stage close",
@@ -91,6 +92,8 @@ class SessionObservation:
     fresh_transcript: bool = True
     prior_transcript_messages: int = 0
     api_request: dict[str, Any] = field(default_factory=dict)
+    request_serialization: dict[str, Any] = field(default_factory=dict)
+    context_budget: dict[str, Any] = field(default_factory=dict)
     response_bytes: int | None = None
     latency_ms: int | None = None
     model_usage: dict[str, Any] | None = None
@@ -160,6 +163,42 @@ def _bounded_text(text: str) -> str:
     return encoded[:MAX_RESPONSE_EVIDENCE_BYTES].decode("utf-8", errors="replace")
 
 
+def _serialize_request_payload(payload: dict[str, Any]) -> bytes:
+    """@brief Serialize the exact request payload with one stable UTF-8 representation."""
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def _context_budget(payload: dict[str, Any], context_window: int) -> tuple[dict[str, Any], bytes]:
+    """
+    @brief Calculate a tokenizer-independent conservative request budget.
+    @details UTF-8 byte count is an upper bound on input tokens because each
+             tokenizer token consumes at least one encoded byte. It is
+             deliberately conservative and is not a claim about LM Studio's
+             native context-window enforcement.
+    """
+    serialized = _serialize_request_payload(payload)
+    output_allowance = payload.get("max_tokens")
+    if not isinstance(output_allowance, int) or output_allowance < 0:
+        raise ValueError("pilot request requires a non-negative integer max_tokens")
+    input_upper_bound = len(serialized)
+    combined_upper_bound = input_upper_bound + output_allowance
+    return {
+        "schema": "utf8-byte-input-upper-bound-plus-max-tokens-v1",
+        "input_measurement": "serialized exact request UTF-8 byte count",
+        "input_token_upper_bound": input_upper_bound,
+        "requested_output_max_tokens": output_allowance,
+        "combined_token_upper_bound": combined_upper_bound,
+        "context_window_budget": context_window,
+        "within_budget": combined_upper_bound <= context_window,
+        "native_context_enforcement": "not claimed; preflight is harness-enforced only",
+    }, serialized
+
+
 def _post_json(endpoint: str, payload: dict[str, Any], timeout_seconds: float) -> tuple[dict[str, Any], int, int]:
     """
     @brief      POST one JSON request and preserve reported API output exactly.
@@ -168,7 +207,7 @@ def _post_json(endpoint: str, payload: dict[str, Any], timeout_seconds: float) -
     """
     request = Request(
         f"{endpoint}/chat/completions",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        data=_serialize_request_payload(payload),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
@@ -737,10 +776,35 @@ def _run_model_session(
         "tools": _tool_definition(),
         "tool_choice": "required",
         "temperature": profile.temperature,
+        "max_tokens": MAX_COMPLETION_TOKENS,
     }
     if profile.seed is not None:
         payload["seed"] = profile.seed
-    observation.api_request = payload
+    observation.api_request = json.loads(_serialize_request_payload(payload))
+    budget, serialized = _context_budget(payload, profile.context_window)
+    observation.request_serialization = {
+        "encoding": "utf-8",
+        "exact_json": serialized.decode("utf-8"),
+        "sha256": hashlib.sha256(serialized).hexdigest(),
+        "bytes": len(serialized),
+    }
+    observation.context_budget = budget
+    if not budget["within_budget"]:
+        observation.failure = (
+            "harness context budget rejected request before network call: "
+            f"{budget['combined_token_upper_bound']} > {budget['context_window_budget']}"
+        )
+        observation.outcome_class = "budget-rejected"
+        observation.correctness = {
+            "fresh_session": True,
+            "allowed_tool_requested": False,
+            "forbidden_recovery_reads": False,
+            "named_recovery_executed": False,
+            "budget_rejected_pre_network": True,
+            "score": 1,
+            "out_of": 4,
+        }
+        return observation
     try:
         response, response_bytes, latency_ms = _post_json(endpoint, payload, timeout_seconds)
         observation.response_bytes = response_bytes
@@ -773,12 +837,15 @@ def _run_model_session(
             path.endswith("graph.json") or path.endswith("journal.jsonl") for path in observation.files_read
         ),
         "named_recovery_executed": bool(observation.commands),
+        "budget_rejected_pre_network": False,
+        "budget_within_harness_limit": observation.context_budget["within_budget"],
         "score": sum((
             observation.tool_request_valid,
             not any(path.endswith("graph.json") or path.endswith("journal.jsonl") for path in observation.files_read),
             observation.failure is None,
+            observation.context_budget["within_budget"],
         )),
-        "out_of": 3,
+        "out_of": 4,
     }
     if observation.failure is None:
         observation.outcome_class = "success"
@@ -795,6 +862,44 @@ def _outcome_class(error: BaseException) -> str:
     if "exit code" in text:
         return "command-failure"
     return "abandoned-attempt"
+
+
+def _attempt_lineage(previous_attempts: list[Path]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """@brief Retain prior evidence links while keeping lineage separate from this result."""
+    chain: list[dict[str, Any]] = []
+    follows_prior_failures = False
+    for path in previous_attempts:
+        if not path.is_file():
+            continue
+        raw = path.read_bytes()
+        chain.append({"path": str(path), "sha256": hashlib.sha256(raw).hexdigest(), "preserved": True})
+        try:
+            prior = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        for profile in prior.get("profiles", []):
+            for trial in profile.get("trials", []) if isinstance(profile, dict) else []:
+                if isinstance(trial, dict) and trial.get("outcome_class") != "success":
+                    follows_prior_failures = True
+    return chain, {
+        "has_prior_attempts": bool(chain),
+        "prior_attempt_count": len(chain),
+        "follows_prior_failures": follows_prior_failures,
+        "retry_is_lineage_only": True,
+    }
+
+
+def _current_attempt_outcome(result: dict[str, Any]) -> str:
+    """@brief Classify only the current run's observed trial outcomes."""
+    outcomes = [
+        trial.get("outcome_class")
+        for profile in result["profiles"]
+        for trial in profile["trials"]
+        if isinstance(trial, dict)
+    ]
+    if outcomes and all(outcome == "success" for outcome in outcomes):
+        return "success"
+    return next((outcome for outcome in outcomes if outcome != "success"), "abandoned-attempt")
 
 
 # PUBLIC API
@@ -924,18 +1029,11 @@ def main(argv: list[str] | None = None) -> int:
         )
     except ValueError as exc:
         parser.error(str(exc))
-    result["attempt_chain"] = [
-        {
-            "path": str(path),
-            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            "preserved": True,
-        }
-        for path in args.previous_attempt
-        if path.is_file()
-    ]
-    result["attempt_outcome_class"] = "retry" if result["attempt_chain"] else "success"
+    result["attempt_chain"], result["attempt_lineage"] = _attempt_lineage(args.previous_attempt)
+    result["attempt_outcome_class"] = _current_attempt_outcome(result)
     result["outcome_classes_supported"] = [
-        "timeout", "retry", "abandoned-attempt", "api-error", "tool-rejection", "command-failure", "success",
+        "timeout", "retry", "abandoned-attempt", "api-error", "tool-rejection", "command-failure",
+        "budget-rejected", "success",
     ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

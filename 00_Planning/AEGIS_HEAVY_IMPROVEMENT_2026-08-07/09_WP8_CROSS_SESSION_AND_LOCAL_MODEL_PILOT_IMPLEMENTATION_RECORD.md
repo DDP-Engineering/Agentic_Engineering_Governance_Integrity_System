@@ -148,7 +148,7 @@ user-authorized run. It is a **Bonsai-only user override**, not equivalent
 provider coverage for the original Qwen/Codex/Claude matrix. WAEGIS remains out
 of scope; no WAEGIS source, test, or documentation was accessed.
 
-`16_WP8_BONSAI_ONLY_CONTROLLED_ATTEMPT_09.json` is the final append-only result.
+`18_WP8_BONSAI_ONLY_CONTROLLED_ATTEMPT_11.json` is the final append-only result.
 It retains the raw loopback `/v1/models` discovery response, every initial
 OpenAI-compatible request payload/options, responses, reasoning-token evidence
 when supplied by LM Studio, command output, fixed approval gates, and SHA-256
@@ -174,6 +174,17 @@ text became shell input.
   `completion_tokens_details.reasoning_tokens`, when present, is retained as
   observed evidence and is not labelled an API-verified setting.
 
+Every request serializes the exact message, sole tool schema, and API options
+with stable UTF-8 JSON. The harness uses the serialized byte count as a
+conservative tokenizer-independent upper bound for input tokens, adds its
+explicit `max_tokens = 1024` allowance, and rejects a combined total above the
+selected context profile before the network call. This same deterministic guard
+was applied to the 32,768 and 131,072 profiles. It does not claim native LM
+Studio context enforcement or tokenizer precision. Attempt 11 records a
+current `attempt_outcome_class = "success"`; its distinct lineage metadata says
+`has_prior_attempts = true` and `follows_prior_failures = true`, rather than
+mislabeling the successful current attempt as a retry.
+
 Both full runs registered a requirement/check, recorded a managed red result,
 changed the fixture, recorded a managed green result, performed validation,
 activated the requirement at validation close, reran final verification, and
@@ -192,3 +203,36 @@ final invariant verification. It does **not** establish the superseded original
 multi-provider matrix, server-enforced 32K/131K request contexts, tokenizer
 measurements, or autonomous model-authored engineering quality. No WP9 work has
 started.
+
+## Final bounded correction validation
+
+Attempt 11 is an appended live measurement, not a modification of attempts 02
+through 10. Its `/v1/models` response was 1,864 bytes with 42 ms observed
+latency. The 32,768 full/quick requests serialized to 709/704 bytes and the
+131,072 full/quick requests serialized to 711/706 bytes. Including the fixed
+1,024-token output allowance, their conservative combined bounds were
+1,733/1,728 and 1,735/1,730 respectively; every request was accepted by the
+harness guard.
+The recorded current outcome is success for both full and quick workflows at
+both profiles; all 24 requests had a valid zero-argument tool call and a 4/4
+correctness score. Historical
+validation remains `19 passed` focused and `580 passed, 3 skipped` broad from
+the preceding correction. The current corrected-code totals and commands are
+recorded below after final validation.
+
+The final corrected-code validation was run from `05_Software/aegis`:
+
+```powershell
+uv run --group dev python -m pytest -q tests/test_local_model_pilot.py tests/test_stage_context_budget.py
+python -B -m py_compile tools/local_model_pilot.py tests/test_local_model_pilot.py template/.agentic/cli/src/aegis/cli.py tests/test_stage_context_budget.py
+uv run --group dev ruff check tools/local_model_pilot.py tests/test_local_model_pilot.py template/.agentic/cli/src/aegis/cli.py tests/test_stage_context_budget.py
+uv run --group dev python -B -m aegis --help
+uv run --group dev python -m pytest -q tests --ignore=tests/test_opencode_adapter.py --ignore=tests/test_pi_adapter.py --ignore=tests/test_qwen_adapter.py --ignore=tests/test_release_hygiene.py --ignore=tests/test_scaffold.py
+```
+
+The focused result was `23 passed in 2.97s`; compilation, Ruff, and CLI help
+passed. The final AEGIS-only broad result was `584 passed, 3 skipped in
+56.09s`. The five explicit ignores are the only test files that directly import
+the separate WAEGIS package and are excluded solely to preserve this AEGIS-only
+scope. These are current corrected-code totals, distinct from the historical
+`19 passed` focused and `580 passed, 3 skipped` broad totals stated above.
