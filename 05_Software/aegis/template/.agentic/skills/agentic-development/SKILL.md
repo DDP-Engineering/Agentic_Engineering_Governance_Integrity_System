@@ -42,9 +42,10 @@ does not replace the imported design or `stage close` approval journal.
 ## Fresh Stage Sessions
 
 When resuming work without prior chat history, read `AGENTS.md`, run
-`<workflow> run context --json`, then read only its named skill, reference,
-current form, and retained previous form. If `unavailable_current_artifact` is
-present, run only its recovery command; never prepare an already applied stage.
+`<workflow> run context --json`, then read only its `required_reads`: named
+skill, reference, current form, and retained previous form. If
+`unavailable_current_artifact` is present, run only its recovery command; never
+prepare an already applied stage.
 `run context` is bounded and read-only; use `run status` only for detailed diagnosis. Never read `graph.json` or
 `journal.jsonl` for ordinary stage recovery.
 
@@ -60,10 +61,13 @@ changed-path and evidence capture, enabled gates, secrets and working-tree
 review, scope analysis, delivery reporting, and the four human closes remain
 real. If scope grows, restart a full run and carry the recorded context forward.
 
-For quick implementation, follow `<workflow> evidence prepare add`, apply the
-manual-evidence form, and copy its CLI-minted active ID into the implementation
-form's `linked_check_evidence` before `stage apply`. Do not invent or reuse a
-superseded or other-stage evidence ID.
+For a new quick implementation, run `<workflow> check create`, complete the
+run-local definition, and run `<workflow> check register` before changing
+source. Record a real red result, make the bounded repair, then record green
+through the captured external or managed path. Link every active green
+registered-check evidence ID in `linked_check_evidence` before `stage apply`.
+Manual, invented, superseded, or other-stage evidence does not satisfy this
+quick-check contract.
 
 ## Stage Lifecycle
 
@@ -100,8 +104,9 @@ Load only the current reference:
 - Requirements define observable contracts; design owns internal structures,
   boundaries, algorithms, compatibility choices, and implementation sequence.
 - Every full run — feature, fix, or change alike — needs a reproducing red
-  check before implementation. For a quick run, red-before-green is explicitly
-  `not-applicable`, never passed.
+  check before implementation. New quick runs require the same red-before-green
+  evidence for their registered run-local checks; only historical quick graphs
+  without the persisted policy are `legacy-not-applicable`.
 - Record red and green check evidence through the configured external or managed
   path. Never invent IDs; AEGIS generates them.
 - Do not edit check artifacts during implementation. Route back through a stage

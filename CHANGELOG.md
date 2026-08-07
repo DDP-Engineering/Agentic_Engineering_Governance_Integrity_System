@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add a payload-owned adapter conformance map and structural regressions for
+  direct CLI, Codex, Claude Code, Pi, OpenCode, and Qwen Code. Host wrappers
+  now route the canonical bounded bootstrap into shared skills without local
+  stage procedures or all-reference context injection.
+
 - Add safe `aegis verify impact [paths-file] --run` execution. The optional
   `[gates.test].impacted_command` is an argv-only focused-test prefix; AEGIS
   appends deterministic, deduplicated selectors with no shell interpolation,
@@ -52,6 +57,10 @@ All notable changes to this project will be documented in this file.
   records, then maintenance, upgrades, transactions, and legacy history.
 
 ### Fixed
+
+- Correct the shared development router so new quick runs require registered
+  run-local checks and red-before-green evidence, matching the existing CLI,
+  form, and verification contracts.
 
 - Make focused impact testing fall back to the complete test gate whenever any
   requirement matched by a changed path lacks linked tests, preventing a

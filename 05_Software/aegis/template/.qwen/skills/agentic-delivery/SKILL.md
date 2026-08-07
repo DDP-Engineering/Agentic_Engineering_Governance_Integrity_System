@@ -12,15 +12,11 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # Agentic Delivery
 
-Before invoking the shared procedure, run `<workflow> config validate --json`
-and `<workflow> config show --json`. Report the effective write,
-protected-read/path, scope, secret, gate, coverage, and delivery modes and active
-rule counts, state the selected run when graph state is used, and distinguish
-AEGIS repository policy from external platform safety.
-
-For a fresh stage session, read `AGENTS.md`, run `<workflow> run context --json`,
-and follow `unavailable_current_artifact` recovery exactly; never prepare an
-already applied stage.
+This Qwen Code entry point defines no stage procedure. The payload-owned
+canonical bootstrap is `AGENTS.md` -> `<workflow> run context --json` -> only
+the named recovery command (including `stage prepare` only when named) -> only
+the named `required_reads` -> the current stage's human approval boundary. Do
+not load all stage references or read internal run files for ordinary recovery.
 
 Read and follow these shared workflow rule sources:
 

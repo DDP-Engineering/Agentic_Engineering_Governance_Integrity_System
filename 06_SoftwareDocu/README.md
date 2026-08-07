@@ -14,6 +14,9 @@ documentation ships with the template:
 - `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md` - CLI
   command groups, stage-form lifecycle, evidence modes, verification, and
   delivery handoff.
+- `05_Software/aegis/template/.agentic/documents/ADAPTER_CONFORMANCE.md` -
+  direct CLI and host-adapter entry points, payload-owned routing, bounded
+  bootstrap, and shared execution-outcome contracts.
 - `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md` -
   intrinsic workflow contracts, repository-policy modes, external safety
   boundaries, and operator decisions.
@@ -28,6 +31,9 @@ documentation ships with the template:
 - `AEGIS_PERSISTENCE_AND_CONCURRENCY.md` - graph, journal, requirement, and
   sibling-JSON atomicity, process-locking, stale-update, and durability
   contracts.
+- `06_AEGIS_Adapter_And_Context_Conformance.md` - adapter compatibility,
+  canonical stage/bootstrap ownership, context boundaries, and public
+  execution outcomes.
 - `WAEGIS_TRANSACTION_RECOVERY.md` - authenticated transaction state, external
   ownership binding, strict recovery validation, repository-scoped
   serialization, RepoWise manifest-last crash recovery, dry-run behavior,

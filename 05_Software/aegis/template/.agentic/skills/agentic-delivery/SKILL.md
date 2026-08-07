@@ -21,7 +21,8 @@ pushing, publishing, merging, or opening a pull request.
 
 - `<workflow> config validate --json`, `<workflow> config show --json`, then
   `AGENTS.md` and `<workflow> run context --json` for the selected run.
-- Only the named delivery router, current form, and retained previous form.
+- Only `required_reads`: the named delivery router, current form, and retained
+  previous form.
   If `unavailable_current_artifact` is present, run only its recovery command;
   never prepare an already applied stage. Use `run status` only for detailed
   diagnosis.

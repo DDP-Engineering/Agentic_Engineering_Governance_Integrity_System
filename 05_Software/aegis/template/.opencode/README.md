@@ -67,9 +67,11 @@ active rule counts, plus the selected worktree run or explicit `--run`.
 AEGIS policy comes only from the validated file; OpenCode platform permissions
 remain separate.
 
-For a fresh stage session, read `AGENTS.md`, run `<workflow> run context --json`,
-then follow `unavailable_current_artifact` recovery exactly; never prepare an
-already applied stage.
+For a fresh stage session, use the payload-owned canonical route: `AGENTS.md`
+then `<workflow> run context --json`, then only its named recovery command
+(including `stage prepare` only when named), only its `required_reads`, and the
+reported stage's human approval boundary. Do not inject all stage references or
+read `graph.json`/`journal.jsonl` for ordinary recovery.
 
 OpenCode command shortcuts are available from the TUI:
 

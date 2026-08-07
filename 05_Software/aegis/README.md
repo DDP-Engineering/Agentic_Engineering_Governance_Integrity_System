@@ -136,7 +136,12 @@ Everything under `template/` is copied verbatim into downstream projects:
 - `.codex/`, `.claude/`, `.pi/`, `.opencode/`, `.qwen/` — thin host adapters
   around shared state, hooks, and skills;
 - `AGENTS.md`, `CLAUDE.md`, `QWEN.md`, `opencode.json` — host entry points;
-- `CHANGELOG.md` — deliberately empty downstream starter.
+- `CHANGELOG.md` - deliberately empty downstream starter.
+
+`template/.agentic/documents/ADAPTER_CONFORMANCE.md` inventories every direct
+CLI and host-adapter entry point, its payload-owned source, the bounded
+fresh-session route, and the shared quick, `nothing-ran`, and impact-execution
+contracts.
 
 Project-specific policy belongs in schema-3 `.agentic/workflow.toml`. The
 default interface is `stage_form_retention = "latest"` plus external check

@@ -34,6 +34,19 @@ Everything that actually matters about a run lives under:
 .agentic/runs/<run-id>/
 ```
 
+## Ordinary recovery versus diagnosis
+
+This guide is for diagnosis and forensic review, not the ordinary first read of
+a fresh stage session. A fresh session reads `AGENTS.md`, runs `aegis run
+context --json`, performs only its named recovery command (including `stage
+prepare` only when named), and reads only its `required_reads`. That bounded
+route does not read `graph.json` or `journal.jsonl`; use `run status`, `stage
+show`, or the named recovery command when routine stage work needs more detail.
+
+Read the graph or journal only when diagnosing AEGIS state or reviewing the
+durable record described below. They are intentionally discoverable here but
+are outside the forward context pack.
+
 ## What you're looking at while a stage is open: the stage directory
 
 ```text

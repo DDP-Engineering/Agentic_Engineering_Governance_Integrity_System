@@ -16,7 +16,10 @@ If this file and `AGENTS.md` disagree, follow `AGENTS.md`.
 Before using repository tools, complete the mandatory workflow bootstrap in
 `AGENTS.md`: validate `.agentic/workflow.toml`, inspect effective modes, report
 the active restrictions and selected run, then obey both AEGIS policy and Qwen
-Code host safety controls.
+Code host safety controls. For a fresh stage session, use only the payload-owned
+route: `AGENTS.md`, `aegis run context --json`, its named recovery command
+(`stage prepare` only when named), and its `required_reads`. Do not load all
+stage references or read `graph.json`/`journal.jsonl` for ordinary recovery.
 
 Shared workflow skills are model-invoked and also available from the `/skills`
 picker (for example `agentic-development`). Existing Codex-style references such

@@ -30,7 +30,8 @@ decisions in flags. The human explicitly approves every `stage close`.
 ## Fresh Stage Sessions
 
 Read `AGENTS.md`, run `<workflow> run context --json`, then read only its
-named skill, reference, current form, and retained previous form. If
+`required_reads`: named skill, reference, current form, and retained previous
+form. If
 `unavailable_current_artifact` is present, run only its recovery command;
 never prepare an already applied stage. Do not recover ordinary adoption work
 by reading `graph.json` or `journal.jsonl`; use `run

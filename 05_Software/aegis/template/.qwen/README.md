@@ -21,9 +21,11 @@ scope, secret, gate, coverage, and delivery modes and active rule counts, plus
 the selected worktree run or explicit `--run`. AEGIS policy comes only from
 the validated file; Qwen trust and host controls remain separate.
 
-For a fresh stage session, read `AGENTS.md`, run the project-local `run context
---json` command, then follow `unavailable_current_artifact` recovery exactly;
-never prepare an already applied stage.
+For a fresh stage session, use the payload-owned canonical route: `AGENTS.md`
+then project-local `run context --json`, then only its named recovery command
+(including `stage prepare` only when named), only its `required_reads`, and the
+reported stage's human approval boundary. Do not inject all stage references or
+read `graph.json`/`journal.jsonl` for ordinary recovery.
 
 ## Contents
 

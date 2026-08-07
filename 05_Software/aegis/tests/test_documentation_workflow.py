@@ -343,9 +343,71 @@ def test_template_adapters_route_fresh_sessions_through_bounded_context() -> Non
     for path in (*adapters, *routers):
         text = " ".join(path.read_text(encoding="utf-8").split())
         assert "run context --json" in text, path
-        assert "unavailable_current_artifact" in text, path
+        assert "stage prepare" in text, path
+        assert "required_reads" in text, path
     for path in adapters:
         assert "read graph.json" not in path.read_text(encoding="utf-8"), path
+
+
+def test_adapter_entry_points_delegate_to_payload_owned_contracts() -> None:
+    """@brief AEGIS-WP7 keeps host workflow routes thin and bounded."""
+    template_root = PACKAGE_ROOT / "template"
+    adapter_contract = (
+        template_root / ".agentic" / "documents" / "ADAPTER_CONFORMANCE.md"
+    ).read_text(encoding="utf-8")
+    deep_contract = (
+        PACKAGE_ROOT.parents[1]
+        / "06_SoftwareDocu"
+        / "06_AEGIS_Adapter_And_Context_Conformance.md"
+    ).read_text(encoding="utf-8")
+    skill_names = (
+        "agentic-adoption",
+        "agentic-development",
+        "agentic-delivery",
+        "regression-traceability",
+        "documentation-audit",
+        "python-codestyle-audit",
+        "write-component-documentation",
+    )
+
+    for host in ("Codex", "Claude Code", "Pi", "OpenCode", "Qwen Code"):
+        assert host in adapter_contract
+    for text in (adapter_contract, deep_contract):
+        assert "run context --json" in text
+        assert "stage prepare only when named" in text
+        assert "graph.json" in text
+        assert "journal.jsonl" in text
+        assert "nothing-ran" in text
+        assert "verify impact --run" in text
+
+    for host in (".codex", ".claude", ".opencode", ".qwen"):
+        for name in skill_names:
+            path = template_root / host / "skills" / name / "SKILL.md"
+            text = path.read_text(encoding="utf-8")
+            assert f".agentic/skills/{name}/SKILL.md" in text, path
+            assert "reference/" not in text, path
+            assert "graph.json" not in text, path
+            assert "journal.jsonl" not in text, path
+
+        for name in ("agentic-adoption", "agentic-development", "agentic-delivery"):
+            path = template_root / host / "skills" / name / "SKILL.md"
+            text = path.read_text(encoding="utf-8")
+            assert "defines no stage procedure" in text, path
+            assert "run context --json" in text, path
+            assert "stage prepare" in text, path
+            assert "required_reads" in text, path
+            assert "config validate --json" not in text, path
+
+    pi_manifest = (template_root / ".pi" / "package.json").read_text(encoding="utf-8")
+    assert '"../.agentic/skills"' in pi_manifest
+
+    for path in (
+        template_root / ".opencode" / "agents" / "aegis.md",
+        *(template_root / ".opencode" / "commands").glob("*.md"),
+        *(template_root / ".qwen" / "commands").glob("*.md"),
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert "reference/" not in text, path
 
 
 def test_maintained_documentation_names_latest_as_retention_default() -> None:
@@ -844,9 +906,9 @@ def test_template_text_files_have_legal_header() -> None:
     assert missing == []
 
 
-def test_agent_instructions_require_effective_configuration_bootstrap() -> None:
+def test_agent_instructions_route_configuration_through_canonical_skills() -> None:
     """
-    @brief      Verify canonical skills and adapter wrappers require WP6 bootstrap.
+    @brief      Verify canonical skills own configuration bootstrap instructions.
     @return     None.
     @exception  None
     """
@@ -877,9 +939,15 @@ def test_agent_instructions_require_effective_configuration_bootstrap() -> None:
             wrapper = (
                 template_root / adapter / "skills" / name / "SKILL.md"
             ).read_text(encoding="utf-8")
-            assert "Before invoking the shared procedure" in wrapper
-            assert "<workflow> config validate" in wrapper
-            assert "<workflow> config show --json" in wrapper
+            assert "AGENTS.md" in wrapper
+            assert f".agentic/skills/{name}/SKILL.md" in wrapper
+            if name in {
+                "agentic-adoption",
+                "agentic-development",
+                "agentic-delivery",
+            }:
+                assert "defines no stage procedure" in wrapper
+                assert "<workflow> config validate" not in wrapper
 
 
 def test_operator_documents_describe_only_current_workflow_contracts() -> None:
