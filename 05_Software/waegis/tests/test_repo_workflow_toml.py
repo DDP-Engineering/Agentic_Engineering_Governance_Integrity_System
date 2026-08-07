@@ -445,7 +445,7 @@ def test_golden_question_rendering_for_representative_fields() -> None:
     )
     assert "Nothing you own is ever silently overwritten" in output
 
-    assert "Keep, version, or discard stage forms after import? (e.g. discard; default: discard): " in output
+    assert "Keep, version, or discard stage forms after import? (e.g. latest; default: latest): " in output
     assert (
         "versioned keeps every revision of a transient stage input form under "
         "the run folder (full audit trail); latest keeps only the newest; "

@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import re
+import shlex
 import subprocess
 from pathlib import Path
 
+from aegis.cli import _build_parser, _normalize_global_options
 from aegis.config import load_config
 from aegis.invariants import evaluate
 from aegis.models import ChangeUnit, Graph, Intent
@@ -36,6 +39,21 @@ _DEPENDENCY_DIRS = {"node_modules", ".vitest", ".git", ".opencode-cache"}
 # @brief Generated Python distribution-metadata directory suffix excluded from
 #        template-hygiene walks because editable package builds create it locally.
 _GENERATED_METADATA_SUFFIX = ".egg-info"
+
+_DEVELOPMENT_STAGE_REFERENCES = (
+    "intake",
+    "alignment",
+    "requirement",
+    "design",
+    "check",
+    "implementation",
+    "validation",
+)
+
+_GRAPH_SIZE_CLAIM = re.compile(
+    r"(?:graph|verify run).{0,160}(?:~?\d+\s*(?:kb|mb)|tens of kilobytes)",
+    flags=re.IGNORECASE | re.DOTALL,
+)
 
 
 # TESTS
@@ -191,6 +209,7 @@ def test_template_includes_component_documentation_assets() -> None:
     assert not (template_root / "05_SoftwareDocu").exists()
     assert "[documentation]" in (template_root / ".agentic" / "workflow.toml").read_text(encoding="utf-8")
     assert "Component Documentation Contract" in (template_root / "AGENTS.md").read_text(encoding="utf-8")
+    assert load_config(template_root).interface.stage_form_retention == "latest"
 
 
 def test_template_declares_alignment_workflow_contract() -> None:
@@ -273,16 +292,8 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
     assert "reference/requirement.md" in development
     assert "reference/design.md" in development
     reference_dir = skills_root / "agentic-development" / "reference"
-    for module in (
-        "intake.md",
-        "alignment.md",
-        "requirement.md",
-        "design.md",
-        "check.md",
-        "implementation.md",
-        "validation.md",
-    ):
-        assert (reference_dir / module).is_file()
+    for stage in _DEVELOPMENT_STAGE_REFERENCES:
+        assert (reference_dir / f"{stage}.md").is_file()
     requirement_module = (reference_dir / "requirement.md").read_text(encoding="utf-8")
     assert "one independently observable contract" in requirement_module
     assert "stage apply" in requirement_module
@@ -306,6 +317,107 @@ def test_installable_template_includes_neutral_skill_bodies() -> None:
         "adoption-delivery.md",
     ):
         assert (adoption_reference / module).is_file()
+
+
+def test_development_stage_references_have_operational_structure() -> None:
+    """
+    @brief Verify every development-stage reference exposes the same usable structure.
+    @return None.
+    @exception None
+    """
+    reference_dir = (
+        PACKAGE_ROOT
+        / "template"
+        / ".agentic"
+        / "skills"
+        / "agentic-development"
+        / "reference"
+    )
+    required_sections = (
+        "**Purpose:**",
+        "**Read first:**",
+        "**Steps:**",
+        "**Outputs:**",
+        "**Done when:**",
+        "**Skip when:**",
+        "## If you are stuck",
+    )
+
+    for stage in _DEVELOPMENT_STAGE_REFERENCES:
+        text = (reference_dir / f"{stage}.md").read_text(encoding="utf-8")
+        assert f"# Stage: {stage.title()}" in text
+        assert all(section in text for section in required_sections)
+
+    check = (reference_dir / "check.md").read_text(encoding="utf-8")
+    assert "INV-3" in check
+    assert "`not-applicable`" in check
+    assert "<workflow> evidence prepare add" in check
+    assert "still records a red result" not in check
+
+
+def test_development_stage_reference_commands_match_the_cli_parser() -> None:
+    """
+    @brief Verify every documented workflow invocation is accepted by the CLI parser.
+    @return None.
+    @exception None
+    """
+    reference_dir = (
+        PACKAGE_ROOT
+        / "template"
+        / ".agentic"
+        / "skills"
+        / "agentic-development"
+        / "reference"
+    )
+    parser = _build_parser()
+
+    for stage in _DEVELOPMENT_STAGE_REFERENCES:
+        text = (reference_dir / f"{stage}.md").read_text(encoding="utf-8")
+        commands = re.findall(r"`<workflow>\s+([^`\r\n]+)`", text)
+        assert commands
+        for command in commands:
+            concrete = (
+                command.replace("<feature|fix|change>", "fix")
+                .replace("[<check-id>...]", "CHK-0001")
+                .replace("<check-id>", "CHK-0001")
+                .replace("<category>", "functional")
+                .replace("<blocker-id>", "INV-1")
+                .replace('"<reason>"', '"approved reason"')
+            )
+            parser.parse_args(_normalize_global_options(shlex.split(concrete)))
+
+
+def test_copied_template_material_avoids_project_specific_measurements() -> None:
+    """
+    @brief Verify copied material contains no source-project names or graph-size claims.
+    @return None.
+    @exception None
+    """
+    template_root = PACKAGE_ROOT / "template"
+    offenders = []
+
+    for path in template_root.rglob("*"):
+        if not path.is_file():
+            continue
+        relative_parts = path.relative_to(template_root).parts
+        if any(
+            part in _DEPENDENCY_DIRS
+            or part.endswith(_GENERATED_METADATA_SUFFIX)
+            for part in relative_parts
+        ):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if (
+            "VoiceWeaver" in text
+            or "AudioMancer" in text
+            or _GRAPH_SIZE_CLAIM.search(text)
+        ):
+            offenders.append(path.relative_to(template_root).as_posix())
+
+    assert offenders == []
 
 
 def test_installable_template_includes_claude_skill_wrappers() -> None:

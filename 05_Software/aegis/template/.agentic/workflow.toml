@@ -67,7 +67,13 @@ mode = "disabled"
 patterns = []
 
 [interface]
-stage_form_retention = "discard"
+# `latest` keeps each stage's final form on disk after import. That is what makes
+# a stage restartable in a fresh agent session: the next session reads the
+# previous stage's focused form instead of parsing the larger internal run
+# graph and audit trail.
+# `versioned` also keeps every superseded revision; `discard` deletes the form
+# after import and is the leanest repo, at the cost of that handoff.
+stage_form_retention = "latest"
 check_execution = "external"
 
 [gates.build]

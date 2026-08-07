@@ -57,6 +57,7 @@ def test_generator_emits_schema_three_interface_and_five_gates() -> None:
         / "workflow.toml"
     )
     answers = {spec.key: spec.default for spec in WORKFLOW_FIELD_SPECS}
+    assert answers.pop("stage_form_retention") == "latest"
     generated = generate_workflow_toml(
         template.read_text(encoding="utf-8"),
         **answers,
@@ -64,8 +65,11 @@ def test_generator_emits_schema_three_interface_and_five_gates() -> None:
     document = tomllib.loads(generated.text)
     verify_workflow_schema(document)
     assert document["schema_version"] == 3
+    # `latest` is the default so a stage can be restarted in a fresh agent
+    # session: it reads the previous stage's retained form instead of the run
+    # graph.
     assert document["interface"] == {
-        "stage_form_retention": "discard",
+        "stage_form_retention": "latest",
         "check_execution": "external",
     }
     assert tuple(document["gates"]) == GATE_ORDER

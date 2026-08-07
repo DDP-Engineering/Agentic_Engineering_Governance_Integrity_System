@@ -1,28 +1,97 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
+<!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
 # Stage: Validation
 
-Load this module only while in the `validation` stage.
+**Purpose:** Prove the whole repository is still good — not only the part you
+changed — by running the deterministic verification first and only then reading
+the diff with your own judgement.
 
-- Run `<workflow> verify run`. This performs impact selection, enabled build,
-  typecheck, lint, test, and security gates, invariants, traceability, coverage,
-  and working-tree review in deterministic order.
-- Run `$documentation-audit` or perform the same documentation review manually
-  when the target repo has no documentation audit tooling.
-- Run `$python-codestyle-audit` when Python files changed and the target repo has
-  applicable style rules.
-- Review the generated validation summary, then perform the interpretive diff
-  review. Deterministic verification always comes first.
-- If evidence is stale, use `<workflow> evidence prepare supersede`, edit the
-  generated form, and run `<workflow> evidence apply`.
-- Inspect diff for scope creep, weakened assertions, missing traceability, and
-  secrets.
-- Stop with a validation summary.
+**Read first:**
 
-After validation passes, delivery is a separate gate: invoke the
-`agentic-delivery` skill for preflight, reports, commits, and PR/push/merge.
+- `<workflow> run status`, then the validation form `stage prepare` generates.
+- The implementation form's `changed_paths` and `documentation_effects`.
+- Nothing else yet. The verification output below is what you read next, and
+  reading the diff before it biases the review.
+
+**Steps:**
+
+1. Run `<workflow> stage prepare` and open the form.
+2. Run `<workflow> verify run`. This performs impact selection, the enabled
+   build, typecheck, lint, test, and security gates, the invariants,
+   traceability, coverage, and working-tree review, in that deterministic order,
+   and writes a validation summary.
+3. Read the summary before anything else. Deterministic verification always
+   comes first — its job is to tell you where to look.
+4. Fix what it found, or record why each remaining finding is acceptable. Never
+   write "green" over a non-zero exit. A gate reported as `not-enforced` is not
+   a pass; it means the policy is switched off and that check told you nothing.
+5. Update any component page named in `documentation_effects`. A page that now
+   describes behaviour the code no longer has is a defect this stage owns.
+6. Run `$documentation-audit`, or perform the same review manually when the repo
+   has no audit tooling. Run `$python-codestyle-audit` when Python changed and
+   the repo has applicable style rules.
+7. Now read the diff, hunk by hunk. Look specifically for scope creep beyond
+   `planned_paths`, weakened or deleted assertions, missing traceability, and
+   secrets.
+8. Fill the form:
+   - `deterministic_verification` — the validation summary path and the evidence
+     IDs backing this stage. At least one entry is required to close.
+   - `diff_review`, `documentation_review`, `style_review` — each is `pass` or
+     `not-applicable`. `pending` refuses the close. Use `not-applicable` only
+     when the review genuinely does not apply, and say why in `control.summary`.
+   - `manual_evidence` and `approved_supersessions` where they apply.
+9. Write `control.summary` covering what was verified and what was accepted.
+10. Run `<workflow> stage apply`, then `<workflow> stage close`, and stop for
+    human approval.
+
+**Outputs:**
+
+- The validation summary at `.agentic/runs/<run-id>/validation-summary.json`.
+- Updated component pages for every documentation effect.
+- The applied validation form with all three reviews resolved.
+
+**Done when:**
+
+- [ ] `<workflow> verify run` completed and its summary was read first
+- [ ] every enabled gate passed, or each failure is recorded and accepted
+- [ ] `<workflow> verify invariants` holds, or each failure is waived with a
+      reason
+- [ ] every component page named in `documentation_effects` is updated
+- [ ] the diff was reviewed hunk by hunk for scope creep, weakened assertions,
+      and secrets (human judgement, recorded as `diff_review`)
+- [ ] `diff_review`, `documentation_review`, and `style_review` are each `pass`
+      or `not-applicable` — none left `pending`
+- [ ] `deterministic_verification` has at least one entry
+- [ ] the human approved `stage close` (human)
+
+**Skip when:** Never, on either path. The quick path reaches validation with
+fewer stages behind it, not with less verification in front of it.
+
+---
+
+## What closing this stage does
+
+Successful closure activates the run's eligible `Planned` requirements. Until
+then INV-8 reports them as not Active and coverage counts their files as
+uncovered — both clear at closure. Seeing those two fail mid-stage is expected
+and is not a reason to change anything.
+
+## If you are stuck
+
+**Evidence is stale.** Run `<workflow> evidence prepare supersede`, edit the
+generated form, and run `<workflow> evidence apply`. Superseding is a recorded
+act with a reason, not a deletion.
+
+**A gate fails for a reason unrelated to your change.** Record it, waive it with
+`<workflow> waive add <blocker-id> --reason "<reason>"` after explicit human
+approval, and say in `control.summary` that it is pre-existing. Do not fix
+unrelated breakage inside this run; that is scope creep with good intentions.
+
+**Coverage fails on legacy files you did not touch.** Those belong in
+`.agentic/requirements/coverage_waivers.txt`, one path per line, and are removed
+as each module gets a real requirement. Do not add a requirement you cannot
+verify just to silence the audit.
+
+**Delivery is a separate gate.** Validation closing does not push, publish,
+merge, or open a pull request. Invoke the `agentic-delivery` skill for preflight,
+reports, commits, and PR/push/merge.

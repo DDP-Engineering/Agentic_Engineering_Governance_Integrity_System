@@ -868,10 +868,12 @@ WORKFLOW_FIELD_SPECS = (
             "under the run folder (full audit trail); latest keeps only the "
             "newest; discard deletes the form after import (leanest repo). "
             "Durable records — requirements, design, evidence, journals — are "
-            "kept either way."
+            "kept either way. Keeping the newest form is what lets a stage be "
+            "restarted in a fresh agent session: that session reads the previous "
+            "stage's small form rather than parsing the whole run graph."
         ),
-        example="discard",
-        default="discard",
+        example="latest",
+        default="latest",
         validator=lambda value: _choice_value(
             value, ("versioned", "latest", "discard"), "stage_form_retention"
         ),
@@ -1846,7 +1848,7 @@ def generate_workflow_toml(
     source_changes_mode: str = "unrestricted",
     alignment_protected_scope_mode: str = "disabled",
     alignment_protected_scope_patterns: Sequence[str] = (),
-    stage_form_retention: str = "discard",
+    stage_form_retention: str = "latest",
     check_execution: str = "external",
     gate_build_mode: str = "disabled",
     gate_typecheck_mode: str = "disabled",

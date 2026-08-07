@@ -1226,11 +1226,11 @@ def _respond(payload: dict[str, Any], json_output: bool) -> None:
     """
     @brief Emit stable JSON or concise line-oriented text.
     @details The non-`--json` surface used to serialize nested values on one
-             line, which for `verify run` meant a single unwrapped ~4 KB JSON
-             line — unreadable in a terminal, and so no different from
-             `--json` except worse. Nested values are now indented under their
-             key. Scalars keep their exact one-line `key: value` shape, which
-             is what every existing reader parses.
+             line, which for `verify run` meant a large unwrapped JSON line —
+             unreadable in a terminal, and so no different from `--json` except
+             worse. Nested values are now indented under their key. Scalars keep
+             their exact one-line `key: value` shape, which is what every
+             existing reader parses.
     """
     if json_output:
         print(json.dumps(payload, indent=2, ensure_ascii=False))

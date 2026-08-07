@@ -37,6 +37,35 @@ bash .agentic/tools/run.sh
 
 An installed `aegis` or `python -m aegis` is also valid.
 
+## Resuming In A Fresh Session
+
+Every stage is independently startable. A session that did not run the earlier
+stages needs four commands and no other context:
+
+```text
+<workflow> config validate --json    # bootstrap, as above
+<workflow> run status                # stage, artifact path, next command
+<workflow> stage prepare             # regenerates the current stage's form
+```
+
+Then read, in this order and no further:
+
+1. The form `stage prepare` just wrote — it carries this stage's fields, their
+   accepted values, and its "Done when" list as comments.
+2. The previous stage's retained form under
+   `.agentic/runs/<run-id>/stages/<previous-stage>/`.
+3. The reference for the current stage only, from the `agentic-development`
+   skill.
+
+Do not read `graph.json` or `journal.jsonl` to recover context. They are the
+run's internal state and its append-only audit trail; they can be substantially
+larger than the focused stage forms, and everything a stage needs is in the two
+forms above. Read them only when diagnosing AEGIS itself.
+
+This depends on `[interface] stage_form_retention` keeping forms after import
+(`latest` or `versioned`). Under `discard` the previous stage's form is deleted
+and this handoff does not work.
+
 ## Standard Lifecycle
 
 The full-run order is:
