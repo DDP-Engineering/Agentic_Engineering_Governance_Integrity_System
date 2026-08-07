@@ -220,19 +220,29 @@ validation remains `19 passed` focused and `580 passed, 3 skipped` broad from
 the preceding correction. The current corrected-code totals and commands are
 recorded below after final validation.
 
+The final P2 control-flow correction leaves immutable Attempt 11 unchanged.
+Before `/v1/models` discovery, the harness now prepares each disposable local
+run, serializes every planned stage request, and applies the same conservative
+guard to each profile. Any planned over-budget request returns the structured
+`budget-rejected` result before either discovery GET or completion POST. Actual
+stage requests compare their serialized payload/options with that preflight and
+revalidate the guard. Focused public tests monkeypatch both endpoints: the
+over-budget path makes zero calls, while the under-budget path discovers once
+then posts all 12 planned requests with matching guard calculations.
+
 The final corrected-code validation was run from `05_Software/aegis`:
 
 ```powershell
 uv run --group dev python -m pytest -q tests/test_local_model_pilot.py tests/test_stage_context_budget.py
-python -B -m py_compile tools/local_model_pilot.py tests/test_local_model_pilot.py template/.agentic/cli/src/aegis/cli.py tests/test_stage_context_budget.py
-uv run --group dev ruff check tools/local_model_pilot.py tests/test_local_model_pilot.py template/.agentic/cli/src/aegis/cli.py tests/test_stage_context_budget.py
+python -B -m py_compile tools/local_model_pilot.py tests/test_local_model_pilot.py
+uv run --group dev ruff check tools/local_model_pilot.py tests/test_local_model_pilot.py
 uv run --group dev python -B -m aegis --help
 uv run --group dev python -m pytest -q tests --ignore=tests/test_opencode_adapter.py --ignore=tests/test_pi_adapter.py --ignore=tests/test_qwen_adapter.py --ignore=tests/test_release_hygiene.py --ignore=tests/test_scaffold.py
 ```
 
-The focused result was `23 passed in 2.97s`; compilation, Ruff, and CLI help
-passed. The final AEGIS-only broad result was `584 passed, 3 skipped in
-56.09s`. The five explicit ignores are the only test files that directly import
+The focused result was `25 passed in 23.94s`; compilation, Ruff, and CLI help
+passed. The final AEGIS-only broad result was `586 passed, 3 skipped in
+70.23s`. The five explicit ignores are the only test files that directly import
 the separate WAEGIS package and are excluded solely to preserve this AEGIS-only
 scope. These are current corrected-code totals, distinct from the historical
 `19 passed` focused and `580 passed, 3 skipped` broad totals stated above.

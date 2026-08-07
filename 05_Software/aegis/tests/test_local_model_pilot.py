@@ -301,4 +301,83 @@ def test_attempt_outcome_is_not_retry_lineage(tmp_path: Path) -> None:
     assert current == "success"
 
 
+def test_run_pilot_rejects_over_budget_before_discovery_or_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief AEGIS-WP8-PILOT performs no network operation when planning exceeds budget."""
+    pilot = _load_pilot_module()
+    events: list[str] = []
+
+    def get_json(*_args: object) -> tuple[dict, int, int]:
+        events.append("GET")
+        raise AssertionError("over-budget pilot reached model discovery")
+
+    def post_json(*_args: object) -> tuple[dict, int, int]:
+        events.append("POST")
+        raise AssertionError("over-budget pilot reached a completion request")
+
+    monkeypatch.setattr(pilot, "_get_json", get_json)
+    monkeypatch.setattr(pilot, "_post_json", post_json)
+    result = pilot.run_pilot(
+        endpoint="http://127.0.0.1:1234/v1",
+        model="prism-ml/bonsai-27b",
+        template_root=PILOT_PATH.parents[1] / "template",
+        profiles=(pilot.PilotProfile(1, "enabled", 0.0, None),),
+        timeout_seconds=1.0,
+    )
+
+    assert events == []
+    assert result["outcome_class"] == "budget-rejected"
+    assert result["outcome_code"] == "budget_rejected"
+    assert result["discovery"]["attempted"] is False
+    assert result["preflight"] == {
+        "completed_before_network": True,
+        "all_requests_within_budget": False,
+        "planned_request_count": 12,
+    }
+
+
+def test_run_pilot_discovers_then_posts_preflighted_under_budget_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief AEGIS-WP8-PILOT posts only after exact planned requests fit the guard."""
+    pilot = _load_pilot_module()
+    events: list[str] = []
+    posted_serializations: list[str] = []
+
+    def get_json(*_args: object) -> tuple[dict, int, int]:
+        events.append("GET")
+        return {"data": [{"id": "prism-ml/bonsai-27b"}]}, 45, 3
+
+    def post_json(_endpoint: str, payload: dict, _timeout: float) -> tuple[dict, int, int]:
+        events.append("POST")
+        posted_serializations.append(pilot._serialize_request_payload(payload).decode("utf-8"))
+        return _valid_tool_response(pilot), 42, 7
+
+    monkeypatch.setattr(pilot, "_get_json", get_json)
+    monkeypatch.setattr(pilot, "_post_json", post_json)
+    result = pilot.run_pilot(
+        endpoint="http://127.0.0.1:1234/v1",
+        model="prism-ml/bonsai-27b",
+        template_root=PILOT_PATH.parents[1] / "template",
+        profiles=(pilot.PilotProfile(32768, "enabled", 0.0, None),),
+        timeout_seconds=1.0,
+    )
+
+    planned = result["profiles"][0]["planned_requests"]
+    sessions = [
+        session
+        for trial in result["profiles"][0]["trials"]
+        for session in trial["sessions"]
+    ]
+    assert events[0] == "GET"
+    assert events.count("GET") == 1
+    assert events.count("POST") == len(planned) == len(sessions) == 12
+    assert posted_serializations == [request["request_serialization"]["exact_json"] for request in planned]
+    assert result["discovery"]["attempted"] is True
+    assert result["preflight"]["all_requests_within_budget"] is True
+    assert all(session["preflight_validation"]["serialized_request_matches_preflight"] for session in sessions)
+    assert all(session["context_budget"] == request["context_budget"] for session, request in zip(sessions, planned, strict=True))
+
+
 # END OF FILE

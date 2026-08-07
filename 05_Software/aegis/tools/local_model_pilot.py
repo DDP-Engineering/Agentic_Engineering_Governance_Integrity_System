@@ -45,6 +45,8 @@ DEFAULT_CONTEXT_PROFILES = (32768, 131072)
 MAX_RESPONSE_EVIDENCE_BYTES = 32768
 MAX_COMPLETION_TOKENS = 1024
 BOOTSTRAP_TOOL_NAME = "run_bounded_aegis_bootstrap"
+FULL_WORKFLOW_STAGES = ("intake", "alignment", "requirement", "design", "check", "implementation", "validation", "delivery")
+QUICK_WORKFLOW_STAGES = ("intake", "implementation", "validation", "delivery")
 ALLOWED_AEGIS_ACTIONS = frozenset({
     "run start", "run context", "stage prepare", "stage show", "stage add", "stage apply", "stage close",
     "check create", "check register", "check prepare", "check record", "check run", "verify run",
@@ -94,6 +96,7 @@ class SessionObservation:
     api_request: dict[str, Any] = field(default_factory=dict)
     request_serialization: dict[str, Any] = field(default_factory=dict)
     context_budget: dict[str, Any] = field(default_factory=dict)
+    preflight_validation: dict[str, Any] = field(default_factory=dict)
     response_bytes: int | None = None
     latency_ms: int | None = None
     model_usage: dict[str, Any] | None = None
@@ -197,6 +200,45 @@ def _context_budget(payload: dict[str, Any], context_window: int) -> tuple[dict[
         "within_budget": combined_upper_bound <= context_window,
         "native_context_enforcement": "not claimed; preflight is harness-enforced only",
     }, serialized
+
+
+def _model_request_payload(model: str, repo_root: Path, run_id: str, profile: PilotProfile) -> dict[str, Any]:
+    """@brief Build the complete fixed API request for one fresh stage transcript."""
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": [{"role": "user", "content": _model_prompt(repo_root, run_id, profile)}],
+        "tools": _tool_definition(),
+        "tool_choice": "required",
+        "temperature": profile.temperature,
+        "max_tokens": MAX_COMPLETION_TOKENS,
+    }
+    if profile.seed is not None:
+        payload["seed"] = profile.seed
+    return payload
+
+
+def _request_preflight(
+    model: str,
+    repo_root: Path,
+    run_id: str,
+    profile: PilotProfile,
+    scenario: str,
+) -> dict[str, Any]:
+    """@brief Record one exact, non-network request preflight for a planned stage."""
+    payload = _model_request_payload(model, repo_root, run_id, profile)
+    budget, serialized = _context_budget(payload, profile.context_window)
+    return {
+        "scenario": scenario,
+        "run_id": run_id,
+        "api_request": json.loads(serialized),
+        "request_serialization": {
+            "encoding": "utf-8",
+            "exact_json": serialized.decode("utf-8"),
+            "sha256": hashlib.sha256(serialized).hexdigest(),
+            "bytes": len(serialized),
+        },
+        "context_budget": budget,
+    }
 
 
 def _post_json(endpoint: str, payload: dict[str, Any], timeout_seconds: float) -> tuple[dict[str, Any], int, int]:
@@ -411,6 +453,18 @@ def _start_trial_run(
     return run_id
 
 
+def _prepare_trial(
+    template_root: Path,
+    destination: Path,
+    kind: str,
+    quick: bool,
+) -> tuple[list[CommandObservation], str]:
+    """@brief Create one local disposable run before any model-network activity."""
+    _new_disposable_repository(template_root, destination)
+    setup = _initialize_fixture_repository(destination)
+    return setup, _start_trial_run(destination, kind, quick)
+
+
 def _command_json(
     repo_root: Path,
     arguments: list[str],
@@ -506,10 +560,11 @@ def _fresh_stage_session(
     profile: PilotProfile,
     stage: str,
     timeout_seconds: float,
+    preflight: dict[str, Any] | None = None,
 ) -> SessionObservation:
     """@brief Execute one transcript-empty model request for exactly one current stage."""
     return _run_model_session(
-        endpoint, model, repo_root, run_id, profile, f"stage:{stage}", timeout_seconds
+        endpoint, model, repo_root, run_id, profile, f"stage:{stage}", timeout_seconds, preflight=preflight
     )
 
 
@@ -531,23 +586,27 @@ def _run_full_change_workflow(
     repo_root: Path,
     profile: PilotProfile,
     timeout_seconds: float,
+    setup: list[CommandObservation] | None = None,
+    run_id: str | None = None,
+    preflights: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """@brief Complete a fixed full change workflow with one fresh model request per stage."""
-    setup = _initialize_fixture_repository(repo_root)
-    started = _command_json(repo_root, ["run", "start", "change"])
-    run_id = str(started["run_id"])
+    if setup is None or run_id is None:
+        setup = _initialize_fixture_repository(repo_root)
+        started = _command_json(repo_root, ["run", "start", "change"])
+        run_id = str(started["run_id"])
     sessions: list[SessionObservation] = []
     requirement_id = ""
     check_id = ""
     green_evidence = ""
     verification_path = ""
     try:
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "intake", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "intake", timeout_seconds, (preflights or {}).get("stage:intake"))
         sessions.append(session)
         _replace_exact(_form_path(repo_root, run_id, "intake"), {'statement = ""': 'statement = "Repair pilot state"'})
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "alignment", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "alignment", timeout_seconds, (preflights or {}).get("stage:alignment"))
         sessions.append(session)
         _replace_exact(_form_path(repo_root, run_id, "alignment"), {
             'understanding = ""': 'understanding = "The fixture starts stale and must become repaired"',
@@ -557,7 +616,7 @@ def _run_full_change_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "requirement", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "requirement", timeout_seconds, (preflights or {}).get("stage:requirement"))
         sessions.append(session)
         requirement_forms = sorted((repo_root / ".agentic" / "runs" / run_id / "stages" / "requirement").glob("requirement-*.toml"))
         if len(requirement_forms) != 1:
@@ -577,7 +636,7 @@ def _run_full_change_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "design", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "design", timeout_seconds, (preflights or {}).get("stage:design"))
         sessions.append(session)
         design = _form_path(repo_root, run_id, "design")
         _replace_exact(design, {
@@ -586,7 +645,7 @@ def _run_full_change_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "check", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "check", timeout_seconds, (preflights or {}).get("stage:check"))
         sessions.append(session)
         check_forms = sorted((repo_root / ".agentic" / "runs" / run_id / "stages" / "check").glob("check-*.toml"))
         if len(check_forms) != 1:
@@ -612,7 +671,7 @@ def _run_full_change_workflow(
         session.stage_close_attempts += 1
         session.human_interventions.append("standing user-authorized fixed approval at stage close")
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "implementation", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "implementation", timeout_seconds, (preflights or {}).get("stage:implementation"))
         sessions.append(session)
         (repo_root / "src" / "pilot_state.py").write_text("STATE = 'repaired'\n", encoding="utf-8", newline="\n")
         green = _command_json(repo_root, ["check", "run", check_id], session)
@@ -626,7 +685,7 @@ def _run_full_change_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "validation", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "validation", timeout_seconds, (preflights or {}).get("stage:validation"))
         sessions.append(session)
         verified = _command_json(repo_root, ["verify", "run"], session, allow_failure=True)
         verification_path = str(verified["artifact"])
@@ -639,7 +698,7 @@ def _run_full_change_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "delivery", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "delivery", timeout_seconds, (preflights or {}).get("stage:delivery"))
         sessions.append(session)
         final_verification = _command_json(repo_root, ["verify", "run"], session)
         verification_path = str(final_verification["artifact"])
@@ -664,22 +723,26 @@ def _run_quick_fix_workflow(
     repo_root: Path,
     profile: PilotProfile,
     timeout_seconds: float,
+    setup: list[CommandObservation] | None = None,
+    run_id: str | None = None,
+    preflights: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """@brief Complete a fixed quick fix with registered managed red/green evidence."""
-    setup = _initialize_fixture_repository(repo_root)
-    started = _command_json(repo_root, ["run", "start", "fix", "--quick"])
-    run_id = str(started["run_id"])
+    if setup is None or run_id is None:
+        setup = _initialize_fixture_repository(repo_root)
+        started = _command_json(repo_root, ["run", "start", "fix", "--quick"])
+        run_id = str(started["run_id"])
     sessions: list[SessionObservation] = []
     check_id = ""
     green_evidence = ""
     verification_path = ""
     try:
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "intake", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "intake", timeout_seconds, (preflights or {}).get("stage:intake"))
         sessions.append(session)
         _replace_exact(_form_path(repo_root, run_id, "intake"), {'statement = ""': 'statement = "Repair quick pilot state"'})
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "implementation", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "implementation", timeout_seconds, (preflights or {}).get("stage:implementation"))
         sessions.append(session)
         created = _command_json(repo_root, ["check", "create"], session)
         definition = repo_root / str(created["artifact"])
@@ -708,7 +771,7 @@ def _run_quick_fix_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "validation", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "validation", timeout_seconds, (preflights or {}).get("stage:validation"))
         sessions.append(session)
         verified = _command_json(repo_root, ["verify", "run"], session)
         verification_path = str(verified["artifact"])
@@ -721,7 +784,7 @@ def _run_quick_fix_workflow(
         })
         _apply_and_close(repo_root, session)
 
-        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "delivery", timeout_seconds)
+        session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "delivery", timeout_seconds, (preflights or {}).get("stage:delivery"))
         sessions.append(session)
         final_verification = _command_json(repo_root, ["verify", "run"], session)
         verification_path = str(final_verification["artifact"])
@@ -760,6 +823,7 @@ def _run_model_session(
     scenario: str,
     timeout_seconds: float,
     execute: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    preflight: dict[str, Any] | None = None,
 ) -> SessionObservation:
     """@brief Run one fresh model session and the resulting fixed bootstrap tool action."""
     prompt = _model_prompt(repo_root, run_id, profile)
@@ -770,16 +834,7 @@ def _run_model_session(
         prompt_bytes=len(prompt.encode("utf-8")),
         transcript_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
     )
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "tools": _tool_definition(),
-        "tool_choice": "required",
-        "temperature": profile.temperature,
-        "max_tokens": MAX_COMPLETION_TOKENS,
-    }
-    if profile.seed is not None:
-        payload["seed"] = profile.seed
+    payload = _model_request_payload(model, repo_root, run_id, profile)
     observation.api_request = json.loads(_serialize_request_payload(payload))
     budget, serialized = _context_budget(payload, profile.context_window)
     observation.request_serialization = {
@@ -789,6 +844,19 @@ def _run_model_session(
         "bytes": len(serialized),
     }
     observation.context_budget = budget
+    if preflight is not None:
+        expected = preflight.get("request_serialization", {}).get("exact_json")
+        observation.preflight_validation = {
+            "planned_before_network": True,
+            "serialized_request_matches_preflight": expected == observation.request_serialization["exact_json"],
+            "actual_payload_revalidated": True,
+        }
+    else:
+        observation.preflight_validation = {
+            "planned_before_network": False,
+            "serialized_request_matches_preflight": None,
+            "actual_payload_revalidated": True,
+        }
     if not budget["within_budget"]:
         observation.failure = (
             "harness context budget rejected request before network call: "
@@ -891,6 +959,8 @@ def _attempt_lineage(previous_attempts: list[Path]) -> tuple[list[dict[str, Any]
 
 def _current_attempt_outcome(result: dict[str, Any]) -> str:
     """@brief Classify only the current run's observed trial outcomes."""
+    if result.get("outcome_class") == "budget-rejected":
+        return "budget-rejected"
     outcomes = [
         trial.get("outcome_class")
         for profile in result["profiles"]
@@ -922,9 +992,8 @@ def run_pilot(
         raise ValueError("model must not be empty")
     if not template_root.is_dir():
         raise ValueError(f"template root does not exist: {template_root}")
-    models_response, models_bytes, models_latency = _get_json(endpoint, "models", timeout_seconds)
     result: dict[str, Any] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "started_at": _utc_now(),
         "endpoint": endpoint,
         "model": model,
@@ -935,15 +1004,19 @@ def run_pilot(
         },
         "discovery": {
             "request": {"method": "GET", "url": f"{endpoint}/models", "headers": {}},
-            "response_bytes": models_bytes,
-            "latency_ms": models_latency,
-            "response": models_response,
+            "attempted": False,
+            "reason": "awaiting deterministic request preflight",
         },
         "runner": "LM Studio OpenAI-compatible API",
         "model_build": "not exposed by the configured /v1/models response",
         "tokenizer": "not exposed by the configured /v1/models or completion responses",
         "template_version": _template_version(template_root),
         "profiles": [],
+        "preflight": {
+            "completed_before_network": False,
+            "all_requests_within_budget": False,
+            "planned_request_count": 0,
+        },
         "safety": {
             "model_output_is_untrusted": True,
             "tool_permissions": [BOOTSTRAP_TOOL_NAME],
@@ -953,24 +1026,78 @@ def run_pilot(
     }
     with tempfile.TemporaryDirectory(prefix="aegis-local-model-pilot-") as temporary:
         temporary_root = Path(temporary)
+        prepared_trials: list[dict[str, Any]] = []
         for profile in profiles:
             profile_result: dict[str, Any] = {
                 "profile": asdict(profile),
                 "context_verification": profile.context_claim,
                 "thinking_verification": "user-configured; response reasoning evidence retained when present",
+                "planned_requests": [],
                 "trials": [],
             }
             full_root = temporary_root / f"full-change-{profile.context_window}"
-            _new_disposable_repository(template_root, full_root)
-            profile_result["trials"].append(
-                _run_full_change_workflow(endpoint, model, full_root, profile, timeout_seconds)
-            )
+            full_setup, full_run_id = _prepare_trial(template_root, full_root, "change", False)
+            full_preflights = {
+                f"stage:{stage}": _request_preflight(model, full_root, full_run_id, profile, f"stage:{stage}")
+                for stage in FULL_WORKFLOW_STAGES
+            }
             quick_root = temporary_root / f"quick-fix-{profile.context_window}"
-            _new_disposable_repository(template_root, quick_root)
-            profile_result["trials"].append(
-                _run_quick_fix_workflow(endpoint, model, quick_root, profile, timeout_seconds)
-            )
+            quick_setup, quick_run_id = _prepare_trial(template_root, quick_root, "fix", True)
+            quick_preflights = {
+                f"stage:{stage}": _request_preflight(model, quick_root, quick_run_id, profile, f"stage:{stage}")
+                for stage in QUICK_WORKFLOW_STAGES
+            }
+            profile_result["planned_requests"] = [*full_preflights.values(), *quick_preflights.values()]
             result["profiles"].append(profile_result)
+            prepared_trials.append({
+                "profile": profile,
+                "full_root": full_root,
+                "full_setup": full_setup,
+                "full_run_id": full_run_id,
+                "full_preflights": full_preflights,
+                "quick_root": quick_root,
+                "quick_setup": quick_setup,
+                "quick_run_id": quick_run_id,
+                "quick_preflights": quick_preflights,
+            })
+        planned_requests = [
+            request
+            for profile_result in result["profiles"]
+            for request in profile_result["planned_requests"]
+        ]
+        result["preflight"] = {
+            "completed_before_network": True,
+            "all_requests_within_budget": all(request["context_budget"]["within_budget"] for request in planned_requests),
+            "planned_request_count": len(planned_requests),
+        }
+        if not result["preflight"]["all_requests_within_budget"]:
+            result["outcome_class"] = "budget-rejected"
+            result["outcome_code"] = "budget_rejected"
+            result["discovery"] = {
+                "request": {"method": "GET", "url": f"{endpoint}/models", "headers": {}},
+                "attempted": False,
+                "reason": "planned request exceeded the harness context budget before network access",
+            }
+            result["finished_at"] = _utc_now()
+            return result
+        models_response, models_bytes, models_latency = _get_json(endpoint, "models", timeout_seconds)
+        result["discovery"] = {
+            "request": {"method": "GET", "url": f"{endpoint}/models", "headers": {}},
+            "attempted": True,
+            "response_bytes": models_bytes,
+            "latency_ms": models_latency,
+            "response": models_response,
+        }
+        for profile_result, prepared in zip(result["profiles"], prepared_trials, strict=True):
+            profile = prepared["profile"]
+            profile_result["trials"].append(_run_full_change_workflow(
+                endpoint, model, prepared["full_root"], profile, timeout_seconds,
+                prepared["full_setup"], prepared["full_run_id"], prepared["full_preflights"],
+            ))
+            profile_result["trials"].append(_run_quick_fix_workflow(
+                endpoint, model, prepared["quick_root"], profile, timeout_seconds,
+                prepared["quick_setup"], prepared["quick_run_id"], prepared["quick_preflights"],
+            ))
     result["finished_at"] = _utc_now()
     return result
 

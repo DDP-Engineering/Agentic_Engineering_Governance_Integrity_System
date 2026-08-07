@@ -16,9 +16,11 @@ All notable changes to this project will be documented in this file.
 - Harden the constrained local-model pilot with a deterministic pre-network
   context guard: the exact UTF-8 serialized request is a conservative input
   upper bound, an explicit `max_tokens` allowance is included in each API
-  request, and over-budget requests are rejected before contacting LM Studio.
-  Pilot evidence now keeps the calculation and separates a current attempt's
-  observed outcome from its immutable retry lineage.
+  request, and every planned request is preflighted before model discovery.
+  An over-budget result makes zero GET/POST calls; later requests compare their
+  preflight serialization and revalidate their guard. Pilot evidence also keeps
+  the calculation and separates a current attempt's observed outcome from its
+  immutable retry lineage.
 
 - Expand the constrained local-model pilot into an append-only, Bonsai-only
   controlled full/quick AEGIS experiment. It preserves model discovery and
