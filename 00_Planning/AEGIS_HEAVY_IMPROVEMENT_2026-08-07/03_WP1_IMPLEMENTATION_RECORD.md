@@ -66,6 +66,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
   (`56 passed`); the corrected full AEGIS suite passed (`578 passed, 3
   skipped`); the full WAEGIS suite passed (`699 passed, 8 skipped`); and both
   `python -B -m aegis --help` and `python -B -m waegis --help` passed.
+- Re-review regression validation: the end-to-end lifecycle file passed (`29
+  passed`) and the full AEGIS suite passed again (`578 passed, 3 skipped`).
+  No WAEGIS code or behavior changed; the preceding full WAEGIS result remains
+  the applicable validation evidence.
 
 ## Context effect
 
@@ -83,6 +87,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 - Resolution: form digests now hash canonical parsed TOML payloads, a regression
   test proves comment-only mutations retain the digest, and the package README
   documents the generated-form/reference relationship.
+- Re-review resolution: the digest regression now prepares and applies valid
+  intake forms through the production import path. It mutates only comments and
+  whitespace in one equivalent form, then asserts matching parsed form data,
+  `StageRecord.payload`, and `StageRecord.digest`.
 
 ## Remaining risk
 

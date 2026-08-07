@@ -34,7 +34,6 @@ from aegis.requirement_store import find_requirement_record
 from aegis.requirements import RequirementPatch, update_requirement
 from aegis.stage_forms import (
     _q,
-    _stage_digest,
     apply_stage,
     close_stage,
     next_command,
@@ -226,26 +225,42 @@ def test_generated_primary_forms_render_stable_completion_comments(
 
 
 def test_stage_digest_ignores_comment_only_form_mutations(tmp_path: Path) -> None:
-    """@brief WP1 gives identical parsed forms one semantic stage digest."""
-    form = tmp_path / "intake.toml"
-    form.write_text(
-        "# Initial operator guidance.\n"
-        'statement = "Record the requested behaviour."\n'
-        "scope_hints = [\"src/example.py\"]\n",
-        encoding="utf-8",
+    """@brief WP1 preserves applied StageRecord state across comment-only edits."""
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    config = load_config(tmp_path)
+    first_graph = init_graph(
+        first_root,
+        "feature",
+        "Record the requested behaviour.",
     )
-    initial_payload = tomllib.loads(form.read_text(encoding="utf-8"))
-    initial_digest = _stage_digest(tmp_path)
+    first_form = prepare_stage(first_root, first_graph, config)
+    first_payload = tomllib.loads(first_form.read_text(encoding="utf-8"))
+    first_record = apply_stage(first_root, first_graph, config)
 
-    form.write_text(
-        "# Revised completion checklist comment.\n"
-        'statement = "Record the requested behaviour." # Inline comment.\n'
-        "scope_hints = [\"src/example.py\"]\n",
-        encoding="utf-8",
+    second_graph = init_graph(
+        second_root,
+        "feature",
+        "Record the requested behaviour.",
     )
+    second_graph.run_id = first_graph.run_id
+    save_graph(second_root, second_graph)
+    second_form = prepare_stage(second_root, second_graph, config)
+    _replace(
+        second_form,
+        {
+            "# Completion checklist:": "# Revised completion checklist guidance.",
+            'statement = "Record the requested behaviour."': (
+                'statement    = "Record the requested behaviour."'
+            ),
+        },
+    )
+    second_payload = tomllib.loads(second_form.read_text(encoding="utf-8"))
+    second_record = apply_stage(second_root, second_graph, config)
 
-    assert tomllib.loads(form.read_text(encoding="utf-8")) == initial_payload
-    assert _stage_digest(tmp_path) == initial_digest
+    assert second_payload == first_payload
+    assert second_record.payload == first_record.payload
+    assert second_record.digest == first_record.digest
 
 
 def test_collection_forms_render_completion_comments_only_in_stage_control(
