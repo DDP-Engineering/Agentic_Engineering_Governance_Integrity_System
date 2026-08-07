@@ -351,9 +351,23 @@ def plan_impact_test_execution(
         if item.get("uncovered"):
             reason = f"uncovered changed source: {path}"
             break
-        if requirements and not linked:
-            reason = f"changed requirement has no linked tests: {path}"
-            break
+        if requirements:
+            if not isinstance(requirements, list):
+                reason = f"unsafe requirement set for changed path: {path}"
+                break
+            for requirement in requirements:
+                if not isinstance(requirement, dict):
+                    reason = f"unsafe requirement set for changed path: {path}"
+                    break
+                requirement_links = requirement.get("linked_tests")
+                if not isinstance(requirement_links, list):
+                    reason = f"unsafe linked test set for changed path: {path}"
+                    break
+                if not requirement_links:
+                    reason = f"changed requirement has no linked tests: {path}"
+                    break
+            if reason:
+                break
         if not isinstance(linked, list) or any(
             not isinstance(selector, str) for selector in linked
         ):

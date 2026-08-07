@@ -53,6 +53,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Make focused impact testing fall back to the complete test gate whenever any
+  requirement matched by a changed path lacks linked tests, preventing a
+  linked peer requirement from masking incomplete coverage.
+
 - Keep aggregate `verify run` gate journaling truthful when every gate policy
   is disabled. It now reports and journals those groups only as
   `not-enforced`; the explicit `gate.execution.nothing-ran` event remains

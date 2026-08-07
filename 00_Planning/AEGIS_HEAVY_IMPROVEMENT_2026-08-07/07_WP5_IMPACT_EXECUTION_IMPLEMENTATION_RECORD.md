@@ -87,6 +87,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 ## Remaining risk
 
+- Follow-up correction: focused impact selection now checks every matched
+  requirement record for linked tests before using the aggregate selector set.
+  A public CLI regression covers a mixed linked/testless match and verifies
+  full-fallback output, evidence, and journal records with no focused launch.
 - Unverified behavior: an independent other-provider review remains pending;
   no external downstream project was executed in this package.
 - Next allowed package: WP6 after independent review and approval of this WP5

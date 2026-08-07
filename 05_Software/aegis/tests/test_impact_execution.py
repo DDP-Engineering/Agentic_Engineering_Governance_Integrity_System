@@ -9,7 +9,7 @@
 """
 @file test_impact_execution.py
 @brief Public CLI coverage for safe focused impact-test execution.
-@details Verifies WP5's argv-only selector execution, deterministic selection,
+@details Verifies argv-only selector execution, deterministic selection,
          fail-safe full-gate fallback, and transactional evidence publication.
 """
 
@@ -107,7 +107,7 @@ def test_impact_run_executes_stable_deduplicated_argv_selectors(
 ) -> None:
     """
     @brief Execute exact, directory, and glob matches through one argv prefix.
-    @details WP5 requires deduplicated, sorted selectors as separate argv
+    @details Requires deduplicated, sorted selectors as separate argv
              values, never as shell-interpolated text.
     """
     _configure_test_gate(
@@ -245,6 +245,97 @@ def test_impact_run_falls_back_when_a_related_requirement_has_no_tests(
     assert calls == ["full-command"]
 
 
+def test_impact_run_falls_back_when_any_matched_requirement_is_testless(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    @brief Run every full command when mixed matched requirements lack coverage.
+    @details Proves that one linked record cannot mask a testless matching
+             record, and that output, evidence, and journal records describe
+             only the full fallback execution.
+    """
+    _configure_test_gate(
+        replace_workflow_toml,
+        commands='["full-command"]',
+        impacted_command='["focused-command"]',
+    )
+    _write_test(tmp_path, "tests/test_linked.py", "test_linked")
+    _add_requirement(
+        tmp_path,
+        affected_paths=["src/mixed.py"],
+        linked_tests=["tests/test_linked.py::test_linked"],
+    )
+    _add_requirement(
+        tmp_path,
+        affected_paths=["src/mixed.py"],
+        linked_tests=[],
+        verification="Manual: the behavior is inspected",
+    )
+    (tmp_path / "changed.txt").write_text("src/mixed.py\n", encoding="utf-8")
+    run_id = _start_run(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    full_calls: list[str] = []
+    focused_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        gates_module,
+        "_run_command",
+        lambda _root, command, _timeout: (
+            full_calls.append(command)
+            or subprocess.CompletedProcess(command, 0, "full ok", "")
+        ),
+    )
+
+    def capture_focused(
+        *args: object, **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """@brief Record an unexpected focused launch without executing it."""
+        focused_calls.append(list(args[0]))
+        return subprocess.CompletedProcess(args[0], 0, "focused ok", "")
+
+    monkeypatch.setattr(gates_module.subprocess, "run", capture_focused)
+
+    payload = _run_impact("changed.txt", capsys)
+
+    execution = payload["impact_execution"]
+    assert payload["execution_status"] == "pass"
+    assert payload["executed_count"] == 1
+    assert execution["mode"] == "full-fallback"
+    assert execution["fallback_reason"] == (
+        "changed requirement has no linked tests: src/mixed.py"
+    )
+    assert full_calls == ["full-command"]
+    assert focused_calls == []
+
+    graph = json.loads(
+        (tmp_path / ".agentic" / "runs" / run_id / "graph.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    evidence = graph["evidence"][-1]
+    assert evidence["command"] == "full-command"
+    assert evidence["result"] == "pass"
+    journal = [
+        json.loads(line)
+        for line in journal_path(tmp_path, run_id).read_text(encoding="utf-8").splitlines()
+    ]
+    gate_outputs = [
+        event["data"] for event in journal if event["event"] == "gate.output"
+    ]
+    impact_event = next(
+        event["data"]
+        for event in reversed(journal)
+        if event["event"] == "impact.execution"
+    )
+    assert [output["command"] for output in gate_outputs] == ["full-command"]
+    assert impact_event["mode"] == execution["mode"]
+    assert impact_event["fallback_reason"] == execution["fallback_reason"]
+    assert impact_event["execution_status"] == "pass"
+    assert impact_event["executed_count"] == 1
+
+
 def test_impact_run_falls_back_for_a_git_rename_with_an_uncovered_old_path(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],
@@ -334,7 +425,7 @@ def test_impact_run_rejects_unsafe_selector_and_uses_full_fallback(
             {
                 "file": "docs/notes.md",
                 "uncovered": False,
-                "requirements": [{"id": "REQ-1"}],
+                "requirements": [{"id": "REQ-1", "linked_tests": [selector]}],
                 "linked_tests": [selector],
                 "full_regression_recommended": False,
             }
@@ -482,7 +573,7 @@ def test_impact_run_publication_rolls_back_output_evidence_and_journal(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """@brief Keep WP5 output, evidence, and journal publication atomic."""
+    """@brief Keep output, evidence, and journal publication atomic."""
     _configure_test_gate(
         replace_workflow_toml,
         commands='["full-command"]',
