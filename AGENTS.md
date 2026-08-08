@@ -128,6 +128,10 @@ When behavior changes:
 
 ## Documentation Rules
 
+- Do not add automated tests that assert prose, file inventories, wording,
+  links, or layout under `00_Planning/`, `01_Documentation/`, `02_Tools/`, or
+  `06_SoftwareDocu/`. Review those documentation changes directly. This rule
+  does not exempt executable code under `02_Tools/` from behavior tests.
 - Update the root `README.md` when repository scope, folder layout, legal
   summary, or the runnable package location changes.
 - Update `05_Software/aegis/README.md` when package

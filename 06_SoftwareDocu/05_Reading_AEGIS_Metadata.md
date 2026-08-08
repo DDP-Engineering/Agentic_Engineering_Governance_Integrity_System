@@ -158,9 +158,11 @@ Where that evidence came from differs by mode:
 - **Manual evidence** (used when evidence needs to be attached without a
   formal check) goes through
   `stages/<stage>/manual-evidence.toml`.
-- **Gate evidence** (from `verify run`) has no separate log file — its
-  output tail lives only in the journal's `gate.output` event, while the
-  pass/fail record itself lands directly in `graph.json`.
+- **Gate evidence** (from `verify run`, `verify gates`, or impact execution)
+  writes full output under
+  `.agentic/runs/<run-id>/evidence/logs/gate-<name>-<ordinal>-<stage>-<evidence-id>.log`.
+  The pass/fail record and `output_log` path land in `graph.json`, while the
+  journal's `gate.output` event keeps only bounded stdout/stderr tails.
 
 ## Verification and delivery output
 

@@ -33,16 +33,6 @@ template so downstream repositories receive references matching their CLI.
 - `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md`
 - `05_Software/aegis/template/.agentic/documents/REPOWISE_INTEGRATION.md`
 
-## Historical Material
-
-`AEGIS_2_1_HumanExplanations/` is preserved as an explicitly historical
-explanation set for AEGIS 2.1. It is provenance material, not the current AEGIS
-3.0 or WAEGIS 3 operating contract.
-
-AEGIS persistence/concurrency and self-governed release notes that were removed
-from this branch before WAEGIS 3 planning are not listed as live documents.
-The planning acceptance report records the current integration evidence.
-
 ## Presentations
 
 Existing PPTX files are retained as historical presentation material. Their

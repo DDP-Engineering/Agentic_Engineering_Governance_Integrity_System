@@ -1083,31 +1083,4 @@ def test_maintained_aegis_documentation_uses_current_release_branding() -> None:
     assert ">=2.0.0,<3.0.0" not in package_readme
 
 
-def test_documentation_catalog_marks_current_and_historical_material() -> None:
-    """
-    @brief Verify the software catalog separates current and historical guides.
-    @return None.
-    @exception None
-    """
-    repository_root = PACKAGE_ROOT.parents[1]
-    software_root = repository_root / "06_SoftwareDocu"
-    catalog = (software_root / "README.md").read_text(encoding="utf-8")
-    historical = (
-        software_root / "AEGIS_2_1_HumanExplanations" / "README.md"
-    ).read_text(encoding="utf-8")
-    normalized_historical = " ".join(historical.replace(">", " ").split())
-    removed_entries = {
-        "AEGIS_PERSISTENCE_AND_CONCURRENCY.md",
-        "SELF_GOVERNED_RELEASE.md",
-        "WAEGIS_RELEASE_REPRODUCIBILITY.md",
-        "WAEGIS_REPOWISE_WINDOWS_EXECUTION.md",
-        "WAEGIS_TRANSACTION_RECOVERY.md",
-    }
-
-    assert "Operator path" in catalog
-    assert "Historical Material" in catalog
-    assert "Historical archive" in historical
-    assert "not the current AEGIS 3.0" in normalized_historical
-    assert all(name not in catalog for name in removed_entries)
-
 # END OF FILE

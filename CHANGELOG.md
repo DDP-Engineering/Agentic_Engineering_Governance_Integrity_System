@@ -23,10 +23,12 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Refresh maintained AEGIS documentation for the 3.0 payload, label superseded
-  human explanations as historical, remove obsolete deployment-tool
-  compatibility claims, and record explicit audit dispositions for mixed or
-  historical material.
+- Refresh maintained AEGIS documentation for the 3.0 payload, remove obsolete
+  deployment-tool compatibility claims and retired historical/planning
+  indexes, and keep the operator catalog limited to maintained guidance.
+- Exclude planning, repository-documentation, tool-documentation, and deeper
+  software-documentation prose from automated content tests while retaining
+  behavior tests for executable tools.
 - Remove WAEGIS editions, RepoWise, and Git history automation. Mutating flows
   now require clean repositories, explicit complete plans and consent, exact
   pre-write recovery evidence, manifest-last publication, and operator-owned
@@ -37,6 +39,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Document durable gate output logs and their graph/journal references instead
+  of claiming gate output exists only as a bounded journal tail.
 - Route incomplete WAEGIS workflow configuration through the designed repair
   and reconstruction paths, require extracted ZIP payload members to be files,
   and avoid a redundant version-mismatch finding when metadata is unreadable.
