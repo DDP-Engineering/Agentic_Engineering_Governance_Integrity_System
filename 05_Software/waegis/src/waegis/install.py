@@ -390,7 +390,7 @@ def apply_install(
             require_planned_head(runner, plan.recovery)
             _emit_recovery(plan, recovery_stream, as_json=as_json)
             recovery_emitted = True
-        register_runtime(runner)
+        runtime_python = register_runtime(runner)
         stage_root = Path(tempfile.mkdtemp(prefix=".waegis-stage-", dir=plan.target.parent))
         for operation in plan.write_operations:
             staged = stage_root.joinpath(*operation.path.split("/"))
@@ -403,7 +403,7 @@ def apply_install(
             destination = contained_destination(plan.target, operation.path)
             destination.parent.mkdir(parents=True, exist_ok=True)
             os.replace(stage_root.joinpath(*operation.path.split("/")), destination)
-        validate_aegis(plan.target, runner)
+        validate_aegis(plan.target, runner, runtime_python)
         manifest_destination = contained_destination(plan.target, MANIFEST_PATH)
         manifest_destination.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staged_manifest, manifest_destination)

@@ -88,7 +88,7 @@ def main(arguments: list[str]) -> int:
         False,
     )
     install.register_runtime = lambda _runner: None
-    install.validate_aegis = lambda _target, _runner: None
+    install.validate_aegis = lambda _target, _runner, _runtime_python=None: None
 
     if point == "after-recovery-before-write":
         original_emit = install._emit_recovery
@@ -99,7 +99,7 @@ def main(arguments: list[str]) -> int:
 
         install._emit_recovery = emit_then_pause
     elif point == "after-validation-before-manifest":
-        install.validate_aegis = lambda _target, _runner: _pause(signal)
+        install.validate_aegis = lambda _target, _runner, _runtime_python=None: _pause(signal)
     elif point != "complete":
         original_replace = os.replace
 

@@ -149,19 +149,26 @@ def _conditional_list(
     example: str | None = None,
     allow_empty: bool = False,
 ) -> None:
-    if key not in supplied:
-        rendered = ", ".join(default)
-        if not _ask_missing(
-            answers,
-            supplied,
-            asker,
-            key,
-            FieldSpec(key, question, description, rendered, example=example),
-            lambda value: parse_list(value) if value.strip() else [],
-        ):
-            missing.append(key)
-            return
-    answers[key] = _list_value(answers[key], key, allow_empty=allow_empty)
+    while True:
+        try:
+            if key not in supplied:
+                rendered = ", ".join(default)
+                if not _ask_missing(
+                    answers,
+                    supplied,
+                    asker,
+                    key,
+                    FieldSpec(key, question, description, rendered, example=example),
+                    lambda value: parse_list(value) if value.strip() else [],
+                ):
+                    missing.append(key)
+                    return
+            answers[key] = _list_value(answers[key], key, allow_empty=allow_empty)
+        except InterviewError:
+            if key in supplied or asker is None:
+                raise
+            continue
+        return
 
 
 def _collect_basics(
@@ -600,22 +607,34 @@ def _collect_traceability(
         disabled="disabled",
     )
     if _choice(answers, "quick_changed_paths_mode", ("disabled", "advise")) == "advise":
-        if not _ask_missing(
-            answers,
-            supplied,
-            asker,
-            "quick_max_paths",
-            FieldSpec(
-                "quick_max_paths",
-                "How many changed paths trigger quick-run advice?",
-                "Crossing this positive threshold recommends a full run.",
-                "10",
-            ),
-            int,
-        ):
-            missing.append("quick_max_paths")
-        if not isinstance(answers.get("quick_max_paths"), int) or isinstance(answers.get("quick_max_paths"), bool) or answers["quick_max_paths"] <= 0:
-            raise InterviewError("quick_max_paths must be a positive integer")
+        while True:
+            try:
+                if not _ask_missing(
+                    answers,
+                    supplied,
+                    asker,
+                    "quick_max_paths",
+                    FieldSpec(
+                        "quick_max_paths",
+                        "How many changed paths trigger quick-run advice?",
+                        "Crossing this positive threshold recommends a full run.",
+                        "10",
+                    ),
+                    int,
+                ):
+                    missing.append("quick_max_paths")
+                    break
+                if (
+                    not isinstance(answers.get("quick_max_paths"), int)
+                    or isinstance(answers.get("quick_max_paths"), bool)
+                    or answers["quick_max_paths"] <= 0
+                ):
+                    raise InterviewError("quick_max_paths must be a positive integer")
+            except InterviewError:
+                if "quick_max_paths" in supplied or asker is None:
+                    raise
+                continue
+            break
 
 
 # EXPORTED FUNCTIONS / PUBLIC API

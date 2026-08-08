@@ -36,6 +36,9 @@ All notable changes to this project will be documented in this file.
 - Route incomplete WAEGIS workflow configuration through the designed repair
   and reconstruction paths, require extracted ZIP payload members to be files,
   and avoid a redundant version-mismatch finding when metadata is unreadable.
+- Validate installed AEGIS wrappers with the exact interpreter registered by
+  each mutation, and re-ask live invalid conditional lists and quick-run path
+  thresholds without weakening supplied-answer validation.
 - Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
   payload inventory so development artifacts cannot enter a deployment.
 

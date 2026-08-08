@@ -13,6 +13,7 @@
          aggregation, proposal provenance defaults, and custom-language needs.
 """
 
+import io
 import json
 from pathlib import Path
 
@@ -20,8 +21,8 @@ import pytest
 
 from waegis.analyze import Proposal, RepositoryAnalysis
 from waegis.answers import AnswersError, load_answers, parse_answers
-from waegis.interview import collect_install_answers
-from waegis.prompts import FieldSpec
+from waegis.interview import SAFE_POLICY_DEFAULTS, InterviewError, collect_install_answers
+from waegis.prompts import ConsoleAsker, FieldSpec
 
 
 class ScriptedAsker:
@@ -46,6 +47,15 @@ def _analysis(tmp_path: Path) -> RepositoryAnalysis:
         Proposal(["tests"], "tests exists"),
         {},
     )
+
+
+def _complete_safe_answers() -> dict[str, object]:
+    return {
+        **SAFE_POLICY_DEFAULTS,
+        "language": "python",
+        "source_roots": ["src"],
+        "test_roots": ["tests"],
+    }
 
 
 def test_json_answers_schema_and_conflicts_are_closed(tmp_path: Path) -> None:
@@ -139,6 +149,55 @@ def test_enabled_features_aggregate_every_missing_dependent_rule() -> None:
         "quick_max_paths",
         "write_access_stages",
     )
+
+
+def test_live_required_list_reasks_after_empty_answer() -> None:
+    """@brief R6 a live invalid conditional list preserves the interview."""
+    supplied = _complete_safe_answers()
+    supplied["gate_test_mode"] = "enforce"
+    supplied.pop("gate_test_commands")
+    responses = iter(("", "python -m pytest"))
+    asker = ConsoleAsker(io.StringIO(), lambda _prompt: next(responses))
+
+    answers, missing = collect_install_answers(supplied, None, asker, non_interactive=False)
+
+    assert missing == ()
+    assert answers["gate_test_commands"] == ["python -m pytest"]
+
+
+@pytest.mark.parametrize("invalid", ["many", "0"])
+def test_live_quick_max_paths_reasks_after_invalid_answer(invalid: str) -> None:
+    """@brief R6 live conversion and positive-range failures re-ask."""
+    supplied = _complete_safe_answers()
+    supplied["quick_changed_paths_mode"] = "advise"
+    supplied.pop("quick_max_paths")
+    responses = iter((invalid, "7"))
+    asker = ConsoleAsker(io.StringIO(), lambda _prompt: next(responses))
+
+    answers, missing = collect_install_answers(supplied, None, asker, non_interactive=False)
+
+    assert missing == ()
+    assert answers["quick_max_paths"] == 7
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [("gate_test_commands", []), ("quick_max_paths", 0)],
+)
+def test_supplied_invalid_conditional_answer_remains_hard_error(key: str, value: object) -> None:
+    """@brief R6 supplied invalid values never fall back to live prompting."""
+    supplied = _complete_safe_answers()
+    if key == "gate_test_commands":
+        supplied["gate_test_mode"] = "enforce"
+    else:
+        supplied["quick_changed_paths_mode"] = "advise"
+    supplied[key] = value
+    asker = ScriptedAsker(["python -m pytest", "7"])
+
+    with pytest.raises(InterviewError):
+        collect_install_answers(supplied, None, asker, non_interactive=False)
+
+    assert key not in [field.key for field in asker.fields]
 
 
 # END OF FILE

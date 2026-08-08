@@ -112,9 +112,9 @@ def _emit_recovery(plan: PublicationPlan, stream: TextIO, *, as_json: bool) -> N
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
-def validate_aegis(target: Path, runner: Runner) -> None:
+def validate_aegis(target: Path, runner: Runner, runtime_python: str | Path = sys.executable) -> None:
     """@brief Validate the actual installed wrapper, config, and status contract."""
-    environment = {"AEGIS_PYTHON": sys.executable}
+    environment = {"AEGIS_PYTHON": str(runtime_python)}
     help_result = runner.run(wrapper_invocation(target, "--help"), cwd=target, timeout=SMOKE_TIMEOUT, env=environment)
     if help_result.returncode != 0:
         detail = help_result.stderr.strip() or help_result.stdout.strip()
@@ -161,7 +161,7 @@ def apply_publication(
         require_planned_head(runner, plan.recovery)
         _emit_recovery(plan, recovery_stream, as_json=as_json)
         recovery_emitted = True
-        register_runtime(runner)
+        runtime_python = register_runtime(runner)
         stage_root = Path(tempfile.mkdtemp(prefix=".waegis-stage-", dir=plan.target.parent))
         for path, data in plan.writes.items():
             staged = stage_root.joinpath(*path.split("/"))
@@ -178,7 +178,7 @@ def apply_publication(
             destination = contained_destination(plan.target, path)
             if destination.exists():
                 destination.unlink()
-        validate_aegis(plan.target, runner)
+        validate_aegis(plan.target, runner, runtime_python)
         destination = contained_destination(plan.target, MANIFEST_PATH)
         destination.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staged_manifest, destination)
