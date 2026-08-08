@@ -163,6 +163,18 @@ def test_safe_zipapp_extraction_uses_closed_inventory(tmp_path: Path) -> None:
     assert extract_zipapp_payload(archive, inventory, tmp_path / "cache") == extracted
 
 
+def test_zipapp_directory_entry_cannot_satisfy_expected_file(tmp_path: Path) -> None:
+    """@brief R9 directory members cannot satisfy expected file membership."""
+    payload = tmp_path / "payload"
+    payload.mkdir()
+    (payload / "a.txt").write_bytes(b"a\n")
+    inventory = enumerate_payload(payload)
+    archive = tmp_path / "directory.pyz"
+    _zip_payload(archive, [("payload/a.txt/", b"")])
+    with pytest.raises(PayloadError, match="missing members"):
+        extract_zipapp_payload(archive, inventory, tmp_path / "cache")
+
+
 @pytest.mark.parametrize(
     ("members", "message"),
     [

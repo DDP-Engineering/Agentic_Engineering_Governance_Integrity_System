@@ -323,10 +323,10 @@ def workflow_answers(text: str) -> dict[str, object]:
         quick = value.get("quick", {}).get("changed_paths")
         answers["quick_changed_paths_mode"] = quick["mode"] if quick else "disabled"
         answers["quick_max_paths"] = quick["max_paths"] if quick else 10
+        answers["source_extensions"] = value["traceability"]["source_extensions"]
+        answers["test_file_patterns"] = value["traceability"]["test_file_patterns"]
     except (KeyError, TypeError, tomllib.TOMLDecodeError) as exc:
         raise WorkflowError(f"cannot read WAEGIS-owned fields from workflow TOML: {exc}") from exc
-    answers["source_extensions"] = value["traceability"]["source_extensions"]
-    answers["test_file_patterns"] = value["traceability"]["test_file_patterns"]
     return answers
 
 

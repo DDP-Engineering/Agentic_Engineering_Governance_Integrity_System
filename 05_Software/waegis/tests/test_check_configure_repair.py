@@ -20,10 +20,14 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+import pytest
+
 from waegis.cli import EXIT_ERROR, EXIT_OK, EXIT_WARNING, main
 from waegis.check import CheckResult, Finding, check_repository
+from waegis.configure import plan_configure
 from waegis.envelope import ResultEnvelope
 from waegis.manifest import load_manifest
+from waegis.repair import RepairError, plan_repair
 from waegis.runner import CommandResult, CommandRunner
 
 
@@ -71,6 +75,15 @@ def _install(repo: Path, tmp_path: Path) -> None:
 def _commit(repo: Path, message: str) -> None:
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", message)
+
+
+def _remove_source_extensions(repo: Path) -> None:
+    workflow = repo / ".agentic" / "workflow.toml"
+    original = workflow.read_text(encoding="utf-8")
+    incomplete = original.replace('source_extensions = [".py"]\n', "", 1)
+    assert incomplete != original
+    workflow.write_text(incomplete, encoding="utf-8")
+    _commit(repo, "remove owned workflow field")
 
 
 def _tree(repo: Path) -> dict[str, str]:
@@ -154,6 +167,43 @@ def test_check_reports_v1_as_unsupported_readoption_input(tmp_path: Path) -> Non
     assert code == EXIT_ERROR
     assert result["result"]["manifest_status"] == "v1"
     assert "migration consent" in result["result"]["findings"][0]["action"]
+
+
+def test_check_reports_only_unreadable_when_installed_version_cannot_be_parsed(tmp_path: Path) -> None:
+    """@brief R7 unreadable version metadata has one actionable root finding."""
+    repo = _repository(tmp_path)
+    _install(repo, tmp_path)
+    (repo / ".agentic" / "cli" / "pyproject.toml").write_text("[project\n", encoding="utf-8")
+    result = check_repository(repo, CommandRunner())
+    version_codes = [finding.code for finding in result.findings if finding.code.startswith("VERSION-")]
+    assert version_codes == ["VERSION-UNREADABLE"]
+
+
+def test_repair_routes_missing_owned_workflow_field_to_configure(tmp_path: Path) -> None:
+    """@brief R4 incomplete workflow configuration is refused without a raw key error."""
+    repo = _repository(tmp_path)
+    _install(repo, tmp_path)
+    _remove_source_extensions(repo)
+    with pytest.raises(RepairError, match="workflow configuration needs waegis configure"):
+        plan_repair(repo, None, CommandRunner())
+
+
+def test_configure_reconstructs_workflow_missing_an_owned_field(tmp_path: Path) -> None:
+    """@brief R2 incomplete workflow configuration takes the reconstruction path."""
+    repo = _repository(tmp_path)
+    _install(repo, tmp_path)
+    _remove_source_extensions(repo)
+    plan, _, missing, reconstructs, _ = plan_configure(
+        repo,
+        {"language": "python", "source_roots": ["src"], "test_roots": ["tests"]},
+        CommandRunner(),
+        payload=None,
+        asker=None,
+        non_interactive=True,
+    )
+    assert plan is not None
+    assert missing == ()
+    assert reconstructs is True
 
 
 def test_configure_preserves_advanced_bytes_and_adds_then_removes_quick_policy(tmp_path: Path) -> None:

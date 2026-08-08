@@ -244,7 +244,7 @@ def check_repository(repository: Path, runner: Runner) -> CheckResult:
         installed_version = tomllib.loads(installed_path.read_text(encoding="utf-8"))["project"]["version"]
     except (OSError, UnicodeError, tomllib.TOMLDecodeError, KeyError, TypeError):
         findings.append(_finding("VERSION-UNREADABLE", "failure", "installed payload version cannot be read", PAYLOAD_VERSION_FILE, "run waegis repair"))
-    if installed_version != manifest.payload_version:
+    if installed_version is not None and installed_version != manifest.payload_version:
         findings.append(_finding("VERSION-MISMATCH", "failure", "installed payload version differs from the manifest", PAYLOAD_VERSION_FILE, "run waegis repair or upgrade"))
     elif installed_version is not None:
         try:

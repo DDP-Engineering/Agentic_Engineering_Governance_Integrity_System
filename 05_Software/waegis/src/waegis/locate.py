@@ -157,14 +157,14 @@ def extract_zipapp_payload(
                 except ValueError as exc:
                     raise PayloadError(f"unsafe payload archive member: {name!r}") from exc
                 key = path.casefold()
-                if path in seen or key in folded:
+                if key in folded:
                     raise PayloadError(f"duplicate or case-colliding archive member: {name!r}")
-                seen.add(path)
-                folded.add(key)
                 mode = info.external_attr >> 16
                 file_type = stat.S_IFMT(mode)
                 if info.is_dir():
                     continue
+                seen.add(path)
+                folded.add(key)
                 if info.flag_bits & 0x1 or file_type not in {0, stat.S_IFREG}:
                     raise PayloadError(f"unsupported payload archive member type: {name!r}")
                 record = expected.get(path)

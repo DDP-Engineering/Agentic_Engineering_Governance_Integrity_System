@@ -33,6 +33,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Route incomplete WAEGIS workflow configuration through the designed repair
+  and reconstruction paths, require extracted ZIP payload members to be files,
+  and avoid a redundant version-mismatch finding when metadata is unreadable.
 - Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
   payload inventory so development artifacts cannot enter a deployment.
 
