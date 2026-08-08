@@ -27,8 +27,6 @@ All notable changes to this project will be documented in this file.
   human explanations as historical, remove obsolete deployment-tool
   compatibility claims, and record explicit audit dispositions for mixed or
   historical material.
-- Generate the optional start-guide PDF outside the copied template by default
-  and update its branding to AEGIS 3.0.
 - Remove WAEGIS editions, RepoWise, and Git history automation. Mutating flows
   now require clean repositories, explicit complete plans and consent, exact
   pre-write recovery evidence, manifest-last publication, and operator-owned
@@ -54,6 +52,8 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
+- Remove the optional Windows-only ReportLab start-guide PDF generator and its
+  local-output contract; the maintained Markdown guide remains canonical.
 - Remove dead and redundant WAEGIS implementation branches and refresh the CLI
   module description without changing command behavior.
 

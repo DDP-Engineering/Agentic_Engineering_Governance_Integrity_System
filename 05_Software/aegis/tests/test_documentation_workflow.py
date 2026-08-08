@@ -1069,9 +1069,6 @@ def test_maintained_aegis_documentation_uses_current_release_branding() -> None:
     template_agents = (PACKAGE_ROOT / "template" / "AGENTS.md").read_text(
         encoding="utf-8"
     )
-    tools_readme = (repository_root / "02_Tools" / "README.md").read_text(
-        encoding="utf-8"
-    )
 
     assert "AEGIS 3.0" in root_readme
     assert package_readme.startswith(
@@ -1080,7 +1077,6 @@ def test_maintained_aegis_documentation_uses_current_release_branding() -> None:
         "\n\n# AEGIS 3.0"
     )
     assert "This repository uses AEGIS 3.0" in template_agents
-    assert "AEGIS 3.0 start-guide PDF" in tools_readme
     assert "AEGIS 2.1" not in root_readme
     assert "AEGIS 2.1" not in package_readme
     assert "AEGIS 2.1" not in template_agents
@@ -1113,23 +1109,5 @@ def test_documentation_catalog_marks_current_and_historical_material() -> None:
     assert "Historical archive" in historical
     assert "not the current AEGIS 3.0" in normalized_historical
     assert all(name not in catalog for name in removed_entries)
-
-
-def test_start_guide_generator_keeps_pdf_outside_copied_template() -> None:
-    """
-    @brief Verify optional generated documentation cannot become template material.
-    @return None.
-    @exception None
-    """
-    repository_root = PACKAGE_ROOT.parents[1]
-    generator = (
-        repository_root / "02_Tools" / "generate_start_guide_pdf.py"
-    ).read_text(encoding="utf-8")
-
-    assert 'REPOSITORY_ROOT / "02_Tools" / "generated"' in generator
-    assert 'DEFAULT_OUTPUT = DEFAULT_SOURCE.with_suffix(".pdf")' not in generator
-    assert "AEGIS 3.0  |  START GUIDE" in generator
-    assert "AEGIS 2.1" not in generator
-
 
 # END OF FILE
