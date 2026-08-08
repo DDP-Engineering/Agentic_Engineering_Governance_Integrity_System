@@ -45,7 +45,7 @@ session integrates each commit into `ddp/waegis-v3-implementation` before starti
 the next session.
 
 The final integration pass runs the full WAEGIS and AEGIS suites, the crash matrix,
-and the packaging verifier. Owner GO/NO-GO remains pending until those results are
+and the packaging verifier. The owner recorded GO after those results were
 recorded.
 
 All planned sessions and the final integration pass completed successfully. See

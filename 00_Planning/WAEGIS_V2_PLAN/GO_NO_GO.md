@@ -3,7 +3,7 @@
 Date prepared: 2026-08-08
 Branch: `ddp/waegis-v3-implementation`
 Engineering recommendation: **GO**
-Owner decision: **PENDING**
+Owner decision: **GO**
 
 ## Decision basis
 
@@ -16,17 +16,20 @@ Owner decision: **PENDING**
 | Windows, POSIX, crash, AEGIS, artifact, and repository replay gates | PASS |
 | Independent adversarial review remediation | PASS - scoped findings implemented and revalidated |
 | Root release-process handling | PASS - changes remain under `Unreleased`; no promotion performed |
-| Owner signature | PENDING |
+| Owner signature | PASS - GO recorded 2026-08-08 |
 
 The evidence and exact artifact identities are recorded in
 `ACCEPTANCE_REPORT.md` and `ACCEPTANCE_REPORT.json`.
 
 ## Owner signoff
 
-Owner: **PENDING**
-Decision: **PENDING - GO or NO-GO**
-Signed at: **PENDING**
-Conditions or rationale: **PENDING**
+Owner: **Dan Dumitru Pasare (repository owner)**
+Decision: **GO**
+Signed at: **2026-08-08**
+Conditions or rationale: **Close the implementation task and integrate the
+dedicated WAEGIS 3 branch into `AEGIS_V2`. Release promotion remains a separate
+operation and is not part of this decision.**
 
-No release is promoted and WAEGIS 1 is not declared retired until this section
-contains the owner's explicit decision.
+The owner approved the WAEGIS 3 retirement gate. WAEGIS 1 is retired as the
+active distribution. No release was promoted; changes remain under
+`CHANGELOG.md`'s `Unreleased` section.

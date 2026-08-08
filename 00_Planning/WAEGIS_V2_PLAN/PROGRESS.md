@@ -23,7 +23,7 @@ The V1 source remains recoverable with
 | 4 - Upgrade | Complete | 111 passed, 2 skipped; source 4,712 lines |
 | 5 - Packaging and operator documentation | Complete | 119 passed, 2 skipped; all artifacts verified; source 4,834 lines |
 | 6 — Acceptance and crash harness | Complete | 126 passed, 2 skipped; seven hard-kill boundaries green |
-| 7 — Cross-platform integration and retirement | Technical gates complete | Owner go/no-go signature pending |
+| 7 — Cross-platform integration and retirement | Complete | Owner GO recorded; WAEGIS 1 retired |
 
 ## 2026-08-08 — Phase 1 baseline
 
@@ -377,3 +377,9 @@ Final post-review artifact identity:
 | `waegis.pyz` | 436,825 | `7301619a8ecdbea960b6704d798eaee8fc638a03d8a88befe90e16ba75719d0c` |
 | `waegis-windows-x64.zip` | 23,403,980 | `2c48cc8a7e2b718e5e6382667e5d5cdb6244ba542afd2824de5f40e5e726c852` |
 | `waegis-linux-x64.tar.gz` | 68,435,992 | `3021d9e3c5770faffa94216689e090474e56bf22bd572be56c909b69f9c8e627` |
+
+## 2026-08-08 - Owner closure
+
+- The repository owner recorded GO and instructed integration into `AEGIS_V2`.
+- Criterion 7 is complete and WAEGIS 1 is retired as the active distribution.
+- Release promotion remains out of scope; root changes stay under `Unreleased`.

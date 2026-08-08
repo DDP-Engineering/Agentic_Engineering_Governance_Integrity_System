@@ -12,10 +12,10 @@
   },
   "status": {
     "technical_acceptance": "passed",
-    "retirement_gate": "pending-owner-signoff",
+    "retirement_gate": "approved-owner-go",
     "technical_recommendation": "GO",
     "release_promoted": false,
-    "v1_retired": false
+    "v1_retired": true
   },
   "owner_decisions": {
     "D1": {
@@ -237,11 +237,12 @@
     "4_representative_repositories": "passed",
     "5_owner_decisions_implemented": "passed",
     "6_documentation_and_template_hygiene": "passed",
-    "7_release_process_and_owner_signature": "pending-owner-signoff"
+    "7_release_process_and_owner_signature": "passed"
   },
   "owner_signoff": {
-    "decision": null,
-    "owner": null,
-    "signed_at": null
+    "decision": "GO",
+    "owner": "Dan Dumitru Pasare",
+    "signed_at": "2026-08-08",
+    "rationale": "Close the implementation task and integrate the dedicated WAEGIS 3 branch into AEGIS_V2; release promotion remains separate."
   }
 }

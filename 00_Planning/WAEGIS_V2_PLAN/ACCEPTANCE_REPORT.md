@@ -3,7 +3,7 @@
 Date: 2026-08-08
 Branch: `ddp/waegis-v3-implementation`
 Technical result: **PASS**
-Retirement status: **pending owner go/no-go signature**
+Retirement status: **approved - owner GO recorded**
 
 ## Accepted product
 
@@ -81,8 +81,8 @@ payload digest is
 
 ## Conclusion
 
-All technical retirement criteria are satisfied. The engineering recommendation
-is **GO**. Criterion 7 remains formally open until the owner signs
-`GO_NO_GO.md`. Until then, no release promotion or V1 retirement is claimed.
+All retirement criteria are satisfied. The owner recorded **GO** on 2026-08-08,
+closing criterion 7 and retiring WAEGIS 1 as the active distribution. No release
+promotion was performed; changes remain under `Unreleased`.
 
 The complete machine-readable evidence is in `ACCEPTANCE_REPORT.json`.
