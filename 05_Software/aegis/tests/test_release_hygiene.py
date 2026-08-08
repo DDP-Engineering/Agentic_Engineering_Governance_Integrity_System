@@ -133,7 +133,7 @@ def test_current_template_material_names_the_current_product_line() -> None:
     @return     None.
     @exception  AssertionError If current material names an obsolete minor line.
     """
-    obsolete = ("AEGIS 2.0", "WAEGIS 1.0")
+    obsolete = ("AEGIS 2.0", "AEGIS 2.1", "WAEGIS 1.0")
     offending = {
         path.relative_to(TEMPLATE_ROOT).as_posix(): marker
         for path in _current_template_texts()
@@ -142,7 +142,7 @@ def test_current_template_material_names_the_current_product_line() -> None:
     }
 
     assert offending == {}
-    assert "AEGIS 2.1" in (TEMPLATE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "AEGIS 3.0" in (TEMPLATE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
 
 def test_historical_changelog_versions_are_not_current_branding_failures() -> None:

@@ -5,114 +5,71 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# Upgrading AEGIS 1.x to 2.x
+# Upgrading a Deployed AEGIS Payload
 
-`How_To_Start_A_New_Project.md` §10 states that an in-place AEGIS 1.x → 2.x
-upgrade is unsupported and that a fresh 2.x deployment should be made "after
-preserving project-owned artifacts deliberately" — without saying which
-artifacts those are. This document is that missing procedure: what to keep,
-what to replace, and the one config edit in between.
+AEGIS does not install or upgrade its own payload. Use a trusted external
+deployment tool or a reviewed manual copy procedure, and follow that tool's
+current compatibility guidance. This document defines only the AEGIS-owned
+state and validation boundary.
 
-There is no `waegis upgrade` command and none is planned; a 1.x installation
-and a 2.x installation are two independent deployments joined by copying the
-project-owned artifacts below from the old one into the new one.
+Never assume that an older configuration, graph, or active run is compatible
+with a newer payload. AEGIS 3.0 accepts schema-3 workflow configuration and
+refuses unsupported schemas instead of migrating them silently.
+The shipped interface default is `stage_form_retention = "latest"`; preserve a
+project's explicit value only when the new payload validates it.
 
-## What is payload-owned (replace) vs. project-owned (preserve)
+## Ownership Boundary
 
-| Payload-owned — replace with the new 2.x deployment | Project-owned — copy forward unchanged |
-|---|---|
-| `.agentic/cli/`, `.agentic/tools/`, `.agentic/hooks/`, `.agentic/documents/`, `.agentic/skills/`, `.agentic/integrations/` | `.agentic/requirements/` |
-| `.agentic/LICENSE.txt` | `.agentic/components.toml` |
-| The five host-adapter directories (`.claude/`, `.codex/`, `.qwen/`, `.pi/`, `.opencode/`) | `.agentic/knowledge/` |
-| `AGENTS.md`, `CLAUDE.md`, `QWEN.md`, `opencode.json` | `.agentic/reports/` |
-| | `.agentic/specs/` |
-| | `.agentic/runs/` |
+Treat the deployment tool's authenticated install manifest as the authority
+when one exists. In its absence, use this conservative split:
 
-Payload-owned material is whatever a fresh `waegis new` / `waegis adopt` would
-generate on its own — deploy the new version of it and discard the 1.x copy
-outright rather than diffing the two. Project-owned material is what the
-project authored inside that structure — deploy the new payload first, then
-copy each project-owned path from the 1.x checkout into the new tree,
-overwriting the payload's placeholder copies where one exists (for example an
-empty `.agentic/components.toml`).
+| Payload-owned material to replace from the new distribution | Project-owned material to preserve and review |
+| --- | --- |
+| `.agentic/cli/`, `.agentic/tools/`, `.agentic/hooks/`, `.agentic/documents/`, and `.agentic/skills/` | `.agentic/workflow.toml` and `.agentic/integrations/repowise.toml` |
+| Shipped host-adapter files under `.claude/`, `.codex/`, `.opencode/`, `.pi/`, and `.qwen/` | `.agentic/requirements/`, `.agentic/specs/`, and `.agentic/knowledge/` |
+| Payload license and starter templates | `.agentic/components.toml`, `.agentic/reports/`, and `.agentic/runs/` |
 
-`.agentic/runs/` is listed as project-owned for continuity, but see
-"Requirement snapshots carry over untouched" below for the one exception: a
-run in flight under the 1.x schema cannot be resumed by the 2.x CLI and should
-be finished or abandoned on the 1.x deployment before cutting over.
+Root adapter instructions such as `AGENTS.md`, `CLAUDE.md`, `QWEN.md`, and
+`opencode.json` can contain both payload and project customization. Resolve
+their ownership through the install manifest or an explicit review; never
+overwrite them blindly.
 
-## The schema-2 → schema-3 config delta
+Runtime caches, generated provider artifacts, worktree-local selection state,
+and lock files are neither portable project history nor payload source. Rebuild
+them only through the owning tool.
 
-`.agentic/workflow.toml` is project-owned, so it survives the copy — but it
-was written against schema 2 and the 2.x CLI's `config validate` rejects
-anything that is not `schema_version = 3` outright (`CONFIG-SCHEMA-UNSUPPORTED`
-— AEGIS does not migrate configurations for you). The delta is two mechanical
-edits:
+## Before Replacing the Payload
 
-1. **Bump the version.**
+1. Record the current AEGIS version, configuration schema, Git state, and
+   deployment-tool receipt or manifest.
+2. Back up every project-owned path and any intentionally customized adapter
+   file.
+3. Finish or explicitly abandon active runs unless compatibility with the new
+   payload is documented and verified.
+4. Review the new release notes for schema, CLI, hook, adapter, and ownership
+   changes.
+5. Preview the exact replacement set and resolve conflicts explicitly.
 
-   ```toml
-   schema_version = 3
-   ```
+Do not edit durable graph, journal, evidence, requirement, or receipt files to
+make an upgrade appear compatible.
 
-2. **Add the `[interface]` table.** Schema 2 had no file-first interface
-   policy to declare; schema 3 requires one:
+## After Replacing the Payload
 
-   ```toml
-   [interface]
-   stage_form_retention = "latest"    # "versioned" | "latest" | "discard"
-   check_execution = "external"       # "external" | "managed"
-   ```
+From the governed repository, use its project-local wrapper:
 
-3. **Split the single `[gates]` table into one `[gates.<group>]` table per
-   group.** Schema 2 configured all gate commands under one `[gates]` table;
-   schema 3 requires a separate table per group, each with its own `mode` and
-   `commands`:
+```text
+<workflow> --help
+<workflow> config validate --json
+<workflow> config show --json
+<workflow> requirement list --json
+<workflow> run status --json
+```
 
-   ```toml
-   [gates.build]
-   mode = "disabled"
-   commands = []
+`<workflow>` means `.\.agentic\tools\run.ps1` on Windows or
+`bash .agentic/tools/run.sh` on POSIX. Correct invalid configuration through a
+reviewed policy change; do not infer fallback values. Confirm that required
+hooks and adapter trust are active, and inspect any current run before resuming
+it.
 
-   [gates.typecheck]
-   mode = "disabled"
-   commands = []
-
-   [gates.lint]
-   mode = "disabled"
-   commands = []
-
-   [gates.test]
-   mode = "disabled"
-   commands = []
-
-   [gates.security]
-   mode = "disabled"
-   commands = []
-   ```
-
-   Carry each group's prior `mode` and `commands` into its own table; nothing
-   about gate *policy* changed, only how it is declared.
-
-Run `aegis config validate` after each edit — the error messages name the
-offending key, its current value, and the expected shape one at a time, so
-expect to iterate a few rounds rather than getting everything right in one
-pass. That is expected, not a sign the migration is going wrong.
-
-## Requirement snapshots carry over untouched
-
-**The requirement store needs no migration.** Every `schema_version = 1`
-requirement TOML under `.agentic/requirements/` reads cleanly under the 2.x
-CLI, and `aegis requirement list` returns them unmodified — durable
-requirement records are versioned independently of the workflow config schema
-and were not part of the 2.x schema change. Copy `.agentic/requirements/`
-forward as-is; there is nothing to convert.
-
-## After the copy
-
-1. Run `aegis config validate` and resolve each reported key in turn until it
-   reports `status: ok`.
-2. Run `aegis requirement list` and confirm the expected count of legacy
-   requirements is present.
-3. Start (or resume, if one was already in flight before the cutover) a run on
-   the new deployment as usual.
+An upgrade is not a release, push, merge, or publication action. Those remain
+separate explicit operations.

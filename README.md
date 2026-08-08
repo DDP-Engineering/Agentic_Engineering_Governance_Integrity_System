@@ -22,10 +22,11 @@ separate stdlib-only package (never copied into the AEGIS payload) at:
 
 `05_Software/waegis/`
 
-AEGIS 2.1 and WAEGIS 1.1 can optionally use RepoWise 0.37.0 as a
-process-isolated repository-discovery sidecar. RepoWise proposals are advisory
+AEGIS 3.0 can optionally consume validated artifacts from a process-isolated
+RepoWise 0.37.0 repository-discovery sidecar. RepoWise proposals are advisory
 unless a project explicitly makes them required; AEGIS never imports or
-executes RepoWise.
+executes RepoWise. Provisioning and compatibility of external deployment tools
+are documented separately from the AEGIS payload.
 
 ## Workflow Shape
 
@@ -116,28 +117,15 @@ bundled, or external discovery without changing schema 3.
 
 ## Creating Or Adopting A Project
 
-Use WAEGIS to preview and deploy AEGIS into a new project:
+AEGIS is independently runnable once its template is present in a target
+repository. Creating that deployment, resolving adoption conflicts, and
+provisioning optional discovery tooling belong to external deployment tooling,
+not to the AEGIS CLI.
 
-```powershell
-waegis new D:\Path\To\NewProject --dry-run
-waegis new D:\Path\To\NewProject
-```
-
-For an existing repository, use the adoption workflow:
-
-```powershell
-waegis adopt D:\Path\To\ExistingRepo --dry-run
-waegis adopt D:\Path\To\ExistingRepo
-```
-
-WAEGIS configures the deployment, resolves adoption conflicts explicitly,
-writes the install manifest, and verifies the result. It remains a separate
-tool and is not copied into the target AEGIS payload.
-
-The Core edition keeps RepoWise disabled by default. The Complete edition can
-install its pinned RepoWise 0.37.0 runtime under the target
-`.agentic/tools/repowise/` tree and optionally start the initial index. Either
-edition can link a compatible external RepoWise 0.37.x command.
+WAEGIS is maintained separately under `05_Software/waegis/`. Because its
+interface and compatibility policy evolve independently, consult that package's
+current documentation for preview, deployment, repair, or upgrade commands.
+This AEGIS documentation does not assert a WAEGIS version boundary.
 
 ## Quick Validation
 

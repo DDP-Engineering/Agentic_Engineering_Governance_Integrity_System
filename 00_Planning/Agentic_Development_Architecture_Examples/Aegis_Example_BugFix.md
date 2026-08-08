@@ -22,4 +22,6 @@ journals alignment/requirement/design/check as `bypassed` rather than
 skipping them silently, and reports the collapsed stages' invariants and
 audits as not applicable rather than passed. Gates, secrets scanning, scope
 advisories, and working-tree review still run for real. If the fix later
-turns out to need real requirement/design work, route back to a full run.
+turns out to need real requirement/design work, preserve its recorded context
+and restart it as a full `fix` run; a quick run cannot route into bypassed
+stages.

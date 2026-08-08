@@ -5,7 +5,7 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 2.1 CLI Reference
+# AEGIS 3.0 CLI Reference
 
 AEGIS uses a file-first interface designed to remain tractable for small local
 models. Commands navigate work; generated schema-3 TOML and referenced Markdown
@@ -451,7 +451,7 @@ immediately after enabling `traceability.coverage.mode`, so pre-existing
 legacy modules do not have to be transcribed by hand; it reports nothing while
 coverage is disabled, where the schema forbids coverable roots.
 
-Configuration and run graphs require schema 3. AEGIS 2.1 rejects schema 2 and
+Configuration and run graphs require schema 3. AEGIS 3.0 rejects schema 2 and
 earlier legacy graphs without migration or fallback.
 
 The schema-3 run graph has an additive `profile` field: its absence means
@@ -491,9 +491,9 @@ blocks, routes, or mutates the current run.
 
 `config validate` and `config show` also validate/display the optional
 schema-1 `.agentic/integrations/repowise.toml`. Absence means disabled. RepoWise
-execution intentionally has no AEGIS command: WAEGIS owns
-`waegis repowise status|sync`, while AEGIS consumes only validated structural
-artifacts during `repo-discovery`.
+execution intentionally has no AEGIS command: external deployment tooling owns
+provider operations, while AEGIS consumes only validated structural artifacts
+during `repo-discovery`.
 
 Expected AEGIS configuration, run-resolution, workflow, command-input,
 requirement, persistence, and RepoWise integration failures produce the stable

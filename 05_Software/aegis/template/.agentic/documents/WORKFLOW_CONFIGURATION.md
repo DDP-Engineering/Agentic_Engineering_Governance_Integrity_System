@@ -2,7 +2,7 @@
 
 # Workflow Configuration
 
-Every AEGIS 2.1 workspace begins with:
+Every AEGIS 3.0 workspace begins with:
 
 ```toml
 schema_version = 3
@@ -86,9 +86,9 @@ than the configured number of unique changed paths receives guidance to carry
 its context into a new full run. This is a soft response only: it does not
 block, route, or change the current run.
 
-Current WAEGIS `new`/`adopt` interviews and doctor/configuration parsing do not
-yet manage this optional AEGIS table. That cross-tool awareness is a deliberate
-follow-up; use AEGIS `config validate/show` as the authority for the key.
+External deployment tools may expose different configuration interfaces. Use
+AEGIS `config validate` and `config show` as the authority for this key after
+the payload and policy are present.
 
 ## Deterministic Gates
 

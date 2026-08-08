@@ -1035,6 +1035,7 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
         "CLI_API_REFERENCE.md",
         "PROMPT_CHEATSHEET.md",
         "REPOWISE_INTEGRATION.md",
+        "UPGRADING.md",
     }
 
     combined = "\n".join(
@@ -1050,6 +1051,83 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     assert "RepoWise 0.37.0" in combined
     assert "requirements/registry" not in combined
     assert "write_zones" not in combined
+    assert "waegis " not in combined.lower()
+    assert ">=2.0.0,<3.0.0" not in combined
+
+
+def test_maintained_aegis_documentation_uses_current_release_branding() -> None:
+    """
+    @brief Verify maintained AEGIS entry points describe the 3.0 payload.
+    @return None.
+    @exception None
+    """
+    repository_root = PACKAGE_ROOT.parents[1]
+    root_readme = (repository_root / "README.md").read_text(encoding="utf-8")
+    package_readme = (PACKAGE_ROOT / "README.md").read_text(encoding="utf-8")
+    template_agents = (PACKAGE_ROOT / "template" / "AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    tools_readme = (repository_root / "02_Tools" / "README.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "AEGIS 3.0" in root_readme
+    assert package_readme.startswith(
+        "<!-- Copyright (c) 2026 DDP Engineering. "
+        "SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->"
+        "\n\n# AEGIS 3.0"
+    )
+    assert "This repository uses AEGIS 3.0" in template_agents
+    assert "AEGIS 3.0 start-guide PDF" in tools_readme
+    assert "AEGIS 2.1" not in root_readme
+    assert "AEGIS 2.1" not in package_readme
+    assert "AEGIS 2.1" not in template_agents
+    assert ">=2.0.0,<3.0.0" not in package_readme
+
+
+def test_documentation_catalog_marks_historical_and_deferred_material() -> None:
+    """
+    @brief Verify the software catalog has an explicit disposition for old guides.
+    @return None.
+    @exception None
+    """
+    repository_root = PACKAGE_ROOT.parents[1]
+    software_root = repository_root / "06_SoftwareDocu"
+    catalog = (software_root / "README.md").read_text(encoding="utf-8")
+    historical = (
+        software_root / "AEGIS_2_1_HumanExplanations" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized_historical = " ".join(historical.replace(">", " ").split())
+    removed_entries = {
+        "AEGIS_PERSISTENCE_AND_CONCURRENCY.md",
+        "SELF_GOVERNED_RELEASE.md",
+        "WAEGIS_RELEASE_REPRODUCIBILITY.md",
+        "WAEGIS_REPOWISE_WINDOWS_EXECUTION.md",
+        "WAEGIS_TRANSACTION_RECOVERY.md",
+    }
+
+    assert "Deferred Installation Material" in catalog
+    assert "Historical Material" in catalog
+    assert "Historical archive" in historical
+    assert "not the current AEGIS 3.0" in normalized_historical
+    assert all(name not in catalog for name in removed_entries)
+
+
+def test_start_guide_generator_keeps_pdf_outside_copied_template() -> None:
+    """
+    @brief Verify optional generated documentation cannot become template material.
+    @return None.
+    @exception None
+    """
+    repository_root = PACKAGE_ROOT.parents[1]
+    generator = (
+        repository_root / "02_Tools" / "generate_start_guide_pdf.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'REPOSITORY_ROOT / "02_Tools" / "generated"' in generator
+    assert 'DEFAULT_OUTPUT = DEFAULT_SOURCE.with_suffix(".pdf")' not in generator
+    assert "AEGIS 3.0  |  START GUIDE" in generator
+    assert "AEGIS 2.1" not in generator
 
 
 # END OF FILE

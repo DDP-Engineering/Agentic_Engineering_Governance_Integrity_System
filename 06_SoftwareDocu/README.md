@@ -8,8 +8,8 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Software Documentation
 
 Implementation notes, workflow contracts, and deeper technical documentation
-for the AEGIS and WAEGIS packages belong here. Canonical runnable-workflow
-documentation ships with the template:
+for AEGIS belong here. Canonical runnable-workflow documentation ships with the
+template:
 
 - `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md` - CLI
   command groups, stage-form lifecycle, evidence modes, verification, and
@@ -28,41 +28,29 @@ documentation ships with the template:
 - `05_Software/aegis/template/.agentic/documents/REPOWISE_INTEGRATION.md` -
   optional schema-1 RepoWise discovery policy, evidence freshness, offline
   boundary, and authority model.
-- `AEGIS_PERSISTENCE_AND_CONCURRENCY.md` - graph, journal, requirement, and
-  sibling-JSON atomicity, process-locking, stale-update, and durability
-  contracts.
+
+## Maintained AEGIS Guides
+
+- `02_Everyday_Work_Full_Runs.md` - full feature, fix, and change runs.
+- `03_Quick_Runs_And_Bypassing_AEGIS.md` - proportional quick runs and their
+  explicit bypass semantics.
+- `04_Configuring_AEGIS.md` - schema-3 workflow policy and optional schema-1
+  RepoWise integration.
+- `05_Reading_AEGIS_Metadata.md` - durable and transient AEGIS state.
 - `06_AEGIS_Adapter_And_Context_Conformance.md` - adapter compatibility,
-  canonical stage/bootstrap ownership, context boundaries, and public
-  execution outcomes.
-- `WAEGIS_TRANSACTION_RECOVERY.md` - authenticated transaction state, external
-  ownership binding, strict recovery validation, repository-scoped
-  serialization, RepoWise manifest-last crash recovery, dry-run behavior,
-  legacy-state refusal, and manual remediation.
-- `WAEGIS_RELEASE_REPRODUCIBILITY.md` - canonical build epoch, byte-identity
-  inputs and toolchain limits, deterministic ZIP/tar/gzip metadata, strict
-  runtime locks/downloads, exact internal verification, link graphs, atomic
-  publication, and the real-artifact reproduction procedure.
-- `WAEGIS_REPOWISE_WINDOWS_EXECUTION.md` - Click wildcard expansion on Windows,
-  literal option serialization, shell-free Complete execution, project-local
-  setup restoration, and receipt/failure ordering.
-- `SELF_GOVERNED_RELEASE.md` - prerequisites, proposed root adoption commands,
-  retained release-run evidence, and the current missing-installation blocker.
+  canonical bootstrap ownership, bounded context, and public execution
+  outcomes.
 
-Presentation material maintained in this folder (AEGIS 2.1 / WAEGIS 1.1):
+## Deferred Installation Material
 
-- `WAEGIS_01_Setup_And_First_Adoption.pptx` - setup and first-adoption journey.
-- `WAEGIS_02_Architecture_Portability_And_MultiLanguage.pptx` - architecture,
-  portability, and multi-language overview.
-- `WAEGIS_02_Safe_AEGIS_Upgrade.pptx` - moving an installed project to a new
-  compatible AEGIS 2.x payload without overwriting local work; cross-major
-  upgrades are unsupported.
+`01_Getting_Started_Install_And_Adopt.md` and its companion `.pptx` describe
+installation and adoption through WAEGIS. They are retained but are not current
+AEGIS 3.0 compatibility guidance; their refresh is deferred to the separate
+WAEGIS redesign. Consult the WAEGIS package documentation before using those
+instructions.
 
-Stakeholder architecture decks (split by scope, one shared visual system):
+## Historical Material
 
-- `WAEGIS_Architecture_Presentation.pptx` - WAEGIS as the deployment wizard: the
-  five-phase run, the configuration interview, `new` versus `adopt`, and the
-  managed lifecycle, including optional Core/Complete RepoWise discovery.
-- `AEGIS_Governance_Workflow_Presentation.pptx` - AEGIS as the governance
-  workflow: the eight development stages, file-first approvals, deterministic
-  verification, enforcement layers, and adoption track with validated
-  advisory discovery.
+`AEGIS_2_1_HumanExplanations/` is an explicitly historical explanation set for
+AEGIS 2.1. It is preserved for provenance and must not be treated as the
+current AEGIS 3.0 contract.

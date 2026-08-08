@@ -11,6 +11,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Refresh maintained AEGIS documentation for the 3.0 payload, label the AEGIS
+  2.1 human explanations as historical, remove obsolete deployment-tool
+  compatibility claims, and record explicit audit dispositions for mixed or
+  historical material.
+- Generate the optional start-guide PDF outside the copied template by default
+  and update its branding to AEGIS 3.0.
+
 ## [3.0.0] - 2026-08-08
 
 ### Added

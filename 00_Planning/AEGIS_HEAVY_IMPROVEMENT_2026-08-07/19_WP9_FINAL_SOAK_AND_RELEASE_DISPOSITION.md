@@ -201,12 +201,18 @@ WAEGIS-importing scope exclusions used for the Windows runs.
 
 ## Version and release decision
 
-No release version is assigned. The planned quick-evidence and public
-CLI/configuration changes require a MAJOR version only after the soak gate
-passes; that condition is not met. AEGIS remains at `2.1.0`, root
-`CHANGELOG.md` remains under `Unreleased`, and the downstream starter
-`template/CHANGELOG.md` remains empty. No WAEGIS declaration was read or
-changed for this decision.
+At the time of this audit, no release version was assigned. The planned
+quick-evidence and public CLI/configuration changes required a MAJOR version
+only after the soak gate passed; that condition was not met. AEGIS therefore
+remained at `2.1.0`, root `CHANGELOG.md` remained under `Unreleased`, and the
+downstream starter `template/CHANGELOG.md` remained empty. No WAEGIS
+declaration was read or changed for that decision.
+
+Owner follow-up on 2026-08-08: the owner subsequently assigned and released
+AEGIS `3.0.0`. This records the later owner decision without rewriting the
+audit-time evidence, retroactively satisfying the missing soak, or changing
+the NO-GO disposition below. The downstream starter
+`template/CHANGELOG.md` remains empty by design.
 
 ## Final disposition
 

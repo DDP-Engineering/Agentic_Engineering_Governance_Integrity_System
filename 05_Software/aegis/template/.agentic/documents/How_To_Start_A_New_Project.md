@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# How To Start and Adapt a New Project with AEGIS 2.1
+# How To Start and Adapt a New Project with AEGIS 3.0
 
 ## 1. Prerequisites
 
@@ -169,30 +169,24 @@ aegis stage close
 The run becomes complete. AEGIS performs no push, PR, merge, release, or
 publication. Those actions require a separate explicit request.
 
-## 10. WAEGIS Version Boundary
+## 10. External Deployment Boundary
 
-WAEGIS 1.2 supports AEGIS `>=2.0.0,<3.0.0`. It can generate, inspect,
-configure, optionally execute, and report all five gate groups. Upgrading an
-AEGIS 1.x installation across the major boundary is unsupported; make a fresh
-AEGIS 2.x deployment after preserving project-owned artifacts deliberately.
-See `UPGRADING.md` for the ownership manifest, the schema-2 → 3 config delta,
-and confirmation that requirement snapshots carry over untouched.
+AEGIS does not install or upgrade its own payload. External deployment tooling
+owns preview, copy, conflict resolution, and compatibility checks; consult that
+tool's current documentation before changing a deployed payload. AEGIS 3.0
+accepts schema-3 workflow configuration and does not silently migrate
+unsupported schemas or run graphs. See `UPGRADING.md` for the AEGIS-owned
+validation and project-state preservation boundary.
 
 <!-- pdf-pagebreak -->
 
 ## 11. Optional RepoWise Discovery
 
-WAEGIS Core defaults RepoWise to disabled. WAEGIS Complete can install a pinned
-offline RepoWise 0.37.0 sidecar; either edition can link an external compatible
-0.37.x command. During `new`, initial indexing defaults to No. During `adopt`,
-it defaults to Yes. `--yes` never selects RepoWise or starts a long index.
-
-Inspect or synchronize explicitly:
-
-```text
-waegis repowise status --repo "<project>"
-waegis repowise sync --repo "<project>"
-```
+RepoWise remains an optional process-isolated provider. A deployment can leave
+it disabled, link a compatible external provider, or provision a compatible
+project-local runtime. Provider installation, inspection, and synchronization
+belong to the selected external deployment tool; AEGIS never runs those
+operations.
 
 AEGIS validates the resulting receipt, graph/state schemas, hashes, Git HEAD,
 and worktree fingerprint during repository discovery. Valid proposals can fill

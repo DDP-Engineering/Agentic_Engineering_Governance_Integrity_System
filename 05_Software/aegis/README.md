@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.1
+# AEGIS 3.0
 
 AEGIS is the offline-first, project-local Agentic Engineering Governance &
 Integrity System. The runnable Python package is embedded under
@@ -205,11 +205,10 @@ reads and UUID-backed creation retain their existing behavior. Lock files under
 process exit releases the operating-system lock, so operators must not delete a
 file to bypass a live owner.
 
-WAEGIS 1.2 is the recommended deployment/configuration tool and supports AEGIS
-`>=2.0.0,<3.0.0`. Its Core and Complete editions remain outside the copied
-payload; Complete can install RepoWise 0.37.0 as a project-local sidecar. Its
-interviews and doctor do not yet manage the optional quick changed-path policy;
-that awareness remains a follow-up outside this AEGIS-only change.
+Deployment and configuration tooling remains outside the copied AEGIS payload
+and is developed separately. Verify current WAEGIS compatibility in WAEGIS's
+own documentation before using it with AEGIS 3.0. The copied payload remains
+independently runnable through its project-local wrappers.
 
 New adopters should begin with
 [`template/.agentic/documents/WHY_AEGIS.md`](template/.agentic/documents/WHY_AEGIS.md).

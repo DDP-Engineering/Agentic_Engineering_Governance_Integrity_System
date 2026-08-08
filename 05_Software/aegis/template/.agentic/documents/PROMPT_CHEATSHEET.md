@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.1 Prompt Cheat Sheet
+# AEGIS 3.0 Prompt Cheat Sheet
 
 This is a human operator flyer, not an authoritative workflow source and not an agentic delivery contract.
 It is not an evidence source. Generated forms, imported graph state, journals,
@@ -114,9 +114,9 @@ groups as disabled, not passed. Do not invent a security command.
 
 ## Adopt An Existing Project
 
-The first prompt to run in a repository WAEGIS has just deployed into. It starts
-the adoption route, which describes what already exists; it changes no
-application behavior.
+Use this first prompt after the AEGIS payload has been deployed into an existing
+repository. It starts the adoption route, which describes what already exists;
+it changes no application behavior.
 
 ```text
 Run `aegis config validate --json` and `aegis config show --json`, then
@@ -134,13 +134,14 @@ human approval per stage. Load only the reference for the current stage from the
 
 ## Adoption Discovery
 
-Run this from the WAEGIS host, not inside the governed repository — WAEGIS is
-never copied into a governed repo, so `waegis` is not on `PATH` there.
+Provider inspection or synchronization is an external deployment-tool action,
+not an AEGIS command. Confirm that operation separately before asking the agent
+to consume discovery artifacts.
 
 ```text
-Run `waegis repowise status --repo "<project>"`. If configured RepoWise is
-stale, ask before synchronizing it. During repo-discovery, report validation
-status and provenance, use only current structural proposals, preserve every
-human-entered field, warn for advisory unavailability, and block only when the
-integration is explicitly required.
+During repo-discovery, report RepoWise validation status and provenance. Use
+only current structural proposals, preserve every human-entered field, warn for
+advisory unavailability, and block only when the integration is explicitly
+required. If provider artifacts are stale, stop and ask the operator to update
+them outside AEGIS.
 ```

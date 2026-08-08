@@ -68,8 +68,9 @@ JSON must therefore never appear here. Per-hook entries accept `type`,
 `additionalContextLimit`; `commandWindows` is what lets one file carry both the
 POSIX and Windows command forms.
 
-`waegis doctor` reports a rejected file as the `runnability.adapter-configs`
-failure, and `tests/test_scaffold.py` blocks the mistake at the source.
+Deployment diagnostics should report a rejected file as an
+adapter-configuration failure, and source validation must block the mistake
+before delivery.
 
 ## Prerequisites and trust
 
