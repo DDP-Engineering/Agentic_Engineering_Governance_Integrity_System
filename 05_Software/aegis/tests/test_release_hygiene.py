@@ -100,7 +100,7 @@ def test_current_aegis_version_declarations_agree() -> None:
             versioned_adapters.append(label)
 
     assert versioned_adapters
-    assert set(declarations.values()) == {"2.1.0"}, declarations
+    assert set(declarations.values()) == {"3.0.0"}, declarations
 
 
 def test_current_waegis_version_declarations_agree() -> None:

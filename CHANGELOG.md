@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-08-08
+
 ### Added
 
 - Harden the constrained local-model pilot with a deterministic pre-network
