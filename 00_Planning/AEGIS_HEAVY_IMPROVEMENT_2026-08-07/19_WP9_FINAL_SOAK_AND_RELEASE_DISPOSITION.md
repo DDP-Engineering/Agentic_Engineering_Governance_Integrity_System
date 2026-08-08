@@ -201,16 +201,21 @@ WAEGIS-importing scope exclusions used for the Windows runs.
 
 ## Version and release decision
 
-No release version is assigned. The planned quick-evidence and public
-CLI/configuration changes require a MAJOR version only after the soak gate
-passes; that condition is not met. AEGIS remains at `2.1.0`, root
-`CHANGELOG.md` remains under `Unreleased`, and the downstream starter
-`template/CHANGELOG.md` remains empty. No WAEGIS declaration was read or
-changed for this decision.
+At the time of the WP9 disposition, no release version was assigned. The
+planned quick-evidence and public CLI/configuration changes required a MAJOR
+version, but the soak condition was not met. AEGIS therefore remained at
+`2.1.0`, the root `CHANGELOG.md` remained under `Unreleased`, and the
+downstream starter `template/CHANGELOG.md` remained empty.
+
+On 2026-08-08, the owner explicitly assigned AEGIS `3.0.0`. That decision
+supersedes only the earlier prohibition on assigning a version: it does not
+convert the remaining unmeasured release gates into passes, certify stable
+daily use, or change any WAEGIS declaration. The root changelog now records the
+AEGIS `3.0.0` boundary, while the downstream starter changelog remains empty.
 
 ## Final disposition
 
-**NO-GO: do not release, version, archive a variant, or claim daily-development
+**NO-GO: do not release, archive a variant, or claim daily-development
 stability.** The AEGIS source and AEGIS-only repeated validation are green after
 the lint correction, and the Ubuntu POSIX suite is green. The mandatory field
 soak is absent, WAEGIS-owned release gates are intentionally excluded, and

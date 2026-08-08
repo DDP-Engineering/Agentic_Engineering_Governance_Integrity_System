@@ -1,87 +1,187 @@
-Applied to WAEGIS V1 in batch 17 (2026-07-31); V2 Phase 2 inherits this catalog and the V1 wording as its starting point.
-
 # WAEGIS V2 — Interview UX Specification
 
-## 1. The principle
+**Baseline:** V1's `FieldSpec` already provides plain questions, descriptions,
+examples, choices, defaults, and validators. V2 harvests that data model and the
+useful wording, but changes the ordering and asks dependent details only when
+their controlling feature is enabled. The catalog below, not V1's tuple order,
+is authoritative for V2.
 
-Every interview question must be answerable by a normal developer **without reading the glossary**. The template is:
+## 1. Interaction rules
 
+Each question renders as:
+
+```text
+<plain question> [choices] (default: <value and proposal provenance>)
+  → <one sentence describing the behavioral consequence>
+  e.g. <realistic answer, when useful>
 ```
-<Plain question>? [choices / Y/n] (default: <safe default>)
-  -> <one sentence: what enabling/answering this actually DOES, in consequence terms>
-  e.g. <a realistic example answer>
-```
 
-Rules: one concept per question; the consequence sentence names the *behavioral effect on the agent/developer*, never the config key; defaults are the ship-open defaults (everything restrictive starts disabled/unrestricted); pressing Enter always takes the shown default; analysis proposals are shown inline as the default where available ("detected from package.json"). The machinery: `interview.py` renders these from the harvested `FieldSpec`s — the specs gain a `consequence` text field; keys, choices, validators, and answers-file compatibility are unchanged.
+Rules:
 
-## 2. The question catalog (authoritative draft)
+- one decision per question;
+- consequence wording describes what AEGIS or the operator will do, not the
+  TOML key name;
+- Enter selects exactly the displayed default;
+- restrictive policy defaults to disabled/unrestricted;
+- a proposal never masquerades as a fact: show its evidence, such as
+  `npm test (package.json scripts.test)`;
+- dependent rule lists, commands, thresholds, and stage maps are asked only
+  when their controlling mode uses them;
+- `--non-interactive` and `--json` never prompt and return code 3 with all
+  missing keys in one response;
+- `--yes` approves a fully resolved rendered mutation plan; it never invents
+  missing answers or conflict decisions;
+- answers files use a closed, versioned V2 schema and reject duplicate or
+  unknown keys by default (an explicit future migration may add a warning mode);
+- no question asks WAEGIS to create a branch or commit.
 
-### Project basics
+## 2. Project basics
 
-- **Which language is this project mainly written in?** [python/javascript/typescript/java/c/cpp/rust/go/other] (default: detected — e.g. "python, detected from 214 .py files and pyproject.toml")
-  -> Selects conventions for where source and tests usually live and how test references are checked; nothing language-specific is installed.
-- *(if other)* **File extension of your source files?** / **How is a single test referenced in your test runner?**
-  -> Lets the traceability check resolve "this requirement is covered by that test" for a language it has no preset for. e.g. `.zig`, `test_file::test_name`
-- **Where does your source code live?** (default: proposed — e.g. `src`)
-  -> Folders the workflow treats as production code: coverage checks, scope advisories, and write restrictions (if you enable them below) apply here.
-- **Where do your tests live?** (default: proposed — e.g. `tests`)
-  -> Folders where linked tests are looked up when checking that requirements are covered.
+- **Which language is this project mainly written in?**
+  `[python/javascript/typescript/java/c/cpp/rust/go/other]`
+  (default: detected with provenance, otherwise `python`)
+  → Selects source extensions and linked-test conventions; it installs no
+  language-specific tooling.
+- **Where does your source code live?** (default: detected, otherwise `src`)
+  → These roots define production code for coverage, scope, and write policy.
+- **Where do your tests live?** (default: detected, otherwise `tests`)
+  → AEGIS resolves linked tests beneath these roots.
+- *(only for `other`)* **Which source-file extensions should AEGIS recognize?**
+  → Supplies traceability extensions that the built-in presets do not know.
+  e.g. `.zig, .zon`
+- *(only for `other`)* **Which file-name patterns identify tests?**
+  → Lets requirement links resolve tests for the custom language.
+  e.g. `*_test.zig`
 
-### Quality gates (one block per gate: build, typecheck, lint, test, security)
+## 3. Alignment and workflow interface
 
-- **Enable the <name> gate? [Y/n]** (default: n — all gates start disabled)
-  -> When enabled, `aegis verify run` executes the commands below and a failure blocks validation until fixed or explicitly waived with a recorded reason. When disabled, reports honestly say "disabled" — never "passed".
-- **Command(s) for the <name> gate?** (default: proposed with provenance — e.g. `npm test` — detected from package.json scripts.test)
-  -> Run exactly as given, from the repo root. Multiple commands run in order; the first failure fails the gate.
+- **Record intent alignment before requirement and design work? [Y/n]**
+  (default: Y, matching the payload template)
+  → When enabled, a run records approved intent before downstream engineering
+  work proceeds.
+- **Require protected-scope patterns in alignment? [y/N]** (default: N)
+  → Records and validates protected scope for alignment. The current payload
+  does not yet enforce those patterns at runtime, so the interview must state
+  that limitation.
+- *(only when protected scope is enabled)* **Which path globs form that scope?**
+  e.g. `infra/**`
+- **Keep, version, or discard stage forms after import?**
+  `[versioned/latest/discard]` (default: `latest`)
+  → `latest` retains the final small handoff form, `versioned` retains every
+  revision, and `discard` removes imported forms.
+- **Who executes check commands? [external/managed]** (default: `external`)
+  → External lets an agent run and import evidence in any environment; managed
+  lets AEGIS execute the command itself.
 
-### Guardrails — each starts with the same shape of question
+The remaining alignment settings—pause on open questions, risk threshold, and
+recommended-response policy—come from the payload template and are preserved
+byte-for-byte unless the operator edits them directly.
 
-- **Scan for secrets before validation? [Y/n]** (default: n)
-  -> When enabled, changed and new files are scanned against the patterns below; a match blocks validation (waivable with a recorded reason). e.g. pattern: `AKIA[0-9A-Z]{16}` for AWS keys.
-- **Protect specific paths from modification? [Y/n]** (default: n)
-  -> When enabled, changes to matching paths (e.g. `migrations/**`, `LICENSE.txt`) are flagged as blocking findings in the working-tree review — useful for files an agent should never touch.
-- **Block suspicious working-tree patterns? [Y/n]** (default: n)
-  -> When enabled, files matching the patterns (e.g. `*.env`, `credentials*`) appearing in the diff block validation until reviewed.
-- **Restrict which folders may be written during each stage? [Y/n]** (default: n — unrestricted)
-  -> When enabled, the agent hooks deny writes outside the allowed folders for the current stage — e.g. during the check stage the agent may write only under `tests/`, which prevents it from editing source code just to make its own test cases pass.
-- **Advise when a run touches files outside its declared scope? [Y/n]** (default: n)
-  -> When enabled, changes outside the run's planned paths produce an advisory (never a block) so scope creep is visible at close time.
-- **Guard outward delivery commands? [Y/n]** (default: n)
-  -> When enabled, shell commands matching the patterns (e.g. `git push*`, `gh pr create*`) are blocked by the hooks until the delivery stage's preflight has passed — the agent cannot push before the workflow is complete.
+## 4. Quality gates
 
-### Traceability and components
+For each of `build`, `typecheck`, `lint`, `test`, and `security`:
 
-- **Enforce requirement coverage for source files? [Y/n]** (default: n)
-  -> When enabled, every file under the coverable roots must be touched by at least one Active requirement with a resolvable test, or be listed in the waiver file; missing coverage blocks validation. Start disabled and enable once your requirement register is populated.
-- **Enforce a component baseline before behavior changes? [Y/n]** (default: n)
-  -> When enabled, behavior-changing runs may only touch components whose documented completion level meets the minimum you set — protects poorly-understood legacy components from casual modification.
-- **Allow adoption runs to modify source files? [allow/forbid]** (default: forbid)
-  -> Adoption runs document existing behavior; forbidding source changes guarantees they cannot alter it.
+- **Enable the <name> gate? [y/N]** (default: N)
+  → When enforced, `aegis verify run` executes its commands and a failure blocks
+  validation until fixed or explicitly waived; disabled is reported as
+  disabled, never passed.
+- *(only when enabled)* **Which command(s) run the <name> gate?**
+  (default: evidence-backed proposal when one exists; otherwise required)
+  → Commands run from the repository root in order; the first failure fails the
+  gate.
 
-### Workflow interface
+Gate timeouts and `[gates.test].impacted_command` are advanced operator-owned
+values. Configure preserves them byte-for-byte and the bundled AEGIS CLI
+validates them.
 
-- **Keep, version, or discard stage forms after import? [versioned/latest/discard]** (default: versioned)
-  -> versioned keeps every revision under the run folder (full audit trail); latest keeps only the newest; discard deletes forms after import (leanest repo).
-- **Who executes check commands? [external/managed]** (default: external)
-  -> external: the agent runs the commands and records results (works in any environment); managed: the AEGIS CLI executes them itself (stronger evidence, requires commands runnable from the CLI's environment).
-- **Advise when a quick run grows too large? [Y/n]** (default: n)
-  -> When enabled, a quick (proportional) run touching more than N files gets an advisory suggesting a full run — never a block. (default N: 10)
+## 5. Guardrails
 
-### Adopt-specific
+- **Scan for secrets before validation? [y/N]** (default: N)
+  → When enabled, matching tool input is blocked live and the working tree is
+  scanned again at validation.
+- *(only when enabled)* **Which Python regular expressions identify secrets?**
+- **Protect specific paths from reads or writes? [y/N]** (default: N)
+  → Matching hook operations are denied and matching working-tree changes are
+  blocking findings.
+- *(only when enabled)* **Which path globs are protected?**
+- *(only when enabled)* **Protect reads, writes, or both?**
+- **Block suspicious working-tree patterns? [y/N]** (default: N)
+  → Matching files in the working tree block validation until reviewed.
+- *(only when enabled)* **Which path globs are blocked?**
+- **Restrict writes by workflow stage? [y/N]** (default: N)
+  → Hooks deny writes outside the selected stage's allowed folders.
+- *(only when enabled)* **Which globs may each stage write?**
+  → Every stage is listed; an empty list makes that stage read-only.
+- **Check paths against the run's declared scope?**
+  `[unrestricted/advisory/enforce]` (default: `unrestricted`)
+  → Advisory reports scope creep; enforce blocks it.
+- *(only for advisory/enforce)* **Which roots are allowed?**
+- **Guard outward delivery commands? [y/N]** (default: N)
+  → Matching commands are denied until deterministic verification and delivery
+  preflight succeed.
+- *(only when enabled)* **Which lowercase command fragments count as delivery?**
+  e.g. `git push`, not a glob such as `git push*`
 
-- **Per-file conflict decisions** — for each payload file that already exists and differs: **keep yours / take payload / write payload beside yours as `.new`** (asked per file, or supplied via the answers file as `adoption_conflicts`).
-  -> Nothing you own is ever silently overwritten.
-- **Commit the installed workflow now? [Y/n]** (default: Y)
-  -> Creates one commit containing only the AEGIS payload and generated config, keeping the install separable from your own changes.
+## 6. Traceability, components, adoption, and quick runs
 
-### RepoWise (only in Complete edition / Phase 7)
+- **Enforce requirement coverage for source files? [y/N]** (default: N)
+  → Files under covered roots need an Active requirement with a resolvable test
+  or an explicit coverage waiver.
+- *(only when enabled)* **Which roots require coverage?**
+- *(only when enabled)* **Which globs are excluded?**
+- **Enforce a component baseline before behavior changes? [y/N]**
+  (default: N)
+  → Behavior-changing runs may touch only components documented to the selected
+  minimum level.
+- *(only when enabled)* **What minimum completion level is required?**
+  `[unknown/discovered/characterized/baseline-usable/baseline-strict]`
+  (default: `baseline-usable`)
+- **Allow adoption runs to modify application source? [Y/n]**
+  (default: Y / `unrestricted`, matching the payload template)
+  → `blocked` guarantees adoption cannot deliver application-source changes;
+  `unrestricted` adds no such restriction.
+- **Advise when a quick run touches too many paths? [y/N]** (default: N)
+  → When enabled, an above-threshold quick run recommends a full run but never
+  blocks work.
+- *(only when enabled)* **How many changed paths trigger the advice?**
+  (default: 10; positive integer)
 
-- **Install the bundled offline RepoWise index? [Y/n]** (default: n)
-  -> Adds a local structural index some agents use for repository discovery; fully offline; ~<size> on disk. Can be linked to an external RepoWise instead, or skipped entirely.
+Disabled quick advice omits the active `[quick.changed_paths]` table for a new
+configuration. Configure may explicitly add or remove that table while
+preserving surrounding comments and advanced operator-authored fields.
 
-## 3. Acceptance criteria for this document's implementation
+## 7. Conflict and migration questions
 
-- Every `FieldSpec` in the harvested set has a `consequence` line and (where meaningful) an `example`, rendered exactly in the §1 template.
-- A user pressing Enter through the entire `adopt` interview on a detected-language repo gets: all gates disabled, all guardrails off, proposed roots accepted — a working install with zero restrictive policy, matching V1's ship-open defaults.
-- `--answers` files created for V1 still satisfy the interview with no changes (keys and accepted values unchanged).
-- The rendered question text is covered by a golden transcript test (like the V1 upgrade consent golden test).
+For every existing payload destination whose bytes differ:
+
+- **Keep local** — leave the destination untouched and record it as
+  `kept-local`;
+- **Take payload** — replace it after the full recovery plan is shown and record
+  the resulting ownership class;
+- **Write sidecar** — preserve the destination and write payload bytes to a
+  collision-free review path recorded as `sidecar`.
+
+There is no global "take all" default. Answers files may resolve paths exactly;
+unknown, missing, duplicate, case-colliding, or stale path decisions return
+needs-input. Sidecar naming is deterministic and never overwrites an existing
+path.
+
+When a V1 manifest is minimally detected, V2 asks one additional migration
+consent after explaining that V1 ownership metadata is not trusted and every
+differing destination will use the ordinary conflict rules.
+
+## 8. Acceptance criteria
+
+- A golden transcript covers interactive order, conditional skips, proposal
+  provenance, defaults, validation retries, and the V1 warning.
+- Pressing Enter through an ordinary detected-language adoption yields all
+  gates and restrictive guardrails disabled, adoption source changes
+  unrestricted, alignment enabled, form retention `latest`, external check
+  execution, and quick advice absent.
+- No disabled feature asks for its unused command/rules/threshold.
+- Every accepted interview produces a complete config that the bundled
+  `config validate --json` accepts.
+- Non-interactive and JSON invocations write no prompt text and report every
+  missing answer/conflict in one response.
+- Conflict transcripts prove no existing differing file is overwritten without
+  a path-specific resolution and final plan consent.
