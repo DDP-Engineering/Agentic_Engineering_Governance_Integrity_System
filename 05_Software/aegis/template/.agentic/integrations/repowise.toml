@@ -1,8 +1,8 @@
 # Copyright (c) 2026 DDP Engineering
 # Licensed under the PolyForm Noncommercial License 1.0.0. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
-# RepoWise is optional and advisory. WAEGIS changes this generated policy when
-# a bundled or external RepoWise installation is explicitly selected.
+# RepoWise is optional and advisory. WAEGIS 3 does not manage this policy;
+# enable or update it only through explicit operator/external-tool ownership.
 schema_version = 1
 provider = "repowise"
 mode = "disabled"

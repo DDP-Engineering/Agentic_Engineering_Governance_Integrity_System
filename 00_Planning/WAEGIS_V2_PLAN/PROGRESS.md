@@ -22,8 +22,8 @@ The V1 source remains recoverable with
 | 3 - Analyze, configure, check, and repair | Complete | 106 passed, 2 skipped; source 4,357 lines |
 | 4 - Upgrade | Complete | 111 passed, 2 skipped; source 4,712 lines |
 | 5 - Packaging and operator documentation | Complete | 119 passed, 2 skipped; all artifacts verified; source 4,834 lines |
-| 6 — Acceptance and crash harness | Not started | — |
-| 7 — Cross-platform integration and retirement | Not started | — |
+| 6 — Acceptance and crash harness | Complete | 126 passed, 2 skipped; seven hard-kill boundaries green |
+| 7 — Cross-platform integration and retirement | Technical gates complete | Owner go/no-go signature pending |
 
 ## 2026-08-08 — Phase 1 baseline
 
@@ -280,3 +280,74 @@ Actual size after Phase 5: 26 source files / 4,834 lines; 16 test files / 1,964
 lines; packaging builder source 509 lines. Published artifact sizes are 438,621
 bytes (`waegis.pyz`), 23,405,890 bytes (Windows), and 68,437,806 bytes (Linux).
 The two skips remain the deliberate host-dependent filesystem link/case fixtures.
+
+## 2026-08-08 - Phase 6 result
+
+- Added a subprocess-only publication harness with no production fault hooks.
+  It kills the actual interpreter at all six install boundaries: after flushed
+  recovery/before writes, after a tracked overwrite and new file, after
+  workflow publication, after validation, during manifest replacement, and
+  after manifest publication/before lock cleanup.
+- At every boundary the test executes the preprinted recovery commands
+  verbatim, proves exact tree and clean-index restoration, breaks only the
+  proven-dead lock, and immediately reruns the same real publication code.
+- Corrected the real-payload upgrade interruption test to kill the base
+  interpreter rather than a virtual-environment launcher. That seventh boundary
+  covers upgrade additions/replacements/removals during actual AEGIS wrapper
+  validation. Handled failure and `KeyboardInterrupt` rollback tests remain
+  green.
+- Excluded local Hypothesis, uv, HTML coverage, and coverage-data artifacts
+  from payload inventory and added a regression preventing their deployment.
+
+```text
+python -m py_compile <all changed Phase 6 Python files>
+PASS
+
+uv run --group dev ruff check packaging src tests
+All checks passed!
+
+uv run --group dev python -m pytest -q tests
+126 passed, 2 skipped in 117.25s
+
+uv run --group dev python -B -m waegis --help
+PASS
+```
+
+Actual size after Phase 6: 26 source files / 4,838 lines; 18 test files / 2,190
+lines; packaging builder/lock source 531 lines. Both line guards remain below
+their owner-approved limits.
+
+## 2026-08-08 - Phase 7 technical result
+
+- Replaced the five AEGIS test modules' retired V1 scaffolder dependency with
+  the preserved `waegis` package inventory/ownership contracts and a test-only
+  materializer. The complete AEGIS regression is green: 638 passed, 3 skipped.
+- Updated root, AEGIS, WAEGIS, copied-template, and deeper documentation to
+  AEGIS 3/WAEGIS 3. Removed the active transaction ignore rule, retained only
+  explicit historical/recovery explanations, documented RepoWise as external
+  operator-owned optional input, and kept `template/CHANGELOG.md` at zero bytes.
+- Rebuilt the zipapp and both native bundles twice. All five publication files
+  were byte-identical across builds and the release verifier passed.
+- With networking failed closed and host Python absent from `PATH`, the rebuilt
+  Windows and Linux x64 bundles passed version, new, healthy check, dry-run
+  upgrade, real 3.0.0-to-3.1.0 upgrade, post-upgrade healthy check, unchanged
+  HEAD, and clean index. The Linux run used Ubuntu 24.04/WSL and a real Node
+  24.18.0 executable; no environment warning was waived.
+- Two disposable representative Git repositories passed retirement replay.
+  The V1 repository's untrusted schema-1 ownership was re-adopted into a
+  155-record schema-2 manifest, then dry/real upgraded; its project sentinel,
+  HEAD, and index were preserved. The V2 repository preserved source, project
+  notes, generated-workflow sentinel bytes, every adapter root, HEAD, and index
+  through dry/real upgrade and healthy check.
+- D1, D3, D6, and D7 are implemented and independently exercised. The technical
+  recommendation is GO. The only unclosed retirement criterion is the owner's
+  explicit signature in `GO_NO_GO.md`; no release promotion or V1 retirement is
+  claimed before that decision.
+
+Final rebuilt artifact identity:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `waegis.pyz` | 436,751 | `81d4ba0e8df93e289967d5a28eb4812cbe23d506ff51914324f41b2ff77b96c9` |
+| `waegis-windows-x64.zip` | 23,403,895 | `a3edd38664ac1c0581fd1bc44058187b26e3b31107c85682b58cde5a1acc6ea0` |
+| `waegis-linux-x64.tar.gz` | 68,435,695 | `1794647d9dde0c17bc093806a9aa77114ddba23f67e866f808dd2fe5ec81bcef` |

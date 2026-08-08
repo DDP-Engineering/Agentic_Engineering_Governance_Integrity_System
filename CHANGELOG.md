@@ -17,6 +17,9 @@ All notable changes to this project will be documented in this file.
   a stdlib-only, ownership-aware AEGIS 3 wizard; payload-bearing zipapp; and
   Pythonless Windows/Linux x64 bundles built around that exact zipapp with
   locked CPython inputs, common release identity, and runtime-pointer support.
+- Add deterministic hard-kill coverage for every install publication boundary,
+  real-payload upgrade interruption coverage, and final Windows/Linux native
+  retirement replays with no host Python available.
 
 ### Changed
 
@@ -24,6 +27,14 @@ All notable changes to this project will be documented in this file.
   now require clean repositories, explicit complete plans and consent, exact
   pre-write recovery evidence, manifest-last publication, and operator-owned
   staging and commits.
+- Align root, AEGIS, WAEGIS, copied-template, and deeper operator documentation
+  with the AEGIS 3/WAEGIS 3 ownership, maintenance, upgrade, and external
+  RepoWise boundaries.
+
+### Fixed
+
+- Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
+  payload inventory so development artifacts cannot enter a deployment.
 
 ## [3.0.0] - 2026-08-08
 

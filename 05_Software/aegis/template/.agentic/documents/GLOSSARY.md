@@ -155,19 +155,18 @@ blocks.
 
 ## Red-before-green
 
-The full-run fix rule requiring recorded failing (`red`) evidence for a check
-before recorded passing (`green`) evidence for that check. It is evaluated by
-INV-3; quick runs do not collect checks, so INV-3 is `not-applicable` there.
+The rule requiring recorded failing (`red`) evidence for a check before
+recorded passing (`green`) evidence for that check. It is evaluated by INV-3.
+Quick runs have no separate check stage, but they create/register checks during
+implementation and must record their red result before green evidence.
 
 ## RepoWise
 
 An optional, separate repository-discovery integration. AEGIS reads normalized
 RepoWise artifacts during adoption discovery but neither imports RepoWise
-Python code nor executes its CLI. Its deployment is one of three portability
-states: `source-only` (not configured), `external-runtime` (linked to a
-machine-level installation outside the repository), or
-`offline-bundled-runtime` (a gitignored runtime installed beneath
-`.agentic/tools/repowise/<version>/<platform>` by WAEGIS Complete). See
+Python code nor executes its CLI. The policy and artifacts are maintained
+manually or by separate external tooling; WAEGIS 3 does not provision or
+synchronize them. See
 [REPOWISE_INTEGRATION.md](REPOWISE_INTEGRATION.md).
 
 ## Requirement snapshot

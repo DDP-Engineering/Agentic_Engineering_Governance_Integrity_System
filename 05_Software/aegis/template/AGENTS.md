@@ -7,7 +7,7 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # AGENTS.md
 
-This repository uses AEGIS 2.1, a human-approved, file-first engineering
+This repository uses AEGIS 3.0, a human-approved, file-first engineering
 workflow. Treat `.agentic/workflow.toml` as the only AEGIS policy source.
 
 New to AEGIS? Read `.agentic/documents/WHY_AEGIS.md` first, then use

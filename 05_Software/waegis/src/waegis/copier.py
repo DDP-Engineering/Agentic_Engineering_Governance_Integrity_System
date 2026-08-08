@@ -36,6 +36,7 @@ _EXCLUDED_DIRECTORIES = frozenset(
     {
         ".git",
         ".hg",
+        ".hypothesis",
         ".svn",
         ".mypy_cache",
         ".nox",
@@ -44,11 +45,14 @@ _EXCLUDED_DIRECTORIES = frozenset(
         ".tox",
         ".venv",
         ".uv-cache",
+        ".uv_cache",
         "__pycache__",
         "node_modules",
+        "htmlcov",
     }
 )
 _EXCLUDED_SUFFIXES = frozenset({".pyc", ".pyo"})
+_EXCLUDED_FILES = frozenset({".coverage", "coverage.xml"})
 
 
 # DATA MODELS / TYPEDEFINITIONS
@@ -162,7 +166,7 @@ def enumerate_payload(root: Path) -> PayloadInventory:
             kept_directories.append(name)
         names[:] = kept_directories
         for name in sorted(files):
-            if Path(name).suffix in _EXCLUDED_SUFFIXES:
+            if name in _EXCLUDED_FILES or Path(name).suffix in _EXCLUDED_SUFFIXES:
                 continue
             source = directory_path / name
             if _is_reparse(source) or not source.is_file():

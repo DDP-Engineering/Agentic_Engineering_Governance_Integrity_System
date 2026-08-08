@@ -79,6 +79,10 @@ ownership class per path:
 - `kept-local`: existing project bytes retained by an explicit decision;
 - `sidecar`: payload bytes written beside a retained conflict for review.
 
+The shipped generated workflow uses
+`stage_form_retention = "latest"`; `configure` changes it only from an
+explicit operator answer.
+
 Repair touches only selected missing or drifted `managed` paths. Upgrade uses a
 three-way comparison of the installed baseline, current bytes, and new payload.
 Generated, seeded, kept-local, sidecar, requirements, component data,

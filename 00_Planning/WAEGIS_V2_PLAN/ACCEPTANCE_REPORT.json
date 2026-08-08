@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "report_date": "2026-08-08",
+  "implementation": {
+    "branch": "ddp/waegis-v3-implementation",
+    "workspace": "D:\\TEMP\\2026_Agentic_Engineering_Governance_Integrity_System_WAEGIS_V3",
+    "waegis_version": "3.0.0",
+    "bundled_aegis_version": "3.0.0",
+    "aegis_compatibility": ">=3.0.0,<4.0.0",
+    "manifest_schema": 2
+  },
+  "status": {
+    "technical_acceptance": "passed",
+    "retirement_gate": "pending-owner-signoff",
+    "technical_recommendation": "GO",
+    "release_promoted": false,
+    "v1_retired": false
+  },
+  "owner_decisions": {
+    "D1": {
+      "decision": "RepoWise excluded from WAEGIS core",
+      "status": "passed"
+    },
+    "D3": {
+      "decision": "one payload zipapp plus Pythonless Windows/Linux x64 bundles",
+      "status": "passed"
+    },
+    "D6": {
+      "decision": "AEGIS >=3.0.0,<4.0.0 only",
+      "status": "passed"
+    },
+    "D7": {
+      "decision": "git init only for new; no branch, stage, or commit automation",
+      "status": "passed"
+    }
+  },
+  "automated_validation": {
+    "waegis": {
+      "command": "uv run --group dev python -m pytest -q tests",
+      "passed": 126,
+      "skipped": 2,
+      "failed": 0,
+      "duration_seconds": 117.25,
+      "ruff": "passed",
+      "compile": "passed",
+      "cli_help": "passed"
+    },
+    "aegis": {
+      "command": "uv run --group dev python -m pytest -q tests",
+      "passed": 638,
+      "skipped": 3,
+      "failed": 0,
+      "duration_seconds": 69.09,
+      "five_waegis_importing_test_modules": "passed",
+      "cli_help": "passed"
+    },
+    "skips": {
+      "gate_effect": "none",
+      "explanation": "Host-dependent filesystem/platform cases were skipped by their explicit conditions; equivalent Linux and native-bundle paths passed separately."
+    }
+  },
+  "crash_recovery": {
+    "status": "passed",
+    "hard_kill_boundaries": 7,
+    "install_boundaries": [
+      "after recovery flush before first write",
+      "after tracked overwrite and exact new file",
+      "after workflow publication before validation",
+      "after validation before manifest",
+      "during manifest replacement",
+      "after manifest before lock cleanup"
+    ],
+    "upgrade_boundary": "real payload mutations during AEGIS wrapper validation",
+    "assertions": [
+      "recovery emitted before mutation",
+      "commands executed verbatim",
+      "exact original tree restored",
+      "index clean",
+      "dead-owner lock requires explicit break",
+      "immediate rerun succeeds",
+      "handled failure and KeyboardInterrupt roll back automatically"
+    ]
+  },
+  "artifacts": {
+    "repeat_build_byte_identical": true,
+    "verification": "passed",
+    "payload_digest": "c89a8d5b417c6a6152c24ce25b6ca4d94eb4c2cf2be5160a9ee37d858a846a83",
+    "files": {
+      "waegis.pyz": {
+        "bytes": 436751,
+        "sha256": "81d4ba0e8df93e289967d5a28eb4812cbe23d506ff51914324f41b2ff77b96c9"
+      },
+      "waegis-windows-x64.zip": {
+        "bytes": 23403895,
+        "sha256": "a3edd38664ac1c0581fd1bc44058187b26e3b31107c85682b58cde5a1acc6ea0"
+      },
+      "waegis-linux-x64.tar.gz": {
+        "bytes": 68435695,
+        "sha256": "1794647d9dde0c17bc093806a9aa77114ddba23f67e866f808dd2fe5ec81bcef"
+      },
+      "release-manifest.json": {
+        "bytes": 773,
+        "sha256": "6cbc11b82e061be815fd6efaacb700b3bb2980db782fbc6e371a59e4bebf64b9"
+      },
+      "SHA256SUMS": {
+        "bytes": 348,
+        "sha256": "b318d842d544dada46ec703edf5461102e8b17046b6833e4b579269fb0805d00"
+      }
+    }
+  },
+  "runtime_acceptance": {
+    "network_controls": [
+      "PIP_NO_INDEX=1",
+      "UV_OFFLINE=1",
+      "HTTP_PROXY and HTTPS_PROXY routed to a closed loopback port"
+    ],
+    "zipapp_python_present": {
+      "version": "passed",
+      "healthy_check": "passed"
+    },
+    "windows_x64_python_absent": {
+      "host_python_lookup": "absent",
+      "version": "passed",
+      "new": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade_3_0_to_3_1": "passed",
+      "real_upgrade_3_0_to_3_1": "passed",
+      "post_upgrade_check": "passed",
+      "head_preserved": true,
+      "index_clean": true
+    },
+    "linux_x64_python_absent": {
+      "runner": "Ubuntu 24.04 on WSL",
+      "host_python_lookup": "absent",
+      "node_version": "24.18.0",
+      "version": "passed",
+      "new": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade_3_0_to_3_1": "passed",
+      "real_upgrade_3_0_to_3_1": "passed",
+      "post_upgrade_check": "passed",
+      "head_preserved": true,
+      "index_clean": true
+    }
+  },
+  "representative_repositories": {
+    "v1_to_v2": {
+      "path": "D:\\TEMP\\WAEGIS_V3_REPLAY_V1",
+      "untrusted_v1_ownership_ignored": true,
+      "schema_2_file_records": 155,
+      "adopt": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade": "passed",
+      "real_upgrade": "passed",
+      "final_payload_version": "3.1.0",
+      "project_sentinel_preserved": true,
+      "head_preserved": true,
+      "index_clean": true
+    },
+    "v2_to_v2": {
+      "path": "D:\\TEMP\\WAEGIS_V3_REPLAY_V2",
+      "new": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade": "passed",
+      "real_upgrade": "passed",
+      "final_payload_version": "3.1.0",
+      "source_notes_and_workflow_sentinels_preserved": true,
+      "all_adapter_roots_present": true,
+      "head_preserved": true,
+      "index_clean": true
+    }
+  },
+  "structural_gates": {
+    "waegis_source_files": 26,
+    "waegis_source_lines": 4838,
+    "source_limit": 9500,
+    "packaging_files": 3,
+    "packaging_lines": 531,
+    "packaging_limit": 1000,
+    "template_changelog_bytes": 0,
+    "repowise_core_absent": true,
+    "git_history_automation_absent": true,
+    "active_transaction_ignore_absent": true
+  },
+  "retirement_criteria": {
+    "1_windows_complete": "passed",
+    "2_posix_complete": "passed",
+    "3_full_aegis_suite": "passed",
+    "4_representative_repositories": "passed",
+    "5_owner_decisions_implemented": "passed",
+    "6_documentation_and_template_hygiene": "passed",
+    "7_release_process_and_owner_signature": "pending-owner-signoff"
+  },
+  "owner_signoff": {
+    "decision": null,
+    "owner": null,
+    "signed_at": null
+  }
+}

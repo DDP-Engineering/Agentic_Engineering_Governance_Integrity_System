@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 """
 @file cli.py
-@brief Stage-oriented, file-first AEGIS 2.1 command-line interface.
+@brief Stage-oriented, file-first AEGIS 3.0 command-line interface.
 @details Exposes only ten grouped command families, two global options, stable
          concise/JSON response fields, and no AEGIS 1.x aliases or mutation
          flags.
@@ -137,7 +137,7 @@ TOP_LEVEL_COMMANDS = (
 
 def main(argv: list[str] | None = None) -> None:
     """
-    @brief      Run the AEGIS 2.1 grouped CLI.
+    @brief      Run the AEGIS 3.0 grouped CLI.
     @param[in]  argv Optional argument vector for tests and embedding.
     @return     None.
     @exception  SystemExit For parser, policy, validation, or command failures.

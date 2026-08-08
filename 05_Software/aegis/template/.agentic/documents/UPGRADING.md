@@ -5,114 +5,74 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# Upgrading AEGIS 1.x to 2.x
+# Maintaining and Upgrading AEGIS 3
 
-`How_To_Start_A_New_Project.md` §10 states that an in-place AEGIS 1.x → 2.x
-upgrade is unsupported and that a fresh 2.x deployment should be made "after
-preserving project-owned artifacts deliberately" — without saying which
-artifacts those are. This document is that missing procedure: what to keep,
-what to replace, and the one config edit in between.
+WAEGIS 3 maintains only installations with its valid schema-2 receipt at
+`.agentic/install-manifest.json`. The receipt records exact payload identity,
+baseline hashes, and one ownership disposition per path.
 
-There is no `waegis upgrade` command and none is planned; a 1.x installation
-and a 2.x installation are two independent deployments joined by copying the
-project-owned artifacts below from the old one into the new one.
+The shipped generated-policy default remains
+`stage_form_retention = "latest"`; an upgrade preserves the current generated
+workflow, and only an explicit `waegis configure` changes WAEGIS-owned fields.
 
-## What is payload-owned (replace) vs. project-owned (preserve)
+## Ownership classes
 
-| Payload-owned — replace with the new 2.x deployment | Project-owned — copy forward unchanged |
+| Disposition | Maintenance authority |
 |---|---|
-| `.agentic/cli/`, `.agentic/tools/`, `.agentic/hooks/`, `.agentic/documents/`, `.agentic/skills/`, `.agentic/integrations/` | `.agentic/requirements/` |
-| `.agentic/LICENSE.txt` | `.agentic/components.toml` |
-| The five host-adapter directories (`.claude/`, `.codex/`, `.qwen/`, `.pi/`, `.opencode/`) | `.agentic/knowledge/` |
-| `AGENTS.md`, `CLAUDE.md`, `QWEN.md`, `opencode.json` | `.agentic/reports/` |
-| | `.agentic/specs/` |
-| | `.agentic/runs/` |
+| `managed` | WAEGIS may repair or three-way-upgrade the path. |
+| `generated` | Only `waegis configure` may regenerate owned policy fields. |
+| `seeded` | Created only when absent, then project-owned. |
+| `kept-local` | Project bytes retained by an explicit conflict decision. |
+| `sidecar` | Payload review copy beside a retained local path. |
 
-Payload-owned material is whatever a fresh `waegis new` / `waegis adopt` would
-generate on its own — deploy the new version of it and discard the 1.x copy
-outright rather than diffing the two. Project-owned material is what the
-project authored inside that structure — deploy the new payload first, then
-copy each project-owned path from the 1.x checkout into the new tree,
-overwriting the payload's placeholder copies where one exists (for example an
-empty `.agentic/components.toml`).
+Requirements, specifications, components, knowledge, reports, runs, workspace
+state, generated policy, and retained conflicts are not generic managed files.
 
-`.agentic/runs/` is listed as project-owned for continuity, but see
-"Requirement snapshots carry over untouched" below for the one exception: a
-run in flight under the 1.x schema cannot be resumed by the 2.x CLI and should
-be finished or abandoned on the 1.x deployment before cutting over.
+## Health and repair
 
-## The schema-2 → schema-3 config delta
+```text
+waegis check --repo PATH
+waegis repair --repo PATH --dry-run
+waegis repair --repo PATH --yes
+```
 
-`.agentic/workflow.toml` is project-owned, so it survives the copy — but it
-was written against schema 2 and the 2.x CLI's `config validate` rejects
-anything that is not `schema_version = 3` outright (`CONFIG-SCHEMA-UNSUPPORTED`
-— AEGIS does not migrate configurations for you). The delta is two mechanical
-edits:
+`doctor` is an alias for `check`. Check is read-only and reports manifest,
+drift, wrapper, configuration, hook/adapter, Node, repository-root, version,
+and runtime-pointer findings. Repair restores only approved missing/drifted
+`managed` paths and publishes the updated manifest after AEGIS validation.
 
-1. **Bump the version.**
+## AEGIS 3 upgrade
 
-   ```toml
-   schema_version = 3
-   ```
+```text
+waegis upgrade --repo PATH --payload NEW_PAYLOAD --dry-run
+waegis upgrade --repo PATH --payload NEW_PAYLOAD --yes
+```
 
-2. **Add the `[interface]` table.** Schema 2 had no file-first interface
-   policy to declare; schema 3 requires one:
+The new payload must be strictly newer and inside `>=3.0.0,<4.0.0`. WAEGIS
+compares installed baseline, current bytes, and new payload for every managed
+path. Unambiguous add/replace/remove/converge outcomes are planned directly;
+true conflicts require keep-local, take-payload, or sidecar. Project-owned
+dispositions remain project-owned. The new manifest is written only after the
+copied AEGIS wrapper passes validation and smoke.
 
-   ```toml
-   [interface]
-   stage_form_retention = "latest"    # "versioned" | "latest" | "discard"
-   check_execution = "external"       # "external" | "managed"
-   ```
+Existing-repository mutations require a clean tree and unchanged planned HEAD.
+WAEGIS prints exact path-scoped Git recovery commands before writing. Handled
+failures execute them; after a hard kill, run the already printed commands and
+break only the confirmed dead-owner lock. WAEGIS creates no transaction
+directory, branch, stage, or commit.
 
-3. **Split the single `[gates]` table into one `[gates.<group>]` table per
-   group.** Schema 2 configured all gate commands under one `[gates]` table;
-   schema 3 requires a separate table per group, each with its own `mode` and
-   `commands`:
+## Legacy and cross-major cases
 
-   ```toml
-   [gates.build]
-   mode = "disabled"
-   commands = []
+A WAEGIS 1 receipt is detected only for guidance. Use `waegis adopt`,
+explicitly acknowledge migration, and resolve each differing path through the
+normal conflict rules. WAEGIS never loads or trusts WAEGIS 1 ownership,
+answers, transaction, or runtime data.
 
-   [gates.typecheck]
-   mode = "disabled"
-   commands = []
+AEGIS 2, AEGIS 4, invalid manifests, absent manifests, and same/older payloads
+cannot enter the WAEGIS 3 upgrade path. Preserve project-owned material and
+establish a supported AEGIS 3 schema-2 baseline through `adopt` where
+appropriate; never manufacture or hand-edit a receipt to bypass this boundary.
 
-   [gates.lint]
-   mode = "disabled"
-   commands = []
-
-   [gates.test]
-   mode = "disabled"
-   commands = []
-
-   [gates.security]
-   mode = "disabled"
-   commands = []
-   ```
-
-   Carry each group's prior `mode` and `commands` into its own table; nothing
-   about gate *policy* changed, only how it is declared.
-
-Run `aegis config validate` after each edit — the error messages name the
-offending key, its current value, and the expected shape one at a time, so
-expect to iterate a few rounds rather than getting everything right in one
-pass. That is expected, not a sign the migration is going wrong.
-
-## Requirement snapshots carry over untouched
-
-**The requirement store needs no migration.** Every `schema_version = 1`
-requirement TOML under `.agentic/requirements/` reads cleanly under the 2.x
-CLI, and `aegis requirement list` returns them unmodified — durable
-requirement records are versioned independently of the workflow config schema
-and were not part of the 2.x schema change. Copy `.agentic/requirements/`
-forward as-is; there is nothing to convert.
-
-## After the copy
-
-1. Run `aegis config validate` and resolve each reported key in turn until it
-   reports `status: ok`.
-2. Run `aegis requirement list` and confirm the expected count of legacy
-   requirements is present.
-3. Start (or resume, if one was already in flight before the cutover) a run on
-   the new deployment as usual.
+Historical workflow records remain audit material. A run created by an
+incompatible AEGIS schema should be completed or abandoned with its original
+tooling rather than rewritten to appear current.

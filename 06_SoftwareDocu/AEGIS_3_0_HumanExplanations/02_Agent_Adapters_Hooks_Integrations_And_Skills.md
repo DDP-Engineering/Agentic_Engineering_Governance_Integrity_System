@@ -88,7 +88,7 @@ part of the core AEGIS workflow. The standard payload currently includes
 
 | Artifact or field group | Represents and stores | Created or updated by | Why it is needed |
 | --- | --- | --- | --- |
-| `repowise.toml` | Optional Repowise policy: schema version, provider, mode, source, supported version range, artifact/state paths, and Git-head/working-tree matching requirements. | Generated or updated by WAEGIS only when the optional integration is selected; initially copied with disabled defaults. | Lets AEGIS inspect external repository knowledge only under an explicit, locally recorded policy. |
+| `repowise.toml` | Optional Repowise policy: schema version, provider, mode, source, supported version range, artifact/state paths, and Git-head/working-tree matching requirements. | Copied with disabled defaults; enabled or changed only by the repository operator or separately managed external tooling. | Lets AEGIS inspect external repository knowledge only under an explicit, locally recorded policy. |
 | `.repowise/` (when present) | External Repowise knowledge-graph artifact and state data. | Repowise, not AEGIS. | Supplies optional discovery information. AEGIS treats it according to the integration policy, normally as advisory evidence. |
 
 An optional integration does not become an independent authority over the

@@ -68,6 +68,21 @@ def test_generated_inventory_round_trips_and_detects_one_byte_change(tmp_path: P
         verify_inventory(payload, inventory)
 
 
+def test_inventory_excludes_local_build_and_coverage_artifacts(tmp_path: Path) -> None:
+    """@brief R9 local test/build products never leak into the deployable payload."""
+    payload = tmp_path / "payload"
+    payload.mkdir()
+    (payload / "kept.txt").write_text("payload\n", encoding="utf-8")
+    for directory in (".hypothesis", ".uv_cache", "htmlcov"):
+        artifact = payload / directory
+        artifact.mkdir()
+        (artifact / "leak.txt").write_text("local\n", encoding="utf-8")
+    (payload / ".coverage").write_text("coverage\n", encoding="utf-8")
+    (payload / "coverage.xml").write_text("coverage\n", encoding="utf-8")
+    inventory = enumerate_payload(payload)
+    assert [record.path for record in inventory.records] == ["kept.txt"]
+
+
 def test_inventory_detects_missing_and_unexpected_entries(tmp_path: Path) -> None:
     """@brief Closed membership rejects both subtraction and addition."""
     payload = tmp_path / "payload"

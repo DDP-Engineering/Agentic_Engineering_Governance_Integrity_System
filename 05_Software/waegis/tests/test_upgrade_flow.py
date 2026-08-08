@@ -267,9 +267,11 @@ def test_hard_kill_uses_preemitted_recovery_and_immediate_rerun(tmp_path: Path) 
     package_root = Path(__file__).parents[1]
     environment = os.environ.copy()
     environment["WAEGIS_TEST_SIGNAL"] = str(signal)
+    environment["PYTHONPATH"] = str(package_root / "src")
+    python = str(Path(getattr(sys, "_base_executable", sys.executable)))
     process = subprocess.Popen(
         (
-            sys.executable,
+            python,
             "-m",
             "waegis",
             "upgrade",

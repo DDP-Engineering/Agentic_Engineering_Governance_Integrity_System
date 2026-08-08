@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.1 Prompt Cheat Sheet
+# AEGIS 3.0 Prompt Cheat Sheet
 
 This is a human operator flyer, not an authoritative workflow source and not an agentic delivery contract.
 It is not an evidence source. Generated forms, imported graph state, journals,
@@ -134,13 +134,15 @@ human approval per stage. Load only the reference for the current stage from the
 
 ## Adoption Discovery
 
-Run this from the WAEGIS host, not inside the governed repository — WAEGIS is
-never copied into a governed repo, so `waegis` is not on `PATH` there.
+Run this inside the governed repository. Optional external discovery must
+already have been configured and refreshed by the repository operator or its
+separately managed tool; WAEGIS 3 does not manage RepoWise.
 
 ```text
-Run `waegis repowise status --repo "<project>"`. If configured RepoWise is
-stale, ask before synchronizing it. During repo-discovery, report validation
-status and provenance, use only current structural proposals, preserve every
-human-entered field, warn for advisory unavailability, and block only when the
-integration is explicitly required.
+Run `aegis config validate --json`, then continue the current repo-discovery
+stage. Report optional integration validation status and provenance, use only
+current structural proposals, preserve every human-entered field, warn for
+advisory unavailability, and block only when the integration is explicitly
+required. Never execute or refresh the external integration without a separate
+operator request.
 ```
