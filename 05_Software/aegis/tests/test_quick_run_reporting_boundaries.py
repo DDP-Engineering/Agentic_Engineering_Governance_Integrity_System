@@ -27,13 +27,26 @@ import pytest
 from aegis.cli import main
 from aegis.config import WorkflowConfig, load_config
 from aegis.report import render_report
-from aegis.store import load_graph
+from aegis.store import init_graph, load_graph
 from aegis.verification import run_verification
 
 # CONSTANTS
 
 QUICK_BYPASSED_STAGES = ["alignment", "requirement", "design", "check"]
 NOT_APPLICABLE_INVARIANTS = ("INV-1", "INV-2", "INV-8", "INV-10")
+
+
+def test_report_marks_disabled_coverage_as_not_enforced(tmp_path: Path) -> None:
+    """@brief A disabled default policy is never rendered as a passing audit."""
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "fix", "Report disabled coverage honestly")
+
+    report = render_report(tmp_path, graph, config)
+    audit_section = report.split("## Traceability Audits", maxsplit=1)[1]
+    audit_section = audit_section.split("## Deterministic Verification", maxsplit=1)[0]
+
+    assert "NOT ENFORCED" in audit_section
+    assert "traceability and coverage audits have no findings" not in audit_section
 
 # LOCAL HELPERS
 

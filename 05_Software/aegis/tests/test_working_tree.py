@@ -26,7 +26,7 @@ import pytest
 
 from aegis.config import load_config
 from aegis.models import Graph, Intent
-from aegis.working_tree import audit_working_tree
+from aegis.working_tree import _git_status, audit_working_tree
 
 # TESTS
 
@@ -108,6 +108,60 @@ def test_missing_git_fails_closed(
     monkeypatch.setattr(subprocess, "run", unavailable)
     report = audit_working_tree(tmp_path, load_config(tmp_path))
     assert report["blocking_findings"][0]["code"] == "git-status-unavailable"
+
+
+def test_git_status_uses_bounded_nul_delimited_rename_records(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief Parse arrow-bearing rename paths without ambiguous splitting."""
+    observed: dict[str, object] = {}
+
+    def completed(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        """@brief Return one rename and one ordinary arrow-bearing filename."""
+        observed["command"] = command
+        observed.update(kwargs)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="R  new -> name\0old -> name\0?? literal -> name\0",
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", completed)
+
+    entries, error = _git_status(tmp_path)
+
+    assert error is None
+    assert entries == [
+        {
+            "status": "R ",
+            "path": "new -> name",
+            "previous_path": "old -> name",
+        },
+        {"status": "??", "path": "literal -> name"},
+    ]
+    assert "-z" in observed["command"]
+    assert observed["timeout"] == 30
+    assert observed["errors"] == "strict"
+
+
+def test_git_status_timeout_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief A hung Git process becomes a bounded unavailable-state result."""
+    def timeout(*_args: object, **_kwargs: object) -> None:
+        """@brief Simulate Git exceeding its audit deadline."""
+        raise subprocess.TimeoutExpired("git", 30)
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+
+    entries, error = _git_status(tmp_path)
+
+    assert entries == []
+    assert error is not None
+    assert "timed out" in error
 
 
 def test_renaming_a_protected_file_is_still_a_protected_path_finding(
@@ -193,13 +247,9 @@ def test_backslash_in_a_posix_filename_is_not_translated(tmp_path: Path) -> None
     @brief      A literal backslash in a filename survives status decoding.
     @param[in]  tmp_path Temporary repository root.
     @return     None.
-    @details    Regression test (B7, 2026-08-04): `_unquote_git_path(...)
-                .replace("\\\\", "/")` ran *after* unquoting. Git emits `/` as
-                its separator on every platform, so the replacement could only
-                ever fire on a backslash the unquoting had just correctly
-                recovered - turning `data\\report.csv` into the non-existent
-                `data/report.csv`, against which no protected pattern could
-                match and the secret scan read nothing.
+    @details    NUL-delimited porcelain emits path bytes without C-style quote
+                parsing or separator replacement, so a literal backslash stays
+                part of the POSIX filename and reaches policy matching intact.
     @exception  None
     """
     _init_repo(tmp_path)

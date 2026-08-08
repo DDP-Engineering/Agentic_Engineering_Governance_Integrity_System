@@ -92,6 +92,10 @@ def apply_evidence_form(repo_root: Path, graph: Graph) -> dict[str, Any]:
     @return     Applied action summary.
     @exception  StageOperationError If the current stage was not prepared.
     """
+    if graph.complete:
+        raise StageOperationError(
+            "run is complete; manual evidence cannot be applied to a closed run"
+        )
     record = graph.stage_records.get(graph.stage)
     if record is None:
         raise StageOperationError(

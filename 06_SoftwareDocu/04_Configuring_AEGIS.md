@@ -157,16 +157,14 @@ mode = "disabled"
 patterns = []
 ```
 
-Alignment is on by default for full runs (quick runs never reach it — see
-the note on quick runs and bypassing AEGIS). `risk_threshold` is `low`,
-`medium`, or `high`: it's the minimum assessed risk level at which
-alignment's controls actually engage, so a genuinely low-risk change doesn't
-get held up by process built for riskier ones. `pause_on_open_questions`
-determines whether an unresolved question in the alignment form actually
-stops the stage from closing, or is just recorded. `protected_scope` is a
-narrower guardrail inside alignment specifically: `enforce` mode with
-patterns blocks a run from touching paths you've marked as needing extra
-scrutiny before alignment can close.
+The alignment table is reserved compatibility metadata in the current
+implementation. AEGIS validates and preserves these values, but none of them
+currently changes stage routing, stage closure, or path enforcement. In
+particular, `pause_on_open_questions`, `risk_threshold`, and
+`alignment.protected_scope` are not active controls. Use the guardrails above
+for enforced path policy. Keeping the table in the starter configuration
+preserves forward compatibility without implying enforcement that does not
+exist.
 
 ## Traceability and coverage
 

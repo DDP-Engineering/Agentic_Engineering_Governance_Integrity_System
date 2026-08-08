@@ -690,6 +690,31 @@ def test_component_baseline_scope_returns_result_when_guard_enforces(
     assert "COMPONENT-BASELINE-MISSING" in result.message
 
 
+def test_malformed_component_manifest_becomes_inv9_failure(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Malformed component data does not abort the invariant pass."""
+    replace_workflow_toml(
+        '[components.baseline_guard]\nmode = "disabled"',
+        '[components.baseline_guard]\nmode = "enforce"\n'
+        'minimum_completion_level = "characterized"',
+    )
+    (tmp_path / ".agentic" / "components.toml").write_text(
+        "[components\n",
+        encoding="utf-8",
+    )
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "fix", "Keep waiver discovery available")
+    graph.change_units = [ChangeUnit(id="CU-001", touched_paths=["src/core.py"])]
+
+    result = _component_baseline_scope(tmp_path, graph, config)
+
+    assert result.holds is False
+    assert "could not be evaluated" in result.message
+    assert "cannot load component manifest" in result.message
+
+
 # --- Malformed requirement storage ----------------------------------------------
 
 

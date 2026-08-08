@@ -249,8 +249,11 @@ def read_validation_summary(repo_root: Path, graph: Graph) -> dict[str, Any]:
     if not path.is_file():
         raise CommandInputError("no validation summary; run `aegis verify run`")
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("validation summary JSON must be an object")
+        return payload
+    except (OSError, UnicodeError, ValueError) as exc:
         raise CommandInputError(
             f"cannot load validation summary {path}: {exc}"
         ) from exc

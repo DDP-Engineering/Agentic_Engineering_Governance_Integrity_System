@@ -606,6 +606,36 @@ def test_managed_green_rerun_supersedes_prior_failed_attempt(
     assert check.red_evidence == "E-0001"
 
 
+def test_managed_reruns_keep_each_evidence_log_immutable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief A rerun never overwrites an earlier active evidence witness."""
+    graph = _external_graph(
+        tmp_path, stage="implementation", mode="managed", check_count=1
+    )
+    results = iter(((1, "red"), (0, "green")))
+
+    def run_result(
+        _root: Path, command: str, _timeout: int
+    ) -> subprocess.CompletedProcess[str]:
+        code, stdout = next(results)
+        return subprocess.CompletedProcess(command, code, stdout, "")
+
+    monkeypatch.setattr(check_execution_module, "_run_command", run_result)
+
+    first = run_checks(tmp_path, graph)[0]
+    second = run_checks(tmp_path, graph)[0]
+
+    assert first.output_log != second.output_log
+    assert (tmp_path / first.output_log).read_text(encoding="utf-8").startswith(
+        "stdout:\nred"
+    )
+    assert (tmp_path / second.output_log).read_text(encoding="utf-8").startswith(
+        "stdout:\ngreen"
+    )
+
+
 def test_external_green_rerun_supersedes_prior_failed_attempt(
     tmp_path: Path,
 ) -> None:

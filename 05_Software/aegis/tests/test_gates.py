@@ -20,7 +20,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 import subprocess
+import sys
 import threading
+import time
 
 import pytest
 
@@ -39,6 +41,26 @@ from aegis.store import init_graph, load_graph, save_graph, set_access_mode
 from aegis.verification import _gate_result
 
 # TESTS
+
+
+def test_timeout_kills_descendants_that_hold_captured_pipes(tmp_path: Path) -> None:
+    """@brief A grandchild cannot keep a timed-out gate blocked indefinitely."""
+    script = (
+        "import subprocess,sys,time;"
+        "subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
+        "time.sleep(60)"
+    )
+    started = time.monotonic()
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        gates_module._run_with_timeout(
+            tmp_path,
+            [sys.executable, "-c", script],
+            shell=False,
+            timeout=1,
+        )
+
+    assert time.monotonic() - started < 10
 
 
 @pytest.mark.parametrize(
@@ -75,7 +97,7 @@ def test_windows_launch_refusal_retries_the_command_through_the_shell(
             raise refusal
         return subprocess.CompletedProcess("npm run build", 0, "built", "")
 
-    monkeypatch.setattr(subprocess, "run", refuse_then_succeed)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", refuse_then_succeed)
 
     result = _run_command(tmp_path, "npm run build", 30)
 
@@ -104,7 +126,7 @@ def test_timeout_is_never_relaunched_through_the_shell(
         calls.append(bool(kwargs["shell"]))
         raise subprocess.TimeoutExpired("pytest -q", 30)
 
-    monkeypatch.setattr(subprocess, "run", time_out)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", time_out)
 
     result = _run_command(tmp_path, "pytest -q", 30)
 
@@ -142,7 +164,7 @@ def test_failed_shell_retry_stays_on_the_evidence_path(
             raise PermissionError(5, "Access is denied")
         raise retry_error
 
-    monkeypatch.setattr(subprocess, "run", refuse_then_fail)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", refuse_then_fail)
 
     result = _run_command(tmp_path, "pytest -q", 30)
 
@@ -177,7 +199,7 @@ def test_permission_error_is_not_retried_outside_windows_direct_exec(
         calls.append(bool(kwargs["shell"]))
         raise PermissionError(5, "Access is denied")
 
-    monkeypatch.setattr(subprocess, "run", always_refuse)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", always_refuse)
 
     result = _run_command(tmp_path, command, 30)
 

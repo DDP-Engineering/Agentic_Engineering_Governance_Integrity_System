@@ -380,13 +380,17 @@ def run_checks_with_outcome(
         events: list[tuple[str, dict[str, object]]] = []
         for check, result in completed:
             observed = "pass" if result.returncode == 0 else "fail"
-            log_path = log_root / f"{check.id}-{captured_stage}.log"
+            evidence_id = _next_evidence_id(graph, len(imported))
+            log_path = (
+                log_root
+                / f"{check.id}-{captured_stage}-{evidence_id}.log"
+            )
             log_path.write_text(
                 f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}\n",
                 encoding="utf-8",
             )
             evidence = Evidence(
-                id=_next_evidence_id(graph, len(imported)),
+                id=evidence_id,
                 kind="test-run",
                 result=observed,
                 summary=(

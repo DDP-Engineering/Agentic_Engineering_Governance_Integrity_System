@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 
 import aegis.repowise as repowise_module
+from aegis.cli import main
 from aegis.config import load_config
 from aegis.models import Graph, Intent, StageRecord
 from aegis.repowise import (
@@ -63,6 +64,26 @@ def test_absent_policy_is_disabled_and_strict_policy_rejects_unknown_keys(
     )
     with pytest.raises(RepoWiseIntegrationError, match="unsupported key"):
         load_repowise_integration(tmp_path)
+
+
+def test_config_validate_does_not_depend_on_optional_repowise_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief Core policy recovery remains available when integration TOML is bad."""
+    path = tmp_path / ".agentic" / "integrations" / "repowise.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('unexpected = "value"\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    main(["config", "validate", "--json"])
+
+    assert json.loads(capsys.readouterr().out)["status"] == "ok"
+    with pytest.raises(SystemExit) as raised:
+        main(["config", "show", "--json"])
+    assert raised.value.code == 1
+    assert json.loads(capsys.readouterr().out)["status"] == "blocked"
 
 
 def test_current_artifacts_prepopulate_repo_discovery_and_snapshot(

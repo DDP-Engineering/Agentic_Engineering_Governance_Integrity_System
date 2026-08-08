@@ -140,10 +140,10 @@ def test_impact_run_executes_stable_deduplicated_argv_selectors(
 
     def capture_argv(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         """@brief Capture the focused execution call without relying on quoting."""
-        calls.append((list(args[0]), bool(kwargs["shell"])))
-        return subprocess.CompletedProcess(args[0], 0, "focused ok", "")
+        calls.append((list(args[1]), bool(kwargs["shell"])))
+        return subprocess.CompletedProcess(args[1], 0, "focused ok", "")
 
-    monkeypatch.setattr(gates_module.subprocess, "run", capture_argv)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", capture_argv)
 
     payload = _run_impact("changed.txt", capsys)
 
@@ -292,10 +292,10 @@ def test_impact_run_falls_back_when_any_matched_requirement_is_testless(
         *args: object, **_kwargs: object
     ) -> subprocess.CompletedProcess[str]:
         """@brief Record an unexpected focused launch without executing it."""
-        focused_calls.append(list(args[0]))
-        return subprocess.CompletedProcess(args[0], 0, "focused ok", "")
+        focused_calls.append(list(args[1]))
+        return subprocess.CompletedProcess(args[1], 0, "focused ok", "")
 
-    monkeypatch.setattr(gates_module.subprocess, "run", capture_focused)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", capture_focused)
 
     payload = _run_impact("changed.txt", capsys)
 
@@ -548,7 +548,7 @@ def test_impact_run_records_focused_timeout_and_launch_failure(
         """@brief Raise one launcher failure from the argv-only subprocess seam."""
         raise failure
 
-    monkeypatch.setattr(gates_module.subprocess, "run", fail_launch)
+    monkeypatch.setattr(gates_module, "_run_with_timeout", fail_launch)
 
     with pytest.raises(SystemExit) as raised:
         _run_impact("changed.txt", capsys)

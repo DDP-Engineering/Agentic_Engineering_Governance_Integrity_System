@@ -39,6 +39,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import os
 import shlex
+import signal
 import subprocess
 from pathlib import Path
 
@@ -283,7 +284,7 @@ def gate_failure_blockers(
     names: list[str] | None = None,
 ) -> list[Blocker]:
     """
-    @brief Return exact waiver targets for enforced gates with active failures.
+    @brief Return exact waiver targets for active gate failures.
     @param[in] graph Authoritative run graph containing gate evidence.
     @param[in] config Validated gate policy and command definitions.
     @param[in] names Optional gate-name selection.
@@ -293,8 +294,6 @@ def gate_failure_blockers(
     blockers: list[Blocker] = []
     for name in selected:
         group = getattr(config.gates, name)
-        if group.mode != "enforce":
-            continue
         failures = sorted(
             {
                 (
@@ -610,16 +609,11 @@ def _run_argv_command(
 ) -> subprocess.CompletedProcess[str]:
     """@brief Execute one focused command through argv-only subprocess mode."""
     try:
-        return subprocess.run(
+        return _run_with_timeout(
+            repo_root,
             argv,
-            cwd=repo_root,
             shell=False,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
             timeout=timeout,
-            check=False,
         )
     except subprocess.TimeoutExpired as exc:
         return _failed_process(_command_text(tuple(argv)), 124, exc)
@@ -698,49 +692,116 @@ def _run_command(repo_root: Path, command: str, timeout: int) -> subprocess.Comp
     argv = _argv_for_simple_command(repo_root, command)
     try:
         if argv:
-            return subprocess.run(
+            return _run_with_timeout(
+                repo_root,
                 argv,
-                cwd=repo_root,
                 shell=False,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                capture_output=True,
                 timeout=timeout,
-                check=False,
             )
-        return subprocess.run(
+        return _run_with_timeout(
+            repo_root,
             command,
-            cwd=repo_root,
             shell=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
             timeout=timeout,
-            check=False,
         )
     except subprocess.TimeoutExpired as exc:
         return _failed_process(command, 124, exc)
     except OSError as exc:
         if argv and os.name == "nt":
             try:
-                return subprocess.run(
+                return _run_with_timeout(
+                    repo_root,
                     command,
-                    cwd=repo_root,
                     shell=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    capture_output=True,
                     timeout=timeout,
-                    check=False,
                 )
             except subprocess.TimeoutExpired as retry_exc:
                 return _failed_process(command, 124, retry_exc)
             except OSError as retry_exc:
                 return _failed_process(command, 127, retry_exc)
         return _failed_process(command, 127, exc)
+
+
+def _run_with_timeout(
+    repo_root: Path,
+    command: str | list[str],
+    *,
+    shell: bool,
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    """
+    @brief Execute one command in a killable process group.
+    @param[in] repo_root Working directory for the command.
+    @param[in] command Shell text or direct argv.
+    @param[in] shell Whether the platform shell interprets the command.
+    @param[in] timeout Maximum execution time in seconds.
+    @return Completed process with captured UTF-8 text output.
+    @exception subprocess.TimeoutExpired If the process group exceeds timeout.
+    @exception OSError If process launch fails.
+    @details A plain `subprocess.run(..., timeout=...)` terminates only the
+             immediate shell. Descendants can retain the captured pipe and
+             make the follow-up `communicate()` wait forever. A dedicated
+             process group lets the timeout path terminate the whole tree.
+    """
+    popen_kwargs: dict[str, object] = {}
+    if os.name == "nt":
+        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        popen_kwargs["start_new_session"] = True
+    process = subprocess.Popen(
+        command,
+        cwd=repo_root,
+        shell=shell,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **popen_kwargs,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        _terminate_process_tree(process)
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+        raise subprocess.TimeoutExpired(
+            command,
+            timeout,
+            output=stdout,
+            stderr=stderr,
+        ) from exc
+    return subprocess.CompletedProcess(
+        command,
+        process.returncode,
+        stdout,
+        stderr,
+    )
+
+
+def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+    """@brief Force one timed-out process group and its descendants to exit."""
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            process.kill()
+        return
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    except OSError:
+        process.kill()
 
 
 def _failed_process(command: str, returncode: int, exc: BaseException) -> subprocess.CompletedProcess[str]:

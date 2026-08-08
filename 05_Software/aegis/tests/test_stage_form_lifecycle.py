@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -33,6 +34,7 @@ from aegis.models import ALL_STAGES, Check, Evidence, Graph, SolutionDesign, Sta
 from aegis.requirement_store import find_requirement_record
 from aegis.requirements import RequirementPatch, update_requirement
 from aegis.stage_forms import (
+    _prepare_stage_record,
     _q,
     apply_stage,
     close_stage,
@@ -50,6 +52,70 @@ from aegis.stage_schema import (
 from aegis.store import init_graph, save_graph
 
 # LOCAL HELPERS
+
+
+def test_prepared_revision_clears_transient_route_directive(tmp_path: Path) -> None:
+    """@brief A one-time backward route is not copied into a later revision."""
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "fix", "Clear stale route")
+    graph.stage = "implementation"
+    current = StageRecord(
+        stage="implementation",
+        revision=1,
+        status="closed",
+        retention="discard",
+        check_execution="external",
+        payload={
+            "control": {
+                "route_to": "design",
+                "route_rationale": "Revise the solution",
+                "summary": "Keep this imported summary",
+            }
+        },
+    )
+
+    prepared = _prepare_stage_record(
+        tmp_path,
+        graph,
+        config,
+        current,
+        stage_directory(tmp_path, graph),
+    )
+
+    assert prepared.payload["control"]["route_to"] == ""
+    assert prepared.payload["control"]["route_rationale"] == ""
+    assert prepared.payload["control"]["summary"] == "Keep this imported summary"
+
+
+def test_component_map_uses_and_protects_configured_manifest(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Component-map metadata names the configured manifest exactly."""
+    replace_workflow_toml(
+        'manifest = ".agentic/components.toml"',
+        'manifest = ".agentic/custom-components.toml"',
+    )
+    config = load_config(tmp_path)
+    graph = init_graph(tmp_path, "adoption", "Map existing components")
+    graph.stage = "component-map"
+    save_graph(tmp_path, graph)
+
+    artifact = prepare_stage(tmp_path, graph, config)
+
+    assert 'manifest = ".agentic/custom-components.toml"' in artifact.read_text(
+        encoding="utf-8"
+    )
+    _replace(
+        artifact,
+        {
+            'manifest = ".agentic/custom-components.toml"': (
+                'manifest = ".agentic/wrong-components.toml"'
+            )
+        },
+    )
+    with pytest.raises(StageOperationError, match="must match components.manifest"):
+        apply_stage(tmp_path, graph, config)
 
 
 def _replace(path: Path, edits: dict[str, str]) -> None:

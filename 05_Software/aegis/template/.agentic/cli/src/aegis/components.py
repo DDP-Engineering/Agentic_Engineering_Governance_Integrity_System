@@ -24,6 +24,7 @@ import tomllib
 
 from .config import WorkflowConfig
 from .errors import CommandInputError
+from .paths import relative_to_root
 from .paths import matches_pattern
 
 
@@ -266,7 +267,19 @@ def audit_scope_check(
             )
         )
     for path in paths:
-        normalized = _normalize_path(path)
+        try:
+            normalized = relative_to_root(path, repo_root)
+        except ValueError:
+            issues.append(
+                ComponentIssue(
+                    code="COMPONENT-PATH-OUTSIDE-REPOSITORY",
+                    message=f"{path} escapes the repository root",
+                    path=_normalize_path(path),
+                    severity="advisory",
+                    blocking=False,
+                )
+            )
+            continue
         if not (repo_root / normalized).is_file():
             issues.append(
                 ComponentIssue(

@@ -59,7 +59,7 @@ events; AEGIS does not require every human or every tool to use an adapter.
 | Hook | Data examined or written | Invoked by | Why it is needed |
 | --- | --- | --- | --- |
 | `workflow_config_bootstrap.py` | Loads and validates `.agentic/workflow.toml`. | Other hooks. | Ensures all hooks use the same validated policy. |
-| `guard_read_path.py` | Requested read path and protected-path policy. | Supported adapter before a read. | Blocks reads of configured protected paths. |
+| `guard_read_path.py` | Requested read path and protected-path policy. | Supported adapter before a dedicated read/search tool call. | Blocks configured protected paths for dedicated read/search tools; shell reads are outside this hook's coverage. |
 | `guard_write_zone.py` | Requested edit path, protected paths, and write-access policy. | Supported adapter before a dedicated edit/write operation. | Blocks writes outside the permitted policy. |
 | `guard_shell_write.py` | Supported shell write operation and its in-repository targets. | Supported adapter before a shell command. | Applies write-zone restrictions even when files are changed through the shell. |
 | `secret_scan.py` | Text or paths subject to configured secret patterns. | Supported adapter at its configured hook point. | Detects likely credentials and private keys before they become durable changes. |

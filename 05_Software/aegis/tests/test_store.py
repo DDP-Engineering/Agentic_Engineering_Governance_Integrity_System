@@ -46,6 +46,48 @@ from aegis.store import (
 # TESTS
 
 
+def test_non_object_graphs_remain_discoverable_without_tracebacks(
+    tmp_path: Path,
+) -> None:
+    """@brief Recovery listings absorb every valid non-object JSON shape."""
+    graph = init_graph(tmp_path, "fix", "Recover malformed state")
+    path = store.graph_path(tmp_path, graph.run_id)
+    path.write_text("[]\n", encoding="utf-8")
+
+    rows = store.list_runs(tmp_path)
+
+    assert rows[0]["stage"] == "unreadable"
+    assert "graph JSON must be an object" in rows[0]["error"]
+    store.current_run_path(tmp_path).unlink()
+    with pytest.raises(RunResolutionError) as raised:
+        resolve_run_id(tmp_path)
+    assert raised.value.code == "RUN-POINTER-MISSING"
+
+
+def test_unreadable_and_torn_journal_runs_can_be_abandoned(
+    tmp_path: Path,
+) -> None:
+    """@brief Neither malformed graph state nor a torn journal traps a run."""
+    unreadable = init_graph(tmp_path, "fix", "Unreadable graph")
+    store.graph_path(tmp_path, unreadable.run_id).write_text("[]\n", encoding="utf-8")
+
+    row = store.abandon_run_id(tmp_path, unreadable.run_id, "cannot recover")
+
+    assert row["complete"] is True
+    assert (store.run_dir(tmp_path, unreadable.run_id) / store.ABANDONED_FILE).is_file()
+    assert store.list_runs(tmp_path)[0]["outcome"] == "abandoned"
+
+    readable = init_graph(tmp_path, "fix", "Torn journal")
+    with store.journal_path(tmp_path, readable.run_id).open("ab") as stream:
+        stream.write(b'{"event":"partial"')
+
+    row = store.abandon_run_id(tmp_path, readable.run_id, "journal is torn")
+
+    assert row["complete"] is True
+    assert "journal_error" in row
+    assert load_graph(tmp_path, readable.run_id).outcome == "abandoned"
+
+
 def test_repo_root_from_heals_the_agentic_directory_itself(tmp_path: Path) -> None:
     """
     @brief      Resolving from `.agentic` itself heals to the project root.

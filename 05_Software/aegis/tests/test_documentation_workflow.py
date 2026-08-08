@@ -38,6 +38,18 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 #        because they are not part of the shipped template deliverable.
 _DEPENDENCY_DIRS = {"node_modules", ".vitest", ".git", ".opencode-cache"}
 
+
+def test_impact_run_flag_keeps_following_paths_file_positional() -> None:
+    """@brief `verify impact --run paths.txt` does not steal the file as a run ID."""
+    argv = ["verify", "impact", "--run", "changed-paths.txt", "--json"]
+
+    normalized = _normalize_global_options(argv)
+    parsed = _build_parser().parse_args(normalized)
+
+    assert normalized == ["--json", "verify", "impact", "--run", "changed-paths.txt"]
+    assert parsed.run_impact is True
+    assert parsed.paths_file == "changed-paths.txt"
+
 # @brief Generated Python distribution-metadata directory suffix excluded from
 #        template-hygiene walks because editable package builds create it locally.
 _GENERATED_METADATA_SUFFIX = ".egg-info"

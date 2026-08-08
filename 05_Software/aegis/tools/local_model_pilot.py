@@ -552,6 +552,15 @@ def _evidence_id(payload: dict[str, Any]) -> str:
     return identifier
 
 
+def _required_artifact(payload: dict[str, Any], command: str) -> str:
+    """@brief Extract a required artifact or turn a failed command into evidence."""
+    artifact = payload.get("artifact")
+    if isinstance(artifact, str) and artifact:
+        return artifact
+    detail = payload.get("error") or payload.get("status") or "no diagnostic output"
+    raise RuntimeError(f"{command} returned no artifact: {detail}")
+
+
 def _fresh_stage_session(
     endpoint: str,
     model: str,
@@ -688,7 +697,7 @@ def _run_full_change_workflow(
         session = _fresh_stage_session(endpoint, model, repo_root, run_id, profile, "validation", timeout_seconds, (preflights or {}).get("stage:validation"))
         sessions.append(session)
         verified = _command_json(repo_root, ["verify", "run"], session, allow_failure=True)
-        verification_path = str(verified["artifact"])
+        verification_path = _required_artifact(verified, "verify run")
         _replace_exact(_form_path(repo_root, run_id, "validation"), {
             "deterministic_verification = []": f'deterministic_verification = ["{verification_path}"]',
             'diff_review = "pending"': 'diff_review = "pass"',

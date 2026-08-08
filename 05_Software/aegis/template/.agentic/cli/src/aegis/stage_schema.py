@@ -237,7 +237,11 @@ STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
             "scope_hints", "array", lambda graph: graph.intent.scope_hint, "Scope."
         ),
         StageFieldSpec(
-            "access_mode", "string", lambda graph: graph.access_mode, "Access mode."
+            "access_mode",
+            "string",
+            lambda graph: graph.access_mode,
+            "Access mode.",
+            ("standard", "repo-wide"),
         ),
     ),
     "alignment": _ALIGNMENT_FIELDS,
@@ -293,7 +297,11 @@ STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
         StageFieldSpec("bundle_components", "array", (), "Bundle components."),
         StageFieldSpec("bundle_rationale", "string", "", "Bundle rationale."),
         StageFieldSpec(
-            "access_mode", "string", lambda graph: graph.access_mode, "Access mode."
+            "access_mode",
+            "string",
+            lambda graph: graph.access_mode,
+            "Access mode.",
+            ("standard", "repo-wide"),
         ),
     ),
     "adoption-alignment": _ALIGNMENT_FIELDS,

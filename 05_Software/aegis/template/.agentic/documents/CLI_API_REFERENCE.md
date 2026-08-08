@@ -43,12 +43,12 @@ depending on what they report:
 
 | Key | Present on | Meaning |
 |---|---|---|
-| `run_profile` | `run status`, `verify run` (JSON), `delivery report` | `"quick"` when the selected run used the proportional profile; absent otherwise. |
-| `bypass_status` | `run status`, `verify run` (JSON), `delivery report` | `"bypassed"` once a quick run's intake approval has closed. |
+| `run_profile` | `run status`; nested under `verification` on `verify run` and `verify status` | `"quick"` when the selected run used the proportional profile; absent otherwise. |
+| `bypass_status` | `run status`; nested under `verification` on `verify run` and `verify status` | `"bypassed"` once a quick run's intake approval has closed. |
 | `bypassed_stages` | Same as `bypass_status` | The four stages a quick run skips. |
-| `readiness` | `stage close` (blocked response) | The full stage-readiness blocker set evaluated for the current close attempt. |
-| `waived_blockers` | `stage close` (blocked response) | The subset of `readiness` currently covered by an active waiver. |
-| `waived_gates` | `verify run` | Gate-failure blockers currently covered by an active waiver. |
+| `readiness` | `run status` | Current stage state and readiness details. |
+| `waived_blockers` | Nested inside `readiness` on `run status`, when present | The subset of stage blockers currently covered by an active waiver. |
+| `waived_gates` | `verify gates` | Gate-failure blockers currently covered by an active waiver. |
 | `advisories` | Commands with a non-blocking finding to surface (for example an advisory scope violation) | Human-readable advisory text; never affects `status` or the exit code. |
 | `eligible_blockers` | `waive list` | Every blocker ID currently eligible for `aegis waive add`, with its description and state digest. |
 | `waiver_history` | `waive list` | Previously recorded waivers for the selected run, including stale ones. |

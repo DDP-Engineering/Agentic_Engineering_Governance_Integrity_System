@@ -69,6 +69,8 @@ def main() -> int:
                 evaluated so unknown policy never becomes an implicit allow.
     @exception  None
     """
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
@@ -78,7 +80,7 @@ def main() -> int:
 
         policy = load_workflow_config(cwd).secrets
     except Exception as exc:
-        if targets_workflow_config_only(payload.get("tool_input", {})):
+        if targets_workflow_config_only(payload.get("tool_input", {}), cwd):
             return 0
         return deny(str(exc))
     if policy.mode == "disabled":
@@ -97,7 +99,7 @@ def main() -> int:
         # Same carve-out as the configuration branch above, for the same
         # reason: correcting an over-broad pattern means quoting it, which
         # matches it. INV-7 still scans this file.
-        if targets_workflow_config_only(tool_input):
+        if targets_workflow_config_only(tool_input, cwd):
             return 0
         return deny(
             f"Possible secret detected by configured pattern {matched.pattern}. "
@@ -123,13 +125,22 @@ def introduced_input(tool_input: object) -> object:
                 ``guardrails.protected_paths``, enforced by its own hooks.
     @exception  None
     """
+    if isinstance(tool_input, list):
+        return [introduced_input(item) for item in tool_input]
     if not isinstance(tool_input, dict):
         return tool_input
     ignored = PATH_KEYS + REPLACED_TEXT_KEYS
-    return {key: value for key, value in tool_input.items() if key not in ignored}
+    return {
+        key: introduced_input(value)
+        for key, value in tool_input.items()
+        if key not in ignored
+    }
 
 
-def targets_workflow_config_only(tool_input: object) -> bool:
+def targets_workflow_config_only(
+    tool_input: object,
+    repo_root: Path | None = None,
+) -> bool:
     """
     @brief      Report whether the call names the workflow config and nothing else.
     @param[in]  tool_input Adapter tool-input mapping.
@@ -150,10 +161,24 @@ def targets_workflow_config_only(tool_input: object) -> bool:
     ]
     if not paths:
         return False
-    return all(
-        item.replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
-        for item in paths
-    )
+    return all(_is_workflow_config(item, repo_root) for item in paths)
+
+
+def _is_workflow_config(path: str, repo_root: Path | None) -> bool:
+    """@brief Match only the repository's root workflow configuration file."""
+    normalized = path.replace("\\", "/").rstrip("/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    if normalized == WORKFLOW_CONFIG_SUFFIX:
+        return True
+    if repo_root is None or not Path(path).is_absolute():
+        return False
+    try:
+        return Path(path).resolve() == (
+            repo_root / ".agentic" / "workflow.toml"
+        ).resolve()
+    except OSError:
+        return False
 
 
 def deny(message: str) -> int:

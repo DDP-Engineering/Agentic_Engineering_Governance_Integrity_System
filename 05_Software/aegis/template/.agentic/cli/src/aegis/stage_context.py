@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import Graph, Stage
-from .stage_forms import stage_directory
+from .stage_forms import COLLECTION_STAGES, stage_directory
 from .stage_schema import STAGE_REFERENCE_PATHS, run_stage_spec
 
 # CONSTANTS
@@ -32,7 +32,6 @@ _AGENTS_PATH = "AGENTS.md"
 _DEVELOPMENT_SKILL = ".agentic/skills/agentic-development/SKILL.md"
 _ADOPTION_SKILL = ".agentic/skills/agentic-adoption/SKILL.md"
 _DELIVERY_SKILL = ".agentic/skills/agentic-delivery/SKILL.md"
-_COLLECTION_STAGES = frozenset({"requirement", "check", "component-adoption"})
 
 
 # PUBLIC API
@@ -62,14 +61,20 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
         *previous,
     ])
     return {
+        "status": "ok",
+        "stage": graph.stage,
+        "artifact": artifact,
+        "next": (
+            current_unavailable["recovery_command"]
+            if current_unavailable is not None
+            else "aegis stage apply"
+        ),
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "run_id": graph.run_id,
         "kind": graph.intent.kind,
         "profile": graph.profile,
-        "stage": graph.stage,
         "reference": reference,
         "skill": skill,
-        "artifact": artifact,
         "unavailable_current_artifact": current_unavailable,
         "previous_stage_artifacts": previous,
         "unavailable_previous_stage_artifacts": unavailable,
@@ -167,7 +172,7 @@ def _primary_form_path(repo_root: Path, graph: Graph, stage: Stage) -> Path:
     directory = stage_directory(repo_root, graph) if stage == graph.stage else (
         repo_root / ".agentic" / "runs" / graph.run_id / "stages" / stage
     )
-    name = "stage.toml" if stage in _COLLECTION_STAGES else f"{stage}.toml"
+    name = "stage.toml" if stage in COLLECTION_STAGES else f"{stage}.toml"
     return directory / name
 
 

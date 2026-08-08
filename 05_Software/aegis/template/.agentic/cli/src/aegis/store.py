@@ -85,6 +85,7 @@ WORKSPACE_STATE_DIR = "state"
 CURRENT_RUN = "current_run"
 GRAPH_FILE = "graph.json"
 JOURNAL_FILE = "journal.jsonl"
+ABANDONED_FILE = "abandoned.json"
 RUN_ID_PATTERN = re.compile(
     r"^(feature|fix|change|adoption)-"
     r"(?P<timestamp>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{6}Z)-"
@@ -386,17 +387,30 @@ def list_runs(repo_root: Path) -> list[dict[str, Any]]:
             "outcome": "",
             "selected": entry.name == selected,
         }
+        abandoned_marker = entry / ABANDONED_FILE
         try:
             document = json.loads(
                 (entry / GRAPH_FILE).read_text(encoding="utf-8")
             )
+            if not isinstance(document, dict):
+                raise ValueError("graph JSON must be an object")
             graph = Graph.from_dict(document)
-        except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+        except (
+            AttributeError,
+            OSError,
+            UnicodeError,
+            ValueError,
+            TypeError,
+            KeyError,
+        ) as exc:
             # Carry the cause, not just the `unreadable` marker: this is the
             # listing an operator reads when they do not know what is wrong,
             # and the row is the only place the parse error can appear before
             # the run is abandoned.
             row["error"] = f"{type(exc).__name__}: {exc}"
+            if abandoned_marker.is_file():
+                row["complete"] = True
+                row["outcome"] = "abandoned"
             rows.append(row)
             continue
         row.update(
@@ -506,10 +520,15 @@ def _discoverable_runs(repo_root: Path) -> list[tuple[str, bool]]:
         if not _is_valid_run_id(entry.name):
             continue
         complete = False
+        if (entry / ABANDONED_FILE).is_file():
+            runs.append((entry.name, True))
+            continue
         try:
             document = json.loads((entry / GRAPH_FILE).read_text(encoding="utf-8"))
+            if not isinstance(document, dict):
+                raise ValueError("graph JSON must be an object")
             complete = bool(document.get("complete", False))
-        except (OSError, UnicodeError, ValueError):
+        except (AttributeError, OSError, UnicodeError, ValueError):
             complete = False
         runs.append((entry.name, complete))
     return runs
@@ -764,7 +783,12 @@ def init_graph(
         access_mode=access_mode,
     )
     run_stage_spec(graph)
-    run_dir(repo_root, run_id).mkdir(parents=True, exist_ok=True)
+    try:
+        run_dir(repo_root, run_id).mkdir(parents=True, exist_ok=False)
+    except FileExistsError as exc:
+        raise StageOperationError(
+            "generated run identifier already exists; retry `aegis run start`"
+        ) from exc
     save_graph(repo_root, graph)
     write_current_run(repo_root, run_id)
     started = {
@@ -1146,21 +1170,26 @@ def abandon_run(repo_root: Path, graph: Graph, reason: str) -> Graph:
         )
     graph.complete = True
     graph.outcome = "abandoned"
-    save_graph_with_journal_events(
-        repo_root,
-        graph,
-        [
-            (
-                "run.abandoned",
-                {
-                    "run_id": graph.run_id,
-                    "stage": graph.stage,
-                    "reason": reason,
-                    "abandoned_at": now_iso(),
-                },
-            )
-        ],
-    )
+    abandoned_at = now_iso()
+    try:
+        save_graph_with_journal_events(
+            repo_root,
+            graph,
+            [
+                (
+                    "run.abandoned",
+                    {
+                        "run_id": graph.run_id,
+                        "stage": graph.stage,
+                        "reason": reason,
+                        "abandoned_at": abandoned_at,
+                    },
+                )
+            ],
+        )
+    except PersistenceError as exc:
+        save_graph(repo_root, graph)
+        graph._abandon_journal_error = str(exc)
     clear_current_run(repo_root)
     return graph
 
@@ -1189,6 +1218,7 @@ def abandon_run_id(repo_root: Path, run_id: str, reason: str) -> dict[str, Any]:
     try:
         graph = load_graph(repo_root, run_id)
     except (RunResolutionError, StageOperationError) as exc:
+        abandoned_at = now_iso()
         row: dict[str, Any] = {
             "run_id": run_id,
             "stage": "unreadable",
@@ -1196,6 +1226,23 @@ def abandon_run_id(repo_root: Path, run_id: str, reason: str) -> dict[str, Any]:
             "outcome": "abandoned",
             "graph_error": str(exc),
         }
+        atomic_write_text(
+            run_dir(repo_root, run_id) / ABANDONED_FILE,
+            json.dumps(
+                {
+                    "run_id": run_id,
+                    "complete": True,
+                    "outcome": "abandoned",
+                    "reason": reason,
+                    "abandoned_at": abandoned_at,
+                    "graph_error": str(exc),
+                },
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
         try:
             append_journal(
                 repo_root,
@@ -1205,7 +1252,7 @@ def abandon_run_id(repo_root: Path, run_id: str, reason: str) -> dict[str, Any]:
                     "run_id": run_id,
                     "stage": "unreadable",
                     "reason": reason,
-                    "abandoned_at": now_iso(),
+                    "abandoned_at": abandoned_at,
                     "graph_error": str(exc),
                 },
             )
@@ -1217,12 +1264,16 @@ def abandon_run_id(repo_root: Path, run_id: str, reason: str) -> dict[str, Any]:
         clear_current_run(repo_root)
         return row
     graph = abandon_run(repo_root, graph, reason)
-    return {
+    row = {
         "run_id": graph.run_id,
         "stage": graph.stage,
         "complete": graph.complete,
         "outcome": graph.outcome,
     }
+    journal_error = getattr(graph, "_abandon_journal_error", None)
+    if journal_error:
+        row["journal_error"] = journal_error
+    return row
 
 
 @serialized_graph_mutation

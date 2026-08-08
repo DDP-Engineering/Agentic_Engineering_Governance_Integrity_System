@@ -48,7 +48,9 @@ WORKFLOW_CONFIG_SUFFIX = ".agentic/workflow.toml"
 # PUBLIC API
 
 
-def targets_workflow_config_only(paths: list[str]) -> bool:
+def targets_workflow_config_only(
+    paths: list[str], repo_root: Path | None = None
+) -> bool:
     """
     @brief      Report whether every named target is the workflow config file.
     @param[in]  paths Raw target paths as the tool named them.
@@ -59,10 +61,24 @@ def targets_workflow_config_only(paths: list[str]) -> bool:
     """
     if not paths:
         return False
-    return all(
-        str(item).replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
-        for item in paths
-    )
+    return all(_is_workflow_config(str(item), repo_root) for item in paths)
+
+
+def _is_workflow_config(path: str, repo_root: Path | None) -> bool:
+    """@brief Match only the repository's root workflow configuration file."""
+    normalized = path.replace("\\", "/").rstrip("/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    if normalized == WORKFLOW_CONFIG_SUFFIX:
+        return True
+    if repo_root is None or not Path(path).is_absolute():
+        return False
+    try:
+        return Path(path).resolve() == (
+            repo_root / ".agentic" / "workflow.toml"
+        ).resolve()
+    except OSError:
+        return False
 
 
 def main() -> int:
@@ -71,22 +87,10 @@ def main() -> int:
     @return     Result produced by the workflow helper.
     @exception  None
     """
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
-        return 0
-    # Accept the file-editing tool names emitted by every supported adapter:
-    # Codex (`apply_patch`), Claude Code (`Edit`/`Write`/`MultiEdit`), and Qwen
-    # Code (`WriteFile`, plus the raw `write_file`/`replace` tool ids). Omitting a
-    # name here would silently bypass the write-zone guard for that adapter.
-    if payload.get("tool_name") not in {
-        "apply_patch",
-        "Edit",
-        "Write",
-        "MultiEdit",
-        "WriteFile",
-        "write_file",
-        "replace",
-    }:
         return 0
     cwd = Path(payload.get("cwd") or ".").resolve()
     try:
@@ -102,7 +106,7 @@ def main() -> int:
             zones = None if access_mode == "repo-wide" else config.write_access.stages[stage]
     except Exception as exc:
         if targets_workflow_config_only(
-            extract_target_paths(payload.get("tool_input", {}))
+            extract_target_paths(payload.get("tool_input", {})), cwd
         ):
             return 0
         return deny(str(exc))
@@ -178,9 +182,10 @@ def extract_target_paths(tool_input: dict) -> list[str]:
         candidate = tool_input.get(key)
         if isinstance(candidate, str) and candidate:
             paths.extend(extract_patch_paths(candidate))
-    file_path = tool_input.get("file_path")
-    if isinstance(file_path, str) and file_path:
-        paths.append(file_path)
+    for key in ("file_path", "notebook_path"):
+        file_path = tool_input.get(key)
+        if isinstance(file_path, str) and file_path:
+            paths.append(file_path)
     # Two keys can carry the same patch text, so the same path can be found
     # twice; the caller checks each path against the write zone and duplicate
     # findings would report one violation more than once.
@@ -196,7 +201,10 @@ def extract_patch_paths(command: str) -> list[str]:
     """
     paths = []
     for line in command.splitlines():
-        match = re.match(r"\*\*\* (?:Add|Update|Delete) File: (.+)", line)
+        match = re.match(
+            r"\*\*\* (?:(?:Add|Update|Delete) File:|Move to:) (.+)",
+            line,
+        )
         if match:
             paths.append(match.group(1).strip())
     return paths

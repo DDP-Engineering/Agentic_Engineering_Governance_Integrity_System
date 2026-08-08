@@ -181,24 +181,21 @@ def validate_glob(value: str) -> None:
     @exception  RepositoryPathError If a `[`/`]` bracket expression is
                 unbalanced or nested.
     """
-    depth = 0
-    for char in value:
-        if char == "[":
-            if depth:
-                raise RepositoryPathError(
-                    "unbalanced-glob", "glob bracket expressions must be balanced"
-                )
-            depth = 1
-        elif char == "]":
-            if not depth:
-                raise RepositoryPathError(
-                    "unbalanced-glob", "glob bracket expressions must be balanced"
-                )
-            depth = 0
-    if depth:
-        raise RepositoryPathError(
-            "unbalanced-glob", "glob bracket expressions must be balanced"
-        )
+    index = 0
+    while index < len(value):
+        if value[index] == "]":
+            raise RepositoryPathError(
+                "unbalanced-glob", "glob bracket expressions must be balanced"
+            )
+        if value[index] != "[":
+            index += 1
+            continue
+        closing = value.find("]", index + 1)
+        if closing < 0 or closing == index + 1:
+            raise RepositoryPathError(
+                "unbalanced-glob", "glob bracket expressions must be balanced"
+            )
+        index = closing + 1
 
 
 # END OF FILE

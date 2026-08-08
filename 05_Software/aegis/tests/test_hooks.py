@@ -896,9 +896,10 @@ def test_claude_and_qwen_matchers_cover_every_search_tool() -> None:
                 sends it. Claude Code and Qwen Code select hooks by a matcher
                 string in JSON settings, so their coverage is a config fact that
                 no guard-level test can establish. OpenCode and Pi dispatch in
-                code and are covered by their own adapter suites; Codex has no
+                code and are covered by their own adapter suites. Codex has no
                 distinct read tool — it reads through `shell`, already matched
-                by the Bash entry.
+                by the Bash entry, which does not enforce protected-read
+                policy. That limitation is explicit in the shipped hook README.
     @exception  None
     """
     template = Path(__file__).resolve().parents[1] / "template"
@@ -1369,11 +1370,14 @@ def shell_payload(tmp_path: Path, command: str, tool_name: str = "Bash") -> dict
     ("command", "expected"),
     [
         ("echo hi > out.txt", ["out.txt"]),
+        ("echo hi>out.txt", ["out.txt"]),
+        ("echo hi >| out.txt", ["out.txt"]),
         ("echo hi >> logs/app.log", ["logs/app.log"]),
         ("printf '%s' x > a/b/c.txt", ["a/b/c.txt"]),
         ("cat a | tee src/x.txt", ["src/x.txt"]),
         ("cat a | tee -a logs/x.txt", ["logs/x.txt"]),
         ("cp template.py deploy/config.py", ["deploy/config.py"]),
+        ("cp -t deploy template.py", ["deploy"]),
         ("mv old.py src/new.py", ["src/new.py"]),
         ("sed -i 's/a/b/' src/app.py", ["src/app.py"]),
         ("sed -i.bak 's/a/b/' src/app.py", ["src/app.py"]),
@@ -1400,6 +1404,71 @@ def test_extract_write_targets_recognizes_common_forms(command: str, expected: l
     assert shell_write_module.extract_write_targets(command) == expected
 
 
+def test_write_guard_extracts_patch_moves_and_notebook_targets() -> None:
+    """@brief Cover write destinations carried by patch moves and notebooks."""
+    assert guard_module.extract_patch_paths(
+        "*** Begin Patch\n*** Update File: src/old.py\n*** Move to: secrets/new.py\n*** End Patch"
+    ) == ["src/old.py", "secrets/new.py"]
+    assert guard_module.extract_target_paths(
+        {"notebook_path": "notebooks/analysis.ipynb"}
+    ) == ["notebooks/analysis.ipynb"]
+
+
+def test_write_guard_denies_notebook_edit_outside_active_zone(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief A write-capable tool name cannot bypass target enforcement."""
+    advance_to_implementation(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "NotebookEdit",
+        "cwd": str(tmp_path),
+        "tool_input": {"notebook_path": "tests/analysis.ipynb"},
+    }
+    assert "deny" in run_hook(guard_main, payload, monkeypatch)
+
+
+def test_secret_scan_removes_nested_replaced_text_only() -> None:
+    """@brief A MultiEdit may remove a secret without reintroducing it."""
+    introduced = load_hook("secret_scan").introduced_input(
+        {
+            "edits": [
+                {
+                    "old_string": "TOKEN=secret",
+                    "new_string": "TOKEN=redacted",
+                }
+            ]
+        }
+    )
+    assert introduced == {"edits": [{"new_string": "TOKEN=redacted"}]}
+
+
+def test_workflow_config_carve_out_rejects_nested_lookalike() -> None:
+    """@brief Only the root workflow policy receives deadlock recovery."""
+    secret_module = load_hook("secret_scan")
+    assert secret_module.targets_workflow_config_only(
+        {"file_path": ".agentic/workflow.toml"}
+    )
+    assert not secret_module.targets_workflow_config_only(
+        {"file_path": "docs/.agentic/workflow.toml"}
+    )
+
+
+def test_delivery_pattern_matches_git_global_flags() -> None:
+    """@brief Git global options cannot bypass a configured push preflight."""
+    delivery_module = load_hook("delivery_preflight")
+    assert delivery_module._matches_command_pattern(
+        "git -c core.pager=cat push origin main", "git push"
+    )
+    assert delivery_module._matches_command_pattern(
+        "git --no-pager push origin main", "git push"
+    )
+    assert not delivery_module._matches_command_pattern(
+        "echo git push", "git push"
+    )
+
+
 def test_guard_shell_write_denies_out_of_zone_redirect(tmp_path: Path, monkeypatch) -> None:
     """
     @brief      A shell redirection into another stage's zone is denied.
@@ -1415,6 +1484,29 @@ def test_guard_shell_write_denies_out_of_zone_redirect(tmp_path: Path, monkeypat
     output = run_hook(shell_write_main, shell_payload(tmp_path, "echo x > tests/test_app.py"), monkeypatch)
     assert "deny" in output
     assert "tests/test_app.py" in output
+
+
+@pytest.mark.parametrize(
+    "command",
+    (
+        "echo x>tests/test_app.py",
+        "echo x >| tests/test_app.py",
+        "cp -t tests src/app.py",
+    ),
+)
+def test_guard_shell_write_denies_equivalent_unspaced_and_flag_forms(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+) -> None:
+    """@brief Equivalent shell syntax cannot bypass the established zone."""
+    advance_to_implementation(tmp_path)
+    output = run_hook(
+        shell_write_main,
+        shell_payload(tmp_path, command),
+        monkeypatch,
+    )
+    assert "deny" in output
 
 
 def test_guard_shell_write_allows_in_zone_redirect(tmp_path: Path, monkeypatch) -> None:

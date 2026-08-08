@@ -21,7 +21,8 @@ Integrity System. The runnable Python package is embedded under
   adoption, and delivery references;
 - a versioned, read-only `run context --json` bootstrap response that names
   only the selected stage's router, reference, primary form, and retained
-  predecessor form, independent of evidence-history size;
+  predecessor form, independent of evidence-history size, while retaining the
+  universal `status`, `stage`, `artifact`, and exact `next` response envelope;
 - authoritative run-local `design.md` and blocking design invariant;
 - external or managed red-before-green check evidence;
 - canonical, complete-document external evidence validation before graph
@@ -38,6 +39,10 @@ Integrity System. The runnable Python package is embedded under
 - no outward Git/publication action when delivery closes.
 - atomic, flushed graph/journal/requirement/RepoWise state publication with
   bounded Windows/POSIX process locks and typed stale-update conflicts;
+- bounded gate/check execution that terminates the whole child process tree on
+  timeout so descendants cannot keep captured output pipes open;
+- fail-closed working-tree inspection through strict UTF-8, NUL-delimited Git
+  status output with a 30-second command bound;
 - optional schema-1 RepoWise discovery integration, with validated receipts,
   artifact hashes, repository fingerprints, and advisory/required policy.
 
@@ -121,6 +126,11 @@ then follow `unavailable_current_artifact` recovery exactly; never prepare an
 already applied stage. Read only the returned router, reference, current form,
 and retained predecessor form. `run status` remains the detailed diagnostic
 command; routine recovery never reads `graph.json` or `journal.jsonl`.
+
+Protected-path read policy is enforced for dedicated adapter read/search tools.
+Shell commands are not parsed for read targets, so shell-only reads remain
+outside that hook's coverage. Shell writes retain separate best-effort path
+extraction for redirects and supported file-writing commands.
 
 Each primary stage form begins with its generated completion checklist. The
 checklist is presentation guidance, not submitted TOML data: AEGIS imports the

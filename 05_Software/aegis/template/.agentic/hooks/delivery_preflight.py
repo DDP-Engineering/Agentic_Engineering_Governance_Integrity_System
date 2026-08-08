@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import json
+import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -32,6 +34,8 @@ def main() -> int:
     @return     Result produced by the workflow helper.
     @exception  None
     """
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
@@ -51,7 +55,10 @@ def main() -> int:
         return deny(str(exc))
     if policy.mode == "disabled":
         return 0
-    if not any(pattern in normalized for pattern in policy.command_patterns):
+    if not any(
+        pattern in normalized or _matches_command_pattern(command, pattern)
+        for pattern in policy.command_patterns
+    ):
         return 0
     launcher = repo_root / ".agentic" / "tools" / "run_aegis.py"
     if not launcher.exists():
@@ -80,6 +87,36 @@ def main() -> int:
             reason = f"{reason}\n{detail}"
         return deny(reason)
     return 0
+
+
+def _matches_command_pattern(command: str, pattern: str) -> bool:
+    """
+    @brief Match a configured command even when executable flags are inserted.
+    @param[in] command Raw shell command from the adapter.
+    @param[in] pattern Validated lower-case delivery command pattern.
+    @return Whether one shell segment contains the pattern tokens in order.
+    @exception None Malformed shell quoting does not trigger delivery policy.
+    """
+    try:
+        expected = shlex.split(pattern.lower())
+    except ValueError:
+        return False
+    if not expected:
+        return False
+    for segment in re.split(r"&&|\|\||[;\n]", command):
+        try:
+            tokens = [token.lower() for token in shlex.split(segment)]
+        except ValueError:
+            continue
+        if not tokens or Path(tokens[0]).name != Path(expected[0]).name:
+            continue
+        position = 1
+        for token in tokens[1:]:
+            if position < len(expected) and token == expected[position]:
+                position += 1
+        if position == len(expected):
+            return True
+    return False
 
 
 def _run_aegis(

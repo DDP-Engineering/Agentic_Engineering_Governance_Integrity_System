@@ -12,7 +12,10 @@ adapter. `workflow_config_bootstrap.py` loads the delivered `aegis.config`
 parser; hooks must not parse `workflow.toml` independently or carry fallback
 repository policy.
 
-- `guard_read_path.py` applies configured protected-path rules for reads.
+- `guard_read_path.py` applies configured protected-path rules to dedicated
+  adapter read and search tools. Shell commands are not parsed for read
+  targets; `operations = ["read"]` does not block `cat`, `Get-Content`, or
+  equivalent shell reads.
 - `guard_write_zone.py` applies configured protected paths and write access to
   the dedicated editing tools.
 - `guard_shell_write.py` applies the same write-zone and protected-path policy
@@ -132,6 +135,11 @@ annotation convention used in the other adapters' JSON (`_legal`, `_comment*`)
 must never appear in this one.
 
 ## Confirming guards are live
+
+The protected-read liveness check below applies only to adapters with a
+dedicated read/search tool wired to `guard_read_path.py`; a shell-only adapter
+cannot exercise it. Shell-write, secret, and delivery guards require their own
+paired allow/deny checks because no single request traverses every guard.
 
 To confirm guards are live in a session, ask the agent to read a path covered by
 an enforced `guardrails.protected_paths` read policy: a correctly loaded

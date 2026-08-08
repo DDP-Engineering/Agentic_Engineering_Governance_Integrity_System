@@ -39,6 +39,26 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Close AEGIS guard bypasses for UTF-8 policy input, unspaced and noclobber
+  redirects, target-directory copies, patch moves, notebook edits, nested
+  replaced text, workflow-config lookalikes, and delivery commands carrying
+  executable-level flags; document that protected reads cover dedicated
+  read/search tools rather than shell reads.
+- Keep malformed graphs, summaries, component manifests, RepoWise artifacts,
+  forms, and journals inside typed recovery paths; make unreadable or
+  torn-journal runs abandonable and keep run-list recovery available without a
+  valid workflow configuration.
+- Restore response, stage-context, routing, coverage-report, argv, evidence-log,
+  waiver-staleness, and documentation contracts, including immutable rerun
+  logs and the universal `status`/`stage`/`artifact`/`next` envelope.
+- Terminate complete gate/check process trees on timeout, release process-local
+  locks after setup failures, reject run-ID collisions without overwriting,
+  and publish delivery reports atomically with stable UTF-8 output.
+- Parse working-tree state with bounded, strict, NUL-delimited Git output;
+  preserve configured component-manifest metadata; avoid process-wide umask
+  mutation during atomic writes; and retain pilot diagnostics when verification
+  returns no artifact.
+
 - Document durable gate output logs and their graph/journal references instead
   of claiming gate output exists only as a bounded journal tail.
 - Route incomplete WAEGIS workflow configuration through the designed repair

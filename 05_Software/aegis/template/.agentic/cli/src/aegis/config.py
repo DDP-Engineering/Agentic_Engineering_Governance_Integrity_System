@@ -690,30 +690,6 @@ class _Parser:
             COMPLETION_LEVELS,
             "CONFIG-RULE-INVALID",
         )
-        manifest_path = (self.repo_root / manifest).resolve()
-        try:
-            manifest_path.relative_to(self.repo_root.resolve())
-        except ValueError:
-            self._rule_invalid(
-                "components.manifest", manifest, "a repository-relative manifest path"
-            )
-        if not manifest_path.is_file():
-            self._rule_invalid(
-                "components.manifest",
-                manifest,
-                "a readable component manifest when baseline_guard is enforced",
-            )
-        try:
-            parsed = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
-            self._rule_invalid(
-                "components.manifest",
-                manifest,
-                "a valid readable TOML manifest "
-                f"({type(exc).__name__}: {exc})",
-            )
-        if not isinstance(parsed, dict):
-            self._rule_invalid("components.manifest", manifest, "a TOML table document")
         return BaselineGuardPolicy(mode, minimum)
 
     def _coverage(self, traceability: dict[str, Any]) -> CoveragePolicy:
@@ -895,12 +871,6 @@ class _Parser:
             f"{key_path}.operations",
             ("read", "write"),
         )
-        if mode == "disabled" and (patterns or operations):
-            self._inconsistent(
-                key_path,
-                {"patterns": list(patterns), "operations": list(operations)},
-                "empty patterns and operations lists in disabled mode",
-            )
         if mode == "enforce" and (not patterns or not operations):
             self._inconsistent(
                 key_path,
@@ -1022,8 +992,6 @@ class _Parser:
         self, key_path: str, mode: str, rules: tuple[str, ...]
     ) -> None:
         unrestricted = mode in {"disabled", "unrestricted"}
-        if unrestricted and rules:
-            self._inconsistent(key_path, list(rules), f"an empty rule list in {mode} mode")
         if not unrestricted and not rules:
             self._inconsistent(key_path, [], f"at least one rule in {mode} mode")
 
@@ -1210,13 +1178,18 @@ class _Parser:
         self, table: dict[str, Any], key: str, key_path: str
     ) -> tuple[str, ...]:
         """@brief Parse an optional argv prefix without shell interpretation."""
-        values = self._strings(table, key, key_path, non_empty=False)
+        if key not in table:
+            self._missing_key(key_path, f"Add `{key} = []` or an explicit string list.")
+        raw = table[key]
+        if not isinstance(raw, list) or any(not isinstance(item, str) for item in raw):
+            self._type_invalid(key_path, raw, "a list of strings")
+        values = tuple(raw)
         for value in values:
-            if "\x00" in value or "\n" in value or "\r" in value:
+            if not value or "\x00" in value or "\n" in value or "\r" in value:
                 self._rule_invalid(
                     key_path,
                     value,
-                    "argv strings without NUL or newline characters",
+                    "non-empty argv strings without NUL or newline characters",
                 )
         return values
 

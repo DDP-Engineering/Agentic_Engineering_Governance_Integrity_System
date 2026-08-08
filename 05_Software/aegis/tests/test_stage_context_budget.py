@@ -209,6 +209,8 @@ def test_run_context_is_bounded_for_full_quick_and_adoption_starts(
     start = _invoke(capsys, ["run", "start", kind, *( ["--quick"] if quick else [])])
     context = _invoke(capsys, ["run", "context"])
 
+    assert context["status"] == "ok"
+    assert context["next"] == "aegis stage apply"
     assert context["context_schema_version"] == 1
     assert context["run_id"] == start["run_id"]
     assert context["kind"] == kind

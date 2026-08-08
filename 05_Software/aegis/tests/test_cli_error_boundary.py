@@ -165,6 +165,28 @@ def test_missing_validation_summary_is_typed_command_input(
     assert output["error"] == "no validation summary; run `aegis verify run`"
 
 
+def test_non_object_validation_summary_is_typed_command_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief Valid JSON with the wrong shape stays inside the CLI boundary."""
+    _start_run(tmp_path, monkeypatch, capsys)
+    run_id = (
+        tmp_path / ".agentic" / ".workspace" / "state" / "current_run"
+    ).read_text(encoding="utf-8").strip()
+    summary = tmp_path / ".agentic" / "runs" / run_id / "validation-summary.json"
+    summary.write_text("[]\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as raised:
+        main(["verify", "status", "--json"])
+
+    assert raised.value.code == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "blocked"
+    assert "must be an object" in output["error"]
+
+
 def test_invalid_path_entry_is_typed_command_input(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

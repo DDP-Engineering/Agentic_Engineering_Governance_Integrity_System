@@ -32,6 +32,7 @@ from .invariants import evaluate
 from .models import Graph, Waiver
 from .requirement_store import load_all_requirement_records
 from .requirements import audit_coverage, audit_traceability
+from .persistence import atomic_write_text
 from .stage_forms import next_command
 from .stage_schema import run_stage_spec
 from .waiver_targets import (
@@ -211,6 +212,11 @@ def render_report(
     lines.extend(["", "## Traceability Audits"])
     if quick:
         lines.append("- NOT APPLICABLE: Not applicable - quick run.")
+    elif config.coverage.mode == "disabled" and not traceability_issues:
+        lines.append(
+            "- NOT ENFORCED: traceability coverage is disabled; "
+            "the traceability audit has no findings."
+        )
     elif not traceability_issues and not coverage_issues:
         lines.append("- PASS: live traceability and coverage audits have no findings.")
     for issue in traceability_issues:
@@ -274,7 +280,7 @@ def write_report(repo_root: Path, graph: Graph, rendered: str) -> Path:
     @exception  OSError If the report file cannot be written.
     """
     path = repo_root / ".agentic" / "runs" / graph.run_id / "report.md"
-    path.write_text(rendered, encoding="utf-8")
+    atomic_write_text(path, rendered)
     return path
 
 

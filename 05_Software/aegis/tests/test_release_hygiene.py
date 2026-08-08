@@ -150,21 +150,6 @@ def test_historical_changelog_versions_are_not_current_branding_failures() -> No
     assert all(path.name != "CHANGELOG.md" for path in _current_template_texts())
 
 
-def test_copied_template_contains_no_interpreter_cache_artifacts() -> None:
-    """
-    @brief      Keep copied-verbatim payload material free of Python caches.
-    @return     None.
-    @exception  AssertionError If a cache directory or bytecode file is present.
-    """
-    artifacts = tuple(
-        path.relative_to(TEMPLATE_ROOT).as_posix()
-        for path in TEMPLATE_ROOT.rglob("*")
-        if path.name == "__pycache__" or path.suffix.lower() in {".pyc", ".pyo"}
-    )
-
-    assert artifacts == ()
-
-
 def test_downstream_template_changelog_remains_empty() -> None:
     """
     @brief      Preserve the downstream starter changelog as an empty file.

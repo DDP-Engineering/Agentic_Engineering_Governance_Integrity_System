@@ -251,7 +251,14 @@ def inspect_repowise(
         )
     )
 
-    proposals = _derive_proposals(artifact)
+    try:
+        proposals = _derive_proposals(artifact)
+    except (KeyError, TypeError, ValueError) as exc:
+        return _unavailable(
+            config,
+            "invalid",
+            f"knowledge-graph proposal fields are invalid: {exc}",
+        )
     provenance = {
         "provider": "repowise",
         "repowise_version": receipt["repowise_version"],
@@ -562,6 +569,43 @@ def _validate_knowledge_graph(data: dict[str, Any]) -> None:
     for key in ("nodes", "edges", "layers"):
         if not isinstance(data[key], list):
             raise RepoWiseIntegrationError(f"knowledge-graph {key} must be an array")
+    project = data["project"]
+    for key in ("entry_points", "tech_stack"):
+        if key in project and not isinstance(project[key], list):
+            raise RepoWiseIntegrationError(
+                f"knowledge-graph project.{key} must be an array"
+            )
+    for index, node in enumerate(data["nodes"]):
+        if not isinstance(node, dict):
+            raise RepoWiseIntegrationError(
+                f"knowledge-graph nodes[{index}] must be an object"
+            )
+        file_path = node.get("filePath")
+        if file_path is not None:
+            if not isinstance(file_path, str):
+                raise RepoWiseIntegrationError(
+                    f"knowledge-graph nodes[{index}].filePath must be a string"
+                )
+            _relative_path(file_path, f"nodes[{index}].filePath")
+        tags = node.get("tags", [])
+        if not isinstance(tags, list) or any(
+            not isinstance(tag, str) for tag in tags
+        ):
+            raise RepoWiseIntegrationError(
+                f"knowledge-graph nodes[{index}].tags must be a string array"
+            )
+    for key in ("edges", "layers"):
+        if any(not isinstance(item, dict) for item in data[key]):
+            raise RepoWiseIntegrationError(
+                f"knowledge-graph {key} entries must be objects"
+            )
+    modules = data.get("modules", [])
+    if not isinstance(modules, list) or any(
+        not isinstance(item, dict) for item in modules
+    ):
+        raise RepoWiseIntegrationError(
+            "knowledge-graph modules must be an array of objects"
+        )
 
 
 def _validate_state(data: dict[str, Any]) -> None:

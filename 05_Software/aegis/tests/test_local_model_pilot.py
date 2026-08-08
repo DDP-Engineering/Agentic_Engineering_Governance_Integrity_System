@@ -80,6 +80,17 @@ def _completed(command: list[str], stdout: str) -> subprocess.CompletedProcess[s
     return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
 
 
+def test_required_artifact_preserves_failed_verification_diagnostic() -> None:
+    """@brief A failed pilot verification reports its cause instead of KeyError."""
+    pilot = _load_pilot_module()
+
+    with pytest.raises(RuntimeError, match="verify run returned no artifact: blocked"):
+        pilot._required_artifact(
+            {"status": "blocked", "error": "blocked"},
+            "verify run",
+        )
+
+
 # TESTS
 
 

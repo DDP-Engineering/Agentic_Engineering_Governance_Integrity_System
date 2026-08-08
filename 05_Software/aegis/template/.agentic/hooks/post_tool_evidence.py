@@ -30,6 +30,8 @@ def main() -> int:
     @return     Result produced by the workflow helper.
     @exception  None
     """
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PostToolUse":
         return 0

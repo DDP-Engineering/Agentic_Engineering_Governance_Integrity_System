@@ -7,7 +7,7 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]] $Args
+    [string[]] $RemainingArgs
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,7 +19,7 @@ $Launcher = Join-Path $ScriptDir "run_aegis.py"
 # @return Hashtable containing Command and leading Args, or $null.
 function Resolve-Python {
     if (-not [string]::IsNullOrWhiteSpace($env:AEGIS_PYTHON)) {
-        return @{ Command = $env:AEGIS_PYTHON; Args = @() }
+        return @{ Command = $env:AEGIS_PYTHON.Trim(); Args = @() }
     }
     $WaegisHome = $env:WAEGIS_HOME
     if ([string]::IsNullOrWhiteSpace($WaegisHome)) {
@@ -63,5 +63,5 @@ if ($null -eq $Interpreter) {
     exit 2
 }
 
-& $Interpreter.Command @($Interpreter.Args) $Launcher @Args
+& $Interpreter.Command @($Interpreter.Args) $Launcher @RemainingArgs
 exit $LASTEXITCODE

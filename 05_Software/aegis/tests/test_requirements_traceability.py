@@ -807,6 +807,21 @@ def test_impact_includes_current_and_previous_git_rename_paths(tmp_path: Path) -
     assert by_path["src/calculator_renamed.py"]["requirements"][0]["id"] == record.id
 
 
+def test_impact_accepts_brackets_in_git_discovered_concrete_paths(
+    tmp_path: Path,
+) -> None:
+    """@brief Framework route syntax is not reinterpreted as an input glob."""
+    config = configure_repository(tmp_path)
+    route = tmp_path / "app" / "[slug]" / "page.py"
+    route.parent.mkdir(parents=True)
+    route.write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+
+    by_path = {entry["file"]: entry for entry in impact(tmp_path, config=config)}
+
+    assert "app/[slug]/page.py" in by_path
+
+
 def test_coverage_uses_active_live_records_and_current_waivers(tmp_path: Path) -> None:
     """
     @brief Verify coverage requires a matching Active record with resolvable tests.

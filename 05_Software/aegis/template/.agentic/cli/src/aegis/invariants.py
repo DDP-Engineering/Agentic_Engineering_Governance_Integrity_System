@@ -59,6 +59,7 @@ from typing import Any, Literal
 
 from .components import audit_local_scope
 from .config import WorkflowConfig
+from .errors import CommandInputError
 from .gates import gate_failure_blockers
 from .models import STAGES, Graph, Waiver
 from .paths import contained_relative_path, matches_pattern
@@ -800,7 +801,16 @@ def _component_baseline_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig
     touched = [path for unit in graph.change_units for path in unit.touched_paths]
     if not touched:
         return InvariantResult("INV-9", "Component baseline scope", True, "blocking", "No change units recorded yet.")
-    issues = audit_local_scope(repo_root, touched, cfg)
+    try:
+        issues = audit_local_scope(repo_root, touched, cfg)
+    except CommandInputError as exc:
+        return InvariantResult(
+            "INV-9",
+            "Component baseline scope",
+            False,
+            "blocking",
+            f"Component baseline scope could not be evaluated: {exc}",
+        )
     if not issues:
         return InvariantResult("INV-9", "Component baseline scope", True, "blocking", "Mapped component paths meet baseline scope.")
     # Sorted for waiver-digest stability; see the note in `_coverage`.

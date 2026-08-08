@@ -4,11 +4,13 @@
 
 `aegis verify invariants` evaluates these rules; `aegis verify run` evaluates
 them with gates, traceability, coverage, impact, and working-tree review. A
-full run evaluates all ten. A quick run reports INV-1, INV-2, INV-3, INV-8,
-and INV-10 as `not-applicable`, because it has no requirement, check, or design
-collection stage. An adoption run reports INV-6 as `not-applicable` for the
-same reason: it has no evidence-producing stage. `not-applicable` is neither
-passed nor waived.
+full run evaluates all ten. A quick run reports INV-1, INV-2, INV-8, and
+INV-10 as `not-applicable`, because it has no requirement, ordinary check, or
+design collection stage. New quick runs still evaluate INV-3 from their
+run-local checks; only historical quick graphs carrying the legacy policy
+report it as `not-applicable`. An adoption run reports INV-6 as
+`not-applicable` because it has no evidence-producing stage. `not-applicable`
+is neither passed nor waived.
 
 For an eligible failed process rule, first run `aegis waive list`, obtain
 human approval, then use the exact reported ID with
@@ -24,7 +26,7 @@ schema, graph, persistence, or stale-update integrity failures.
 | INV-4 | No regression | Blocking | Failed implementation, validation, or delivery test/gate evidence remains visible. | Verification; active gate or test-run evidence in those stages failed. | Yes, for the exact eligible failure | Fix and rerun the relevant `aegis verify gates` or `aegis check run`, then verify. |
 | INV-5 | In scope | Blocking when scope enforces; advisory otherwise | Recorded changed paths stay inside configured scope and the repository. | Verification; paths escape the repository or violate enforced allowed roots. | Yes when scope is `enforce`; advisory findings are not waiver targets | Correct changed paths through the implementation form, or consciously revise `workflow.toml`; then `aegis verify invariants`. |
 | INV-6 | Evidence | Blocking | The run has durable evidence. | Verification; no evidence is recorded. | Yes | Use `aegis check prepare` / `aegis check record`, `aegis check run`, or `aegis evidence prepare add` / `aegis evidence apply`; then verify. |
-| INV-7 | Clean secrets | Non-waivable policy; explicitly waiver-eligible | Configured secret patterns do not appear in tracked, staged, or untracked changes. | Verification; scanning fails or a configured pattern matches. | Yes, only as an exact recorded process waiver | Remove or redact the secret, then `aegis verify invariants`; do not use a waiver to normalize a secret leak. |
+| INV-7 | Clean secrets | Blocking | Configured secret patterns do not appear in tracked, staged, or untracked changes. | Verification; scanning fails or a configured pattern matches. | Yes, only as an exact recorded process waiver | Remove or redact the secret, then `aegis verify invariants`; do not use a waiver to normalize a secret leak. |
 | INV-8 | Green requirements active | Blocking | Green requirement-linked checks point to active durable contracts. | Verification; a cited snapshot is missing or not `Active`. | Yes | Restore or activate the requirement through its stage form, correct the check citation, then verify. |
 | INV-9 | Component baseline scope | Blocking | Behavior-changing work is limited to baseline-ready mapped components when the guard is enabled. | Verification; changed paths fail the component baseline audit. Adoption runs and disabled guards do not block. | Yes | Complete/map the affected component or correct changed paths, then `aegis verify invariants`. |
 | INV-10 | Solution design | Blocking | Check and later work use a human-approved, unchanged design and cited requirement snapshots. | From check onward and during verification; no human-approved design exists, `design.md` changed, or a cited snapshot digest changed. | Yes | Return to design with `aegis stage prepare`, update/import it with `aegis stage apply`, explicitly approve with `aegis stage close`, then verify. |
@@ -52,10 +54,12 @@ then run `aegis verify invariants`.
 ## INV-3 — Red-before-green
 
 This rule prevents any full run — feature, fix, or change alike — from
-claiming a check passes without a demonstrated failure first. Record the red
-result before its green result using the configured external
+claiming a check passes without a demonstrated failure first. New quick runs
+whose persisted red/green policy is `required` enforce the same rule. Record
+the red result before its green result using the configured external
 (`aegis check prepare` then `aegis check record`) or managed
-(`aegis check run`) path, then verify. It is not applicable to quick runs.
+(`aegis check run`) path, then verify. Only historical quick graphs with the
+`legacy-not-applicable` policy skip it.
 
 ## INV-4 — No regression
 

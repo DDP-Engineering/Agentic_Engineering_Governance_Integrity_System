@@ -58,6 +58,28 @@ from aegis.store import (
     set_stage,
 )
 
+
+def test_lock_setup_failure_releases_process_local_mutex(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief A failed lock-directory creation cannot poison later callers."""
+    lock_path = tmp_path / "locks" / "test.lock"
+    original_mkdir = Path.mkdir
+
+    def failing_mkdir(path: Path, *args: object, **kwargs: object) -> None:
+        if path == lock_path.parent:
+            raise OSError("injected mkdir failure")
+        original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", failing_mkdir)
+    with pytest.raises(OSError, match="injected mkdir failure"):
+        persistence.FileLock(lock_path, timeout=0.01).acquire()
+
+    monkeypatch.setattr(Path, "mkdir", original_mkdir)
+    with persistence.FileLock(lock_path, timeout=0.01):
+        assert lock_path.is_file()
+
 # CONSTANTS
 
 RUN_ID = "feature-2026-07-30T120000Z-a1b2c3d4"
@@ -343,6 +365,23 @@ def test_atomic_write_creates_a_new_file_at_the_umask_default(
         os.umask(previous)
 
     assert path.stat().st_mode & 0o777 == 0o644
+
+
+def test_atomic_write_never_mutates_process_umask(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief New-file publication relies on mode-aware creation, not umask reads."""
+    def forbidden_umask(_mode: int) -> int:
+        """@brief Detect process-global umask mutation from the write path."""
+        raise AssertionError("atomic write changed the process umask")
+
+    monkeypatch.setattr(persistence.os, "umask", forbidden_umask)
+
+    path = tmp_path / "state" / "journal.jsonl"
+    atomic_write_text(path, "{}\n")
+
+    assert path.read_text(encoding="utf-8") == "{}\n"
 
 
 def test_stale_direct_graph_save_is_rejected_without_overwrite(

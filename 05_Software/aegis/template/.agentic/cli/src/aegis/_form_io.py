@@ -53,7 +53,7 @@ def load_evidence_form(path: Path) -> dict[str, Any]:
     try:
         with path.open("rb") as stream:
             return tomllib.load(stream)
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         raise StageOperationError(f"{path}: cannot load evidence form: {exc}") from exc
 
 

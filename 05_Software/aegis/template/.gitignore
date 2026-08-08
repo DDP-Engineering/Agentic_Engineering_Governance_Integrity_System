@@ -10,6 +10,10 @@ __pycache__/
 # Per-worktree AEGIS runtime state is created on demand and never tracked.
 .agentic/.workspace/
 
+# Interrupted atomic publications may leave unique sibling temporaries. They
+# are never durable workflow evidence and must not be committed.
+/.agentic/runs/**/.*.tmp
+
 # Project-local optional tool runtimes are never repository source material.
 .agentic/tools/repowise/
 

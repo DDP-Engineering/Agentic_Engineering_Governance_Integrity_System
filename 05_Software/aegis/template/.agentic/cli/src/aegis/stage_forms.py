@@ -87,7 +87,7 @@ from .waivers import (
 # CONSTANTS
 
 FORM_SCHEMA_VERSION = 3
-COLLECTION_STAGES = ("requirement", "check")
+COLLECTION_STAGES = frozenset({"requirement", "check"})
 # @brief Stages where `stage add` mints a requirement form. The adoption route
 #        has no requirement stage, so before 2.1.0 a repository that completed
 #        all seven adoption stages ended with an empty requirement register
@@ -301,7 +301,7 @@ def add_stage_item(
     path = directory / f"{prefix}-{number:03d}.toml"
     if path.exists():
         raise StageOperationError(
-            f"refusing to overwrite existing form {path.name}. Delete it, or "
+            f"refusing to overwrite existing form {path.name}. Delete it and "
             "run `aegis stage prepare` to regenerate the set."
         )
     if graph.stage in REQUIREMENT_ITEM_STAGES:
@@ -961,6 +961,10 @@ def _prepare_stage_record(
         artifact="",
         payload=copy.deepcopy(current.payload) if current and current.payload else {},
     )
+    control = record.payload.get("control")
+    if isinstance(control, dict):
+        control["route_to"] = ""
+        control["route_rationale"] = ""
     if graph.stage == "repo-discovery":
         if not record.payload:
             record.payload = {
@@ -975,6 +979,8 @@ def _prepare_stage_record(
                 ],
             }
         _merge_repowise_discovery(repo_root, graph, record)
+    if graph.stage == "component-map":
+        record.payload["manifest"] = config.component_manifest
     return record
 
 
@@ -1738,8 +1744,8 @@ def _load_single_stage_form(
     for field in fields:
         if field.name not in data:
             raise StageOperationError(
-                f"{path}: missing required key {field.name}. Run "
-                "`aegis stage prepare` to regenerate the current-revision form."
+                f"{path}: missing required key {field.name}. Restore the key, "
+                "or delete this form and run `aegis stage prepare` to regenerate it."
             )
     _validate_stage_values(data, graph.stage, path)
     data["control"] = _control(data.get("control"), path)
@@ -1766,8 +1772,8 @@ def _apply_requirements(
         for key in REQUIREMENT_FORM_KEYS:
             if key not in data:
                 raise StageOperationError(
-                    f"{path}: missing required key {key}. Run "
-                    "`aegis stage prepare` to regenerate the current-revision form."
+                    f"{path}: missing required key {key}. Restore the key, or "
+                    "delete this form and run `aegis stage prepare` to regenerate it."
                 )
         spec_path = repo_root / _string(data, "spec_ref", path)
         if not spec_path.is_file():
@@ -2000,8 +2006,8 @@ def _apply_checks(
         for key in CHECK_FORM_KEYS:
             if key not in data:
                 raise StageOperationError(
-                    f"{path}: missing required key {key}. Run "
-                    "`aegis stage prepare` to regenerate the current-revision form."
+                    f"{path}: missing required key {key}. Restore the key, or "
+                    "delete this form and run `aegis stage prepare` to regenerate it."
                 )
         check_id = _nonempty(data, "id", path)
         if check_id in seen:
@@ -2063,6 +2069,11 @@ def _import_single_stage(
     elif graph.stage == "component-adoption":
         _import_component_adoption(repo_root, graph, data)
     elif graph.stage == "component-map":
+        if data.get("manifest") != config.component_manifest:
+            raise StageOperationError(
+                "component-map manifest must match components.manifest: "
+                f"{config.component_manifest}"
+            )
         _validate_import_enum(
             data,
             "component-map",
@@ -2098,7 +2109,7 @@ def _import_alignment(graph: Graph, data: dict[str, Any]) -> None:
     """
     @brief Import standard or adoption alignment fields.
     """
-    path = Path("alignment.toml")
+    path = Path(f"{graph.stage}.toml")
     understanding = _nonempty(data, "understanding", path)
     in_scope = _strings(data, "in_scope", path)
     acceptance = _strings(data, "acceptance_criteria", path)
@@ -2613,8 +2624,8 @@ def _closed_keys(data: dict[str, Any], expected: tuple[str, ...], path: Path) ->
     unknown = sorted(set(data) - set(expected))
     if unknown:
         raise StageOperationError(
-            f"{path}: unknown key {unknown[0]}. Run `aegis stage prepare` to "
-            "regenerate the current-revision form."
+            f"{path}: unknown key {unknown[0]}. Remove the key, or delete this "
+            "form and run `aegis stage prepare` to regenerate it."
         )
 
 

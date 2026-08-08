@@ -61,7 +61,7 @@ WORKFLOW_CONFIG_SUFFIX = ".agentic/workflow.toml"
 #        operator that appears *inside* quotes lands in a segment that fails to
 #        tokenize (unbalanced quote) and is skipped — a missed write, never a
 #        misattributed one.
-_SEGMENT_SPLIT_RE = re.compile(r"&&|\|\||[;|&\n()]")
+_SEGMENT_SPLIT_RE = re.compile(r"&&|\|\||[;\n()]|(?<!>)\||(?<!>)&(?!>)")
 
 # @brief A token that opens an output redirection: an optional leading file
 #        descriptor (digits) or ``&`` (redirect-all), then ``>`` or ``>>``, then
@@ -91,6 +91,8 @@ def main() -> int:
                 active-run selection.
     @exception  None Configuration and state failures become hook denials.
     """
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
@@ -114,7 +116,7 @@ def main() -> int:
             sys.path.insert(0, source_text)
         from aegis.paths import contained_relative_path, matches_pattern
     except Exception as exc:
-        if targets_workflow_config_only(targets):
+        if targets_workflow_config_only(targets, cwd):
             return 0
         return deny(str(exc))
 
@@ -135,7 +137,7 @@ def main() -> int:
             _, stage, access_mode = read_run_state(repo_root)
             zones = None if access_mode == "repo-wide" else config.write_access.stages[stage]
     except Exception as exc:
-        if targets_workflow_config_only(in_repo):
+        if targets_workflow_config_only(in_repo, repo_root):
             return 0
         return deny(str(exc))
 
@@ -192,6 +194,7 @@ def _tokenize(segment: str) -> list[str]:
                 lexer configuration used by ``aegis.gates`` for the same reason.
     @exception  None Unbalanced quoting yields an empty token list.
     """
+    segment = re.sub(r"(?<=[^>\s])(?=(?:[0-9]+|&)?>)", " ", segment)
     lexer = shlex.shlex(segment, posix=True)
     lexer.whitespace_split = True
     lexer.commenters = ""
@@ -252,6 +255,13 @@ def _command_targets(tokens: list[str]) -> list[str]:
     if name == "tee":
         return list(non_flags)
     if name in {"cp", "mv", "install"}:
+        for index, token in enumerate(rest):
+            if token in {"-t", "--target-directory"}:
+                return [rest[index + 1]] if index + 1 < len(rest) else []
+            if token.startswith("--target-directory="):
+                return [token.split("=", 1)[1]]
+            if token.startswith("-t") and len(token) > 2:
+                return [token[2:]]
         return [non_flags[-1]] if len(non_flags) >= 2 else []
     if name == "dd":
         return [token[len("of=") :] for token in rest if token.startswith("of=") and len(token) > len("of=")]
@@ -321,7 +331,9 @@ def is_protected_path(path: str, policy, matcher) -> bool:  # type: ignore[no-un
     )
 
 
-def targets_workflow_config_only(paths: list[str]) -> bool:
+def targets_workflow_config_only(
+    paths: list[str], repo_root: Path | None = None
+) -> bool:
     """
     @brief      Report whether every named target is the workflow config file.
     @param[in]  paths Raw or repository-relative target paths.
@@ -332,10 +344,24 @@ def targets_workflow_config_only(paths: list[str]) -> bool:
     """
     if not paths:
         return False
-    return all(
-        str(item).replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
-        for item in paths
-    )
+    return all(_is_workflow_config(str(item), repo_root) for item in paths)
+
+
+def _is_workflow_config(path: str, repo_root: Path | None) -> bool:
+    """@brief Match only the repository's root workflow configuration file."""
+    normalized = path.replace("\\", "/").rstrip("/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    if normalized == WORKFLOW_CONFIG_SUFFIX:
+        return True
+    if repo_root is None or not Path(path).is_absolute():
+        return False
+    try:
+        return Path(path).resolve() == (
+            repo_root / ".agentic" / "workflow.toml"
+        ).resolve()
+    except OSError:
+        return False
 
 
 def deny(message: str) -> int:

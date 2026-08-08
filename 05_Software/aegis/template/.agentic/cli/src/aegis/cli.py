@@ -144,6 +144,8 @@ def main(argv: list[str] | None = None) -> None:
     @exception  OSError If persistence or file I/O fails outside the handled
                 policy exceptions.
     """
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     normalized = _normalize_global_options(list(argv) if argv is not None else sys.argv[1:])
     parser = _build_parser()
     args = parser.parse_args(normalized)
@@ -155,12 +157,12 @@ def main(argv: list[str] | None = None) -> None:
             _respond(payload, args.json)
             return
 
-        config = load_config(root)
         if args.group == "run" and args.action == "list":
             _respond(_run_list(root), args.json)
             return
 
         if args.group == "run" and args.action == "start":
+            config = load_config(root)
             abandoned_warning = _incomplete_run_warning(root)
             profile = "quick" if args.quick else "full"
             graph = init_graph(root, args.kind, "", profile=profile)
@@ -190,6 +192,8 @@ def main(argv: list[str] | None = None) -> None:
             # is unreadable is the one that most needs it.
             _respond(_run_abandon(root, args), args.json)
             return
+
+        config = load_config(root)
 
         if args.group == "run" and args.action == "select":
             run_id = resolve_run_id(root, args.run_id)
@@ -999,9 +1003,18 @@ def _config_command(root: Path, args: argparse.Namespace) -> dict[str, Any]:
     """
     config = load_config(root)
     data = effective_config_dict(config)
-    integration = effective_repowise_config(root)
-    inspection = inspect_repowise(root)
     graph = _optional_active_graph(root, getattr(args, "run", None))
+    integrations: dict[str, Any] = {}
+    if args.action == "show":
+        integration = effective_repowise_config(root)
+        inspection = inspect_repowise(root)
+        integrations = {
+            "repowise": {
+                **integration,
+                "status": inspection.status,
+                "warnings": list(inspection.warnings),
+            }
+        }
     return {
         "status": "ok",
         "stage": graph.stage if graph and not graph.complete else "none",
@@ -1014,13 +1027,7 @@ def _config_command(root: Path, args: argparse.Namespace) -> dict[str, Any]:
         **(
             {
                 "config": data,
-                "integrations": {
-                    "repowise": {
-                        **integration,
-                        "status": inspection.status,
-                        "warnings": list(inspection.warnings),
-                    }
-                },
+                "integrations": integrations,
             }
             if args.action == "show"
             else {
@@ -1122,7 +1129,7 @@ def _run_abandon(root: Path, args: argparse.Namespace) -> dict[str, Any]:
         "status": "ok",
         "stage": row["stage"],
         "artifact": "none",
-        "next": "aegis run start <kind>",
+        "next": f"aegis run start {run_id.split('-', 1)[0]}",
         "reason": reason,
         **row,
     }
@@ -1237,6 +1244,7 @@ def _git_config_value(root: Path, key: str) -> str:
             cwd=root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
         )
     except (OSError, ValueError):
@@ -1323,7 +1331,11 @@ def _respond(payload: dict[str, Any], json_output: bool) -> None:
         if key in {"status", "stage", "artifact", "next"}:
             continue
         if isinstance(value, (str, int, float, bool)) or value is None:
-            print(f"{key}: {value}")
+            rendered_scalar = "none" if value is None else str(value)
+            rendered_scalar = rendered_scalar.replace("\r", "\\r").replace(
+                "\n", "\\n"
+            )
+            print(f"{key}: {rendered_scalar}")
             continue
         print(f"{key}:")
         rendered = json.dumps(
@@ -1367,11 +1379,7 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
 
 def _is_impact_run_option(argv: list[str], index: int) -> bool:
     """@brief Distinguish `verify impact --run` from global `--run <id>`."""
-    return (
-        "verify" in argv[:index]
-        and "impact" in argv[:index]
-        and (index + 1 == len(argv) or argv[index + 1].startswith("-"))
-    )
+    return "verify" in argv[:index] and "impact" in argv[:index]
 
 
 def _read_paths_file(root: Path, value: str) -> list[str]:

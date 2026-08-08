@@ -115,6 +115,8 @@ def main() -> int:
                 more likely to be a read under a name not yet listed than a
                 search, and the strict branch is the safe way to be wrong.
     """
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
@@ -160,7 +162,8 @@ def main() -> int:
                 payload.get("tool_name")
                 if isinstance(payload.get("tool_name"), str)
                 else "",
-            )
+            ),
+            cwd,
         ):
             return 0
         return deny(str(exc))
@@ -208,7 +211,9 @@ def extract_target_paths(tool_input: object, tool_name: str = "") -> list[str]:
     return found
 
 
-def targets_workflow_config_only(paths: list[str]) -> bool:
+def targets_workflow_config_only(
+    paths: list[str], repo_root: Path | None = None
+) -> bool:
     """
     @brief      Report whether every named target is the workflow config file.
     @param[in]  paths Raw target paths as the tool named them.
@@ -220,10 +225,24 @@ def targets_workflow_config_only(paths: list[str]) -> bool:
     """
     if not paths:
         return False
-    return all(
-        str(item).replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
-        for item in paths
-    )
+    return all(_is_workflow_config(str(item), repo_root) for item in paths)
+
+
+def _is_workflow_config(path: str, repo_root: Path | None) -> bool:
+    """@brief Match only the repository's root workflow configuration file."""
+    normalized = path.replace("\\", "/").rstrip("/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    if normalized == WORKFLOW_CONFIG_SUFFIX:
+        return True
+    if repo_root is None or not Path(path).is_absolute():
+        return False
+    try:
+        return Path(path).resolve() == (
+            repo_root / ".agentic" / "workflow.toml"
+        ).resolve()
+    except OSError:
+        return False
 
 
 def deny(message: str) -> int:

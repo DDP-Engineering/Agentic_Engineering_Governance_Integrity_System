@@ -24,10 +24,10 @@ import errno
 import json
 import os
 from pathlib import Path
-import tempfile
 import threading
 import time
 from typing import Any, BinaryIO, Iterator
+import uuid
 
 if os.name == "nt":
     import msvcrt
@@ -152,9 +152,10 @@ class FileLock:
             self._acquired = True
             return
 
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b", buffering=0)
+        handle: BinaryIO | None = None
         try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            handle = self.path.open("a+b", buffering=0)
             _ensure_lock_byte(handle)
             while True:
                 try:
@@ -178,10 +179,12 @@ class FileLock:
                         f"cannot acquire AEGIS lock {self.path}: {exc}"
                     ) from exc
         except BaseException:
-            handle.close()
+            if handle is not None:
+                handle.close()
             thread_lock.release()
             self._thread_lock = None
             raise
+        assert handle is not None
         held[key] = _HeldLock(handle=handle, depth=1)
         self._acquired = True
 
@@ -247,21 +250,23 @@ def create_temporary_bytes(path: Path, content: bytes) -> Path:
     @param[in] content Complete bytes to persist.
     @return Created temporary path ready for publication.
     @exception OSError If creation or persistence fails.
-    @details The temporary carries the destination's mode, or the umask default
-             when the destination is new. `mkstemp` creates at 0o600 and ignores
-             the umask, and `os.replace` publishes that inode with that mode -
-             so on POSIX every AEGIS-managed file (graph, journal, requirement
-             TOMLs, the run pointer) silently became owner-only after its first
-             rewrite, and a second developer or CI account then got
-             `PermissionError` with nothing in `git status` to explain it.
+    @details The temporary carries the destination's mode, or is created with
+             mode 0o666 subject to the process umask when the destination is
+             new. Exclusive `os.open` creation avoids changing the process-wide
+             umask merely to discover it.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-    )
-    temporary = Path(name)
+    while True:
+        temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            descriptor = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o666,
+            )
+            break
+        except FileExistsError:
+            continue
     try:
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(content)
@@ -270,13 +275,12 @@ def create_temporary_bytes(path: Path, content: bytes) -> Path:
         try:
             mode = path.stat().st_mode & 0o7777
         except OSError:
-            umask = os.umask(0)
-            os.umask(umask)
-            mode = 0o666 & ~umask
-        try:
-            os.chmod(temporary, mode)
-        except OSError:
-            pass  # Filesystems without POSIX modes are unaffected.
+            pass  # Creation already applied the process umask.
+        else:
+            try:
+                os.chmod(temporary, mode)
+            except OSError:
+                pass  # Filesystems without POSIX modes are unaffected.
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise

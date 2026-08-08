@@ -57,12 +57,15 @@ max_bundle_components = 5
 mode = "unrestricted"
 
 [alignment]
+# Reserved compatibility metadata. Current releases validate and preserve these
+# values but do not use them to change stage routing or closure decisions.
 enabled = true
 pause_on_open_questions = true
 risk_threshold = "medium"
 allow_recommended_responses = true
 
 [alignment.protected_scope]
+# Reserved compatibility metadata; this is not an active path guardrail.
 mode = "disabled"
 patterns = []
 

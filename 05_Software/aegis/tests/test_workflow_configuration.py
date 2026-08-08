@@ -75,6 +75,46 @@ def test_complete_unrestricted_configuration_parses_as_immutable_model(
         config.schema_version = 3  # type: ignore[misc]
 
 
+def test_impacted_command_preserves_legal_duplicate_argv_tokens(
+    tmp_path: Path,
+    unrestricted_workflow_toml: str,
+) -> None:
+    """@brief Argv validation uses sequence rather than set semantics."""
+    text = _replace(
+        unrestricted_workflow_toml,
+        '[gates.test]\nmode = "disabled"\ncommands = []',
+        '[gates.test]\nmode = "disabled"\ncommands = []\n'
+        'impacted_command = ["pytest", "-p", "no:cacheprovider", "-p", "no:randomly"]',
+    )
+    _write(tmp_path, text)
+
+    assert load_config(tmp_path).gates.test.impacted_command == (
+        "pytest",
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        "no:randomly",
+    )
+
+
+def test_disabled_guardrail_may_retain_rules_for_later_reenable(
+    tmp_path: Path,
+    unrestricted_workflow_toml: str,
+) -> None:
+    """@brief Switching policy off does not require deleting its rule set."""
+    text = _replace(
+        unrestricted_workflow_toml,
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = ["token"]',
+    )
+    _write(tmp_path, text)
+
+    config = load_config(tmp_path)
+
+    assert config.secrets.mode == "disabled"
+    assert config.secrets.patterns == ("token",)
+
+
 def test_missing_configuration_is_actionable(tmp_path: Path) -> None:
     """@brief A missing workflow.toml never creates an implicit configuration."""
     (tmp_path / ".agentic" / "workflow.toml").unlink()
@@ -147,10 +187,6 @@ def test_unknown_key_and_wrong_type_are_rejected(
     ("old", "new"),
     [
         (
-            '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
-            '[guardrails.secrets]\nmode = "disabled"\npatterns = ["token"]',
-        ),
-        (
             '[guardrails.working_tree]\nmode = "unrestricted"\nblocked_patterns = []',
             '[guardrails.working_tree]\nmode = "restricted"\nblocked_patterns = []',
         ),
@@ -167,7 +203,7 @@ def test_unknown_key_and_wrong_type_are_rejected(
 def test_policy_modes_reject_contradictory_rule_sets(
     tmp_path: Path, unrestricted_workflow_toml: str, old: str, new: str
 ) -> None:
-    """@brief Dormant rules and empty restrictive modes are inconsistent."""
+    """@brief Empty restrictive modes remain inconsistent."""
     _write(tmp_path, _replace(unrestricted_workflow_toml, old, new))
     _error(tmp_path, "CONFIG-INCONSISTENT")
 

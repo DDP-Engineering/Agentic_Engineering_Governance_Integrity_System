@@ -239,85 +239,49 @@ def _git_status(repo_root: Path) -> tuple[list[dict[str, str]], str | None]:
             # `café.txt` is reported as the literal string `"caf\303\251.txt"`,
             # which none of the protected/blocked/secret path patterns below
             # would ever match.
-            ["git", "-c", "core.quotepath=false", "status", "--porcelain", "-uall"],
+            [
+                "git",
+                "-c",
+                "core.quotepath=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "-uall",
+            ],
             cwd=repo_root,
             text=True,
             encoding="utf-8",
-            errors="replace",
+            errors="strict",
             capture_output=True,
             check=False,
+            timeout=30,
         )
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError, subprocess.TimeoutExpired) as exc:
         return [], f"Git could not be run to audit the working tree: {exc}"
     if result.returncode != 0:
         detail = (result.stderr or "").strip().splitlines()
         reason = detail[-1] if detail else "no diagnostic output"
         return [], f"Git status failed with exit code {result.returncode}: {reason}"
-    entries = []
-    for line in result.stdout.splitlines():
-        if len(line) < 4:
+    entries: list[dict[str, str]] = []
+    fields = result.stdout.split("\0")
+    index = 0
+    while index < len(fields):
+        field = fields[index]
+        index += 1
+        if len(field) < 4:
             continue
-        status = line[:2]
-        path = line[3:]
-        previous_path = None
-        # ``old -> new`` is only a rename/copy record, marked ``R`` or ``C`` in
-        # the porcelain status code. Splitting on `" -> "` unconditionally would
-        # corrupt an ordinary entry for a file whose own name literally contains
-        # that sequence (e.g. an untracked ``a -> b``), which Git leaves unquoted
-        # because it has no special characters.
-        if ("R" in status or "C" in status) and " -> " in path:
-            previous_path, path = path.split(" -> ", 1)
-        # No separator translation: Git emits `/` on every platform, so the
-        # only backslash that can survive unquoting is one that is genuinely
-        # part of the filename (legal on POSIX). Replacing it produced a path
-        # that does not exist, against which no protected pattern could match
-        # and the secret scan read the wrong file or nothing at all.
-        entry = {"status": status, "path": _unquote_git_path(path)}
-        if previous_path:
-            entry["previous_path"] = _unquote_git_path(previous_path)
+        status = field[:2]
+        entry = {"status": status, "path": field[3:]}
+        # In porcelain `-z` mode Git emits a rename/copy destination followed
+        # by its source as a second NUL-delimited field. No quoting or ` -> `
+        # separator is involved, so either path may contain that literal text.
+        if "R" in status or "C" in status:
+            if index >= len(fields) or not fields[index]:
+                return [], "Git status returned an incomplete rename record"
+            entry["previous_path"] = fields[index]
+            index += 1
         entries.append(entry)
     return entries, None
-
-
-_GIT_QUOTE_ESCAPES = {"\\": "\\", '"': '"', "n": "\n", "t": "\t", "a": "\a", "b": "\b", "f": "\f", "v": "\v"}
-
-
-def _unquote_git_path(path: str) -> str:
-    """
-    @brief      Undo Git's C-style quoting of a porcelain status path.
-    @param[in]  path Git porcelain status path field, possibly C-style-quoted.
-    @return     Path with Git's quoting and escape sequences resolved back to
-                raw text.
-    @details    `-c core.quotepath=false` (set on the `git status` call above)
-                covers the common non-ASCII-filename case, but Git still
-                quotes paths containing a literal double quote or backslash
-                regardless of that setting, so this remains a second,
-                defense-in-depth layer for those remaining cases.
-    @exception  None
-    """
-    if len(path) < 2 or path[0] != '"' or path[-1] != '"':
-        return path
-    inner = path[1:-1]
-    raw = bytearray()
-    index = 0
-    while index < len(inner):
-        char = inner[index]
-        if char != "\\" or index + 1 >= len(inner):
-            raw.extend(char.encode("utf-8"))
-            index += 1
-            continue
-        nxt = inner[index + 1]
-        if nxt in "01234567":
-            octal = inner[index + 1 : index + 4]
-            try:
-                raw.append(int(octal, 8))
-                index += 4
-                continue
-            except ValueError:
-                pass
-        raw.extend(_GIT_QUOTE_ESCAPES.get(nxt, nxt).encode("utf-8"))
-        index += 2
-    return raw.decode("utf-8", errors="replace")
 
 
 def _secret_match(path: Path, relative_path: str, patterns: list[str]) -> str | None:

@@ -21,12 +21,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from fnmatch import fnmatchcase
+import os
 from pathlib import Path
 import re
 from typing import Any
 
 from .config import WorkflowConfig
-from .paths import matches_pattern
+from .paths import contained_relative_path, matches_pattern
 from .persistence import locked
 from .requirement_store import (
     CATEGORY_IDENTITIES,
@@ -507,12 +508,18 @@ def impact(
         if config.coverage.mode == "enforce"
         else set()
     )
+    discovered = files is None
     candidates = files if files is not None else _git_working_set(repo_root)
     report: list[dict[str, Any]] = []
     seen: set[str] = set()
     cache: dict[str, tuple[bool, str]] = {}
     for file_path in candidates:
-        relative_path = normalize_repository_path(file_path, allow_glob=False)
+        if discovered:
+            relative_path = contained_relative_path(file_path, repo_root)
+            if relative_path is None:
+                continue
+        else:
+            relative_path = normalize_repository_path(file_path, allow_glob=False)
         if relative_path in seen:
             continue
         seen.add(relative_path)
@@ -538,7 +545,9 @@ def records_touching_file(
     @brief Match one path through the shared repository glob semantics.
     @return Matching records ordered by ID.
     """
-    normalized = normalize_repository_path(relative_path, allow_glob=False)
+    normalized = normalize_repository_path(relative_path, allow_glob=True)
+    if "*" in normalized or "?" in normalized:
+        raise ValueError("concrete impact paths must not contain wildcard syntax")
     return sorted(
         (
             record
@@ -621,14 +630,18 @@ def iter_coverable_files(repo_root: Path, config: WorkflowConfig) -> list[str]:
     """
     if config.coverage.mode == "disabled":
         return []
-    extensions = set(config.source_extensions)
+    extensions = {
+        extension.casefold() if os.name == "nt" else extension
+        for extension in config.source_extensions
+    }
     found: list[str] = []
     for root_name in config.coverage.coverable_roots:
         root = repo_root / root_name
         if not root.exists():
             continue
         for path in root.rglob("*"):
-            if not path.is_file() or path.suffix not in extensions:
+            suffix = path.suffix.casefold() if os.name == "nt" else path.suffix
+            if not path.is_file() or suffix not in extensions:
                 continue
             relative = path.resolve().relative_to(repo_root.resolve()).as_posix()
             if any(
