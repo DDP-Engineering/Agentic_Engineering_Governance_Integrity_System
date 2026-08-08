@@ -134,14 +134,15 @@ human approval per stage. Load only the reference for the current stage from the
 
 ## Adoption Discovery
 
-Provider inspection or synchronization is an external deployment-tool action,
-not an AEGIS command. Confirm that operation separately before asking the agent
-to consume discovery artifacts.
+Run this inside the governed repository. Optional external discovery must
+already have been configured and refreshed by the repository operator or its
+separately managed tool; WAEGIS 3 does not manage RepoWise.
 
 ```text
-During repo-discovery, report RepoWise validation status and provenance. Use
-only current structural proposals, preserve every human-entered field, warn for
+Run `aegis config validate --json`, then continue the current repo-discovery
+stage. Report optional integration validation status and provenance, use only
+current structural proposals, preserve every human-entered field, warn for
 advisory unavailability, and block only when the integration is explicitly
-required. If provider artifacts are stale, stop and ask the operator to update
-them outside AEGIS.
+required. Never execute or refresh the external integration without a separate
+operator request.
 ```

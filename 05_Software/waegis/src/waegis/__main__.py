@@ -8,20 +8,12 @@
 # -----------------------------------------------------------------------------
 """
 @file __main__.py
-@brief Module entry point for the WAEGIS wizard (``python -m waegis``).
-@details Delegates to :func:`waegis.cli.main` and propagates its integer exit
-         code to the process.
+@brief Module entry point for ``python -m waegis``.
+@details Delegates process exit mapping to the public CLI implementation.
 """
-
-# IMPORTS
-
-from __future__ import annotations
-
-import sys
 
 from .cli import main
 
-if __name__ == "__main__":
-    sys.exit(main())
+raise SystemExit(main())
 
 # END OF FILE

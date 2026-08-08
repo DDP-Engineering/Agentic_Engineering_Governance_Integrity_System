@@ -1,55 +1,20 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# WAEGIS 1.2
+# WAEGIS 3
 
-WAEGIS is the separate, stdlib-only guided wizard that analyzes, configures,
-deploys, diagnoses, repairs, and upgrades compatible AEGIS payloads. It is never
-copied into the target payload.
+WAEGIS is the separate, standard-library-only wizard for analyzing,
+configuring, installing, diagnosing, repairing, and upgrading AEGIS. WAEGIS is
+not copied into a target repository.
 
-## Version Boundary
+WAEGIS 3.0.0 supports stable AEGIS payloads in `>=3.0.0,<4.0.0`. It preserves
+the established package/import/command name `waegis`. WAEGIS 1 installations
+are re-adopted through the normal conflict flow; their ownership metadata is
+never trusted. AEGIS 2 and cross-major payloads are rejected before mutation.
 
-WAEGIS 1.2 supports AEGIS `>=2.0.0,<3.0.0`. AEGIS 1.x and cross-major upgrades
-are rejected before mutation. Schema-2 workflow configurations are not migrated;
-deploy a fresh AEGIS 2.x payload with schema 3.
-
-## Core and Complete Editions
-
-- **Core** contains the normal WAEGIS/AEGIS payload and defaults RepoWise to
-  disabled.
-- **Complete** adds a separate native RepoWise 0.37.0 runtime with locked
-  dependencies, exact corresponding source, hashes, AGPL and third-party
-  notices, SBOM, manifest, and size metadata.
-
-Complete installs its selected sidecar beneath
-`.agentic/tools/repowise/0.37.0/<platform>/`. Target installation and managed
-indexing do not download packages or contact GitHub, PyPI, telemetry, or update
-services. Core can still link an external RepoWise `>=0.37.0,<0.38.0`.
-
-## Deployment Self-Containment
-
-A deployment's portability is one of exactly three states, determined by
-edition and the `repowise_source` answer:
-
-- **`source-only`** — the AEGIS payload lives beneath `.agentic`; RepoWise is
-  not configured at all (`repowise_source = "disabled"`, either edition). A
-  Git clone is fully self-contained.
-- **`external-runtime`** — the AEGIS payload plus a link to a machine-level
-  external RepoWise installation (`repowise_source = "external"`, either
-  edition). The external command is not stored in the repository. A fresh
-  clone on another machine has the AEGIS payload but must re-link its own
-  RepoWise installation before RepoWise can run there.
-- **`offline-bundled-runtime`** — WAEGIS Complete installed the RepoWise
-  runtime under `.agentic/tools/repowise/0.37.0/<platform>/`
-  (`repowise_source = "bundled"`, Complete edition only). That runtime is
-  excluded from Git, so a **Git clone is not self-contained**: only a
-  **delivered working directory** (the runtime files present on disk) or a
-  fresh run of the WAEGIS Complete installer restores it.
-
-A Git clone and a delivered working directory therefore have different
-self-containment properties whenever bundled RepoWise is in play: cloning
-reproduces everything except the gitignored runtime, while a delivered working
-directory (a copy of the actual directory tree, not just its Git history)
-carries the runtime along with it.
+WAEGIS 3 has one product shape. RepoWise, Core/Complete editions, cloning,
+branch creation, staging, and commits are not part of it. `new` performs only
+the Git initialization needed to create a repository. Operators review, stage,
+and commit approved results themselves.
 
 ## Commands
 
@@ -58,241 +23,164 @@ waegis new TARGET [...]
 waegis adopt TARGET [...]
 waegis analyze --repo PATH [--json]
 waegis configure --repo PATH [...]
+waegis check --repo PATH [--json]
 waegis doctor --repo PATH [--json]
 waegis repair --repo PATH [...]
 waegis upgrade --repo PATH [...]
-waegis repowise status --repo PATH
-waegis repowise sync --repo PATH
 waegis version [--json]
 ```
 
-Every mutating invocation uses one approval contract. `--yes` explicitly
-approves the displayed mutation plan. Without it, a human command may ask
-through its live console; programmatic calls without an asker, `--json`, and
-`--non-interactive` return `needs-input` before transaction recovery, journal
-creation, target creation, branch creation, or file writes. A no-op plan and
-`--dry-run` need no approval; dry runs remain read-only. Standalone
-`repowise sync` follows the same rule and accepts `--yes` and
-`--non-interactive`. WAEGIS is offline-first; subprocess access uses injectable
-runners.
+`doctor` is an alias for `check`. Use `--help` on a command for its exact
+options. Mutating commands accept `--dry-run`, `--yes`, `--non-interactive`,
+`--answers`, `--json`, and `--break-lock` where applicable.
 
-`clone_url` accepts the existing HTTPS, SSH, SCP-style, `file://`, and local
-path forms, but rejects empty non-optional values, control characters, and any
-value whose first non-whitespace character is `-`. Clone execution uses
-`git clone -- <repo> <dir>`, and credential-bearing URLs are sanitized before
-reporting. Adoption and upgrade branch names share Git-compatible ref
-validation: empty, option-like, control-character, traversal-like, reserved,
-and otherwise invalid ref names are rejected before branch creation.
-
-Upgrade requires a valid current install manifest. Repositories without one
-must use `waegis adopt`; there is no selectable no-manifest conservative upgrade
-mode. The deprecated `conservative` report field remains present and is always
-`false` for compatibility. Upgrade decisions share the copier's canonical
-normalizer, apply through the persistent transaction, use the shared smoke
-verifier, roll back on smoke/interruption failure, and publish the manifest
-last.
-
-Payload enumeration and release staging exclude interpreter/test/dependency
-state even when it is physically present beneath the source tree:
-`__pycache__/`, `.pyc`, `.pyo`, pytest/mypy/ruff/Hypothesis/tox/nox/coverage
-caches, uv caches, Python package metadata, and adapter-local Node/Vitest
-dependencies.
-
-## Schema-3 Configuration
-
-WAEGIS generates and validates:
-
-```toml
-[interface]
-stage_form_retention = "latest"
-check_execution = "external"
-```
-
-The `latest` default keeps the final form from each stage available for a fresh
-agent session. Operators may still select `discard` or `versioned` explicitly.
-
-It also handles independent `build`, `typecheck`, `lint`, `test`, and `security`
-gate groups. Each group has `mode = "disabled"|"enforce"` and `commands = []`.
-Disabled groups may retain commands; enforced groups require commands.
-
-Repository analysis proposes commands only from explicit package scripts, tool
-configuration, Make targets, or CI commands. It does not invent a security
-command. Analyze/configure/doctor/new/adopt can inspect, configure, optionally
-execute, and report the five groups in fixed order.
-
-## Transaction and Recovery Contract
-
-WAEGIS repository mutations use transaction state version 2 beneath
-`.agentic/.waegis-transactions/`. The state schema is closed: version, ID,
-command, UTC creation time, phase, entries, key identifier, and MAC are the
-only top-level fields. Each entry binds one canonical portable
-repository-relative destination to whether it existed and, when applicable, a
-generated backup basename, byte size, and SHA-256 digest. Supported phases are
-`staged`, `applying`, `verified`, `committed`, and `rolled-back`; transitions
-outside the documented sequence are rejected.
-
-The state MAC uses a random 256-bit key stored outside the repository as
-`transaction-auth.key` under `WAEGIS_HOME` (or the platform WAEGIS home).
-A separately authenticated ownership record under
-`transaction-ownership/<repository-id>/` binds the transaction ID and immutable
-operation digest to the resolved repository and records terminal outcome before
-repository state becomes terminal, preventing replay of an older valid phase.
-Recovery requires both records,
-the expected key, exact schemas, matching IDs, contained real directories,
-regular state/backup files, and matching backup sizes/digests before changing
-any destination. Repository-scoped process locks under `transaction-locks/`
-serialize recovery and apply operations. Backup references are generated
-basenames; state never supplies an absolute backup source.
-
-Version-1 transaction state is not automatically migrated because it lacks
-authenticated ownership and backup-content metadata. WAEGIS leaves such state
-in place and reports that manual review is required. Likewise, malformed,
-altered, unowned, link-directed, or incomplete state is retained as evidence
-and fails closed. Make a repository copy, inspect the reported transaction
-directory and its backups, restore only verified intended paths, then remove
-the repository transaction directory and matching WAEGIS-home ownership record
-only after the repository is known good. Re-running without remediation
-intentionally reports the same failure.
-
-`--dry-run` validates and reports pending transaction IDs but never takes the
-repository lock, rolls state back, cleans transaction storage, or changes a
-target. A mutating invocation requires explicit recovery approval. Successful
-rollback is idempotent: once `rolled-back` is durable, later recovery performs
-cleanup only. A `committed` transaction is also cleanup-only and is never
-rolled back.
-
-The HMAC and external ownership record protect against forged repository-local
-state when the WAEGIS home remains protected. They are not a security boundary
-against an administrator or process running as the same OS account that can
-read or replace the key and ownership records. Standard-library code cannot
-portably verify Windows ACL ownership; WAEGIS uses non-following regular-file
-checks and restrictive creation modes where the platform exposes them.
-
-## RepoWise Lifecycle
-
-Interactive `new`, `adopt`, and `upgrade` offer bundled RepoWise when running
-Complete, otherwise an external link; `configure` changes RepoWise only when
-RepoWise answers are explicitly supplied. `--yes` never chooses a RepoWise
-source or indexing action: those choices must be interactive or present in the
-answers file. Any resulting RepoWise configuration plan is displayed and
-covered by explicit approval, while indexing remains a separate decision.
-Non-interactive execution defaults to disabled unless the answers file
-explicitly supplies:
-
-```toml
-repowise_source = "disabled" # disabled | bundled | external
-repowise_external_command = ["repowise"]
-repowise_profile = "deterministic" # deterministic | ollama
-repowise_ollama_url = "http://127.0.0.1:11434"
-repowise_model = ""
-repowise_embedding_model = ""
-repowise_enforcement = "advisory" # advisory | required
-repowise_sync = false
-```
-
-Only loopback Ollama URLs are accepted. Missing Ollama or requested models cause
-a warning and deterministic fallback. A failed index does not roll back the
-successful AEGIS deployment or sidecar configuration; output includes the log
-and exact `waegis repowise sync --repo "<project>"` resume command.
-
-Managed synchronization remains an argument-array subprocess on every
-platform. On Windows, WAEGIS binds wildcard-bearing Click option values to
-their option (`--exclude=PATTERN`) so Click cannot expand matching repository
-paths before parsing them. POSIX command construction retains its prior
-two-argument option form. Complete uses the pinned sidecar interpreter directly
-for managed Windows runs rather than forwarding through `cmd.exe`; this keeps
-repository paths with spaces and shell metacharacters as ordinary arguments.
-
-RepoWise 0.37 writes common project-local MCP and VS Code files during `init`
-even when global editor setup and the named agent integrations are disabled.
-WAEGIS snapshots `.mcp.json`, `.vscode/mcp.json`, and
-`.vscode/extensions.json`, restores their exact prior bytes or absence after
-every managed run, and refuses to issue a successful receipt if restoration
-fails. RepoWise remains process-isolated, and its validated graph/state files
-are the only synchronization outputs consumed by AEGIS.
-
-RepoWise is advisory discovery input, never authoritative AEGIS workflow state.
-WAEGIS writes a versioned receipt; AEGIS independently validates the graph,
-state, hashes, Git HEAD, and worktree fingerprint before using proposals.
-
-The default disabled Core policy remains part of the normal AEGIS deployment
-commit. When `new` or a committed `adopt` explicitly selects bundled or
-external RepoWise, WAEGIS records the mutable policy and its install-manifest
-digest in a second, narrow `Configure RepoWise via WAEGIS 1.2.0` commit. Runtime,
-receipt, index, and tool files remain ignored. An adoption deliberately left
-uncommitted keeps this policy change with the operator's other pending changes.
-
-RepoWise configuration itself is one persistent WAEGIS transaction covering
-the policy, runtime metadata, and install manifest. WAEGIS validates and gains
-approval first, stages authenticated backups, marks `applying`, atomically
-writes and verifies policy/runtime data, writes and verifies the install
-manifest last, marks `verified`, then commits. Ordinary failures report whether
-rollback really completed. Failed rollback retains recoverable state; cleanup
-failure after a durable commit is reported as committed cleanup pending. An
-abrupt exit after any uncommitted write is rolled back on the next approved
-mutating invocation, while an exit after `committed` only retries cleanup.
-
-## Release Packaging
-
-Core retains:
-
-```text
-waegis-windows-x64.zip
-waegis-linux-x64.tar.gz
-waegis.pyz
-```
-
-Native Complete builds add:
-
-```text
-waegis-complete-windows-x64.zip
-waegis-complete-linux-x64.tar.gz
-```
-
-The bundled RepoWise sidecar uses its own pinned Python 3.12.13 runtime.
-WAEGIS Core retains its existing Python 3.13 runtime. This separation is
-required because RepoWise 0.37.0 locks NumPy 1.26.4, which has native Python
-3.12 wheels but no Python 3.13 wheels.
-
-All five binary artifacts, the embedded RepoWise source ZIP and generated
-Complete metadata, `release-manifest.json`, and `SHA256SUMS` are byte-
-reproducible when source, lock, runtime, wheel, epoch, target, Python patch,
-`uv`, and zlib/compression inputs are identical. The builder selects one
-canonical epoch from valid `SOURCE_DATE_EPOCH`, then the source Git commit
-timestamp, then the fixed ZIP epoch for an exported source tree. It clamps to
-1980, rounds down to ZIP's two-second precision, records the normalized value
-in the release manifest, and rejects malformed, negative, or overflowing
-explicit values.
-
-ZIP/zipapp and tar/gzip names, ordering, timestamps, modes, ownership, creator
-metadata, compression settings, and gzip filename are explicit. Internal
-manifests require exact payload membership and hashes; duplicates, case
-collisions, traversal/device names, undeclared files, encryption, links, and
-special archive types fail before atomic replacement. Runtime locks are
-closed-schema documents. Cache misses stream into unique exclusive siblings
-and publish only after digest validation; `--offline` performs no transport
-call and a failed refresh leaves the prior cache object intact.
-
-This is not a promise across different Python, `uv`, zlib, or compression
-implementations. Core target artifacts are intended to match across Windows and
-Linux builders only when that full toolchain matches. Complete remains a native
-same-target build. See
-`../../06_SoftwareDocu/WAEGIS_RELEASE_REPRODUCIBILITY.md` for the exact
-contract, upstream runtime filtering, adversarial verification rules, and
-two-build hash-comparison procedure.
-
-Build one native Complete artifact from a clean exact RepoWise 0.37.0 checkout:
+Examples:
 
 ```powershell
-python packaging/build_release.py --repowise-source D:\Source\repowise
+waegis analyze --repo D:\Source\project --json
+waegis adopt D:\Source\project --answers answers.json --non-interactive --dry-run --json
+waegis adopt D:\Source\project --answers answers.json --non-interactive --yes
+waegis check --repo D:\Source\project
+waegis repair --repo D:\Source\project --answers repair.json --non-interactive --yes
+waegis upgrade --repo D:\Source\project --non-interactive --yes
 ```
 
-Run the builder natively on each target OS with the same
-`SOURCE_DATE_EPOCH`, then combine and verify the publication artifacts. Release
-production may populate pinned build caches; target
-installation never compiles or resolves dependencies. Complete-to-Core use is
-refused while a project selects the bundled runtime; configure it to external
-or disabled first.
+`--dry-run` and all read-only commands write neither the repository nor the
+runtime pointer. JSON mode writes one stable command envelope to stdout;
+pre-mutation recovery evidence is flushed separately to stderr.
+
+## Repository Safety
+
+`adopt`, `configure`, `repair`, and `upgrade` require a clean Git repository.
+WAEGIS rechecks cleanliness and the planned HEAD after acquiring its one
+repository lock. There is no dirty-tree bypass.
+
+Before its first repository write, WAEGIS prints and flushes an exact recovery
+plan limited to the planned paths. Handled failures automatically run that
+plan. If the process is killed after mutation, run the emitted commands before
+retrying. Recovery uses explicit pathspecs after `--`; WAEGIS never performs a
+broad repository clean.
+
+The lock lives at the repository-specific path returned by Git for
+`waegis-v3.lock`. `--break-lock` removes only a structurally valid lock whose
+recorded local process is confirmed dead. Live, malformed, or unverifiable
+locks fail closed.
+
+## Ownership and the Install Manifest
+
+WAEGIS writes `.agentic/install-manifest.json` only after the copied AEGIS
+wrapper passes help, configuration validation, and coherent run-status smoke
+checks. Manifest schema 2 records the exact payload identity and one initial
+ownership class per path:
+
+- `managed`: WAEGIS may repair or three-way-upgrade the file;
+- `generated`: only `configure` may regenerate the file from owned answers;
+- `seeded`: created only when absent, then repository-owned;
+- `kept-local`: existing project bytes retained by an explicit decision;
+- `sidecar`: payload bytes written beside a retained conflict for review.
+
+The shipped generated workflow uses
+`stage_form_retention = "latest"`; `configure` changes it only from an
+explicit operator answer.
+
+Repair touches only selected missing or drifted `managed` paths. Upgrade uses a
+three-way comparison of the installed baseline, current bytes, and new payload.
+Generated, seeded, kept-local, sidecar, requirements, component data,
+knowledge, reports, run history, and workspace state are preserved.
+
+An upgrade requires a valid WAEGIS 3 manifest and a strictly newer compatible
+AEGIS 3 payload. Repositories without that manifest use `adopt`. For a detected
+WAEGIS 1 installation, `adopt` requires an explicit migration answer and
+reclassifies every path through ordinary conflict rules.
+
+Payload identity includes both the version and content digest. If payload bytes
+are rebuilt without increasing the version, `repair` refuses because the exact
+installed identity is unavailable and `upgrade` refuses because the version is
+not newer. Re-run `waegis adopt` and select `take-payload` for the relevant
+conflicts to accept that same-version rebuild. Likewise, a workflow retained as
+`kept-local` is outside `configure` authority; re-adopt it with `take-payload` to
+restore generated-workflow authority.
+
+## Answers Files
+
+Non-interactive operation accepts closed-schema JSON or TOML answers version
+2. Unknown fields, stale conflict decisions, unsafe roots, and incomplete
+conditional answers are rejected. A minimal JSON file is:
+
+```json
+{
+  "answers_version": 2,
+  "answers": {
+    "language": "python",
+    "source_roots": ["src"],
+    "test_roots": ["tests"]
+  }
+}
+```
+
+Repository analysis proposes values only from local evidence. It is read-only
+and does not treat guessed commands as facts.
+
+## Distribution Forms
+
+One build produces three payload-equivalent artifacts:
+
+```text
+waegis.pyz
+waegis-windows-x64.zip
+waegis-linux-x64.tar.gz
+release-manifest.json
+SHA256SUMS
+```
+
+`waegis.pyz` requires a compatible Python 3.11+ interpreter. The two native
+x64 bundles include locked CPython 3.13.13 and run without system Python. Each
+native archive contains the exact published `waegis.pyz`; it does not contain a
+second loose AEGIS payload tree.
+
+Unpack a native bundle to a stable per-user or machine location before using
+it. Run `waegis.cmd` on Windows or `./waegis` on Linux. Before a successful
+mutating flow, the launcher-provided interpreter is atomically recorded at:
+
+```text
+WAEGIS_HOME/runtime-python
+```
+
+Installed AEGIS shell, PowerShell, and Node wrappers use that interpreter.
+Moving or deleting the bundle makes the pointer invalid. `check` reports
+`RUNTIME-POINTER-INVALID`; run a mutating command through the launcher at its
+new stable location to repair the pointer. `AEGIS_PYTHON` remains the explicit
+operator override and has precedence over the packaged runtime.
+
+Artifacts contain a common payload digest and zipapp digest. Verify all files
+before distribution:
+
+```powershell
+python packaging/build.py --verify --output dist
+```
+
+Checksums provide integrity, not publisher authenticity. Authenticity still
+depends on the approved release channel.
+
+## Building Releases
+
+The runtime lock is closed and pins the exact upstream filename, URL, byte
+size, SHA-256, Python version, target, and executable. An offline build uses
+only already verified cache objects. An approved online builder may fetch only
+the locked URLs:
+
+```powershell
+python packaging/build.py --fetch --output dist
+python packaging/build.py --output dist
+python packaging/build.py --verify --output dist
+```
+
+Use `--zipapp-only` for the Python-dependent artifact. Runtime downloads are
+cached beneath `packaging/cache/` and are not committed. The Linux builder
+materializes validated internal runtime links as regular files and excludes
+the unused upstream `share/terminfo/` alias database. Unsafe, external,
+broken, cyclic, special, duplicate, traversing, or case-colliding consumed
+members fail the build. Final bundles contain no links or special members.
 
 ## Development
 
@@ -300,9 +188,10 @@ or disabled first.
 uv sync --group dev
 uv run --group dev python -B -m waegis --help
 uv run --group dev python -m pytest -q tests
+uv run --group dev ruff check packaging src tests
 ```
 
-The install manifest and checkpoint journal retain their current version-1
-layouts; the separate repository transaction format is version 2. Payload
-mutation is planned, previewed, journaled, verified, and rollback-aware. WAEGIS
-remains independent from AEGIS runtime graph state.
+Runtime code is standard-library-only. Network access is not used by target
+installation, analysis, configuration, health checking, repair, or upgrade.
+The only supported network operation is an explicit `--fetch` on an approved
+release builder for exact locked runtime inputs.

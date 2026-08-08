@@ -209,14 +209,16 @@ downstream starter `template/CHANGELOG.md` remained empty. No WAEGIS
 declaration was read or changed for that decision.
 
 Owner follow-up on 2026-08-08: the owner subsequently assigned and released
-AEGIS `3.0.0`. This records the later owner decision without rewriting the
-audit-time evidence, retroactively satisfying the missing soak, or changing
-the NO-GO disposition below. The downstream starter
-`template/CHANGELOG.md` remains empty by design.
+AEGIS `3.0.0`. That decision superseded only the earlier prohibition on
+assigning a version: it did not rewrite the audit-time evidence, convert
+unmeasured release gates into passes, certify stable daily use, change the
+NO-GO disposition below, or change any WAEGIS declaration. The root changelog
+records the AEGIS `3.0.0` boundary, while the downstream starter changelog
+remains empty by design.
 
 ## Final disposition
 
-**NO-GO: do not release, version, archive a variant, or claim daily-development
+**NO-GO: do not release, archive a variant, or claim daily-development
 stability.** The AEGIS source and AEGIS-only repeated validation are green after
 the lint correction, and the Ubuntu POSIX suite is green. The mandatory field
 soak is absent, WAEGIS-owned release gates are intentionally excluded, and

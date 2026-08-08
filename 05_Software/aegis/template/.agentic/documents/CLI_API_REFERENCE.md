@@ -491,9 +491,9 @@ blocks, routes, or mutates the current run.
 
 `config validate` and `config show` also validate/display the optional
 schema-1 `.agentic/integrations/repowise.toml`. Absence means disabled. RepoWise
-execution intentionally has no AEGIS command: external deployment tooling owns
-provider operations, while AEGIS consumes only validated structural artifacts
-during `repo-discovery`.
+execution intentionally has no AEGIS command. Separately managed external
+tooling may produce its artifacts; AEGIS consumes only validated structural
+data during `repo-discovery`. WAEGIS 3 does not manage RepoWise.
 
 Expected AEGIS configuration, run-resolution, workflow, command-input,
 requirement, persistence, and RepoWise integration failures produce the stable

@@ -11,14 +11,51 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Replace the retired WAEGIS 1 distribution implementation with WAEGIS 3.0.0:
+  a stdlib-only, ownership-aware AEGIS 3 wizard; payload-bearing zipapp; and
+  Pythonless Windows/Linux x64 bundles built around that exact zipapp with
+  locked CPython inputs, common release identity, and runtime-pointer support.
+- Add deterministic hard-kill coverage for every install publication boundary,
+  real-payload upgrade interruption coverage, and final Windows/Linux native
+  retirement replays with no host Python available.
+
 ### Changed
 
-- Refresh maintained AEGIS documentation for the 3.0 payload, label the AEGIS
-  2.1 human explanations as historical, remove obsolete deployment-tool
+- Refresh maintained AEGIS documentation for the 3.0 payload, label superseded
+  human explanations as historical, remove obsolete deployment-tool
   compatibility claims, and record explicit audit dispositions for mixed or
   historical material.
 - Generate the optional start-guide PDF outside the copied template by default
   and update its branding to AEGIS 3.0.
+- Remove WAEGIS editions, RepoWise, and Git history automation. Mutating flows
+  now require clean repositories, explicit complete plans and consent, exact
+  pre-write recovery evidence, manifest-last publication, and operator-owned
+  staging and commits.
+- Align root, AEGIS, WAEGIS, copied-template, and deeper operator documentation
+  with the AEGIS 3/WAEGIS 3 ownership, maintenance, upgrade, and external
+  RepoWise boundaries.
+
+### Fixed
+
+- Route incomplete WAEGIS workflow configuration through the designed repair
+  and reconstruction paths, require extracted ZIP payload members to be files,
+  and avoid a redundant version-mismatch finding when metadata is unreadable.
+- Validate installed AEGIS wrappers with the exact interpreter registered by
+  each mutation, and re-ask live invalid conditional lists and quick-run path
+  thresholds without weakening supplied-answer validation.
+- Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
+  payload inventory so development artifacts cannot enter a deployment.
+- Propagate reparse-point inspection failures consistently across payload reads
+  and repository writes instead of allowing containment checks to continue.
+- Let healthy workflow reconfiguration run without resolving an unused payload,
+  and direct same-version rebuild and kept-local workflow refusals to re-adopt.
+
+### Removed
+
+- Remove dead and redundant WAEGIS implementation branches and refresh the CLI
+  module description without changing command behavior.
 
 ## [3.0.0] - 2026-08-08
 

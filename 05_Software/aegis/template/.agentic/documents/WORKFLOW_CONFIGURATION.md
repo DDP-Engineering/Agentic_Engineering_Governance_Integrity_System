@@ -86,9 +86,9 @@ than the configured number of unique changed paths receives guidance to carry
 its context into a new full run. This is a soft response only: it does not
 block, route, or change the current run.
 
-External deployment tools may expose different configuration interfaces. Use
-AEGIS `config validate` and `config show` as the authority for this key after
-the payload and policy are present.
+WAEGIS 3 `new`, `adopt`, and `configure` can manage this optional table through
+explicit interview/answers fields while preserving advanced policy. AEGIS
+`config validate/show` remains the authority for the resulting key.
 
 ## Deterministic Gates
 

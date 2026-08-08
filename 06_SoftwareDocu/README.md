@@ -7,50 +7,45 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Software Documentation
 
-Implementation notes, workflow contracts, and deeper technical documentation
-for AEGIS belong here. Canonical runnable-workflow documentation ships with the
-template:
+Deeper implementation and operating guidance for AEGIS 3 and WAEGIS 3 lives
+here. Canonical runnable-workflow documents remain in the copied AEGIS
+template so downstream repositories receive references matching their CLI.
 
-- `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md` - CLI
-  command groups, stage-form lifecycle, evidence modes, verification, and
-  delivery handoff.
-- `05_Software/aegis/template/.agentic/documents/ADAPTER_CONFORMANCE.md` -
-  direct CLI and host-adapter entry points, payload-owned routing, bounded
-  bootstrap, and shared execution-outcome contracts.
-- `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md` -
-  intrinsic workflow contracts, repository-policy modes, external safety
-  boundaries, and operator decisions.
-- `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md` -
-  operator-ready prompts for each workflow gate.
-- `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md` -
-  complete schema-3 structure, captured interface policy, five independent
-  optional deterministic gates, traceability, and guardrails.
-- `05_Software/aegis/template/.agentic/documents/REPOWISE_INTEGRATION.md` -
-  optional schema-1 RepoWise discovery policy, evidence freshness, offline
-  boundary, and authority model.
+## Operator path
 
-## Maintained AEGIS Guides
+- `01_Getting_Started_Install_And_Adopt.md` - WAEGIS 3 entry points,
+  prerequisites, distribution choices, consent, ownership, and recovery.
+- `02_Everyday_Work_Full_Runs.md` - complete AEGIS development lifecycle.
+- `03_Quick_Runs_And_Bypassing_AEGIS.md` - proportional quick-run contract.
+- `04_Configuring_AEGIS.md` - schema-3 project policy.
+- `05_Reading_AEGIS_Metadata.md` - durable workflow state and evidence.
+- `06_AEGIS_Adapter_And_Context_Conformance.md` - host adapters and bounded
+  context contract.
+- `AEGIS_3_0_HumanExplanations/` - installation, adapters, durable state, run
+  records, and WAEGIS 3 maintenance/recovery explained by domain.
 
-- `02_Everyday_Work_Full_Runs.md` - full feature, fix, and change runs.
-- `03_Quick_Runs_And_Bypassing_AEGIS.md` - proportional quick runs and their
-  explicit bypass semantics.
-- `04_Configuring_AEGIS.md` - schema-3 workflow policy and optional schema-1
-  RepoWise integration.
-- `05_Reading_AEGIS_Metadata.md` - durable and transient AEGIS state.
-- `06_AEGIS_Adapter_And_Context_Conformance.md` - adapter compatibility,
-  canonical bootstrap ownership, bounded context, and public execution
-  outcomes.
+## Canonical copied references
 
-## Deferred Installation Material
-
-`01_Getting_Started_Install_And_Adopt.md` and its companion `.pptx` describe
-installation and adoption through WAEGIS. They are retained but are not current
-AEGIS 3.0 compatibility guidance; their refresh is deferred to the separate
-WAEGIS redesign. Consult the WAEGIS package documentation before using those
-instructions.
+- `05_Software/aegis/template/.agentic/documents/CLI_API_REFERENCE.md`
+- `05_Software/aegis/template/.agentic/documents/ADAPTER_CONFORMANCE.md`
+- `05_Software/aegis/template/.agentic/documents/POLICY_CONFIGURATION.md`
+- `05_Software/aegis/template/.agentic/documents/PROMPT_CHEATSHEET.md`
+- `05_Software/aegis/template/.agentic/documents/WORKFLOW_CONFIGURATION.md`
+- `05_Software/aegis/template/.agentic/documents/REPOWISE_INTEGRATION.md`
 
 ## Historical Material
 
-`AEGIS_2_1_HumanExplanations/` is an explicitly historical explanation set for
-AEGIS 2.1. It is preserved for provenance and must not be treated as the
-current AEGIS 3.0 contract.
+`AEGIS_2_1_HumanExplanations/` is preserved as an explicitly historical
+explanation set for AEGIS 2.1. It is provenance material, not the current AEGIS
+3.0 or WAEGIS 3 operating contract.
+
+AEGIS persistence/concurrency and self-governed release notes that were removed
+from this branch before WAEGIS 3 planning are not listed as live documents.
+The planning acceptance report records the current integration evidence.
+
+## Presentations
+
+Existing PPTX files are retained as historical presentation material. Their
+AEGIS 2.x/WAEGIS 1.x screenshots and Core/Complete or RepoWise lifecycle claims
+are not current WAEGIS 3 operating documentation. Current behavior is defined
+by the Markdown references above and `05_Software/waegis/README.md`.

@@ -1,74 +1,257 @@
 # WAEGIS V2 — Scope and Requirements
 
-## 1. The safety model (replaces transactions)
+## 1. Safety model
 
-The single biggest simplification. V2's rule set:
+V2 replaces persistent transactions with strict preconditions, a complete
+precomputed mutation set, atomic publication, and Git recovery.
 
-1. **Precondition, not recovery:** every mutating command on an existing repo requires a **clean git working tree** (no staged/unstaged changes). If dirty, refuse with the exact message: what is dirty, and that the operator should commit or stash first. Override: `--allow-dirty` (prints a one-line warning that git restore is then partial).
-2. **Git is the undo:** on any failure mid-write, V2 prints the exact restore commands (`git checkout -- <paths>` / `git clean -fd <new paths>`) and, when the tree was clean at start, offers to run them itself. For `waegis new` (fresh directory) the undo is "delete the directory" — stated, offered.
-3. **Idempotent re-run is the resume:** every command computes its plan from current on-disk state (manifest + drift), so running it again after an interruption naturally does only the remaining work. No journal needed.
-4. **One trivial concurrency guard:** a `O_EXCL` lockfile under `.agentic/` per repo, deleted on exit, age-checked (stale after 1 h with a printed override hint). Nothing more.
-5. **Payload integrity stays:** the shipped payload archive is still hash-verified on extraction (cheap, real supply-chain value), and copied files are hashed **once** — into the manifest — with no re-verification pass.
+1. **A clean committed repository is mandatory.** Every mutating command on an
+   existing repository requires a valid `HEAD` and no staged, unstaged, or
+   untracked changes. There is no `--allow-dirty` option. The refusal lists the
+   exact dirty paths and tells the operator to commit or stash them.
+2. **The complete write and recovery plan exists before consent.** The preview
+   classifies every destination as tracked-overwrite, exact new file,
+   unchanged, kept-local, or sidecar. Before the first write, WAEGIS prints and
+   flushes exact path-scoped recovery commands. Human mode repeats them in the
+   plan; JSON mode emits one structured recovery record to stderr before
+   mutation and reserves stdout for the final single JSON result. WAEGIS never
+   emits a broad repository-wide clean command.
+3. **Git is the existing-repository undo.** Tracked paths use
+   `git restore --source=HEAD --staged --worktree -- <paths>`. Exact new files,
+   including ignored destinations, use
+   `git clean -fdx -- <exact-file-paths>` only after WAEGIS verifies that every
+   path belongs to the precomputed new-file set. Handled failures attempt that
+   scoped rollback automatically and report whether it succeeded. Hard-kill
+   tests execute the preprinted commands verbatim.
+4. **`new` has a stronger precondition.** `TARGET` must not exist. WAEGIS may
+   then create it and run `git init`; failure recovery is deletion of the
+   directory WAEGIS created. An existing directory is refused; the operator
+   may remove an empty directory and retry `new`, or initialize and commit a
+   repository before using `adopt`.
+5. **The manifest is the completion marker.** Files and configuration are
+   applied first, then the real bundled AEGIS wrapper must pass `--help` and
+   `config validate --json`. `run status --json` must either return the stable
+   `status`/`stage`/`artifact`/`next` envelope for an existing run or the
+   expected `RUN-POINTER-MISSING` state for a fresh install. Only then is the
+   V2 manifest atomically written last.
+6. **Rerun is resume.** An interrupted run has no valid completion manifest.
+   Replanning treats payload-identical files as already converged, preserves
+   explicit conflict decisions from an answers file, and completes to the same
+   end state as an uninterrupted run.
+7. **Concurrency uses one small lock.** A mutating invocation creates one
+   `O_CREAT|O_EXCL` lock containing PID, host, command, repository, and start
+   time. A hard kill leaves visible evidence. Time alone never breaks it;
+   `--break-lock` requires explicit operator action after the owner process is
+   confirmed dead. The clean-tree check knows how to ignore only that exact
+   lock while recovery runs.
+8. **Payload integrity has two distinct meanings.** The build embeds a closed
+   payload inventory (canonical path, size, SHA-256) and the installer verifies
+   archive entries against it before use. A published `SHA256SUMS` lets the
+   operator verify the distribution artifact out of band; an adjacent unsigned
+   checksum is corruption detection, not authenticity. Installed managed files
+   are hashed once into the install manifest.
 
-## 2. Commands (CLI-compatible surface)
+All destinations pass the harvested canonical path, containment, case-collision,
+and symlink/reparse-point checks before they enter a plan.
+
+## 2. Commands
 
 ### `waegis new TARGET` and `waegis adopt TARGET`
-Thin aliases over one shared install flow; `new` additionally creates the directory and runs `git init` + initial commit; `adopt` additionally runs repo analysis to pre-fill the interview and applies conflict handling.
 
-Flow: resolve+verify payload → (adopt) clean-tree check → (adopt) analyze repo, propose answers → interview ([03_Interview_UX.md](03_Interview_UX.md) style; `--answers` file and `--non-interactive` honored exactly as V1) → show plan (files to copy, conflicts and their decisions, config summary) → consent (`--yes` / `--dry-run` as V1) → copy payload (conflicts: keep-local / take-payload / write-new sidecar, asked per file or supplied via answers, exactly V1's vocabulary) → generate `workflow.toml` → write manifest → (new) initial commit / (adopt, optional per answer) commit → smoke check (`aegis run status` answers) → report.
+They share one install implementation. `new` requires an absent target and runs
+`git init`. `adopt` requires an existing clean Git repository and uses read-only
+analysis to propose interview answers.
+
+The ordered flow is:
+
+1. resolve the bundled or explicit payload and verify its closed inventory;
+2. validate command prerequisites and target state;
+3. for `adopt`, analyze only evidence present in the repository;
+4. collect answers interactively or from the V2 answers schema;
+5. compute conflicts, ownership dispositions, the exact mutation set, and the
+   exact Git recovery plan;
+6. render the full plan; `--dry-run` stops here and `--yes` supplies consent;
+7. acquire the repository lock and recheck the preconditions;
+8. stage content outside the repository, then atomically publish each file;
+9. generate `workflow.toml` from the bundled schema-3 template;
+10. run wrapper `--help`, `config validate --json`, and coherent-status smoke;
+11. atomically write manifest schema 2 last and release the lock;
+12. report changed, kept, sidecar, and operator-next-action paths.
+
+WAEGIS does not create branches or commits. `new`, `adopt`, and `upgrade`
+finish by showing exact review and commit guidance; Git identity therefore is
+not a global prerequisite.
+
+A repository with a V1 manifest is handled as an ordinary adoption with one
+extra warning and one explicit migration consent. A minimal detector may read
+only enough top-level JSON to distinguish V1 from V2. It must not load or trust
+V1 file ownership, generated paths, skipped paths, answers, or hashes.
 
 ### `waegis analyze --repo PATH`
-Unchanged in behavior: read-only manifest state + drift + analysis proposals, human and frozen `--json`. Harvested nearly as-is.
+
+Read-only repository facts, V2 manifest/drift state when present, and proposed
+interview answers with provenance. A V1 manifest is reported only as an
+unsupported prior installation. Human and `--json` output use V2's documented
+contract.
 
 ### `waegis configure --repo PATH`
-Re-interview of owned `workflow.toml` fields (stored answers → analysis proposals → defaults precedence, exactly V1), regenerate owned fields only (comment-preserving generator, harvested), optional gate/smoke re-run per answer, manifest configuration metadata updated last. Failure: git-restore guidance instead of transaction rollback.
 
-### `waegis check --repo PATH` (alias: `doctor`, kept for compatibility)
-The 80/20 of V1 doctor at ~15% of its size: manifest valid/absent/legacy, drift list, `workflow.toml` parses and roots exist, wrappers answer `--help`, hook files present + node resolvable (warn), last-install completeness *derived from manifest presence* (no journal). Same ok/warn/fail per finding, same 0/1/2 exit contract, same `--json` shape minus the journal group (additive-compatible).
+Requires a valid V2 manifest and a clean tree. Precedence is current valid
+`workflow.toml` values, explicitly supplied answers, repository proposals, then
+payload defaults. The command changes only WAEGIS-owned fields and validates
+the result through the bundled AEGIS CLI before updating manifest configuration
+metadata last.
+
+The payload template supplies the complete schema. WAEGIS owns only the fields
+it interviews:
+
+- source and test roots;
+- traceability language, source extensions, and test-file patterns;
+- component baseline mode and minimum;
+- requirement-coverage mode, roots, and exclusions;
+- adoption source-change mode;
+- alignment enabled and protected-scope mode/patterns;
+- interface form retention and check execution;
+- five gate modes and commands;
+- guardrail modes and their rule collections;
+- optional `[quick.changed_paths]` mode and positive `max_paths`.
+
+WAEGIS preserves every other valid schema-3 key byte-for-byte. In the current
+AEGIS contract that includes requirement/documentation/knowledge/report paths,
+component-manifest location, adoption bundle settings, alignment pause/risk and
+recommended-response settings, gate timeouts, and
+`[gates.test].impacted_command`. Operator comments and unknown future keys are
+also preserved; if the bundled AEGIS parser rejects a future key, configure
+fails without publishing the edit.
+
+### `waegis check --repo PATH` (alias: `doctor`)
+
+Read-only health inspection with deterministic 0/1/2 results:
+
+- V2 manifest absent/valid/invalid, with minimal V1 detection;
+- managed-file drift and kept/generated ownership summaries;
+- real wrapper `config validate --json` result and configured-root existence;
+- wrapper `--help` and coherent fresh/active status behavior;
+- required shared hook-file presence;
+- Node resolution as a warning when installed adapters use the Node bridge;
+- strict parsing of only the adapter formats whose host contract is actually
+  known (currently `.codex/hooks.json` with top-level `description|hooks`);
+- payload version readback and compatible update availability.
+
+The JSON schema is V2-owned and golden-tested. `doctor` is an alias, not a
+second implementation.
 
 ### `waegis repair --repo PATH`
-Restore missing/drifted **managed** files from the payload (never operator-owned conflict-kept files), regenerate generated files, rewrite manifest. Reuses the install flow's copier in "repair" mode; clean-tree precondition applies.
+
+Restores missing or drifted **managed** payload files after an explicit plan and
+consent. It never rewrites generated configuration, seeded/project-owned files,
+kept-local conflicts, sidecars, requirements, component data, knowledge,
+reports, run history, or workspace state. A missing/invalid `workflow.toml` is
+diagnosed and routed to `configure`; repair does not guess configuration.
+
+Repair uses the same precondition, recovery plan, smoke, and manifest-last
+flow as install.
 
 ### `waegis upgrade --repo PATH`
-The three-way classifier is harvested verbatim (installed-manifest vs on-disk vs new-payload → auto-apply / keep-local / conflict / delete / add), same per-file conflict decisions, same refusal of cross-major jumps and manifest-less repos, same manifest-written-last ordering, same optional branch-and-commit git modes. What changes: transaction → clean-tree precondition + git restore; journal → none; `run_upgrade` internals rebuilt thin.
 
-### `waegis repowise …` — decision point D1 (see §4)
+Requires a valid V2 manifest and a clean tree. The harvested three-way
+classifier compares the installed baseline, current bytes, and new payload for
+managed paths. It preserves generated, seeded, and kept-local dispositions;
+new payload paths are assigned ownership before planning. Conflicts use the
+same keep-local/take-payload/sidecar vocabulary as adoption.
+
+The command does not create a branch or commit. It applies the approved plan,
+runs AEGIS validation/smoke, and atomically writes the new manifest last. V1,
+manifest-less, incompatible-range, and unsupported manifest-schema repositories
+are refused before mutation with an exact next action.
+
+### `waegis repowise ...`
+
+Not part of V2 core. RepoWise configuration remains an external/manual AEGIS
+integration. Any future lifecycle automation is a separately designed and
+approved tool after V2 retirement; it is not a WAEGIS 3 command, edition, or
+retirement dependency. V2 must not ship a placeholder that tells operators to
+use V1 after V1 retirement.
 
 ### `waegis version`
-Unchanged.
 
-## 3. Non-goals (V2 will not do)
+Reports the WAEGIS version, bundled AEGIS payload version, supported payload
+range, manifest schema, and packaging/runtime mode. It is read-only and has
+human and JSON output.
 
-- No resume of a half-finished wizard (re-run instead — it's idempotent).
-- No machine probes beyond: python version, git present, git identity set. No disk/OS/proxy/TLS probes; a failed copy or clone reports its own OS error.
-- No enforcement ambitions: V2 is an installer, full stop.
-- No schema-2 or pre-manifest migration beyond what V1 supports today.
-- No editions machinery in code — Complete vs Core is a packaging-time content difference only.
+## 3. Exit and interaction contract
 
-## 4. Decision points (owner must ratify before Phase 1)
+| Code | Meaning |
+|---:|---|
+| 0 | Command succeeded; `check` found no warnings or failures |
+| 1 | `check` completed with warnings and no failures, or a successful mutation has a non-fatal post-success advisory |
+| 2 | Usage, validation, prerequisite, health-failure, or runtime error; no successful mutation is claimed |
+| 3 | More operator input or consent is required; JSON and non-interactive modes never prompt |
 
-| # | Question | Recommendation |
+`--dry-run` is always read-only and returns 0 for a complete plan, 2 for an
+invalid request, or 3 when answers/conflict decisions are still missing.
+`--json` writes one JSON document to stdout and never mixes prompts or progress
+text into it. A mutating JSON invocation that has passed consent emits its
+pre-mutation recovery record to stderr and flushes it before the first write;
+all other diagnostics go to the final document or stderr as documented.
+
+## 4. Non-goals
+
+- No dirty-tree bypass.
+- No persistent operation resume or transaction recovery.
+- No clone workflow; clone first, then use `adopt`.
+- No Git branch, stage, or commit automation.
+- No system/network/corporate-environment diagnostics beyond direct
+  prerequisites used by the command.
+- No schema-2 workflow migration.
+- No V1 artifact compatibility beyond safe top-level detection and guidance.
+- No WAEGIS enforcement role after the AEGIS payload is installed.
+- No Core/Complete edition framework in the V2 implementation.
+
+## 5. Final owner decisions (2026-08-08)
+
+| ID | Question | Final disposition |
 |---|---|---|
-| D1 | RepoWise in V2? | **Phase 7, optional.** Harvest `repowise.py` mostly as-is (self-contained, reviewed); until then V2 ships Core-only and `waegis repowise` prints "use waegis 1.x for RepoWise management". If AudioMancer needs Complete on day one, keep using V1 there — V2 parity does not block the deployment. |
-| D2 | Where does V2 live? | `05_Software/waegis2/` beside V1, own pyproject, package name `waegis2`, installed command still `waegis` (only one is installed at a time). V1 is deleted from the repo only after the retirement criteria in doc 05. |
-| D3 | Packaging | Plain `zipapp` + a SHA256SUMS file (~200-line build script). Drop embedded-CPython runtimes and the reproducible-archive framework; require Python 3.11+ on the operator machine (already required for AEGIS itself, so this costs nothing in practice). If byte-reproducibility is ever needed again, V1's `build_release.py` remains in git history. |
-| D4 | Version numbering | V2 ships as **WAEGIS 2.0.0** (the CLI surface is compatible but the safety model is a breaking change of behavior). Payload compatibility stays `>=2.0,<3.0`. |
+| D1 | RepoWise in V2? | **Excluded from V2 core.** Keep AEGIS's disabled/external integration contract documented. If lifecycle automation is still valuable, design a separately approved tool after V2 retirement gates pass. |
+| D2 | Where does V2 live? | **Resolved by repository policy:** replace WAEGIS on a dedicated branch under `05_Software/waegis/`; keep package/import/command name `waegis`. Preserve V1 by its recorded baseline commit/tag, not a sibling package. |
+| D3 | Packaging/runtime prerequisite? | **Ship both forms from one source/payload:** (A) payload-bearing `waegis.pyz`, requiring compatible Python 3.11+ on the operator/target; and (B) Pythonless `windows-x64` ZIP and `linux-x64` tar.gz bundles containing that exact zipapp, a pinned CPython runtime, and a thin launcher. The payload occurs once inside the zipapp; there is no duplicate loose payload tree and no Core/Complete edition. |
+| D4 | Version number? | **WAEGIS 3.0.0**, aligned with the AEGIS 3 release line. “V2” remains the architecture/plan name, not the shipped semantic version. |
+| D5 | Source budget? | **≤9,500 core non-test Python lines and ≤1,000 packaging/launcher lines**, excluding any future separately approved RepoWise tool. Record actual harvested/fresh totals each phase; either guard may decrease but not increase without owner approval. |
+| D6 | Payload range? | **AEGIS `>=3.0.0,<4.0.0`.** WAEGIS 3 supports only the AEGIS 3 major line and refuses cross-major install/upgrade before mutation. |
+| D7 | Git history automation? | **Dropped.** WAEGIS may run `git init` only for an absent `new` target. It never creates branches, stages files, or commits; it prints exact review/commit guidance instead. This keeps failure recovery entirely worktree-scoped. |
 
-Whichever way D1 resolves, V2 must describe RepoWise deployment portability
-with the same three states V1 uses: `source-only` (RepoWise not configured),
-`external-runtime` (linked to a machine-level installation outside the repo,
-which a fresh clone elsewhere must re-link), and `offline-bundled-runtime` (a
-gitignored runtime bundled by a Complete-equivalent build, restored only by a
-delivered working directory or a fresh installer run, never by a Git clone
-alone). Sharing this vocabulary keeps the two efforts' operator-facing
-language consistent even while D1 remains unratified.
+## 6. Acceptance requirements
 
-## 5. Requirements checklist (acceptance-level)
-
-- R1: A repo installed by V1 1.1.0 is fully manageable by V2 (analyze, check, configure, repair, upgrade) with no migration step.
-- R2: For identical answers, V2 `new`/`adopt` produce a byte-identical `workflow.toml` and a manifest V1 accepts as valid.
-- R3: All `--json` envelopes parse against V1's shapes; exit codes preserve 0/1/2/3 semantics.
-- R4: Every interview question follows the consequence style of doc 03; `--answers` files written for V1 remain valid.
-- R5: A `kill -9` at any point during any V2 command leaves the repo recoverable by the printed git commands, verified by the crash tests in doc 05.
-- R6: Source budget ≤ 5,000 lines (enforced by a structural test that fails the suite if exceeded — the anti-regrowth guard).
-- R7: The AEGIS payload and its template are not modified by this project at all.
+- **R1 — V1 entry:** one ordinary V2 `adopt` can replace a V1 installation
+  without trusting V1 ownership data or losing a project-owned byte.
+- **R2 — AEGIS oracle:** every generated configuration passes the bundled
+  wrapper's `config validate --json`; smoke accepts both active-run status and
+  the normal fresh-install `RUN-POINTER-MISSING` state.
+- **R3 — Recovery:** every mutating command emits a complete exact recovery
+  plan before its first write; crash tests prove those commands restore the
+  original tree and an immediate rerun converges.
+- **R4 — Ownership:** manifest schema 2 distinguishes managed, generated,
+  seeded/project-owned, kept-local, and sidecar paths. Repair and upgrade obey
+  those dispositions.
+- **R5 — Preservation:** upgrade tests prove preservation of workflow policy,
+  requirements/specifications, component data, knowledge, reports, run history,
+  workspace state, and every unselected/kept adapter file.
+- **R6 — UX:** interview questions follow doc 03, ask dependent details only
+  when enabled, show proposal provenance, and make Enter select the displayed
+  safe default.
+- **R7 — Stable package boundary:** implementation remains stdlib-only under
+  `05_Software/waegis/`, imports as `waegis`, and is never copied into the AEGIS
+  payload.
+- **R8 — Bounded size:** core source remains within D5 and contains none of the
+  forbidden architecture listed in doc 00.
+- **R9 — Distribution honesty:** the zipapp works offline with compatible
+  Python 3.11+, while each runtime bundle works offline without system Python.
+  All three artifacts use the same zipapp and embedded payload; their closed
+  inventories detect payload/runtime tampering, and published digests are
+  described as corruption detection rather than unauthenticated signatures.
+- **R10 — Platform evidence:** the full WAEGIS suite and install/check/upgrade
+  acceptance path pass on supported Windows and one native POSIX runner.
+- **R11 — Documentation:** behavior, commands, package layout, safety model,
+  prerequisites, and migration guidance are updated in the root changelog,
+  WAEGIS README, AEGIS README/template documents, and `06_SoftwareDocu/` in the
+  same integration change. The downstream `template/CHANGELOG.md` stays empty.

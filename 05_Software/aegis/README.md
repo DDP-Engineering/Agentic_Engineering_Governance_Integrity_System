@@ -205,10 +205,12 @@ reads and UUID-backed creation retain their existing behavior. Lock files under
 process exit releases the operating-system lock, so operators must not delete a
 file to bypass a live owner.
 
-Deployment and configuration tooling remains outside the copied AEGIS payload
-and is developed separately. Verify current WAEGIS compatibility in WAEGIS's
-own documentation before using it with AEGIS 3.0. The copied payload remains
-independently runnable through its project-local wrappers.
+WAEGIS 3.0 is the recommended deployment/configuration tool and supports AEGIS
+`>=3.0.0,<4.0.0`. It is one separate stdlib-only package with no editions,
+RepoWise lifecycle, or Git history automation. Its zipapp requires Python
+3.11+; its Windows/Linux x64 bundles provide and register locked CPython for
+the copied AEGIS wrappers. WAEGIS uses clean-tree, exact Git recovery and a
+schema-2 ownership receipt for install, configure, repair, and upgrade.
 
 New adopters should begin with
 [`template/.agentic/documents/WHY_AEGIS.md`](template/.agentic/documents/WHY_AEGIS.md).

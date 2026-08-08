@@ -5,174 +5,162 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# Getting Started: Installing and Adopting AEGIS
+# Getting Started: Installing and Adopting AEGIS 3
 
-This note is for someone who has never run AEGIS before and needs to get it
-into a repository for the first time. It answers one question: "how do I
-actually get AEGIS running here?"
+AEGIS does not install itself. WAEGIS 3 is the separate, standard-library-only
+wizard that deploys the generic AEGIS 3 payload, generates the repository
+configuration, validates the copied CLI, and writes an ownership-aware install
+receipt. WAEGIS itself is never copied into the repository.
 
-## The two real starting points
+## Choose the entry point
 
-AEGIS itself never installs itself. A separate, stdlib-only tool called
-WAEGIS does that job: it copies the AEGIS payload into a repository,
-interviews you for the repository-specific configuration, and writes the
-result. There are exactly two WAEGIS commands that get AEGIS into a
-repository for the first time:
+| Starting point | Command | Contract |
+|---|---|---|
+| An absent target path | `waegis new TARGET` | Creates the directory, runs `git init`, installs AEGIS, and leaves staging/commit decisions to the operator. |
+| A clean existing Git repository | `waegis adopt TARGET` | Analyzes local evidence, resolves every differing path explicitly, installs AEGIS, and preserves unrelated project bytes. |
 
-| You have... | Run | What it does |
-| --- | --- | --- |
-| A brand-new, empty (or not-yet-created) project | `waegis new TARGET` | Creates `TARGET`, optionally runs `git init` or clones a remote, copies the AEGIS payload in, and interviews you for the workspace configuration. |
-| An existing repository with its own source and history | `waegis adopt TARGET` | Copies the AEGIS payload into the existing repository, resolving any file conflicts with your existing content one file at a time, and interviews you for the configuration, seeded from an automatic read-only analysis of the repository. |
+WAEGIS does not clone repositories. Clone with Git first, then use `adopt`.
+It never creates a branch, stages files, or commits. `new` rejects an existing
+directory, including an empty one; `adopt` rejects a missing target, a non-root
+Git path, a repository without HEAD, and every dirty-tree shape.
 
-Both commands are one linear sequence of small, resumable steps: check the
-machine (OS, disk space, Python, Git, Node), confirm prerequisites, set up the
-repository, copy the payload, generate `workflow.toml`, optionally run the
-configured quality gates, verify the result, and hand off. If a run is
-interrupted, re-running the same command resumes from the first unfinished
-step rather than starting over.
+For an existing WAEGIS 3 installation, use `check`, `configure`, `repair`, or
+`upgrade`. A detected WAEGIS 1 receipt is not an upgrade baseline: use `adopt`,
+explicitly acknowledge migration, and resolve ordinary per-path conflicts.
+WAEGIS 1 ownership data is never trusted.
 
-There is no third WAEGIS command for "AEGIS is already installed here." If
-`adopt` detects a current or older AEGIS payload already present, it stops
-and tells you to run `waegis doctor` (same version, diagnose/repair) or
-`waegis upgrade` (move to a newer compatible payload) instead.
+## Prerequisites and distribution choices
 
-## Before you start
+Git is an external prerequisite. Node is required only for host adapters that
+use the Node bridge; `check` reports its absence as an actionable warning.
 
-- Python 3.11 or newer, and Git 2.30 or newer, must be on `PATH`. WAEGIS
-  checks for both and tells you exactly what is missing; it never installs
-  privileged software itself.
-- Node 18 or newer is recommended: every AEGIS guard hook runs through Node.
-  Its absence only warns — it does not block installation — but hooks will
-  not run for the affected host adapters until Node is available.
-- Run WAEGIS itself with any Python 3.11+ interpreter. It has no third-party
-  runtime dependencies.
+Choose one WAEGIS artifact:
 
-## Running `new`: a brand-new project
+- `waegis.pyz` requires a compatible Python 3.11+ interpreter;
+- `waegis-windows-x64.zip` includes locked CPython for Windows x64;
+- `waegis-linux-x64.tar.gz` includes locked CPython for Linux x64.
 
-```text
-waegis new TARGET
+Unpack a native bundle to a stable location and run `waegis.cmd` (Windows) or
+`./waegis` (Linux). The first successful mutating flow atomically records the
+selected interpreter at `WAEGIS_HOME/runtime-python`, allowing the installed
+AEGIS shell, PowerShell, and Node wrappers to work without system Python.
+Moving or deleting the bundle invalidates the pointer. `check` diagnoses it;
+run a mutating command through the launcher at its new stable location to
+repair it.
+
+All target workflows are offline. Only an approved release builder using the
+explicit packaging `--fetch` option may retrieve the exact locked CPython
+archives.
+
+## Preview, then install
+
+Start with analysis for an existing repository:
+
+```powershell
+waegis analyze --repo D:\Source\project --json
 ```
 
-`TARGET` is the directory to create. Interactively, WAEGIS walks you through:
+Preview without writes:
 
-- confirming the machine prerequisites above;
-- your Git identity, if none is configured globally (recorded repository-local
-  instead, only if you supply it);
-- whether to `git init` a fresh repository or clone one from a URL you supply;
-- the same workspace interview `adopt` uses: source/test roots, the primary
-  implementation language, the five optional quality gates (build, typecheck,
-  lint, test, security — each independently disabled, advisory, or enforced),
-  and whether the alignment stage is enabled;
-- optional RepoWise discovery (see below) — initial indexing defaults to
-  **No** for `new`;
-- an initial commit.
-
-## Running `adopt`: an existing repository
-
-```text
-waegis adopt TARGET
+```powershell
+waegis new D:\Source\new-project --answers answers.json --non-interactive --dry-run --json
+waegis adopt D:\Source\project --answers answers.json --non-interactive --dry-run --json
 ```
 
-`TARGET` must already be a Git work tree. `adopt` differs from `new` in three
-ways:
+Apply the complete reviewed plan:
 
-1. It first checks whether AEGIS is already installed and routes you to
-   `doctor` or `upgrade` instead when appropriate.
-2. It runs a **read-only analysis** of the repository first — proposing
-   source/test roots, the primary language, and gate commands with their
-   provenance (which file each proposal came from) — and asks you to confirm
-   or override each proposed answer. Nothing from the analysis is ever
-   applied automatically.
-3. Copying the payload can hit real conflicts: a payload file (for example
-   `AGENTS.md`) may already exist in your repository with different content.
-   For every such conflict you choose, file by file: **keep-local** (keep
-   yours, ignore the payload version), **take-payload** (overwrite with the
-   payload), or **write-new** (keep yours untouched and write the payload
-   version alongside it as `<file>.new`). Nothing you own is ever silently
-   overwritten.
-
-RepoWise initial indexing defaults to **Yes** for `adopt` (the opposite of
-`new`) — an existing repository usually benefits immediately from discovery
-context. At the end, `adopt` offers to commit the changes on a dedicated
-branch (`chore/aegis-adoption` by default) separate from your own work; you
-can decline and commit it yourself later.
-
-`adopt` finishes by printing the exact operator prompt to hand to your agent
-tool to start the in-repo adoption workflow (`adoption-intake` →
-`adoption-alignment` → `repo-discovery` → `component-map` →
-`component-adoption` → `baseline-review` → `adoption-delivery`) — this is
-where component mapping, requirement discovery, and the adoption baseline
-actually happen, entirely inside AEGIS rather than WAEGIS.
-
-## Command-line flags that apply to both
-
-| Flag | Meaning |
-| --- | --- |
-| `--answers <file>` | A TOML or JSON file that pre-supplies interview answers, so the run does not need to prompt for everything interactively. |
-| `--dry-run` | Show the plan and stop; nothing is changed. |
-| `--non-interactive` | Never prompt. Every required answer must come from `--answers`; a missing one fails loudly, listing every missing key at once rather than one at a time. |
-| `--yes` | Approve the rendered mutation plan without an interactive confirmation. It does **not** decide RepoWise source/indexing or accepting a failing quality gate — those always need an explicit answer or an interactive confirmation. |
-| `--json` | Emit one machine-readable JSON result instead of human-readable console output. |
-| `--payload <path>` | Use an explicit payload directory instead of the one WAEGIS ships with (mainly for development/testing of AEGIS itself). |
-
-A programmatic call that supplies `--non-interactive` and `--json` without an
-interactive asker, and without `--yes`, returns a `needs-input` result rather
-than guessing — it never silently picks defaults for mutating decisions.
-
-## Core vs. Complete, and RepoWise
-
-WAEGIS ships as two editions, chosen when you download it (not by a
-command-line flag):
-
-| Edition | What it includes |
-| --- | --- |
-| **Core** | The WAEGIS wizard and the AEGIS payload. RepoWise defaults to disabled. It can still link to an already-installed, external RepoWise `>=0.37.0,<0.38.0` command. |
-| **Complete** | Everything Core has, plus a separate, pinned, offline RepoWise 0.37.0 runtime it can install directly into the target repository as a project-local sidecar. |
-
-RepoWise is optional discovery tooling: it analyzes the repository structure
-and can propose additional context AEGIS may use during `repo-discovery`. It
-is never authoritative — AEGIS independently validates whatever RepoWise
-produces before using it, and disabling it entirely changes nothing about
-whether AEGIS itself works.
-
-During the interview, the RepoWise-related answer is one of:
-
-| `repowise_source` | Meaning |
-| --- | --- |
-| `disabled` (default unless you choose otherwise) | No RepoWise integration at all. The repository stays fully self-contained: a plain `git clone` reproduces everything. |
-| `external` | Links to a RepoWise command already installed on the machine. The command itself is not stored in the repository — a fresh clone on another machine must re-link it. |
-| `bundled` | Complete edition only. Installs the pinned RepoWise runtime under `.agentic/tools/repowise/0.37.0/<platform>/`. That runtime is excluded from Git, so a Git clone alone will not carry it — only a full copy of the working directory, or re-running the Complete installer, restores it. |
-
-Inspect or (re-)synchronize RepoWise explicitly at any time, independent of
-`new`/`adopt`:
-
-```text
-waegis repowise status --repo "<project>"
-waegis repowise sync --repo "<project>"
+```powershell
+waegis new D:\Source\new-project --answers answers.json --non-interactive --yes
+waegis adopt D:\Source\project --answers answers.json --non-interactive --yes
 ```
 
-## Installing without WAEGIS
+Interactive operation asks only conditional questions that affect the chosen
+configuration. Non-interactive operation uses a closed answers-version-2 JSON
+or TOML document and reports every missing key together. Unknown answers and
+stale conflict decisions are errors.
 
-WAEGIS is the supported, tracked installation path: it writes the install
-manifest that later lets `doctor`, `repair`, and `upgrade` reason about what
-was installed and detect drift. There is a manual fallback for the rare case
-where you cannot run WAEGIS at all: copy the contents of the AEGIS `template/`
-directory directly into your repository, then run the copied
-`.agentic/tools/install.ps1` / `install.sh` (installs a local virtual
-environment) or `.agentic/tools/run.ps1` / `run.sh` (runs the CLI directly,
-no virtual environment) to get a working `aegis` command. You would then hand
--write `.agentic/workflow.toml` yourself instead of answering an interview,
-and there would be no install manifest to detect drift or support a future
-`waegis upgrade`. This path exists mechanically, but it forgoes everything
-WAEGIS otherwise gives you for free — treat `new`/`adopt` as the normal way
-in, and this only as a last resort.
+A minimal JSON file is:
 
-## What happens next
+```json
+{
+  "answers_version": 2,
+  "answers": {
+    "language": "python",
+    "source_roots": ["src"],
+    "test_roots": ["tests"]
+  }
+}
+```
 
-Once `new` or `adopt` finishes, AEGIS itself is installed and configured but
-has not done any governed work yet. The command prints the exact next prompt
-to give your agent tool, sourced from the copied
-`.agentic/documents/PROMPT_CHEATSHEET.md`. Every interview answer this section
-described — gates, alignment, scope, RepoWise source — remains editable
-afterward through `.agentic/workflow.toml`; none of it is a one-time,
-install-only choice.
+The interview covers repository roots and the explicitly WAEGIS-owned subset
+of schema-3 policy. Advanced/operator-owned TOML remains under repository
+control. Analysis proposes values only from observed files and records the
+reason for each proposal; it does not invent build or security commands.
+
+## Conflict and consent behavior
+
+For every differing destination during `adopt`, choose exactly one action:
+
+- `keep-local`: keep project bytes and record project ownership;
+- `take-payload`: install the AEGIS bytes after recovery evidence is durable;
+- `sidecar`: keep project bytes and write the AEGIS version beside them for
+  review.
+
+There is no global overwrite default. A sidecar name includes the WAEGIS
+version and is collision-safe.
+
+Mutating commands render the complete plan before consent. `--yes` approves
+that rendered plan; it does not fill missing answers or conflicts.
+`--non-interactive` never prompts, and `--json` emits one stable result envelope
+to stdout. `--dry-run` needs no consent and is byte-for-byte read-only.
+
+## Clean-tree recovery
+
+`adopt`, `configure`, `repair`, and `upgrade` require a clean repository both
+before planning and after lock acquisition. Before its first repository write,
+WAEGIS prints and flushes exact path-scoped Git recovery commands. Handled
+failures execute them automatically. If the process is killed after mutation,
+run the preprinted commands, then rerun with `--break-lock` only when the lock's
+recorded process is confirmed dead.
+
+Recovery uses only the planned tracked/new paths. It never resets a branch,
+performs a broad clean, or removes unrelated ignored files. WAEGIS 3 does not
+create `.agentic/.waegis-transactions/` or store backup copies in the target.
+
+## Installation receipt and ownership
+
+The final `.agentic/install-manifest.json` uses schema 2. It is published only
+after the copied AEGIS wrapper passes `--help`, `config validate --json`, and a
+coherent fresh `run status --json` result. Each payload path receives one
+initial disposition: `managed`, `generated`, or `seeded`. Explicit conflict
+outcomes may add `kept-local` and `sidecar` records.
+
+This receipt is the authority boundary for later maintenance:
+
+- `check` is read-only and reports manifest, drift, wrapper, hook, adapter,
+  Node, configured-root, payload-version, and runtime-pointer findings;
+- `configure` changes only explicitly owned workflow policy;
+- `repair` restores only approved `managed` paths;
+- `upgrade` performs an ownership-aware three-way comparison against a
+  strictly newer compatible AEGIS 3 payload.
+
+Requirements, specifications, component knowledge, reports, run history,
+workspace state, generated policy, seeded files, and retained conflicts are not
+treated as generic managed payload.
+
+After any successful mutation, inspect `git status`, review the exact bytes,
+then stage and commit them using the repository's normal process.
+
+## RepoWise boundary
+
+RepoWise is not a WAEGIS 3 feature or installation option. AEGIS retains an
+optional external/manual discovery policy, but WAEGIS does not install,
+configure, synchronize, or lifecycle-manage RepoWise. Any future automation is
+a separate tool and cannot supply authoritative AEGIS governance state.
+
+## Manual fallback
+
+The template can be copied manually and run through
+`.agentic/tools/run.ps1`/`run.sh`, but a manual copy has no WAEGIS schema-2
+manifest. It therefore gives up tracked ownership, drift diagnosis, repair, and
+safe upgrade. Use `new` or `adopt` for the supported maintained installation.

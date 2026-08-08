@@ -8,20 +8,14 @@
 # -----------------------------------------------------------------------------
 """
 @file __init__.py
-@brief Package marker for the WAEGIS guided wizard.
-@details WAEGIS configures and deploys the AEGIS template payload into target
-         repositories. It is a separate, stdlib-only package (AD-1/AD-3) and is
-         never copied into the payload itself.
+@brief Public WAEGIS package identity.
+@details Exposes the project version without importing command or payload code.
 """
-
-# IMPORTS
-
-from __future__ import annotations
 
 from .version import WIZARD_VERSION
 
-# CONSTANTS
-
 __version__ = WIZARD_VERSION
+
+__all__ = ["WIZARD_VERSION", "__version__"]
 
 # END OF FILE

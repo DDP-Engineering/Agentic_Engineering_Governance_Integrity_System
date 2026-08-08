@@ -1023,7 +1023,7 @@ def test_agent_instructions_keep_configuration_diagnosis_outside_fresh_recovery(
 
 def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     """
-    @brief      Verify maintained operator documents expose the schema-3 contract.
+    @brief      Verify maintained operator documents expose current AEGIS/WAEGIS contracts.
     @return     None.
     @exception  None
     """
@@ -1051,7 +1051,9 @@ def test_operator_documents_describe_only_current_workflow_contracts() -> None:
     assert "RepoWise 0.37.0" in combined
     assert "requirements/registry" not in combined
     assert "write_zones" not in combined
-    assert "waegis " not in combined.lower()
+    assert "WAEGIS 3" in combined
+    assert "WAEGIS 3 does not manage RepoWise" in combined
+    assert "waegis repowise" not in combined.lower()
     assert ">=2.0.0,<3.0.0" not in combined
 
 
@@ -1085,9 +1087,9 @@ def test_maintained_aegis_documentation_uses_current_release_branding() -> None:
     assert ">=2.0.0,<3.0.0" not in package_readme
 
 
-def test_documentation_catalog_marks_historical_and_deferred_material() -> None:
+def test_documentation_catalog_marks_current_and_historical_material() -> None:
     """
-    @brief Verify the software catalog has an explicit disposition for old guides.
+    @brief Verify the software catalog separates current and historical guides.
     @return None.
     @exception None
     """
@@ -1106,7 +1108,7 @@ def test_documentation_catalog_marks_historical_and_deferred_material() -> None:
         "WAEGIS_TRANSACTION_RECOVERY.md",
     }
 
-    assert "Deferred Installation Material" in catalog
+    assert "Operator path" in catalog
     assert "Historical Material" in catalog
     assert "Historical archive" in historical
     assert "not the current AEGIS 3.0" in normalized_historical

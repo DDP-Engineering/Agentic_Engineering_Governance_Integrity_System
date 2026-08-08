@@ -21,7 +21,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from waegis.payload.copier import copy_payload
+from waegis.copier import enumerate_payload
+from waegis_support import materialize_inventory
 
 # CONSTANTS
 
@@ -179,7 +180,8 @@ def test_scaffold_copies_pi_adapter_and_skips_node_modules(tmp_path: Path) -> No
     """
     target = tmp_path / "new-project"
 
-    copy_payload(TEMPLATE, target, mode="new")
+    inventory = enumerate_payload(TEMPLATE)
+    materialize_inventory(TEMPLATE, target, inventory.records)
 
     assert (target / ".pi" / "package.json").exists()
     assert (target / ".pi" / "settings.json").exists()
