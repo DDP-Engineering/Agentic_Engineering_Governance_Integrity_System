@@ -113,3 +113,4 @@ failure that the simpler design cannot handle.
 | [04_Implementation_Phases.md](04_Implementation_Phases.md) | Seven ordered implementation and integration phases |
 | [05_Validation_And_Parity.md](05_Validation_And_Parity.md) | Unit, crash, cross-platform acceptance, and V1 retirement gates |
 | [06_AEGIS_Contract_Audit.md](06_AEGIS_Contract_Audit.md) | Evidence from the current AEGIS/WAEGIS implementations and the corrections made to this plan |
+| [PROGRESS.md](PROGRESS.md) | Baseline, phase status, decisions, line counts, and validation evidence |

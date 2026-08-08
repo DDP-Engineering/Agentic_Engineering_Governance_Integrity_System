@@ -1,0 +1,87 @@
+# WAEGIS 3 Implementation Progress
+
+## Workspace contract
+
+- Workspace: `D:\TEMP\2026_Agentic_Engineering_Governance_Integrity_System_WAEGIS_V3`
+- Branch: `ddp/waegis-v3-implementation`
+- Remote branch: `origin/ddp/waegis-v3-implementation`
+- V1 source baseline: `e4aea94a08e7efa31d1fcfdee8b2025a68c1fd12`
+- AEGIS_V2 parent: `f74c1bcac0a19298dd38ff61a5af1cded0ca97aa`
+- Implementation model: one workspace, one branch, one agent; no sibling
+  package and no parallel implementation sessions.
+
+The V1 source remains recoverable with
+`git show e4aea94a08e7efa31d1fcfdee8b2025a68c1fd12:<path>` after replacement.
+
+## Phase status
+
+| Phase | Status | Result |
+|---:|---|---|
+| 1 — Baseline, scaffold, and pure contracts | In progress | Baseline recorded; replacement not started |
+| 2 — Git safety and shared install | Not started | — |
+| 3 — Analyze, configure, check, and repair | Not started | — |
+| 4 — Upgrade | Not started | — |
+| 5 — Packaging and operator documentation | Not started | — |
+| 6 — Acceptance and crash harness | Not started | — |
+| 7 — Cross-platform integration and retirement | Not started | — |
+
+## 2026-08-08 — Phase 1 baseline
+
+### Versions and public surface
+
+- Shipping source reports WAEGIS `1.2.0` and payload compatibility
+  `>=2.0.0,<3.0.0`.
+- The bundled AEGIS payload reports `3.0.0`, so the current V1 compatibility
+  boundary deliberately refuses the branch's payload.
+- Public groups are `new`, `adopt`, `analyze`, `configure`, `doctor`, `repair`,
+  `repowise`, `upgrade`, and `version`.
+- The package and command remain `waegis`; Python requirement is `>=3.11` and
+  runtime dependencies are empty.
+
+### Measured size
+
+Counts include blank lines and exclude cache/virtual-environment files.
+
+| Area | Files | Lines |
+|---|---:|---:|
+| `src/**/*.py` | 46 | 26,226 |
+| `packaging/` release builder and two JSON locks | 3 | 2,448 |
+| `tests/**/*.py` | 47 | 18,495 |
+
+### Environment and distribution assumptions
+
+- Baseline host: Windows NT `10.0.26200.0`, AMD64.
+- System tools: Python `3.12.10`, Git `2.55.0.windows.2`, Node `24.18.0`,
+  uv `0.11.25`; uv selected CPython `3.13.14` for the baseline environment.
+- V1 native locks pin CPython `3.13.13` for `windows-x64` and `linux-x64`.
+- Source and zipapp execution require Python; V1 native application archives
+  bundle CPython. Target installation is offline-first.
+
+### Validation evidence
+
+```text
+uv run --group dev python -B -m waegis --help
+PASS — V1 help rendered and reported wizard 1.2.0.
+
+uv run --group dev python -B -m waegis version --json
+PASS — truthful mismatch observed: WAEGIS 1.2.0 / supported <3.0.0 /
+bundled AEGIS 3.0.0.
+
+uv run --group dev python -m pytest -q tests
+BASELINE MISMATCH — 662 passed, 8 skipped, 38 failed in 62.68s.
+```
+
+All 38 failures stop at the same expected compatibility error:
+`payload version '3.0.0' is incompatible; expected >=2.0.0,<3.0.0`. The
+failures are the known starting boundary created by assigning AEGIS 3.0.0;
+they are not accepted as WAEGIS 3 evidence.
+
+### Owner decisions in force
+
+- WAEGIS target version `3.0.0`; AEGIS range `>=3.0.0,<4.0.0`.
+- RepoWise excluded from core.
+- Zipapp plus Windows/Linux x64 Pythonless bundles, with one embedded payload
+  copy and no editions.
+- `git init` only for a new target; no branch, stage, or commit automation.
+- Core source guard `<=9,500` lines; packaging/launcher guard `<=1,000` lines.
+
