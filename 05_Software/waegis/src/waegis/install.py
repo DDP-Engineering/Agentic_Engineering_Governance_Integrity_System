@@ -22,7 +22,6 @@ import hashlib
 import json
 import os
 import shutil
-import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -52,17 +51,13 @@ from .manifest import (
     serialize_manifest,
 )
 from .ownership import Disposition
+from .publication import validate_aegis
 from .runner import Runner
 from .version import WIZARD_VERSION
 from .workflow_toml import generate_workflow
 
 
 # CONSTANTS
-
-NO_ACTIVE_RUN_MARKER = "RUN-POINTER-MISSING"
-STATUS_KEYS = frozenset({"status", "stage", "artifact", "next"})
-SMOKE_TIMEOUT = 120.0
-
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -159,59 +154,6 @@ def _sidecar_path(target: Path, relative: str, reserved: set[str]) -> str:
         candidate = f"{base}.{index}"
     reserved.add(candidate.casefold())
     return candidate
-
-
-def _wrapper_invocation(target: Path, *args: str) -> tuple[str, ...]:
-    if os.name == "nt":
-        return (
-            "powershell",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(target / ".agentic" / "tools" / "run.ps1"),
-            *args,
-        )
-    return ("bash", str(target / ".agentic" / "tools" / "run.sh"), *args)
-
-
-def _validate_aegis(target: Path, runner: Runner) -> None:
-    environment = {"AEGIS_PYTHON": sys.executable}
-    help_result = runner.run(_wrapper_invocation(target, "--help"), cwd=target, timeout=SMOKE_TIMEOUT, env=environment)
-    if help_result.returncode != 0:
-        detail = help_result.stderr.strip() or help_result.stdout.strip()
-        raise InstallError(f"AEGIS wrapper --help failed: {detail}")
-    config = runner.run(
-        _wrapper_invocation(target, "config", "validate", "--json"),
-        cwd=target,
-        timeout=SMOKE_TIMEOUT,
-        env=environment,
-    )
-    if config.returncode != 0:
-        detail = config.stderr.strip() or config.stdout.strip()
-        raise InstallError(f"AEGIS config validate failed: {detail}")
-    try:
-        config_value = json.loads(config.stdout)
-    except json.JSONDecodeError as exc:
-        raise InstallError("AEGIS config validate returned invalid JSON") from exc
-    if not isinstance(config_value, dict) or not STATUS_KEYS.issubset(config_value):
-        raise InstallError("AEGIS config validate returned an unexpected envelope")
-    status = runner.run(
-        _wrapper_invocation(target, "run", "status", "--json"),
-        cwd=target,
-        timeout=SMOKE_TIMEOUT,
-        env=environment,
-    )
-    combined = f"{status.stdout}\n{status.stderr}"
-    if status.returncode == 0:
-        try:
-            status_value = json.loads(status.stdout)
-        except json.JSONDecodeError as exc:
-            raise InstallError("AEGIS run status returned invalid JSON") from exc
-        if not isinstance(status_value, dict) or not STATUS_KEYS.issubset(status_value):
-            raise InstallError("AEGIS run status returned an unexpected envelope")
-    elif NO_ACTIVE_RUN_MARKER not in combined:
-        raise InstallError(f"AEGIS run status failed incoherently: {combined.strip()}")
 
 
 def _recovery_record(plan: InstallPlan) -> dict[str, object]:
@@ -459,7 +401,7 @@ def apply_install(
             destination = contained_destination(plan.target, operation.path)
             destination.parent.mkdir(parents=True, exist_ok=True)
             os.replace(stage_root.joinpath(*operation.path.split("/")), destination)
-        _validate_aegis(plan.target, runner)
+        validate_aegis(plan.target, runner)
         manifest_destination = contained_destination(plan.target, MANIFEST_PATH)
         manifest_destination.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staged_manifest, manifest_destination)

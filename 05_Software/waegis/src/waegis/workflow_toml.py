@@ -119,6 +119,24 @@ def _inline_comment(line: str) -> str:
     return ""
 
 
+def _comparable(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _comparable(item) for key, item in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [_comparable(item) for item in value]
+    return value
+
+
+def _assignment_value(line: str) -> object:
+    comment = _inline_comment(line)
+    source = line[: -len(comment)] if comment else line
+    try:
+        parsed = tomllib.loads(source)
+    except tomllib.TOMLDecodeError:
+        return object()
+    return next(iter(parsed.values())) if len(parsed) == 1 else object()
+
+
 def _replace_key(text: str, section_name: str, key_name: str, value: object) -> str:
     lines = text.splitlines(keepends=True)
     section: str | None = None
@@ -131,6 +149,8 @@ def _replace_key(text: str, section_name: str, key_name: str, value: object) -> 
             continue
         key_match = _KEY.match(line.rstrip("\r\n"))
         if section == section_name and key_match and key_match.group(2) == key_name:
+            if _comparable(_assignment_value(line.rstrip("\r\n"))) == _comparable(value):
+                return text
             comment = _inline_comment(line.rstrip("\r\n"))
             lines[index] = f"{key_match.group(1)}{key_name} = {_toml_value(value)}{comment}{newline}"
             found = True
@@ -166,6 +186,8 @@ def _set_optional_key(text: str, section_name: str, key_name: str, value: object
             if value is None:
                 del lines[index]
                 return "".join(lines)
+            if _comparable(_assignment_value(lines[index].rstrip("\r\n"))) == _comparable(value):
+                return text
             comment = _inline_comment(lines[index].rstrip("\r\n"))
             newline = "\r\n" if "\r\n" in text else "\n"
             lines[index] = f"{match.group(1)}{key_name} = {_toml_value(value)}{comment}{newline}"
@@ -187,6 +209,16 @@ def _replace_optional_table(text: str, section_name: str, values: Mapping[str, o
     lines = text.splitlines(keepends=True)
     bounds = _section_range(lines, section_name)
     newline = "\r\n" if "\r\n" in text else "\n"
+    try:
+        table: object = tomllib.loads(text)
+        for part in section_name.split("."):
+            table = table[part] if isinstance(table, dict) else None
+    except (KeyError, TypeError, tomllib.TOMLDecodeError):
+        table = None
+    if values is None and bounds is None:
+        return text
+    if values is not None and bounds is not None and _comparable(table) == _comparable(values):
+        return text
     if bounds is not None:
         start, end = bounds
         del lines[start:end]
@@ -250,6 +282,54 @@ def normalize_roots(value: object, field: str) -> tuple[str, ...]:
     return tuple(roots)
 
 
+def workflow_answers(text: str) -> dict[str, object]:
+    """@brief Read the complete WAEGIS-owned answer surface from valid TOML."""
+    try:
+        value = tomllib.loads(text)
+        answers: dict[str, object] = {
+            "language": value["traceability"]["language"],
+            "source_roots": value["source"]["roots"],
+            "test_roots": value["tests"]["roots"],
+            "alignment_enabled": value["alignment"]["enabled"],
+            "alignment_protected_scope_mode": value["alignment"]["protected_scope"]["mode"],
+            "alignment_protected_scope_patterns": value["alignment"]["protected_scope"]["patterns"],
+            "stage_form_retention": value["interface"]["stage_form_retention"],
+            "check_execution": value["interface"]["check_execution"],
+            "coverage_mode": value["traceability"]["coverage"]["mode"],
+            "coverage_roots": value["traceability"]["coverage"]["coverable_roots"],
+            "coverage_exclude": value["traceability"]["coverage"]["exclude"],
+            "baseline_guard_mode": value["components"]["baseline_guard"]["mode"],
+            "minimum_completion_level": value["components"]["baseline_guard"].get(
+                "minimum_completion_level", "baseline-usable"
+            ),
+            "adoption_source_changes_mode": value["adoption"]["source_changes"]["mode"],
+            "secrets_mode": value["guardrails"]["secrets"]["mode"],
+            "secrets_patterns": value["guardrails"]["secrets"]["patterns"],
+            "protected_paths_mode": value["guardrails"]["protected_paths"]["mode"],
+            "protected_paths_patterns": value["guardrails"]["protected_paths"]["patterns"],
+            "protected_paths_operations": value["guardrails"]["protected_paths"]["operations"],
+            "working_tree_mode": value["guardrails"]["working_tree"]["mode"],
+            "working_tree_blocked_patterns": value["guardrails"]["working_tree"]["blocked_patterns"],
+            "write_access_mode": value["guardrails"]["write_access"]["mode"],
+            "write_access_stages": value["guardrails"]["write_access"].get("stages", {}),
+            "scope_mode": value["guardrails"]["scope"]["mode"],
+            "scope_allowed_roots": value["guardrails"]["scope"]["allowed_roots"],
+            "delivery_mode": value["guardrails"]["delivery"]["mode"],
+            "delivery_command_patterns": value["guardrails"]["delivery"]["command_patterns"],
+        }
+        for gate in ("build", "typecheck", "lint", "test", "security"):
+            answers[f"gate_{gate}_mode"] = value["gates"][gate]["mode"]
+            answers[f"gate_{gate}_commands"] = value["gates"][gate]["commands"]
+        quick = value.get("quick", {}).get("changed_paths")
+        answers["quick_changed_paths_mode"] = quick["mode"] if quick else "disabled"
+        answers["quick_max_paths"] = quick["max_paths"] if quick else 10
+    except (KeyError, TypeError, tomllib.TOMLDecodeError) as exc:
+        raise WorkflowError(f"cannot read WAEGIS-owned fields from workflow TOML: {exc}") from exc
+    answers["source_extensions"] = value["traceability"]["source_extensions"]
+    answers["test_file_patterns"] = value["traceability"]["test_file_patterns"]
+    return answers
+
+
 def generate_workflow(base_text: str, answers: Mapping[str, object]) -> str:
     """
     @brief Apply basic WAEGIS-owned answers to the complete payload template.
@@ -272,7 +352,8 @@ def generate_workflow(base_text: str, answers: Mapping[str, object]) -> str:
             raise WorkflowError("language 'other' requires source_extensions and test_file_patterns")
     elif isinstance(language, str) and language in LANGUAGE_PRESETS:
         preset = LANGUAGE_PRESETS[language]
-        extensions, patterns = preset.extensions, preset.tests
+        extensions = tuple(answers.get("source_extensions", preset.extensions))
+        patterns = tuple(answers.get("test_file_patterns", preset.tests))
     else:
         raise WorkflowError(f"unsupported language: {language!r}")
     source_roots = normalize_roots(answers.get("source_roots"), "source_roots")

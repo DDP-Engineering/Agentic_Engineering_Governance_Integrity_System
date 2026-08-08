@@ -155,7 +155,7 @@ def enumerate_payload(root: Path) -> PayloadInventory:
         kept_directories: list[str] = []
         for name in sorted(names):
             child = directory_path / name
-            if name in _EXCLUDED_DIRECTORIES:
+            if name in _EXCLUDED_DIRECTORIES or name.endswith(".egg-info"):
                 continue
             if _is_reparse(child):
                 raise InventoryError(f"payload directory is a link/reparse point: {child}")

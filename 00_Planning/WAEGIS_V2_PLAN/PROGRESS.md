@@ -19,8 +19,8 @@ The V1 source remains recoverable with
 |---:|---|---|
 | 1 — Baseline, scaffold, and pure contracts | Complete | 76 passed, 2 skipped; source 1,378 lines |
 | 2 - Git safety and shared install | Complete | 101 passed, 2 skipped; source 3,424 lines |
-| 3 - Analyze, configure, check, and repair | In progress | Analyze complete; maintenance commands pending |
-| 4 — Upgrade | Not started | — |
+| 3 - Analyze, configure, check, and repair | Complete | 106 passed, 2 skipped; source 4,357 lines |
+| 4 - Upgrade | In progress | - |
 | 5 — Packaging and operator documentation | Not started | — |
 | 6 — Acceptance and crash harness | Not started | — |
 | 7 — Cross-platform integration and retirement | Not started | — |
@@ -154,3 +154,42 @@ PASS - stable final command vocabulary rendered.
 Actual size after Phase 2: 19 source files / 3,424 lines; 12 test files / 1,157
 lines. The two skips remain the host-dependent link and case-collision fixtures
 described in Phase 1.
+
+## 2026-08-08 - Phase 3 result
+
+- Extended `analyze` with V2/V1/invalid installation state, ownership counts,
+  payload identity, and disposition-aware drift evidence.
+- Implemented `check` and its `doctor` alias with the stable 0/1/2 finding
+  model, golden JSON contract, real wrapper/config/status checks, configured
+  root warnings, managed/generated/project-owned drift, shared-hook inventory,
+  Node bridge warning, strict known Codex adapter parsing, installed version
+  readback, and compatible bundled-update reporting.
+- Implemented `configure` with current-value precedence, conditional
+  re-interview, comment/advanced-field preservation, optional quick/stage table
+  add/remove, explicit invalid/missing workflow reconstruction, exact Git
+  recovery, AEGIS validation, and manifest-last metadata publication.
+- Implemented `repair` for only missing/modified `managed` records with exact
+  installed-payload identity. Generated configuration is routed to configure;
+  seeded, kept-local, sidecar, and other project-owned drift remains untouched
+  and produces a truthful advisory exit.
+- Added a shared existing-repository publication boundary and read-only drift
+  model. Tests prove check/doctor byte identity, healthy/warning/failure exits,
+  no-Node behavior, strict adapter failure, advanced TOML preservation,
+  managed-only repair, and generated-configuration reconstruction.
+
+```text
+python -m py_compile <all Phase 3 source files>
+PASS
+
+uv run --group dev ruff check src tests
+All checks passed!
+
+uv run --group dev python -m pytest -q tests
+106 passed, 2 skipped in 66.27s
+
+uv run --group dev python -B -m waegis --help
+PASS
+```
+
+Actual size after Phase 3: 24 source files / 4,357 lines; 13 test files / 1,379
+lines. The two skips remain host-dependent link/case-collision fixtures.

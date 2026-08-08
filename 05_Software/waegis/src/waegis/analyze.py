@@ -21,11 +21,13 @@ import json
 import os
 import tomllib
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .drift import inspect_drift, ownership_counts
 from .gitops import run_git
+from .manifest import MANIFEST_PATH, ManifestError, detect_manifest_version, load_manifest
 from .runner import Runner
 from .workflow_toml import LANGUAGE_PRESETS
 
@@ -63,6 +65,7 @@ class RepositoryAnalysis:
     source_roots: Proposal
     test_roots: Proposal
     gates: Mapping[str, tuple[Proposal, ...]]
+    installation: Mapping[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -73,6 +76,7 @@ class RepositoryAnalysis:
             "source_roots": self.source_roots.to_dict(),
             "test_roots": self.test_roots.to_dict(),
             "gates": {name: [item.to_dict() for item in values] for name, values in self.gates.items()},
+            "installation": dict(self.installation),
         }
 
 
@@ -129,6 +133,32 @@ def _gate_proposals(repository: Path) -> dict[str, tuple[Proposal, ...]]:
     return {gate: tuple(values) for gate, values in found.items()}
 
 
+def _installation(repository: Path) -> dict[str, object]:
+    path = repository.joinpath(*MANIFEST_PATH.split("/"))
+    if not path.exists():
+        return {"status": "absent", "action": "use waegis adopt"}
+    version = detect_manifest_version(path)
+    if version != 2:
+        return {
+            "status": "v1-unsupported" if version is not None else "invalid",
+            "manifest_version": version,
+            "action": "use waegis adopt with migration consent" if version is not None else "inspect the manifest",
+        }
+    try:
+        manifest = load_manifest(path)
+    except ManifestError as exc:
+        return {"status": "invalid", "error": str(exc), "action": "inspect the manifest"}
+    drift = [record.to_dict() for record in inspect_drift(repository, manifest) if record.state != "clean"]
+    return {
+        "status": "valid",
+        "manifest_version": 2,
+        "payload_version": manifest.payload_version,
+        "payload_digest": manifest.payload_digest,
+        "ownership": dict(ownership_counts(manifest)),
+        "drift": drift,
+    }
+
+
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
@@ -160,6 +190,7 @@ def analyze_repository(repository: Path, runner: Runner) -> RepositoryAnalysis:
         Proposal(source_roots, "conventional roots containing repository files"),
         Proposal(test_roots, "conventional test roots containing repository files"),
         _gate_proposals(root),
+        _installation(root),
     )
 
 
