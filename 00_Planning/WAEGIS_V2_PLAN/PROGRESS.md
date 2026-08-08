@@ -17,8 +17,8 @@ The V1 source remains recoverable with
 
 | Phase | Status | Result |
 |---:|---|---|
-| 1 — Baseline, scaffold, and pure contracts | In progress | Baseline recorded; replacement not started |
-| 2 — Git safety and shared install | Not started | — |
+| 1 — Baseline, scaffold, and pure contracts | Complete | 76 passed, 2 skipped; source 1,378 lines |
+| 2 — Git safety and shared install | In progress | — |
 | 3 — Analyze, configure, check, and repair | Not started | — |
 | 4 — Upgrade | Not started | — |
 | 5 — Packaging and operator documentation | Not started | — |
@@ -85,3 +85,35 @@ they are not accepted as WAEGIS 3 evidence.
 - `git init` only for a new target; no branch, stage, or commit automation.
 - Core source guard `<=9,500` lines; packaging/launcher guard `<=1,000` lines.
 
+## 2026-08-08 — Phase 1 result
+
+- Replaced the V1 package and tests in the canonical `waegis` package; the
+  recorded baseline commit remains the only harvest source.
+- Implemented WAEGIS 3.0.0 and AEGIS `>=3.0.0,<4.0.0`, manifest schema 2,
+  canonical path safety, closed payload inventory, safe zipapp extraction,
+  ownership classification, pure upgrade classification, subprocess runner,
+  V2 JSON envelope, and the final command vocabulary.
+- Removed V1 commands, engine, probe fleet, transaction/ownership machinery,
+  RepoWise lifecycle, and edition release builder.
+- Added deterministic golden manifest and inventory fixtures plus adversarial
+  path, schema, archive, ownership, classifier, CLI, runner, and structural
+  guard tests.
+
+```text
+python -m py_compile <all Phase 1 source files>
+PASS
+
+uv run --group dev python -m pytest -q tests
+76 passed, 2 skipped in 0.47s
+
+uv run --group dev python -m ruff check src tests
+All checks passed!
+
+uv run --group dev python -B -m waegis --help
+PASS — final command vocabulary rendered; RepoWise absent; check primary.
+```
+
+Actual size after Phase 1: 11 source files / 1,378 lines; 8 test files / 635
+lines; packaging lock 16 lines. The two skips are host-dependent link and
+case-collision fixtures. Equivalent rejection paths execute where the host
+supports creating those filesystem entries.

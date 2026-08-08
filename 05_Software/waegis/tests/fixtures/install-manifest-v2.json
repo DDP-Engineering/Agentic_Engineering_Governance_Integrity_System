@@ -1,0 +1,31 @@
+{
+  "configuration": {
+    "answers": {
+      "language": "python",
+      "source_roots": [
+        "src"
+      ]
+    },
+    "generator_version": "3.0.0",
+    "workflow_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "files": {
+    ".agentic/cli/a.py": {
+      "disposition": "managed",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size": 1
+    },
+    ".agentic/workflow.toml": {
+      "disposition": "generated",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size": 2
+    }
+  },
+  "installed_at": "2026-08-08T12:00:00Z",
+  "installed_by": "waegis 3.0.0",
+  "manifest_version": 2,
+  "mode": "new",
+  "payload_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "payload_version": "3.0.0",
+  "product": "aegis"
+}
