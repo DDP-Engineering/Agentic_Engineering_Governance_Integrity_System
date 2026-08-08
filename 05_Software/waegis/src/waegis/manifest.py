@@ -169,7 +169,7 @@ def canonical_path(value: str) -> str:
         raise ManifestError("path must be a non-empty string")
     if "\x00" in value or "\\" in value or value.startswith("/") or "//" in value:
         raise ManifestError(f"unsafe canonical path: {value!r}")
-    if re.match(r"^[A-Za-z]:", value) or value.startswith("//"):
+    if re.match(r"^[A-Za-z]:", value):
         raise ManifestError(f"absolute path is not allowed: {value!r}")
     path = PurePosixPath(value)
     parts = path.parts

@@ -9,9 +9,8 @@
 """
 @file cli.py
 @brief WAEGIS 3 command-line surface and exit mapping.
-@details Defines the complete V2 command vocabulary while Phase 1 exposes only
-         the read-only version implementation. Later phases attach command
-         orchestrators without changing this package boundary.
+@details Defines the complete install, configure, check, repair, upgrade, and
+         version command surface with shared output and exit-code handling.
 """
 
 # IMPORTS

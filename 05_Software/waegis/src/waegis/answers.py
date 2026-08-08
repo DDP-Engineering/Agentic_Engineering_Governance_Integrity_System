@@ -122,7 +122,7 @@ def parse_answers(value: object) -> dict[str, object]:
             raise AnswersError(f"case-colliding conflict path: {path}")
         folded.add(path.casefold())
         normalized_conflicts[path] = decision
-    if conflicts or "conflicts" in answers:
+    if "conflicts" in answers:
         answers["conflicts"] = normalized_conflicts
     if "migration_v1" in answers and not isinstance(answers["migration_v1"], bool):
         raise AnswersError("migration_v1 must be boolean")

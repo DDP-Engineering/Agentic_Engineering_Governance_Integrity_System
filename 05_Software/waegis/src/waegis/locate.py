@@ -110,7 +110,7 @@ def resolve_payload(explicit: Path | None = None) -> tuple[Path, str, PayloadInv
         raise PayloadError(f"payload version is invalid: {version!r}") from exc
     if not compatible:
         raise PayloadError(f"payload version {version!r} is outside >=3.0.0,<4.0.0")
-    inventory = packaged[1] if packaged and explicit is None else enumerate_payload(root)
+    inventory = packaged[1] if packaged else enumerate_payload(root)
     return root, version, inventory
 
 
@@ -189,8 +189,6 @@ def extract_zipapp_payload(
             verify_inventory(destination, inventory)
         return destination
     except (OSError, zipfile.BadZipFile, InventoryError) as exc:
-        if isinstance(exc, PayloadError):
-            raise
         raise PayloadError(f"cannot extract payload archive {archive}: {exc}") from exc
     finally:
         shutil.rmtree(temporary_parent, ignore_errors=True)

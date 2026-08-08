@@ -42,6 +42,11 @@ All notable changes to this project will be documented in this file.
 - Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
   payload inventory so development artifacts cannot enter a deployment.
 
+### Removed
+
+- Remove dead and redundant WAEGIS implementation branches and refresh the CLI
+  module description without changing command behavior.
+
 ## [3.0.0] - 2026-08-08
 
 ### Added

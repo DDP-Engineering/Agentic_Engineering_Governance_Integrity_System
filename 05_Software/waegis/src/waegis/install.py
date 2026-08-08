@@ -228,7 +228,6 @@ def plan_install(
     """
     if mode not in {"new", "adopt"}:
         raise InstallError(f"unsupported install mode: {mode}")
-    resolved_target = target.resolve() if target.exists() else target.absolute()
     if mode == "new":
         if target.exists():
             raise InstallError("new target must not exist; remove an empty directory or use adopt")
