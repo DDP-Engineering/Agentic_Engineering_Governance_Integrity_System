@@ -16,7 +16,7 @@
 import pytest
 
 from waegis.classify import ConflictDecision, UpgradeAction, classify_upgrade, normalize_conflict_decision
-from waegis.ownership import Disposition
+from waegis.ownership import Disposition, initial_disposition
 
 
 @pytest.mark.parametrize(
@@ -61,6 +61,14 @@ def test_conflict_decisions_use_path_specific_v2_vocabulary() -> None:
     assert normalize_conflict_decision("write-sidecar") is ConflictDecision.SIDECAR
     with pytest.raises(ValueError):
         normalize_conflict_decision("take-all")
+
+
+def test_new_project_data_paths_default_to_seeded_not_managed() -> None:
+    """@brief R4 new payload files below project-owned trees never gain maintenance authority."""
+    assert initial_disposition(".agentic/requirements/REQ-001.md") is Disposition.SEEDED
+    assert initial_disposition(".agentic/knowledge/components/payment.md") is Disposition.SEEDED
+    assert initial_disposition(".agentic/reports/adoption/result.md") is Disposition.SEEDED
+    assert initial_disposition(".agentic/requirements/spec_template.md") is Disposition.MANAGED
 
 
 # END OF FILE

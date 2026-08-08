@@ -51,14 +51,14 @@ def test_version_json_is_one_v2_document() -> None:
     assert value["result"]["manifest_schema"] == 2
 
 
-def test_pending_upgrade_command_fails_without_mutation(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    """@brief Incomplete upgrade work does not claim command success."""
+def test_upgrade_refuses_non_repository_without_mutation(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """@brief The final command surface fails closed on an invalid target."""
     out = io.StringIO()
     err = io.StringIO()
     assert main(["upgrade", "--repo", str(tmp_path), "--json"], stdout=out, stderr=err) == EXIT_ERROR
     value = json.loads(out.getvalue())
     assert value["status"] == "failed"
-    assert "Phase 1 scaffold" in value["messages"][0]
+    assert "not a git repository" in value["messages"][0]
     assert err.getvalue() == ""
 
 

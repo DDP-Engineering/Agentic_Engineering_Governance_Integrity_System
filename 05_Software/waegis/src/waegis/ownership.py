@@ -44,6 +44,22 @@ _SEEDED_EXACT = frozenset(
     }
 )
 _SEEDED_SUFFIXES = ("/.gitkeep",)
+_PROJECT_OWNED_PREFIXES = (
+    ".agentic/requirements/",
+    ".agentic/knowledge/",
+    ".agentic/reports/",
+    ".agentic/runs/",
+    ".agentic/.workspace/",
+)
+_MANAGED_PROJECT_MATERIAL = frozenset(
+    {
+        ".agentic/requirements/README.md",
+        ".agentic/requirements/spec_template.md",
+        ".agentic/knowledge/components/component_template.md",
+        ".agentic/reports/adoption/README.md",
+        ".agentic/reports/adoption/adoption_report_template.md",
+    }
+)
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
@@ -57,7 +73,11 @@ def initial_disposition(path: str) -> Disposition:
     """
     if path == ".agentic/workflow.toml":
         return Disposition.GENERATED
+    if path in _MANAGED_PROJECT_MATERIAL:
+        return Disposition.MANAGED
     if path in _SEEDED_EXACT or path.endswith(_SEEDED_SUFFIXES):
+        return Disposition.SEEDED
+    if path.startswith(_PROJECT_OWNED_PREFIXES):
         return Disposition.SEEDED
     return Disposition.MANAGED
 

@@ -39,6 +39,7 @@ from .prompts import ConsoleAsker, FieldSpec
 from .publication import PublicationError, PublicationPlan, apply_publication
 from .repair import RepairError, plan_repair
 from .runner import CommandRunner
+from .upgrade import UpgradeError, UpgradeNeedsInput, plan_upgrade
 from .version import MANIFEST_VERSION, PAYLOAD_COMPAT_SPEC, WIZARD_VERSION
 
 
@@ -415,8 +416,80 @@ def _run_repair(args: argparse.Namespace, out: TextIO, err: TextIO, input_fn: Ca
         return _emit_error(command, str(exc), args.json, out, err)
 
 
-def _run_pending(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
-    return _emit_error(args.command, "command implementation is not available in the Phase 1 scaffold", args.json, out, err)
+def _run_upgrade(args: argparse.Namespace, out: TextIO, err: TextIO, input_fn: Callable[[str], str]) -> int:
+    command = "upgrade"
+    runner = CommandRunner()
+    asker = None if args.json or args.non_interactive else ConsoleAsker(out, input_fn)
+    try:
+        answers = load_answers(args.answers)
+
+        def resolve_conflict(path: str) -> str:
+            assert asker is not None
+            return asker.ask(
+                FieldSpec(
+                    f"conflicts.{path}",
+                    f"Managed path has an upgrade conflict: {path}",
+                    "Keep local relinquishes maintenance; take payload updates it; sidecar preserves both for review.",
+                    "keep-local",
+                    ("keep-local", "take-payload", "sidecar"),
+                )
+            )
+
+        try:
+            plan = plan_upgrade(
+                args.repo,
+                args.payload,
+                answers,
+                runner,
+                conflict_resolver=resolve_conflict if asker else None,
+            )
+        except UpgradeNeedsInput as exc:
+            return _emit_needs_input(command, exc.keys, None, args.json, out)
+        value = plan.to_dict()
+        if not args.json:
+            out.write(f"Plan: upgrade AEGIS {plan.installed_version} -> {plan.payload_version} at {plan.publication.target}\n")
+            for item in plan.items:
+                suffix = f" -> {item.sidecar}" if item.sidecar else ""
+                disposition = item.disposition.value if item.disposition else "removed"
+                out.write(f"  {item.action}: {item.path} ({disposition}){suffix}\n")
+            out.write("Recovery:\n")
+            for recovery in plan.publication.recovery.rendered():
+                out.write(f"  {recovery}\n")
+        if args.dry_run:
+            if args.json:
+                out.write(ResultEnvelope(command, "ok", EXIT_OK, result={"dry_run": True, "plan": value}).render())
+            else:
+                out.write("Dry run complete; no files were changed.\n")
+            return EXIT_OK
+        if not args.yes:
+            if asker is None:
+                return _emit_needs_input(command, ("consent",), value, args.json, out)
+            consent = asker.ask(
+                FieldSpec("consent", "Apply this complete upgrade plan?", "Writes only the paths shown above.", "no", ("yes", "no"))
+            )
+            if consent != "yes":
+                return _emit_needs_input(command, ("consent",), value, False, out)
+        apply_publication(
+            plan.publication,
+            runner,
+            err if args.json else out,
+            as_json=args.json,
+            break_lock=args.break_lock,
+        )
+        result = {
+            "installed_version": plan.installed_version,
+            "payload_version": plan.payload_version,
+            "changed": sorted(plan.publication.writes),
+            "removed": list(plan.publication.removals),
+            "kept": [item.path for item in plan.items if item.action in {"keep-local", "preserve-local"}],
+        }
+        if args.json:
+            out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+        else:
+            out.write(f"AEGIS upgraded to {plan.payload_version}. Review with 'git status', then commit approved files.\n")
+        return EXIT_OK
+    except (AnswersError, ManifestError, PayloadError, PublicationError, SafetyError, UpgradeError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
@@ -494,7 +567,9 @@ def main(
         return _run_check(args, out, err)
     if args.command == "repair":
         return _run_repair(args, out, err, input_fn)
-    return _run_pending(args, out, err)
+    if args.command == "upgrade":
+        return _run_upgrade(args, out, err, input_fn)
+    return _emit_error(args.command, "unsupported command", args.json, out, err)
 
 
 # END OF FILE

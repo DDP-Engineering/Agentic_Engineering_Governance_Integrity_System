@@ -20,8 +20,8 @@ The V1 source remains recoverable with
 | 1 — Baseline, scaffold, and pure contracts | Complete | 76 passed, 2 skipped; source 1,378 lines |
 | 2 - Git safety and shared install | Complete | 101 passed, 2 skipped; source 3,424 lines |
 | 3 - Analyze, configure, check, and repair | Complete | 106 passed, 2 skipped; source 4,357 lines |
-| 4 - Upgrade | In progress | - |
-| 5 — Packaging and operator documentation | Not started | — |
+| 4 - Upgrade | Complete | 111 passed, 2 skipped; source 4,712 lines |
+| 5 - Packaging and operator documentation | In progress | - |
 | 6 — Acceptance and crash harness | Not started | — |
 | 7 — Cross-platform integration and retirement | Not started | — |
 
@@ -192,4 +192,40 @@ PASS
 ```
 
 Actual size after Phase 3: 24 source files / 4,357 lines; 13 test files / 1,379
+lines. The two skips remain host-dependent link/case-collision fixtures.
+
+## 2026-08-08 - Phase 4 result
+
+- Implemented strictly newer, compatible V2-to-V2 payload upgrades using the
+  pure three-way classifier only for managed paths.
+- Added exact add/replace/remove/converged/preserve/conflict planning with
+  path-specific keep/take/sidecar decisions, stale-decision refusal, case-safe
+  old/new inventory union, and committed-baseline enforcement.
+- Preserved generated workflow bytes, seeded/project-owned trees, kept-local
+  paths, sidecars, requirements, component state, knowledge, reports, runs, and
+  workspace state. New project-data paths default to seeded authority unless
+  they are explicit managed templates.
+- Published the new payload identity and per-file dispositions only after real
+  AEGIS validation/smoke, through the shared exact recovery/manifest-last
+  boundary. No branch, index, or commit mutation is performed.
+- Exercised a real subprocess hard kill after file publication and before
+  manifest publication: the pre-emitted commands restored the exact tree, the
+  dead-owner lock required explicit `--break-lock`, and immediate rerun
+  converged. A separate `KeyboardInterrupt` case rolled back automatically.
+
+```text
+python -m py_compile <all Phase 4 source files>
+PASS
+
+uv run --group dev ruff check src tests
+All checks passed!
+
+uv run --group dev python -m pytest -q tests
+111 passed, 2 skipped in 96.88s
+
+uv run --group dev python -B -m waegis --help
+PASS
+```
+
+Actual size after Phase 4: 25 source files / 4,712 lines; 14 test files / 1,705
 lines. The two skips remain host-dependent link/case-collision fixtures.
