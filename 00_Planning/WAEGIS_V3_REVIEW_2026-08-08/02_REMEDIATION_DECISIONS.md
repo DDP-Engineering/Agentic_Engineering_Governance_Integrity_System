@@ -2,7 +2,7 @@
 
 Date: 2026-08-08
 Branch: `ddp/waegis-v3-implementation`
-Status: approved implementation scope
+Status: completed implementation scope
 
 ## Decision principles
 
@@ -47,3 +47,7 @@ the next session.
 The final integration pass runs the full WAEGIS and AEGIS suites, the crash matrix,
 and the packaging verifier. Owner GO/NO-GO remains pending until those results are
 recorded.
+
+All planned sessions and the final integration pass completed successfully. See
+`03_REMEDIATION_REPORT.md` for exact commits, validation results, and artifact
+identity.

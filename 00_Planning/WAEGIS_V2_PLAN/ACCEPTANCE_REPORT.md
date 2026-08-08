@@ -18,10 +18,11 @@ Retirement status: **pending owner go/no-go signature**
 
 | Gate | Result | Evidence |
 |---|---|---|
-| WAEGIS suite | PASS | 126 passed, 2 conditional skips, Ruff/compile/help clean |
+| WAEGIS suite | PASS | 139 passed, 2 conditional skips, Ruff/compile/help clean |
 | AEGIS suite | PASS | 638 passed, 3 conditional skips; five WAEGIS-importing modules included |
 | Crash/recovery | PASS | Six install hard-kill points plus one real-payload upgrade point |
 | Artifact integrity | PASS | Full build repeated byte-identically; closed manifest and checksums verified |
+| Independent review remediation | PASS | F-01-F-13 scoped cleanup plus F-16/F-20-F-22; high-churn optional consolidation deferred |
 | Windows native | PASS | No host Python; new/check/dry+real upgrade/check all green |
 | Linux native | PASS | Ubuntu 24.04, no host Python; same path green with Node 24.18.0 |
 | V1 representative replay | PASS | Untrusted V1 ownership ignored; 155-record schema-2 adoption; 3.1 upgrade; sentinel preserved |
@@ -32,6 +33,22 @@ Retirement status: **pending owner go/no-go signature**
 The conditional skips are platform/filesystem tests guarded by explicit host
 capability checks. They do not waive a retirement path: the corresponding
 Linux, native-bundle, and cross-platform behavior passed separately.
+
+## Independent review remediation
+
+The 2026-08-08 adversarial review was triaged rather than applied wholesale.
+The implementation includes F-01 through F-13 where applicable, plus F-16,
+F-20, F-21, and F-22. F-14, F-15, F-17, and F-18 were deferred because their
+cosmetic or safety-boundary churn did not correct an observed failure. F-19 and
+F-23 through F-27 remain intentional or accepted limitations.
+
+Four sequential Codex sessions produced one commit per batch. Independent
+integration validation then passed 139 WAEGIS tests, all six install crash
+boundaries, 638 AEGIS tests, Ruff, compilation, both CLI help surfaces, line
+guards, the release verifier, and two byte-identical release builds. The native
+and representative-repository scenarios were not repeated because the scoped
+review did not change native launchers, the runtime lock, AEGIS payload bytes, or
+migration classification; their original acceptance evidence remains recorded.
 
 ## Recovery proof
 
@@ -46,9 +63,9 @@ continue to roll back automatically.
 
 | Artifact | Bytes | SHA-256 |
 |---|---:|---|
-| `waegis.pyz` | 436,751 | `81d4ba0e8df93e289967d5a28eb4812cbe23d506ff51914324f41b2ff77b96c9` |
-| `waegis-windows-x64.zip` | 23,403,895 | `a3edd38664ac1c0581fd1bc44058187b26e3b31107c85682b58cde5a1acc6ea0` |
-| `waegis-linux-x64.tar.gz` | 68,435,695 | `1794647d9dde0c17bc093806a9aa77114ddba23f67e866f808dd2fe5ec81bcef` |
+| `waegis.pyz` | 436,825 | `7301619a8ecdbea960b6704d798eaee8fc638a03d8a88befe90e16ba75719d0c` |
+| `waegis-windows-x64.zip` | 23,403,980 | `2c48cc8a7e2b718e5e6382667e5d5cdb6244ba542afd2824de5f40e5e726c852` |
+| `waegis-linux-x64.tar.gz` | 68,435,992 | `3021d9e3c5770faffa94216689e090474e56bf22bd572be56c909b69f9c8e627` |
 
 The zipapp embedded by both native bundles is the published zipapp above. The
 payload digest is
@@ -56,8 +73,8 @@ payload digest is
 
 ## Structural result
 
-- Core source: 26 files / 4,838 lines (limit 9,500).
-- Packaging builder and lock: 3 files / 531 lines (limit 1,000).
+- Core source: 26 files / 5,571 lines (limit 9,500).
+- Packaging builder: 2 files / 579 lines (limit 1,000).
 - Copied `template/CHANGELOG.md`: 0 bytes.
 - Active `.agentic/.waegis-transactions/` ignore rule: absent.
 - WAEGIS RepoWise core and Git history automation: absent.

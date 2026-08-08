@@ -351,3 +351,29 @@ Final rebuilt artifact identity:
 | `waegis.pyz` | 436,751 | `81d4ba0e8df93e289967d5a28eb4812cbe23d506ff51914324f41b2ff77b96c9` |
 | `waegis-windows-x64.zip` | 23,403,895 | `a3edd38664ac1c0581fd1bc44058187b26e3b31107c85682b58cde5a1acc6ea0` |
 | `waegis-linux-x64.tar.gz` | 68,435,695 | `1794647d9dde0c17bc093806a9aa77114ddba23f67e866f808dd2fe5ec81bcef` |
+
+## 2026-08-08 - Independent review remediation result
+
+- Triaged the adversarial WAEGIS 3 review against the implemented code instead
+  of applying it wholesale. Implemented F-01 through F-13 where applicable,
+  plus F-16 and F-20 through F-22. Deferred F-14/F-15/F-17/F-18 because their
+  optional consolidation churn did not correct an observed failure.
+- Ran four sequential, non-overlapping Codex sessions with one commit per
+  batch. Each commit was reviewed, integrated, and pushed on the dedicated
+  branch before the next session started.
+- Independently revalidated the integrated result: WAEGIS 139 passed/2 skipped,
+  all six install crash cases passed, AEGIS 638 passed/3 skipped, Ruff and line
+  guards passed, both CLI surfaces passed, and two consecutive release builds
+  were byte-identical and verifier-clean.
+- Removed ignored V1 bytecode residue from the dedicated implementation
+  workspace. No tracked cache or generated release file entered the commit.
+- Technical recommendation remains GO. Owner signature, release promotion, and
+  WAEGIS 1 retirement remain pending.
+
+Final post-review artifact identity:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `waegis.pyz` | 436,825 | `7301619a8ecdbea960b6704d798eaee8fc638a03d8a88befe90e16ba75719d0c` |
+| `waegis-windows-x64.zip` | 23,403,980 | `2c48cc8a7e2b718e5e6382667e5d5cdb6244ba542afd2824de5f40e5e726c852` |
+| `waegis-linux-x64.tar.gz` | 68,435,992 | `3021d9e3c5770faffa94216689e090474e56bf22bd572be56c909b69f9c8e627` |

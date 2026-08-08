@@ -14,6 +14,7 @@ Owner decision: **PENDING**
 | D6 - AEGIS `>=3.0.0,<4.0.0` | PASS |
 | D7 - no Git history automation | PASS |
 | Windows, POSIX, crash, AEGIS, artifact, and repository replay gates | PASS |
+| Independent adversarial review remediation | PASS - scoped findings implemented and revalidated |
 | Root release-process handling | PASS - changes remain under `Unreleased`; no promotion performed |
 | Owner signature | PENDING |
 
