@@ -58,7 +58,7 @@ Acceptance:
 - `python -c "import waegis"` works with no `waegis2` or installed `aegis`;
 - manifest round-trip is byte-identical and adversarial schema/path tests pass;
 - the real template inventory has exactly one ownership class per path;
-- a one-byte payload mutation, extra/missing entry, link, traversal, and case
+- a one-byte payload mutation, extra/missing entry, unsafe link, traversal, and case
   collision are rejected;
 - every harvested classifier row passes pure unit tests;
 - core line budget is green.

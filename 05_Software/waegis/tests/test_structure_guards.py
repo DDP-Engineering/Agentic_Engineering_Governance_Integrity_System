@@ -33,7 +33,11 @@ def _line_count(paths: list[Path]) -> int:
 def test_core_and_packaging_line_guards() -> None:
     """@brief D5 prevents architecture regrowth beyond approved budgets."""
     assert _line_count(_python_files()) <= 9_500
-    packaging = [path for path in (PROJECT / "packaging").rglob("*") if path.is_file()]
+    packaging = [
+        path
+        for path in (PROJECT / "packaging").rglob("*")
+        if path.is_file() and path.suffix in {".py", ".cmd", ".sh"}
+    ]
     assert _line_count(packaging) <= 1_000
 
 

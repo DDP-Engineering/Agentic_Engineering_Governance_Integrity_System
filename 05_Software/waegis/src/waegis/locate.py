@@ -18,16 +18,19 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import stat
 import tempfile
 import tomllib
 import zipfile
+import sys
 from pathlib import Path
 
-from .copier import InventoryError, PayloadInventory, enumerate_payload, verify_inventory
+from .copier import InventoryError, PayloadInventory, enumerate_payload, parse_inventory, verify_inventory
 from .manifest import canonical_path
+from .runtime import waegis_home
 from .version import is_payload_compatible
 
 
@@ -51,6 +54,24 @@ def source_checkout_payload() -> Path | None:
     software_root = Path(__file__).resolve().parents[3]
     candidate = software_root / "aegis" / "template"
     return candidate.resolve() if candidate.is_dir() else None
+
+
+def packaged_zipapp() -> Path | None:
+    """@brief Return the executing payload-bearing zipapp when applicable."""
+    candidate = Path(sys.argv[0]).resolve()
+    return candidate if candidate.is_file() and zipfile.is_zipfile(candidate) else None
+
+
+def _packaged_payload() -> tuple[Path, PayloadInventory] | None:
+    archive = packaged_zipapp()
+    if archive is None:
+        return None
+    try:
+        with zipfile.ZipFile(archive) as bundle:
+            inventory = parse_inventory(json.loads(bundle.read("payload-inventory.json")))
+    except (OSError, KeyError, UnicodeError, json.JSONDecodeError, zipfile.BadZipFile, InventoryError) as exc:
+        raise PayloadError(f"cannot read embedded payload inventory: {exc}") from exc
+    return extract_zipapp_payload(archive, inventory, waegis_home() / "payload-cache"), inventory
 
 
 def read_payload_version(root: Path) -> str:
@@ -78,7 +99,8 @@ def resolve_payload(explicit: Path | None = None) -> tuple[Path, str, PayloadInv
     @return Resolved root, compatible version, and closed inventory.
     @exception PayloadError If no compatible payload is available.
     """
-    root = explicit.resolve() if explicit is not None else source_checkout_payload()
+    packaged = None if explicit is not None else _packaged_payload()
+    root = explicit.resolve() if explicit is not None else packaged[0] if packaged else source_checkout_payload()
     if root is None or not root.is_dir():
         raise PayloadError("no AEGIS payload is available; pass --payload PATH")
     version = read_payload_version(root)
@@ -88,7 +110,8 @@ def resolve_payload(explicit: Path | None = None) -> tuple[Path, str, PayloadInv
         raise PayloadError(f"payload version is invalid: {version!r}") from exc
     if not compatible:
         raise PayloadError(f"payload version {version!r} is outside >=3.0.0,<4.0.0")
-    return root, version, enumerate_payload(root)
+    inventory = packaged[1] if packaged and explicit is None else enumerate_payload(root)
+    return root, version, inventory
 
 
 def extract_zipapp_payload(

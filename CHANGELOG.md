@@ -11,6 +11,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Replace the retired WAEGIS 1 distribution implementation with WAEGIS 3.0.0:
+  a stdlib-only, ownership-aware AEGIS 3 wizard; payload-bearing zipapp; and
+  Pythonless Windows/Linux x64 bundles built around that exact zipapp with
+  locked CPython inputs, common release identity, and runtime-pointer support.
+
+### Changed
+
+- Remove WAEGIS editions, RepoWise, and Git history automation. Mutating flows
+  now require clean repositories, explicit complete plans and consent, exact
+  pre-write recovery evidence, manifest-last publication, and operator-owned
+  staging and commits.
+
 ## [3.0.0] - 2026-08-08
 
 ### Added

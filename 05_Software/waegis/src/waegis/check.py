@@ -32,6 +32,7 @@ from .manifest import MANIFEST_PATH, ManifestError, detect_manifest_version, loa
 from .ownership import Disposition
 from .publication import NO_ACTIVE_RUN_MARKER, SMOKE_TIMEOUT, STATUS_KEYS, wrapper_invocation
 from .runner import Runner
+from .runtime import pointer_health
 from .version import is_payload_compatible, parse_semver
 
 
@@ -234,6 +235,9 @@ def check_repository(repository: Path, runner: Runner) -> CheckResult:
     findings.extend(_wrapper_findings(root, runner))
     findings.extend(_adapter_findings(root, runner))
     findings.extend(_root_findings(root))
+    pointer_status, pointer_value = pointer_health()
+    if pointer_status == "invalid":
+        findings.append(_finding("RUNTIME-POINTER-INVALID", "warning", f"registered AEGIS runtime is unavailable: {pointer_value}", action="rerun a mutating command through the native WAEGIS launcher"))
     installed_path = root.joinpath(*PAYLOAD_VERSION_FILE.split("/"))
     installed_version: str | None = None
     try:

@@ -29,6 +29,7 @@ from typing import Mapping, TextIO
 from .gitsafety import RecoveryPlan, acquire_lock, execute_recovery, require_clean, require_planned_head
 from .manifest import MANIFEST_PATH, InstallManifest, contained_destination, serialize_manifest
 from .runner import Runner
+from .runtime import register_runtime
 
 
 # CONSTANTS
@@ -160,6 +161,7 @@ def apply_publication(
         require_planned_head(runner, plan.recovery)
         _emit_recovery(plan, recovery_stream, as_json=as_json)
         recovery_emitted = True
+        register_runtime(runner)
         stage_root = Path(tempfile.mkdtemp(prefix=".waegis-stage-", dir=plan.target.parent))
         for path, data in plan.writes.items():
             staged = stage_root.joinpath(*path.split("/"))

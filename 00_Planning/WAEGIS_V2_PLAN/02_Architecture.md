@@ -81,9 +81,12 @@ published zipapp.
 The runtime lock has a closed schema and records the exact Python version,
 platform, source filename/location, size, and SHA-256 for each runtime input.
 An offline build consumes only already verified cached inputs; an approved
-online build may fetch only the locked source. Runtime archives and final bundle
-members reject traversal, links/special files, case collisions, duplicates, and
-unexpected executables.
+online build may fetch only the locked source. Runtime archives reject traversal,
+external/broken/cyclic links, special files, case collisions, duplicates, and
+unexpected executables. Validated internal links are materialized as regular files,
+so final bundle members contain no links or special files. The Linux runtime excludes
+the unused upstream `share/terminfo/` data tree; this removes its intentional
+case-colliding aliases and is safe because WAEGIS/AEGIS do not use `curses`.
 
 Each native launcher passes the bundled interpreter through
 `WAEGIS_PACKAGED_RUNTIME`. Before a mutating install flow, V2 selects a valid
@@ -158,7 +161,7 @@ schema validation tests.
 The build creates a closed internal inventory for every payload file after the
 same exclusions used by installation. Each record has canonical path, byte
 size, hash, and initial disposition. Runtime extraction rejects undeclared,
-missing, duplicate, case-colliding, linked, special-type, or hash-mismatched
+missing, duplicate, case-colliding, unsafe-linked, special-type, or hash-mismatched
 entries.
 
 Ownership is explicit and tested:
@@ -240,7 +243,7 @@ the baseline until the new manifest is published.
    reject unknown fields, unsafe paths, collisions, and invalid dispositions.
 5. Every current AEGIS payload path has exactly one initial ownership class.
 6. The built internal payload inventory exactly matches the staged payload and
-   rejects a one-byte mutation, undeclared entry, missing entry, link, and case
+   rejects a one-byte mutation, undeclared entry, missing entry, unsafe link, and case
    collision.
 7. The recovery-plan generator accepts only the exact precomputed write set and
    always inserts `--` before pathspecs.

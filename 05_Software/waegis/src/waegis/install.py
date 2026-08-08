@@ -53,6 +53,7 @@ from .manifest import (
 from .ownership import Disposition
 from .publication import validate_aegis
 from .runner import Runner
+from .runtime import register_runtime
 from .version import WIZARD_VERSION
 from .workflow_toml import generate_workflow
 
@@ -389,6 +390,7 @@ def apply_install(
             require_planned_head(runner, plan.recovery)
             _emit_recovery(plan, recovery_stream, as_json=as_json)
             recovery_emitted = True
+        register_runtime(runner)
         stage_root = Path(tempfile.mkdtemp(prefix=".waegis-stage-", dir=plan.target.parent))
         for operation in plan.write_operations:
             staged = stage_root.joinpath(*operation.path.split("/"))

@@ -21,7 +21,7 @@ The V1 source remains recoverable with
 | 2 - Git safety and shared install | Complete | 101 passed, 2 skipped; source 3,424 lines |
 | 3 - Analyze, configure, check, and repair | Complete | 106 passed, 2 skipped; source 4,357 lines |
 | 4 - Upgrade | Complete | 111 passed, 2 skipped; source 4,712 lines |
-| 5 - Packaging and operator documentation | In progress | - |
+| 5 - Packaging and operator documentation | Complete | 119 passed, 2 skipped; all artifacts verified; source 4,834 lines |
 | 6 — Acceptance and crash harness | Not started | — |
 | 7 — Cross-platform integration and retirement | Not started | — |
 
@@ -229,3 +229,54 @@ PASS
 
 Actual size after Phase 4: 25 source files / 4,712 lines; 14 test files / 1,705
 lines. The two skips remain host-dependent link/case-collision fixtures.
+
+## 2026-08-08 - Phase 5 result
+
+- Added one deterministic payload-bearing `waegis.pyz` with a closed embedded
+  payload inventory, content-addressed safe extraction, and common build
+  identity. It runs `version`, `new`, `check`, `configure`, and upgrade paths
+  offline through the preserved `waegis` package.
+- Added a closed exact runtime lock for CPython 3.13.13 and thin Pythonless
+  Windows x64 ZIP/Linux x64 tar.gz bundles around that exact zipapp. The Linux
+  build validates internal links before materializing them as regular files and
+  excludes the unused, case-colliding upstream terminfo alias database.
+- Added atomic per-user runtime-pointer registration at the mutation boundary,
+  invalid-pointer health reporting, and repair through the relocated native
+  launcher. Read-only, dry-run, and failed-precondition paths do not write it.
+- Added a closed release manifest, `SHA256SUMS`, exact artifact membership
+  validation, changed-byte detection, and repeat-build identity checks. Runtime
+  cache misses fetch only an exact approved lock entry when `--fetch` is
+  explicit; ordinary builds and all target workflows remain offline.
+- Replaced the WAEGIS 1 README and accrued the WAEGIS 3 change under the root
+  changelog's Unreleased section. The downstream template changelog remains
+  exactly zero bytes.
+- Windows native smoke ran with system Python absent from `PATH`: install,
+  healthy check, dry-run and real 3.0.0-to-3.1.0 upgrade, bundle relocation
+  diagnosis, and pointer repair passed. The equivalent WSL native Linux smoke
+  passed with system Python absent; its only check advisory was the runner's
+  absent optional Node executable, with zero failures.
+
+```text
+python -m py_compile <all changed Phase 5 Python files>
+PASS
+
+uv run --group dev ruff check packaging src tests
+All checks passed!
+
+uv run --group dev python -m pytest -q tests
+119 passed, 2 skipped in 110.39s
+
+uv run --group dev python -B -m waegis --help
+PASS
+
+python packaging/build.py --verify --output dist
+PASS
+
+repeat full build compared SHA-256 for all five publication files
+PASS (byte-identical)
+```
+
+Actual size after Phase 5: 26 source files / 4,834 lines; 16 test files / 1,964
+lines; packaging builder source 509 lines. Published artifact sizes are 438,621
+bytes (`waegis.pyz`), 23,405,890 bytes (Windows), and 68,437,806 bytes (Linux).
+The two skips remain the deliberate host-dependent filesystem link/case fixtures.
