@@ -206,6 +206,32 @@ def test_configure_reconstructs_workflow_missing_an_owned_field(tmp_path: Path) 
     assert reconstructs is True
 
 
+def test_configure_healthy_workflow_does_not_resolve_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief R2 a healthy re-interview has no payload-resolution dependency."""
+    repo = _repository(tmp_path)
+    _install(repo, tmp_path)
+    _commit(repo, "install AEGIS")
+
+    def unexpected_payload_resolution(*args: object, **kwargs: object) -> None:
+        raise AssertionError("healthy configure resolved the payload")
+
+    monkeypatch.setattr("waegis.configure.resolve_payload", unexpected_payload_resolution)
+    plan, _, missing, reconstructs, _ = plan_configure(
+        repo,
+        {},
+        CommandRunner(),
+        payload=None,
+        asker=None,
+        non_interactive=True,
+    )
+    assert plan is not None
+    assert missing == ()
+    assert reconstructs is False
+
+
 def test_configure_preserves_advanced_bytes_and_adds_then_removes_quick_policy(tmp_path: Path) -> None:
     """@brief R2/R5 configure changes owned fields while preserving advanced content."""
     repo = _repository(tmp_path)

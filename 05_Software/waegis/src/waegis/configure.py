@@ -124,10 +124,12 @@ def plan_configure(
     manifest = load_manifest(root.joinpath(*MANIFEST_PATH.split("/")))
     workflow_path = root / ".agentic" / "workflow.toml"
     current_text, current = _read_workflow(workflow_path)
-    payload_root, _, _ = resolve_payload(payload)
-    template = (payload_root / ".agentic" / "workflow.toml").read_text(encoding="utf-8")
     reconstructs = current_text is None or current is None
-    base_text = template if reconstructs else current_text
+    if reconstructs:
+        payload_root, _, _ = resolve_payload(payload)
+        base_text = (payload_root / ".agentic" / "workflow.toml").read_text(encoding="utf-8")
+    else:
+        base_text = current_text
     analysis = analyze_repository(root, runner)
     if non_interactive or asker is None:
         resolved_supplied = _merge_current(current or {}, supplied)
@@ -156,7 +158,10 @@ def plan_configure(
         raise ConfigureError(str(exc)) from exc
     existing_record = manifest.files.get(".agentic/workflow.toml")
     if existing_record is None or existing_record.disposition is not Disposition.GENERATED:
-        raise ConfigureError("manifest does not grant configure authority for .agentic/workflow.toml")
+        raise ConfigureError(
+            "manifest does not grant configure authority for .agentic/workflow.toml; "
+            "re-adopt and select take-payload for that path"
+        )
     updated_files = dict(manifest.files)
     updated_files[".agentic/workflow.toml"] = file_record(generated, Disposition.GENERATED)
     configuration = {

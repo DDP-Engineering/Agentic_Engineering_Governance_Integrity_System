@@ -14,6 +14,7 @@
 """
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ from waegis.manifest import (
     ManifestError,
     UnsupportedManifestError,
     canonical_path,
+    contained_destination,
     detect_manifest_version,
     parse_manifest,
     serialize_manifest,
@@ -49,6 +51,22 @@ def test_canonical_paths_reject_unsafe_or_nonportable_values(path: str) -> None:
     """@brief R4 rejects traversal, platform ambiguity, and device names."""
     with pytest.raises(ManifestError):
         canonical_path(path)
+
+
+def test_containment_propagates_reparse_inspection_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """@brief R4 filesystem inspection failures cannot grant write authority."""
+    destination = tmp_path / "destination.txt"
+    destination.write_text("existing\n", encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fail_destination_lstat(path: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path == destination:
+            raise OSError("reparse inspection unavailable")
+        return original_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fail_destination_lstat)
+    with pytest.raises(OSError, match="reparse inspection unavailable"):
+        contained_destination(tmp_path, "destination.txt")
 
 
 def test_manifest_rejects_unknown_top_level_and_file_fields() -> None:

@@ -53,6 +53,8 @@ def plan_repair(
     manifest = load_manifest(root.joinpath(*MANIFEST_PATH.split("/")))
     payload_root, payload_version, inventory = resolve_payload(payload)
     if payload_version != manifest.payload_version or inventory.digest != manifest.payload_digest:
+        if payload_version == manifest.payload_version:
+            raise RepairError("available payload is a different same-version rebuild; use waegis adopt to re-adopt it")
         raise RepairError("available payload is not the installed payload identity; use waegis upgrade")
     drift = inspect_drift(root, manifest)
     configuration_drift = [

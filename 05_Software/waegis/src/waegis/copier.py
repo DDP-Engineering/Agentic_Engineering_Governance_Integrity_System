@@ -20,13 +20,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import stat
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
 
-from .manifest import ManifestError, canonical_path
+from .manifest import ManifestError, _is_reparse, canonical_path
 from .ownership import Disposition, initial_disposition
 
 
@@ -103,13 +102,6 @@ class PayloadInventory:
 
 
 # HELPER FUNCTIONS
-
-
-def _is_reparse(path: Path) -> bool:
-    details = path.lstat()
-    attributes = getattr(details, "st_file_attributes", 0)
-    reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
-    return path.is_symlink() or bool(attributes & reparse)
 
 
 def _hash_file_once(path: Path) -> tuple[int, str]:

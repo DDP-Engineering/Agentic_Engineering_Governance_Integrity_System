@@ -93,6 +93,14 @@ AEGIS 3 payload. Repositories without that manifest use `adopt`. For a detected
 WAEGIS 1 installation, `adopt` requires an explicit migration answer and
 reclassifies every path through ordinary conflict rules.
 
+Payload identity includes both the version and content digest. If payload bytes
+are rebuilt without increasing the version, `repair` refuses because the exact
+installed identity is unavailable and `upgrade` refuses because the version is
+not newer. Re-run `waegis adopt` and select `take-payload` for the relevant
+conflicts to accept that same-version rebuild. Likewise, a workflow retained as
+`kept-local` is outside `configure` authority; re-adopt it with `take-payload` to
+restore generated-workflow authority.
+
 ## Answers Files
 
 Non-interactive operation accepts closed-schema JSON or TOML answers version

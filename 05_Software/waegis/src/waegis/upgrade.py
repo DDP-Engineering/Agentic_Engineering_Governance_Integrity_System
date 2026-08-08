@@ -165,7 +165,11 @@ def plan_upgrade(
     if not installed_compatible:
         raise UpgradeError("installed payload is outside the WAEGIS 3 compatibility range")
     payload_root, payload_version, inventory = resolve_payload(payload)
-    if parse_semver(payload_version)[:3] <= parse_semver(manifest.payload_version)[:3]:
+    payload_semver = parse_semver(payload_version)[:3]
+    installed_semver = parse_semver(manifest.payload_version)[:3]
+    if payload_semver == installed_semver and inventory.digest != manifest.payload_digest:
+        raise UpgradeError("upgrade payload is a different same-version rebuild; use waegis adopt to re-adopt it")
+    if payload_semver <= installed_semver:
         raise UpgradeError(
             f"upgrade payload {payload_version} must be newer than installed {manifest.payload_version}"
         )

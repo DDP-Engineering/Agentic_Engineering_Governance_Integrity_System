@@ -146,10 +146,7 @@ def _validate_json_value(value: object, context: str) -> None:
 
 
 def _is_reparse(path: Path) -> bool:
-    try:
-        details = path.lstat()
-    except OSError:
-        return False
+    details = path.lstat()
     attributes = getattr(details, "st_file_attributes", 0)
     reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     return path.is_symlink() or bool(attributes & reparse)

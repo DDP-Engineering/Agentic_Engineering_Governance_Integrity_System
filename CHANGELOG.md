@@ -41,6 +41,10 @@ All notable changes to this project will be documented in this file.
   thresholds without weakening supplied-answer validation.
 - Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
   payload inventory so development artifacts cannot enter a deployment.
+- Propagate reparse-point inspection failures consistently across payload reads
+  and repository writes instead of allowing containment checks to continue.
+- Let healthy workflow reconfiguration run without resolving an unused payload,
+  and direct same-version rebuild and kept-local workflow refusals to re-adopt.
 
 ### Removed
 
