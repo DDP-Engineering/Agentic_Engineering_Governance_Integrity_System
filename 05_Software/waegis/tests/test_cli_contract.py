@@ -51,11 +51,11 @@ def test_version_json_is_one_v2_document() -> None:
     assert value["result"]["manifest_schema"] == 2
 
 
-def test_pending_scaffold_command_fails_without_mutation() -> None:
+def test_pending_scaffold_command_fails_without_mutation(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """@brief Phase 1 does not claim command success before implementation."""
     out = io.StringIO()
     err = io.StringIO()
-    assert main(["analyze", "--repo", ".", "--json"], stdout=out, stderr=err) == EXIT_ERROR
+    assert main(["check", "--repo", str(tmp_path), "--json"], stdout=out, stderr=err) == EXIT_ERROR
     value = json.loads(out.getvalue())
     assert value["status"] == "failed"
     assert "Phase 1 scaffold" in value["messages"][0]

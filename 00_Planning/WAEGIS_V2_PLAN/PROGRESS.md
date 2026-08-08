@@ -18,8 +18,8 @@ The V1 source remains recoverable with
 | Phase | Status | Result |
 |---:|---|---|
 | 1 — Baseline, scaffold, and pure contracts | Complete | 76 passed, 2 skipped; source 1,378 lines |
-| 2 — Git safety and shared install | In progress | — |
-| 3 — Analyze, configure, check, and repair | Not started | — |
+| 2 - Git safety and shared install | Complete | 101 passed, 2 skipped; source 3,424 lines |
+| 3 - Analyze, configure, check, and repair | In progress | Analyze complete; maintenance commands pending |
 | 4 — Upgrade | Not started | — |
 | 5 — Packaging and operator documentation | Not started | — |
 | 6 — Acceptance and crash harness | Not started | — |
@@ -117,3 +117,40 @@ Actual size after Phase 1: 11 source files / 1,378 lines; 8 test files / 635
 lines; packaging lock 16 lines. The two skips are host-dependent link and
 case-collision fixtures. Equivalent rejection paths execute where the host
 supports creating those filesystem entries.
+
+## 2026-08-08 - Phase 2 result
+
+- Implemented clean committed-HEAD enforcement, exact path-scoped Git recovery,
+  committed-baseline pinning between plan and apply, a token-safe repository
+  lock, and explicit proven-dead-owner lock breaking.
+- Implemented evidence-backed analysis, the closed answers schema, the complete
+  conditional interview, and comment-preserving generation of every
+  WAEGIS-owned schema-3 workflow field, including optional quick-run and
+  stage-write tables.
+- Implemented shared `new`/`adopt` planning and application with path-specific
+  keep/take/sidecar conflicts, explicit V1 migration consent, complete plan
+  provenance, staging outside the repository, atomic per-file publication,
+  real AEGIS wrapper/config/status validation, manifest-last completion, and
+  handled-failure rollback.
+- The adversarial phase review fixed new-target deletion ownership, stale HEAD
+  application, ignored managed destinations outside the committed baseline,
+  and stale conflict decisions. Python and JavaScript fixtures plus an
+  all-restrictive-policy configuration validate through the real payload.
+
+```text
+python -m py_compile <all Phase 2 source files>
+PASS
+
+uv run --group dev ruff check src tests
+All checks passed!
+
+uv run --group dev python -m pytest -q tests
+101 passed, 2 skipped in 29.58s
+
+uv run --group dev python -B -m waegis --help
+PASS - stable final command vocabulary rendered.
+```
+
+Actual size after Phase 2: 19 source files / 3,424 lines; 12 test files / 1,157
+lines. The two skips remain the host-dependent link and case-collision fixtures
+described in Phase 1.

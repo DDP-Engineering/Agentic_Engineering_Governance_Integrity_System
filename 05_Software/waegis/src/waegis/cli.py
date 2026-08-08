@@ -19,13 +19,22 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
-from typing import Sequence, TextIO
+from typing import Callable, Sequence, TextIO
 
+from .analyze import analyze_repository
+from .answers import AnswersError, load_answers
 from .envelope import ResultEnvelope
+from .gitsafety import SafetyError, require_clean, require_repository
+from .install import InstallError, NeedsInput, apply_install, plan_install
+from .interview import InterviewError, collect_install_answers
 from .locate import PayloadError, resolve_payload
+from .manifest import MANIFEST_PATH, detect_manifest_version
+from .prompts import ConsoleAsker, FieldSpec
+from .runner import CommandRunner
 from .version import MANIFEST_VERSION, PAYLOAD_COMPAT_SPEC, WIZARD_VERSION
 
 
@@ -90,6 +99,174 @@ def _run_version(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
     return EXIT_OK
 
 
+def _emit_needs_input(command: str, keys: Sequence[str], plan: object, as_json: bool, out: TextIO) -> int:
+    message = "more operator input is required: " + ", ".join(keys)
+    if as_json:
+        result = {"missing": list(keys)}
+        if plan is not None:
+            result["plan"] = plan
+        out.write(ResultEnvelope(command, "needs-input", EXIT_NEEDS_INPUT, result=result, messages=(message,)).render())
+    else:
+        out.write(f"{message}\n")
+    return EXIT_NEEDS_INPUT
+
+
+def _render_install_plan(plan: object, out: TextIO, *, as_json: bool) -> None:
+    value = plan.to_dict()  # type: ignore[attr-defined]
+    if as_json:
+        return
+    out.write(f"Plan: {value['mode']} AEGIS {value['payload_version']} at {value['target']}\n")
+    out.write("Answers:\n")
+    for key, answer in value["answers"].items():
+        source = value["provenance"].get(key, "resolved policy")
+        out.write(f"  {key}: {answer!r} ({source})\n")
+    for operation in value["operations"]:
+        if operation["action"] != "unchanged":
+            out.write(f"  {operation['action']}: {operation['path']} ({operation['disposition']})\n")
+    out.write("Recovery:\n")
+    recovery = value["recovery"]
+    for command in recovery.get("commands", []):
+        out.write(f"  {command}\n")
+    if recovery["kind"] == "delete-created-target":
+        out.write(f"  delete created target: {recovery['path']}\n")
+
+
+def _run_install_command(
+    args: argparse.Namespace,
+    out: TextIO,
+    err: TextIO,
+    input_fn: Callable[[str], str],
+) -> int:
+    command = args.command
+    runner = CommandRunner()
+    try:
+        payload_root, payload_version, inventory = resolve_payload(args.payload)
+        supplied = load_answers(args.answers)
+        analysis = None
+        if command == "adopt":
+            repository = require_repository(runner, args.target)
+            require_clean(runner, repository)
+            analysis = analyze_repository(repository, runner)
+            version = detect_manifest_version(repository.joinpath(*MANIFEST_PATH.split("/")))
+            if version is not None and version != 2 and "migration_v1" not in supplied:
+                if args.json or args.non_interactive:
+                    return _emit_needs_input(command, ("migration_v1",), None, args.json, out)
+                migration = ConsoleAsker(out, input_fn).ask(
+                    FieldSpec(
+                        "migration_v1",
+                        "A prior WAEGIS manifest was detected. Re-adopt without trusting its ownership data?",
+                        "Every differing path still requires an ordinary conflict decision.",
+                        "no",
+                        ("yes", "no"),
+                    )
+                )
+                if migration != "yes":
+                    return _emit_needs_input(command, ("migration_v1",), None, False, out)
+                supplied["migration_v1"] = True
+        asker = None if args.json or args.non_interactive else ConsoleAsker(out, input_fn)
+        answers, missing = collect_install_answers(
+            supplied,
+            analysis,
+            asker,
+            non_interactive=args.json or args.non_interactive,
+        )
+        if missing:
+            return _emit_needs_input(command, missing, None, args.json, out)
+        provenance: dict[str, str] = {}
+        for key in answers:
+            if key in supplied:
+                provenance[key] = "answers file"
+            elif analysis and key == "language":
+                provenance[key] = analysis.language.reason
+            elif analysis and key == "source_roots":
+                provenance[key] = analysis.source_roots.reason
+            elif analysis and key == "test_roots":
+                provenance[key] = analysis.test_roots.reason
+            elif asker is not None:
+                provenance[key] = "interactive operator/default"
+            else:
+                provenance[key] = "payload safe default"
+
+        def resolve_conflict(path: str) -> str:
+            assert asker is not None
+            return asker.ask(
+                FieldSpec(
+                    f"conflicts.{path}",
+                    f"Payload destination differs: {path}",
+                    "Keep local preserves it; take payload overwrites after recovery evidence; sidecar writes a review copy.",
+                    "keep-local",
+                    ("keep-local", "take-payload", "sidecar"),
+                )
+            )
+
+        try:
+            plan = plan_install(
+                command,
+                args.target,
+                payload_root,
+                payload_version,
+                inventory,
+                answers,
+                runner,
+                provenance=provenance,
+                conflict_resolver=resolve_conflict if asker else None,
+            )
+        except NeedsInput as exc:
+            return _emit_needs_input(command, exc.keys, None, args.json, out)
+        _render_install_plan(plan, out, as_json=args.json)
+        if args.dry_run:
+            result = {"dry_run": True, "plan": plan.to_dict()}
+            if args.json:
+                out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+            else:
+                out.write("Dry run complete; no files were changed.\n")
+            return EXIT_OK
+        if not args.yes:
+            if asker is None:
+                return _emit_needs_input(command, ("consent",), plan.to_dict(), args.json, out)
+            consent = asker.ask(
+                FieldSpec("consent", "Apply this complete plan?", "Writes only the paths shown above.", "no", ("yes", "no"))
+            )
+            if consent != "yes":
+                return _emit_needs_input(command, ("consent",), plan.to_dict(), False, out)
+        manifest = apply_install(
+            plan,
+            runner,
+            err if args.json else out,
+            as_json=args.json,
+            break_lock=args.break_lock,
+        )
+        result = {
+            "target": str(plan.target),
+            "payload_version": manifest.payload_version,
+            "payload_digest": manifest.payload_digest,
+            "manifest_version": 2,
+            "changed": [operation.path for operation in plan.write_operations],
+            "kept": [operation.path for operation in plan.operations if operation.action == "keep-local"],
+        }
+        if args.json:
+            out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+        else:
+            out.write(f"AEGIS {manifest.payload_version} installed successfully at {plan.target}.\n")
+            out.write("Review with 'git status', then stage and commit the approved files.\n")
+        return EXIT_OK
+    except (AnswersError, InterviewError, InstallError, PayloadError, SafetyError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
+
+
+def _run_analyze(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    try:
+        analysis = analyze_repository(args.repo, CommandRunner())
+    except (OSError, ValueError) as exc:
+        return _emit_error("analyze", str(exc), args.json, out, err)
+    if args.json:
+        out.write(ResultEnvelope("analyze", "ok", EXIT_OK, result=analysis.to_dict()).render())
+    else:
+        value = analysis.to_dict()
+        out.write(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    return EXIT_OK
+
+
 def _run_pending(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
     return _emit_error(args.command, "command implementation is not available in the Phase 1 scaffold", args.json, out, err)
 
@@ -145,6 +322,7 @@ def main(
     *,
     stdout: TextIO | None = None,
     stderr: TextIO | None = None,
+    input_fn: Callable[[str], str] = input,
 ) -> int:
     """
     @brief Parse and run one WAEGIS command.
@@ -158,6 +336,10 @@ def main(
     args = build_parser().parse_args(argv)
     if args.command == "version":
         return _run_version(args, out, err)
+    if args.command in {"new", "adopt"}:
+        return _run_install_command(args, out, err, input_fn)
+    if args.command == "analyze":
+        return _run_analyze(args, out, err)
     return _run_pending(args, out, err)
 
 
