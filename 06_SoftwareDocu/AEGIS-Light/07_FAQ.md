@@ -66,6 +66,12 @@ changes, and malformed `aegis.toml` keys). `check --help` lists every
 slug. It always exits 0; only `--strict` (CI) turns errors and promoted
 warnings into a failing exit.
 
+The report is **capped at the first 40 findings** so a neglected or
+freshly adopted repository cannot bury you (and cannot blow a small
+model's context). When it caps, it says so — `... N more finding(s) -
+use --full`. `--full` prints everything, and `--strict` implies it, so
+CI always sees the complete list.
+
 ## Do I have to write requirements for everything?
 No. Adopt incrementally (doc 05), or not at all for areas you never
 touch. The `uncovered-source` warning tells you when a change lands in

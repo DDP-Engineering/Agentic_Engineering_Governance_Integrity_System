@@ -26,6 +26,10 @@ from typing import Any, Literal
 
 RunKind = Literal["feature", "fix", "change", "adoption"]
 RunProfile = Literal["full", "quick"]
+RedGreenPolicy = Literal["legacy-not-applicable", "required"]
+# How a complete run ended. The empty string is "ran to delivery", which is
+# what every graph written before 2.1.0 records by absence of the key.
+RunOutcome = Literal["", "abandoned"]
 
 Stage = Literal[
     "intake",
@@ -217,7 +221,7 @@ class Waiver:
     blocker_id: str
     reason: str
     state_digests: dict[str, str]
-    approver: Literal["human"] = "human"
+    approver: str = "human"
     created_at: str = field(default_factory=now_iso)
 
 
@@ -276,9 +280,11 @@ class Graph:
     stage: Stage
     intent: Intent
     profile: RunProfile = "full"
+    red_green_policy: RedGreenPolicy = "required"
     schema_version: int = 3
     access_mode: AccessMode = "standard"
     complete: bool = False
+    outcome: RunOutcome = ""
     alignment: IntentAlignment | None = None
     design: SolutionDesign | None = None
     spec_items: list[SpecItem] = field(default_factory=list)
@@ -293,7 +299,8 @@ class Graph:
         """
         @brief      Serialize this graph to a JSON-compatible mapping.
         @return     Dataclass fields as a dict, with `profile` omitted when it
-                    equals the "full" default and `waivers` omitted when empty.
+                    equals the "full" default, `waivers` omitted when empty,
+                    and `outcome` omitted when the run did not end early.
         @exception  None
         """
         payload = asdict(self)
@@ -301,6 +308,8 @@ class Graph:
             payload.pop("profile")
         if not self.waivers:
             payload.pop("waivers")
+        if not self.outcome:
+            payload.pop("outcome")
         return payload
 
     @classmethod
@@ -327,7 +336,16 @@ class Graph:
             "decisions",
             "stage_records",
         }
-        allowed = {*required, "profile", "waivers"}
+        # `outcome` joins `profile` and `waivers` as optional-by-absence, so
+        # every graph written before 2.1.0 still loads against the closed
+        # schema without a migration.
+        allowed = {
+            *required,
+            "profile",
+            "red_green_policy",
+            "waivers",
+            "outcome",
+        }
         if data.get("schema_version") != 3:
             raise ValueError(
                 "unsupported run graph schema; AEGIS requires schema_version 3"
@@ -349,6 +367,26 @@ class Graph:
                 "graph record does not match schema 3: "
                 "profile must be full or quick"
             )
+        red_green_policy = data.get(
+            "red_green_policy",
+            "legacy-not-applicable" if profile == "quick" else "required",
+        )
+        if red_green_policy not in {"legacy-not-applicable", "required"}:
+            raise ValueError(
+                "graph record does not match schema 3: red_green_policy must be "
+                "legacy-not-applicable or required"
+            )
+        if profile != "quick" and red_green_policy != "required":
+            raise ValueError(
+                "graph record does not match schema 3: full runs require "
+                "red_green_policy required"
+            )
+        outcome = data.get("outcome", "")
+        if not isinstance(outcome, str) or outcome not in {"", "abandoned"}:
+            raise ValueError(
+                "graph record does not match schema 3: "
+                "outcome must be empty or abandoned"
+            )
         waivers = data.get("waivers", [])
         if not isinstance(waivers, list):
             raise ValueError(
@@ -366,9 +404,11 @@ class Graph:
                 stage=data["stage"],
                 intent=Intent(**data["intent"]),
                 profile=profile,
+                red_green_policy=red_green_policy,
                 schema_version=3,
                 access_mode=data["access_mode"],
                 complete=data["complete"],
+                outcome=outcome,
                 alignment=IntentAlignment(**alignment) if alignment else None,
                 design=SolutionDesign(**design) if design else None,
                 spec_items=[SpecItem(**item) for item in data["spec_items"]],
@@ -433,16 +473,21 @@ def _waiver_from_dict(data: Any) -> Waiver:
             "graph record does not match schema 3: "
             "waiver state_digests must map strings to strings"
         )
-    if data["approver"] != "human":
+    # The approver was a closed `Literal["human"]` until 2.1.0. It is now the
+    # attributable identity of whoever accepted the risk, so any non-empty
+    # string is legal and "human" stays the fallback every earlier graph
+    # carries.
+    if not isinstance(data["approver"], str) or not data["approver"].strip():
         raise ValueError(
-            "graph record does not match schema 3: waiver approver must be human"
+            "graph record does not match schema 3: "
+            "waiver approver must be a non-empty string"
         )
     return Waiver(
         id=data["id"],
         blocker_id=data["blocker_id"],
         reason=data["reason"],
         state_digests=dict(digests),
-        approver="human",
+        approver=data["approver"],
         created_at=data["created_at"],
     )
 

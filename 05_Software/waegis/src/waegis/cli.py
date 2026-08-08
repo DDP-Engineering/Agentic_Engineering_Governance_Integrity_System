@@ -8,11 +8,9 @@
 # -----------------------------------------------------------------------------
 """
 @file cli.py
-@brief Command-line entry point for the WAEGIS guided wizard.
-@details Defines the top-level ``waegis`` argument parser and registers each
-         supported command through its dedicated subparser and real handler.
-         New-project and adoption commands use a positional target, while
-         existing-install commands use their documented ``--repo`` contracts.
+@brief WAEGIS 3 command-line surface and exit mapping.
+@details Defines the complete install, configure, check, repair, upgrade, and
+         version command surface with shared output and exit-code handling.
 """
 
 # IMPORTS
@@ -21,438 +19,556 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
-from typing import NoReturn
+from typing import Callable, Sequence, TextIO
 
-from .commands.adopt import run_adopt
-from .commands.analyze import run_analyze
-from .commands.configure import run_configure
-from .commands.doctor import run_doctor
-from .commands.new import run_new
-from .commands.repair import run_repair
-from .commands.repowise import run_repowise_status, run_repowise_sync
-from .commands.upgrade import run_upgrade
-from .commands.version import run_version
-from .io.envelope import EXIT_OPERATIONAL, EXIT_VALIDATION, command_envelope, write_envelope
-from .io.prompts import ConsoleAsker
-from .runtime import RuntimeRegistrationError, register_packaged_runtime
-from .version import WIZARD_VERSION
+from .analyze import analyze_repository
+from .answers import AnswersError, load_answers
+from .check import check_repository
+from .configure import ConfigureError, plan_configure
+from .envelope import ResultEnvelope
+from .gitsafety import SafetyError, require_clean, require_repository
+from .install import InstallError, NeedsInput, apply_install, plan_install
+from .interview import InterviewError, collect_install_answers
+from .locate import PayloadError, resolve_payload
+from .manifest import MANIFEST_PATH, ManifestError, detect_manifest_version
+from .prompts import ConsoleAsker, FieldSpec
+from .publication import PublicationError, PublicationPlan, apply_publication
+from .repair import RepairError, plan_repair
+from .runner import CommandRunner
+from .upgrade import UpgradeError, UpgradeNeedsInput, plan_upgrade
+from .version import MANIFEST_VERSION, PAYLOAD_COMPAT_SPEC, WIZARD_VERSION
+
 
 # CONSTANTS
 
-# @brief Planned subcommands (plan §5) as ``(name, help)`` pairs. Registered in
-#        order so ``waegis --help`` lists the full CLI surface from 0.1.0.
-SUBCOMMANDS: tuple[tuple[str, str], ...] = (
-    ("new", "Configure and deploy AEGIS into a brand-new project"),
-    ("adopt", "Configure and deploy AEGIS into an existing repository"),
-    ("analyze", "Report install manifest, drift, and installed workflows"),
-    ("configure", "Regenerate owned workflow configuration fields"),
-    ("doctor", "Diagnose an AEGIS install and report health (exit 0/1/2)"),
-    ("repair", "Repair missing or damaged managed AEGIS files"),
-    ("repowise", "Inspect or synchronize the optional offline RepoWise index"),
-    ("upgrade", "Move a repository to a newer AEGIS payload"),
-    ("version", "Print the wizard version and bundled payload version"),
-)
-
-# @brief Name-to-help lookup materialized once instead of per parser call.
-SUBCOMMAND_HELP: dict[str, str] = dict(SUBCOMMANDS)
-
-# @brief Parse context used only to preserve the one-envelope ``--json`` rule
-#        for errors raised before a command handler exists.
-_PARSE_ARGV: tuple[str, ...] = ()
+EXIT_OK = 0
+EXIT_WARNING = 1
+EXIT_ERROR = 2
+EXIT_NEEDS_INPUT = 3
 
 
-class _WaegisArgumentParser(argparse.ArgumentParser):
-    """
-    @brief Argument parser that renders syntax failures as JSON when requested.
-    """
+# HELPER FUNCTIONS
 
-    def error(self, message: str) -> NoReturn:
-        """
-        @brief Emit one JSON envelope or delegate to argparse's human error.
-        @exception SystemExit Always raised: directly with the JSON envelope's
-                   exit code, or via ``argparse``'s own error handling.
-        """
-        if "--json" in _PARSE_ARGV:
-            command = next(
-                (item for item in _PARSE_ARGV if item in SUBCOMMAND_HELP),
-                "waegis",
+
+def _add_repo(parser: argparse.ArgumentParser, *, include_json: bool = True) -> None:
+    parser.add_argument("--repo", type=Path, required=True, help="target Git repository")
+    if include_json:
+        parser.add_argument("--json", action="store_true", help="emit one JSON result")
+
+
+def _add_mutation_options(parser: argparse.ArgumentParser, *, payload: bool = False) -> None:
+    if payload:
+        parser.add_argument("--payload", type=Path, help="explicit AEGIS payload directory")
+    parser.add_argument("--answers", type=Path, help="V2 JSON or TOML answers file")
+    parser.add_argument("--non-interactive", action="store_true", help="never prompt")
+    parser.add_argument("--yes", action="store_true", help="approve a complete rendered plan")
+    parser.add_argument("--dry-run", action="store_true", help="render the plan without mutation")
+    parser.add_argument("--break-lock", action="store_true", help="break a confirmed dead-owner lock")
+    parser.add_argument("--json", action="store_true", help="emit one JSON result")
+
+
+def _emit_error(command: str, message: str, as_json: bool, out: TextIO, err: TextIO) -> int:
+    if as_json:
+        out.write(ResultEnvelope(command, "failed", EXIT_ERROR, messages=(message,)).render())
+    else:
+        err.write(f"waegis {command}: {message}\n")
+    return EXIT_ERROR
+
+
+def _run_version(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    try:
+        _, payload_version, inventory = resolve_payload(args.payload)
+    except PayloadError as exc:
+        return _emit_error("version", str(exc), args.json, out, err)
+    result = {
+        "waegis_version": WIZARD_VERSION,
+        "bundled_payload_version": payload_version,
+        "compatible_payload_range": PAYLOAD_COMPAT_SPEC,
+        "payload_digest": inventory.digest,
+        "manifest_schema": MANIFEST_VERSION,
+        "packaging_type": os.environ.get("WAEGIS_PACKAGING_TYPE", "source-checkout"),
+    }
+    if args.json:
+        out.write(ResultEnvelope("version", "ok", EXIT_OK, result=result).render())
+    else:
+        out.write(
+            f"WAEGIS {WIZARD_VERSION}\n"
+            f"AEGIS payload {payload_version} ({PAYLOAD_COMPAT_SPEC})\n"
+            f"manifest schema {MANIFEST_VERSION}\n"
+            f"packaging {result['packaging_type']}\n"
+        )
+    return EXIT_OK
+
+
+def _emit_needs_input(command: str, keys: Sequence[str], plan: object, as_json: bool, out: TextIO) -> int:
+    message = "more operator input is required: " + ", ".join(keys)
+    if as_json:
+        result = {"missing": list(keys)}
+        if plan is not None:
+            result["plan"] = plan
+        out.write(ResultEnvelope(command, "needs-input", EXIT_NEEDS_INPUT, result=result, messages=(message,)).render())
+    else:
+        out.write(f"{message}\n")
+    return EXIT_NEEDS_INPUT
+
+
+def _render_install_plan(plan: object, out: TextIO, *, as_json: bool) -> None:
+    value = plan.to_dict()  # type: ignore[attr-defined]
+    if as_json:
+        return
+    out.write(f"Plan: {value['mode']} AEGIS {value['payload_version']} at {value['target']}\n")
+    out.write("Answers:\n")
+    for key, answer in value["answers"].items():
+        source = value["provenance"].get(key, "resolved policy")
+        out.write(f"  {key}: {answer!r} ({source})\n")
+    for operation in value["operations"]:
+        if operation["action"] != "unchanged":
+            out.write(f"  {operation['action']}: {operation['path']} ({operation['disposition']})\n")
+    out.write("Recovery:\n")
+    recovery = value["recovery"]
+    for command in recovery.get("commands", []):
+        out.write(f"  {command}\n")
+    if recovery["kind"] == "delete-created-target":
+        out.write(f"  delete created target: {recovery['path']}\n")
+
+
+def _run_install_command(
+    args: argparse.Namespace,
+    out: TextIO,
+    err: TextIO,
+    input_fn: Callable[[str], str],
+) -> int:
+    command = args.command
+    runner = CommandRunner()
+    try:
+        payload_root, payload_version, inventory = resolve_payload(args.payload)
+        supplied = load_answers(args.answers)
+        analysis = None
+        if command == "adopt":
+            repository = require_repository(runner, args.target)
+            require_clean(runner, repository)
+            analysis = analyze_repository(repository, runner)
+            version = detect_manifest_version(repository.joinpath(*MANIFEST_PATH.split("/")))
+            if version is not None and version != 2 and "migration_v1" not in supplied:
+                if args.json or args.non_interactive:
+                    return _emit_needs_input(command, ("migration_v1",), None, args.json, out)
+                migration = ConsoleAsker(out, input_fn).ask(
+                    FieldSpec(
+                        "migration_v1",
+                        "A prior WAEGIS manifest was detected. Re-adopt without trusting its ownership data?",
+                        "Every differing path still requires an ordinary conflict decision.",
+                        "no",
+                        ("yes", "no"),
+                    )
+                )
+                if migration != "yes":
+                    return _emit_needs_input(command, ("migration_v1",), None, False, out)
+                supplied["migration_v1"] = True
+        asker = None if args.json or args.non_interactive else ConsoleAsker(out, input_fn)
+        answers, missing = collect_install_answers(
+            supplied,
+            analysis,
+            asker,
+            non_interactive=args.json or args.non_interactive,
+        )
+        if missing:
+            return _emit_needs_input(command, missing, None, args.json, out)
+        provenance: dict[str, str] = {}
+        for key in answers:
+            if key in supplied:
+                provenance[key] = "answers file"
+            elif analysis and key == "language":
+                provenance[key] = analysis.language.reason
+            elif analysis and key == "source_roots":
+                provenance[key] = analysis.source_roots.reason
+            elif analysis and key == "test_roots":
+                provenance[key] = analysis.test_roots.reason
+            elif asker is not None:
+                provenance[key] = "interactive operator/default"
+            else:
+                provenance[key] = "payload safe default"
+
+        def resolve_conflict(path: str) -> str:
+            assert asker is not None
+            return asker.ask(
+                FieldSpec(
+                    f"conflicts.{path}",
+                    f"Payload destination differs: {path}",
+                    "Keep local preserves it; take payload overwrites after recovery evidence; sidecar writes a review copy.",
+                    "keep-local",
+                    ("keep-local", "take-payload", "sidecar"),
+                )
             )
-            payload = command_envelope(
+
+        try:
+            plan = plan_install(
                 command,
-                status="failed",
-                exit_code=EXIT_VALIDATION,
-                messages=(message,),
+                args.target,
+                payload_root,
+                payload_version,
+                inventory,
+                answers,
+                runner,
+                provenance=provenance,
+                conflict_resolver=resolve_conflict if asker else None,
             )
-            sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-            raise SystemExit(EXIT_VALIDATION)
-        super().error(message)
+        except NeedsInput as exc:
+            return _emit_needs_input(command, exc.keys, None, args.json, out)
+        _render_install_plan(plan, out, as_json=args.json)
+        if args.dry_run:
+            result = {"dry_run": True, "plan": plan.to_dict()}
+            if args.json:
+                out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+            else:
+                out.write("Dry run complete; no files were changed.\n")
+            return EXIT_OK
+        if not args.yes:
+            if asker is None:
+                return _emit_needs_input(command, ("consent",), plan.to_dict(), args.json, out)
+            consent = asker.ask(
+                FieldSpec("consent", "Apply this complete plan?", "Writes only the paths shown above.", "no", ("yes", "no"))
+            )
+            if consent != "yes":
+                return _emit_needs_input(command, ("consent",), plan.to_dict(), False, out)
+        manifest = apply_install(
+            plan,
+            runner,
+            err if args.json else out,
+            as_json=args.json,
+            break_lock=args.break_lock,
+        )
+        result = {
+            "target": str(plan.target),
+            "payload_version": manifest.payload_version,
+            "payload_digest": manifest.payload_digest,
+            "manifest_version": 2,
+            "changed": [operation.path for operation in plan.write_operations],
+            "kept": [operation.path for operation in plan.operations if operation.action == "keep-local"],
+        }
+        if args.json:
+            out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+        else:
+            out.write(f"AEGIS {manifest.payload_version} installed successfully at {plan.target}.\n")
+            out.write("Review with 'git status', then stage and commit the approved files.\n")
+        return EXIT_OK
+    except (AnswersError, InterviewError, InstallError, PayloadError, SafetyError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
 
 
-# LOCAL HELPERS
+def _run_analyze(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    try:
+        analysis = analyze_repository(args.repo, CommandRunner())
+    except (OSError, ValueError) as exc:
+        return _emit_error("analyze", str(exc), args.json, out, err)
+    if args.json:
+        out.write(ResultEnvelope("analyze", "ok", EXIT_OK, result=analysis.to_dict()).render())
+    else:
+        value = analysis.to_dict()
+        out.write(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    return EXIT_OK
 
 
-def _handle_new(args: argparse.Namespace) -> int:
-    """
-    @brief      Adapt parsed ``waegis new`` arguments to :func:`run_new`.
-    @param[in]  args Parsed namespace with ``target``, ``answers``, ``dry_run``,
-                ``non_interactive``, ``json``, and ``payload``.
-    @return     The exit code from :func:`run_new`.
-    @exception  None
-    """
-    return run_new(
-        Path(args.target),
-        stream=sys.stdout,
-        answers_path=args.answers,
-        dry_run=args.dry_run,
-        non_interactive=args.non_interactive,
-        yes=args.yes,
-        as_json=args.json,
-        payload=args.payload,
-        stdin=sys.stdin,
+def _render_publication_plan(plan: PublicationPlan, out: TextIO, *, as_json: bool) -> None:
+    if as_json:
+        return
+    value = plan.to_dict()
+    out.write(f"Plan: {plan.command} at {plan.target}\n")
+    for path in value["writes"]:
+        out.write(f"  write: {path}\n")
+    for path in value["removals"]:
+        out.write(f"  remove: {path}\n")
+    out.write("Recovery:\n")
+    for command in value["recovery"]["commands"]:
+        out.write(f"  {command}\n")
+
+
+def _publication_consent(
+    command: str,
+    plan: PublicationPlan,
+    args: argparse.Namespace,
+    asker: ConsoleAsker | None,
+    out: TextIO,
+) -> int | None:
+    if args.dry_run:
+        if args.json:
+            out.write(ResultEnvelope(command, "ok", EXIT_OK, result={"dry_run": True, "plan": plan.to_dict()}).render())
+        else:
+            out.write("Dry run complete; no files were changed.\n")
+        return EXIT_OK
+    if args.yes:
+        return None
+    if asker is None:
+        return _emit_needs_input(command, ("consent",), plan.to_dict(), args.json, out)
+    consent = asker.ask(
+        FieldSpec("consent", "Apply this complete plan?", "Writes only the paths shown above.", "no", ("yes", "no"))
     )
+    if consent != "yes":
+        return _emit_needs_input(command, ("consent",), plan.to_dict(), False, out)
+    return None
 
 
-def _add_new_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief      Register the ``new`` subparser with its deployment arguments.
-    @param[in]  sub The top-level subparsers action to register under.
-    @return     None
-    @exception  None
-    """
-    parser = sub.add_parser("new", help=SUBCOMMAND_HELP["new"])
-    parser.add_argument("target", metavar="TARGET", help="Directory to create the new AEGIS project in")
-    parser.add_argument("--answers", help="TOML or JSON answers file pre-supplying interview answers")
-    parser.add_argument("--dry-run", action="store_true", help="Show the plan preview and stop; change nothing")
-    parser.add_argument(
-        "--non-interactive",
-        action="store_true",
-        help="Never prompt; fail loudly listing every missing required answer",
-    )
-    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of human output")
-    parser.add_argument("--yes", action="store_true", help="Approve the rendered plan without prompting")
-    parser.add_argument("--payload", help="Override payload resolution with an explicit payload root")
-    parser.set_defaults(handler=_handle_new)
+def _run_configure(
+    args: argparse.Namespace,
+    out: TextIO,
+    err: TextIO,
+    input_fn: Callable[[str], str],
+) -> int:
+    command = "configure"
+    runner = CommandRunner()
+    asker = None if args.json or args.non_interactive else ConsoleAsker(out, input_fn)
+    try:
+        supplied = load_answers(args.answers)
+        plan, answers, missing, reconstructs, analysis = plan_configure(
+            args.repo,
+            supplied,
+            runner,
+            payload=args.payload,
+            asker=asker,
+            non_interactive=args.json or args.non_interactive,
+        )
+        if missing:
+            return _emit_needs_input(command, missing, None, args.json, out)
+        if plan is None:
+            result = {"changed": [], "reconstructed": reconstructs, "answers": answers, "analysis": analysis.to_dict()}
+            if args.json:
+                out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+            else:
+                out.write("Configuration already matches the resolved answers; no files changed.\n")
+            return EXIT_OK
+        _render_publication_plan(plan, out, as_json=args.json)
+        consent_result = _publication_consent(command, plan, args, asker, out)
+        if consent_result is not None:
+            return consent_result
+        apply_publication(plan, runner, err if args.json else out, as_json=args.json, break_lock=args.break_lock)
+        result = {
+            "changed": sorted(plan.writes),
+            "manifest_updated": True,
+            "reconstructed": reconstructs,
+            "workflow_sha256": plan.manifest.configuration["workflow_sha256"],
+        }
+        if args.json:
+            out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+        else:
+            out.write("AEGIS workflow configuration validated and published. Review with 'git status'.\n")
+        return EXIT_OK
+    except (AnswersError, ConfigureError, ManifestError, PayloadError, PublicationError, SafetyError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
 
 
-def _handle_adopt(args: argparse.Namespace) -> int:
-    """
-    @brief      Adapt parsed ``waegis adopt`` arguments to :func:`run_adopt`.
-    @param[in]  args Parsed namespace with ``target``, ``answers``, ``dry_run``,
-                ``non_interactive``, ``json``, and ``payload``.
-    @return     The exit code from :func:`run_adopt`.
-    @exception  None
-    """
-    return run_adopt(
-        Path(args.target),
-        stream=sys.stdout,
-        answers_path=args.answers,
-        dry_run=args.dry_run,
-        non_interactive=args.non_interactive,
-        yes=args.yes,
-        as_json=args.json,
-        payload=args.payload,
-        stdin=sys.stdin,
-    )
+def _run_check(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    command = args.command
+    try:
+        result = check_repository(args.repo, CommandRunner())
+    except (ManifestError, SafetyError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
+    code = result.exit_code
+    status = "ok" if code == EXIT_OK else "warning" if code == EXIT_WARNING else "failed"
+    if args.json:
+        out.write(ResultEnvelope(command, status, code, result=result.to_dict()).render())
+    else:
+        out.write(f"WAEGIS check: {status}\n")
+        for finding in result.findings:
+            location = f" [{finding.path}]" if finding.path else ""
+            out.write(f"  {finding.severity.upper()} {finding.code}{location}: {finding.message}\n")
+            if finding.action:
+                out.write(f"    Next: {finding.action}\n")
+    return code
 
 
-def _add_adopt_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief      Register the ``adopt`` subparser with its deployment arguments.
-    @details    The flag shape is identical to ``new`` (frozen cross-command CLI
-                contract per plan §15/D13).
-    @param[in]  sub The top-level subparsers action to register under.
-    @return     None
-    @exception  None
-    """
-    parser = sub.add_parser("adopt", help=SUBCOMMAND_HELP["adopt"])
-    parser.add_argument("target", metavar="TARGET", help="Existing repository to adopt AEGIS into")
-    parser.add_argument("--answers", help="TOML or JSON answers file pre-supplying interview answers")
-    parser.add_argument("--dry-run", action="store_true", help="Show the plan preview and stop; change nothing")
-    parser.add_argument(
-        "--non-interactive",
-        action="store_true",
-        help="Never prompt; fail loudly listing every missing required answer",
-    )
-    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of human output")
-    parser.add_argument("--yes", action="store_true", help="Approve the rendered plan without prompting")
-    parser.add_argument("--payload", help="Override payload resolution with an explicit payload root")
-    parser.set_defaults(handler=_handle_adopt)
+def _run_repair(args: argparse.Namespace, out: TextIO, err: TextIO, input_fn: Callable[[str], str]) -> int:
+    command = "repair"
+    runner = CommandRunner()
+    asker = None if args.json or args.non_interactive else ConsoleAsker(out, input_fn)
+    try:
+        plan, drift = plan_repair(args.repo, args.payload, runner)
+        if plan is None:
+            result = {"changed": [], "unrepaired_drift": list(drift)}
+            status = "warning" if drift else "ok"
+            code = EXIT_WARNING if drift else EXIT_OK
+            if args.json:
+                out.write(ResultEnvelope(command, status, code, result=result).render())
+            else:
+                out.write("No managed files need repair.\n")
+                if drift:
+                    out.write("Project-owned drift was left untouched.\n")
+            return code
+        _render_publication_plan(plan, out, as_json=args.json)
+        consent_result = _publication_consent(command, plan, args, asker, out)
+        if consent_result is not None:
+            return consent_result
+        apply_publication(plan, runner, err if args.json else out, as_json=args.json, break_lock=args.break_lock)
+        unrepaired = [item for item in drift if item["disposition"] != "managed"]
+        result = {"changed": sorted(plan.writes), "manifest_updated": True, "unrepaired_drift": unrepaired}
+        code = EXIT_WARNING if unrepaired else EXIT_OK
+        status = "warning" if unrepaired else "ok"
+        if args.json:
+            out.write(ResultEnvelope(command, status, code, result=result).render())
+        else:
+            out.write("Managed AEGIS files repaired and validated. Review with 'git status'.\n")
+            if unrepaired:
+                out.write("Project-owned drift remains for operator review.\n")
+        return code
+    except (ManifestError, PayloadError, PublicationError, RepairError, SafetyError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
 
 
-def _handle_analyze(args: argparse.Namespace) -> int:
-    """
-    @brief      Adapt parsed ``waegis analyze`` arguments to :func:`run_analyze`.
-    @param[in]  args Parsed namespace with ``repo`` (str) and ``json`` (bool).
-    @return     The exit code from :func:`run_analyze`.
-    @exception  None
-    """
-    return run_analyze(Path(args.repo), as_json=args.json, stream=sys.stdout)
+def _run_upgrade(args: argparse.Namespace, out: TextIO, err: TextIO, input_fn: Callable[[str], str]) -> int:
+    command = "upgrade"
+    runner = CommandRunner()
+    asker = None if args.json or args.non_interactive else ConsoleAsker(out, input_fn)
+    try:
+        answers = load_answers(args.answers)
 
+        def resolve_conflict(path: str) -> str:
+            assert asker is not None
+            return asker.ask(
+                FieldSpec(
+                    f"conflicts.{path}",
+                    f"Managed path has an upgrade conflict: {path}",
+                    "Keep local relinquishes maintenance; take payload updates it; sidecar preserves both for review.",
+                    "keep-local",
+                    ("keep-local", "take-payload", "sidecar"),
+                )
+            )
 
-def _add_analyze_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief      Register the ``analyze`` subparser with ``--repo`` and
-                ``--json`` arguments.
-    @param[in]  sub The top-level subparsers action to register under.
-    @return     None
-    @exception  None
-    """
-    parser = sub.add_parser("analyze", help=SUBCOMMAND_HELP["analyze"])
-    parser.add_argument("--repo", required=True, help="Repository root to analyze")
-    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a human report")
-    parser.set_defaults(handler=_handle_analyze)
-
-
-def _handle_configure(args: argparse.Namespace) -> int:
-    """@brief Adapt parsed ``configure`` arguments to :func:`run_configure`."""
-    return run_configure(
-        Path(args.repo),
-        stream=sys.stdout,
-        answers_path=args.answers,
-        dry_run=args.dry_run,
-        non_interactive=args.non_interactive,
-        yes=args.yes,
-        as_json=args.json,
-        payload=args.payload,
-        stdin=sys.stdin,
-    )
-
-
-def _add_configure_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief Register the post-install configuration command.
-    """
-    parser = sub.add_parser("configure", help=SUBCOMMAND_HELP["configure"])
-    parser.add_argument("--repo", required=True, help="Repository root to configure")
-    parser.add_argument("--answers", help="TOML or JSON configuration answers")
-    parser.add_argument("--dry-run", action="store_true", help="Render the resolved field changes only")
-    parser.add_argument("--non-interactive", action="store_true", help="Never prompt")
-    parser.add_argument("--yes", action="store_true", help="Approve the rendered plan without prompting")
-    parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
-    parser.add_argument("--payload", help="Override payload resolution")
-    parser.set_defaults(handler=_handle_configure)
-
-
-def _handle_repair(args: argparse.Namespace) -> int:
-    """@brief Adapt parsed ``repair`` arguments to :func:`run_repair`."""
-    return run_repair(
-        Path(args.repo),
-        stream=sys.stdout,
-        answers_path=args.answers,
-        dry_run=args.dry_run,
-        non_interactive=args.non_interactive,
-        yes=args.yes,
-        as_json=args.json,
-        payload=args.payload,
-        stdin=sys.stdin,
-    )
-
-
-def _add_repair_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief Register the transactional repair command.
-    """
-    parser = sub.add_parser("repair", help=SUBCOMMAND_HELP["repair"])
-    parser.add_argument("--repo", required=True, help="Repository root to repair")
-    parser.add_argument("--answers", help="TOML or JSON repair decisions/configuration answers")
-    parser.add_argument("--dry-run", action="store_true", help="Render the resolved repair plan only")
-    parser.add_argument("--non-interactive", action="store_true", help="Never prompt")
-    parser.add_argument("--yes", action="store_true", help="Approve the rendered plan without prompting")
-    parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
-    parser.add_argument("--payload", help="Override payload resolution")
-    parser.set_defaults(handler=_handle_repair)
-
-
-def _handle_repowise(args: argparse.Namespace) -> int:
-    """
-    @brief Adapt parsed ``repowise status|sync`` arguments to their handlers.
-    @param[in] args Parsed namespace containing action, repo, and json.
-    @return Standard WAEGIS exit code.
-    @exception None
-    """
-    repo = Path(args.repo)
-    if args.repowise_action == "status":
-        return run_repowise_status(repo, as_json=args.json, stream=sys.stdout)
-    asker = None if args.json or args.non_interactive else ConsoleAsker(stdin=sys.stdin, stdout=sys.stdout)
-    return run_repowise_sync(
-        repo,
-        as_json=args.json,
-        stream=sys.stdout,
-        yes=args.yes,
-        asker=asker,
-    )
-
-
-def _add_repowise_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief Register the optional RepoWise status and sync command group.
-    @param[in] sub The top-level subparsers action to register under.
-    @return None
-    @exception None
-    """
-    parser = sub.add_parser("repowise", help=SUBCOMMAND_HELP["repowise"])
-    # The nested actions re-set the same handler; this default keeps the
-    # "every command parser has a dedicated handler" contract observable at
-    # the top level too.
-    parser.set_defaults(handler=_handle_repowise)
-    actions = parser.add_subparsers(dest="repowise_action", required=True)
-    status = actions.add_parser("status", help="Show configuration and index freshness")
-    status.add_argument("--repo", required=True, help="Repository root to inspect")
-    status.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
-    status.set_defaults(handler=_handle_repowise)
-    sync = actions.add_parser("sync", help="Initialize, resume, update, or verify the index")
-    sync.add_argument("--repo", required=True, help="Repository root to index")
-    sync.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
-    sync.add_argument("--non-interactive", action="store_true", help="Never prompt; mutation requires --yes")
-    sync.add_argument("--yes", action="store_true", help="Approve the displayed synchronization plan")
-    sync.set_defaults(handler=_handle_repowise)
-
-
-def _handle_doctor(args: argparse.Namespace) -> int:
-    """
-    @brief      Adapt parsed ``waegis doctor`` arguments to :func:`run_doctor`.
-    @param[in]  args Parsed namespace with ``repo`` (str) and ``json`` (bool).
-    @return     The exit code from :func:`run_doctor` (0/1/2 health verdict,
-                or 3 for a ``--repo`` operational failure).
-    @exception  None
-    """
-    return run_doctor(Path(args.repo), as_json=args.json, stream=sys.stdout)
-
-
-def _add_doctor_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief      Register the ``doctor`` subparser with ``--repo`` and
-                ``--json`` arguments.
-    @param[in]  sub The top-level subparsers action to register under.
-    @return     None
-    @exception  None
-    """
-    parser = sub.add_parser("doctor", help=SUBCOMMAND_HELP["doctor"])
-    parser.add_argument("--repo", required=True, help="Repository root to diagnose")
-    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a human report")
-    parser.set_defaults(handler=_handle_doctor)
-
-
-def _handle_upgrade(args: argparse.Namespace) -> int:
-    """
-    @brief      Adapt parsed ``waegis upgrade`` arguments to :func:`run_upgrade`.
-    @details    The parser accepts ``--repo``, ``--dry-run``, ``--answers``,
-                ``--non-interactive``, ``--yes``, ``--json``, and ``--payload``.
-                Interactive human output uses :class:`ConsoleAsker`; JSON mode
-                supplies no asker and never guesses conflict decisions.
-    @param[in]  args Parsed namespace containing the documented upgrade flags.
-    @return     The exit code from :func:`run_upgrade` (0 ok / 1 conflicts /
-                2 smoke-failed / 3 operational).
-    @exception  None
-    """
-    asker = None if args.json else ConsoleAsker(stdin=sys.stdin, stdout=sys.stdout)
-    return run_upgrade(
-        Path(args.repo),
-        as_json=args.json,
-        dry_run=args.dry_run,
-        stream=sys.stdout,
-        payload=args.payload,
-        answers_path=args.answers,
-        non_interactive=args.non_interactive,
-        yes=args.yes,
-        asker=asker,
-    )
-
-
-def _add_upgrade_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief      Register the ``upgrade`` subparser for an existing installation.
-    @details    Supports dry runs, answers files, non-interactive approval,
-                JSON output, and an explicit payload override.
-    @param[in]  sub The top-level subparsers action to register under.
-    @return     None
-    @exception  None
-    """
-    parser = sub.add_parser("upgrade", help=SUBCOMMAND_HELP["upgrade"])
-    parser.add_argument("--repo", required=True, help="Repository root to upgrade to a newer AEGIS payload")
-    parser.add_argument("--dry-run", action="store_true", help="Show the upgrade plan and stop; change nothing")
-    parser.add_argument("--answers", help="TOML or JSON conflict decisions and Git-mode answers")
-    parser.add_argument("--non-interactive", action="store_true", help="Never prompt")
-    parser.add_argument("--yes", action="store_true", help="Approve the fully resolved plan without prompting")
-    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a human report")
-    parser.add_argument("--payload", help="Override payload resolution with an explicit new payload root")
-    parser.set_defaults(handler=_handle_upgrade)
-
-
-def _handle_version(args: argparse.Namespace) -> int:
-    """@brief Adapt parsed ``version`` arguments to :func:`run_version`."""
-    return run_version(as_json=args.json, stream=sys.stdout)
-
-
-def _add_version_parser(sub: argparse._SubParsersAction) -> None:
-    """
-    @brief Register the real version command.
-    """
-    parser = sub.add_parser("version", help=SUBCOMMAND_HELP["version"])
-    parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON envelope")
-    parser.set_defaults(handler=_handle_version)
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """
-    @brief      Build the top-level parser with one dedicated subparser and
-                handler for every supported WAEGIS command.
-    @return     Configured :class:`argparse.ArgumentParser`.
-    @exception  None
-    """
-    parser = _WaegisArgumentParser(
-        prog="waegis",
-        description=(
-            "WAEGIS - guided configuration and deployment wizard for AEGIS "
-            f"(wizard {WIZARD_VERSION})."
-        ),
-    )
-    sub = parser.add_subparsers(dest="command", required=True)
-    _add_new_parser(sub)
-    _add_adopt_parser(sub)
-    _add_analyze_parser(sub)
-    _add_configure_parser(sub)
-    _add_doctor_parser(sub)
-    _add_repair_parser(sub)
-    _add_repowise_parser(sub)
-    _add_upgrade_parser(sub)
-    _add_version_parser(sub)
-    return parser
+        try:
+            plan = plan_upgrade(
+                args.repo,
+                args.payload,
+                answers,
+                runner,
+                conflict_resolver=resolve_conflict if asker else None,
+            )
+        except UpgradeNeedsInput as exc:
+            return _emit_needs_input(command, exc.keys, None, args.json, out)
+        value = plan.to_dict()
+        if not args.json:
+            out.write(f"Plan: upgrade AEGIS {plan.installed_version} -> {plan.payload_version} at {plan.publication.target}\n")
+            for item in plan.items:
+                suffix = f" -> {item.sidecar}" if item.sidecar else ""
+                disposition = item.disposition.value if item.disposition else "removed"
+                out.write(f"  {item.action}: {item.path} ({disposition}){suffix}\n")
+            out.write("Recovery:\n")
+            for recovery in plan.publication.recovery.rendered():
+                out.write(f"  {recovery}\n")
+        if args.dry_run:
+            if args.json:
+                out.write(ResultEnvelope(command, "ok", EXIT_OK, result={"dry_run": True, "plan": value}).render())
+            else:
+                out.write("Dry run complete; no files were changed.\n")
+            return EXIT_OK
+        if not args.yes:
+            if asker is None:
+                return _emit_needs_input(command, ("consent",), value, args.json, out)
+            consent = asker.ask(
+                FieldSpec("consent", "Apply this complete upgrade plan?", "Writes only the paths shown above.", "no", ("yes", "no"))
+            )
+            if consent != "yes":
+                return _emit_needs_input(command, ("consent",), value, False, out)
+        apply_publication(
+            plan.publication,
+            runner,
+            err if args.json else out,
+            as_json=args.json,
+            break_lock=args.break_lock,
+        )
+        result = {
+            "installed_version": plan.installed_version,
+            "payload_version": plan.payload_version,
+            "changed": sorted(plan.publication.writes),
+            "removed": list(plan.publication.removals),
+            "kept": [item.path for item in plan.items if item.action in {"keep-local", "preserve-local"}],
+        }
+        if args.json:
+            out.write(ResultEnvelope(command, "ok", EXIT_OK, result=result).render())
+        else:
+            out.write(f"AEGIS upgraded to {plan.payload_version}. Review with 'git status', then commit approved files.\n")
+        return EXIT_OK
+    except (AnswersError, ManifestError, PayloadError, PublicationError, SafetyError, UpgradeError, OSError, ValueError) as exc:
+        return _emit_error(command, str(exc), args.json, out, err)
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """@brief Build the stable WAEGIS 3 command parser."""
+    parser = argparse.ArgumentParser(
+        prog="waegis",
+        description=f"WAEGIS {WIZARD_VERSION} - guided AEGIS 3 deployment",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    new = commands.add_parser("new", help="install AEGIS into an absent target")
+    new.add_argument("target", type=Path)
+    _add_mutation_options(new, payload=True)
+
+    adopt = commands.add_parser("adopt", help="install AEGIS into a clean existing repository")
+    adopt.add_argument("target", type=Path)
+    _add_mutation_options(adopt, payload=True)
+
+    analyze = commands.add_parser("analyze", help="analyze repository evidence without mutation")
+    _add_repo(analyze)
+
+    configure = commands.add_parser("configure", help="edit WAEGIS-owned workflow policy")
+    _add_repo(configure, include_json=False)
+    _add_mutation_options(configure, payload=True)
+
+    check = commands.add_parser("check", help="inspect AEGIS installation health")
+    _add_repo(check)
+
+    doctor = commands.add_parser("doctor", help="alias for check")
+    _add_repo(doctor)
+
+    repair = commands.add_parser("repair", help="restore approved managed payload files")
+    _add_repo(repair, include_json=False)
+    _add_mutation_options(repair, payload=True)
+
+    upgrade = commands.add_parser("upgrade", help="apply an ownership-aware AEGIS 3 upgrade")
+    _add_repo(upgrade, include_json=False)
+    _add_mutation_options(upgrade, payload=True)
+
+    version = commands.add_parser("version", help="report WAEGIS and bundled AEGIS versions")
+    version.add_argument("--payload", type=Path, help="explicit AEGIS payload directory")
+    version.add_argument("--json", action="store_true", help="emit one JSON result")
+    return parser
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+    input_fn: Callable[[str], str] = input,
+) -> int:
     """
-    @brief      Parse arguments and dispatch to the selected subcommand handler.
-    @param[in]  argv Optional argument vector; defaults to ``sys.argv[1:]``.
-    @return     Integer process exit code produced by the subcommand handler.
-    @exception  SystemExit Raised by argparse for ``--help`` (code 0) or for a
-                           missing/invalid subcommand (code 2).
+    @brief Parse and run one WAEGIS command.
+    @param[in] argv Optional argument sequence excluding executable name.
+    @param[in] stdout Injectable output stream.
+    @param[in] stderr Injectable diagnostics stream.
+    @return Stable process exit code.
     """
-    global _PARSE_ARGV  # noqa: PLW0603 - parser error hook needs the active argv
-    active_argv = tuple(sys.argv[1:] if argv is None else argv)
-    try:
-        register_packaged_runtime()
-    except RuntimeRegistrationError as exc:
-        command = next((item for item in active_argv if item in SUBCOMMAND_HELP), "waegis")
-        if "--json" in active_argv:
-            return write_envelope(
-                sys.stdout,
-                command,
-                status="error",
-                exit_code=EXIT_OPERATIONAL,
-                messages=(str(exc),),
-            )
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_OPERATIONAL
-    _PARSE_ARGV = active_argv
-    parser = build_parser()
-    args = parser.parse_args(active_argv)
-    return args.handler(args)
+    out = stdout or sys.stdout
+    err = stderr or sys.stderr
+    args = build_parser().parse_args(argv)
+    if args.command == "version":
+        return _run_version(args, out, err)
+    if args.command in {"new", "adopt"}:
+        return _run_install_command(args, out, err, input_fn)
+    if args.command == "analyze":
+        return _run_analyze(args, out, err)
+    if args.command == "configure":
+        return _run_configure(args, out, err, input_fn)
+    if args.command in {"check", "doctor"}:
+        return _run_check(args, out, err)
+    if args.command == "repair":
+        return _run_repair(args, out, err, input_fn)
+    if args.command == "upgrade":
+        return _run_upgrade(args, out, err, input_fn)
+    return _emit_error(args.command, "unsupported command", args.json, out, err)
 
 
 # END OF FILE

@@ -34,6 +34,19 @@ Everything that actually matters about a run lives under:
 .agentic/runs/<run-id>/
 ```
 
+## Ordinary recovery versus diagnosis
+
+This guide is for diagnosis and forensic review, not the ordinary first read of
+a fresh stage session. A fresh session reads `AGENTS.md`, runs `aegis run
+context --json`, performs only its named recovery command (including `stage
+prepare` only when named), and reads only its `required_reads`. That bounded
+route does not read `graph.json` or `journal.jsonl`; use `run status`, `stage
+show`, or the named recovery command when routine stage work needs more detail.
+
+Read the graph or journal only when diagnosing AEGIS state or reviewing the
+durable record described below. They are intentionally discoverable here but
+are outside the forward context pack.
+
 ## What you're looking at while a stage is open: the stage directory
 
 ```text
@@ -61,9 +74,10 @@ results) and `manual-evidence.toml` (manual evidence add/supersede forms).
 Both are described further below.
 
 Whether anything survives here after a stage closes depends entirely on the
-configured `stage_form_retention` policy: `discard` (the default) deletes it,
-`latest` leaves the final version in place until the next `prepare`
-overwrites it, and `versioned` keeps every closed revision under a
+configured `stage_form_retention` policy. The shipped policy is
+`stage_form_retention = "latest"`: `discard` deletes the form, `latest` leaves
+the final version in place until the next `prepare` overwrites it, and
+`versioned` keeps every closed revision under a
 `revisions/` subfolder, each with its own `digest.json`. None of this
 affects the durable record described below — retention only governs the
 convenience copy.
@@ -134,13 +148,15 @@ Where that evidence came from differs by mode:
 - **External check evidence** is recorded through
   `stages/<stage>/evidence.toml` — one result row per check, with the exact
   command, result, exit status, and output log — before being folded into
-  `graph.json` and then normally discarded per the retention policy.
+  `graph.json`. The transient form is then retained, versioned, or deleted
+  according to `stage_form_retention`; the shipped `latest` policy leaves the
+  final form in place.
 - **Managed check evidence** (`check run`) has no intermediate form at all:
   AEGIS runs the command itself, writes the full output to
   `.agentic/runs/<run-id>/evidence/logs/<check-id>-<stage>.log`, and records
   the result directly.
-- **Manual evidence** (used by quick runs, and any time evidence needs to be
-  attached without a formal check) goes through
+- **Manual evidence** (used when evidence needs to be attached without a
+  formal check) goes through
   `stages/<stage>/manual-evidence.toml`.
 - **Gate evidence** (from `verify run`) has no separate log file — its
   output tail lives only in the journal's `gate.output` event, while the

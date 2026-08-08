@@ -45,6 +45,21 @@ def main() -> int:
         from aegis.store import append_journal, resolve_run_id
 
         run_id = resolve_run_id(repo_root)
+        # Journalled inside the guarded block, not after it. Evidence recording
+        # is advisory and must never block the host: a journal truncated by a
+        # killed process made this call raise on *every* tool use, and the hook
+        # transport maps any non-zero exit to a blocking failure, wedging the
+        # session until the journal was hand-repaired.
+        append_journal(
+            repo_root,
+            run_id,
+            "agentic.tool",
+            {
+                "tool_name": payload.get("tool_name"),
+                "tool_use_id": payload.get("tool_use_id"),
+                "has_response": payload.get("tool_response") is not None,
+            },
+        )
     except Exception as exc:
         serializer = getattr(exc, "to_dict", None)
         error = serializer() if callable(serializer) else {"message": str(exc)}
@@ -61,16 +76,6 @@ def main() -> int:
             )
         )
         return 0
-    append_journal(
-        repo_root,
-        run_id,
-        "agentic.tool",
-        {
-            "tool_name": payload.get("tool_name"),
-            "tool_use_id": payload.get("tool_use_id"),
-            "has_response": payload.get("tool_response") is not None,
-        },
-    )
     return 0
 
 

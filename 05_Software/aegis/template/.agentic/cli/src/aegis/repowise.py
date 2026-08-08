@@ -10,7 +10,7 @@
 @file repowise.py
 @brief Validate optional RepoWise integration policy and discovery artifacts.
 @details Keeps RepoWise outside the AEGIS runtime boundary. AEGIS reads only a
-         strict policy, WAEGIS receipt, RepoWise state, and knowledge-graph JSON,
+         strict policy, provider receipt, RepoWise state, and knowledge-graph JSON,
          then writes a normalized run-local discovery snapshot.
 """
 
@@ -360,7 +360,7 @@ def _missing_required_evidence(
     @param[in]  repo_root Repository root.
     @param[in]  artifact_path Knowledge-graph JSON path.
     @param[in]  state_path RepoWise state JSON path.
-    @param[in]  receipt_path WAEGIS sync receipt JSON path.
+    @param[in]  receipt_path Provider synchronization receipt JSON path.
     @return     Repo-relative paths of files that are not regular files.
     """
     return [
@@ -419,7 +419,7 @@ def _load_and_validate_artifacts(
                 receipt documents required for one RepoWise inspection.
     @param[in]  artifact_path Knowledge-graph JSON path.
     @param[in]  state_path RepoWise state JSON path.
-    @param[in]  receipt_path WAEGIS sync receipt JSON path.
+    @param[in]  receipt_path Provider synchronization receipt JSON path.
     @param[in]  config Validated integration policy the receipt is checked
                 against.
     @return     Parsed `(artifact, state, receipt)` JSON documents.
@@ -450,7 +450,7 @@ def _compute_staleness_warnings(
     @param[in]  artifact_path Knowledge-graph JSON path.
     @param[in]  state_path RepoWise state JSON path.
     @param[in]  state Parsed RepoWise state document.
-    @param[in]  receipt Parsed WAEGIS sync receipt document.
+    @param[in]  receipt Parsed provider synchronization receipt document.
     @param[in]  config Validated integration policy.
     @return     `(warnings, artifact_digest, state_digest, head, worktree)`.
     """
@@ -577,7 +577,7 @@ def _validate_receipt(
     data: dict[str, Any],
     config: RepoWiseIntegration,
 ) -> None:
-    """@brief Validate the strict WAEGIS RepoWise receipt."""
+    """@brief Validate the strict RepoWise provider receipt."""
     _closed_keys(data, _RECEIPT_KEYS, RECEIPT_RELATIVE_PATH.as_posix())
     missing = [key for key in _RECEIPT_KEYS if key not in data]
     if missing:

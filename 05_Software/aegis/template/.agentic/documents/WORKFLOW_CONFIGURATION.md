@@ -2,7 +2,7 @@
 
 # Workflow Configuration
 
-Every AEGIS 2.1 workspace begins with:
+Every AEGIS 3.0 workspace begins with:
 
 ```toml
 schema_version = 3
@@ -52,13 +52,15 @@ mutation. There is no migration.
 
 ```toml
 [interface]
-stage_form_retention = "discard"
+stage_form_retention = "latest"
 check_execution = "external"
 ```
 
 Retention is `versioned`, `latest`, or `discard`. It applies only to transient
 input forms; design, requirement/spec snapshots, graph state, evidence,
-journals, validation summaries, and delivery reports are always durable.
+journals, validation summaries, and delivery reports are always durable. The
+shipped `latest` default preserves the final form for cross-session handoff
+without retaining superseded revisions.
 
 The policy is captured when a stage is prepared. Configuration changes affect
 the next prepared revision, never the current one.
@@ -84,9 +86,9 @@ than the configured number of unique changed paths receives guidance to carry
 its context into a new full run. This is a soft response only: it does not
 block, route, or change the current run.
 
-Current WAEGIS `new`/`adopt` interviews and doctor/configuration parsing do not
-yet manage this optional AEGIS table. That cross-tool awareness is a deliberate
-follow-up; use AEGIS `config validate/show` as the authority for the key.
+WAEGIS 3 `new`, `adopt`, and `configure` can manage this optional table through
+explicit interview/answers fields while preserving advanced policy. AEGIS
+`config validate/show` remains the authority for the resulting key.
 
 ## Deterministic Gates
 
@@ -108,6 +110,7 @@ commands = []
 [gates.test]
 mode = "disabled"
 commands = []
+impacted_command = []
 
 [gates.security]
 mode = "disabled"

@@ -13,9 +13,12 @@ Code adapter note.
 
 If this file and `AGENTS.md` disagree, follow `AGENTS.md`.
 
-Before using repository tools, complete the mandatory workflow bootstrap in
-`AGENTS.md`: validate `.agentic/workflow.toml`, inspect effective modes, report
-the active restrictions and selected run, then obey both AEGIS policy and
+For a fresh stage session, use only the payload-owned route: `AGENTS.md`,
+`aegis run context --json`, its named recovery command (`stage prepare` only
+when named), and its `required_reads`. Do not load all stage references or read
+`graph.json`/`journal.jsonl` for ordinary recovery. `run context` validates the
+workflow before it responds; use `config validate` after a configuration repair
+and `config show` only for explicit policy diagnosis. Obey both AEGIS policy and
 Claude Code host safety controls.
 
 Claude direct skill invocation uses `/skill-name`. Existing Codex-style

@@ -7,9 +7,13 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS 2.1 Human Explanations
 
-These guides explain an AEGIS deployment in plain language. They are organized
-by the lifecycle and purpose of an artifact, rather than by the order in which
-we happened to inspect files.
+> Historical archive: these guides describe the AEGIS 2.1 deployment model.
+> They are preserved as versioned background material and are not the current
+> AEGIS 3.0 workflow or deployment contract.
+
+These guides explain the former AEGIS 2.1 deployment in plain language. They
+are organized by the lifecycle and purpose of an artifact, rather than by the
+order in which the files were inspected.
 
 Every guide answers the same four questions:
 
@@ -28,9 +32,7 @@ Every guide answers the same four questions:
 | [04_Workflow_Run_Records.md](04_Workflow_Run_Records.md) | Run folders, graphs, journals, stage forms, evidence, reports, and validation summaries. | Available |
 | [05_Maintenance_Upgrade_Transactions_And_Legacy_History.md](05_Maintenance_Upgrade_Transactions_And_Legacy_History.md) | Payload upgrades, transactions, repair, legacy records, and safe operational maintenance. | Available |
 
-## Transition note
-
-`01_Adoption_Installation_Baseline.md` is the original combined working note.
-It remains temporarily while its content is moved into the domain guides above.
-New explanations should be added to the appropriate domain guide, not to that
-combined note.
+For current operator behavior, use the documentation shipped under
+`05_Software/aegis/template/.agentic/documents/` and the maintained AEGIS guides
+in the parent `06_SoftwareDocu/` folder. Deployment-tool claims in this archive
+are historical and do not establish current WAEGIS compatibility.

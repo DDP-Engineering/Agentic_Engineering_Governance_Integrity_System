@@ -72,7 +72,14 @@ strict_promote = [
 ```
 
 Start with an empty list, watch the warnings for a couple of weeks, then
-promote the ones nobody ever wants to override. This is the whole
+promote the ones nobody ever wants to override.
+
+One thing to know if you promote `secret-in-diff`: when part of a diff
+cannot be inspected — a binary or oversized file, or a filename git
+could not attribute — `check` reports it as a `secret-in-diff` warning
+saying *"added lines not scanned"* rather than staying silent. So a
+promoted secret scan fails the gate on an unscanned file too. That is
+deliberate: a partial scan must never read as a clean one. This is the whole
 governance dial: one list, reviewed by the team, visible in the diff.
 
 Any CI system works — the command is plain Python with exit codes. A

@@ -35,7 +35,7 @@ restriction below is something you opt into, not something you opt out of.
 
 ```toml
 [interface]
-stage_form_retention = "discard"
+stage_form_retention = "latest"
 check_execution = "external"
 ```
 
@@ -46,8 +46,8 @@ delivery reports are always kept regardless of this setting).
 
 | Value | What happens |
 | --- | --- |
-| `discard` (default) | The prepared form is deleted once no longer needed. Lowest disk footprint; nothing to review after the fact beyond the durable record. |
-| `latest` | The most recently prepared form stays in place, overwritten by the next `prepare`. Useful if you sometimes want to glance back at exactly what was submitted. |
+| `discard` | The prepared form is deleted once no longer needed. Lowest disk footprint; nothing to review after the fact beyond the durable record. |
+| `latest` (default) | The most recently prepared form stays in place, overwritten by the next `prepare`. This supports a fresh-session handoff without retaining superseded revisions. |
 | `versioned` | Every closed revision is kept under the stage's `revisions/` folder. Choose this if you want a full paper trail of every draft, not just the final durable state. |
 
 A retention change only affects the *next* prepared revision — it never
@@ -80,6 +80,14 @@ build, typecheck, lint, test, security — every enabled one runs even if an
 earlier one already failed, so you see the complete picture in one pass
 rather than fixing issues one at a time across repeated runs.
 
+`verify gates [names...]` deliberately has stricter execution feedback than
+the aggregate verification command. If every selected group is disabled, it
+launches zero commands and returns non-zero `nothing-ran` output with an
+execution count and reason; it writes no passing evidence. `verify run` still
+records those policy-disabled groups as `not-enforced` while it continues with
+invariants and the applicable audits. AEGIS never guesses that a command ran
+nothing from framework stdout; configure the framework to fail zero collection.
+
 The security gate deserves a specific caution: its result is evidence from
 whatever tool you configured, not a general claim that the change is secure.
 Configure a real tool (a dependency scanner, a static analyzer) rather than a
@@ -94,6 +102,7 @@ command in that group):
 mode = "enforce"
 commands = ["pytest -q"]
 timeout = 2400
+impacted_command = ["python", "-m", "pytest", "-q"]
 ```
 
 Omitted, it defaults to 1800 seconds (30 minutes). Raise it for a genuinely
@@ -101,6 +110,14 @@ slow suite rather than letting AEGIS report a false `fail` for a command that
 was still running — the recorded evidence for a timed-out command is
 indistinguishable from a real failure unless you already know to expect it,
 so a too-short timeout on a slow gate quietly produces misleading history.
+
+`impacted_command` is optional and is deliberately different from `commands`:
+it is one already-split argv prefix for `aegis verify impact --run`, never a
+shell template. AEGIS appends each safe, resolved selector as one argument.
+When the impact set is incomplete or unsafe, or the prefix is absent, it prints
+the fallback reason and uses every full `commands` entry instead. Leave it as
+an empty list (or omit it in an existing schema-3 file) when full-gate fallback
+is the only approved regression path.
 
 A reasonable adoption order: turn on `test` first (you likely already run
 tests), then `build` and `typecheck` if your language has them, then `lint`,

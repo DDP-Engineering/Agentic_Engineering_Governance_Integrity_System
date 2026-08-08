@@ -28,6 +28,7 @@ from .config import WorkflowConfig
 from .gates import gate_failure_blockers
 from .invariants import evaluate
 from .models import Graph
+from .requirement_store import RequirementValidationError
 from .requirements import AuditIssue, audit_coverage, audit_traceability
 from .stage_forms import stage_blocker_details
 from .stage_schema import run_stage_spec
@@ -43,6 +44,7 @@ from .working_tree import audit_working_tree
 # CONSTANTS
 
 SHORT_MESSAGE_DIGEST_LENGTH = 12
+REQUIREMENT_REGISTER_BLOCKER_ID = "requirement-register"
 
 # PUBLIC API
 
@@ -69,6 +71,29 @@ def audit_issue_blocker(kind: str, issue: AuditIssue) -> Blocker:
         id=blocker_id,
         description=issue.message,
         state_digests=state_digests(blocker_id, identity),
+    )
+
+
+def requirement_register_blocker(error: RequirementValidationError) -> Blocker:
+    """
+    @brief Build the waiver target for an unloadable requirement register.
+    @param[in] error Validation error, whose text names the file and the key.
+    @return Digest-pinned blocker standing in for the audits that cannot run.
+    @details The digest covers the error text, so repairing the file - or
+             breaking a *different* one - stales the waiver rather than
+             extending it to a fault nobody reviewed.
+    """
+    description = (
+        "Requirement register cannot be read, so traceability and coverage "
+        f"cannot be audited: {error}"
+    )
+    return Blocker(
+        id=REQUIREMENT_REGISTER_BLOCKER_ID,
+        description=description,
+        state_digests=state_digests(
+            REQUIREMENT_REGISTER_BLOCKER_ID,
+            {"id": REQUIREMENT_REGISTER_BLOCKER_ID, "message": description},
+        ),
     )
 
 
@@ -206,14 +231,24 @@ def collect_waiver_targets(
 
     blockers.extend(gate_failure_blockers(graph, config))
     if not quick:
-        blockers.extend(
-            audit_issue_blocker("traceability", issue)
-            for issue in audit_traceability(repo_root, config)
-        )
-        blockers.extend(
-            audit_issue_blocker("coverage", issue)
-            for issue in audit_coverage(repo_root, config)
-        )
+        try:
+            audits = [
+                audit_issue_blocker("traceability", issue)
+                for issue in audit_traceability(repo_root, config)
+            ]
+            audits.extend(
+                audit_issue_blocker("coverage", issue)
+                for issue in audit_coverage(repo_root, config)
+            )
+        except RequirementValidationError as exc:
+            # These two audits load the requirement register independently of
+            # `evaluate`, so the tolerance that invariant evaluation gained did
+            # not reach them. Raising here takes `waive list` down, which is
+            # the one command that could produce the waiver for the parse
+            # error - the malformed file disables the mechanism for recovering
+            # from it. Degrade to a single waivable blocker naming the file.
+            audits = [requirement_register_blocker(exc)]
+        blockers.extend(audits)
     working_tree = audit_working_tree(repo_root, config, graph)
     blockers.extend(
         working_tree_blocker(finding, repo_root)

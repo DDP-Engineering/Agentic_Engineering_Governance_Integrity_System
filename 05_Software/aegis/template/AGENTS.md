@@ -7,7 +7,7 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # AGENTS.md
 
-This repository uses AEGIS 2.1, a human-approved, file-first engineering
+This repository uses AEGIS 3.0, a human-approved, file-first engineering
 workflow. Treat `.agentic/workflow.toml` as the only AEGIS policy source.
 
 New to AEGIS? Read `.agentic/documents/WHY_AEGIS.md` first, then use
@@ -15,18 +15,17 @@ New to AEGIS? Read `.agentic/documents/WHY_AEGIS.md` first, then use
 references. When integrating another branch's AEGIS state, follow
 `.agentic/documents/MERGE_AND_REBASE.md` before resolving or validating it.
 
-## Mandatory Bootstrap
+## Policy Validation and Diagnosis
 
-Before repository work:
-
-1. Run `<workflow> config validate --json`.
-2. Run `<workflow> config show --json`.
-3. Report the captured interface policy, five gate modes, guardrails,
-   traceability policy, quick changed-path policy, and selected run.
-4. Use `--run <run-id>` only when an operation must pin a run explicitly.
+Every AEGIS command, including `run context`, validates the configured workflow
+before it acts. If configuration is missing or invalid, correct it and use
+`<workflow> config validate --json` to confirm the repair. Use
+`<workflow> config show --json` only for explicit policy diagnosis; it is not a
+fresh-session bootstrap input and must not be added to the bounded context pack.
 
 Do not infer fallback policy when configuration is missing or invalid. AEGIS
-policy supplements host, sandbox, approval, and operating-system controls.
+policy supplements host, sandbox, approval, and operating-system controls. Use
+`--run <run-id>` only when an operation must pin a run explicitly.
 
 `<workflow>` means the project-local wrapper:
 
@@ -36,6 +35,50 @@ bash .agentic/tools/run.sh
 ```
 
 An installed `aegis` or `python -m aegis` is also valid.
+
+## Resuming In A Fresh Session
+
+A session that did not run the earlier stages can reconstruct the current stage
+from repository state without reading the graph or journal. Use this bounded
+bootstrap sequence:
+
+```text
+1. Read AGENTS.md.
+2. Run `<workflow> run context --json`.
+3. If `unavailable_current_artifact` is present, run only its recovery command.
+   Run `<workflow> stage prepare` only when that command is named; never
+   prepare an already applied stage.
+4. Read only the skill, reference, current form, and retained previous form
+   named in required_reads.
+5. Perform only the reported current stage and stop at stage close for human approval.
+```
+
+`run context` is the normal first AEGIS command in a fresh session. Its
+versioned response names only the selected stage's router/reference and bounded
+form inputs; it omits evidence, requirements, reports, configuration, and other
+run-history data. Use `run status` only for detailed diagnosis.
+
+- If `unavailable_previous_stage_artifacts` is non-empty, use its named
+  recovery command instead of guessing from internal state.
+- Treat the current form's state and the current-stage reference as the
+  authoritative work boundary. If the form is already prepared or applied, do
+  not prepare a new revision merely to resume it.
+- Before applying or closing, use the stage-specific command in the reference
+  when evidence or verification remains outstanding.
+
+Depending on the stage, the named inputs may include the preceding retained
+form, requirements/specs, the approved design, imported checks, component
+documentation, or the source files being changed.
+
+Do not read `graph.json` or `journal.jsonl` to recover context. They are the
+run's internal state and its append-only audit trail; they can be substantially
+larger than the focused stage inputs. Read them only when diagnosing AEGIS
+itself.
+
+Retained-form review depends on `[interface] stage_form_retention` keeping forms
+after import (`latest` or `versioned`). Under `discard`, use `stage show` and the
+durable artifacts named by the stage reference because the imported form is
+deleted.
 
 ## Standard Lifecycle
 
@@ -55,6 +98,7 @@ Every stage follows:
 <workflow> stage prepare
 # edit generated TOML and referenced Markdown
 <workflow> stage apply
+<workflow> stage show
 # review imported state and ask for explicit human approval
 <workflow> stage close
 ```
@@ -83,17 +127,23 @@ requirement, design, and check as `bypassed` by the quick run type. Run status,
 the validation summary, and `report.md` repeat that state; bypassed never means
 passed or waived.
 
-Because a quick run has no requirement, check, or design collection stage,
-INV-1, INV-2, INV-3 (red-before-green), INV-8, and INV-10, plus the standalone
-traceability and coverage audits, report `not-applicable` for the quick run.
-Intake, implementation changed paths and evidence, enabled gates, secrets and
-working-tree review, scope analysis, validation, delivery reporting, and all
-four human closes still execute normally.
+Because a quick run has no requirement, design, or ordinary check collection
+stage, INV-1, INV-2, INV-8, and INV-10, plus the standalone traceability and
+coverage audits, report `not-applicable`. New quick runs still evaluate INV-3:
+each registered check needs a recorded red result before its green result.
+Only historical quick graphs without the persisted policy report INV-3 as
+`legacy-not-applicable`.
 
-At quick implementation, follow the returned `aegis evidence prepare add`
-command, complete and apply the manual-evidence form, and place its CLI-minted
-active ID in `linked_check_evidence` before applying the implementation form.
-Invented, missing, superseded, or other-stage evidence does not satisfy close.
+At quick implementation, run `<workflow> check create`, fill the generated
+definition with the command and optional path/variants/concerns, then run
+`<workflow> check register` before changing source. Requirement and
+specification citations stay empty because this proportional path has no
+collection stages. Record a real red result, make the bounded repair, then
+record green through `<workflow> check prepare`/`<workflow> check record` or
+`<workflow> check run <check-id>`. Put every active green check-evidence ID in
+`linked_check_evidence` before applying the implementation form. Manual,
+invented, missing, superseded, or other-stage evidence never satisfies this
+quick-check contract.
 
 Quick runs cannot route into a bypassed stage. If scope grows, preserve the
 recorded context and restart as a full run with `aegis run start <fix|change>`.
@@ -113,8 +163,9 @@ default threshold of 10, and an advisory never blocks or changes the run.
   structures, algorithms, boundaries, and sequencing belong in design.
 - Design is authoritative in `.agentic/runs/<run-id>/design.md`; it must cite
   unchanged requirement snapshots and record an explicit selected option.
-- Checks cite requirement IDs and assert observable behavior. A fix requires
-  reproducing red evidence before implementation.
+- Checks cite requirement IDs and assert observable behavior. Every full run —
+  feature, fix, or change alike — requires reproducing red evidence before
+  implementation.
 - Implementation follows the approved design and records changed paths,
   documentation effects, and linked evidence in its form.
 - Validation runs `<workflow> verify run` before interpretive diff review.
@@ -152,6 +203,13 @@ and reports must show `WAIVED`, with the reason and timestamp, never `passed`.
 Run linked checks first. Use full regression for shared, cross-cutting, or
 untraced changes. Cover relevant variants, response shapes, stale-state cleanup,
 rollback, errors, boundaries, concurrency, and idempotency.
+
+When `[gates.test].impacted_command` is an explicit argv prefix, run
+`<workflow> verify impact --run` after reviewing the impact report. AEGIS adds
+the resolved linked-test selectors as separate argv values with no shell. It
+uses focused mode only for complete, safe coverage; otherwise it prints the
+fallback reason and executes every configured full test command. A focused or
+fallback request that cannot launch any command is `nothing-ran`, not a pass.
 
 ## Recorded Waivers
 
@@ -195,6 +253,29 @@ for stage-specific guidance.
   section with a rationale. Routing to requirement or design invalidates design
   approval.
 
+## Changing Direction Mid-Run
+
+Discovering that a contract is wrong is normal work, not a failure. Set
+`control.route_to` to an earlier stage and `control.route_rationale` in the
+current form, then `aegis stage apply` and `aegis stage close`. Routing takes
+effect at close.
+
+Closing with a route is not an approval of the stage you are leaving, so the
+evidence that stage would have produced is not demanded. Blockers shaped
+`<check-id> is missing prior red evidence` and
+`<check-id> has no active green evidence` are deferred, and the deferred list is
+written to the `stage.routed` journal event as `blockers_deferred`. Structural
+and control validity are still enforced: the route must name an earlier stage in
+this run's lifecycle, it needs a rationale, and every non-evidence blocker still
+stands.
+
+Routing to `requirement` or `design` invalidates design approval. Requirement
+`status` and `created_on` are durable and survive a re-apply, so going back
+costs no lifecycle history.
+
+If the run itself should not continue at all, end it with
+`aegis run abandon --reason "<text>"` rather than leaving it open.
+
 ## Component Documentation Contract
 
 Add or update `.agentic/knowledge/components/*.md` when a component is new or
@@ -211,6 +292,6 @@ Artifact: <path or none>
 Imported revision: <number or none>
 Evidence: <ids/results or none>
 Blockers: <none or exact blockers>
-Needs human: approve close, revise, route earlier, add a recorded waiver for <blocker-id> where offered, or abort
+Needs human: approve close, revise, route earlier, add a recorded waiver for <blocker-id> where offered, or abandon the run with `aegis run abandon --reason "<text>"`
 Next command: <exact command>
 ```

@@ -18,6 +18,22 @@
 @details `_git_status` (0.5.0, code-review follow-up) only splits an entry on
          `" -> "` when the status code marks a rename or copy (`R`/`C`), so a
          file whose own name contains that sequence is no longer misparsed.
+@details The secret scan (2.1.0, lifecycle field test) skips AEGIS's own
+         generated run artifacts. `verify run` writes `validation-summary.json`,
+         `report.md`, and `graph.json` under `.agentic/runs/<run-id>/`, and each
+         one embeds the secrets invariant's name and message verbatim, so a
+         configured pattern as ordinary as `(?i)secret` matched the tool's own
+         output. AEGIS is the only writer of that tree; it is tool output, not
+         authored content.
+@details The secret scan (2.1.0, lifecycle field test) also skips the
+         `[guardrails.secrets]` table of `.agentic/workflow.toml`. That table
+         *is* the pattern list, so `(?i)secret` matches its own table header and
+         every configured pattern matches its own declaration: any run that
+         edited the config failed the scan, and a freshly deployed repository
+         failed it before the first commit, when the whole untracked file is
+         read. Only that one table is skipped - the rest of the config, where a
+         credential could plausibly be pasted into a gate command, is scanned
+         exactly as before.
 """
 
 # IMPORTS
@@ -29,14 +45,79 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from .config import WorkflowConfig
+from .config import CONFIG_RELATIVE_PATH, WorkflowConfig
 from .paths import matches_pattern
 
 # CONSTANTS
 
 MAX_SECRET_SCAN_BYTES = 1_000_000
+GENERATED_RUN_ARTIFACT_ROOT = ".agentic/runs"
+
+# @brief The one configuration table whose content is the secret patterns
+#        themselves, and so cannot be scanned with them.
+SECRETS_POLICY_TABLE = "guardrails.secrets"
+WORKFLOW_CONFIG_PATH = CONFIG_RELATIVE_PATH.as_posix()
 
 # PUBLIC API
+
+
+def is_generated_run_artifact(path: str) -> bool:
+    """
+    @brief      Report whether a repository path is AEGIS-generated run output.
+    @param[in]  path Repository-relative path in either slash style.
+    @return     True when the path lies inside the generated run-artifact tree.
+    @details    Shared by the working-tree secret scan and INV-7 so both agree
+                on which files are the tool's own output rather than content
+                anybody authored.
+    @exception  None
+    """
+    normalized = path.replace("\\", "/").strip("/")
+    return (
+        normalized == GENERATED_RUN_ARTIFACT_ROOT
+        or normalized.startswith(f"{GENERATED_RUN_ARTIFACT_ROOT}/")
+    )
+
+
+def without_secret_policy(path: str, text: str) -> str:
+    """
+    @brief      Drop the lines that declare the secret patterns themselves.
+    @param[in]  path Repository-relative path the text belongs to, in either
+                slash style.
+    @param[in]  text File content, or unified diff text for that one file.
+    @return     `text` unchanged for every path but `.agentic/workflow.toml`,
+                and for that file the same text without its
+                `[guardrails.secrets]` table.
+    @details    Shared by the working-tree secret scan and INV-7 so both agree
+                on the scan surface. Only the one table is removed: a
+                credential pasted anywhere else in the configuration - into a
+                gate command, a delivery command pattern, a protected-path glob
+                - is still scanned, and this is the only table whose declared
+                content cannot be told apart from what it declares.
+    @details    Accepts diff text as well as whole-file text because INV-7
+                scans the former and the working-tree audit the latter. A
+                leading `+`/`-`/space column is stripped before a line is read
+                as a TOML table header, and a hunk or file header resets the
+                table to unknown, since the next line may come from anywhere in
+                the file. Unknown means scanned: a hunk this cannot place stays
+                on the scan surface rather than dropping off it.
+    @exception  None
+    """
+    if path.replace("\\", "/").strip("/") != WORKFLOW_CONFIG_PATH:
+        return text
+    kept: list[str] = []
+    inside = False
+    for line in text.splitlines(keepends=True):
+        if line.startswith(("@@", "diff --git ")):
+            inside = False
+            kept.append(line)
+            continue
+        content = line[1:] if line[:1] in ("+", "-", " ") else line
+        stripped = content.strip()
+        if stripped.startswith("["):
+            inside = stripped.strip("[]").strip() == SECRETS_POLICY_TABLE
+        if not inside:
+            kept.append(line)
+    return "".join(kept)
 
 
 def audit_working_tree(
@@ -85,15 +166,41 @@ def audit_working_tree(
                     "Adoption delivery cannot include application source changes.",
                 )
             )
+        # Both of these test every path the entry names, not only
+        # `entry["path"]`: for a rename or copy that field is the
+        # *destination*, so `git mv config/secrets.yaml config/legacy.yaml`
+        # moved a protected file out of its protected location without
+        # producing a finding. The secret scan below stays on the destination -
+        # the source path no longer exists on disk after a rename.
+        protected_hit = next(
+            (
+                candidate
+                for candidate in entry_paths
+                if _matches_any(candidate, config.protected_paths.patterns)
+            ),
+            None,
+        )
         if (
             config.protected_paths.mode == "enforce"
             and "write" in config.protected_paths.operations
-            and _matches_any(path, config.protected_paths.patterns)
+            and protected_hit
         ):
-            findings.append(_finding("protected-path", path, "Protected path is present in the working tree."))
-        if _matches_any(path, config.working_tree.blocked_patterns):
-            findings.append(_finding("blocked-pattern", path, "Path matches a configured working-tree blocker."))
-        secret = _secret_match(repo_root / path, config.secrets.patterns)
+            findings.append(_finding("protected-path", protected_hit, "Protected path is present in the working tree."))
+        blocked_hit = next(
+            (
+                candidate
+                for candidate in entry_paths
+                if _matches_any(candidate, config.working_tree.blocked_patterns)
+            ),
+            None,
+        )
+        if blocked_hit:
+            findings.append(_finding("blocked-pattern", blocked_hit, "Path matches a configured working-tree blocker."))
+        secret = (
+            None
+            if is_generated_run_artifact(path)
+            else _secret_match(repo_root / path, path, config.secrets.patterns)
+        )
         if secret:
             findings.append(_finding("secret-pattern", path, f"Configured secret pattern matched: {secret}"))
     return {
@@ -160,9 +267,14 @@ def _git_status(repo_root: Path) -> tuple[list[dict[str, str]], str | None]:
         # because it has no special characters.
         if ("R" in status or "C" in status) and " -> " in path:
             previous_path, path = path.split(" -> ", 1)
-        entry = {"status": status, "path": _unquote_git_path(path).replace("\\", "/")}
+        # No separator translation: Git emits `/` on every platform, so the
+        # only backslash that can survive unquoting is one that is genuinely
+        # part of the filename (legal on POSIX). Replacing it produced a path
+        # that does not exist, against which no protected pattern could match
+        # and the secret scan read the wrong file or nothing at all.
+        entry = {"status": status, "path": _unquote_git_path(path)}
         if previous_path:
-            entry["previous_path"] = _unquote_git_path(previous_path).replace("\\", "/")
+            entry["previous_path"] = _unquote_git_path(previous_path)
         entries.append(entry)
     return entries, None
 
@@ -208,10 +320,12 @@ def _unquote_git_path(path: str) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
-def _secret_match(path: Path, patterns: list[str]) -> str | None:
+def _secret_match(path: Path, relative_path: str, patterns: list[str]) -> str | None:
     """
     @brief      Scan a file's content for a configured secret pattern.
     @param[in]  path Filesystem path of the changed file to scan.
+    @param[in]  relative_path Repository-relative form of the same file, used to
+                recognize the configuration file that declares the patterns.
     @param[in]  patterns Configured secret-detection regex patterns.
     @return     The first pattern that matched the file's content, or `None`
                 when the file is unreadable, too large, or has no match.
@@ -225,6 +339,7 @@ def _secret_match(path: Path, patterns: list[str]) -> str | None:
         text = path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
         return None
+    text = without_secret_policy(relative_path, text)
     for pattern in patterns:
         if re.search(pattern, text):
             return pattern

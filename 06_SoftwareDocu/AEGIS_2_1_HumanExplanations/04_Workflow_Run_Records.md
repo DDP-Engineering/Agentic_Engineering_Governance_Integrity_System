@@ -47,6 +47,24 @@ The fixed sequence exists so the workflow can distinguish an intentionally
 bypassed stage from a completed one and can verify that important decisions
 occur before dependent work.
 
+## Fresh-session context
+
+`aegis run context --json` is the compact recovery view for an agent session
+that has no earlier conversation. It reports the selected run, kind/profile and
+stage; one payload-owned skill and one stage reference; the current primary
+form; and the immediately previous retained primary form when one exists. It
+also names the common apply/close commands and the human approval boundary.
+
+The response is deliberately not another run summary. It omits `graph.json`,
+`journal.jsonl`, evidence rows, requirement indexes, reports, and the complete
+workflow configuration, so its size does not increase as the run gathers
+history. When a prior form was discarded or is missing, the response records the
+reason and a recovery command instead of silently expanding the agent's read
+set. The same rule applies to the current form: it is reported as `none` with
+an explicit recovery command when unavailable. An applied stage recovers via
+`aegis stage show`, never by preparing a revision that would regress it.
+`aegis run status` remains available for detailed diagnosis.
+
 ## The run graph
 
 `graph.json` is a living snapshot, not an append-only history.
@@ -122,6 +140,15 @@ table: `requested_access_mode`, `access_rationale`, `route_to`,
 `requirement` and `check` are collection stages: they have a shared control
 form plus one item form per requirement or check. Item forms use the common
 identity fields but do not repeat the control table.
+
+Every primary stage form also begins with a deterministic completion checklist
+rendered as TOML comments. The checklist is presentation guidance only: it
+does not add TOML keys or alter the imported form payload. Its machine items
+name the command that records or verifies the condition, and its human items
+name an explicit approval boundary. Collection-stage guidance appears once in
+`stage.toml`, never in each requirement or check item. The matching standard,
+adoption, and delivery references are checked projections of the same CLI-owned
+stage contract, so their `Done when` lists cannot drift from generated forms.
 
 | Stage | Stage-specific fields and purpose |
 | --- | --- |

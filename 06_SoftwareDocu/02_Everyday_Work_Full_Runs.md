@@ -127,6 +127,11 @@ check:
 ```
 
 Which mode applies is a workspace configuration choice, not a per-run one.
+If an explicit managed `check run` resolves no commands, it exits non-zero with
+`execution_status = "nothing-ran"`, `executed_count = 0`, and a reason. It
+journals that result and creates no passing evidence. A command that does run
+is still a real pass or fail; configure the test framework itself to reject its
+own zero-collection condition rather than asking AEGIS to parse tool output.
 
 **Implementation.** Only the approved design gets implemented — this stage
 does not get to rewrite requirements or checks it disagrees with; disagreement
@@ -147,6 +152,27 @@ lint, test, security), invariant checks, traceability and coverage audits,
 and a working-tree review — then writes a validation summary. Only after
 that does the human-led review happen: the actual diff, documentation
 effects, style, and anything the deterministic pass cannot judge on its own.
+
+`<workflow> verify gates [names...]` is an explicit execution request. When no
+selected command launches, it returns non-zero `nothing-ran` output instead of
+looking successful. This is deliberately different from `<workflow> verify
+run`: it performs an aggregate audit, reports disabled gates as
+`not-enforced`, and still evaluates its deterministic non-gate checks.
+
+For a bounded focused regression after reviewing the report, configure
+`[gates.test].impacted_command` as an argv prefix and run:
+
+```text
+<workflow> verify impact --run
+```
+
+AEGIS resolves the complete linked-test union in sorted order and appends each
+selector as one argv element with no shell. If a changed source is uncovered, a
+related requirement has no linked test, a selector is unsafe, no selector is
+resolved, or no focused prefix is configured, it reports the exact reason and
+runs every configured full test command. The result records `focused` or
+`full-fallback`, selectors, outputs, evidence, and its journal event together;
+no executable route is a non-zero `nothing-ran` outcome.
 
 **Delivery.** The final handoff: preflight references, remaining risks, and
 the human decision to hand the work off. Closing delivery marks the AEGIS run

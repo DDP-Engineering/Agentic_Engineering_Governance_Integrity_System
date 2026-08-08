@@ -8,11 +8,10 @@
 # -----------------------------------------------------------------------------
 """
 @file version.py
-@brief Wizard version and compatible AEGIS payload version range (AD-11).
-@details WAEGIS is versioned independently of the AEGIS payload it deploys. It
-         pins a compatible payload version range so that a wizard build only
-         drives payloads it understands. The range is inclusive of the minimum
-         and exclusive of the maximum, mirroring ``>=MIN,<MAX`` semantics.
+@brief WAEGIS and compatible AEGIS version contracts.
+@details Keeps the release boundary small, explicit, and independent from the
+         payload implementation. Only strict three-field semantic versions are
+         accepted at mutation boundaries.
 """
 
 # IMPORTS
@@ -23,65 +22,49 @@ import re
 
 # CONSTANTS
 
-# @brief Independent WAEGIS wizard version (SemVer).
-WIZARD_VERSION = "1.2.0"
+WIZARD_VERSION = "3.0.0"
+PAYLOAD_COMPAT_MIN = "3.0.0"
+PAYLOAD_COMPAT_MAX = "4.0.0"
+PAYLOAD_COMPAT_SPEC = ">=3.0.0,<4.0.0"
+MANIFEST_VERSION = 2
+ANSWERS_VERSION = 2
 
-# @brief Inclusive lower bound of the compatible AEGIS payload version.
-PAYLOAD_COMPAT_MIN = "2.0.0"
-
-# @brief Exclusive upper bound of the compatible AEGIS payload version.
-PAYLOAD_COMPAT_MAX = "3.0.0"
-
-# @brief Human-readable compatibility specifier for reports and messages.
-PAYLOAD_COMPAT_SPEC = ">=2.0.0,<3.0.0"
-
-
-# HELPER FUNCTIONS
-
-
-def _parse_version(text: str) -> tuple[int, ...]:
-    """
-    @brief      Parse a dotted numeric version string into a comparable tuple.
-    @param[in]  text Version string such as ``"0.4.0"``; only the leading
-                     dot-separated numeric fields are considered.
-    @return     Tuple of integers for the numeric release fields.
-    @exception  ValueError If no leading numeric field is present.
-    """
-    fields: list[int] = []
-    for part in text.strip().split("."):
-        match = re.match(r"[0-9]+", part)
-        if match is None:
-            break
-        fields.append(int(match.group()))
-    if not fields:
-        raise ValueError(f"unparseable version: {text!r}")
-    return tuple(fields)
+_SEMVER = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 
 
 # EXPORTED FUNCTIONS / PUBLIC API
 
 
+def parse_semver(value: str) -> tuple[int, int, int, bool]:
+    """
+    @brief Parse a strict semantic version for compatibility comparison.
+    @param[in] value Semantic version text.
+    @return Major, minor, patch, and prerelease-presence tuple.
+    @exception ValueError If the value is not strict SemVer.
+    """
+    match = _SEMVER.fullmatch(value.strip())
+    if match is None:
+        raise ValueError(f"invalid semantic version: {value!r}")
+    return int(match[1]), int(match[2]), int(match[3]), match[4] is not None
+
+
 def is_payload_compatible(payload_version: str) -> bool:
     """
-    @brief      Report whether an AEGIS payload version is in the compatible
-                range (AD-11): ``PAYLOAD_COMPAT_MIN <= v < PAYLOAD_COMPAT_MAX``.
-    @param[in]  payload_version Dotted payload version string, e.g. ``"0.4.0"``.
-    @return     ``True`` when the version lies within the supported range.
-    @exception  ValueError If ``payload_version`` cannot be parsed.
+    @brief Check the WAEGIS 3 to AEGIS 3 compatibility boundary.
+    @param[in] payload_version Payload semantic version.
+    @return True for stable AEGIS releases in ``>=3.0.0,<4.0.0``.
     """
-    value = _parse_version(payload_version)
-    low = _parse_version(PAYLOAD_COMPAT_MIN)
-    high = _parse_version(PAYLOAD_COMPAT_MAX)
-    # Pad to equal length so "3" compares as (3, 0, 0), not below (3, 0, 0).
-    width = max(len(value), len(low), len(high))
-
-    def pad(fields: tuple[int, ...]) -> tuple[int, ...]:
-        """
-        @brief Pad one parsed version to the comparison width.
-        """
-        return fields + (0,) * (width - len(fields))
-
-    return pad(low) <= pad(value) < pad(high)
+    major, minor, patch, prerelease = parse_semver(payload_version)
+    if prerelease:
+        return False
+    value = major, minor, patch
+    lower = parse_semver(PAYLOAD_COMPAT_MIN)[:3]
+    upper = parse_semver(PAYLOAD_COMPAT_MAX)[:3]
+    return lower <= value < upper
 
 
 # END OF FILE

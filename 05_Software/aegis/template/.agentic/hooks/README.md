@@ -62,10 +62,10 @@ launched-from-a-subdirectory gap below, and like it, no hook can report it
 because no hook ran.
 
 The supported agent CLIs are Node applications, so `node` is normally present.
-Where it is not — a bare CI image, a restricted host — install Node.js (or put
-it on `PATH`) before relying on the guards. `waegis doctor` reports this as the
-`runnability.hook-runtime` warning, so run it after install to confirm the
-launcher can start.
+Where it is not - a bare CI image, a restricted host - install Node.js (or put
+it on `PATH`) before relying on the guards. Deployment diagnostics should
+report this as a hook-runtime warning; after installation, confirm directly
+that the launcher can start.
 
 ## Start the agent at the repository root
 
@@ -120,16 +120,16 @@ exactly like a session with guards active.
 Hook trust is keyed to the **content hash of `.codex/hooks.json`**. Any change to
 that file — including an AEGIS payload upgrade — returns every hook in it to
 `Modified since last trusted - review required` and stops it running until
-re-reviewed. After `waegis upgrade`, re-open `/hooks` and trust the AEGIS hooks
-again; the command prints a reminder when the upgrade touched this file.
+re-reviewed. After any payload upgrade that touches this file, re-open `/hooks`
+and trust the AEGIS hooks again.
 
 A third failure mode is the file itself: Codex parses `.codex/hooks.json` with a
 strict deserializer accepting exactly two top-level keys, `description` and
 `hooks`. An unknown key rejects the **whole file**, which registers no hooks at
-all. `waegis doctor` reports this as the `runnability.adapter-configs` failure,
-and `tests/test_scaffold.py` blocks it at the source. This is why the annotation
-convention used in the other adapters' JSON (`_legal`, `_comment*`) must never
-appear in this one.
+all. Deployment diagnostics should report this as an adapter-configuration
+failure, and source validation must reject it before delivery. This is why the
+annotation convention used in the other adapters' JSON (`_legal`, `_comment*`)
+must never appear in this one.
 
 ## Confirming guards are live
 

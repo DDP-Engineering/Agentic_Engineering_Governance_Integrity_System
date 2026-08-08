@@ -13,11 +13,16 @@ Do not duplicate the workflow contract here. `AGENTS.md` remains the canonical
 source for gate order, requirements, documentation rules, safety rules, and stop
 format.
 
-Before repository work, run the project-local `config validate --json` and
-`config show --json` commands. Report write, protected-read/path,
-scope, secret, gate, coverage, and delivery modes and active rule counts, plus
-the selected worktree run or explicit `--run`. AEGIS policy comes only from
-the validated file; Codex trust and host approvals remain separate.
+`run context` validates the workflow before it responds. Use `config validate`
+only to confirm a configuration repair and `config show` only for explicit
+policy diagnosis; neither command belongs in the fresh-session context pack.
+Codex trust and host approvals remain separate from AEGIS policy.
+
+For a fresh stage session, use the payload-owned canonical route: `AGENTS.md`
+then project-local `run context --json`, then only its named recovery command
+(including `stage prepare` only when named), only its `required_reads`, and the
+reported stage's human approval boundary. Do not inject all stage references or
+read `graph.json`/`journal.jsonl` for ordinary recovery.
 
 ## Contents
 
@@ -63,8 +68,9 @@ JSON must therefore never appear here. Per-hook entries accept `type`,
 `additionalContextLimit`; `commandWindows` is what lets one file carry both the
 POSIX and Windows command forms.
 
-`waegis doctor` reports a rejected file as the `runnability.adapter-configs`
-failure, and `tests/test_scaffold.py` blocks the mistake at the source.
+Deployment diagnostics should report a rejected file as an
+adapter-configuration failure, and source validation must block the mistake
+before delivery.
 
 ## Prerequisites and trust
 

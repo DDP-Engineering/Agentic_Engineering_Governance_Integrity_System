@@ -12,22 +12,46 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # Agentic Delivery
 
-1. Run `<workflow> config validate --json` and
-   `<workflow> config show --json`.
-2. Run `<workflow> run resume` or pin the run with `--run <run-id>`.
-3. If validation is not closed, run `<workflow> verify run`, review its summary,
-   perform the interpretive diff/documentation/style review, complete the
-   validation form, apply it, and ask for `stage close` approval.
-4. In delivery, prepare and complete the delivery form with preflight/report
-   references, remaining risks, and the human handoff decision.
-5. Run `<workflow> delivery show` and `<workflow> delivery report`.
-6. Run `stage apply`, review the imported delivery state, then ask the human to
-   run `stage close`.
+# Stage: delivery
 
-Closing delivery marks the run complete. It performs no Git push, PR, merge, or
-publication.
+**Purpose:** Produce a reviewed handoff and mark the run complete without
+pushing, publishing, merging, or opening a pull request.
 
-After AEGIS completion, stage only explicitly intended paths. Ask for separate,
-explicit approval before any outward action. Report the run, report path, gate
-states (including disabled groups), traceability, documentation status, risks,
-and exact proposed Git action.
+**Read first:**
+
+- `AGENTS.md`, then `<workflow> run context --json` for the selected run.
+- Only `required_reads`: the named delivery router, current form, and retained
+  previous form.
+  If `unavailable_current_artifact` is present, run only its recovery command;
+  never prepare an already applied stage. Use `run status` only for detailed
+  diagnosis.
+
+**Steps:**
+
+1. Run `<workflow> stage prepare` only when `run context` names it.
+2. If validation is not closed, complete it first: run `<workflow> verify run`,
+   review its summary and the diff, apply the validation form, and request its
+   human close approval.
+3. Complete the delivery form with preflight and report references, remaining
+   risks, and the handoff decision. Run `<workflow> delivery show` and
+   `<workflow> delivery report`.
+4. Run `<workflow> stage apply`, review the imported state, then request human
+   approval for `<workflow> stage close`.
+
+**Outputs:**
+
+- An approved delivery handoff and final run report.
+
+**Done when:**
+
+- [ ] [machine] The preflight and delivery report references are recorded.
+- [ ] [machine] The handoff decision is approved.
+- [ ] [human] The human approves stage close.
+
+**Skip when:** Never. Every standard run completes through a delivery handoff.
+
+## If you are stuck
+
+Record a remaining risk or route back through the control form. After AEGIS
+completion, stage only explicitly intended paths and request separate, explicit
+approval before every outward action.

@@ -22,7 +22,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from waegis.payload.copier import copy_payload
+from waegis.copier import enumerate_payload
+from waegis_support import materialize_inventory
 
 # CONSTANTS
 
@@ -183,7 +184,8 @@ def test_scaffold_copies_opencode_adapter(tmp_path: Path) -> None:
     """
     target = tmp_path / "new-project"
 
-    copy_payload(TEMPLATE, target, mode="new")
+    inventory = enumerate_payload(TEMPLATE)
+    materialize_inventory(TEMPLATE, target, inventory.records)
 
     assert (target / "opencode.json").exists()
     assert (target / ".opencode" / "README.md").exists()

@@ -1,54 +1,175 @@
-# WAEGIS V2 — Validation, Parity, and V1 Retirement
+# WAEGIS V2 — Validation, AEGIS Acceptance, and V1 Retirement
+
+V2 has no V1 output-parity requirement. V1 is used only as the recorded source
+of selected proven algorithms, a producer of migration fixtures, and the
+shipping fallback until retirement. The bundled AEGIS payload, V2's explicit
+schemas, ownership rules, and Git recovery contract are the acceptance oracles.
 
 ## 1. Test strategy
 
-Three tiers, all offline via the preserved seams (CommandRunner / Asker / streams):
+1. **Pure contract tests:** paths, inventory, ownership, manifest schema,
+   classifier, answer validation, recovery plan, lock, and exit mapping.
+2. **Ported algorithm tests:** V1 tests for harvested behavior, adapted only
+   where the V2 contract deliberately differs and accompanied by a rationale.
+3. **Fresh command tests:** dry-run/consent, conditional interview, JSON
+   boundary, exact conflicts, clean-tree refusal, AEGIS validation, manifest
+   last, and ownership-limited maintenance.
+4. **Crash and acceptance tests:** real subprocess termination, exact Git
+   restore, immediate rerun convergence, real payload wrapper, packaging, and
+   cross-platform execution.
 
-1. **Ported unit tests** (Phase 1): the V1 tests covering harvested modules, moved with import fixes only — they pin that harvesting changed nothing.
-2. **Fresh behavior tests** (Phases 2–4): per command, covering the doc 01 flows — dry-run writes nothing, consent gates every mutation, dirty-tree refusal, conflict decisions, owned-fields-only regeneration, exit codes, `--json` shapes, golden interview/consent transcripts.
-3. **Parity and crash tests** (Phase 6): below.
+All ordinary tests are offline through injectable `CommandRunner`, `Asker`,
+clock/lock metadata, home/cache path, and output streams. The full integration
+matrix disables networking at the process/environment boundary.
 
-Anti-regrowth structural tests run in every phase (line budget, forbidden imports, forbidden names, manifest fixture round-trip).
+## 2. AEGIS acceptance matrix
 
-## 2. The parity harness (the go/no-go instrument)
+Every generated install invokes the actual copied wrapper. `config validate
+--json` must return 0 and the stable configuration envelope. `run status
+--json` is healthy when it returns either an active-run envelope or the expected
+fresh-install `RUN-POINTER-MISSING` error. V2 never creates a fake run to make
+smoke pass.
 
-A test-only driver that runs **V1 and V2 side by side** on identical fixture inputs and diffs the outcomes. Fixture matrix:
-
-| Scenario | Compares |
+| Scenario | Required assertions |
 |---|---|
-| `new` into empty dir, all-defaults answers | full repo tree byte-diff (excluding `.git` internals), manifest, workflow.toml |
-| `adopt` into a JS fixture repo (package.json scripts, existing CLAUDE.md conflict → each of keep/take/sidecar) | tree, manifest, conflict outcomes, proposals JSON |
-| `adopt` into a Python fixture (pyproject, Makefile, CI file) | proposals JSON, generated workflow.toml |
-| `configure` changing two gates on a V1-installed repo | workflow.toml byte-diff (owned fields only), manifest configuration block |
-| `analyze --json` on all fixtures | envelope deep-equality |
-| `check`/`doctor --json` on healthy / drifted / broken fixtures | findings parity (minus journal group), exit codes |
-| `repair` after deleting a managed file | tree, manifest |
-| `upgrade` V1-installed → newer payload, with one of each classifier row represented | tree, manifest, per-file actions, exit codes |
+| `new` into an absent target, all defaults | WAEGIS alone created the directory; Git initialized; no commit/index mutation; payload inventory exact; config validate and coherent-status smoke pass; manifest schema 2 written last |
+| `adopt` into clean Python and JavaScript repos | Evidence-backed proposals; dry-run writes nothing; all adapter payload paths are classified; config validates; no pre-existing unrelated byte changes |
+| Adopt conflicts for managed, generated, seeded, and root adapter files | keep-local/take-payload/sidecar outcomes exact; no global overwrite default; sidecar never collides; manifest dispositions match decisions |
+| Adopt over a V1-installed fixture | Minimal V1 detector and explicit migration warning; V1 manifest data not trusted; every differing path uses normal conflict rules; V1 manifest recoverable through Git until V2 manifest is published last |
+| Dirty adopt/configure/repair/upgrade | Staged, unstaged, untracked, nested, renamed, and ignored managed-destination cases refuse before consent or lock; no dirty bypass exists |
+| Configure two ordinary fields and quick policy add/remove | Only explicitly owned bytes change; comments, advanced keys, gate timeout, `impacted_command`, and non-owned values remain byte-identical; AEGIS validates after each change |
+| Analyze/check JSON on absent, healthy, warning, drifted, invalid, and V1 fixtures | V2 golden envelopes; read-only byte identity; check codes 0/1/2; version readback and guidance exact |
+| Repair missing/drifted managed files | Approved managed paths restored; generated, seeded, kept-local, sidecar, requirements, components, knowledge, reports, runs, and workspace state untouched |
+| Upgrade with every classifier/ownership row | Exact per-file action; project-owned trees preserved; V2 manifest last; config/smoke pass; payload and WAEGIS version readback correct; V1/invalid/incompatible cases refuse before mutation |
+| Zipapp with fresh profile and networking disabled | Internal inventory and published digest verify; payload resolves/extracts; install/check/upgrade work with Python 3.11+; absence or incompatibility fails before mutation with exact guidance |
+| Windows x64 runtime bundle with system Python unavailable | Locked CPython verifies; launcher runs the identical payload-bearing zipapp with no duplicate payload tree; runtime pointer is atomically registered; installed AEGIS wrappers, install/check/upgrade, and pointer repair after bundle relocation behave as documented |
+| Native Linux x64 runtime bundle with system Python unavailable | Same runtime, install/check/dry-run-upgrade/real-upgrade, recovery, pointer, and preservation results as Windows, allowing only documented path/launcher text differences |
 
-Rules: file *contents* must be byte-identical; human console text may differ (V2's messages are its own); `--json` payloads must be shape-compatible and value-equal except documented additive/removed fields (doctor's journal group). Every intentional divergence is listed in the parity report with a rationale.
+Golden files pin schemas and stable text where text is a contract. They do not
+replace semantic assertions. A golden update must be in the same change as the
+documented contract change and explain why.
 
-## 3. Crash matrix (proves the safety model)
+## 3. Crash and recovery matrix
 
-For each mutating command, a test kills the process (hard, via subprocess) at: (a) mid-payload-copy, (b) after config write / before manifest, (c) mid-upgrade-apply. Assertions: the repo is restorable **using exactly the git commands V2 printed** (the test executes them verbatim); after restore, a re-run of the same command completes and yields the same end state as an uninterrupted run (idempotence); no lockfile is left behind after restore + re-run.
+The test harness starts from a clean committed repository, captures the complete
+pre-operation tree and Git metadata, then terminates the WAEGIS subprocess after
+each publication boundary:
 
-Plus: `KeyboardInterrupt` at consent and mid-apply → clean exit / re-raise with restore guidance; two concurrent V2 invocations → second refuses via lockfile with the documented message.
+- after lock acquisition and before the first payload write;
+- mid-copy after at least one tracked overwrite and one exact new file;
+- after `workflow.toml` publication but before AEGIS validation;
+- after successful validation but before manifest publication;
+- during upgrade additions, replacements, and removals;
+- during atomic manifest replacement;
+- immediately after manifest publication but before normal lock cleanup.
 
-## 4. Independent review gates
+For each kill point:
 
-After Phases 2, 4, and 6: an adversarial review session (the Batch-13-style acceptance pattern) — trace the flows end to end, hunt for consent bypasses, writes outside `resolve_managed_path`, divergence between printed restore commands and actual damage, and parity-harness blind spots. Findings fixed before the next phase starts.
+1. recovery commands must already be present in flushed captured output (the
+   structured stderr recovery record for JSON mode); no post-crash inference is
+   accepted;
+2. the test handles the dead-owner lock exactly as documented;
+3. it executes the emitted Git commands verbatim, with no test-only cleanup;
+4. tracked bytes/index and exact new-file absence match the pre-operation state;
+5. an immediate rerun reaches the same tree and manifest as an uninterrupted
+   run;
+6. no branch or commit was created and no unrelated ignored file was removed.
 
-## 5. V1 retirement criteria (all must hold)
+Handled `OSError`, AEGIS validation failure, subprocess timeout, manifest-write
+failure, and `KeyboardInterrupt` cases additionally assert automatic scoped
+rollback and truthful reporting of rollback success/failure.
 
-1. Parity report green across the full matrix, intentional divergences documented.
-2. Crash matrix green.
-3. V2 has performed one real `adopt` and one real `upgrade` on a production repo (candidate: one of the smaller adopted repos, not AudioMancer first) without manual intervention.
-4. RepoWise decision resolved: Phase 7 done, or the Core-only stance accepted in writing.
-5. Docs that name WAEGIS behaviors (aegis README, template documents, memory notes) updated to V2's safety model.
+Concurrency tests cover two simultaneous V2 mutators, a live lock older than
+the former one-hour threshold (must not auto-break), a dead-owner lock, invalid
+lock metadata, and explicit `--break-lock`. Read-only commands never break or
+mutate a lock.
 
-Until then V1 ships; after that, V1 is removed from the working tree (it remains in git history) and V2 drops the "2": package renamed at leisure or kept — cosmetic, owner's call.
+## 4. Ownership-preservation matrix
 
-## 6. Standing risks to keep visible
+The retirement gate is specifically about not losing project-owned state. Each
+install and upgrade fixture contains unique sentinel bytes in:
 
-- **Byte-parity of `workflow.toml` is the most fragile promise** — it is why doc 02 forbids touching the harvested generator until the harness exists. Any "improvement" to it happens only after Phase 6, behind the parity gate.
-- **The clean-tree precondition changes operator experience** on dirty repos (V1 allowed more). This is intentional and must be stated plainly in the V2 README — it is the price of deleting 1,500 lines of transaction machinery, and `--allow-dirty` exists for the exceptions.
-- **Scope creep is the disease this project treats.** The forbidden list and the line-budget test are load-bearing; weakening either requires a written owner decision, not an agent's judgment call.
+- `.agentic/workflow.toml` advanced/operator-owned fields and comments;
+- `.agentic/requirements/` and specification files;
+- `.agentic/components.toml` and component knowledge;
+- `.agentic/knowledge/` outside immutable payload documentation;
+- `.agentic/reports/` and adoption reports;
+- `.agentic/runs/` and `.agentic/.workspace/` state;
+- existing adapter/root instruction files resolved as keep-local;
+- unrelated tracked, untracked, and ignored repository paths.
+
+Tests assert those bytes before and after repair, upgrade, failed operations,
+recovery, and rerun. New payload files under a project-owned tree must have an
+explicit ownership rule; an unclassified path fails the build and plan.
+
+## 5. Independent review gates
+
+After install, upgrade, and final integration phases, an adversarial review
+traces the actual flow end to end and hunts for:
+
+- writes before consent, lock, or clean-tree revalidation;
+- incomplete write/recovery sets;
+- unsafe pathspecs or broad `git clean` behavior;
+- a manifest published before validation/smoke;
+- trust in V1 ownership or stale answers;
+- generated/seeded/kept paths entering managed repair/upgrade;
+- archive inventory/extraction mismatches;
+- JSON prompting or mixed stdout;
+- Windows/POSIX divergence and acceptance blind spots.
+
+Findings are resolved before the next phase or final go/no-go.
+
+## 6. V1 retirement criteria
+
+All criteria are mandatory:
+
+1. Complete WAEGIS tests, structural guards, AEGIS acceptance matrix, crash
+   matrix, and artifact verification are green on Windows.
+2. Complete WAEGIS tests plus clean offline install, idempotent check, dry-run
+   upgrade, real upgrade, recovery, adapter coverage, and version readback are
+   green on one native POSIX runner.
+3. The full AEGIS suite is green with the five WAEGIS-importing modules included
+   and still importing the preserved `waegis` package path.
+4. Two representative real repositories pass the replacement gate: clean
+   install/adopt, idempotent actionable check, dry-run upgrade, real upgrade,
+   exact project-owned preservation, recovery, every shipped adapter present or
+   explicitly kept, and version readback. One is a V1-to-V2 adoption and one is
+   a later V2-to-V2 upgrade.
+5. The final D1, D3, D6, and D7 decisions are implemented: no RepoWise core or
+   Git history automation exists; WAEGIS is 3.0.0 with AEGIS range
+   `>=3.0.0,<4.0.0`; and the zipapp plus both Pythonless runtime bundles pass
+   criteria 1, 2, and 4.
+6. Root/WAEGIS/AEGIS/deeper documentation is updated to V2 behavior; copied
+   template material is generic; V1 transaction/runtime guidance and ignore
+   rules are removed only with active V2 integration; downstream
+   `template/CHANGELOG.md` is empty.
+7. Root changelog/version handling follows the repository's explicit release
+   process, and the owner signs the V2 go/no-go record.
+
+Until all seven hold, V1 remains the supported release-line installer. After
+they hold, the V2 implementation is already the canonical `waegis` package;
+there is no later package rename or sibling-tree cleanup.
+
+## 7. Standing risks
+
+- **Git recovery depends on the absolute clean-tree rule.** Any future dirty
+  bypass invalidates the safety proof and requires a different backup design.
+- **Hard-break migration cannot infer V1 ownership.** V1 adoption is deliberately
+  more interactive; convenience must not become implicit overwrite authority.
+- **The AEGIS range is major-bound.** Recheck schema fields, adapters,
+  launchers, and ownership inventory for every bundled AEGIS 3.x update and
+  boundary-test `>=3.0.0,<4.0.0`; never infer cross-major compatibility.
+- **Three artifact forms can drift.** Build native bundles around the exact
+  already-built payload-bearing zipapp, forbid a second payload tree, pin the
+  digests in one release manifest, and run equivalent offline acceptance paths
+  for all three.
+- **Pythonless operation depends on a persistent bundle path.** The runtime
+  pointer must be diagnosed and repaired after bundle relocation or deletion;
+  installation documentation must tell operators to unpack native bundles to a
+  stable location.
+- **A checksum is not a signature.** Artifact authenticity depends on the
+  publication channel unless a separate signing decision is made.
+- **Copied configuration is strict.** WAEGIS must preserve advanced values but
+  let the real AEGIS parser reject unsupported combinations before publication.
+- **Scope regrowth remains likely.** The package boundary, ownership matrix,
+  forbidden list, line guard, and mandatory integration phase are load-bearing.

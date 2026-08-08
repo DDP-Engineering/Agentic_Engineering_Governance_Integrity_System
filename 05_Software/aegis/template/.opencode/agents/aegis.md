@@ -27,9 +27,13 @@ skill, directly read and follow:
 - `AGENTS.md`
 - `.agentic/skills/agentic-development/SKILL.md`
 
-Execute only one workflow gate at a time. Keep intake, alignment, requirement,
-check, implementation, validation, and delivery separate. Stop after each gate
-using the stage stop format defined in `AGENTS.md`.
+The payload-owned canonical bootstrap is `AGENTS.md` -> `<workflow> run context
+--json` -> only the named recovery command (including `stage prepare` only when
+named) -> only the named `required_reads` -> the current stage's human approval
+boundary. Do not inject all stage references or read internal run files for
+ordinary recovery. Execute only one workflow gate at a time and stop using the
+stage stop format defined in `AGENTS.md`. `run context` validates the workflow
+before it responds; configuration diagnosis is not part of this route.
 
 Treat Codex-style `$skill-name` references as OpenCode skill-tool calls to the
 same skill name. For example, `$documentation-audit` means load the

@@ -16,11 +16,16 @@ Do not duplicate the workflow contract here. `AGENTS.md` remains the canonical
 source for gate order, requirements, documentation rules, safety rules, and stop
 format. Pi reads `AGENTS.md` natively.
 
-Before repository work, run the project-local `config validate --json` and
-`config show --json` commands. Report write, protected-read/path,
-scope, secret, gate, coverage, and delivery modes and active rule counts, plus
-the selected worktree run or explicit `--run`. AEGIS policy comes only from
-the validated file; Pi trust and host controls remain separate.
+`run context` validates the workflow before it responds. Use `config validate`
+only to confirm a configuration repair and `config show` only for explicit
+policy diagnosis; neither command belongs in the fresh-session context pack.
+Pi trust and host controls remain separate from AEGIS policy.
+
+For a fresh stage session, use the payload-owned canonical route: `AGENTS.md`
+then project-local `run context --json`, then only its named recovery command
+(including `stage prepare` only when named), only its `required_reads`, and the
+reported stage's human approval boundary. Do not inject all stage references or
+read `graph.json`/`journal.jsonl` for ordinary recovery.
 
 ## Contents
 

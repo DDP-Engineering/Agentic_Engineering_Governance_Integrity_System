@@ -32,26 +32,41 @@ function Resolve-Python {
 }
 
 $Uv = Get-Command "uv" -ErrorAction SilentlyContinue
+
+# Native tools (uv, python, pip) write routine progress to stderr. Under
+# Windows PowerShell 5.1, $ErrorActionPreference = "Stop" promotes any stderr
+# output from a native command into a terminating NativeCommandError even when
+# the process exits 0 (B23) - so relax it for the duration of each native
+# call and rely on $LASTEXITCODE, which is what actually reflects success.
+$ErrorActionPreference = "Continue"
+
 if ($UseUv -or $null -ne $Uv) {
     if ($null -eq $Uv) {
+        $ErrorActionPreference = "Stop"
         Write-Error "uv was requested but was not found. Install uv or run without -UseUv."
     }
     & uv venv --python 3.11 $VenvRoot
     & uv pip install --python (Join-Path $VenvRoot "Scripts\python.exe") -e $CliRoot
-    exit $LASTEXITCODE
+    $ExitCode = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    exit $ExitCode
 }
 
 $Python = Resolve-Python
 if ($null -eq $Python) {
+    $ErrorActionPreference = "Stop"
     Write-Error "Python 3.11+ was not found. Install Python 3.11+ or install uv, then rerun this script."
 }
 
 & $Python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
 if ($LASTEXITCODE -ne 0) {
+    $ErrorActionPreference = "Stop"
     Write-Error "Python 3.11+ is required. Install Python 3.11+ or install uv, then rerun this script."
 }
 
 & $Python -m venv $VenvRoot
 $VenvPython = Join-Path $VenvRoot "Scripts\python.exe"
 & $VenvPython -m pip install -e $CliRoot
-exit $LASTEXITCODE
+$ExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+exit $ExitCode

@@ -19,10 +19,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+import sys
 
 import pytest
 
 # CONSTANTS
+
+# Test collection imports the CLI directly from the copied template tree. Keep
+# those imports from creating bytecode inside material that the release-hygiene
+# tests must inspect exactly as it would ship. Pre-existing cache files remain
+# visible and still fail the hygiene test.
+sys.dont_write_bytecode = True
 
 WORKFLOW_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "workflow_unrestricted.toml"
 

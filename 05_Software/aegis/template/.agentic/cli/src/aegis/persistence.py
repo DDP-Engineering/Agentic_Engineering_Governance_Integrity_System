@@ -67,7 +67,10 @@ class LockTimeoutError(PersistenceError):
         super().__init__(
             f"{self.code}: timed out after {timeout:.1f}s waiting for {path}. "
             "Another AEGIS process still holds the OS lock. Retry after that "
-            "process finishes; do not delete the lock file to bypass a live owner."
+            "process finishes; do not delete the lock file to bypass a live "
+            "owner. A crashed process releases its lock automatically; if this "
+            "persists, no other AEGIS process is running and the failure is a "
+            "filesystem permission problem."
         )
 
 
@@ -244,6 +247,13 @@ def create_temporary_bytes(path: Path, content: bytes) -> Path:
     @param[in] content Complete bytes to persist.
     @return Created temporary path ready for publication.
     @exception OSError If creation or persistence fails.
+    @details The temporary carries the destination's mode, or the umask default
+             when the destination is new. `mkstemp` creates at 0o600 and ignores
+             the umask, and `os.replace` publishes that inode with that mode -
+             so on POSIX every AEGIS-managed file (graph, journal, requirement
+             TOMLs, the run pointer) silently became owner-only after its first
+             rewrite, and a second developer or CI account then got
+             `PermissionError` with nothing in `git status` to explain it.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, name = tempfile.mkstemp(
@@ -257,6 +267,16 @@ def create_temporary_bytes(path: Path, content: bytes) -> Path:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
+        try:
+            mode = path.stat().st_mode & 0o7777
+        except OSError:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        try:
+            os.chmod(temporary, mode)
+        except OSError:
+            pass  # Filesystems without POSIX modes are unaffected.
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise

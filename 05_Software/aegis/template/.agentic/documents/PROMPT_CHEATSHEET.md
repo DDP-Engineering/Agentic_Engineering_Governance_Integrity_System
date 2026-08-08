@@ -1,6 +1,6 @@
 <!-- Copyright (c) 2026 DDP Engineering. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 
-# AEGIS 2.1 Prompt Cheat Sheet
+# AEGIS 3.0 Prompt Cheat Sheet
 
 This is a human operator flyer, not an authoritative workflow source and not an agentic delivery contract.
 It is not an evidence source. Generated forms, imported graph state, journals,
@@ -24,6 +24,13 @@ statement, scope hints, and access mode, then stop for my review.
 ```text
 Run `aegis run resume`, open the active artifact, summarize imported state and
 blockers, and continue only within the current stage.
+```
+
+```text
+In this fresh session, read AGENTS.md, run `aegis run context --json`, and if
+`unavailable_current_artifact` is present run only its recovery command. Never
+prepare an already applied stage. Then read only the returned skill, reference,
+current form, and retained prior form. Do not read graph.json or journal.jsonl.
 ```
 
 ## Alignment
@@ -105,12 +112,37 @@ Show the schema-3 interface policy and all five gate groups. Report disabled
 groups as disabled, not passed. Do not invent a security command.
 ```
 
-## Adoption Discovery
+## Adopt An Existing Project
+
+Use this first prompt after the AEGIS payload has been deployed into an existing
+repository. It starts the adoption route, which describes what already exists;
+it changes no application behavior.
 
 ```text
-Run `waegis repowise status --repo "<project>"`. If configured RepoWise is
-stale, ask before synchronizing it. During repo-discovery, report validation
-status and provenance, use only current structural proposals, preserve every
-human-entered field, warn for advisory unavailability, and block only when the
-integration is explicitly required.
+Run `aegis config validate --json` and `aegis config show --json`, then
+`aegis run start adoption`. Open the returned adoption-intake form and complete
+the statement, the single adoption slice you propose to adopt first, the access
+mode you need and why, and any unresolved questions. Report which policies the
+generated workflow.toml leaves inactive. Stop for my approval before
+`stage close`.
+```
+
+The route continues `adoption-intake → adoption-alignment → repo-discovery →
+component-map → component-adoption → baseline-review → adoption-delivery`, one
+human approval per stage. Load only the reference for the current stage from the
+`agentic-adoption` skill.
+
+## Adoption Discovery
+
+Run this inside the governed repository. Optional external discovery must
+already have been configured and refreshed by the repository operator or its
+separately managed tool; WAEGIS 3 does not manage RepoWise.
+
+```text
+Run `aegis config validate --json`, then continue the current repo-discovery
+stage. Report optional integration validation status and provenance, use only
+current structural proposals, preserve every human-entered field, warn for
+advisory unavailability, and block only when the integration is explicitly
+required. Never execute or refresh the external integration without a separate
+operator request.
 ```

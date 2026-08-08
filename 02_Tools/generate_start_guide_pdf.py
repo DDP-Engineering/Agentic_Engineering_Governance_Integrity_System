@@ -11,10 +11,7 @@
 @file    generate_start_guide_pdf.py
 @brief   Render the maintained AEGIS new-project guide as a styled PDF.
 @details Parses the guide's constrained Markdown vocabulary and produces the
-         distributable PDF without network access or host-office automation.
-@author  Eng. Dan Dumitru Pasare
-@date    2026-07-29
-@version 1.0.3
+         optional PDF without network access or host-office automation.
 """
 
 # -----------------------------------------------------------------------------
@@ -63,7 +60,9 @@ DEFAULT_SOURCE = (
     / "documents"
     / "How_To_Start_A_New_Project.md"
 )
-DEFAULT_OUTPUT = DEFAULT_SOURCE.with_suffix(".pdf")
+DEFAULT_OUTPUT = (
+    REPOSITORY_ROOT / "02_Tools" / "generated" / "How_To_Start_A_New_Project.pdf"
+)
 
 NAVY = colors.HexColor("#10243D")
 BLUE = colors.HexColor("#204B73")
@@ -84,7 +83,6 @@ def _register_fonts() -> None:
     @brief Register Unicode-capable Windows fonts used by the guide.
     @return None.
     @exception FileNotFoundError Raised when the required fonts are unavailable.
-    @version 1.0.0
     """
 
     font_directory = Path("C:/Windows/Fonts")
@@ -110,7 +108,6 @@ def _build_styles() -> dict[str, ParagraphStyle]:
     """
     @brief Build the paragraph styles used by the PDF renderer.
     @return A mapping from semantic style names to ReportLab styles.
-    @version 1.0.0
     """
 
     sample = getSampleStyleSheet()
@@ -193,7 +190,6 @@ def _inline_markup(value: str) -> str:
     @brief Convert the guide's inline-code syntax to ReportLab markup.
     @param[in] value Plain Markdown text.
     @return XML-safe ReportLab paragraph markup.
-    @version 1.0.0
     """
 
     escaped = html.escape(value)
@@ -215,7 +211,6 @@ def _page_decoration(canvas, document: BaseDocTemplate) -> None:
     @param[in,out] canvas ReportLab page canvas.
     @param[in] document Active document state.
     @return None.
-    @version 1.0.1
     """
 
     width, height = A4
@@ -230,7 +225,7 @@ def _page_decoration(canvas, document: BaseDocTemplate) -> None:
         canvas.rect(0, height - 17 * mm, width, 17 * mm, stroke=0, fill=1)
         canvas.setFont("AegisSansBold", 8)
         canvas.setFillColor(colors.white)
-        canvas.drawString(18 * mm, height - 10.5 * mm, "AEGIS 2.1  |  START GUIDE")
+        canvas.drawString(18 * mm, height - 10.5 * mm, "AEGIS 3.0  |  START GUIDE")
         canvas.setStrokeColor(LINE)
         canvas.line(18 * mm, 15 * mm, width - 18 * mm, 15 * mm)
         canvas.setFont("AegisSans", 7.5)
@@ -250,7 +245,6 @@ def _page_decoration_end(canvas, document: BaseDocTemplate) -> None:
     @param[in,out] canvas ReportLab page canvas.
     @param[in] document Active document state.
     @return None.
-    @version 1.0.0
     """
 
     if document.page != 1:
@@ -263,7 +257,6 @@ def _code_box(code: str, style: ParagraphStyle) -> Table:
     @param[in] code Code content without fence markers.
     @param[in] style Preformatted text style.
     @return A styled single-cell table.
-    @version 1.0.0
     """
 
     box = Table([[Preformatted(code, style)]], colWidths=[A4[0] - 42 * mm])
@@ -288,7 +281,6 @@ def _section_heading(text: str, style: ParagraphStyle) -> Flowable:
     @param[in] text Heading text without Markdown markers.
     @param[in] style Heading paragraph style.
     @return A keep-together heading block.
-    @version 1.0.0
     """
 
     heading = Table(
@@ -310,10 +302,9 @@ def _section_heading(text: str, style: ParagraphStyle) -> Flowable:
 
 def _cover(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     """
-    @brief Build the AEGIS 2.1 cover page.
+    @brief Build the AEGIS 3.0 cover page.
     @param[in] styles Semantic paragraph styles.
     @return Cover flowables ending with a page break.
-    @version 1.0.1
     """
 
     eyebrow = ParagraphStyle(
@@ -386,7 +377,7 @@ def _cover(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     )
     return [
         Spacer(1, 41 * mm),
-        Paragraph("AEGIS 2.1", eyebrow),
+        Paragraph("AEGIS 3.0", eyebrow),
         Paragraph("How to Start and Adapt<br/>a New Project", styles["cover_title"]),
         Spacer(1, 10 * mm),
         Paragraph(
@@ -421,7 +412,6 @@ def _content_flow(
     @param[in] source Markdown source path.
     @param[in] styles Semantic paragraph styles.
     @return Flowables for the guide body.
-    @version 1.0.1
     """
 
     flowables: list[Flowable] = []
@@ -433,7 +423,7 @@ def _content_flow(
     in_code = False
 
     def flush_paragraph() -> None:
-        """@brief Append buffered prose. @version 1.0.0"""
+        """@brief Append buffered prose."""
 
         if paragraph_lines:
             text = " ".join(part.strip() for part in paragraph_lines)
@@ -441,7 +431,7 @@ def _content_flow(
             paragraph_lines.clear()
 
     def flush_list() -> None:
-        """@brief Append buffered ordered or unordered items. @version 1.0.0"""
+        """@brief Append buffered ordered or unordered items."""
 
         nonlocal list_kind
         if list_items:
@@ -548,7 +538,6 @@ def generate_pdf(source: Path, output: Path) -> None:
     @param[in] output Destination PDF path.
     @return None.
     @exception FileNotFoundError Raised when the source or fonts are unavailable.
-    @version 1.0.1
     """
 
     if not source.is_file():
@@ -569,9 +558,9 @@ def generate_pdf(source: Path, output: Path) -> None:
         rightMargin=18 * mm,
         topMargin=22 * mm,
         bottomMargin=19 * mm,
-        title="How To Start and Adapt a New Project with AEGIS 2.1",
+        title="How To Start and Adapt a New Project with AEGIS 3.0",
         author="DDP Engineering",
-        subject="AEGIS 2.1 stage workflow, schema 3, and optional RepoWise guide",
+        subject="AEGIS 3.0 stage workflow, schema 3, and optional RepoWise guide",
     )
     document.addPageTemplates(
         [
@@ -592,11 +581,10 @@ def _parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespa
     @brief Parse command-line arguments for the documentation generator.
     @param[in] arguments Optional argument sequence for tests or embedding.
     @return Parsed command-line namespace.
-    @version 1.0.1
     """
 
     parser = argparse.ArgumentParser(
-        description="Generate the AEGIS 2.1 start-guide PDF.",
+        description="Generate the AEGIS 3.0 start-guide PDF.",
     )
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -613,7 +601,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
     @brief Generate the configured PDF and print its destination.
     @param[in] arguments Optional argument sequence.
     @return Process exit status.
-    @version 1.0.0
     """
 
     options = _parse_arguments(arguments)

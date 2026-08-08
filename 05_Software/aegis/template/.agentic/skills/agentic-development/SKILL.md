@@ -24,11 +24,14 @@ Use AEGIS as an eight-stage, file-first full lifecycle:
 The human approves every transition. Host plan mode may support discussion but
 does not replace the imported design or `stage close` approval journal.
 
-## Bootstrap
+## Starting a New Run
 
-1. Run `<workflow> config validate --json`.
-2. Run `<workflow> config show --json`.
-3. Start or resume:
+The run-start command validates the workflow configuration before it acts. Use
+`<workflow> config validate --json` after a configuration repair and
+`<workflow> config show --json` only for explicit policy diagnosis; neither is
+a fresh-session bootstrap step.
+
+Start or resume:
 
    ```text
    <workflow> run start <feature|fix|change>
@@ -36,8 +39,18 @@ does not replace the imported design or `stage close` approval journal.
    <workflow> run resume
    ```
 
-4. Open the returned artifact. Do not encode statements, paths, decisions, or
-   evidence in CLI flags.
+Open the returned artifact. Do not encode statements, paths, decisions, or
+evidence in CLI flags.
+
+## Fresh Stage Sessions
+
+When resuming work without prior chat history, read `AGENTS.md`, run
+`<workflow> run context --json`, then read only its `required_reads`: named
+skill, reference, current form, and retained previous form. If
+`unavailable_current_artifact` is present, run only its recovery command; never
+prepare an already applied stage.
+`run context` is bounded and read-only; use `run status` only for detailed diagnosis. Never read `graph.json` or
+`journal.jsonl` for ordinary stage recovery.
 
 When the human describes a genuinely small fix, offer the route explicitly:
 `small scope - suggest: aegis run start fix --quick`. A quick run is valid only
@@ -51,10 +64,13 @@ changed-path and evidence capture, enabled gates, secrets and working-tree
 review, scope analysis, delivery reporting, and the four human closes remain
 real. If scope grows, restart a full run and carry the recorded context forward.
 
-For quick implementation, follow `<workflow> evidence prepare add`, apply the
-manual-evidence form, and copy its CLI-minted active ID into the implementation
-form's `linked_check_evidence` before `stage apply`. Do not invent or reuse a
-superseded or other-stage evidence ID.
+For a new quick implementation, run `<workflow> check create`, complete the
+run-local definition, and run `<workflow> check register` before changing
+source. Record a real red result, make the bounded repair, then record green
+through the captured external or managed path. Link every active green
+registered-check evidence ID in `linked_check_evidence` before `stage apply`.
+Manual, invented, superseded, or other-stage evidence does not satisfy this
+quick-check contract.
 
 ## Stage Lifecycle
 
@@ -64,7 +80,8 @@ For every stage:
 <workflow> stage prepare
 # edit the generated TOML/Markdown
 <workflow> stage apply
-# show the imported state and request explicit human approval
+<workflow> stage show
+# request explicit human approval
 <workflow> stage close
 ```
 
@@ -89,8 +106,10 @@ Load only the current reference:
 
 - Requirements define observable contracts; design owns internal structures,
   boundaries, algorithms, compatibility choices, and implementation sequence.
-- A full fix needs a reproducing red check before implementation. For a quick
-  fix, red-before-green is explicitly `not-applicable`, never passed.
+- Every full run — feature, fix, or change alike — needs a reproducing red
+  check before implementation. New quick runs require the same red-before-green
+  evidence for their registered run-local checks; only historical quick graphs
+  without the persisted policy are `legacy-not-applicable`.
 - Record red and green check evidence through the configured external or managed
   path. Never invent IDs; AEGIS generates them.
 - Do not edit check artifacts during implementation. Route back through a stage
@@ -115,6 +134,6 @@ Artifact: <path>
 Imported revision: <number>
 Evidence: <ids and results>
 Blockers: <none or exact blockers>
-Needs human: approve close, revise artifact, route earlier, add a recorded waiver for <blocker-id> where offered, or abort
+Needs human: approve close, revise artifact, route earlier, add a recorded waiver for <blocker-id> where offered, or abandon the run with `aegis run abandon --reason "<text>"`
 Next command: <exact command>
 ```

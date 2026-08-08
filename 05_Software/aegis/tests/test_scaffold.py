@@ -29,11 +29,9 @@ import tomllib
 import pytest
 
 from aegis import __version__
-from waegis.payload.copier import (
-    OverwriteRefusedError,
-    TargetDirectoryMissingError,
-    copy_payload,
-)
+from waegis.copier import enumerate_payload
+from waegis.ownership import Disposition
+from waegis_support import materialize_inventory
 
 # CONSTANTS
 
@@ -274,19 +272,17 @@ def test_scaffold_copies_template_to_new_project(tmp_path: Path) -> None:
     """
     target = tmp_path / "new-project"
 
-    result = copy_payload(TEMPLATE_ROOT, target, mode="new")
+    inventory = enumerate_payload(TEMPLATE_ROOT)
+    copied = materialize_inventory(TEMPLATE_ROOT, target, inventory.records)
 
-    assert result.copied
+    assert copied
     assert (target / "AGENTS.md").exists()
     assert (target / "CHANGELOG.md").exists()
     assert (target / ".agentic" / "documents" / "PROMPT_CHEATSHEET.md").exists()
     assert (target / ".agentic" / "workflow.toml").exists()
     gitignore_lines = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".agentic/.workspace/" in gitignore_lines
-    # Rollback journals hold verbatim backups of files a deployment command is
-    # about to overwrite; tracking them would publish the operator's own
-    # pre-change content on the next `git add -A`.
-    assert ".agentic/.waegis-transactions/" in gitignore_lines
+    assert ".agentic/.waegis-transactions/" not in gitignore_lines
     assert not (target / ".agentic" / ".workspace").exists()
     assert (target / ".agentic" / "components.toml").exists()
     assert (target / ".codex" / "config.toml").exists()
@@ -340,7 +336,8 @@ def test_scaffold_ships_polyform_license_in_agentic(tmp_path: Path) -> None:
     """
     target = tmp_path / "new-project"
 
-    copy_payload(TEMPLATE_ROOT, target, mode="new")
+    inventory = enumerate_payload(TEMPLATE_ROOT)
+    materialize_inventory(TEMPLATE_ROOT, target, inventory.records)
 
     license_path = target / ".agentic" / "LICENSE.txt"
     assert license_path.exists()
@@ -353,9 +350,9 @@ def test_scaffold_ships_polyform_license_in_agentic(tmp_path: Path) -> None:
     assert "See the LICENSE.txt file for full license details." not in claude_md
 
 
-def test_scaffold_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
+def test_payload_inventory_is_read_only_for_existing_project_bytes(tmp_path: Path) -> None:
     """
-    @brief      Handle test scaffold refuses to overwrite existing file workflow behavior.
+    @brief      WAEGIS payload enumeration never changes existing project bytes.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
@@ -364,98 +361,74 @@ def test_scaffold_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     target.mkdir()
     (target / "AGENTS.md").write_text("existing\n", encoding="utf-8")
 
-    with pytest.raises(OverwriteRefusedError, match="Refusing to overwrite"):
-        copy_payload(TEMPLATE_ROOT, target, mode="new")
+    before = (target / "AGENTS.md").read_bytes()
+    inventory = enumerate_payload(TEMPLATE_ROOT)
+
+    assert inventory.records
+    assert (target / "AGENTS.md").read_bytes() == before
 
 
-def test_scaffold_existing_repo_requires_existing_target(tmp_path: Path) -> None:
+def test_payload_inventory_paths_are_canonical_and_unique(tmp_path: Path) -> None:
     """
-    @brief      Ensure existing-repository adoption does not create typo paths.
+    @brief      WAEGIS exposes one canonical, case-unique payload path set.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     """
-    target = tmp_path / "missing-existing-repo"
+    del tmp_path
+    inventory = enumerate_payload(TEMPLATE_ROOT)
+    paths = [record.path for record in inventory.records]
 
-    with pytest.raises(TargetDirectoryMissingError):
-        copy_payload(
-            TEMPLATE_ROOT,
-            target,
-            mode="adopt",
-            require_existing_target=True,
-        )
+    assert paths == sorted(paths, key=lambda item: item.encode("utf-8"))
+    assert len(paths) == len({path.casefold() for path in paths})
+    assert all("\\" not in path and not path.startswith("/") and ".." not in path.split("/") for path in paths)
 
 
-def test_scaffold_dry_run_does_not_write_files(tmp_path: Path) -> None:
+def test_payload_inventory_planning_does_not_create_target(tmp_path: Path) -> None:
     """
-    @brief      Ensure dry-run previews adoption files without changing target.
+    @brief      Pure payload inventory planning does not create a destination.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     """
-    target = tmp_path / "existing-repo"
-    target.mkdir()
+    target = tmp_path / "absent-project"
 
-    result = copy_payload(
-        TEMPLATE_ROOT,
-        target,
-        mode="adopt",
-        dry_run=True,
-        require_existing_target=True,
-    )
+    inventory = enumerate_payload(TEMPLATE_ROOT)
 
-    assert result.copied
-    assert target.exists()
-    assert not (target / ".agentic").exists()
-    assert list(target.iterdir()) == []
+    assert inventory.records
+    assert not target.exists()
 
 
-def test_scaffold_writes_install_manifest(tmp_path: Path) -> None:
+def test_payload_inventory_assigns_one_initial_ownership_class_per_path(tmp_path: Path) -> None:
     """
-    @brief      Since T3.2 a real (non-dry-run) copy also writes the WAEGIS
-                install manifest at <target>/.agentic/install-manifest.json.
+    @brief      WAEGIS classifies every payload path before installation.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     """
-    target = tmp_path / "new-project"
+    del tmp_path
+    inventory = enumerate_payload(TEMPLATE_ROOT)
 
-    result = copy_payload(TEMPLATE_ROOT, target, mode="new")
-
-    manifest_file = target / ".agentic" / "install-manifest.json"
-    assert manifest_file.exists()
-    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
-    assert manifest["manifest_version"] == 1
-    assert manifest["product"] == "aegis"
-    assert manifest["mode"] == "new"
-    # Every copied payload file is recorded; the manifest never lists itself.
-    assert len(manifest["files"]) == len(result.copied)
-    assert ".agentic/install-manifest.json" not in manifest["files"]
-    assert ".agentic/install-manifest.json" not in result.copied
+    assert ".agentic/install-manifest.json" not in inventory.by_path
+    assert all(record.disposition in set(Disposition) for record in inventory.records)
+    assert inventory.by_path[".agentic/workflow.toml"].disposition is Disposition.GENERATED
+    assert inventory.by_path["AGENTS.md"].disposition is Disposition.MANAGED
+    assert inventory.by_path[".agentic/cli/pyproject.toml"].disposition is Disposition.MANAGED
 
 
-def test_scaffold_dry_run_writes_no_manifest(tmp_path: Path) -> None:
+def test_payload_fixture_materialization_does_not_forge_install_manifest(tmp_path: Path) -> None:
     """
-    @brief      A dry-run preview writes nothing, including no install
-                manifest.
+    @brief      Adapter fixtures copy payload bytes but leave WAEGIS receipts absent.
     @param[in]  tmp_path Input value used by the workflow helper.
     @return     Result produced by the workflow helper.
     @exception  None
     """
-    target = tmp_path / "existing-repo"
-    target.mkdir()
+    target = tmp_path / "fixture"
+    inventory = enumerate_payload(TEMPLATE_ROOT)
+    copied = materialize_inventory(TEMPLATE_ROOT, target, inventory.records)
 
-    result = copy_payload(
-        TEMPLATE_ROOT,
-        target,
-        mode="adopt",
-        dry_run=True,
-        require_existing_target=True,
-    )
-
-    assert result.copied
+    assert copied
     assert not (target / ".agentic" / "install-manifest.json").exists()
-    assert list(target.iterdir()) == []
 
 
 def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
@@ -466,7 +439,6 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     @exception  None
     """
     template = tmp_path / "template"
-    target = tmp_path / "new-project"
     excluded_files = (
         template / "pkg" / "__pycache__" / "module.pyc",
         template / "pkg" / "optimized.pyo",
@@ -487,12 +459,11 @@ def test_scaffold_skips_generated_artifacts(tmp_path: Path) -> None:
     (template / "src").mkdir()
     (template / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
 
-    result = copy_payload(template, target, mode="new")
+    inventory = enumerate_payload(template)
 
-    assert result.copied == ("src/app.py",)
-    assert (target / "src" / "app.py").exists()
+    assert tuple(record.path for record in inventory.records) == ("src/app.py",)
     for path in excluded_files:
-        assert not (target / path.relative_to(template)).exists()
+        assert path.relative_to(template).as_posix() not in inventory.by_path
 
 
 # END OF FILE

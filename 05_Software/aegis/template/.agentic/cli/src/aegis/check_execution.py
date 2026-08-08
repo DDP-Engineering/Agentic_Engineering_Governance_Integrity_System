@@ -23,8 +23,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from ._form_io import load_evidence_form as _load
 from ._form_io import quote_toml_string as _q
@@ -41,7 +41,7 @@ from .store import (
     next_evidence_id,
     relink_check_evidence,
     run_dir,
-    save_graph,
+    save_graph_with_journal_events,
     serialized_graph_mutation,
 )
 from .waivers import (
@@ -66,6 +66,22 @@ RESULT_KEYS = (
 # PUBLIC API
 
 
+@dataclass(frozen=True)
+class ManagedCheckExecutionOutcome:
+    """
+    @brief Describe one managed check execution request.
+    @param[in] evidence Evidence persisted for launched commands.
+    @param[in] execution_status Distinct execution state.
+    @param[in] executed_count Number of commands launched.
+    @param[in] reason Explanation for a nothing-ran result.
+    """
+
+    evidence: list[Evidence]
+    execution_status: str
+    executed_count: int
+    reason: str = ""
+
+
 @serialized_graph_mutation
 def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     """
@@ -83,7 +99,7 @@ def prepare_check_evidence(repo_root: Path, graph: Graph) -> Path:
     excused = _require_external_evidence_preconditions(graph)
     path = stage_directory(repo_root, graph) / "evidence.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    expected = "fail" if graph.stage == "check" else "pass"
+    expected = _expected_result(graph)
     lines = [
         f"schema_version = {EVIDENCE_SCHEMA_VERSION}",
         f"run_id = {_q(graph.run_id)}",
@@ -153,7 +169,7 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
                 else f"missing key {missing[0]}"
             )
         )
-    expected = "fail" if graph.stage == "check" else "pass"
+    expected = _expected_result(graph)
     identity = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "run_id": graph.run_id,
@@ -238,12 +254,15 @@ def record_check_evidence(repo_root: Path, graph: Graph) -> list[Evidence]:
         )
     graph.evidence.extend(imported)
     _update_check_states(graph, imported)
-    save_graph(repo_root, graph)
-    append_journal(
+    save_graph_with_journal_events(
         repo_root,
-        graph.run_id,
-        "check.evidence.recorded",
-        {"stage": graph.stage, "evidence": [item.id for item in imported]},
+        graph,
+        [
+            (
+                "check.evidence.recorded",
+                {"stage": graph.stage, "evidence": [item.id for item in imported]},
+            )
+        ],
     )
     _retire_form(
         path,
@@ -269,6 +288,33 @@ def run_checks(
     @exception  StageOperationError If policy, stage, or selection is invalid.
     @exception  GraphConflictError If execution preconditions changed while
                 subprocesses were running.
+    @details    Output observations, evidence state, and their journal records
+                publish together; a journal failure restores the prior graph.
+    """
+    outcome = run_checks_with_outcome(repo_root, graph, check_ids, timeout)
+    if outcome.execution_status == "nothing-ran":
+        raise StageOperationError("no checks selected")
+    return outcome.evidence
+
+
+def run_checks_with_outcome(
+    repo_root: Path,
+    graph: Graph,
+    check_ids: list[str] | None = None,
+    timeout: int = DEFAULT_GATE_TIMEOUT_SECONDS,
+) -> ManagedCheckExecutionOutcome:
+    """
+    @brief Execute managed checks and return a distinct execution outcome.
+    @param[in] repo_root Repository root.
+    @param[in,out] graph Active workflow graph.
+    @param[in] check_ids Optional immutable check selection.
+    @param[in] timeout Per-command timeout in seconds.
+    @return Managed outcome, including `nothing-ran` for an empty selection.
+    @exception StageOperationError If policy, stage, or selection is invalid.
+    @exception GraphConflictError If execution preconditions changed while
+               subprocesses were running.
+    @details :func:`run_checks` remains a compatibility wrapper for callers
+             that expect evidence or the historical empty-selection error.
     """
     with graph_transaction(repo_root, graph):
         _require_mode(graph, "managed")
@@ -286,14 +332,30 @@ def run_checks(
             if not check_ids or check.id in check_ids
         ]
         if not selected:
-            raise StageOperationError("no checks selected")
+            reason = "No managed check command was selected for execution."
+            save_graph_with_journal_events(
+                repo_root,
+                graph,
+                [
+                    (
+                        "check.execution.nothing-ran",
+                        {
+                            "stage": graph.stage,
+                            "selected_check_ids": list(check_ids or ()),
+                            "executed_count": 0,
+                            "reason": reason,
+                        },
+                    )
+                ],
+            )
+            return ManagedCheckExecutionOutcome([], "nothing-ran", 0, reason)
         captured_stage = graph.stage
         record = graph.stage_records[captured_stage]
         captured_revision = (record.revision, record.digest)
         captured_mode = record.check_execution
         captured_checks = _check_definition_snapshot(graph.checks)
 
-    expected = "fail" if captured_stage == "check" else "pass"
+    expected = _expected_result(graph)
     completed = []
     for check in selected:
         if not check.command:
@@ -315,6 +377,7 @@ def run_checks(
         log_root = run_dir(repo_root, graph.run_id) / "evidence" / "logs"
         log_root.mkdir(parents=True, exist_ok=True)
         imported: list[Evidence] = []
+        events: list[tuple[str, dict[str, object]]] = []
         for check, result in completed:
             observed = "pass" if result.returncode == 0 else "fail"
             log_path = log_root / f"{check.id}-{captured_stage}.log"
@@ -339,21 +402,31 @@ def run_checks(
                 output_log=log_path.relative_to(repo_root).as_posix(),
             )
             imported.append(evidence)
-            append_journal(
-                repo_root,
-                graph.run_id,
-                "check.output",
-                {
-                    "check_id": check.id,
-                    "returncode": result.returncode,
-                    "stdout_tail": result.stdout[-4000:],
-                    "stderr_tail": result.stderr[-4000:],
-                },
+            events.append(
+                (
+                    "check.output",
+                    {
+                        "check_id": check.id,
+                        "returncode": result.returncode,
+                        "stdout_tail": result.stdout[-4000:],
+                        "stderr_tail": result.stderr[-4000:],
+                    },
+                )
             )
         graph.evidence.extend(imported)
         _update_check_states(graph, imported)
-        save_graph(repo_root, graph)
-        return imported
+        events.append(
+            (
+                "check.evidence.recorded",
+                {"stage": captured_stage, "evidence": [item.id for item in imported]},
+            )
+        )
+        save_graph_with_journal_events(repo_root, graph, events)
+        return ManagedCheckExecutionOutcome(
+            imported,
+            "fail" if any(item.result == "fail" for item in imported) else "pass",
+            len(imported),
+        )
 
 
 # LOCAL HELPERS
@@ -383,6 +456,23 @@ def _check_definition_snapshot(checks: list[Check]) -> tuple[tuple[object, ...],
         )
         for check in checks
     )
+
+
+def _expected_result(graph: Graph) -> str:
+    """
+    @brief Return the next required observation for the active check set.
+    @param[in] graph Active run graph at check or implementation.
+    @return ``fail`` for required red evidence, otherwise ``pass``.
+    """
+    if graph.stage == "check":
+        return "fail"
+    if (
+        graph.profile == "quick"
+        and graph.red_green_policy == "required"
+        and any(not check.red_evidence for check in graph.checks)
+    ):
+        return "fail"
+    return "pass"
 
 
 def _require_external_evidence_preconditions(graph: Graph) -> set[str]:
@@ -523,6 +613,10 @@ def _update_check_states(graph: Graph, evidence: list[Evidence]) -> None:
                 item.result == "pass"
                 and prior.result == "fail"
                 and prior.stage in _GREEN_ATTEMPT_STAGES
+                and not (
+                    graph.profile == "quick"
+                    and graph.red_green_policy == "required"
+                )
             )
             if not (same_result or failed_green_attempt):
                 continue

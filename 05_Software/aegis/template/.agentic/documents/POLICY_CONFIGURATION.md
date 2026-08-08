@@ -2,7 +2,7 @@
 
 # Policy Configuration
 
-AEGIS 2.1 reads workflow policy only from the mandatory schema-3
+AEGIS 3.0 reads workflow policy only from the mandatory schema-3
 `.agentic/workflow.toml`. Validate with `aegis config validate`; inspect with
 `aegis config show --json`.
 

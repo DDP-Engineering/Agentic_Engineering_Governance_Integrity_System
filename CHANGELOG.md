@@ -13,6 +13,105 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Replace the retired WAEGIS 1 distribution implementation with WAEGIS 3.0.0:
+  a stdlib-only, ownership-aware AEGIS 3 wizard; payload-bearing zipapp; and
+  Pythonless Windows/Linux x64 bundles built around that exact zipapp with
+  locked CPython inputs, common release identity, and runtime-pointer support.
+- Add deterministic hard-kill coverage for every install publication boundary,
+  real-payload upgrade interruption coverage, and final Windows/Linux native
+  retirement replays with no host Python available.
+
+### Changed
+
+- Refresh maintained AEGIS documentation for the 3.0 payload, label superseded
+  human explanations as historical, remove obsolete deployment-tool
+  compatibility claims, and record explicit audit dispositions for mixed or
+  historical material.
+- Generate the optional start-guide PDF outside the copied template by default
+  and update its branding to AEGIS 3.0.
+- Remove WAEGIS editions, RepoWise, and Git history automation. Mutating flows
+  now require clean repositories, explicit complete plans and consent, exact
+  pre-write recovery evidence, manifest-last publication, and operator-owned
+  staging and commits.
+- Align root, AEGIS, WAEGIS, copied-template, and deeper operator documentation
+  with the AEGIS 3/WAEGIS 3 ownership, maintenance, upgrade, and external
+  RepoWise boundaries.
+
+### Fixed
+
+- Route incomplete WAEGIS workflow configuration through the designed repair
+  and reconstruction paths, require extracted ZIP payload members to be files,
+  and avoid a redundant version-mismatch finding when metadata is unreadable.
+- Validate installed AEGIS wrappers with the exact interpreter registered by
+  each mutation, and re-ask live invalid conditional lists and quick-run path
+  thresholds without weakening supplied-answer validation.
+- Exclude local Hypothesis, uv, HTML coverage, and coverage-data products from
+  payload inventory so development artifacts cannot enter a deployment.
+- Propagate reparse-point inspection failures consistently across payload reads
+  and repository writes instead of allowing containment checks to continue.
+- Let healthy workflow reconfiguration run without resolving an unused payload,
+  and direct same-version rebuild and kept-local workflow refusals to re-adopt.
+
+### Removed
+
+- Remove dead and redundant WAEGIS implementation branches and refresh the CLI
+  module description without changing command behavior.
+
+## [3.0.0] - 2026-08-08
+
+### Added
+
+- Harden the constrained local-model pilot with a deterministic pre-network
+  context guard: the exact UTF-8 serialized request is a conservative input
+  upper bound, an explicit `max_tokens` allowance is included in each API
+  request, and every planned request is preflighted before model discovery.
+  An over-budget result makes zero GET/POST calls; later requests compare their
+  preflight serialization and revalidate their guard. Pilot evidence also keeps
+  the calculation and separates a current attempt's observed outcome from its
+  immutable retry lineage.
+
+- Expand the constrained local-model pilot into an append-only, Bonsai-only
+  controlled full/quick AEGIS experiment. It preserves model discovery and
+  exact request evidence, labels unverified context/thinking claims honestly,
+  records one empty transcript per stage, and retains failed attempts.
+
+- Add a constrained, stdlib-only local-model bootstrap pilot harness for
+  disposable AEGIS payload copies. It accepts only an explicit loopback `/v1`
+  endpoint, records raw API/command telemetry, prevents model-controlled shell
+  execution, and preserves earlier evidence by refusing result overwrites.
+
+- Add a payload-owned adapter conformance map and structural regressions for
+  direct CLI, Codex, Claude Code, Pi, OpenCode, and Qwen Code. Host wrappers
+  now route the canonical bounded bootstrap into shared skills without local
+  stage procedures or all-reference context injection.
+
+- Add safe `aegis verify impact [paths-file] --run` execution. The optional
+  `[gates.test].impacted_command` is an argv-only focused-test prefix; AEGIS
+  appends deterministic, deduplicated selectors with no shell interpolation,
+  falls back to every full test command for incomplete or unsafe impact, and
+  records focused/full-fallback mode, evidence, output, and journal state
+  atomically. A no-command request remains explicit non-zero `nothing-ran`.
+
+- Add an explicit `nothing-ran` execution outcome for managed checks and
+  explicitly requested gate runs. When no command launches, the command exits
+  non-zero, returns `execution_status`, `executed_count`, and a reason, writes
+  an outcome journal event, and creates no passing evidence. Ordinary
+  `verify run` keeps disabled gates distinct as `not-enforced` rather than
+  falsely reporting an execution failure.
+
+- Add a file-first quick-run check contract. New quick graphs persist a required
+  red/green policy, mint and register run-local check definitions during
+  implementation, reuse external or managed evidence recording for a real red
+  then green result, and reject manual evidence as a substitute. Historical
+  schema-3 quick graphs without the field remain readable with explicit legacy
+  INV-3 not-applicable reporting.
+
+- Add the versioned, read-only `aegis run context --json` bootstrap contract.
+  It provides the current stage's single router/reference and bounded primary
+  forms without serializing graph, journal, evidence, requirement, report, or
+  configuration history; automated tests enforce its 4 KiB response and 30 KiB
+  installable-template bootstrap-pack limits.
+
 - Add a project-agnostic human explanation of the AEGIS adoption installation
   baseline, including every installation-manifest and workflow configuration
   field, the component inventory contract, and the requirements and knowledge
@@ -25,6 +124,44 @@ All notable changes to this project will be documented in this file.
   records, then maintenance, upgrades, transactions, and legacy history.
 
 ### Fixed
+
+- Remove the UTF-8 byte-order mark from the root `.gitattributes` so Git parses
+  the first comment and applies repository attributes without a warning.
+
+- Remove an unused AEGIS requirement-store import so the complete Ruff audit
+  remains clean.
+
+- Make `aegis stage show --json` report an unavailable prepared artifact
+  without crashing from a duplicate `artifact` payload argument.
+
+- Keep the canonical fresh-session route bounded. `run context --json` now
+  supplies the validating entry point; `config validate` is reserved for
+  repaired configuration and `config show` for explicit diagnosis, not routine
+  host bootstrap. Adapter regressions now cover root host notes, host READMEs,
+  the OpenCode primary agent, all wrappers, and mapped entry files.
+
+- Correct the shared development router so new quick runs require registered
+  run-local checks and red-before-green evidence, matching the existing CLI,
+  form, and verification contracts.
+
+- Make focused impact testing fall back to the complete test gate whenever any
+  requirement matched by a changed path lacks linked tests, preventing a
+  linked peer requirement from masking incomplete coverage.
+
+- Keep aggregate `verify run` gate journaling truthful when every gate policy
+  is disabled. It now reports and journals those groups only as
+  `not-enforced`; the explicit `gate.execution.nothing-ran` event remains
+  exclusive to `verify gates` requests that launch zero commands.
+
+- Publish external and managed quick-check evidence with its journal events as
+  one rollback-capable transaction. A journal-write failure now restores the
+  preceding graph and leaves no active evidence persisted.
+
+- Correct WP2 fresh-session context recovery: `adoption-delivery` now routes to
+  the adoption skill and reference, and a missing current form is explicitly
+  unavailable with a safe recovery command rather than being advertised as a
+  readable artifact. Public lifecycle budget coverage now measures indented CLI
+  output after full, quick, and adoption handoffs with 1,000 evidence rows.
 
 - Reconcile check evidence state instead of silently discarding it, closing
   two defects found on a real downstream run. Reapplying the check stage now
@@ -46,6 +183,18 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Make stage completion guidance declarative for all standard and adoption
+  lifecycle stages. AEGIS now renders the canonical machine and human
+  completion checklist as TOML comments in each primary stage form (once in a
+  collection stage's `stage.toml`), while standard, adoption, and delivery
+  references are tested projections of the same contract. Stage digests now
+  hash canonical parsed TOML payloads, so comment-only guidance edits do not
+  stale form state or waivers.
+- Change the shipped and WAEGIS-proposed stage-form retention default from
+  `discard` to `latest`, keeping each stage's final form available for a fresh
+  agent session without retaining superseded revisions. Correct the WAEGIS
+  adoption proposal, setup and metadata documentation, and stage guidance so
+  copied instructions describe only implemented lifecycle and form behavior.
 - Let `check_execution.prepare_check_evidence` / `record_check_evidence` accept
   a partial external evidence document. A check whose stage evidence blocker is
   already covered by an active, exactly matching waiver is excused: it gets no

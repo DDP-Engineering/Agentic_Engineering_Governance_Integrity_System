@@ -28,6 +28,22 @@
 @details Quick runs render collapsed requirement, check, and design invariants
          as an explicit not-applicable state rather than a successful result,
          without loading storage owned by those absent stages.
+@details INV-1 (2.1.0) scopes coverage to the requirements the current run
+         owns. Checks live only in the run graph, so comparing them against the
+         durable repository-wide register made the rule unsatisfiable from the
+         second full run onward. Repository-wide coverage is reported by
+         `audit_traceability` as `REQ-LINK-MISSING`.
+@details INV-7 (2.1.0, lifecycle field test) excludes AEGIS's own generated run
+         artifacts from its scan surface, names the files it matched, and
+         reports the waivable `blocking` policy it actually enforces instead of
+         a `non-waivable` label that `waive list` and `waive add` both ignored.
+         It also excludes the `[guardrails.secrets]` table of
+         `.agentic/workflow.toml`, which is the pattern list itself and so
+         matched its own declaration.
+@details An unloadable requirement register (2.1.0) is reported by the four
+         requirement-reading invariants as a waivable blocking failure instead
+         of raising, so one malformed file cannot take `waive list` - the
+         escape hatch for that very blocker - down with it.
 """
 
 # IMPORTS
@@ -46,7 +62,7 @@ from .config import WorkflowConfig
 from .gates import gate_failure_blockers
 from .models import STAGES, Graph, Waiver
 from .paths import contained_relative_path, matches_pattern
-from .requirement_store import RequirementRecord
+from .requirement_store import RequirementRecord, RequirementValidationError
 from .requirements import load_requirement_index
 from .stage_schema import run_stage_spec
 from .waivers import (
@@ -57,7 +73,18 @@ from .waivers import (
     state_digests,
     waiver_metadata,
 )
-from .working_tree import MAX_SECRET_SCAN_BYTES
+from .working_tree import (
+    GENERATED_RUN_ARTIFACT_ROOT,
+    MAX_SECRET_SCAN_BYTES,
+    without_secret_policy,
+)
+
+# CONSTANTS
+
+# Everything except AEGIS's own generated run output. Applied as a Git pathspec
+# rather than filtered in Python so exclusion never depends on parsing a diff
+# header - a path Git reports is a path Git can also exclude.
+_SCAN_PATHSPEC = ("--", ".", f":(exclude){GENERATED_RUN_ARTIFACT_ROOT}")
 
 # DATA MODELS / TYPEDEFINITIONS
 
@@ -149,47 +176,77 @@ def evaluate(
                 any eligible failure's inherited waiver already attached.
     @exception  StageOperationError If the graph's kind/profile/stage do not
                 match a declared run-stage schema.
-    @exception  RequirementValidationError If a requirement snapshot is
-                malformed or a requirement ID is duplicated (full runs only).
     """
     quick = bool(run_stage_spec(graph).bypassed_stages)
     # Full runs load the requirement index once for the four consumers. Quick
     # runs do not own requirement collection, so malformed or absent
     # requirement storage cannot turn their honest N/A results into a crash.
-    requirements = (
-        {}
-        if quick
-        else load_requirement_index(repo_root, config).by_id
-    )
+    requirements: dict[str, RequirementRecord] = {}
+    index_error: str | None = None
+    if not quick:
+        try:
+            requirements = load_requirement_index(repo_root, config).by_id
+        except RequirementValidationError as exc:
+            # One malformed requirement file must not abort the whole pass:
+            # `waive list` and `verify run` both evaluate invariants, so
+            # raising here takes the blocker's own escape hatch down with it.
+            # The four requirement-reading invariants report the parse error
+            # instead, each as an ordinary waivable blocking failure.
+            index_error = str(exc)
+    owned = _run_owned_requirement_ids(graph)
     results = [
         (
             _quick_not_applicable("INV-1", "Coverage")
             if quick
-            else _coverage(requirements, graph)
+            else _requirement_index_unreadable("INV-1", "Coverage", index_error)
+            if index_error
+            else _coverage(requirements, owned, graph)
         ),
         (
             _quick_not_applicable("INV-2", "Citation")
             if quick
+            else _requirement_index_unreadable("INV-2", "Citation", index_error)
+            if index_error
             else _citation(requirements, graph)
         ),
         (
-            _quick_not_applicable("INV-3", "Red-before-green")
-            if quick
+            _quick_not_applicable(
+                "INV-3",
+                "Red-before-green",
+                "legacy quick run",
+            )
+            if quick and graph.red_green_policy == "legacy-not-applicable"
             else _red_before_green(graph)
         ),
         _no_regression(graph, config),
         _in_scope(repo_root, graph, config),
-        _evidence(graph),
+        (
+            # An adoption run has no evidence-producing stage, so INV-6 can
+            # never hold for one. Reporting it not-applicable is the honest
+            # answer; reporting a failure would demand a standing waiver for a
+            # condition the workflow itself creates.
+            _quick_not_applicable("INV-6", "Evidence", "adoption run")
+            if graph.intent.kind == "adoption"
+            else _evidence(graph)
+        ),
         _clean_secrets(repo_root, config),
         (
             _quick_not_applicable("INV-8", "Green requirements active")
             if quick
+            else _requirement_index_unreadable(
+                "INV-8", "Green requirements active", index_error
+            )
+            if index_error
             else _green_requirements_active(requirements, graph)
         ),
         _component_baseline_scope(repo_root, graph, config),
         (
             _quick_not_applicable("INV-10", "Solution design")
             if quick
+            else _requirement_index_unreadable(
+                "INV-10", "Solution design", index_error
+            )
+            if index_error
             else _solution_design(repo_root, graph, requirements)
         ),
     ]
@@ -197,6 +254,13 @@ def evaluate(
         if result.holds is not False or not result.can_waive:
             continue
         if not result.state_digests:
+            # Digest the message alongside the identity. The message is
+            # derived from the offender list, so it changes only when that set
+            # does - and when it does, the human's approval no longer covers
+            # what is now failing. Digesting the identity alone would silently
+            # extend an approval of offenders A and B to a later C nobody
+            # reviewed. Invariants whose waiver must track richer state pin
+            # their own `state_digests` above and never reach this fallback.
             result.state_digests = state_digests(
                 f"invariant:{result.id}",
                 {"id": result.id, "message": result.message},
@@ -232,21 +296,82 @@ def blocking_failures(results: list[InvariantResult]) -> list[InvariantResult]:
 # HELPER FUNCTIONS
 
 
-def _quick_not_applicable(invariant_id: str, name: str) -> InvariantResult:
+def _quick_not_applicable(
+    invariant_id: str,
+    name: str,
+    reason: str = "quick run",
+) -> InvariantResult:
     """
-    @brief Render one collapsed quick-run invariant as its own honest state.
+    @brief Render one collapsed invariant as its own honest state.
     @param[in] invariant_id Stable invariant identifier.
     @param[in] name Human-readable invariant name.
+    @param[in] reason Why the rule cannot apply to this run shape.
     @return Non-blocking not-applicable result that is neither pass nor fail.
+    @details Named for its first caller, the quick-run collapse, but the shape
+             is the same wherever a run profile structurally cannot satisfy a
+             rule: `holds` is ``None``, so the result is neither a pass to be
+             trusted nor a failure to be waived.
     """
     return InvariantResult(
         invariant_id,
         name,
         None,
         "not-applicable",
-        "Not applicable - quick run.",
+        f"Not applicable - {reason}.",
         status="not-applicable",
     )
+
+
+def _requirement_index_unreadable(
+    invariant_id: str,
+    name: str,
+    error: str,
+) -> InvariantResult:
+    """
+    @brief Report an unloadable requirement register as a waivable failure.
+    @param[in] invariant_id Stable invariant identifier.
+    @param[in] name Human-readable invariant name.
+    @param[in] error Validation error text, which names the file and key.
+    @return Blocking, waivable failure instead of an aborted evaluation pass.
+    """
+    return InvariantResult(
+        invariant_id,
+        name,
+        False,
+        "blocking",
+        "Requirement register cannot be read, so this rule cannot be "
+        f"evaluated: {error}",
+    )
+
+
+def _run_owned_requirement_ids(graph: Graph) -> set[str] | None:
+    """
+    @brief Determine which requirement IDs the current run itself owns.
+    @param[in] graph Active workflow graph.
+    @return The owned IDs; an empty set when the run has not yet imported a
+            requirement stage record; ``None`` when an authoritative record
+            exists but names no reconstructable requirement.
+    @details Ownership is deliberately never widened to the repository-wide
+             register. The register accumulates across every prior run, and
+             there is no durable check register to match it against, so a
+             repository-wide reading of INV-1 is unsatisfiable from the second
+             full run onward. Repository-wide coverage is reported by
+             `audit_traceability` as `REQ-LINK-MISSING` instead.
+    """
+    record = graph.stage_records.get("requirement")
+    snapshots = record.payload.get("requirements") if record else None
+    owned = {
+        item["id"]
+        for item in (snapshots if isinstance(snapshots, list) else [])
+        if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"]
+    }
+    if graph.design:
+        owned |= set(graph.design.requirement_digests)
+    if owned:
+        return owned
+    if record is not None and record.status in {"applied", "closed"}:
+        return None
+    return set()
 
 
 def _digest_differs(path: Path, expected: str) -> bool:
@@ -331,31 +456,65 @@ def _solution_design_state_digests(
 
 def _coverage(
     requirements: dict[str, RequirementRecord],
+    owned: set[str] | None,
     graph: Graph,
 ) -> InvariantResult:
     """
-    @brief      INV-1: every non-Retired requirement must be cited by a check.
+    @brief      INV-1: every non-Retired requirement this run owns must be
+                cited by a check.
     @param[in]  requirements Pre-loaded requirement records by identity.
+    @param[in]  owned Requirement IDs this run owns, or ``None`` when the run's
+                own ownership record is present but unreadable.
     @param[in]  graph Active workflow graph whose checks are inspected.
-    @return     Pass when no non-Retired requirement is uncited.
+    @return     Pass when no owned non-Retired requirement is uncited.
+    @details    Checks are run-local state with no durable register behind
+                them, so the comparison set must be run-local too. A run that
+                has not imported its requirement stage yet owns nothing and
+                passes vacuously, exactly as a first run always did against an
+                empty register. An authoritative record that names nothing is
+                reported as that specific defect rather than silently widened
+                back to the repository-wide register.
     @exception  None
     """
+    if owned is None:
+        return InvariantResult(
+            "INV-1",
+            "Coverage",
+            False,
+            "blocking",
+            "The imported requirement stage record names no requirement. "
+            "Re-run `aegis stage prepare` and `aegis stage apply` at the "
+            "requirement stage to restore it.",
+        )
+    if not owned:
+        return InvariantResult(
+            "INV-1",
+            "Coverage",
+            True,
+            "blocking",
+            "This run owns no requirements yet.",
+        )
     covered_ids = {
         requirement_id
         for check in graph.checks
         for requirement_id in check.cites_requirement
     }
-    missing = [
+    # Sorted: the message is part of this result's waiver digest, so an
+    # offender list ordered by the register walk would stale an accepted
+    # waiver on ordering alone, without the offender set having changed.
+    missing = sorted(
         item.id
         for item in requirements.values()
-        if item.status != "Retired" and item.id not in covered_ids
-    ]
+        if item.id in owned
+        and item.status != "Retired"
+        and item.id not in covered_ids
+    )
     return InvariantResult(
         "INV-1",
         "Coverage",
         not missing,
         "blocking",
-        "All non-retired requirements have checks."
+        "All non-retired requirements owned by this run have checks."
         if not missing
         else f"Missing checks for: {', '.join(missing)}",
     )
@@ -373,7 +532,8 @@ def _citation(
     @exception  None
     """
     requirement_ids = set(requirements)
-    bad = [
+    # Sorted for waiver-digest stability; see the note in `_coverage`.
+    bad = sorted(
         check.id
         for check in graph.checks
         if not check.cites_requirement
@@ -381,7 +541,7 @@ def _citation(
             requirement_id not in requirement_ids
             for requirement_id in check.cites_requirement
         )
-    ]
+    )
     return InvariantResult(
         "INV-2",
         "Citation",
@@ -401,11 +561,14 @@ def _red_before_green(graph: Graph) -> InvariantResult:
                 any matching per-check waivers already attached.
     @exception  None
     """
-    missing = [
+    # Sorted for waiver-digest stability; see the note in `_coverage`. Both the
+    # message and `state_digests` below are derived from this list, so graph
+    # ordering alone would otherwise stale an INV-3 waiver.
+    missing = sorted(
         check.id
         for check in graph.checks
         if check.state == "green" and not check.red_evidence
-    ]
+    )
     blockers = [
         red_before_green_blocker(graph, check_id)
         for check_id in missing
@@ -455,6 +618,12 @@ def _no_regression(
         for item in graph.evidence
         if item.kind in {"gate", "test-run"} and item.stage in {"implementation", "validation", "delivery"} and item.result == "fail"
         and item.status != "superseded"
+        and not (
+            graph.profile == "quick"
+            and graph.red_green_policy == "required"
+            and item.kind == "test-run"
+            and item.stage == "implementation"
+        )
     ]
     gate_blockers = {
         blocker.id: blocker
@@ -631,15 +800,14 @@ def _component_baseline_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig
     touched = [path for unit in graph.change_units for path in unit.touched_paths]
     if not touched:
         return InvariantResult("INV-9", "Component baseline scope", True, "blocking", "No change units recorded yet.")
-    issues = audit_local_scope(
-        repo_root, touched, cfg, cfg.adoption_default_completion_level
-    )
+    issues = audit_local_scope(repo_root, touched, cfg)
     if not issues:
         return InvariantResult("INV-9", "Component baseline scope", True, "blocking", "Mapped component paths meet baseline scope.")
-    messages = [
+    # Sorted for waiver-digest stability; see the note in `_coverage`.
+    messages = sorted(
         f"{issue.code} {issue.name or 'component'} {issue.path or ''}".strip()
         for issue in issues
-    ]
+    )
     return InvariantResult("INV-9", "Component baseline scope", False, "blocking", "; ".join(messages))
 
 
@@ -687,13 +855,14 @@ def _in_scope(repo_root: Path, graph: Graph, cfg: WorkflowConfig) -> InvariantRe
         return InvariantResult(
             "INV-5", "In scope", True, severity, "Touched paths are in configured scope."
         )
+    # Sorted for waiver-digest stability; see the note in `_coverage`.
     parts = []
     if out_of_scope:
-        parts.append(f"Out-of-scope paths: {', '.join(out_of_scope)}")
+        parts.append(f"Out-of-scope paths: {', '.join(sorted(out_of_scope))}")
     if escaping:
         parts.append(
             "Paths outside the repository (re-record them relative to the repository root): "
-            f"{', '.join(escaping)}"
+            f"{', '.join(sorted(escaping))}"
         )
     return InvariantResult("INV-5", "In scope", False, severity, "; ".join(parts))
 
@@ -734,6 +903,29 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
                 never-committed file would slip through both. The cached diff
                 covers exactly that gap and is a harmless superset of `git diff
                 HEAD` once a `HEAD` exists.
+    @details    The scan surface excludes AEGIS's own generated run artifacts
+                (2.1.0, lifecycle field test). `verify run` writes
+                `validation-summary.json`, `report.md`, and `graph.json` into
+                `.agentic/runs/<run-id>/`, and all three embed this invariant's
+                own name and its own passing message, so a configured pattern
+                as ordinary as `(?i)secret` matched the invariant's own output
+                and no repository could satisfy INV-7 at all. It also made the
+                escape hatch self-defeating: `waive add INV-7` writes the
+                waiver into `graph.json`, which moved the very blocker state
+                the new waiver had just pinned.
+    @details    The scan surface also excludes the `[guardrails.secrets]` table
+                of `.agentic/workflow.toml` (2.1.0, batch 2). That table is the
+                pattern list, so `(?i)secret` matched its own table header and
+                each configured pattern matched its own declaration: any run
+                that edited the configuration failed INV-7 on the file that
+                declares the rule, and a freshly deployed repository failed it
+                before the first commit, when the whole untracked file is read.
+                Only that table is dropped; a credential pasted into a gate
+                command elsewhere in the same file is still found.
+    @details    A failure names the files it matched, not only the patterns
+                (2.1.0, lifecycle field test); the matched text itself is never
+                echoed. Paths come from the diff's own file headers, so a match
+                AEGIS cannot attribute to a file simply contributes no path.
     @exception  None
     """
     if cfg.secrets.mode == "disabled":
@@ -741,7 +933,7 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
             "INV-7",
             "Clean secrets",
             True,
-            "non-waivable",
+            "blocking",
             "Secret scanning is disabled by workflow.toml.",
             waiver_eligible=True,
         )
@@ -751,40 +943,50 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
             "INV-7",
             "Clean secrets",
             True,
-            "non-waivable",
+            "blocking",
             "No secret patterns configured.",
             waiver_eligible=True,
         )
     try:
-        text = (
-            _tracked_changes_text(repo_root)
-            + "\n"
-            + _staged_changes_text(repo_root)
-            + "\n"
-            + _untracked_files_text(repo_root)
-        )
+        sections = [
+            (path, without_secret_policy(path, text))
+            for path, text in (
+                _diff_sections(_tracked_changes_text(repo_root))
+                + _diff_sections(_staged_changes_text(repo_root))
+                + _untracked_file_sections(repo_root)
+            )
+        ]
     except (OSError, subprocess.TimeoutExpired):
         return InvariantResult(
             "INV-7",
             "Clean secrets",
             False,
-            "non-waivable",
+            "blocking",
             "Could not inspect git diff for secrets.",
             waiver_eligible=True,
         )
     matches = []
     matched_sites: dict[str, list[str]] = {}
+    matched_paths: set[str] = set()
     for pattern in patterns:
-        found = sorted(item.group(0) for item in re.finditer(pattern, text))
+        found: list[str] = []
+        for path, text in sections:
+            hits = [item.group(0) for item in re.finditer(pattern, text)]
+            if hits and path:
+                matched_paths.add(path)
+            found.extend(hits)
         if found:
             matches.append(pattern)
-            matched_sites[pattern] = found
+            # Sorted and pattern-keyed, deliberately without the path: this
+            # feeds the waiver state digest below, and an accepted waiver
+            # should survive the same secret text merely moving between files.
+            matched_sites[pattern] = sorted(found)
     result = InvariantResult(
         "INV-7",
         "Clean secrets",
         not matches,
-        "non-waivable",
-        "No configured secret pattern found in diff or untracked files." if not matches else f"Secret pattern matched: {', '.join(matches)}",
+        "blocking",
+        "No configured secret pattern found in diff or untracked files." if not matches else _secret_match_message(matches, matched_paths),
         waiver_eligible=True,
     )
     if matches:
@@ -799,16 +1001,68 @@ def _clean_secrets(repo_root: Path, cfg: WorkflowConfig) -> InvariantResult:
     return result
 
 
+def _secret_match_message(matches: list[str], matched_paths: set[str]) -> str:
+    """
+    @brief      Render the INV-7 failure the operator is stopped with.
+    @param[in]  matches Configured patterns that matched, in configured order.
+    @param[in]  matched_paths Repository paths the matches were attributed to.
+    @return     Message naming the patterns and, when known, the files.
+    @details    Names files rather than the matched text: the operator needs to
+                know where to look, and repeating a real credential into the
+                machine summary, `report.md`, and the terminal would spread it
+                further than the change that introduced it.
+    @exception  None
+    """
+    message = f"Secret pattern matched: {', '.join(matches)}"
+    if matched_paths:
+        message += f" in {', '.join(sorted(matched_paths))}"
+    return message
+
+
+def _diff_sections(diff_text: str) -> list[tuple[str, str]]:
+    """
+    @brief      Split unified diff text into one section per changed file.
+    @param[in]  diff_text Complete `git diff` output.
+    @return     `(path, section text)` pairs; the path is empty for any section
+                whose file header could not be read.
+    @details    The path is taken from the section's `+++ b/` header, falling
+                back to `--- a/` for a deletion, whose `+++` line is
+                `/dev/null`. This attribution only feeds the failure message -
+                the run artifacts INV-7 must not scan are already excluded by
+                pathspec at the Git call, so a header this cannot parse costs a
+                path hint, never a wrong verdict.
+    @exception  None
+    """
+    sections: list[tuple[str, str]] = []
+    path = ""
+    lines: list[str] = []
+    for line in diff_text.splitlines(keepends=True):
+        if line.startswith("diff --git "):
+            if lines:
+                sections.append((path, "".join(lines)))
+            path = ""
+            lines = [line]
+            continue
+        # `+++ b/` names the destination and always wins; `--- a/` is the
+        # fallback for a deletion, whose `+++` line is `/dev/null`.
+        if line.startswith("+++ b/") or (line.startswith("--- a/") and not path):
+            path = line[6:].strip()
+        lines.append(line)
+    if lines:
+        sections.append((path, "".join(lines)))
+    return sections
+
+
 def _tracked_changes_text(repo_root: Path) -> str:
     """
     @brief      Return staged and unstaged changes against HEAD as diff text.
     @param[in]  repo_root Repository the diff is read for.
-    @return     Combined `git diff HEAD` text.
+    @return     Combined `git diff HEAD` text, excluding generated run output.
     @exception  OSError Raised when Git cannot be invoked.
     @exception  subprocess.TimeoutExpired Raised when Git does not finish in time.
     """
     return subprocess.run(
-        ["git", "diff", "--no-ext-diff", "HEAD"],
+        ["git", "diff", "--no-ext-diff", "HEAD", *_SCAN_PATHSPEC],
         cwd=repo_root,
         text=True,
         encoding="utf-8",
@@ -823,7 +1077,7 @@ def _staged_changes_text(repo_root: Path) -> str:
     """
     @brief      Return staged changes against the index as diff text.
     @param[in]  repo_root Repository the staged diff is read for.
-    @return     `git diff --cached` text.
+    @return     `git diff --cached` text, excluding generated run output.
     @details    Unlike `git diff HEAD`, this works in a repository with no
                 commits yet: with no `HEAD` to diff against, staged files show
                 as additions against the empty tree. Once a `HEAD` exists this
@@ -833,7 +1087,7 @@ def _staged_changes_text(repo_root: Path) -> str:
     @exception  subprocess.TimeoutExpired Raised when Git does not finish in time.
     """
     return subprocess.run(
-        ["git", "diff", "--no-ext-diff", "--cached"],
+        ["git", "diff", "--no-ext-diff", "--cached", *_SCAN_PATHSPEC],
         cwd=repo_root,
         text=True,
         encoding="utf-8",
@@ -844,11 +1098,12 @@ def _staged_changes_text(repo_root: Path) -> str:
     ).stdout
 
 
-def _untracked_files_text(repo_root: Path) -> str:
+def _untracked_file_sections(repo_root: Path) -> list[tuple[str, str]]:
     """
-    @brief      Return the concatenated content of untracked, non-ignored files.
+    @brief      Return the content of untracked, non-ignored files by path.
     @param[in]  repo_root Repository the untracked-file listing is read for.
-    @return     Concatenated file content, best-effort.
+    @return     `(path, file content)` pairs, best-effort, excluding generated
+                run output.
     @details    A brand-new file has no HEAD to diff against, so its content
                 would never appear in `git diff HEAD`; this reads it directly.
                 Files larger than `MAX_SECRET_SCAN_BYTES` are skipped rather
@@ -857,7 +1112,7 @@ def _untracked_files_text(repo_root: Path) -> str:
     @exception  subprocess.TimeoutExpired Raised when Git does not finish in time.
     """
     listing = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        ["git", "ls-files", "--others", "--exclude-standard", *_SCAN_PATHSPEC],
         cwd=repo_root,
         text=True,
         encoding="utf-8",
@@ -866,15 +1121,17 @@ def _untracked_files_text(repo_root: Path) -> str:
         timeout=30,
         check=False,
     ).stdout
-    chunks = []
+    sections: list[tuple[str, str]] = []
     for line in listing.splitlines():
         path = repo_root / line
         try:
             if path.is_file() and path.stat().st_size <= MAX_SECRET_SCAN_BYTES:
-                chunks.append(path.read_text(encoding="utf-8", errors="ignore"))
+                sections.append(
+                    (line, path.read_text(encoding="utf-8", errors="ignore"))
+                )
         except OSError:
             continue
-    return "\n".join(chunks)
+    return sections
 
 
 def _root_patterns(roots: list[str]) -> list[str]:

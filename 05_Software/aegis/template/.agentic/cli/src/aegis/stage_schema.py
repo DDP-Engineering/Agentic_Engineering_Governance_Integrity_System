@@ -23,6 +23,7 @@ import uuid
 
 from .models import (
     ADOPTION_STAGES,
+    ALL_STAGES,
     QUICK_STAGES,
     STAGES,
     Graph,
@@ -39,13 +40,33 @@ class StageFieldSpec:
     """
     @brief Describe one declarative single-stage form field.
     @details The default may be an immutable value or a graph-aware callable.
-             Help text is schema metadata and is not rendered.
+             Help text is rendered as a TOML comment above the field, together
+             with `accepted` when the field takes a closed token set: a bare
+             `diff_review = "pending"` gave the agent no way to learn that only
+             `pass` and `not-applicable` clear the blocker, which cost a failed
+             close and a guess per field.
     """
 
     name: str
     kind: Literal["string", "array", "bool"]
     default: Any
     help: str
+    accepted: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class StageChecklistItem:
+    """
+    @brief Describe one deterministic stage-completion checklist item.
+    @details A machine item names the command that verifies or records it. A
+             human item is an explicit approval or judgement boundary and has
+             no command. The text is projected into both generated forms and
+             the matching stage reference.
+    """
+
+    text: str
+    command: str = ""
+    human: bool = False
 
 
 @dataclass(frozen=True)
@@ -80,6 +101,27 @@ RUN_STAGE_SCHEMAS: dict[tuple[RunKind, RunProfile], RunStageSpec] = {
     ("adoption", "full"): _ADOPTION_RUN_SPEC,
     ("fix", "quick"): _QUICK_RUN_SPEC,
     ("change", "quick"): _QUICK_RUN_SPEC,
+}
+
+# The context command resolves the one stage reference a fresh session needs
+# from this mapping. Delivery guidance lives in its router rather than a second
+# reference file, so it deliberately appears as both the skill and reference.
+STAGE_REFERENCE_PATHS: dict[Stage, str] = {
+    "intake": ".agentic/skills/agentic-development/reference/intake.md",
+    "alignment": ".agentic/skills/agentic-development/reference/alignment.md",
+    "requirement": ".agentic/skills/agentic-development/reference/requirement.md",
+    "design": ".agentic/skills/agentic-development/reference/design.md",
+    "check": ".agentic/skills/agentic-development/reference/check.md",
+    "implementation": ".agentic/skills/agentic-development/reference/implementation.md",
+    "validation": ".agentic/skills/agentic-development/reference/validation.md",
+    "delivery": ".agentic/skills/agentic-delivery/SKILL.md",
+    "adoption-intake": ".agentic/skills/agentic-adoption/reference/adoption-intake.md",
+    "adoption-alignment": ".agentic/skills/agentic-adoption/reference/adoption-alignment.md",
+    "repo-discovery": ".agentic/skills/agentic-adoption/reference/repo-discovery.md",
+    "component-map": ".agentic/skills/agentic-adoption/reference/component-map.md",
+    "component-adoption": ".agentic/skills/agentic-adoption/reference/component-adoption.md",
+    "baseline-review": ".agentic/skills/agentic-adoption/reference/baseline-review.md",
+    "adoption-delivery": ".agentic/skills/agentic-adoption/reference/adoption-delivery.md",
 }
 
 
@@ -148,6 +190,12 @@ def run_stage_spec(graph: Graph) -> RunStageSpec:
 # DECLARATIVE STAGE SCHEMA
 
 REQUIRED_STAGE_VALUE = object()
+# Accepted token sets, declared once so the form help an agent reads and the
+# validation `stage apply` performs cannot drift apart.
+ALIGNMENT_RISKS = ("low", "medium", "high")
+ALIGNMENT_DECISIONS = ("proceed", "pause")
+REVIEW_DECISIONS = ("pending", "pass", "not-applicable")
+PENDING_OR_APPROVED = ("pending", "approved")
 _ALIGNMENT_FIELDS = (
     StageFieldSpec("understanding", "string", "", "Problem understanding."),
     StageFieldSpec("in_scope", "array", (), "Included scope."),
@@ -157,13 +205,28 @@ _ALIGNMENT_FIELDS = (
     StageFieldSpec("questions", "array", (), "Open questions."),
     StageFieldSpec("recommended_answers", "array", (), "Recommended answers."),
     StageFieldSpec("planned_paths", "array", (), "Planned paths."),
-    StageFieldSpec("risk", "string", "low", "Risk level."),
-    StageFieldSpec("decision", "string", "proceed", "Decision."),
+    StageFieldSpec("risk", "string", "low", "Risk level.", ALIGNMENT_RISKS),
+    StageFieldSpec(
+        "decision", "string", "proceed", "Decision.", ALIGNMENT_DECISIONS
+    ),
 )
 _DELIVERY_FIELDS = (
-    StageFieldSpec("preflight", "string", "", "Preflight reference."),
+    # Renamed from `preflight` (D5, 2026-08-04): the word was overloaded three
+    # ways across the payload - this form field, the `delivery_preflight.py`
+    # hook, and the working-tree audit's own "delivery preflight" concept -
+    # with no `aegis delivery preflight` command tying them together. The
+    # field itself is just a free-text reference the operator records, so
+    # `preflight_reference` names what it actually holds without colliding
+    # with the other two meanings.
+    StageFieldSpec("preflight_reference", "string", "", "Preflight reference."),
     StageFieldSpec("report", "string", "", "Report reference."),
-    StageFieldSpec("decision", "string", "pending", "Handoff decision."),
+    StageFieldSpec(
+        "decision",
+        "string",
+        "pending",
+        "Handoff decision; the run cannot close until it is approved.",
+        PENDING_OR_APPROVED,
+    ),
 )
 STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
     "intake": (
@@ -197,10 +260,27 @@ STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
         StageFieldSpec("linked_check_evidence", "array", (), "Check evidence."),
     ),
     "validation": (
-        StageFieldSpec("deterministic_verification", "array", (), "Verification."),
-        StageFieldSpec("diff_review", "string", "pending", "Diff review."),
-        StageFieldSpec("documentation_review", "string", "pending", "Docs review."),
-        StageFieldSpec("style_review", "string", "pending", "Style review."),
+        StageFieldSpec(
+            "deterministic_verification",
+            "array",
+            (),
+            "References to the verification runs that back this stage, such as"
+            " an evidence ID or a validation-summary path; at least one is"
+            " required to close.",
+        ),
+        StageFieldSpec(
+            "diff_review", "string", "pending", "Diff review.", REVIEW_DECISIONS
+        ),
+        StageFieldSpec(
+            "documentation_review",
+            "string",
+            "pending",
+            "Docs review.",
+            REVIEW_DECISIONS,
+        ),
+        StageFieldSpec(
+            "style_review", "string", "pending", "Style review.", REVIEW_DECISIONS
+        ),
         StageFieldSpec("manual_evidence", "array", (), "Manual evidence."),
         StageFieldSpec("approved_supersessions", "array", (), "Supersessions."),
     ),
@@ -237,7 +317,13 @@ STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
         ),
         StageFieldSpec("components", "array", (), "Mapped components."),
         StageFieldSpec("approved_slice", "array", (), "Approved slice."),
-        StageFieldSpec("approval_decision", "string", "pending", "Decision."),
+        StageFieldSpec(
+            "approval_decision",
+            "string",
+            "pending",
+            "Decision.",
+            PENDING_OR_APPROVED,
+        ),
     ),
     "component-adoption": (
         StageFieldSpec("adopted_components", "array", (), "Adopted components."),
@@ -252,9 +338,165 @@ STAGE_FIELD_SPECS: dict[Stage, tuple[StageFieldSpec, ...]] = {
         StageFieldSpec("blocking_gaps", "array", (), "Blocking gaps."),
         StageFieldSpec("follow_up_gaps", "array", (), "Follow-up gaps."),
         StageFieldSpec("accepted_legacy_risks", "array", (), "Accepted risks."),
-        StageFieldSpec("decision", "string", "pending", "Decision."),
+        StageFieldSpec(
+            "decision", "string", "pending", "Decision.", PENDING_OR_APPROVED
+        ),
     ),
     "adoption-delivery": _DELIVERY_FIELDS,
 }
+
+
+# DECLARATIVE COMPLETION CHECKLISTS
+
+STAGE_DONE_WHEN: dict[Stage, tuple[StageChecklistItem, ...]] = {
+    "intake": (
+        StageChecklistItem(
+            "The form records an observable intent, expected paths, and access mode.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported intake form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "alignment": (
+        StageChecklistItem(
+            "The form records scope, acceptance criteria, risks, and a decision.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported alignment form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "requirement": (
+        StageChecklistItem(
+            "Every accepted behaviour has one independently observable requirement.",
+            "stage apply",
+        ),
+        StageChecklistItem("The requirement collection imports atomically.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "design": (
+        StageChecklistItem(
+            "The design cites its requirements, alternatives, and selected option.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported design form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "check": (
+        StageChecklistItem(
+            "Every check names its contract, command, and test path.", "stage apply"
+        ),
+        StageChecklistItem("Active red evidence is recorded for every check.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "implementation": (
+        StageChecklistItem(
+            "Changed paths and active green check evidence are recorded.", "stage apply"
+        ),
+        StageChecklistItem("Every green check has prior red evidence.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "validation": (
+        StageChecklistItem(
+            "Deterministic verification and all required reviews are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("All validation blockers are resolved or waived.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "delivery": (
+        StageChecklistItem(
+            "The preflight and delivery report references are recorded.", "stage apply"
+        ),
+        StageChecklistItem("The handoff decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "adoption-intake": (
+        StageChecklistItem(
+            "The form records the adoption slice, bundle rationale, and access mode.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported adoption-intake form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "adoption-alignment": (
+        StageChecklistItem(
+            "The form records adoption scope, acceptance criteria, risks, and a decision.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported adoption-alignment form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "repo-discovery": (
+        StageChecklistItem(
+            "Repository roots, gates, components, dependencies, and evidence are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("The imported discovery form has a digest.", "stage apply"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "component-map": (
+        StageChecklistItem(
+            "The component manifest, mapped components, and approved slice are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("The component-map decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "component-adoption": (
+        StageChecklistItem(
+            "The approved component scope, documentation, links, and gaps are recorded.",
+            "stage apply",
+        ),
+        StageChecklistItem("The adoption preserves runtime behaviour.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "baseline-review": (
+        StageChecklistItem(
+            "Reviewed components and remaining baseline gaps are classified.", "stage apply"
+        ),
+        StageChecklistItem("The baseline-review decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+    "adoption-delivery": (
+        StageChecklistItem(
+            "The adoption report and preflight references are recorded.", "stage apply"
+        ),
+        StageChecklistItem("The handoff decision is approved.", "stage close"),
+        StageChecklistItem("The human approves stage close.", human=True),
+    ),
+}
+
+
+def validate_stage_done_when(
+    mapping: dict[Stage, tuple[StageChecklistItem, ...]] = STAGE_DONE_WHEN,
+) -> None:
+    """
+    @brief Validate that every lifecycle stage has a classified checklist.
+    @param[in] mapping Candidate completion checklist mapping.
+    @exception StageOperationError If a stage is omitted, unknown, empty, or
+               contains an unclassified item.
+    """
+    expected = set(ALL_STAGES)
+    actual = set(mapping)
+    if actual != expected or len(mapping) != len(ALL_STAGES):
+        missing = ", ".join(sorted(expected - actual))
+        unknown = ", ".join(sorted(actual - expected))
+        details = []
+        if missing:
+            details.append("missing: " + missing)
+        if unknown:
+            details.append("unknown: " + unknown)
+        raise StageOperationError("invalid stage checklist mapping (" + "; ".join(details) + ")")
+    for stage in ALL_STAGES:
+        items = mapping[stage]
+        if not items:
+            raise StageOperationError(f"{stage} checklist must not be empty")
+        for item in items:
+            if not item.text.strip():
+                raise StageOperationError(f"{stage} checklist item text must not be empty")
+            if item.human == bool(item.command.strip()):
+                raise StageOperationError(
+                    f"{stage} checklist item must be either machine or human"
+                )
 
 # END OF FILE

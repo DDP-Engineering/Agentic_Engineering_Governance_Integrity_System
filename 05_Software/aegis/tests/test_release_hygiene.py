@@ -100,7 +100,7 @@ def test_current_aegis_version_declarations_agree() -> None:
             versioned_adapters.append(label)
 
     assert versioned_adapters
-    assert set(declarations.values()) == {"2.1.0"}, declarations
+    assert set(declarations.values()) == {"3.0.0"}, declarations
 
 
 def test_current_waegis_version_declarations_agree() -> None:
@@ -110,21 +110,14 @@ def test_current_waegis_version_declarations_agree() -> None:
     @exception  AssertionError If any current declaration diverges.
     """
     project = _toml(WAEGIS_ROOT / "pyproject.toml")
-    delivery_manifest = json.loads(
-        (
-            REPOSITORY_ROOT
-            / "07_Delivery"
-            / f"waegis-{WIZARD_VERSION}"
-            / "release-manifest.json"
-        ).read_text(encoding="utf-8")
-    )
-
     assert project["project"]["dynamic"] == ["version"]
     assert project["tool"]["setuptools"]["dynamic"]["version"]["attr"] == (
         "waegis.version.WIZARD_VERSION"
     )
-    assert WAEGIS_PACKAGE_VERSION == WIZARD_VERSION == "1.2.0"
-    assert delivery_manifest["waegis_version"] == WIZARD_VERSION
+    assert WAEGIS_PACKAGE_VERSION == WIZARD_VERSION == "3.0.0"
+    changelog = (REPOSITORY_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [Unreleased]" in changelog
+    assert "WAEGIS 3.0.0" in changelog.split("## [3.0.0]", 1)[0]
 
 
 def test_current_template_material_names_the_current_product_line() -> None:
@@ -133,7 +126,7 @@ def test_current_template_material_names_the_current_product_line() -> None:
     @return     None.
     @exception  AssertionError If current material names an obsolete minor line.
     """
-    obsolete = ("AEGIS 2.0", "WAEGIS 1.0")
+    obsolete = ("AEGIS 2.0", "AEGIS 2.1", "WAEGIS 1.0")
     offending = {
         path.relative_to(TEMPLATE_ROOT).as_posix(): marker
         for path in _current_template_texts()
@@ -142,7 +135,7 @@ def test_current_template_material_names_the_current_product_line() -> None:
     }
 
     assert offending == {}
-    assert "AEGIS 2.1" in (TEMPLATE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "AEGIS 3.0" in (TEMPLATE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
 
 def test_historical_changelog_versions_are_not_current_branding_failures() -> None:

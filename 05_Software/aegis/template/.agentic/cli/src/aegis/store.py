@@ -149,7 +149,8 @@ class GraphConflictError(PersistenceError):
         self.run_id = run_id
         super().__init__(
             f"{self.code}: graph {run_id} changed after it was loaded. "
-            "Reload the run and retry the operation."
+            "Reload the run and retry the operation. Retry the same command; "
+            "if it repeats, run `aegis run status` first."
         )
 
 # PUBLIC API
@@ -334,14 +335,101 @@ def write_current_run(repo_root: Path, run_id: str) -> None:
     atomic_write_text(current_run_path(repo_root), f"{run_id}\n")
 
 
-def resolve_run_id(repo_root: Path, explicit_run_id: str | None = None) -> str:
+def clear_current_run(repo_root: Path) -> None:
+    """
+    @brief      Drop the worktree-local active-run pointer.
+    @param[in]  repo_root Repository root.
+    @return     None.
+    @details    Used when a run is abandoned. The run directory itself is
+                durable and untouched; only this worktree's selection is
+                released, so the next command reports the recoverable
+                `RUN-POINTER-MISSING` state rather than resolving a run whose
+                lifecycle is over.
+    @exception  OSError If the pointer exists but cannot be removed.
+    """
+    current_run_path(repo_root).unlink(missing_ok=True)
+
+
+def list_runs(repo_root: Path) -> list[dict[str, Any]]:
+    """
+    @brief      Enumerate every run discoverable under `.agentic/runs/`.
+    @param[in]  repo_root Repository root.
+    @return     One row per run, sorted by run ID, carrying `run_id`, `kind`,
+                `profile`, `stage`, `complete`, `outcome`, and `selected`.
+    @details    Reading is deliberately tolerant, for the same reason as
+                :func:`_discoverable_runs`: this is a discovery surface, so an
+                unreadable or pre-schema-3 `graph.json` is reported as a run
+                that exists with `stage` set to `unreadable` rather than
+                allowed to hide the runs beside it.
+    @exception  None All filesystem, decoding, and schema failures are absorbed.
+    """
+    try:
+        selected: str | None = current_run_path(repo_root).read_text(
+            encoding="utf-8"
+        ).strip()
+    except (OSError, UnicodeError):
+        selected = None
+    try:
+        entries = sorted(runs_root(repo_root).iterdir())
+    except OSError:
+        return []
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        if not _is_valid_run_id(entry.name):
+            continue
+        row: dict[str, Any] = {
+            "run_id": entry.name,
+            "kind": entry.name.split("-", 1)[0],
+            "profile": "unknown",
+            "stage": "unreadable",
+            "complete": False,
+            "outcome": "",
+            "selected": entry.name == selected,
+        }
+        try:
+            document = json.loads(
+                (entry / GRAPH_FILE).read_text(encoding="utf-8")
+            )
+            graph = Graph.from_dict(document)
+        except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+            # Carry the cause, not just the `unreadable` marker: this is the
+            # listing an operator reads when they do not know what is wrong,
+            # and the row is the only place the parse error can appear before
+            # the run is abandoned.
+            row["error"] = f"{type(exc).__name__}: {exc}"
+            rows.append(row)
+            continue
+        row.update(
+            {
+                "kind": graph.intent.kind,
+                "profile": graph.profile,
+                "stage": graph.stage,
+                "complete": graph.complete,
+                "outcome": graph.outcome,
+            }
+        )
+        rows.append(row)
+    return rows
+
+
+def resolve_run_id(
+    repo_root: Path,
+    explicit_run_id: str | None = None,
+    *,
+    verify_graph: bool = True,
+) -> str:
     """
     @brief      Resolve and validate an explicit or worktree-selected run ID.
     @param[in]  repo_root Repository root.
     @param[in]  explicit_run_id Optional run ID that takes precedence over the
                 workspace pointer.
+    @param[in]  verify_graph Whether the named run's graph must also load. Set
+                `False` only by recovery commands that operate on the run ID
+                itself, so a run whose `graph.json` is broken can still be
+                addressed; the run directory must still exist.
     @return     Validated run ID whose graph is readable and internally
-                consistent.
+                consistent, or - when `verify_graph` is `False` - whose
+                directory merely exists.
     @exception  RunResolutionError If the selection or graph is invalid.
     @exception  StageOperationError If the loaded graph's kind/profile/stage
                 state conflicts with its lifecycle schema.
@@ -349,6 +437,10 @@ def resolve_run_id(repo_root: Path, explicit_run_id: str | None = None) -> str:
     if explicit_run_id is not None:
         if not _is_valid_run_id(explicit_run_id):
             raise _explicit_run_error(None, received=explicit_run_id)
+        if not verify_graph:
+            if not (runs_root(repo_root) / explicit_run_id).is_dir():
+                raise _explicit_run_error(explicit_run_id)
+            return explicit_run_id
         _load_selected_graph(repo_root, explicit_run_id, explicit=True)
         return explicit_run_id
 
@@ -366,13 +458,16 @@ def resolve_run_id(repo_root: Path, explicit_run_id: str | None = None) -> str:
         raw = pointer.read_bytes()
         text = raw.decode("utf-8")
     except (OSError, UnicodeError):
-        raise _invalid_pointer_error() from None
+        raise _invalid_pointer_error(repo_root) from None
     if not text.endswith("\n") or text.count("\n") != 1:
-        raise _invalid_pointer_error()
+        raise _invalid_pointer_error(repo_root)
     run_id = text[:-1]
     if not _is_valid_run_id(run_id):
-        raise _invalid_pointer_error()
-    _load_selected_graph(repo_root, run_id, explicit=False)
+        raise _invalid_pointer_error(repo_root)
+    if verify_graph:
+        _load_selected_graph(repo_root, run_id, explicit=False)
+    elif not (runs_root(repo_root) / run_id).is_dir():
+        raise _stale_pointer_error(repo_root, run_id, None)
     return run_id
 
 
@@ -420,7 +515,11 @@ def _discoverable_runs(repo_root: Path) -> list[tuple[str, bool]]:
     return runs
 
 
-def _pointer_missing_remediation(repo_root: Path, pointer_relative: str) -> str:
+def _pointer_missing_remediation(
+    repo_root: Path,
+    pointer_relative: str,
+    exclude: str | None = None,
+) -> str:
     """
     @brief      Build the actionable RUN-POINTER-MISSING guidance (DPT-F08).
     @details    The deployment test lost the pointer once while the run itself
@@ -431,10 +530,15 @@ def _pointer_missing_remediation(repo_root: Path, pointer_relative: str) -> str:
                 the choice unambiguous, otherwise the candidates to choose from.
     @param[in]  repo_root Repository root.
     @param[in]  pointer_relative Repository-relative pointer path.
+    @param[in]  exclude Run ID that must not be offered, used by the stale
+                pointer path where the unloadable run is the selected one and
+                offering it back would be a dead end.
     @return     Multi-line remediation text.
     @exception  None
     """
-    runs = _discoverable_runs(repo_root)
+    runs = [
+        item for item in _discoverable_runs(repo_root) if item[0] != exclude
+    ]
     incomplete = [run_id for run_id, complete in runs if not complete]
     lines: list[str] = []
     if len(incomplete) == 1:
@@ -469,10 +573,15 @@ def _is_valid_run_id(run_id: str) -> bool:
     return True
 
 
-def _invalid_pointer_error() -> RunResolutionError:
+def _invalid_pointer_error(repo_root: Path) -> RunResolutionError:
     """
     @brief      Build the stable malformed-pointer error.
+    @param[in]  repo_root Repository root, used to enumerate recoverable runs.
     @return     `RUN-POINTER-INVALID` error.
+    @details    W11 (2026-08-04): reuses `_pointer_missing_remediation`, which
+                names the exact `aegis run select` command and lists
+                recoverable run IDs, instead of a generic "start or select"
+                instruction with no runnable command in it.
     """
     pointer_relative = _pointer_relative_path()
     return RunResolutionError(
@@ -480,10 +589,7 @@ def _invalid_pointer_error() -> RunResolutionError:
         pointer_path=pointer_relative,
         run_id=None,
         message=f"{pointer_relative} does not contain a valid run ID.",
-        remediation=(
-            "Start a new run or replace the pointer by starting/selecting a valid run; "
-            "do not edit run graphs by guessing an ID."
-        ),
+        remediation=_pointer_missing_remediation(repo_root, pointer_relative),
     )
 
 
@@ -515,22 +621,43 @@ def _explicit_run_error(
     )
 
 
-def _stale_pointer_error(run_id: str) -> RunResolutionError:
+def _stale_pointer_error(
+    repo_root: Path,
+    run_id: str,
+    cause: str | None = None,
+) -> RunResolutionError:
     """
     @brief      Build the stable stale-pointer error.
+    @param[in]  repo_root Repository root, used to enumerate recoverable runs.
     @param[in]  run_id Valid-shaped workspace selection.
+    @param[in]  cause Concrete reason the graph did not load, when known.
     @return     `RUN-POINTER-STALE` error.
+    @details    The old text said the graph was "missing or invalid" and told
+                the operator to pass `--run <existing-run-id>` — a dead end
+                when the stale ID *is* the existing ID, which is exactly what
+                a pre-schema-3 graph left behind by 1.4.1 produces. The
+                message now names why the graph did not load and reuses the
+                RUN-POINTER-MISSING remediation, which lists the runs that
+                would actually resolve.
     """
+    detail = (
+        f"is missing or invalid: {cause}"
+        if cause
+        else "is missing or invalid."
+    )
+    pointer_relative = _pointer_relative_path()
     return RunResolutionError(
         code="RUN-POINTER-STALE",
-        pointer_path=_pointer_relative_path(),
+        pointer_path=pointer_relative,
         run_id=run_id,
         message=(
             f"This worktree selects {run_id}, but {AGENTIC_DIR}/{RUNS_DIR}/"
-            f"{run_id}/{GRAPH_FILE} is missing or invalid."
+            f"{run_id}/{GRAPH_FILE} {detail}"
         ),
-        remediation=(
-            "Start a new run or pass `--run <existing-run-id>` explicitly."
+        remediation=_pointer_missing_remediation(
+            repo_root,
+            pointer_relative,
+            exclude=run_id,
         ),
     )
 
@@ -546,7 +673,13 @@ def _load_selected_graph(repo_root: Path, run_id: str, *, explicit: bool) -> Gra
                 or graph identity validation fails.
     @exception  StageOperationError If lifecycle kind/profile state conflicts.
     """
-    error = _explicit_run_error(run_id) if explicit else _stale_pointer_error(run_id)
+    def error_for(cause: str | None = None) -> RunResolutionError:
+        """@brief Build this call's resolution error, naming the cause."""
+        if explicit:
+            return _explicit_run_error(run_id)
+        return _stale_pointer_error(repo_root, run_id, cause)
+
+    error = error_for()
     root = runs_root(repo_root).resolve()
     path = graph_path(repo_root, run_id)
     try:
@@ -574,6 +707,10 @@ def _load_selected_graph(repo_root: Path, run_id: str, *, explicit: bool) -> Gra
         TypeError,
         ValueError,
     ) as exc:
+        # The cause goes into the message, not only a note: `str(exc)` is the
+        # CLI's error surface and never renders notes, so a schema-2 graph
+        # left by 1.4.x otherwise reported only "missing or invalid".
+        error = error_for(f"{type(exc).__name__}: {exc}")
         error.add_note(f"cause: {type(exc).__name__}: {exc}")
         raise error from exc
     if graph.run_id != run_id:
@@ -984,6 +1121,111 @@ def add_evidence(repo_root: Path, graph: Graph, evidence: Evidence) -> Graph:
 
 
 @serialized_graph_mutation
+def abandon_run(repo_root: Path, graph: Graph, reason: str) -> Graph:
+    """
+    @brief      End one incomplete run without driving it through delivery.
+    @param[in]  repo_root Repository root.
+    @param[in,out] graph Active run graph to close out.
+    @param[in]  reason Mandatory human explanation, journalled verbatim.
+    @return     The abandoned graph.
+    @details    The run directory is kept: `MERGE_AND_REBASE.md` forbids
+                deleting it, and the journal is the record of why the work
+                stopped. Marking the graph complete is what makes every
+                mutating stage command decline it, and the worktree pointer is
+                released so the next command is not silently operating on a
+                run whose lifecycle is over.
+    @exception  StageOperationError If the run has already ended.
+    @exception  GraphConflictError If the graph changed underneath this call.
+    @exception  PersistenceError If journal integrity prevents a record.
+    @exception  OSError If persistence fails.
+    """
+    if graph.complete:
+        raise StageOperationError(
+            "run has already ended; nothing to abandon. "
+            "Start a new run with `aegis run start <kind>`."
+        )
+    graph.complete = True
+    graph.outcome = "abandoned"
+    save_graph_with_journal_events(
+        repo_root,
+        graph,
+        [
+            (
+                "run.abandoned",
+                {
+                    "run_id": graph.run_id,
+                    "stage": graph.stage,
+                    "reason": reason,
+                    "abandoned_at": now_iso(),
+                },
+            )
+        ],
+    )
+    clear_current_run(repo_root)
+    return graph
+
+
+def abandon_run_id(repo_root: Path, run_id: str, reason: str) -> dict[str, Any]:
+    """
+    @brief      End one run by ID, whether or not its graph can be read.
+    @param[in]  repo_root Repository root.
+    @param[in]  run_id Canonical run ID, already validated in shape.
+    @return     Row naming the run, its stage, and its outcome; `graph_error`
+                and `journal_error` are present only when that state could not
+                be read or written.
+    @details    `run abandon` is the exit from a run that has gone wrong, so it
+                cannot require the run to be well-formed: a run whose
+                `graph.json` is unreadable or schema-invalid is exactly the one
+                an operator most needs to end. When the graph loads, this is
+                the ordinary :func:`abandon_run` path. When it does not, the
+                abandonment is recorded in the journal and the worktree pointer
+                is released anyway, and the parse error is reported rather than
+                the command refused. The run directory is kept either way.
+    @exception  StageOperationError If a readable run has already ended.
+    @exception  GraphConflictError If a readable graph changed underneath.
+    @exception  PersistenceError If a readable run's journal rejects a record.
+    @exception  OSError If persistence fails for a readable run.
+    """
+    try:
+        graph = load_graph(repo_root, run_id)
+    except (RunResolutionError, StageOperationError) as exc:
+        row: dict[str, Any] = {
+            "run_id": run_id,
+            "stage": "unreadable",
+            "complete": True,
+            "outcome": "abandoned",
+            "graph_error": str(exc),
+        }
+        try:
+            append_journal(
+                repo_root,
+                run_id,
+                "run.abandoned",
+                {
+                    "run_id": run_id,
+                    "stage": "unreadable",
+                    "reason": reason,
+                    "abandoned_at": now_iso(),
+                    "graph_error": str(exc),
+                },
+            )
+        except (OSError, PersistenceError) as journal_exc:
+            # The journal is the record, not the mechanism: releasing the
+            # pointer is what actually ends the run for this worktree, so a
+            # journal that is broken too must not take the exit down with it.
+            row["journal_error"] = str(journal_exc)
+        clear_current_run(repo_root)
+        return row
+    graph = abandon_run(repo_root, graph, reason)
+    return {
+        "run_id": graph.run_id,
+        "stage": graph.stage,
+        "complete": graph.complete,
+        "outcome": graph.outcome,
+    }
+
+
+@serialized_graph_mutation
 def add_waiver(
     repo_root: Path,
     graph: Graph,
@@ -991,6 +1233,7 @@ def add_waiver(
     reason: str,
     state_digests: dict[str, str],
     *,
+    approver: str = "human",
     expected_source_digest: str | None = None,
 ) -> Waiver:
     """
@@ -1000,6 +1243,8 @@ def add_waiver(
     @param[in] blocker_id Concrete named blocker identity.
     @param[in] reason Mandatory human approval reason.
     @param[in] state_digests Exact state captured when approval was given.
+    @param[in] approver Identity accepting the risk; the unattributable
+               "human" remains the default and the fallback.
     @param[in] expected_source_digest Graph digest used to discover the target.
     @return Newly minted run-local waiver record.
     @exception ValueError If the blocker, reason, or digest mapping is invalid.
@@ -1016,6 +1261,8 @@ def add_waiver(
         raise ValueError("blocker ID must be a string")
     if not isinstance(reason, str):
         raise ValueError("waiver reason must be a string")
+    if not isinstance(approver, str) or not approver.strip():
+        raise ValueError("waiver approver must be a non-empty string")
     normalized_blocker_id = blocker_id.strip()
     normalized_reason = reason.strip()
     if not normalized_blocker_id:
@@ -1048,6 +1295,7 @@ def add_waiver(
             blocker_id=normalized_blocker_id,
             reason=normalized_reason,
             state_digests=dict(state_digests),
+            approver=approver.strip(),
         )
         journal_content = existing_journal + _journal_line(
             "waiver.added",

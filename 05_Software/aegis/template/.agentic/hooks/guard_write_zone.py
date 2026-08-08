@@ -38,8 +38,31 @@ import sys
 #        and missing the populated one means extracting no paths at all.
 PATCH_ENVELOPE_KEYS = ("command", "cmd", "script", "patch", "input")
 
+# @brief Repository-relative suffix of the file every hook's policy is loaded
+#        from. A hook that cannot load it denies every write, including writes
+#        to this file - so the agent cannot repair the typo that caused the
+#        denial, and the only exit is a human editing it outside the session.
+WORKFLOW_CONFIG_SUFFIX = ".agentic/workflow.toml"
+
 
 # PUBLIC API
+
+
+def targets_workflow_config_only(paths: list[str]) -> bool:
+    """
+    @brief      Report whether every named target is the workflow config file.
+    @param[in]  paths Raw target paths as the tool named them.
+    @return     ``True`` only for a non-empty list naming nothing else.
+    @details    Used exclusively to break the config-typo deadlock: an internal
+                failure still denies every other path, but repairing the file
+                that caused the failure stays possible from inside the session.
+    """
+    if not paths:
+        return False
+    return all(
+        str(item).replace("\\", "/").rstrip("/").endswith(WORKFLOW_CONFIG_SUFFIX)
+        for item in paths
+    )
 
 
 def main() -> int:
@@ -78,6 +101,10 @@ def main() -> int:
             _, stage, access_mode = read_run_state(repo_root)
             zones = None if access_mode == "repo-wide" else config.write_access.stages[stage]
     except Exception as exc:
+        if targets_workflow_config_only(
+            extract_target_paths(payload.get("tool_input", {}))
+        ):
+            return 0
         return deny(str(exc))
     if zones == ():
         return deny(f"Stage '{stage}' is read-only; file edits are not allowed.")

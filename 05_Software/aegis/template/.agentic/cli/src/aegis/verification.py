@@ -36,11 +36,16 @@ from .gates import gate_failure_blockers, run_gates
 from .invariants import blocking_failures, evaluate
 from .models import Graph, now_iso
 from .persistence import atomic_write_text
+from .requirement_store import RequirementValidationError
 from .requirements import audit_coverage, audit_traceability, impact
 from .stage_schema import run_stage_spec
 from .store import append_journal, load_graph, run_dir
-from .waiver_targets import annotate_audit_issues, annotate_working_tree
-from .waivers import active_waiver, waiver_metadata
+from .waiver_targets import (
+    annotate_audit_issues,
+    annotate_working_tree,
+    requirement_register_blocker,
+)
+from .waivers import Blocker, active_waiver, waiver_metadata
 from .working_tree import audit_working_tree
 
 # PUBLIC API
@@ -81,11 +86,20 @@ def run_verification(
     """
     stage_spec = run_stage_spec(graph)
     quick = bool(stage_spec.bypassed_stages)
-    impact_report = (
-        _quick_impact(graph)
-        if quick
-        else impact(repo_root, None, config=config)
-    )
+    # A malformed requirement file must not abort verification: `verify run` is
+    # one of the two commands that reports the fault, and the other one
+    # (`waive list`) is how it gets waived past. Impact and the two audits all
+    # load the same register, so one parse error is carried through all three
+    # and surfaces once, as an ordinary waivable blocker (W17).
+    register_error: RequirementValidationError | None = None
+    if quick:
+        impact_report = _quick_impact(graph)
+    else:
+        try:
+            impact_report = impact(repo_root, None, config=config)
+        except RequirementValidationError as exc:
+            register_error = exc
+            impact_report = []
     selection = _regression_selection(impact_report)
     gate_code = run_gates(
         repo_root,
@@ -105,16 +119,28 @@ def run_verification(
         traceability_blockers = []
         coverage_blockers = []
     else:
-        traceability, traceability_blockers = annotate_audit_issues(
-            "traceability",
-            audit_traceability(repo_root, config),
-            graph,
-        )
-        coverage, coverage_blockers = annotate_audit_issues(
-            "coverage",
-            audit_coverage(repo_root, config),
-            graph,
-        )
+        audit_error = register_error
+        traceability, traceability_blockers = [], []
+        coverage, coverage_blockers = [], []
+        if audit_error is None:
+            try:
+                traceability, traceability_blockers = annotate_audit_issues(
+                    "traceability",
+                    audit_traceability(repo_root, config),
+                    graph,
+                )
+                coverage, coverage_blockers = annotate_audit_issues(
+                    "coverage",
+                    audit_coverage(repo_root, config),
+                    graph,
+                )
+            except RequirementValidationError as exc:
+                audit_error = exc
+        if audit_error is not None:
+            traceability, coverage, traceability_blockers = (
+                _unreadable_register_audit(audit_error, graph)
+            )
+            coverage_blockers = []
     working_tree, working_tree_blockers = annotate_working_tree(
         working_tree_report,
         graph,
@@ -179,9 +205,6 @@ def run_verification(
     )
     if any_waived:
         summary["waived"] = True
-    path = validation_summary_path(repo_root, graph)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(path, json.dumps(summary, indent=2) + "\n")
     failed = bool(
         gate_code
         or blocking_failures(invariant_results)
@@ -189,13 +212,21 @@ def run_verification(
         or coverage_blockers
         or working_tree_blockers
     )
+    # The aggregate verdict is durable, not only journalled. `verify status`
+    # reports this summary without re-running it, and had no way to tell a
+    # passing run from a failing one - so it answered `status: ok` and exit 0
+    # while the very summary it printed said a gate had failed.
+    summary["status"] = "failed" if failed else ("waived" if any_waived else "ok")
+    path = validation_summary_path(repo_root, graph)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(path, json.dumps(summary, indent=2) + "\n")
     append_journal(
         repo_root,
         graph.run_id,
         "verification.completed",
         {
             "summary": path.relative_to(repo_root).as_posix(),
-            "status": "failed" if failed else ("waived" if any_waived else "ok"),
+            "status": summary["status"],
         },
     )
     return summary, 1 if failed else 0
@@ -269,6 +300,34 @@ def _quick_audit_not_applicable() -> list[dict[str, str]]:
     ]
 
 
+def _unreadable_register_audit(
+    error: RequirementValidationError,
+    graph: Graph,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[Blocker]]:
+    """
+    @brief Render both requirement audits as one waivable parse failure.
+    @param[in] error Validation error naming the offending file and key.
+    @param[in] graph Run graph carrying human-approved waiver records.
+    @return Traceability findings, coverage findings, and unwaived blockers.
+    @details Both audits read the same register, so the fault is reported in
+             each list - neither may look like it passed - while only one
+             blocker is produced, so a single waiver clears it. That blocker is
+             the same identity `waive list` offers.
+    """
+    blocker = requirement_register_blocker(error)
+    entry: dict[str, Any] = {
+        "code": "REQ-REGISTER-UNREADABLE",
+        "message": blocker.description,
+        "req_id": None,
+        "path": None,
+    }
+    waiver = active_waiver(graph, blocker)
+    if waiver is not None:
+        entry["waived"] = True
+        entry["waivers"] = [waiver_metadata(waiver)]
+    return [entry], [dict(entry)], [] if waiver is not None else [blocker]
+
+
 def _regression_selection(report: list[dict[str, Any]]) -> dict[str, Any]:
     """@brief Select focused or full regression from traceability impact."""
     linked = sorted(
@@ -318,7 +377,11 @@ def _gate_status(
     @return Stable status/commands mapping with conditional waiver metadata.
     """
     group = getattr(config.gates, name)
-    status = "disabled" if group.mode == "disabled" else _gate_result(graph, name)
+    status = (
+        "not-enforced"
+        if group.mode == "disabled"
+        else _gate_result(graph, name)
+    )
     payload: dict[str, Any] = {
         "status": status,
         "commands": list(group.commands),

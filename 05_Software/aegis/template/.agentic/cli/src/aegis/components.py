@@ -229,6 +229,77 @@ def audit_components(
     return issues
 
 
+def audit_scope_check(
+    repo_root: Path,
+    paths: list[str],
+    config: WorkflowConfig,
+) -> list[ComponentIssue]:
+    """
+    @brief      Audit paths for review, reporting policy state and mapping.
+    @param[in]  repo_root Repository root.
+    @param[in]  paths Repository-relative paths to inspect.
+    @param[in]  config Validated workflow configuration.
+    @return     Blocking baseline issues plus non-blocking review advisories.
+    @details    `audit_local_scope` answers one question - may this path be
+                touched - and answers "yes" for every input when the baseline
+                guard is disabled. The component-map reference asks the agent
+                to review the map with this command, so a mapped path, an
+                unmapped path, and a typo used to produce the same empty
+                answer. The advisories carry `blocking = False`, so the
+                caller's exit code is unchanged and only the enforced baseline
+                still fails a run.
+    @exception  CommandInputError If the manifest TOML is invalid.
+    """
+    manifest = load_components(repo_root, config.component_manifest)
+    guard = config.component_baseline_guard
+    issues: list[ComponentIssue] = []
+    if guard.minimum_completion_level is None:
+        issues.append(
+            ComponentIssue(
+                code="COMPONENT-GUARD-NOT-ENFORCED",
+                message=(
+                    f"components.baseline_guard mode is {guard.mode}; "
+                    "component baselines are reported but not enforced"
+                ),
+                severity="advisory",
+                blocking=False,
+            )
+        )
+    for path in paths:
+        normalized = _normalize_path(path)
+        if not (repo_root / normalized).is_file():
+            issues.append(
+                ComponentIssue(
+                    code="COMPONENT-PATH-NOT-FOUND",
+                    message=(
+                        f"{normalized} is not a file in the working tree; "
+                        "expected for a path this run will create, a typo "
+                        "otherwise"
+                    ),
+                    path=normalized,
+                    severity="advisory",
+                    blocking=False,
+                )
+            )
+            continue
+        component = component_for_path(manifest, normalized)
+        if component is None:
+            issues.append(
+                ComponentIssue(
+                    code="COMPONENT-PATH-UNMAPPED",
+                    message=(
+                        f"{normalized} is not owned by any component in "
+                        f"{config.component_manifest}"
+                    ),
+                    path=normalized,
+                    severity="advisory",
+                    blocking=False,
+                )
+            )
+    issues.extend(audit_local_scope(repo_root, paths, config))
+    return sorted(issues, key=lambda item: (item.path or "", item.code))
+
+
 def audit_local_scope(
     repo_root: Path,
     paths: list[str],

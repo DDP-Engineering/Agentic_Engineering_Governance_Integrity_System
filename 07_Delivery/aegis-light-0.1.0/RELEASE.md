@@ -9,7 +9,9 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # AEGIS Light 0.1.0 Delivery Package
 
 - **AEGIS Light version**: 0.1.0 (first release)
-- **Built**: 2026-08-02
+- **Built**: 2026-08-02 (rebuilt after the first pilot; see *Pilot
+  findings* below — the earlier local build of this version was never
+  published and is superseded)
 - **Runtime requirement**: Python 3.11 or newer, standard library only
 - **Bundled runtime**: none — there is nothing to embed
 - **Platform**: Windows and Linux, identical content
@@ -74,9 +76,35 @@ is deleting `.agentic/` and the marked pointer blocks.
 - Machine-readable `--json` on `check` and `status`, versioned by a
   `schema` integer.
 
+## Pilot findings folded into this build
+
+AEGIS Light was migrated onto a real 500-requirement project before this
+package was cut. Four changes came out of that, all included here:
+
+- **`uncovered-source` ignored deleted files.** A deleted file stays in
+  the diff, but no requirement can cover a file that no longer exists —
+  the finding was unactionable. Now skipped.
+- **`ticket-ref` flagged standards as tickets.** `UTF-8`, `SHA-256`,
+  `RFC-2119` and friends share the JIRA shape. A technical-prefix
+  exclusion list removes that whole class of false positives.
+- **`outside-layout` flagged the pointer files `init` creates.** A fresh
+  install greeted the user with three warnings caused by AEGIS itself.
+  `AGENTS.md`, `CLAUDE.md` and `QWEN.md` are now exempt.
+- **The payload never told agents not to edit it.** The ownership rule
+  lived only in the user documentation, so an agent that found a bug
+  patched `aegis.py` in place — where the next upgrade would have
+  silently discarded it. `AGENTS.md` now carries a "Do not edit the
+  payload" section telling the agent to report instead.
+
+Also added: **EARS** as the recommended requirement shape (all five
+patterns in the requirement template and the specify step), with the
+rules that two "shall" clauses means two requirements and that prose
+should never be contorted to fit a pattern. Guidance only — nothing
+validates it.
+
 ## Verification
 
-- 135 tests pass on Windows and on Linux (WSL2, Ubuntu 24.04); one test
+- 137 tests pass on Windows and on Linux (WSL2, Ubuntu 24.04); one test
   is POSIX-only and skips on Windows.
 - `ruff check --select E,F,W` is clean.
 - The build refuses to package unless the suite passes and the payload

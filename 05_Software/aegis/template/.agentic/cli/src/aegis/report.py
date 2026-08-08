@@ -80,6 +80,9 @@ def render_report(
             "- Quick run - stages bypassed: "
             + ", ".join(stage_spec.bypassed_stages)
         )
+        lines.append(
+            "- Red/green policy: `" + graph.red_green_policy + "`"
+        )
     lines.extend(["", "## Intent Alignment"])
     if graph.alignment:
         alignment = graph.alignment

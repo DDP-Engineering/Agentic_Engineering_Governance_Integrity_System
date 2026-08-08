@@ -988,6 +988,154 @@ def test_secret_scan_denies_configured_pattern(tmp_path: Path, monkeypatch) -> N
     assert "Possible secret" in output
 
 
+def enforce_broad_secret_patterns(tmp_path: Path) -> None:
+    """
+    @brief      Enable the pattern set a real deployment ships with.
+    @param[in]  tmp_path Temporary repository containing ``workflow.toml``.
+    @return     None.
+    @details    These four are what the deployment wizard writes when an
+                operator switches secret scanning on, so they are what the
+                false positives below are measured against.
+    @exception  None
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = '
+        '["(?i)api[_-]?key", "(?i)secret", "(?i)password", "(?i)token"]',
+    )
+
+
+def test_secret_scan_ignores_the_target_path(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A file's name is not scanned as if it were its content.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2): the
+                whole serialized tool input was scanned, so `(?i)token` denied
+                opening `token_store.py` and `(?i)secret` denied reading this
+                hook's own source. Path policy is `guardrails.protected_paths`,
+                enforced by the read and write guards.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    named = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": "src/app/token_store.py"},
+    }
+    own_source = {
+        **named,
+        "tool_input": {"file_path": ".agentic/hooks/secret_scan.py"},
+    }
+
+    assert run_hook(secret_main, named, monkeypatch) == ""
+    assert run_hook(secret_main, own_source, monkeypatch) == ""
+
+
+def test_secret_scan_ignores_text_an_edit_removes(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      An edit is judged on what it writes, not what it deletes.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2): the
+                replaced text is quoted from what the file already holds, so the
+                one edit that deletes a hardcoded credential was denied while
+                the file keeping it was left alone. The same edit reversed still
+                denies.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    removal = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Edit",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": "src/app/config.py",
+            "old_string": 'BACKEND_PASSWORD = "hunter2-live"',
+            "new_string": "BACKEND_CREDENTIAL = _keyring_lookup()",
+        },
+    }
+    introduction = {
+        **removal,
+        "tool_input": {
+            "file_path": "src/app/config.py",
+            "old_string": "BACKEND_CREDENTIAL = _keyring_lookup()",
+            "new_string": 'BACKEND_PASSWORD = "hunter2-live"',
+        },
+    }
+
+    assert run_hook(secret_main, removal, monkeypatch) == ""
+    assert "Possible secret" in run_hook(secret_main, introduction, monkeypatch)
+
+
+def test_secret_scan_allows_narrowing_its_own_patterns(tmp_path: Path, monkeypatch) -> None:
+    """
+    @brief      A match cannot deny the edit that corrects the pattern.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2):
+                narrowing an over-broad pattern means quoting it, and the
+                pattern then matched its own removal. With the only remedy
+                denied, an agent stopped by a false positive had nowhere to go.
+                The hook already makes this carve-out when the configuration
+                fails to load; a match is the same deadlock.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Edit",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": ".agentic/workflow.toml",
+            "old_string": 'patterns = ["(?i)api[_-]?key", "(?i)secret", '
+            '"(?i)password", "(?i)token"]',
+            "new_string": 'patterns = ["(?i)api[_-]?key"]',
+        },
+    }
+
+    assert run_hook(secret_main, payload, monkeypatch) == ""
+
+
+def test_secret_scan_denial_names_the_pattern_and_the_way_out(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A denial says which pattern fired and what to do about it.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (lifecycle field test, 2026-08-06, batch 2):
+                `Possible secret detected by configured workflow policy.` was
+                the whole diagnostic, so an agent writing a requirement about
+                token handling could not tell a real credential from a match on
+                the word, and the message named no remedy. The matched text
+                itself stays out of the message.
+    @exception  None
+    """
+    enforce_broad_secret_patterns(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": ".agentic/requirements/specs/REQ-0042.md",
+            "content": "The API token is read from the operating system keyring.\n",
+        },
+    }
+
+    output = run_hook(secret_main, payload, monkeypatch)
+
+    assert "(?i)token" in output
+    assert "workflow.toml" in output
+    assert "operating system keyring" not in output
+
+
 def test_secret_scan_invalid_configured_regex_denies(tmp_path: Path, monkeypatch) -> None:
     """
     @brief      Deny when the canonical parser rejects an invalid regex.
@@ -1371,6 +1519,269 @@ def test_guard_shell_write_applies_to_qwen_shell_tool(tmp_path: Path, monkeypatc
     payload = shell_payload(tmp_path, "echo x > tests/test_app.py", tool_name="run_shell_command")
     output = run_hook(shell_write_main, payload, monkeypatch)
     assert "deny" in output
+
+
+# --- W5: a malformed workflow.toml must not lock out its own repair -------------
+
+
+def break_workflow_config(tmp_path: Path) -> None:
+    """
+    @brief      Corrupt the shared configuration the way a typo would.
+    @param[in]  tmp_path Repository root containing ``workflow.toml``.
+    @return     None.
+    @exception  None
+    """
+    (tmp_path / ".agentic" / "workflow.toml").write_text(
+        "not = [valid", encoding="utf-8"
+    )
+
+
+def test_guard_write_zone_allows_repairing_the_broken_config(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A config failure still permits editing the config itself.
+    @param[in]  tmp_path Repository root whose ``workflow.toml`` is malformed.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (W5, 2026-08-04): every hook denies on an
+                internal failure, so a malformed `workflow.toml` denied writes
+                to every path *including itself*. The agent could not repair
+                the file causing the denial - a hard deadlock produced by a
+                typo, whose only exit was a human editing it outside the
+                session.
+    @exception  None
+    """
+    break_workflow_config(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": ".agentic/workflow.toml"},
+    }
+
+    assert run_hook(guard_main, payload, monkeypatch) == ""
+
+
+def test_guard_write_zone_still_denies_other_paths_when_config_is_broken(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      The deadlock exception is scoped to the config file alone.
+    @param[in]  tmp_path Repository root whose ``workflow.toml`` is malformed.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    """
+    break_workflow_config(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": "src/app.py"},
+    }
+
+    output = run_hook(guard_main, payload, monkeypatch)
+
+    assert "CONFIG-TOML-INVALID" in output
+    assert "permissionDecision" in output
+
+
+def test_guard_shell_write_allows_repairing_the_broken_config(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A shell write to the broken config is permitted, others are not.
+    @param[in]  tmp_path Repository root whose ``workflow.toml`` is malformed.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    """
+    break_workflow_config(tmp_path)
+
+    allowed = run_hook(
+        shell_write_main,
+        shell_payload(tmp_path, "echo fixed > .agentic/workflow.toml"),
+        monkeypatch,
+    )
+    denied = run_hook(
+        shell_write_main,
+        shell_payload(tmp_path, "echo x > src/app.py"),
+        monkeypatch,
+    )
+
+    assert allowed == ""
+    assert "permissionDecision" in denied
+
+
+def test_secret_scan_allows_repairing_the_broken_config(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      The secret scan does not block the config repair either.
+    @param[in]  tmp_path Repository root whose ``workflow.toml`` is malformed.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    """
+    break_workflow_config(tmp_path)
+
+    allowed = run_hook(
+        secret_main,
+        {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "cwd": str(tmp_path),
+            "tool_input": {"file_path": ".agentic/workflow.toml"},
+        },
+        monkeypatch,
+    )
+    denied = run_hook(
+        secret_main,
+        {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "cwd": str(tmp_path),
+            "tool_input": {"file_path": "src/app.py"},
+        },
+        monkeypatch,
+    )
+
+    assert allowed == ""
+    assert "permissionDecision" in denied
+
+
+def test_guard_read_path_allows_reading_the_broken_config(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      The read guard permits reading the config it failed to load.
+    @param[in]  tmp_path Repository root whose ``workflow.toml`` is malformed.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Without this the agent could not even *read* the file it had to
+                repair, which is the half of W5 that made the deadlock total.
+    @exception  None
+    """
+    break_workflow_config(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": ".agentic/workflow.toml"},
+    }
+
+    assert run_hook(read_main, payload, monkeypatch) == ""
+
+
+# --- B15: out-of-repository reads are not a protected-path concern --------------
+
+
+def test_guard_read_path_ignores_targets_outside_the_repository(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A read outside the workspace is allowed, not denied.
+    @param[in]  tmp_path Repository root with protected-read policy enforced.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (B15, 2026-08-04): `relative_to_root` raised
+                "Path escapes workspace root" for any out-of-repo target and the
+                blanket handler turned that into a deny, so reading a scratch
+                file or a sibling checkout was blocked with a containment
+                message for a policy that only governs repository globs. The
+                sibling shell-write guard already ignores escapes.
+    @exception  None
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.protected_paths]\nmode = "disabled"\npatterns = []\noperations = []',
+        '[guardrails.protected_paths]\nmode = "enforce"\n'
+        'patterns = [".env"]\noperations = ["read", "write"]',
+    )
+    outside = tmp_path.parent / "outside-scratch.txt"
+    outside.write_text("scratch\n", encoding="utf-8")
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": str(outside)},
+    }
+
+    assert run_hook(read_main, payload, monkeypatch) == ""
+
+
+def test_guard_read_path_still_denies_configured_pattern_inside_repository(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      Ignoring escapes does not weaken the in-repository policy.
+    @param[in]  tmp_path Repository root with protected-read policy enforced.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @exception  None
+    """
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.protected_paths]\nmode = "disabled"\npatterns = []\noperations = []',
+        '[guardrails.protected_paths]\nmode = "enforce"\n'
+        'patterns = [".env"]\noperations = ["read", "write"]',
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "cwd": str(tmp_path),
+        "tool_input": {"file_path": ".env"},
+    }
+
+    output = run_hook(read_main, payload, monkeypatch)
+
+    assert "Reading configured protected path is blocked: .env" in output
+
+
+# --- B14: evidence recording is advisory and must never block the host ----------
+
+
+def test_post_tool_evidence_warns_instead_of_failing_on_a_broken_journal(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    @brief      A truncated journal produces a warning, not a blocking error.
+    @param[in]  tmp_path Repository with an active run.
+    @param[in]  monkeypatch Pytest monkeypatch fixture.
+    @return     None.
+    @details    Regression test (B14, 2026-08-04): `append_journal` was called
+                outside the hook's guarded block, so a journal left without a
+                trailing newline by a killed process raised `PersistenceError`
+                out of `main` on *every* tool call. The transport maps any
+                non-zero exit to a blocking failure, wedging the session until
+                the journal was hand-repaired - while the module docstring
+                promises a non-destructive structured warning.
+    @exception  None
+    """
+    prepare_run(tmp_path, "intake")
+    run_id = (
+        tmp_path / ".agentic" / ".workspace" / "state" / "current_run"
+    ).read_text(encoding="utf-8").strip()
+    journal = tmp_path / ".agentic" / "runs" / run_id / "journal.jsonl"
+    journal.write_text(
+        journal.read_text(encoding="utf-8") + '{"partial": ',
+        encoding="utf-8",
+        newline="\n",
+    )
+    payload = {
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Read",
+        "tool_use_id": "tool-3",
+        "tool_response": {"ok": True},
+        "cwd": str(tmp_path),
+    }
+
+    output = run_hook(post_evidence_main, payload, monkeypatch)
+
+    warning = json.loads(output)
+    assert warning["hookSpecificOutput"]["hookEventName"] == "PostToolUse"
+    assert "incomplete record" in warning["warning"]["message"]
 
 
 # END OF FILE

@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "report_date": "2026-08-08",
+  "implementation": {
+    "branch": "ddp/waegis-v3-implementation",
+    "workspace": "D:\\TEMP\\2026_Agentic_Engineering_Governance_Integrity_System_WAEGIS_V3",
+    "waegis_version": "3.0.0",
+    "bundled_aegis_version": "3.0.0",
+    "aegis_compatibility": ">=3.0.0,<4.0.0",
+    "manifest_schema": 2,
+    "post_review_tested_revision": "cfdab4c"
+  },
+  "status": {
+    "technical_acceptance": "passed",
+    "retirement_gate": "approved-owner-go",
+    "technical_recommendation": "GO",
+    "release_promoted": false,
+    "v1_retired": true
+  },
+  "owner_decisions": {
+    "D1": {
+      "decision": "RepoWise excluded from WAEGIS core",
+      "status": "passed"
+    },
+    "D3": {
+      "decision": "one payload zipapp plus Pythonless Windows/Linux x64 bundles",
+      "status": "passed"
+    },
+    "D6": {
+      "decision": "AEGIS >=3.0.0,<4.0.0 only",
+      "status": "passed"
+    },
+    "D7": {
+      "decision": "git init only for new; no branch, stage, or commit automation",
+      "status": "passed"
+    }
+  },
+  "automated_validation": {
+    "waegis": {
+      "command": "uv run --group dev python -m pytest -q tests",
+      "passed": 139,
+      "skipped": 2,
+      "failed": 0,
+      "duration_seconds": 145.54,
+      "ruff": "passed",
+      "compile": "passed",
+      "cli_help": "passed"
+    },
+    "aegis": {
+      "command": "uv run --group dev python -m pytest -q tests",
+      "passed": 638,
+      "skipped": 3,
+      "failed": 0,
+      "duration_seconds": 78.08,
+      "five_waegis_importing_test_modules": "passed",
+      "cli_help": "passed"
+    },
+    "skips": {
+      "gate_effect": "none",
+      "explanation": "Host-dependent filesystem/platform cases were skipped by their explicit conditions; equivalent Linux and native-bundle paths passed separately."
+    }
+  },
+  "review_remediation": {
+    "status": "passed",
+    "implemented": [
+      "F-01",
+      "F-02",
+      "F-03",
+      "F-04",
+      "F-05",
+      "F-06",
+      "F-07",
+      "F-08-partial",
+      "F-09",
+      "F-10",
+      "F-11",
+      "F-12",
+      "F-13",
+      "F-16",
+      "F-20",
+      "F-21",
+      "F-22"
+    ],
+    "deferred": [
+      "F-14",
+      "F-15",
+      "F-17",
+      "F-18"
+    ],
+    "retained_or_accepted": [
+      "F-19",
+      "F-23",
+      "F-24",
+      "F-25",
+      "F-26",
+      "F-27"
+    ],
+    "integrated_commits": [
+      "41392d3",
+      "3011056",
+      "4635694",
+      "cfdab4c"
+    ],
+    "sequential_sessions": 4,
+    "parallel_batches": 0,
+    "report": "00_Planning/WAEGIS_V3_REVIEW_2026-08-08/03_REMEDIATION_REPORT.md"
+  },
+  "crash_recovery": {
+    "status": "passed",
+    "hard_kill_boundaries": 7,
+    "install_boundaries": [
+      "after recovery flush before first write",
+      "after tracked overwrite and exact new file",
+      "after workflow publication before validation",
+      "after validation before manifest",
+      "during manifest replacement",
+      "after manifest before lock cleanup"
+    ],
+    "upgrade_boundary": "real payload mutations during AEGIS wrapper validation",
+    "assertions": [
+      "recovery emitted before mutation",
+      "commands executed verbatim",
+      "exact original tree restored",
+      "index clean",
+      "dead-owner lock requires explicit break",
+      "immediate rerun succeeds",
+      "handled failure and KeyboardInterrupt roll back automatically"
+    ]
+  },
+  "artifacts": {
+    "repeat_build_byte_identical": true,
+    "verification": "passed",
+    "payload_digest": "c89a8d5b417c6a6152c24ce25b6ca4d94eb4c2cf2be5160a9ee37d858a846a83",
+    "files": {
+      "waegis.pyz": {
+        "bytes": 436825,
+        "sha256": "7301619a8ecdbea960b6704d798eaee8fc638a03d8a88befe90e16ba75719d0c"
+      },
+      "waegis-windows-x64.zip": {
+        "bytes": 23403980,
+        "sha256": "2c48cc8a7e2b718e5e6382667e5d5cdb6244ba542afd2824de5f40e5e726c852"
+      },
+      "waegis-linux-x64.tar.gz": {
+        "bytes": 68435992,
+        "sha256": "3021d9e3c5770faffa94216689e090474e56bf22bd572be56c909b69f9c8e627"
+      },
+      "release-manifest.json": {
+        "bytes": 773,
+        "sha256": "066cd20cb61f15be46beb864a885000fbb602d6e4a295783407b578eaf3e8887"
+      },
+      "SHA256SUMS": {
+        "bytes": 348,
+        "sha256": "52bb4e5f3e2fa60b436288bb35c7f9a8dbfa685d5ae8776dd9507b8c7be8f511"
+      }
+    }
+  },
+  "runtime_acceptance": {
+    "post_review_native_rerun": false,
+    "post_review_rationale": "The scoped remediation did not change native launchers, the runtime lock, AEGIS payload bytes, or migration classification; full suites, crash tests, and rebuilt bundles were revalidated.",
+    "network_controls": [
+      "PIP_NO_INDEX=1",
+      "UV_OFFLINE=1",
+      "HTTP_PROXY and HTTPS_PROXY routed to a closed loopback port"
+    ],
+    "zipapp_python_present": {
+      "version": "passed",
+      "healthy_check": "passed"
+    },
+    "windows_x64_python_absent": {
+      "host_python_lookup": "absent",
+      "version": "passed",
+      "new": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade_3_0_to_3_1": "passed",
+      "real_upgrade_3_0_to_3_1": "passed",
+      "post_upgrade_check": "passed",
+      "head_preserved": true,
+      "index_clean": true
+    },
+    "linux_x64_python_absent": {
+      "runner": "Ubuntu 24.04 on WSL",
+      "host_python_lookup": "absent",
+      "node_version": "24.18.0",
+      "version": "passed",
+      "new": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade_3_0_to_3_1": "passed",
+      "real_upgrade_3_0_to_3_1": "passed",
+      "post_upgrade_check": "passed",
+      "head_preserved": true,
+      "index_clean": true
+    }
+  },
+  "representative_repositories": {
+    "v1_to_v2": {
+      "disposable_workspace_removed": true,
+      "untrusted_v1_ownership_ignored": true,
+      "schema_2_file_records": 155,
+      "adopt": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade": "passed",
+      "real_upgrade": "passed",
+      "final_payload_version": "3.1.0",
+      "project_sentinel_preserved": true,
+      "head_preserved": true,
+      "index_clean": true
+    },
+    "v2_to_v2": {
+      "disposable_workspace_removed": true,
+      "new": "passed",
+      "healthy_check": "passed",
+      "dry_run_upgrade": "passed",
+      "real_upgrade": "passed",
+      "final_payload_version": "3.1.0",
+      "source_notes_and_workflow_sentinels_preserved": true,
+      "all_adapter_roots_present": true,
+      "head_preserved": true,
+      "index_clean": true
+    }
+  },
+  "structural_gates": {
+    "waegis_source_files": 26,
+    "waegis_source_lines": 5571,
+    "source_limit": 9500,
+    "packaging_files": 2,
+    "packaging_lines": 579,
+    "packaging_limit": 1000,
+    "template_changelog_bytes": 0,
+    "repowise_core_absent": true,
+    "git_history_automation_absent": true,
+    "active_transaction_ignore_absent": true
+  },
+  "retirement_criteria": {
+    "1_windows_complete": "passed",
+    "2_posix_complete": "passed",
+    "3_full_aegis_suite": "passed",
+    "4_representative_repositories": "passed",
+    "5_owner_decisions_implemented": "passed",
+    "6_documentation_and_template_hygiene": "passed",
+    "7_release_process_and_owner_signature": "passed"
+  },
+  "owner_signoff": {
+    "decision": "GO",
+    "owner": "Dan Dumitru Pasare",
+    "signed_at": "2026-08-08",
+    "rationale": "Close the implementation task and integrate the dedicated WAEGIS 3 branch into AEGIS_V2; release promotion remains separate."
+  }
+}

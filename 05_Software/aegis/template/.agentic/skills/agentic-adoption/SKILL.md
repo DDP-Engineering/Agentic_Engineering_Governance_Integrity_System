@@ -12,11 +12,13 @@ See the LICENSE.txt in the .agentic folder for full license details. SPDX-Licens
 
 # Agentic Adoption
 
-Adoption uses the same file-first lifecycle as standard work:
+Adoption uses the same file-first lifecycle as standard work. The run-start
+command validates the workflow configuration before it acts. Use
+`<workflow> config validate --json` after a configuration repair and
+`<workflow> config show --json` only for explicit policy diagnosis; neither is
+a fresh-session bootstrap step.
 
 ```text
-<workflow> config validate --json
-<workflow> config show --json
 <workflow> run start adoption
 <workflow> run resume
 <workflow> stage prepare
@@ -26,6 +28,15 @@ Adoption uses the same file-first lifecycle as standard work:
 
 Open and edit the returned artifact. Do not put scope, access, routing, or
 decisions in flags. The human explicitly approves every `stage close`.
+
+## Fresh Stage Sessions
+
+Read `AGENTS.md`, run `<workflow> run context --json`, then read only its
+`required_reads`: named skill, reference, current form, and retained previous
+form. If `unavailable_current_artifact` is present, run only its recovery
+command; never prepare an already applied stage. Do not recover ordinary
+adoption work by reading `graph.json` or `journal.jsonl`; use `run status` only
+for detailed diagnosis.
 
 The required order is:
 
@@ -56,7 +67,12 @@ Ground rules:
 - Keep discovered behavior separate from desired behavior.
 - Stop for map approval and for unclear scope, ownership, or risk.
 - Use `<workflow> adoption component-status`, `scope-check`, and `baseline` for
-  read-only inspection after a run is selected.
+  read-only inspection after a run is selected. `scope-check` reports
+  `enforcement` beside its issues; `not-enforced` means only its advisory
+  findings apply.
+- Record discovered behavior as requirements with `<workflow> stage add` at the
+  `component-adoption` stage. That stage is the only place an adoption run can
+  create them.
 - Route earlier and request access changes only through the stage control form.
 
 At each stop, report the stage, artifact, imported revision, component scope,
