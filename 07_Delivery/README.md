@@ -130,6 +130,13 @@ Windows x64 and Linux x64 builds and full internal-manifest verification.
 > and 0.5.0. Other adapters are unaffected. Upgrade any install to 0.6.0 with
 > `waegis upgrade --repo <path>`, then re-review the hooks in Codex.
 
+- `aegis-light-0.2.0/` - AEGIS Light 0.2.0, the advisory companion product
+  (current). Separate from AEGIS/WAEGIS: no shared artifacts, no embedded
+  runtime, standard library only. Completes the heuristic catalog at seventeen
+  checks — advisory per-stage write zones (`stage-zone`) and by-hand
+  verification (`manual-verification`). First AEGIS Light publication record,
+  and the first AEGIS Light archives whose digests reproduce from source. See
+  `aegis-light-0.2.0/RELEASE.md`.
 - `waegis-1.1.0/` - WAEGIS 1.1.0 with bundled AEGIS payload 2.1.0 and optional
   RepoWise 0.37.0 Complete sidecars (current). Contains the five-artifact
   publication manifest and checksums. See `waegis-1.1.0/RELEASE.md`.

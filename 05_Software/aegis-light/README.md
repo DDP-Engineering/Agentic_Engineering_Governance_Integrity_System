@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light 0.1.0
+# AEGIS Light 0.2.0
 
 A **companion** governance system for agent-driven software development.
 It gives any coding agent — a frontier CLI or a local small model — a
@@ -82,7 +82,7 @@ check finding and ticked checklist lands in the task journal
 | `task new "<title>" [--type]` | Open a task journal. |
 | `req new <category> "<title>"` | Scaffold a requirement file. |
 | `status [TASK-id] [--all] [--json]` | List open tasks, or show one — the resume entry point. |
-| `check [--task ID] [--run] [--strict] [--full] [--json]` | The 15-check heuristic catalog; advisory, always exits 0 — `--strict` (CI) exits 1 on errors and promoted warnings; `--run` also executes the configured verification commands. |
+| `check [--task ID] [--run] [--strict] [--full] [--json]` | The 17-check heuristic catalog; advisory, always exits 0 — `--strict` (CI) exits 1 on errors and promoted warnings; `--run` also executes the configured verification commands. |
 | `test [name] [--impacted] [--task ID]` | Run a configured command; `--impacted` runs only the tests linked to requirements the diff touches. |
 | `report <task>` | Append the delivery summary to the task journal. |
 
@@ -111,7 +111,7 @@ treat empty stdout as an error rather than as an empty result.
 python -m pytest tests -q
 ```
 
-The suite covers the CLI, all 15 checks against fixture repos (git and
+The suite covers the CLI, all 17 checks against fixture repos (git and
 git-less), the runner/report commands, and structural guards that keep
 the philosophy honest: no hook/waiver/transaction machinery, stdlib-only
 imports, advisory-by-default exit codes, license headers everywhere.

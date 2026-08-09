@@ -27,6 +27,8 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import gzip
 import hashlib
 import io
 import json
@@ -138,6 +140,38 @@ def collect(root: Path) -> list[Path]:
     )
 
 
+def payload_version() -> str:
+    """
+    @brief      The version the payload itself reports.
+    @return     The non-empty `VERSION` string assigned in `aegis.py`.
+    @details    The label on the archives is otherwise free text, so a stale
+                default silently produces a release whose name disagrees with
+                the CLI inside it.
+    @exception  SystemExit If the payload is unreadable or has no valid version.
+    """
+    path = PAYLOAD / "aegis.py"
+    try:
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+    except (OSError, UnicodeError, SyntaxError) as exc:
+        raise SystemExit(f"cannot read payload version: {exc}") from None
+
+    value = None
+    for node in tree.body:
+        if (isinstance(node, ast.Assign)
+                and any(isinstance(target, ast.Name) and target.id == "VERSION"
+                        for target in node.targets)):
+            value = node.value
+        elif (isinstance(node, ast.AnnAssign)
+              and isinstance(node.target, ast.Name)
+              and node.target.id == "VERSION"):
+            value = node.value
+    if (isinstance(value, ast.Constant) and isinstance(value.value, str)
+            and value.value.strip()):
+        return value.value.strip()
+    raise SystemExit("payload aegis.py has no non-empty string VERSION assignment")
+
+
 def verify_payload() -> None:
     """
     @brief      Fail the build when the payload is not exactly as expected.
@@ -219,18 +253,29 @@ def write_tar(target: Path, stage: Path, prefix: str) -> None:
     @param[in]  prefix Top-level directory name inside the archive.
     @return     None
     @exception  None
+    @details    The gzip container is written explicitly rather than through
+                `tarfile.open(..., "w:gz")`, which stamps the build clock into
+                the gzip header MTIME and the output path into its FNAME
+                field. Normalizing the tar members alone left the inner stream
+                identical while every rebuild produced a different outer
+                checksum - the archive was reproducible in content but not in
+                digest, which is the only form of it a release record can cite.
     """
-    with tarfile.open(target, "w:gz", format=tarfile.GNU_FORMAT,
-                      compresslevel=9) as archive:
-        for path in collect(stage):
-            info = tarfile.TarInfo(f"{prefix}/{path.relative_to(stage).as_posix()}")
-            data = path.read_bytes()
-            info.size = len(data)
-            info.mtime = FIXED_MTIME
-            info.mode = 0o644
-            info.uid = info.gid = 0
-            info.uname = info.gname = ""
-            archive.addfile(info, io.BytesIO(data))
+    with open(target, "wb") as raw:
+        with gzip.GzipFile(filename="", fileobj=raw, mode="wb",
+                           compresslevel=9, mtime=FIXED_MTIME) as compressed:
+            with tarfile.open(fileobj=compressed, mode="w",
+                              format=tarfile.GNU_FORMAT) as archive:
+                for path in collect(stage):
+                    info = tarfile.TarInfo(
+                        f"{prefix}/{path.relative_to(stage).as_posix()}")
+                    data = path.read_bytes()
+                    info.size = len(data)
+                    info.mtime = FIXED_MTIME
+                    info.mode = 0o644
+                    info.uid = info.gid = 0
+                    info.uname = info.gname = ""
+                    archive.addfile(info, io.BytesIO(data))
 
 
 def sha256_of(path: Path) -> str:
@@ -252,14 +297,21 @@ def sha256_of(path: Path) -> str:
 # -----------------------------------------------------------------------------
 
 
-def build(version: str, record: bool) -> int:
+def build(version: str | None, record: bool) -> int:
     """
     @brief      Build the archives, checksums, manifest and release record.
-    @param[in]  version Release version, e.g. "0.1.0".
+    @param[in]  version Requested release version, or None for the payload value.
     @param[in]  record Also write the tracked publication record folder.
     @return     Process exit status.
     @exception  SystemExit On verification failure.
     """
+    actual_version = payload_version()
+    if version is not None and version != actual_version:
+        raise SystemExit(
+            f"requested release version {version!r} does not match "
+            f"payload VERSION {actual_version!r}"
+        )
+    version = actual_version
     verify_payload()
     run_tests()
 
@@ -317,7 +369,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     @exception  None
     """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", default="0.1.0", help="release version")
+    parser.add_argument("--version", default=None,
+                        help="release version (default: the payload's VERSION)")
     parser.add_argument("--no-record", action="store_true",
                         help="build dist/ only, skip the publication record")
     return parser

@@ -81,6 +81,19 @@ WARN   no-linked-tests  .agentic/requirements/functional/REQ-FUNC-91c0.toml - em
 Every such warning is a backlog item that stays visible on every future
 run until someone closes it. Nothing blocks; nothing is forgotten.
 
+Behavior that no test could *ever* settle is a different case, and
+adoption meets plenty of it — a legacy dialog's wording, an installer's
+behavior on a clean machine. Give those a `verification` starting
+`Manual:` or `Inspection:` that names the method, and they are recorded
+as verified by hand instead of joining the test backlog:
+
+```
+NOTE   manual-verification  .agentic/requirements/ux/REQ-UX-91c0.toml - by hand: install on a ...
+```
+
+Keep the two apart honestly. A test you have not written yet is a
+backlog item; a manual method is a decision.
+
 ## Adopt only what you need
 
 Total coverage is not required. Adopt the components you actively

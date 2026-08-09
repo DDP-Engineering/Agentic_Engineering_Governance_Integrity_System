@@ -105,7 +105,10 @@ Review this repository's AEGIS Light artifacts for drift. First run
 python .agentic/aegis.py check and read every finding. Then go beyond it
 semantically: for each active requirement, does the prose still describe
 what the code actually does, and does verification still match how the
-linked tests check it? Do the knowledge pages still describe their
+linked tests check it? For any requirement whose verification starts
+"Manual:" or "Inspection:", is that still true — is the behavior really
+unautomatable, or could a test be written now? Do the knowledge pages
+still describe their
 components truthfully? Are there draft requirements nobody finished,
 journals stuck in an early stage for weeks, or delivered work with no
 journal? Produce a findings list ordered by severity, each with a

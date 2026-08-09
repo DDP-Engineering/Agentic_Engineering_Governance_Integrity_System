@@ -74,6 +74,15 @@ strict_promote = [
 Start with an empty list, watch the warnings for a couple of weeks, then
 promote the ones nobody ever wants to override.
 
+Only **warnings** can be promoted. `manual-verification` is a NOTE, so
+listing it here does nothing: a requirement whose `verification` names a
+manual method cannot fail the gate, by construction. That is the point —
+it lets a team promote `no-linked-tests` hard without the unautomatable
+requirements (UX judgements, clean-install checks) making the gate
+unpassable. What it costs you is that the honesty of a `Manual:` claim is
+a review question, not a CI one; the NOTE stays in every report so the
+claims remain countable and visible.
+
 One thing to know if you promote `secret-in-diff`: when part of a diff
 cannot be inspected — a binary or oversized file, or a filename git
 could not attribute — `check` reports it as a `secret-in-diff` warning

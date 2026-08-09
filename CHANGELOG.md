@@ -13,6 +13,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- AEGIS Light 0.2.0: two advisory checks complete the catalog at seventeen.
+  `stage-zone` reports source edited under a stage whose write zone does not
+  include it — the documentation stages (`frame`, `specify`, `design`) and
+  adoption's `survey`/`close` write only `.agentic/`, adoption's `components`
+  may also add tests, and `build`/`deliver` are unconstrained; zones are
+  overridable per stage in a new optional `[zones]` table in `aegis.toml`.
+  `manual-verification` recognises a `verification` field that begins
+  `Manual:` or `Inspection:` and names a method, recording the requirement as
+  verified by hand instead of counting it among the tests still owed. It is a
+  NOTE, so it stays printed and counted but can never fail `check --strict`.
+  Both defaults live in the payload, so an upgraded repo gets them without
+  touching its own `aegis.toml`.
+
 - Replace the retired WAEGIS 1 distribution implementation with WAEGIS 3.0.0:
   a stdlib-only, ownership-aware AEGIS 3 wizard; payload-bearing zipapp; and
   Pythonless Windows/Linux x64 bundles built around that exact zipapp with

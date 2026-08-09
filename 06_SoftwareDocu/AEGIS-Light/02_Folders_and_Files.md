@@ -57,6 +57,21 @@ updated = 2026-08-02
 Write the prose self-contained — no ticket numbers, no "see TASK-1234"
 (`aegis check` flags those patterns).
 
+**When no test can settle it.** Some behaviors are real but unautomatable
+— a look-and-see judgement, an install on clean hardware, a printed page.
+Start `verification` with `Manual:` or `Inspection:` and name the method:
+
+```toml
+verification = "Manual: install on a clean laptop and read the splash screen."
+linked_tests = []
+```
+
+`check` then records it as `manual-verification` (a NOTE) instead of
+counting it among the tests still owed. The prefix alone buys nothing —
+it has to say what someone actually does. Use it because the behavior
+cannot be automated, never to quiet a warning about a test you could
+write; the NOTE stays printed and counted on every run either way.
+
 **Recommended shape: EARS.** Pick the one pattern that fits — ubiquitous
 (`The <system> shall <response>.`), event (`When <trigger>, …`), state
 (`While <state>, …`), unwanted (`If <condition>, then …`) or optional
@@ -131,6 +146,7 @@ manifest and no registry — the folder listing is the component list.
 | `[commands] <anything>` | More named commands (lint, build...); `check --run` executes them all. |
 | `[commands] timeout` | Seconds allowed per command (default 1800). |
 | `[layout] source / tests` | Globs that tell the heuristics what is code and what is test. |
+| `[zones] <stage>` | What that stage may write besides `.agentic/` — `"source"`, `"tests"`, or nothing. Omit a stage to leave it unconstrained. |
 | `[check] ignore` | Globs excluded from every check. |
 | `[check] secret_patterns_extra` | Extra regexes for the secret scan. |
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |

@@ -42,7 +42,7 @@ then `git fetch`, check out the task branch the journal records, run
 continue at the first unticked checklist item.
 
 ## Does it work without git?
-Yes, degraded: the five diff-based checks report one NOTE line each and
+Yes, degraded: the six diff-based checks report one NOTE line each and
 skip; everything else (formats, links, journals, commands) still works.
 With git but no remote: fully functional — the diff basis is the merge
 base against your local `master`/`main`.
@@ -56,21 +56,42 @@ Both, identically — same commands, same outputs. Generated files use LF
 and forward slashes everywhere, so mixed-OS teams don't churn diffs.
 
 ## What does `check` actually check?
-Fifteen heuristics: five error-level (broken TOML, id mismatches and
+Seventeen heuristics: five error-level (broken TOML, id mismatches and
 duplicates, unparseable journals, dangling spec references, and `--run`
-having executed nothing at all) and ten warning-level (uncovered changed
+having executed nothing at all), eleven warning-level (uncovered changed
 source, missing linked tests, stale paths, scope drift, secrets in the
 diff, ticket references in requirement prose, unticked deliver
 checklists, files outside the layout, source changed without test
-changes, and malformed `aegis.toml` keys). `check --help` lists every
-slug. It always exits 0; only `--strict` (CI) turns errors and promoted
-warnings into a failing exit.
+changes, code edited outside the current stage's write zone, and
+malformed `aegis.toml` keys) and one note-level (a requirement verified
+by hand rather than by test). `check --help` lists every slug. It always
+exits 0; only `--strict` (CI) turns errors and promoted warnings into a
+failing exit — notes are never promotable.
 
 The report is **capped at the first 40 findings** so a neglected or
 freshly adopted repository cannot bury you (and cannot blow a small
 model's context). When it caps, it says so — `... N more finding(s) -
 use --full`. `--full` prints everything, and `--strict` implies it, so
 CI always sees the complete list.
+
+## What about a requirement no test can verify?
+Say so in the requirement. Start its `verification` with `Manual:` or
+`Inspection:` and name the method ("Manual: install on a clean laptop and
+read the splash screen"), and `check` records it as verified by hand
+instead of listing it among the tests you still owe. It stays a NOTE —
+printed and counted on every run, but never promotable to a `--strict`
+failure, so it cannot become a quiet bypass. The honesty is on you: a
+test you have not written yet is not a manual method, and writing
+`Manual:` with nothing after it buys nothing.
+
+## Can it stop the agent writing code before the scope is agreed?
+Stop, no — nothing in Light blocks. Report, yes. Each stage has a write
+zone: `frame`, `specify` and `design` write only under `.agentic/`, while
+`build` and `deliver` write anywhere. Source edited under a documentation
+stage shows up as a `stage-zone` warning naming the file and the stage.
+Most hits mean the journal's `stage:` line is stale rather than that the
+edit was wrong — which is itself worth knowing, because a stale stage
+breaks resume. Adjust the zones per stage in `[zones]` in `aegis.toml`.
 
 ## Do I have to write requirements for everything?
 No. Adopt incrementally (doc 05), or not at all for areas you never

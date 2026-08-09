@@ -333,7 +333,7 @@ def test_report_appends_the_delivery_section(tmp_path, monkeypatch, capsys):
     assert "- stage: deliver; type: feature; path: full; branch: feature" in text
     assert "  - REQ-FUNC-1111 - A behavior" in text
     assert "- diff vs merge base: unavailable (git executable not found)" in text
-    assert "- checks: errors=0 warnings=1 notes=5" in text
+    assert "- checks: errors=0 warnings=1 notes=6" in text
     assert "- checklist: 1/2 done; open: report appended" in text
 
     aegis.main(["report", "TASK-ab12"])  # append-only: a second dated section
@@ -525,7 +525,7 @@ def test_check_json_is_a_parseable_document_with_a_schema(tmp_path,
     assert doc["schema"] == aegis.JSON_SCHEMA
     assert doc["command"] == "check"
     assert doc["result"] == "WARN"
-    assert doc["summary"] == {"errors": 0, "warnings": 1, "notes": 5}
+    assert doc["summary"] == {"errors": 0, "warnings": 1, "notes": 6}
     assert doc["strict"] is None and doc["run"] == []
     finding = next(f for f in doc["findings"] if f["check"] == "no-linked-tests")
     assert set(finding) == {"level", "check", "path", "message"}

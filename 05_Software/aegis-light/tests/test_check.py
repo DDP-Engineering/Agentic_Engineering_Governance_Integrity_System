@@ -625,6 +625,179 @@ def test_wrongly_typed_config_tables_do_not_crash(nogit_repo, capsys):
     assert "summary:" in out
 
 
+# TESTS - check 16: manual-verification
+
+
+#: requirement id code -> the folder that id must live in.
+MANUAL_FOLDERS = {"FUNC": "functional", "UX": "ux", "NFR": "nfr"}
+
+
+def manual_req(agentic, rid: str, verification: str):
+    """@brief An active requirement with no linked tests and a chosen wording."""
+    body = req_toml(rid).replace('verification = "Run the linked test."',
+                                 f'verification = "{verification}"')
+    folder = MANUAL_FOLDERS[rid.split("-")[1]]
+    return write(agentic / "requirements" / folder / f"{rid}.toml", body)
+
+
+def test_a_declared_manual_method_replaces_the_missing_test_warning(nogit_repo,
+                                                                    capsys):
+    agentic, aegis = nogit_repo
+    manual_req(agentic, "REQ-UX-1111",
+               "Manual: install on a clean machine and read the first screen.")
+    out = run_check(aegis, capsys)
+    assert not lines_for(out, "no-linked-tests")
+    notes = lines_for(out, "manual-verification")
+    assert len(notes) == 1
+    assert notes[0].startswith("NOTE") and "by hand: install" in notes[0]
+
+
+def test_inspection_is_accepted_as_a_manual_method_too(nogit_repo, capsys):
+    agentic, aegis = nogit_repo
+    manual_req(agentic, "REQ-NFR-1111", "Inspection: read the generated licence.")
+    out = run_check(aegis, capsys)
+    assert not lines_for(out, "no-linked-tests")
+    assert len(lines_for(out, "manual-verification")) == 1
+
+
+def test_a_bare_prefix_naming_no_method_stays_a_missing_test_warning(nogit_repo,
+                                                                     capsys):
+    """The escape hatch has to state a method; the word alone buys nothing."""
+    agentic, aegis = nogit_repo
+    manual_req(agentic, "REQ-FUNC-1111", "Manual:   ")
+    out = run_check(aegis, capsys)
+    assert len(lines_for(out, "no-linked-tests")) == 1
+    assert not lines_for(out, "manual-verification")
+
+
+def test_a_manual_method_mid_sentence_does_not_count(nogit_repo, capsys):
+    """Only the declared prefix counts - prose that mentions it does not."""
+    agentic, aegis = nogit_repo
+    manual_req(agentic, "REQ-FUNC-1111", "We do this Manual: check by eye.")
+    out = run_check(aegis, capsys)
+    assert len(lines_for(out, "no-linked-tests")) == 1
+    assert not lines_for(out, "manual-verification")
+
+
+def test_a_manual_requirement_cannot_fail_strict_even_when_promoted(nogit_repo,
+                                                                    capsys):
+    """A NOTE is unpromotable by construction - that is the whole guarantee."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml",
+          'schema = 1\n\n[check]\n'
+          'strict_promote = ["no-linked-tests", "manual-verification"]\n')
+    manual_req(agentic, "REQ-UX-1111", "Manual: watch the animation once.")
+    capsys.readouterr()
+    assert aegis.main(["check", "--strict"]) == 0
+
+
+def test_manual_method_is_ignored_once_tests_are_linked(nogit_repo, capsys):
+    agentic, aegis = nogit_repo
+    write_req(agentic, "REQ-FUNC-1111", tests='["tests/test_app.py::test_app"]')
+    write(agentic.parent / "tests" / "test_app.py", "def test_app():\n    pass\n")
+    out = run_check(aegis, capsys)
+    assert not lines_for(out, "manual-verification")
+    assert not lines_for(out, "no-linked-tests")
+
+
+# TESTS - check 17: stage-zone
+
+
+@needs_git
+def test_stage_zone_fires_on_source_edited_during_a_documentation_stage(tmp_path,
+                                                                        capsys):
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-aa11", stage="specify")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    zone = lines_for(run_check(aegis, capsys), "stage-zone")
+    assert len(zone) == 1
+    assert "src/app.py" in zone[0] and "stage 'specify'" in zone[0]
+    assert "write zone is .agentic/" in zone[0]
+
+
+@needs_git
+def test_stage_zone_is_silent_in_build_which_has_no_zone(tmp_path, capsys):
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-aa11", stage="build")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    assert not lines_for(run_check(aegis, capsys), "stage-zone")
+
+
+@needs_git
+def test_adoption_components_may_write_tests_but_not_source(tmp_path, capsys):
+    """Characterizing an untested behavior is adoption; changing it is not."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-ad01", stage="components")
+    write(tmp_path / "tests" / "test_app.py", "def test_app():\n    assert 1\n")
+    assert not lines_for(run_check(aegis, capsys), "stage-zone")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    zone = lines_for(run_check(aegis, capsys), "stage-zone")
+    assert len(zone) == 1 and "src/app.py" in zone[0]
+    assert "write zone is .agentic/, tests" in zone[0]
+
+
+@needs_git
+def test_stage_zone_ignores_a_journal_recorded_on_another_branch(tmp_path,
+                                                                 capsys):
+    """The diff belongs to this branch; another branch's journal cannot judge it."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write(agentic / "tasks" / "TASK-aa11.md",
+          "# TASK-aa11 — a task\n\nstage: specify\ntype: feature\npath: full\n"
+          "requirements:\nbranch: some-other-branch\nopened: 2026-08-02\n\n"
+          "## Done checklist (current stage)\n\n- [x] done\n\n"
+          "## Log\n\n- 2026-08-02 frame: opened\n")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    assert not lines_for(run_check(aegis, capsys), "stage-zone")
+
+
+@needs_git
+def test_detached_head_needs_an_explicit_task_for_stage_zone(tmp_path, capsys):
+    """Without a branch identity, unrelated journals must not judge the diff."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-aa11", stage="specify")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    git(tmp_path, "checkout", "--detach")
+
+    unscoped = lines_for(run_check(aegis, capsys), "stage-zone")
+    assert len(unscoped) == 1
+    assert unscoped[0].startswith("NOTE")
+    assert "use --task on detached HEAD" in unscoped[0]
+
+    scoped = lines_for(run_check(aegis, capsys, "--task", "TASK-aa11"),
+                       "stage-zone")
+    assert len(scoped) == 1
+    assert scoped[0].startswith("WARN") and "src/app.py" in scoped[0]
+
+
+@needs_git
+def test_a_file_outside_the_layout_is_check_12_not_check_17(tmp_path, capsys):
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-aa11", stage="specify")
+    write(tmp_path / "notes.txt", "scratch\n")
+    out = run_check(aegis, capsys)
+    assert not lines_for(out, "stage-zone")
+    assert any("notes.txt" in line for line in lines_for(out, "outside-layout"))
+
+
+@needs_git
+def test_a_zones_entry_widens_a_stage(tmp_path, capsys):
+    agentic, aegis = make_git_repo(tmp_path)
+    write(agentic / "aegis.toml",
+          'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n\n'
+          '[zones]\nspecify = ["source"]\n')
+    write_task(agentic, "TASK-aa11", stage="specify")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    assert not lines_for(run_check(aegis, capsys), "stage-zone")
+
+
+def test_an_unknown_zone_name_is_reported_as_a_config_warning(nogit_repo, capsys):
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml",
+          'schema = 1\n\n[zones]\nspecify = ["sources"]\n')
+    out = run_check(aegis, capsys)
+    assert any("unknown zone 'sources'" in line for line in lines_for(out, "config"))
+
+
 # TESTS - degraded modes
 
 
@@ -632,7 +805,7 @@ def test_missing_git_degrades_every_diff_check_to_a_note(nogit_repo, capsys):
     _agentic, aegis = nogit_repo
     out = run_check(aegis, capsys)
     notes = [line for line in out.splitlines() if line.startswith("NOTE")]
-    assert len(notes) == 5
+    assert len(notes) == 6
     assert all("(diff) - skipped: git executable not found" in line for line in notes)
     assert "result: NOTE" in out
 
@@ -644,7 +817,7 @@ def test_not_a_repository_degrades_with_its_own_reason(tmp_path, monkeypatch,
     monkeypatch.setattr(aegis, "run_git", lambda *_a: (128, ""))
     out = run_check(aegis, capsys)
     assert sum("skipped: not a git repository" in line
-               for line in out.splitlines()) == 5
+               for line in out.splitlines()) == 6
 
 
 @needs_git
@@ -653,7 +826,7 @@ def test_no_merge_base_degrades_with_a_note(tmp_path, capsys):
     aegis.main(["init"])
     git(tmp_path, "init")  # a repo with no commit has no default branch yet
     out = run_check(aegis, capsys)
-    assert sum("skipped: no default branch" in line for line in out.splitlines()) == 5
+    assert sum("skipped: no default branch" in line for line in out.splitlines()) == 6
 
 
 # TESTS - ignore globs and --task scoping
@@ -720,12 +893,13 @@ def test_golden_output_is_stable(nogit_repo, capsys):
         "NOTE   scope-drift  (diff) - skipped: git executable not found\n"
         "NOTE   secret-in-diff  (diff) - skipped: git executable not found\n"
         "NOTE   source-no-test-changes  (diff) - skipped: git executable not found\n"
+        "NOTE   stage-zone  (diff) - skipped: git executable not found\n"
         "NOTE   uncovered-source  (diff) - skipped: git executable not found\n"
         "WARN   no-linked-tests  .agentic/requirements/functional/REQ-FUNC-aaaa.toml"
         " - empty linked_tests\n"
         "WARN   unticked-deliver  .agentic/tasks/TASK-bbbb.md"
         " - 1 unticked item(s) in deliver\n"
-        "summary: errors=0 warnings=2 notes=5\n"
+        "summary: errors=0 warnings=2 notes=6\n"
         "result: WARN\n"
     )
 
@@ -751,7 +925,7 @@ def test_clean_repo_reports_ok(tmp_path, monkeypatch, capsys):
     assert out == "summary: errors=0 warnings=0 notes=0\nresult: ok\n"
 
 
-def test_help_lists_all_fifteen_slugs_and_the_diff_basis(nogit_repo, capsys):
+def test_help_lists_all_seventeen_slugs_and_the_diff_basis(nogit_repo, capsys):
     _agentic, aegis = nogit_repo
     capsys.readouterr()
     with pytest.raises(SystemExit) as exc:
@@ -760,5 +934,5 @@ def test_help_lists_all_fifteen_slugs_and_the_diff_basis(nogit_repo, capsys):
     out = capsys.readouterr().out
     for slug, _desc in aegis.CHECKS:
         assert slug in out
-    assert len(aegis.CHECKS) == 15
+    assert len(aegis.CHECKS) == 17
     assert "merge-base" in out and "origin/HEAD" in out
