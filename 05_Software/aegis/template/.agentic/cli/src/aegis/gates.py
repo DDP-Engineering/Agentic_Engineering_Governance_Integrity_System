@@ -41,7 +41,9 @@ import os
 import shlex
 import signal
 import subprocess
+import tempfile
 from pathlib import Path
+from typing import TextIO
 
 from .config import GATE_ORDER, WorkflowConfig
 from .models import Evidence, Graph
@@ -739,47 +741,68 @@ def _run_with_timeout(
     @exception subprocess.TimeoutExpired If the process group exceeds timeout.
     @exception OSError If process launch fails.
     @details A plain `subprocess.run(..., timeout=...)` terminates only the
-             immediate shell. Descendants can retain the captured pipe and
-             make the follow-up `communicate()` wait forever. A dedicated
-             process group lets the timeout path terminate the whole tree.
+             immediate shell, while descendants can retain captured pipe
+             handles indefinitely. Temporary-file capture removes the EOF
+             dependency, and a dedicated process group lets the timeout path
+             terminate the whole tree.
     """
     popen_kwargs: dict[str, object] = {}
     if os.name == "nt":
         popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         popen_kwargs["start_new_session"] = True
-    process = subprocess.Popen(
-        command,
-        cwd=repo_root,
-        shell=shell,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        **popen_kwargs,
-    )
-    try:
-        stdout, stderr = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired as exc:
-        _terminate_process_tree(process)
-        try:
-            stdout, stderr = process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            stdout, stderr = process.communicate()
-        raise subprocess.TimeoutExpired(
+    with (
+        tempfile.TemporaryFile(
+            mode="w+", encoding="utf-8", errors="replace"
+        ) as stdout_file,
+        tempfile.TemporaryFile(
+            mode="w+", encoding="utf-8", errors="replace"
+        ) as stderr_file,
+    ):
+        process = subprocess.Popen(
             command,
-            timeout,
-            output=stdout,
-            stderr=stderr,
-        ) from exc
-    return subprocess.CompletedProcess(
-        command,
-        process.returncode,
-        stdout,
-        stderr,
-    )
+            cwd=repo_root,
+            shell=shell,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            stdout=stdout_file,
+            stderr=stderr_file,
+            **popen_kwargs,
+        )
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            _terminate_process_tree(process)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=1)
+            stdout, stderr = _read_captures(stdout_file, stderr_file)
+            raise subprocess.TimeoutExpired(
+                command,
+                timeout,
+                output=stdout,
+                stderr=stderr,
+            ) from exc
+        except BaseException:
+            _terminate_process_tree(process)
+            raise
+        stdout, stderr = _read_captures(stdout_file, stderr_file)
+        return subprocess.CompletedProcess(
+            command,
+            process.returncode,
+            stdout,
+            stderr,
+        )
+
+
+def _read_captures(stdout_file: TextIO, stderr_file: TextIO) -> tuple[str, str]:
+    """@brief Read bounded gate captures without waiting for inherited EOF."""
+    stdout_file.seek(0)
+    stderr_file.seek(0)
+    return stdout_file.read(), stderr_file.read()
 
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:

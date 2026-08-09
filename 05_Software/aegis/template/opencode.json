@@ -5,6 +5,9 @@
     "AGENTS.md",
     ".agentic/documents/CLI_API_REFERENCE.md"
   ],
+  "plugin": [
+    "./.opencode/plugins/agentic-guard.mjs"
+  ],
   "permission": {
     "skill": {
       "*": "allow"

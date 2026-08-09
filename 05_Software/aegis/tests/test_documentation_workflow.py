@@ -50,6 +50,32 @@ def test_impact_run_flag_keeps_following_paths_file_positional() -> None:
     assert parsed.run_impact is True
     assert parsed.paths_file == "changed-paths.txt"
 
+
+def test_impact_keeps_following_canonical_run_id_global() -> None:
+    """@brief Preserve explicit run selection after the impact subcommand."""
+    run_id = "fix-2026-08-09T120000Z-abcdef12"
+    argv = ["verify", "impact", "--run", run_id, "--json"]
+
+    normalized = _normalize_global_options(argv)
+    parsed = _build_parser().parse_args(normalized)
+
+    assert normalized == ["--run", run_id, "--json", "verify", "impact"]
+    assert parsed.run == run_id
+    assert parsed.run_impact is False
+    assert parsed.paths_file is None
+
+
+def test_impact_paths_file_and_global_run_id_can_be_combined() -> None:
+    """@brief Avoid passing a global run value through to raw argparse output."""
+    run_id = "change-2026-08-09T120000Z-abcdef12"
+    argv = ["verify", "impact", "paths.txt", "--run", run_id]
+
+    parsed = _build_parser().parse_args(_normalize_global_options(argv))
+
+    assert parsed.run == run_id
+    assert parsed.run_impact is False
+    assert parsed.paths_file == "paths.txt"
+
 # @brief Generated Python distribution-metadata directory suffix excluded from
 #        template-hygiene walks because editable package builds create it locally.
 _GENERATED_METADATA_SUFFIX = ".egg-info"
@@ -320,7 +346,7 @@ def test_template_fresh_session_guidance_matches_current_form_contract() -> None
     assert next_command(applied_validation_graph) == "aegis verify run"
     assert "bootstrap sequence:" in agents
     assert "<workflow> run context --json" in agents
-    assert "named in required_reads" in agents
+    assert "`required_reads`" in agents
     assert "Do not read `graph.json` or `journal.jsonl`" in agents
     assert "needs three commands" not in agents
     assert 'its "Done when" list as comments' not in agents
@@ -331,9 +357,15 @@ def test_template_fresh_session_guidance_matches_current_form_contract() -> None
     assert "A full run never skips design" in design
     for stage in _DEVELOPMENT_STAGE_REFERENCES:
         reference = (references / f"{stage}.md").read_text(encoding="utf-8")
+        normalized_reference = " ".join(reference.split())
         assert "**Resume rule:**" in reference
         assert "reports it as `next`" in reference
         assert "Otherwise do not prepare a new revision" in reference
+        assert (
+            "request human approval for `<workflow> stage close`"
+            in normalized_reference
+        )
+        assert "then `<workflow> stage close`" not in normalized_reference
 
 
 def test_template_adapters_route_fresh_sessions_through_bounded_context() -> None:

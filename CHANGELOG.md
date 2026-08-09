@@ -39,6 +39,18 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Restore the AEGIS 3 human-approval boundary in development-stage guidance;
+  make `run context` report the authoritative lifecycle next step; and preserve
+  distinct waiver targets, disabled guardrail modes, config-repair access from
+  subdirectories, and bracket-bearing concrete paths.
+- Explicitly load the OpenCode `.mjs` guard plugin; fail closed on trailing
+  adapter diagnostics and guard timeouts; route notebook edits across copied
+  host adapters; and distinguish governed delivery commands from ordinary Git
+  commands while covering executable, prefix, and pipeline variants.
+- Bound orphaned gate output without inherited-pipe hangs, preserve all
+  PowerShell wrapper arguments through a JSON handoff, and make both installers
+  repeatable across bracket-bearing Windows and Git Bash paths.
+
 - Close AEGIS guard bypasses for UTF-8 policy input, unspaced and noclobber
   redirects, target-directory copies, patch moves, notebook edits, nested
   replaced text, workflow-config lookalikes, and delivery commands carrying

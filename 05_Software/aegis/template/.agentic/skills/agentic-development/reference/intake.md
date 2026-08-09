@@ -33,8 +33,9 @@ reported command using the retained current form and this reference.
 4. Write `scope_hints`: the repo-relative paths you expect to touch. Being wrong
    here is fine and expected; being silent is not, because the later scope audit
    compares what you touched against what you said.
-5. Set `access_mode`. `standard` reads only the configured source and test roots.
-   Ask for `repo-wide` only when the work genuinely needs to read outside them,
+5. Set `access_mode`. `standard` limits agent writes to the current stage's
+   configured zones. Ask for `repo-wide` only when the stage genuinely needs
+   writes elsewhere in the repository,
    and then fill `control.requested_access_mode` and `control.access_rationale`
    with the reason. An empty rationale refuses the close.
 6. Write `control.summary`: two or three sentences a reviewer reads six weeks
@@ -42,8 +43,8 @@ reported command using the retained current form and this reference.
 7. List anything you could not resolve in `control.unresolved_questions`. Each
    entry blocks the close until it is answered or waived — that is the point.
    Do not empty the list to make the stage close.
-8. Run `<workflow> stage apply`, then `<workflow> stage close`, and stop for
-   human approval.
+8. Run `<workflow> stage apply`, review the imported state, then request human
+   approval for `<workflow> stage close`.
 
 **Outputs:**
 

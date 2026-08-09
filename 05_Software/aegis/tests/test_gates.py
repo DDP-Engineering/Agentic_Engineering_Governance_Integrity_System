@@ -63,6 +63,25 @@ def test_timeout_kills_descendants_that_hold_captured_pipes(tmp_path: Path) -> N
     assert time.monotonic() - started < 10
 
 
+def test_timeout_stays_bounded_after_parent_exits(tmp_path: Path) -> None:
+    """@brief An orphan retaining captured pipes cannot hang timeout cleanup."""
+    script = (
+        "import subprocess,sys;"
+        "subprocess.Popen([sys.executable,'-c','import time;time.sleep(15)'])"
+    )
+    started = time.monotonic()
+
+    result = gates_module._run_with_timeout(
+        tmp_path,
+        [sys.executable, "-c", script],
+        shell=False,
+        timeout=1,
+    )
+
+    assert result.returncode == 0
+    assert time.monotonic() - started < 10
+
+
 @pytest.mark.parametrize(
     "refusal",
     [

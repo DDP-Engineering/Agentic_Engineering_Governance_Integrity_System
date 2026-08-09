@@ -40,8 +40,8 @@ reported command using the retained current form and this reference.
 4. In `design.toml`, set `cited_requirement_ids` to the exact requirement IDs
    this design implements, and `selected_option` to a one-line statement of the
    choice.
-5. Write `control.summary`, run `<workflow> stage apply`, then
-   `<workflow> stage close`, and stop for human approval.
+5. Write `control.summary`, run `<workflow> stage apply`, review the imported
+   state, then request human approval for `<workflow> stage close`.
 
 **Outputs:**
 

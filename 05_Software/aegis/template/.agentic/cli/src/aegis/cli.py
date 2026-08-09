@@ -57,6 +57,7 @@ from .gates import (
 from .invariants import blocking_failures, evaluate
 from .models import Graph
 from .persistence import PersistenceError
+from .paths import normalize_concrete_repository_path
 from .report import render_report, write_report
 from .requirements import (
     audit_coverage,
@@ -75,7 +76,6 @@ from .repowise import (
 from .requirement_store import (
     CATEGORY_IDENTITIES,
     RequirementValidationError,
-    normalize_repository_path,
 )
 from .stage_forms import (
     StageOperationError,
@@ -92,6 +92,7 @@ from .stage_forms import (
 )
 from .stage_context import build_stage_context
 from .store import (
+    RUN_ID_PATTERN,
     RunResolutionError,
     abandon_run_id,
     add_waiver,
@@ -145,7 +146,7 @@ def main(argv: list[str] | None = None) -> None:
                 policy exceptions.
     """
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     normalized = _normalize_global_options(list(argv) if argv is not None else sys.argv[1:])
     parser = _build_parser()
     args = parser.parse_args(normalized)
@@ -1379,7 +1380,11 @@ def _normalize_global_options(argv: list[str]) -> list[str]:
 
 def _is_impact_run_option(argv: list[str], index: int) -> bool:
     """@brief Distinguish `verify impact --run` from global `--run <id>`."""
-    return "verify" in argv[:index] and "impact" in argv[:index]
+    if "verify" not in argv[:index] or "impact" not in argv[:index]:
+        return False
+    if index + 1 >= len(argv) or argv[index + 1].startswith("-"):
+        return True
+    return RUN_ID_PATTERN.fullmatch(argv[index + 1]) is None
 
 
 def _read_paths_file(root: Path, value: str) -> list[str]:
@@ -1410,7 +1415,7 @@ def _read_paths_file(root: Path, value: str) -> list[str]:
             continue
         try:
             paths.append(
-                normalize_repository_path(stripped, allow_glob=False)
+                normalize_concrete_repository_path(stripped)
             )
         except ValueError as exc:
             raise CommandInputError(

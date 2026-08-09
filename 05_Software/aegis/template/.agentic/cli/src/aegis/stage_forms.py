@@ -479,6 +479,10 @@ def apply_stage(
     """
     run_stage_spec(graph)
     record = graph.stage_records.get(graph.stage)
+    if record and record.status == "applied":
+        raise StageOperationError(
+            "stage is already applied; run `aegis stage close` after review"
+        )
     if not record or record.status != "prepared":
         raise StageOperationError("run `aegis stage prepare` before stage apply")
     directory = stage_directory(repo_root, graph)
@@ -965,6 +969,8 @@ def _prepare_stage_record(
     if isinstance(control, dict):
         control["route_to"] = ""
         control["route_rationale"] = ""
+        control["requested_access_mode"] = ""
+        control["access_rationale"] = ""
     if graph.stage == "repo-discovery":
         if not record.payload:
             record.payload = {
@@ -2072,7 +2078,8 @@ def _import_single_stage(
         if data.get("manifest") != config.component_manifest:
             raise StageOperationError(
                 "component-map manifest must match components.manifest: "
-                f"{config.component_manifest}"
+                f"{config.component_manifest}; delete this form and run "
+                "`aegis stage prepare` to regenerate it"
             )
         _validate_import_enum(
             data,

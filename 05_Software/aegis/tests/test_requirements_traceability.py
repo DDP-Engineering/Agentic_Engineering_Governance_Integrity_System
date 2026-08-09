@@ -52,6 +52,7 @@ from aegis.requirements import (
     create_requirement,
     impact,
     list_requirements,
+    load_waivers,
     load_all_requirements,
     load_requirement_index,
     resolve_test,
@@ -849,6 +850,15 @@ def test_coverage_uses_active_live_records_and_current_waivers(tmp_path: Path) -
     assert [issue.code for issue in audit_coverage(tmp_path, config)] == [
         "REQ-COVERAGE-STALE-WAIVER"
     ]
+
+
+def test_coverage_waiver_accepts_literal_bracket_path(tmp_path: Path) -> None:
+    """@brief Keep framework route filenames valid on the waiver path."""
+    config = configure_repository(tmp_path, coverage=True)
+    waiver = tmp_path / ".agentic" / "requirements" / "coverage_waivers.txt"
+    waiver.write_text("app/[slug]/page.py\n", encoding="utf-8", newline="\n")
+
+    assert load_waivers(tmp_path, config) == ["app/[slug]/page.py"]
 
 
 def test_selector_resolution_requires_configured_root_and_exact_identifier(tmp_path: Path) -> None:

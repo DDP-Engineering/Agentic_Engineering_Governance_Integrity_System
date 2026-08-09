@@ -43,7 +43,8 @@ reported command using the retained current form and this reference.
 6. Set `verification` to `Automated test`, or to `Manual: <method>` /
    `Inspection: <method>` when no code path can assert it.
 7. Fill `affected_paths` with the source files the behaviour lives in, and
-   `linked_tests` with exact selectors (`path/to/test.py::test_name`). The tests
+   `linked_tests` with exact selectors under a configured test root
+   (`tests/test_feature.py::test_behaviour`). The tests
    need not exist yet — the check stage writes them — but the selectors must be
    the ones you will actually create.
 8. Fill the companion Markdown at `spec_ref` with the concrete detail the
@@ -55,8 +56,8 @@ reported command using the retained current form and this reference.
    path. A category with no applicable behaviour needs no requirement; silently
    skipping one that applies is the usual source of later regressions.
 10. Write `control.summary` in `stage.toml`, run `<workflow> stage apply` to
-    import the whole collection atomically, then `<workflow> stage close`, and
-    stop for human approval.
+    import the whole collection atomically, review the imported state, then
+    request human approval for `<workflow> stage close`.
 
 **Outputs:**
 

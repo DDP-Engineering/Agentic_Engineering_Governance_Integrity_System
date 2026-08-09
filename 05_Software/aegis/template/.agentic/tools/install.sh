@@ -37,9 +37,27 @@ resolve_python() {
   return 1
 }
 
+# @brief Print the platform-specific Python executable inside the local venv.
+venv_python() {
+  if [ -x "$VENV_ROOT/Scripts/python.exe" ]; then
+    printf '%s' "$VENV_ROOT/Scripts/python.exe"
+  else
+    printf '%s' "$VENV_ROOT/bin/python"
+  fi
+}
+
+# @brief Convert an MSYS path before passing it to a native Windows executable.
+native_path() {
+  if [ "${OS:-}" = "Windows_NT" ] && command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$1"
+  else
+    printf '%s' "$1"
+  fi
+}
+
 if command -v uv >/dev/null 2>&1; then
-  uv venv --python 3.11 "$VENV_ROOT"
-  uv pip install --python "$VENV_ROOT/bin/python" -e "$CLI_ROOT"
+  uv venv --clear --python 3.11 "$(native_path "$VENV_ROOT")"
+  uv pip install --python "$(native_path "$(venv_python)")" -e "$(native_path "$CLI_ROOT")"
   exit 0
 fi
 
@@ -54,5 +72,5 @@ fi
   exit 2
 }
 
-"$PYTHON_BIN" -m venv "$VENV_ROOT"
-"$VENV_ROOT/bin/python" -m pip install -e "$CLI_ROOT"
+"$PYTHON_BIN" -m venv --clear "$(native_path "$VENV_ROOT")"
+"$(venv_python)" -m pip install -e "$(native_path "$CLI_ROOT")"

@@ -125,9 +125,28 @@ def matches_pattern(path: str, pattern: str) -> bool:
     if os.name == "nt":
         normalized_path = normalized_path.lower()
         normalized_pattern = normalized_pattern.lower()
-    return fnmatchcase(normalized_path, normalized_pattern) or fnmatchcase(
+    return normalized_path == normalized_pattern or fnmatchcase(
+        normalized_path, normalized_pattern
+    ) or fnmatchcase(
         normalized_path, f"{normalized_pattern}/**"
     )
+
+
+def normalize_concrete_repository_path(value: str) -> str:
+    """
+    @brief Normalize a concrete path while preserving literal brackets.
+    @param[in] value Operator-supplied repository-relative path.
+    @return Normalized slash-separated repository-relative value.
+    @exception RepositoryPathError If the path escapes or contains `*` or `?`.
+    @details Brackets are valid filename characters in common framework routes.
+             They are glob syntax only when a caller explicitly accepts a glob.
+    """
+    normalized = normalize_repository_path(value, allow_glob=True)
+    if "*" in normalized or "?" in normalized:
+        raise RepositoryPathError(
+            "has-globs", "concrete paths must not contain wildcard syntax"
+        )
+    return normalized
 
 
 def normalize_repository_path(value: str, *, allow_glob: bool = False) -> str:

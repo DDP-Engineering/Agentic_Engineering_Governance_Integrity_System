@@ -27,7 +27,7 @@ import re
 from typing import Any
 
 from .config import WorkflowConfig
-from .paths import contained_relative_path, matches_pattern
+from .paths import matches_pattern, normalize_concrete_repository_path
 from .persistence import locked
 from .requirement_store import (
     CATEGORY_IDENTITIES,
@@ -515,11 +515,12 @@ def impact(
     cache: dict[str, tuple[bool, str]] = {}
     for file_path in candidates:
         if discovered:
-            relative_path = contained_relative_path(file_path, repo_root)
-            if relative_path is None:
+            try:
+                relative_path = normalize_concrete_repository_path(file_path)
+            except ValueError:
                 continue
         else:
-            relative_path = normalize_repository_path(file_path, allow_glob=False)
+            relative_path = normalize_concrete_repository_path(file_path)
         if relative_path in seen:
             continue
         seen.add(relative_path)
@@ -619,7 +620,14 @@ def load_waivers(repo_root: Path, config: WorkflowConfig) -> list[str]:
         for line in path.read_text(encoding="utf-8").splitlines():
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
-                values.add(normalize_repository_path(stripped, allow_glob=False))
+                try:
+                    values.add(normalize_concrete_repository_path(stripped))
+                except ValueError as exc:
+                    raise RequirementValidationError(
+                        path.as_posix(),
+                        "coverage_waiver",
+                        str(exc),
+                    ) from exc
     return sorted(values)
 
 

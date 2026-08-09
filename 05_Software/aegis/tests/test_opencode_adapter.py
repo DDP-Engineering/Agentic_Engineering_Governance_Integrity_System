@@ -83,6 +83,7 @@ def test_opencode_config_has_no_repository_policy_duplication() -> None:
     assert "model" not in config
     assert "provider" not in config
     assert ".agentic/documents/CLI_API_REFERENCE.md" in config["instructions"]
+    assert config["plugin"] == ["./.opencode/plugins/agentic-guard.mjs"]
     assert config["permission"]["skill"]["*"] == "allow"
     assert config["permission"]["read"] == {"*": "allow"}
     assert config["permission"]["edit"] == {"*": "allow"}

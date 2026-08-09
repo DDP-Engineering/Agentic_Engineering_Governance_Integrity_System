@@ -15,6 +15,7 @@ import {
 import {
   createHookBridge,
   decideFromResult,
+  HOOK_TIMEOUT_MS,
   interpreterCandidates,
   parseHookDecision,
   NO_INTERPRETER_REASON,
@@ -66,6 +67,12 @@ describe("parseHookDecision", () => {
   it("falls back to the last non-empty line when stdout has noise", () => {
     const stdout = `warning: something\n${denyJson("Possible secret detected")}`;
     expect(parseHookDecision(stdout)).toBe("Possible secret detected");
+  });
+
+  it("finds a denial before trailing diagnostics", () => {
+    const stdout = `${denyJson("blocked")}\ntrailing diagnostic`;
+    expect(parseHookDecision(stdout)).toBe("blocked");
+    expect(HOOK_TIMEOUT_MS).toBe(60_000);
   });
 
   it("uses a default reason when deny omits a reason string", () => {

@@ -194,11 +194,11 @@ def audit_working_tree(
             ),
             None,
         )
-        if blocked_hit:
+        if config.working_tree.mode == "restricted" and blocked_hit:
             findings.append(_finding("blocked-pattern", blocked_hit, "Path matches a configured working-tree blocker."))
         secret = (
             None
-            if is_generated_run_artifact(path)
+            if config.secrets.mode == "disabled" or is_generated_run_artifact(path)
             else _secret_match(repo_root / path, path, config.secrets.patterns)
         )
         if secret:

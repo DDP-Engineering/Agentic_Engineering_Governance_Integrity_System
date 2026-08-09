@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import Graph, Stage
-from .stage_forms import COLLECTION_STAGES, stage_directory
+from .stage_forms import COLLECTION_STAGES, next_command, stage_directory
 from .stage_schema import STAGE_REFERENCE_PATHS, run_stage_spec
 
 # CONSTANTS
@@ -53,6 +53,11 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
     skill = _skill_path(graph.stage)
     reference = STAGE_REFERENCE_PATHS[graph.stage]
     previous, unavailable = _previous_stage_forms(repo_root, graph, spec.stages)
+    next_step = (
+        current_unavailable["recovery_command"]
+        if current_unavailable is not None
+        else next_command(graph, repo_root)
+    )
     required_reads = _unique_paths([
         _AGENTS_PATH,
         skill,
@@ -64,11 +69,7 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
         "status": "ok",
         "stage": graph.stage,
         "artifact": artifact,
-        "next": (
-            current_unavailable["recovery_command"]
-            if current_unavailable is not None
-            else "aegis stage apply"
-        ),
+        "next": next_step,
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "run_id": graph.run_id,
         "kind": graph.intent.kind,
@@ -79,15 +80,7 @@ def build_stage_context(repo_root: Path, graph: Graph) -> dict[str, Any]:
         "previous_stage_artifacts": previous,
         "unavailable_previous_stage_artifacts": unavailable,
         "required_reads": required_reads,
-        "next_commands": (
-            [current_unavailable["recovery_command"]]
-            if current_unavailable is not None
-            else [
-                "aegis stage prepare",
-                "aegis stage apply",
-                "aegis stage close",
-            ]
-        ),
+        "next_commands": [next_step],
         "human_gate": "stage close",
     }
 

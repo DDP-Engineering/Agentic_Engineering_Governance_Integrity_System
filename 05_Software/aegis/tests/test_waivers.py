@@ -659,13 +659,13 @@ def test_same_requirement_traceability_findings_have_independent_targets(
             code="REQ-LINK-MISSING",
             message="F-0001 linked test is missing: tests/test_first.py",
             req_id="F-0001",
-            path="tests/test_first.py",
+            path=".agentic/requirements/functional/F-0001.toml",
         ),
         AuditIssue(
             code="REQ-LINK-MISSING",
             message="F-0001 linked test is missing: tests/test_second.py",
             req_id="F-0001",
-            path="tests/test_second.py",
+            path=".agentic/requirements/functional/F-0001.toml",
         ),
     ]
     targets = [

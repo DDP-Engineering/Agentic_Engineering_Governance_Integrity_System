@@ -32,9 +32,9 @@ pushing, publishing, merging, or opening a pull request.
 2. If validation is not closed, complete it first: run `<workflow> verify run`,
    review its summary and the diff, apply the validation form, and request its
    human close approval.
-3. Complete the delivery form with preflight and report references, remaining
-   risks, and the handoff decision. Run `<workflow> delivery show` and
-   `<workflow> delivery report`.
+3. Complete `preflight_reference`, `report`, and `decision` in the delivery
+   form. Summarize remaining risks in `control.summary`; do not add undeclared
+   form keys. Run `<workflow> delivery show` and `<workflow> delivery report`.
 4. Run `<workflow> stage apply`, review the imported state, then request human
    approval for `<workflow> stage close`.
 
@@ -52,6 +52,6 @@ pushing, publishing, merging, or opening a pull request.
 
 ## If you are stuck
 
-Record a remaining risk or route back through the control form. After AEGIS
+Record a remaining risk in `control.summary` or route back through the control form. After AEGIS
 completion, stage only explicitly intended paths and request separate, explicit
 approval before every outward action.

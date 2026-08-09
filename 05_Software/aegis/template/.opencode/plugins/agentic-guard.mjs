@@ -29,6 +29,9 @@ export const NO_INTERPRETER_REASON =
   "AEGIS guard could not run: no Python runtime was found. "
   + "Set AEGIS_PYTHON to an interpreter, or run a packaged WAEGIS command to register one.";
 
+/** Maximum time one shared Python guard may hold an adapter tool call. */
+export const HOOK_TIMEOUT_MS = 60_000;
+
 export function pathCommandExists(command) {
   if (command.includes("/") || command.includes("\\")) return existsSync(command);
   const extensions = process.platform === "win32"
@@ -74,14 +77,37 @@ export function defaultSpawn(command, args, input, cwd) {
     const child = spawn(command, args, { cwd, windowsHide: true });
     let stdout = "";
     let stderr = "";
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      child.kill();
+      child.stdout.destroy();
+      child.stderr.destroy();
+      child.stdin.destroy();
+      resolve({
+        stdout,
+        stderr: `${stderr}\nAEGIS guard timed out after ${HOOK_TIMEOUT_MS} ms.`.trim(),
+        code: 124,
+      });
+    }, HOOK_TIMEOUT_MS);
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString();
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
     });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ stdout, stderr, code: code ?? 0 }));
+    child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ stdout, stderr, code: code ?? 0 });
+    });
     child.stdin.on("error", () => {
       /* ignore EPIPE when a hook exits before reading stdin */
     });
@@ -93,22 +119,26 @@ export function defaultSpawn(command, args, input, cwd) {
 export function parseHookDecision(stdout) {
   const text = (stdout ?? "").trim();
   if (!text) return null;
-  let data;
   try {
-    data = JSON.parse(text);
+    return decisionFromValue(JSON.parse(text));
   } catch {
-    const lastLine = text
+    const lines = text
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter(Boolean)
-      .pop();
-    if (!lastLine) return null;
-    try {
-      data = JSON.parse(lastLine);
-    } catch {
-      return null;
+      .filter(Boolean);
+    for (const line of lines.reverse()) {
+      try {
+        const decision = decisionFromValue(JSON.parse(line));
+        if (decision) return decision;
+      } catch {
+        // Continue past diagnostics until a decision envelope is found.
+      }
     }
+    return null;
   }
+}
+
+function decisionFromValue(data) {
   const output = data?.hookSpecificOutput;
   if (output?.permissionDecision === "deny") {
     return output.permissionDecisionReason || "Blocked by agentic workflow guard.";

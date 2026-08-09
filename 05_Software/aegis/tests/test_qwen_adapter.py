@@ -187,7 +187,7 @@ def test_hook_matchers_cover_friendly_and_raw_qwen_tool_names() -> None:
         "Glob",
         "list_directory",
     } <= read_matchers
-    assert write_entry["matcher"] == "Edit|WriteFile|write_file|replace"
+    assert write_entry["matcher"] == "Edit|WriteFile|write_file|replace|NotebookEdit"
     assert write_hook_names == {"agentic-guard-write-zone", "agentic-edit-secret-scan"}
     assert shell_entry["matcher"] == "Bash|run_shell_command"
     assert set(evidence_entry["matcher"].split("|")) == {
@@ -197,6 +197,7 @@ def test_hook_matchers_cover_friendly_and_raw_qwen_tool_names() -> None:
         "WriteFile",
         "write_file",
         "replace",
+        "NotebookEdit",
     }
 
 

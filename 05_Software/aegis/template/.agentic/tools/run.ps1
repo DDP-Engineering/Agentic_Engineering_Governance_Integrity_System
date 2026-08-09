@@ -5,11 +5,6 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt in the .agentic folder for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #>
 
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]] $RemainingArgs
-)
-
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 # @brief Project-local Python launcher for the embedded workflow CLI.
@@ -63,5 +58,14 @@ if ($null -eq $Interpreter) {
     exit 2
 }
 
-& $Interpreter.Command @($Interpreter.Args) $Launcher @RemainingArgs
-exit $LASTEXITCODE
+$PreviousArguments = $env:AEGIS_WRAPPER_ARGUMENTS
+$ArgumentList = @($args | ForEach-Object { [string] $_ })
+$env:AEGIS_WRAPPER_ARGUMENTS = ConvertTo-Json -Compress -InputObject $ArgumentList
+& $Interpreter.Command @($Interpreter.Args) $Launcher --aegis-wrapper-args-env
+$ExitCode = $LASTEXITCODE
+if ($null -eq $PreviousArguments) {
+    Remove-Item Env:AEGIS_WRAPPER_ARGUMENTS -ErrorAction SilentlyContinue
+} else {
+    $env:AEGIS_WRAPPER_ARGUMENTS = $PreviousArguments
+}
+exit $ExitCode

@@ -64,7 +64,10 @@ def audit_issue_blocker(kind: str, issue: AuditIssue) -> Blocker:
     }
     subject_parts = [value for value in (issue.req_id, issue.path) if value]
     subject = ":".join(subject_parts) or _short_message_digest(issue.message)
-    blocker_id = f"{kind}:{issue.code}:{subject}"
+    selector = next(
+        iter(state_digests("audit-finding-identity", identity).values())
+    )[:SHORT_MESSAGE_DIGEST_LENGTH]
+    blocker_id = f"{kind}:{issue.code}:{subject}:{selector}"
     return Blocker(
         id=blocker_id,
         description=issue.message,
@@ -115,7 +118,15 @@ def working_tree_blocker(
     payload = dict(finding)
     if code == "secret-pattern" and path and repo_root is not None:
         payload["content_sha256"] = current_file_digest(repo_root / path)
-    blocker_id = f"working-tree:{code}:{subject}"
+    selector = next(
+        iter(
+            state_digests(
+                "working-tree-finding-identity",
+                payload,
+            ).values()
+        )
+    )[:SHORT_MESSAGE_DIGEST_LENGTH]
+    blocker_id = f"working-tree:{code}:{subject}:{selector}"
     return Blocker(
         id=blocker_id,
         description=message or code,

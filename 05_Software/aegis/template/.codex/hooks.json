@@ -14,7 +14,7 @@
         ]
       },
       {
-        "matcher": "apply_patch|Edit|Write",
+        "matcher": "apply_patch|Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -56,7 +56,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
+        "matcher": "Bash|apply_patch|Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",

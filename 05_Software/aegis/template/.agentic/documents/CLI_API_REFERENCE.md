@@ -489,8 +489,10 @@ configured number of unique changed paths returns `QUICK-SCOPE-ADVISORY` and
 guidance to carry the context into `aegis run start <fix|change>`. It never
 blocks, routes, or mutates the current run.
 
-`config validate` and `config show` also validate/display the optional
-schema-1 `.agentic/integrations/repowise.toml`. Absence means disabled. RepoWise
+`config validate` validates the core workflow policy and remains available to
+repair it even when the optional RepoWise policy is malformed. `config show`
+validates and displays the optional schema-1
+`.agentic/integrations/repowise.toml`; absence means disabled. RepoWise
 execution intentionally has no AEGIS command. Separately managed external
 tooling may produce its artifacts; AEGIS consumes only validated structural
 data during `repo-discovery`. WAEGIS 3 does not manage RepoWise.

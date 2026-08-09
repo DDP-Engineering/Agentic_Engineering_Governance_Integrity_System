@@ -121,6 +121,7 @@ def main() -> int:
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
     cwd = Path(payload.get("cwd") or ".").resolve()
+    repo_root: Path | None = None
     try:
         from workflow_config_bootstrap import find_repository_root, load_workflow_config
 
@@ -163,7 +164,7 @@ def main() -> int:
                 if isinstance(payload.get("tool_name"), str)
                 else "",
             ),
-            cwd,
+            repo_root,
         ):
             return 0
         return deny(str(exc))

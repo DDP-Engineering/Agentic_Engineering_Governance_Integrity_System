@@ -39,8 +39,9 @@ Integrity System. The runnable Python package is embedded under
 - no outward Git/publication action when delivery closes.
 - atomic, flushed graph/journal/requirement/RepoWise state publication with
   bounded Windows/POSIX process locks and typed stale-update conflicts;
-- bounded gate/check execution that terminates the whole child process tree on
-  timeout so descendants cannot keep captured output pipes open;
+- bounded gate/check execution that captures gate output in temporary files and
+  terminates the whole child process tree on timeout, so an orphaned descendant
+  cannot keep the CLI waiting on inherited output pipes;
 - fail-closed working-tree inspection through strict UTF-8, NUL-delimited Git
   status output with a 30-second command bound;
 - optional schema-1 RepoWise discovery integration, with validated receipts,
@@ -123,9 +124,11 @@ logs, waiver behavior, and transactional publication still apply.
 
 For a fresh stage session, read `AGENTS.md`, run `aegis run context --json`,
 then follow `unavailable_current_artifact` recovery exactly; never prepare an
-already applied stage. Read only the returned router, reference, current form,
-and retained predecessor form. `run status` remains the detailed diagnostic
-command; routine recovery never reads `graph.json` or `journal.jsonl`.
+already applied stage. Read the returned router, reference, current form, and
+retained predecessor form first, then follow the reference's stage-local read
+instructions for generated item forms and durable artifacts. `run status`
+remains the detailed diagnostic command; routine recovery never reads
+`graph.json` or `journal.jsonl`.
 
 Protected-path read policy is enforced for dedicated adapter read/search tools.
 Shell commands are not parsed for read targets, so shell-only reads remain

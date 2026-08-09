@@ -12,18 +12,21 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 # @brief Root of the target repository after the template is transboarded.
-$ProjectRoot = Resolve-Path (Join-Path $ScriptDir "..\..")
+$ProjectRoot = (Resolve-Path -LiteralPath (Join-Path $ScriptDir "..\..")).Path
 # @brief Embedded CLI package installed by this helper.
 $CliRoot = Join-Path $ProjectRoot ".agentic\cli"
 # @brief Local virtual environment owned by AEGIS.
 $VenvRoot = Join-Path $ProjectRoot ".agentic\.venv"
 
 # @brief Resolve a Python launcher available on PATH.
-# @return Command name for Python, or $null when no supported launcher exists.
+# @return Hashtable containing Command and leading Args, or $null.
 function Resolve-Python {
-    $candidates = @("python", "py")
+    $candidates = @(
+        @{ Command = "py"; Args = @("-3") },
+        @{ Command = "python"; Args = @() }
+    )
     foreach ($candidate in $candidates) {
-        $command = Get-Command $candidate -ErrorAction SilentlyContinue
+        $command = Get-Command $candidate.Command -ErrorAction SilentlyContinue
         if ($null -ne $command) {
             return $candidate
         }
@@ -45,7 +48,7 @@ if ($UseUv -or $null -ne $Uv) {
         $ErrorActionPreference = "Stop"
         Write-Error "uv was requested but was not found. Install uv or run without -UseUv."
     }
-    & uv venv --python 3.11 $VenvRoot
+    & uv venv --clear --python 3.11 $VenvRoot
     & uv pip install --python (Join-Path $VenvRoot "Scripts\python.exe") -e $CliRoot
     $ExitCode = $LASTEXITCODE
     $ErrorActionPreference = "Stop"
@@ -55,16 +58,18 @@ if ($UseUv -or $null -ne $Uv) {
 $Python = Resolve-Python
 if ($null -eq $Python) {
     $ErrorActionPreference = "Stop"
-    Write-Error "Python 3.11+ was not found. Install Python 3.11+ or install uv, then rerun this script."
+    Write-Error "Python 3.11+ was not found. Install Python 3.11+ or install uv, then rerun this script." -ErrorAction Continue
+    exit 2
 }
 
-& $Python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
+& $Python.Command @($Python.Args) -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
 if ($LASTEXITCODE -ne 0) {
     $ErrorActionPreference = "Stop"
-    Write-Error "Python 3.11+ is required. Install Python 3.11+ or install uv, then rerun this script."
+    Write-Error "Python 3.11+ is required. Install Python 3.11+ or install uv, then rerun this script." -ErrorAction Continue
+    exit 2
 }
 
-& $Python -m venv $VenvRoot
+& $Python.Command @($Python.Args) -m venv --clear $VenvRoot
 $VenvPython = Join-Path $VenvRoot "Scripts\python.exe"
 & $VenvPython -m pip install -e $CliRoot
 $ExitCode = $LASTEXITCODE

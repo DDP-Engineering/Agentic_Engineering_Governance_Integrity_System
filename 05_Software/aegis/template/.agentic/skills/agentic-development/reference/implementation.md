@@ -59,8 +59,8 @@ check contract.
      say what is now untrue; validation fixes it.
    - `control.summary` — what changed and why, in prose a reviewer reads six
      weeks from now.
-9. Run `<workflow> stage apply`, then `<workflow> stage close`, and stop for
-   human approval.
+9. Run `<workflow> stage apply`, review the imported state, then request human
+   approval for `<workflow> stage close`.
 
 **Outputs:**
 

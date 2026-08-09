@@ -45,6 +45,12 @@ every such failure to exit status `2`, the blocking status in all three host
 hook protocols; passing a crashed hook's own status through would be read as a
 *non-blocking* error and the tool call would proceed unchecked.
 
+`opencode.json` explicitly registers the `.mjs` plugin because OpenCode's
+automatic plugin discovery covers `.js` and `.ts`, not `.mjs`. The OpenCode and
+Pi transports also bound every Python guard spawn to 60 seconds and scan all
+non-empty stdout lines for a deny envelope, so trailing diagnostics cannot hide
+an earlier denial.
+
 Keep the three transports in agreement. `tests/test_guard_transport_parity.py`
 fails if one of them drifts on interpreter resolution order or on this
 fail-closed contract.

@@ -15,8 +15,10 @@
 2. Run `<workflow> verify invariants`, `<workflow> verify traceability`,
    `<workflow> verify coverage`, `<workflow> verify working-tree`, and
    `<workflow> adoption baseline` as applicable.
-3. Record report and preflight references, the component/baseline summary,
-   follow-up slices, risks, and handoff decision. Runtime behaviour changes block this stage.
+3. Record `report`, `preflight_reference`, and `decision` in the delivery form.
+   Put the component/baseline summary, follow-up slices, and risks in
+   `control.summary`; do not add undeclared form keys. Runtime behaviour changes
+   block this stage.
 4. Run `<workflow> stage apply`, review it, then request human approval for
    `<workflow> stage close`.
 
@@ -34,5 +36,5 @@
 
 ## If you are stuck
 
-Record a remaining gap and its follow-up slice. Do not push, publish, merge, or
+Record a remaining gap and its follow-up slice in `control.summary`. Do not push, publish, merge, or
 change application behaviour from this stage.

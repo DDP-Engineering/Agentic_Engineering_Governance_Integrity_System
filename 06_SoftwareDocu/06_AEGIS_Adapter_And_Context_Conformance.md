@@ -21,14 +21,17 @@ The canonical fresh-session sequence is:
 AGENTS.md
 -> aegis run context --json
 -> only the named recovery command (stage prepare only when named)
--> only the named required_reads
+-> the named required_reads, then stage-local reads required by the reference
 -> the current stage's human approval boundary
 ```
 
 `run context` is intentionally small: it names the selected router and
 reference, current primary form, and at most the retained immediately preceding
 form. It excludes evidence history, full configuration, requirements, reports,
-`graph.json`, and `journal.jsonl`. Recovery and metadata documentation remain
+`graph.json`, and `journal.jsonl`. Generated collection items and durable
+stage artifacts are read only when the selected reference requires them;
+`required_reads` is the bounded bootstrap list, not a claim that those stage
+inputs do not exist. Recovery and metadata documentation remain
 available for diagnosis, but they are outside the ordinary forward context
 pack. `run context` validates the workflow configuration before it responds.
 `config validate` is the explicit confirmation after a configuration repair;

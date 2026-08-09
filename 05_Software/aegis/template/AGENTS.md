@@ -48,8 +48,10 @@ bootstrap sequence:
 3. If `unavailable_current_artifact` is present, run only its recovery command.
    Run `<workflow> stage prepare` only when that command is named; never
    prepare an already applied stage.
-4. Read only the skill, reference, current form, and retained previous form
-   named in required_reads.
+4. Read the skill, reference, current form, and retained previous form named in
+   `required_reads`. Then follow the reference's stage-local `Read first`
+   instructions, including generated item forms and durable artifacts; do not
+   expand into unrelated repository history.
 5. Perform only the reported current stage and stop at stage close for human approval.
 ```
 
@@ -66,9 +68,11 @@ run-history data. Use `run status` only for detailed diagnosis.
 - Before applying or closing, use the stage-specific command in the reference
   when evidence or verification remains outstanding.
 
-Depending on the stage, the named inputs may include the preceding retained
-form, requirements/specs, the approved design, imported checks, component
-documentation, or the source files being changed.
+The bounded `required_reads` list contains workflow guidance, the current
+primary form, and at most one retained previous primary form. Stage references
+may additionally direct you to generated item forms, durable design/spec
+artifacts, requirements, checks, component documentation, or source files
+needed to perform the current stage.
 
 Do not read `graph.json` or `journal.jsonl` to recover context. They are the
 run's internal state and its append-only audit trail; they can be substantially

@@ -63,6 +63,30 @@ def test_audit_matches_configured_blocker_and_unicode_path(
     assert report["blocking_findings"][0]["path"] == "generated/café.txt"
 
 
+def test_disabled_working_tree_and_secret_policies_do_not_block(
+    tmp_path: Path,
+    replace_workflow_toml: Callable[[str, str], Path],
+) -> None:
+    """@brief Honor disabled policy modes even when retained rules still match."""
+    replace_workflow_toml(
+        '[guardrails.working_tree]\nmode = "unrestricted"\nblocked_patterns = []',
+        '[guardrails.working_tree]\nmode = "unrestricted"\n'
+        'blocked_patterns = ["build/**"]',
+    )
+    replace_workflow_toml(
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = ["SECRET"]',
+    )
+    _init_repo(tmp_path)
+    path = tmp_path / "build" / "leak.py"
+    path.parent.mkdir()
+    path.write_text("SECRET\n", encoding="utf-8")
+
+    report = audit_working_tree(tmp_path, load_config(tmp_path))
+
+    assert report["blocking_findings"] == []
+
+
 def test_adoption_source_change_is_blocked(
     tmp_path: Path,
     replace_workflow_toml: Callable[[str, str], Path],

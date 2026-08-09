@@ -12,6 +12,7 @@ import {
   AgenticGuard,
   createHookRunner,
   decideFromResult,
+  HOOK_TIMEOUT_MS,
   interpreterCandidates,
   parseHookDecision,
   NO_INTERPRETER_REASON,
@@ -26,6 +27,18 @@ test("parseHookDecision returns deny reason from hook stdout", () => {
   });
 
   assert.equal(parseHookDecision(stdout), "blocked");
+});
+
+test("parseHookDecision finds a deny before trailing diagnostics", () => {
+  const stdout = `${JSON.stringify({
+    hookSpecificOutput: {
+      permissionDecision: "deny",
+      permissionDecisionReason: "blocked",
+    },
+  })}\ntrailing diagnostic`;
+
+  assert.equal(parseHookDecision(stdout), "blocked");
+  assert.equal(HOOK_TIMEOUT_MS, 60_000);
 });
 
 test("read tools use the shared configured Python hook", async () => {

@@ -93,6 +93,7 @@ def main() -> int:
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
     cwd = Path(payload.get("cwd") or ".").resolve()
+    repo_root: Path | None = None
     try:
         from workflow_config_bootstrap import find_repository_root, load_workflow_config
 
@@ -106,7 +107,7 @@ def main() -> int:
             zones = None if access_mode == "repo-wide" else config.write_access.stages[stage]
     except Exception as exc:
         if targets_workflow_config_only(
-            extract_target_paths(payload.get("tool_input", {})), cwd
+            extract_target_paths(payload.get("tool_input", {})), repo_root
         ):
             return 0
         return deny(str(exc))
@@ -158,7 +159,7 @@ def read_run_state(cwd: Path) -> tuple[Path, str, str]:
     return repo_root, graph.stage, graph.access_mode
 
 
-def extract_target_paths(tool_input: dict) -> list[str]:
+def extract_target_paths(tool_input: object) -> list[str]:
     """
     @brief      Collect edited paths from a tool-use payload across agents.
     @param[in]  tool_input Mapping of the intercepted tool-use arguments.
@@ -177,6 +178,8 @@ def extract_target_paths(tool_input: dict) -> list[str]:
                 no paths finds nothing to block.
     @exception  None
     """
+    if not isinstance(tool_input, dict):
+        return []
     paths: list[str] = []
     for key in PATCH_ENVELOPE_KEYS:
         candidate = tool_input.get(key)

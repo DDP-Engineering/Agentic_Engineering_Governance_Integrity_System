@@ -20,7 +20,7 @@
         ]
       },
       {
-        "matcher": "Edit|WriteFile|write_file|replace",
+        "matcher": "Edit|WriteFile|write_file|replace|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -62,7 +62,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|run_shell_command|Edit|WriteFile|write_file|replace",
+        "matcher": "Bash|run_shell_command|Edit|WriteFile|write_file|replace|NotebookEdit",
         "hooks": [
           {
             "type": "command",

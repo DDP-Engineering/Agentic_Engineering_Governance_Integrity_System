@@ -75,12 +75,14 @@ def main() -> int:
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
     cwd = Path(payload.get("cwd") or ".").resolve()
+    repo_root: Path | None = None
     try:
-        from workflow_config_bootstrap import load_workflow_config
+        from workflow_config_bootstrap import find_repository_root, load_workflow_config
 
-        policy = load_workflow_config(cwd).secrets
+        repo_root = find_repository_root(cwd)
+        policy = load_workflow_config(repo_root).secrets
     except Exception as exc:
-        if targets_workflow_config_only(payload.get("tool_input", {}), cwd):
+        if targets_workflow_config_only(payload.get("tool_input", {}), repo_root):
             return 0
         return deny(str(exc))
     if policy.mode == "disabled":
@@ -99,7 +101,7 @@ def main() -> int:
         # Same carve-out as the configuration branch above, for the same
         # reason: correcting an over-broad pattern means quoting it, which
         # matches it. INV-7 still scans this file.
-        if targets_workflow_config_only(tool_input, cwd):
+        if targets_workflow_config_only(tool_input, repo_root):
             return 0
         return deny(
             f"Possible secret detected by configured pattern {matched.pattern}. "

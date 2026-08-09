@@ -44,11 +44,6 @@ from pathlib import Path
 
 # CONSTANTS
 
-# @brief Shell tool identifiers this guard inspects, matching the set
-#        ``delivery_preflight.py`` acts on. Codex/Claude Code send ``Bash``;
-#        Qwen Code sends ``run_shell_command``.
-SHELL_TOOLS = frozenset({"Bash", "run_shell_command"})
-
 # @brief Repository-relative suffix of the file every hook's policy is loaded
 #        from. A hook that cannot load it denies every write, including writes
 #        to this file, so the config typo that caused the denial cannot be
@@ -95,8 +90,6 @@ def main() -> int:
         sys.stdin.reconfigure(encoding="utf-8")
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
-        return 0
-    if payload.get("tool_name") not in SHELL_TOOLS:
         return 0
     tool_input = payload.get("tool_input", {})
     command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
@@ -147,10 +140,18 @@ def main() -> int:
         )
     blocked = []
     for relative in in_repo:
-        if is_protected_path(relative, config.protected_paths, matches_pattern):
+        candidates = _write_path_candidates(repo_root, relative)
+        if any(
+            is_protected_path(candidate, config.protected_paths, matches_pattern)
+            for candidate in candidates
+        ):
             blocked.append(relative)
             continue
-        if zones is not None and not any(matches_pattern(relative, pattern) for pattern in zones):
+        if zones is not None and not any(
+            matches_pattern(candidate, pattern)
+            for candidate in candidates
+            for pattern in zones
+        ):
             blocked.append(relative)
     if blocked:
         return deny(
@@ -329,6 +330,18 @@ def is_protected_path(path: str, policy, matcher) -> bool:  # type: ignore[no-un
         and "write" in policy.operations
         and any(matcher(path, pattern) for pattern in policy.patterns)
     )
+
+
+def _write_path_candidates(repo_root: Path, path: str) -> tuple[str, ...]:
+    """
+    @brief Represent a directory destination as the tree a command writes into.
+    @param[in] repo_root Repository root used to inspect the destination.
+    @param[in] path Normalized repository-relative write target.
+    @return The target and, for a directory, a representative child path.
+    """
+    if (repo_root / path).is_dir():
+        return path, f"{path}/__aegis_directory_target__"
+    return (path,)
 
 
 def targets_workflow_config_only(

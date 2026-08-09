@@ -31,6 +31,7 @@ import io
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 from types import ModuleType
 
@@ -182,7 +183,17 @@ def run_hook(func, payload: dict, monkeypatch) -> str:
     """
     cwd_value = payload.get("cwd")
     if isinstance(cwd_value, str):
-        install_hook_runtime(Path(cwd_value))
+        runtime_root = Path(cwd_value)
+        while (
+            not (runtime_root / ".agentic").is_dir()
+            and runtime_root.parent != runtime_root
+        ):
+            runtime_root = runtime_root.parent
+        if not (runtime_root / ".agentic").is_dir():
+            raise AssertionError(
+                f"hook fixture has no .agentic root above {cwd_value}"
+            )
+        install_hook_runtime(runtime_root)
     stdin = io.StringIO(json.dumps(payload))
     stdout = io.StringIO()
     monkeypatch.setattr(sys, "stdin", stdin)
@@ -1103,6 +1114,38 @@ def test_secret_scan_allows_narrowing_its_own_patterns(tmp_path: Path, monkeypat
     assert run_hook(secret_main, payload, monkeypatch) == ""
 
 
+def test_secret_scan_decodes_real_utf8_pipe(tmp_path: Path) -> None:
+    """@brief Exercise the hook's real stdin reconfiguration with non-ASCII policy."""
+    install_hook_runtime(tmp_path)
+    replace_workflow_fragment(
+        tmp_path,
+        '[guardrails.secrets]\nmode = "disabled"\npatterns = []',
+        '[guardrails.secrets]\nmode = "enforce"\npatterns = ["CLÃ‰_SECRÃˆTE_4242"]',
+    )
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(tmp_path),
+        "tool_input": {
+            "file_path": "src/app.py",
+            "content": "CLÃ‰_SECRÃˆTE_4242",
+        },
+    }
+
+    result = subprocess.run(
+        [sys.executable, str(HOOKS_DIR / "secret_scan.py")],
+        input=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=tmp_path,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr.decode("utf-8", errors="replace")
+    decision = json.loads(result.stdout.decode("utf-8"))
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
 def test_secret_scan_denial_names_the_pattern_and_the_way_out(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1469,6 +1512,36 @@ def test_delivery_pattern_matches_git_global_flags() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "command",
+    (
+        "git stash push -m wip",
+        "git help push",
+        "git log --grep push",
+        "git checkout push",
+        "git branch -d push",
+    ),
+)
+def test_delivery_pattern_allows_non_delivery_git_commands(command: str) -> None:
+    """@brief Do not confuse a later push argument with the Git command verb."""
+    delivery_module = load_hook("delivery_preflight")
+    assert not delivery_module._matches_command_pattern(command, "git push")
+
+
+@pytest.mark.parametrize(
+    "command",
+    (
+        "git.exe push origin main",
+        "GIT_TRACE=1 git --no-pager push",
+        "true | git --no-pager push",
+    ),
+)
+def test_delivery_pattern_covers_launch_prefixes_and_shell_segments(command: str) -> None:
+    """@brief Match ordinary executable and shell forms of governed delivery."""
+    delivery_module = load_hook("delivery_preflight")
+    assert delivery_module._matches_command_pattern(command, "git push")
+
+
 def test_guard_shell_write_denies_out_of_zone_redirect(tmp_path: Path, monkeypatch) -> None:
     """
     @brief      A shell redirection into another stage's zone is denied.
@@ -1586,6 +1659,30 @@ def test_guard_shell_write_repo_wide_blocks_protected_path(tmp_path: Path, monke
     assert "deploy/id_rsa" in output
 
 
+def test_guard_shell_write_blocks_copy_into_protected_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief Treat an existing directory destination as a write into its tree."""
+    prepare_run(tmp_path, "intake", kind="change", access_mode="repo-wide")
+    replace_workflow_fragment(
+        tmp_path,
+        'patterns = [".git/**", "**/*.key", "**/id_rsa"]',
+        'patterns = [".git/**", "**/*.key", "**/id_rsa", "deploy/**"]',
+    )
+    protected = tmp_path / "deploy"
+    protected.mkdir()
+
+    output = run_hook(
+        shell_write_main,
+        shell_payload(tmp_path, "cp payload.sh deploy"),
+        monkeypatch,
+    )
+
+    reason = json.loads(output)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "deploy" in reason
+
+
 def test_guard_shell_write_unrestricted_policy_allows_repo_write(tmp_path: Path, monkeypatch) -> None:
     """
     @brief      Under unrestricted write policy a shell repository write is
@@ -1611,6 +1708,42 @@ def test_guard_shell_write_applies_to_qwen_shell_tool(tmp_path: Path, monkeypatc
     payload = shell_payload(tmp_path, "echo x > tests/test_app.py", tool_name="run_shell_command")
     output = run_hook(shell_write_main, payload, monkeypatch)
     assert "deny" in output
+
+
+@pytest.mark.parametrize("tool_name", ("shell", "Terminal"))
+def test_guard_shell_write_does_not_allow_unknown_shell_tool_names(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tool_name: str,
+) -> None:
+    """@brief Inspect command-shaped payloads even when a host renames its shell tool."""
+    advance_to_implementation(tmp_path)
+    payload = shell_payload(
+        tmp_path,
+        "echo x > tests/test_app.py",
+        tool_name=tool_name,
+    )
+
+    output = run_hook(shell_write_main, payload, monkeypatch)
+
+    reason = json.loads(output)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "tests/test_app.py" in reason
+
+
+def test_guard_write_zone_handles_non_mapping_tool_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief A widened adapter route cannot crash path extraction."""
+    advance_to_implementation(tmp_path)
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "UnknownEdit",
+        "cwd": str(tmp_path),
+        "tool_input": ["not", "a", "mapping"],
+    }
+
+    assert run_hook(guard_main, payload, monkeypatch) == ""
 
 
 # --- W5: a malformed workflow.toml must not lock out its own repair -------------
@@ -1645,11 +1778,13 @@ def test_guard_write_zone_allows_repairing_the_broken_config(
     @exception  None
     """
     break_workflow_config(tmp_path)
+    subdir = tmp_path / "src"
+    subdir.mkdir()
     payload = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Write",
-        "cwd": str(tmp_path),
-        "tool_input": {"file_path": ".agentic/workflow.toml"},
+        "cwd": str(subdir),
+        "tool_input": {"file_path": str(tmp_path / ".agentic" / "workflow.toml")},
     }
 
     assert run_hook(guard_main, payload, monkeypatch) == ""
@@ -1718,13 +1853,15 @@ def test_secret_scan_allows_repairing_the_broken_config(
     """
     break_workflow_config(tmp_path)
 
+    subdir = tmp_path / "src"
+    subdir.mkdir()
     allowed = run_hook(
         secret_main,
         {
             "hook_event_name": "PreToolUse",
             "tool_name": "Write",
-            "cwd": str(tmp_path),
-            "tool_input": {"file_path": ".agentic/workflow.toml"},
+            "cwd": str(subdir),
+            "tool_input": {"file_path": str(tmp_path / ".agentic" / "workflow.toml")},
         },
         monkeypatch,
     )
@@ -1756,11 +1893,13 @@ def test_guard_read_path_allows_reading_the_broken_config(
     @exception  None
     """
     break_workflow_config(tmp_path)
+    subdir = tmp_path / "src"
+    subdir.mkdir()
     payload = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Read",
-        "cwd": str(tmp_path),
-        "tool_input": {"file_path": ".agentic/workflow.toml"},
+        "cwd": str(subdir),
+        "tool_input": {"file_path": str(tmp_path / ".agentic" / "workflow.toml")},
     }
 
     assert run_hook(read_main, payload, monkeypatch) == ""

@@ -39,12 +39,10 @@ def main() -> int:
     payload = json.load(sys.stdin)
     if payload.get("hook_event_name") != "PreToolUse":
         return 0
-    if payload.get("tool_name") not in {"Bash", "run_shell_command"}:
-        return 0
-    command = payload.get("tool_input", {}).get("command", "")
+    tool_input = payload.get("tool_input", {})
+    command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
     if not isinstance(command, str):
         command = ""
-    normalized = " ".join(command.lower().split())
     cwd = Path(payload.get("cwd") or ".").resolve()
     try:
         from workflow_config_bootstrap import find_repository_root, load_workflow_config
@@ -56,7 +54,7 @@ def main() -> int:
     if policy.mode == "disabled":
         return 0
     if not any(
-        pattern in normalized or _matches_command_pattern(command, pattern)
+        _matches_command_pattern(command, pattern)
         for pattern in policy.command_patterns
     ):
         return 0
@@ -94,7 +92,7 @@ def _matches_command_pattern(command: str, pattern: str) -> bool:
     @brief Match a configured command even when executable flags are inserted.
     @param[in] command Raw shell command from the adapter.
     @param[in] pattern Validated lower-case delivery command pattern.
-    @return Whether one shell segment contains the pattern tokens in order.
+    @return Whether one shell segment invokes the configured command phrase.
     @exception None Malformed shell quoting does not trigger delivery policy.
     """
     try:
@@ -103,20 +101,55 @@ def _matches_command_pattern(command: str, pattern: str) -> bool:
         return False
     if not expected:
         return False
-    for segment in re.split(r"&&|\|\||[;\n]", command):
+    for segment in re.split(r"&&|\|\||[;\n]|(?<!>)\|", command):
         try:
             tokens = [token.lower() for token in shlex.split(segment)]
         except ValueError:
             continue
-        if not tokens or Path(tokens[0]).name != Path(expected[0]).name:
+        command_index = _command_index(tokens)
+        if command_index is None:
             continue
-        position = 1
-        for token in tokens[1:]:
-            if position < len(expected) and token == expected[position]:
-                position += 1
-        if position == len(expected):
+        executable = Path(tokens[command_index].replace("\\", "/")).name
+        expected_executable = Path(expected[0].replace("\\", "/")).name
+        if executable.removesuffix(".exe") != expected_executable.removesuffix(".exe"):
+            continue
+        position = _command_verb_index(tokens, command_index + 1)
+        if tokens[position : position + len(expected) - 1] == expected[1:]:
             return True
     return False
+
+
+def _command_index(tokens: list[str]) -> int | None:
+    """@brief Locate the executable after environment and launcher prefixes."""
+    index = 0
+    prefixes = {"sudo", "command", "nice", "nohup", "env", "time"}
+    assignment = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+    while index < len(tokens):
+        token = tokens[index]
+        if assignment.match(token) or Path(token).name in prefixes:
+            index += 1
+            continue
+        return index
+    return None
+
+
+def _command_verb_index(tokens: list[str], index: int) -> int:
+    """@brief Skip executable-level options and return the command verb index."""
+    value_options = {
+        "-c",
+        "--config-env",
+        "--exec-path",
+        "--git-dir",
+        "--namespace",
+        "--super-prefix",
+        "--work-tree",
+    }
+    while index < len(tokens) and tokens[index].startswith("-"):
+        option = tokens[index]
+        index += 1
+        if option in value_options and index < len(tokens):
+            index += 1
+    return index
 
 
 def _run_aegis(

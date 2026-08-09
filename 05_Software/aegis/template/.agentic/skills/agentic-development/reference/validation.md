@@ -47,8 +47,8 @@ reported command using the retained current form and this reference.
      when the review genuinely does not apply, and say why in `control.summary`.
    - `manual_evidence` and `approved_supersessions` where they apply.
 9. Write `control.summary` covering what was verified and what was accepted.
-10. Run `<workflow> stage apply`, then `<workflow> stage close`, and stop for
-    human approval.
+10. Run `<workflow> stage apply`, review the imported state, then request human
+    approval for `<workflow> stage close`.
 
 **Outputs:**
 

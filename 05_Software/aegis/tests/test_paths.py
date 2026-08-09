@@ -26,6 +26,7 @@ from aegis import paths as paths_module
 from aegis.paths import (
     RepositoryPathError,
     matches_pattern,
+    normalize_concrete_repository_path,
     normalize_repository_path,
     relative_to_root,
     validate_glob,
@@ -146,6 +147,17 @@ def test_normalize_repository_path_rejects_globs_unless_allowed() -> None:
         normalize_repository_path("src/*.py")
     assert excinfo.value.reason == "has-globs"
     assert normalize_repository_path("src/*.py", allow_glob=True) == "src/*.py"
+
+
+def test_concrete_path_preserves_literal_brackets_but_rejects_wildcards() -> None:
+    """@brief Accept framework route names without accepting operator globs."""
+    assert (
+        normalize_concrete_repository_path("app/[slug]/page.py")
+        == "app/[slug]/page.py"
+    )
+    assert matches_pattern("app/[slug]/page.py", "app/[slug]/page.py")
+    with pytest.raises(RepositoryPathError, match="wildcard"):
+        normalize_concrete_repository_path("app/*/page.py")
 
 
 def test_validate_glob_rejects_unbalanced_brackets() -> None:

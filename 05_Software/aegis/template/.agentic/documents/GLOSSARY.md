@@ -21,10 +21,11 @@ do not define the workflow policy; [workflow.toml](#workflowtoml) does.
 
 ## Add
 
-The `aegis stage add` step that generates another CLI-identified requirement
-or check form within the current prepared stage revision. It is valid only
-during the requirement and check stages and, like [prepare](#prepare), only
-creates input forms; nothing is imported until [apply](#apply).
+The `aegis stage add` step that generates another CLI-identified requirement,
+check, or component-adoption item within the current prepared stage revision.
+It is valid only during the requirement, check, and component-adoption stages
+and, like [prepare](#prepare), only creates input forms; nothing is imported
+until [apply](#apply).
 
 ## Apply
 

@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -35,6 +37,18 @@ from aegis.store import (
 
 
 # LOCAL HELPERS
+
+
+class _ReconfigurableOutput(io.StringIO):
+    """@brief Text capture exposing the real stdout reconfiguration seam."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.options: dict[str, str] = {}
+
+    def reconfigure(self, **options: str) -> None:
+        """@brief Record encoding/error policy requested by the CLI."""
+        self.options = options
 
 
 def _invoke(capsys: pytest.CaptureFixture[str], argv: list[str]) -> dict:
@@ -61,6 +75,26 @@ def _start_feature(
     @exception  None
     """
     return str(_invoke(capsys, ["run", "start", "feature"])["run_id"])
+
+
+# TESTS - PROCESS ENCODING
+
+
+def test_cli_pins_utf8_with_surrogate_safe_output_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@brief Keep output encoding safe for surrogate-escaped filesystem text."""
+    output = _ReconfigurableOutput()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdout", output)
+
+    main(["run", "list", "--json"])
+
+    assert output.options == {
+        "encoding": "utf-8",
+        "errors": "backslashreplace",
+    }
 
 
 # TESTS - W2: a run can be abandoned

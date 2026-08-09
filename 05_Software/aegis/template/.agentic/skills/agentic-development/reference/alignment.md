@@ -43,8 +43,8 @@ reported command using the retained current form and this reference.
 8. Set `risk` to `low`, `medium`, or `high`, and `decision` to `proceed` or
    `pause`. Use `proceed` only when no configured pause rule applies — a high
    risk with open questions is a `pause`, and saying so is not a failure.
-9. Write `control.summary`, run `<workflow> stage apply`, then
-   `<workflow> stage close`, and stop for human approval.
+9. Write `control.summary`, run `<workflow> stage apply`, review the imported
+   state, then request human approval for `<workflow> stage close`.
 
 **Outputs:**
 

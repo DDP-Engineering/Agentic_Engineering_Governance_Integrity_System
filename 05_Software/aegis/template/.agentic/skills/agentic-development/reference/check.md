@@ -49,8 +49,8 @@ reported command using the retained current form and this reference.
    - managed mode: `<workflow> check run [<check-id>...]`.
    AEGIS mints the evidence ID. Copy what it prints; never invent or reuse one.
 10. Write `control.summary` in `stage.toml`, run `<workflow> stage apply` to
-    import the collection atomically, then `<workflow> stage close`, and stop for
-    human approval.
+    import the collection atomically, review the imported state, then request
+    human approval for `<workflow> stage close`.
 
 **Outputs:**
 

@@ -222,13 +222,32 @@ def test_run_context_is_bounded_for_full_quick_and_adoption_starts(
     assert context["previous_stage_artifacts"] == []
     assert context["unavailable_previous_stage_artifacts"] == []
     assert all("graph.json" not in path and "journal.jsonl" not in path for path in context["required_reads"])
-    assert context["next_commands"] == [
-        "aegis stage prepare",
-        "aegis stage apply",
-        "aegis stage close",
-    ]
+    assert context["next_commands"] == ["aegis stage apply"]
     assert context["human_gate"] == "stage close"
     assert len(json.dumps(context, ensure_ascii=False).encode("utf-8")) <= CONTEXT_LIMIT_BYTES
+
+
+def test_run_context_reports_close_after_stage_apply(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """@brief Keep resumed agents from re-preparing and discarding applied state."""
+    monkeypatch.chdir(tmp_path)
+    _enable_latest_retention(tmp_path)
+    run_id = str(_invoke(capsys, ["run", "start", "feature"])["run_id"])
+    graph = load_graph(tmp_path, run_id)
+    form = tmp_path / graph.stage_records["intake"].artifact
+    _replace(form, {
+        'statement = ""': 'statement = "Preserve applied work"',
+        'summary = ""': 'summary = "Ready for approval"',
+    })
+    _invoke(capsys, ["stage", "apply"])
+
+    context = _invoke(capsys, ["run", "context"])
+
+    assert context["next"] == "aegis stage close"
+    assert context["next_commands"] == ["aegis stage close"]
 
 
 @pytest.mark.parametrize(

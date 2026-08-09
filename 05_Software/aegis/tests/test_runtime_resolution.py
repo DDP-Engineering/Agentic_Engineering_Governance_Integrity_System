@@ -131,4 +131,87 @@ def test_cli_wrapper_uses_registered_runtime_without_system_python(tmp_path: Pat
     assert "usage:" in result.stdout.lower()
 
 
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell wrapper is Windows-only")
+def test_run_ps1_preserves_remaining_arguments(tmp_path: Path) -> None:
+    """@brief Round-trip spaces, trailing slashes, quotes, empties, and switches."""
+    shell = shutil.which("powershell.exe") or shutil.which("pwsh.exe")
+    if shell is None:
+        pytest.skip("PowerShell is not installed in this test environment")
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    wrapper = tools / "run.ps1"
+    shutil.copy2(TEMPLATE_ROOT / ".agentic/tools/run.ps1", wrapper)
+    (tools / "run_aegis.py").write_text(
+        "import json, os, sys\n"
+        "args = json.loads(os.environ['AEGIS_WRAPPER_ARGUMENTS']) "
+        "if sys.argv[1:] == ['--aegis-wrapper-args-env'] else sys.argv[1:]\n"
+        "print(json.dumps(args))\n",
+        encoding="utf-8",
+    )
+    expected = [
+        "plain",
+        "C:\\a b\\",
+        "second",
+        "",
+        'embedded"quote',
+        "-v",
+        "-d",
+        "-ev",
+        "value",
+    ]
+    environment = dict(os.environ)
+    environment["AEGIS_PYTHON"] = sys.executable
+    environment["WRAPPER_PATH"] = str(wrapper)
+    environment["PROBE_ARGS"] = json.dumps(expected)
+    command = (
+        "$probeArgs = [string[]](ConvertFrom-Json -InputObject $env:PROBE_ARGS); "
+        "& $env:WRAPPER_PATH @probeArgs"
+    )
+
+    result = subprocess.run(
+        [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+        capture_output=True,
+        text=True,
+        env=environment,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == expected
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows installer parity probe")
+def test_installers_support_bracket_paths_and_repeated_runs(tmp_path: Path) -> None:
+    """@brief Install twice through PowerShell and Git Bash in a bracket path."""
+    powershell = shutil.which("powershell.exe") or shutil.which("pwsh.exe")
+    git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")
+    if powershell is None or not git_bash.is_file() or shutil.which("uv") is None:
+        pytest.skip("PowerShell, Git Bash, and uv are required")
+    project = tmp_path / "project[1]"
+    shutil.copytree(TEMPLATE_ROOT, project)
+    powershell_command = [
+        powershell,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(project / ".agentic/tools/install.ps1"),
+        "-UseUv",
+    ]
+    bash_command = [str(git_bash), ".agentic/tools/install.sh"]
+
+    for command in (powershell_command, powershell_command, bash_command, bash_command):
+        result = subprocess.run(
+            command,
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+        assert result.returncode == 0, result.stderr
+
+    assert (project / ".agentic/.venv/Scripts/python.exe").is_file()
+
+
 # END OF FILE

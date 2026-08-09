@@ -36,6 +36,9 @@ import { spawnSync } from "node:child_process";
  */
 export const BLOCKING_EXIT_CODE = 2;
 
+/** Maximum time one shared Python guard may hold an adapter tool call. */
+export const HOOK_TIMEOUT_MS = 60_000;
+
 /** Actionable reason used whenever no interpreter can be resolved. */
 export const NO_INTERPRETER_REASON =
   "AEGIS guard could not run: no Python runtime was found. " +
@@ -101,6 +104,7 @@ function runLauncher(argv) {
   const result = spawnSync(interpreter.command, [...interpreter.args, hook, ...argv.slice(3)], {
     stdio: "inherit",
     windowsHide: true,
+    timeout: HOOK_TIMEOUT_MS,
   });
   if (result.error) {
     process.stderr.write(`AEGIS guard could not run ${hook}: ${result.error.message}\n`);
