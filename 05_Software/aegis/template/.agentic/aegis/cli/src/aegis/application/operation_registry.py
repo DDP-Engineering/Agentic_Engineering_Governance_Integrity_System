@@ -1,0 +1,687 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt file for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+# -----------------------------------------------------------------------------
+"""
+@file    operation_registry.py
+@brief   Declare all 56 version 1 protocol operations exactly once.
+@details Owns canonical inputs, bounded help, and executor bindings.
+"""
+
+# -----------------------------------------------------------------------------
+# IMPORTS
+# -----------------------------------------------------------------------------
+
+from __future__ import annotations
+
+from aegis.application.operation_types import (
+    ArgumentDefinition,
+    OperationDefinition,
+    OperationExecutor,
+)
+from aegis.application.product_operations import (
+    show_help,
+    show_version,
+    unavailable_operation,
+)
+
+# -----------------------------------------------------------------------------
+# LOCAL HELPERS
+# -----------------------------------------------------------------------------
+
+
+def _option(
+    name: str,
+    display_name: str,
+    description: str,
+    *,
+    required: bool = False,
+    choices: tuple[str, ...] = (),
+) -> ArgumentDefinition:
+    """@return One declared option with a mechanically derived metavar."""
+    value = display_name.removeprefix(f"--{name.replace('_', '-')} ").strip("<>")
+    return ArgumentDefinition(
+        name=name,
+        flags=(f"--{name.replace('_', '-')}",),
+        display_name=display_name,
+        description=description,
+        required=required,
+        choices=choices,
+        metavar=value or None,
+    )
+
+
+def _positional(
+    name: str,
+    display_name: str,
+    description: str,
+    *,
+    choices: tuple[str, ...] = (),
+) -> ArgumentDefinition:
+    """@return One required positional input declaration."""
+    return ArgumentDefinition(
+        name=name,
+        flags=(name,),
+        display_name=display_name,
+        description=description,
+        required=True,
+        choices=choices,
+        metavar=display_name.strip("<>"),
+    )
+
+
+def _operation(
+    operation: str,
+    purpose: str,
+    result: str,
+    example: str,
+    products: frozenset[str],
+    arguments: tuple[ArgumentDefinition, ...] = (),
+    executor: OperationExecutor = unavailable_operation,
+) -> OperationDefinition:
+    """@return One immutable registry declaration."""
+    return OperationDefinition(
+        operation=operation,
+        purpose=purpose,
+        result=result,
+        example=example,
+        products=products,
+        arguments=arguments,
+        executor=executor,
+        implemented=executor is not unavailable_operation,
+    )
+
+
+# -----------------------------------------------------------------------------
+# CONSTANTS
+# -----------------------------------------------------------------------------
+
+_COMMON = frozenset({"AEGIS", "WAEGIS"})
+_AEGIS = frozenset({"AEGIS"})
+_WAEGIS = frozenset({"WAEGIS"})
+_CANONICAL_HEX = "0123456789abcdef0123456789abcdef"
+_SHA256_EXAMPLE = "sha256:" + ("a" * 64)
+_STAGES = (
+    "intake",
+    "alignment",
+    "requirement",
+    "design",
+    "check",
+    "implementation",
+    "validation",
+    "delivery",
+)
+
+_HELP_OPERATION = _option(
+    "operation", "--operation <id>", "Show help for one operation or command."
+)
+_TICKET_INPUT = _option(
+    "input",
+    "--input <source>",
+    "Read ticket input from a JSON file or standard input.",
+    required=True,
+)
+_INPUT = _option(
+    "input",
+    "--input <source>",
+    "Read operation input from a JSON file or stdin.",
+    required=True,
+)
+_RUN_ID = _positional("run_id", "<run-id>", "Select the Run identifier.")
+_RUN = _option("run", "--run <id>", "Use the selected Run identifier.")
+_PROFILE = _option(
+    "profile",
+    "--profile <name>",
+    "Select the full or short Run profile.",
+    required=True,
+    choices=("full", "short"),
+)
+_STAGE = _option(
+    "stage", "--stage <name>", "Use the named canonical Stage.", choices=_STAGES
+)
+_STAGE_NAME = _positional(
+    "stage_name",
+    "<stage-name>",
+    "Select the canonical Stage name.",
+    choices=_STAGES,
+)
+_FINDING = _option(
+    "finding", "--finding <label>", "Select the finding label.", required=True
+)
+_REQUIREMENT = _option(
+    "requirement",
+    "--requirement <id>",
+    "Select the Requirement identifier.",
+    required=True,
+)
+_COMPONENT = _option(
+    "component", "--component <id>", "Select the Component identifier.", required=True
+)
+_PATH = _option(
+    "path", "--path <path>", "Select the repository-relative path.", required=True
+)
+_CATEGORY = _option(
+    "category",
+    "--category <tests|lints|audits>",
+    "Select the tests, lints, or audits category.",
+    required=True,
+    choices=("tests", "lints", "audits"),
+)
+_NAME = _option(
+    "name", "--name <name>", "Select the configured command name.", required=True
+)
+_SELECTION = _option(
+    "selection", "--selection <label>", "Use the impacted-test selection label."
+)
+_ADOPTION = _option(
+    "adoption", "--adoption <id>", "Select the Adoption identifier.", required=True
+)
+_TARGET = _option(
+    "target", "--target <path>", "Select the target repository.", required=True
+)
+_OUTPUT = _option(
+    "output", "--output <path>", "Write the plan to this file.", required=True
+)
+_PLAN = _option("plan", "--plan <path>", "Read the approved plan file.", required=True)
+_CONFIRM_DIGEST = _option(
+    "confirm_digest",
+    "--confirm-digest <sha256>",
+    "Confirm the exact approved plan digest.",
+    required=True,
+)
+
+ALL_OPERATIONS = (
+    _operation(
+        "help.show",
+        "Show bounded command help.",
+        "Help metadata.",
+        "aegis help-show",
+        _COMMON,
+        (_HELP_OPERATION,),
+        show_help,
+    ),
+    _operation(
+        "version.show",
+        "Show product and protocol versions.",
+        "Version and capability metadata.",
+        "aegis version-show",
+        _COMMON,
+        executor=show_version,
+    ),
+    _operation(
+        "config.show",
+        "Show resolved project configuration.",
+        "Configuration summary.",
+        "aegis config-show",
+        _AEGIS,
+    ),
+    _operation(
+        "config.validate",
+        "Validate project configuration.",
+        "Configuration findings.",
+        "aegis config-validate",
+        _AEGIS,
+    ),
+    _operation(
+        "payload.verify",
+        "Verify installed payload ownership and bytes.",
+        "Payload findings.",
+        "aegis payload-verify",
+        _AEGIS,
+    ),
+    _operation(
+        "run.create",
+        "Create one Run from ticket text.",
+        "Created Run summary.",
+        "aegis run-create --input ticket.json",
+        _AEGIS,
+        (_TICKET_INPUT,),
+    ),
+    _operation(
+        "run.select",
+        "Select one active Run.",
+        "Selected Run identity.",
+        "aegis run-select RUN-0123456789abcdef0123456789abcdef",
+        _AEGIS,
+        (_RUN_ID,),
+    ),
+    _operation(
+        "run.list",
+        "List bounded Run summaries.",
+        "Run summary page.",
+        "aegis run-list",
+        _AEGIS,
+    ),
+    _operation(
+        "run.show",
+        "Show one Run summary.",
+        "Run state.",
+        "aegis run-show --run RUN-0123456789abcdef0123456789abcdef",
+        _AEGIS,
+        (_RUN,),
+    ),
+    _operation(
+        "run.set_profile",
+        "Change one active Run profile.",
+        "Updated Run state.",
+        "aegis run-set-profile --profile full",
+        _AEGIS,
+        (_PROFILE,),
+    ),
+    _operation(
+        "run.abandon",
+        "Abandon one active Run truthfully.",
+        "Terminal abandonment state.",
+        "aegis run-abandon --input abandonment.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "scope.revise",
+        "Record one scope revision.",
+        "Updated Run scope.",
+        "aegis scope-revise --input scope.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "stage.show",
+        "Show one Stage instruction and state.",
+        "Stage context.",
+        "aegis stage-show --stage implementation",
+        _AEGIS,
+        (_RUN, _STAGE),
+    ),
+    _operation(
+        "stage.start",
+        "Start one pending Stage.",
+        "Updated Stage and Run state.",
+        "aegis stage-start implementation",
+        _AEGIS,
+        (_STAGE_NAME,),
+    ),
+    _operation(
+        "stage.set_section",
+        "Replace one mutable Stage section.",
+        "Updated Stage state.",
+        "aegis stage-set-section --input section.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "stage.complete",
+        "Complete one current Stage.",
+        "Updated Stage and Run state.",
+        "aegis stage-complete",
+        _AEGIS,
+    ),
+    _operation(
+        "stage.skip",
+        "Skip one eligible Stage.",
+        "Skipped Stage state.",
+        "aegis stage-skip --input reason.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "stage.revisit",
+        "Revisit one completed or skipped Stage.",
+        "Active Stage state.",
+        "aegis stage-revisit validation --input reason.json",
+        _AEGIS,
+        (_STAGE_NAME, _INPUT),
+    ),
+    _operation(
+        "evidence.add",
+        "Append one evidence entry.",
+        "Updated Stage revision.",
+        "aegis evidence-add --input evidence.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "finding.add",
+        "Append one finding.",
+        "Updated Stage revision.",
+        "aegis finding-add --input finding.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "finding.set_disposition",
+        "Set one finding disposition.",
+        "Updated finding state.",
+        "aegis finding-set-disposition --finding F1 --input disposition.json",
+        _AEGIS,
+        (_FINDING, _INPUT),
+    ),
+    _operation(
+        "finding.waive",
+        "Waive one finding truthfully.",
+        "Updated finding state.",
+        "aegis finding-waive --finding F1 --input waiver.json",
+        _AEGIS,
+        (_FINDING, _INPUT),
+    ),
+    _operation(
+        "decision.add",
+        "Append one workflow decision.",
+        "Updated Stage revision.",
+        "aegis decision-add --input decision.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "attachment.add",
+        "Import one supporting attachment.",
+        "Created attachment and Stage revision.",
+        "aegis attachment-add --input attachment.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "requirement.create",
+        "Create one Requirement.",
+        "Created Requirement.",
+        "aegis requirement-create --input requirement.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "requirement.update",
+        "Update one Requirement.",
+        "Updated Requirement.",
+        f"aegis requirement-update --requirement REQ-{_CANONICAL_HEX} "
+        "--input requirement.json",
+        _AEGIS,
+        (_REQUIREMENT, _INPUT),
+    ),
+    _operation(
+        "requirement.delete",
+        "Delete one Requirement and dependent documentation.",
+        "Deleted artifact actions.",
+        f"aegis requirement-delete --requirement REQ-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_REQUIREMENT,),
+    ),
+    _operation(
+        "requirement.show",
+        "Show one Requirement.",
+        "Requirement summary.",
+        f"aegis requirement-show --requirement REQ-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_REQUIREMENT,),
+    ),
+    _operation(
+        "requirement.list",
+        "List bounded Requirement summaries.",
+        "Requirement summary page.",
+        "aegis requirement-list",
+        _AEGIS,
+    ),
+    _operation(
+        "requirement.validate",
+        "Validate one Requirement.",
+        "Requirement findings.",
+        f"aegis requirement-validate --requirement REQ-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_REQUIREMENT,),
+    ),
+    _operation(
+        "specification.set",
+        "Create or update one Specification.",
+        "Updated Specification.",
+        f"aegis specification-set --requirement REQ-{_CANONICAL_HEX} "
+        "--input specification.json",
+        _AEGIS,
+        (_REQUIREMENT, _INPUT),
+    ),
+    _operation(
+        "specification.delete",
+        "Delete one Specification.",
+        "Deleted Specification action.",
+        f"aegis specification-delete --requirement REQ-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_REQUIREMENT,),
+    ),
+    _operation(
+        "component.create",
+        "Create one Component.",
+        "Created Component.",
+        "aegis component-create --input component.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "component.update",
+        "Update one Component and drift review.",
+        "Updated Component.",
+        f"aegis component-update --component COMP-{_CANONICAL_HEX} "
+        "--input component.json",
+        _AEGIS,
+        (_COMPONENT, _INPUT),
+    ),
+    _operation(
+        "component.delete",
+        "Delete one Component document.",
+        "Deleted Component action.",
+        f"aegis component-delete --component COMP-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_COMPONENT,),
+    ),
+    _operation(
+        "component.show",
+        "Show one Component context.",
+        "Component summary.",
+        f"aegis component-show --component COMP-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_COMPONENT,),
+    ),
+    _operation(
+        "component.list",
+        "List bounded Component summaries.",
+        "Component summary page.",
+        "aegis component-list",
+        _AEGIS,
+    ),
+    _operation(
+        "component.validate",
+        "Validate one Component.",
+        "Component findings.",
+        f"aegis component-validate --component COMP-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_COMPONENT,),
+    ),
+    _operation(
+        "component.find",
+        "Find Components related to one path.",
+        "Component matches.",
+        "aegis component-find --path src/aegis",
+        _AEGIS,
+        (_PATH,),
+    ),
+    _operation(
+        "trace.validate",
+        "Validate current trace relationships.",
+        "Trace findings.",
+        "aegis trace-validate",
+        _AEGIS,
+    ),
+    _operation(
+        "trace.impacted",
+        "Compute one impacted-test selection.",
+        "Test selection and reasons.",
+        "aegis trace-impacted --input changes.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "execution.list",
+        "List configured and recorded executions.",
+        "Execution summary page.",
+        "aegis execution-list --stage implementation",
+        _AEGIS,
+        (_STAGE,),
+    ),
+    _operation(
+        "execution.run",
+        "Run one named configured command.",
+        "Recorded execution outcome.",
+        "aegis execution-run --category tests --name project",
+        _AEGIS,
+        (_CATEGORY, _NAME, _SELECTION),
+    ),
+    _operation(
+        "adoption.create",
+        "Create one Adoption journal.",
+        "Created Adoption.",
+        "aegis adoption-create --input adoption.json",
+        _AEGIS,
+        (_INPUT,),
+    ),
+    _operation(
+        "adoption.show",
+        "Show one Adoption summary.",
+        "Adoption resume state.",
+        f"aegis adoption-show --adoption ADOPT-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_ADOPTION,),
+    ),
+    _operation(
+        "adoption.set_section",
+        "Replace one Adoption section.",
+        "Updated Adoption.",
+        f"aegis adoption-set-section --adoption ADOPT-{_CANONICAL_HEX} "
+        "--input section.json",
+        _AEGIS,
+        (_ADOPTION, _INPUT),
+    ),
+    _operation(
+        "adoption.complete",
+        "Complete one Adoption.",
+        "Completed Adoption state.",
+        f"aegis adoption-complete --adoption ADOPT-{_CANONICAL_HEX}",
+        _AEGIS,
+        (_ADOPTION,),
+    ),
+    _operation(
+        "adoption.abandon",
+        "Abandon one Adoption.",
+        "Abandoned Adoption state.",
+        f"aegis adoption-abandon --adoption ADOPT-{_CANONICAL_HEX} --input reason.json",
+        _AEGIS,
+        (_ADOPTION, _INPUT),
+    ),
+    _operation(
+        "repository_init.plan",
+        "Plan local Git initialization.",
+        "Repository initialization plan.",
+        "waegis repository-init-plan --target . --output plan.json",
+        _WAEGIS,
+        (_TARGET, _OUTPUT),
+    ),
+    _operation(
+        "repository_init.apply",
+        "Apply approved Git initialization.",
+        "Initialization result.",
+        f"waegis repository-init-apply --target . --plan p.json "
+        f"--confirm-digest {_SHA256_EXAMPLE}",
+        _WAEGIS,
+        (_TARGET, _PLAN, _CONFIRM_DIGEST),
+    ),
+    _operation(
+        "install.plan",
+        "Plan AEGIS installation.",
+        "Installation plan.",
+        "waegis install-plan --target . --output plan.json",
+        _WAEGIS,
+        (_TARGET, _OUTPUT),
+    ),
+    _operation(
+        "install.apply",
+        "Apply an approved installation plan.",
+        "Installation result.",
+        f"waegis install-apply --target . --plan plan.json "
+        f"--confirm-digest {_SHA256_EXAMPLE}",
+        _WAEGIS,
+        (_TARGET, _PLAN, _CONFIRM_DIGEST),
+    ),
+    _operation(
+        "upgrade.plan",
+        "Plan payload replacement.",
+        "Upgrade plan.",
+        "waegis upgrade-plan --target . --output plan.json",
+        _WAEGIS,
+        (_TARGET, _OUTPUT),
+    ),
+    _operation(
+        "upgrade.apply",
+        "Apply an approved upgrade plan.",
+        "Upgrade result.",
+        f"waegis upgrade-apply --target . --plan plan.json "
+        f"--confirm-digest {_SHA256_EXAMPLE}",
+        _WAEGIS,
+        (_TARGET, _PLAN, _CONFIRM_DIGEST),
+    ),
+    _operation(
+        "remove.plan",
+        "Plan payload removal.",
+        "Removal plan.",
+        "waegis remove-plan --target . --output plan.json",
+        _WAEGIS,
+        (_TARGET, _OUTPUT),
+    ),
+    _operation(
+        "remove.apply",
+        "Apply an approved removal plan.",
+        "Removal result.",
+        f"waegis remove-apply --target . --plan plan.json "
+        f"--confirm-digest {_SHA256_EXAMPLE}",
+        _WAEGIS,
+        (_TARGET, _PLAN, _CONFIRM_DIGEST),
+    ),
+)
+
+# -----------------------------------------------------------------------------
+# PUBLIC API
+# -----------------------------------------------------------------------------
+
+
+def command_for(operation: str) -> str:
+    """@return The only canonical flat command spelling."""
+    return operation.replace(".", "-").replace("_", "-")
+
+
+def operations_for(product: str) -> tuple[OperationDefinition, ...]:
+    """@param[in] product Product name. @return Its ordered operation catalog."""
+    return tuple(entry for entry in ALL_OPERATIONS if product in entry.products)
+
+
+def find_operation(operation: str, product: str) -> OperationDefinition | None:
+    """@return The matching product operation or ``None``."""
+    return next(
+        (
+            entry
+            for entry in ALL_OPERATIONS
+            if entry.operation == operation and product in entry.products
+        ),
+        None,
+    )
+
+
+def find_command(command: str, product: str) -> OperationDefinition | None:
+    """@return The matching canonical command entry or ``None``."""
+    return next(
+        (entry for entry in operations_for(product) if entry.command == command),
+        None,
+    )
+
+
+# -----------------------------------------------------------------------------
+# END OF FILE
+# -----------------------------------------------------------------------------

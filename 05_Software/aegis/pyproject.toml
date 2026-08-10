@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegis"
+dynamic = ["version"]
+description = "Repository-local AEGIS governance protocol runtime"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+aegis = "aegis.composition:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.9",
+]
+
+[tool.setuptools]
+package-dir = {"" = "template/.agentic/aegis/cli/src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "aegis.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["template/.agentic/aegis/cli/src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["UP009"]
