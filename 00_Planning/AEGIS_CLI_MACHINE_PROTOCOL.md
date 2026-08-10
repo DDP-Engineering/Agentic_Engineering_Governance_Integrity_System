@@ -832,8 +832,8 @@ Next: review the Validation Stage
 - **CP-ARCH-015:** Command names, operation identifiers, input schemas, output
   schemas, and help metadata are declared once and reused by parsing and help
   generation.
-- **CP-ARCH-016:** Aliases do not introduce different machine operation names or
-  semantics.
+- **CP-ARCH-016:** Each operation shall have exactly one canonical flat command
+  name. The registry shall declare no aliases.
 - **CP-ARCH-017:** Host adapters invoke application use cases through the same
   operation identifiers used by the CLI.
 
@@ -911,8 +911,8 @@ The Acceptance Plan must demonstrate at least:
 | WAEGIS lifecycle | `PR-WAEGIS`, `PR-PAYLOAD`, `PR-DEFAULT` | `FS-INSTALL`, `FS-UPGRADE`, `FS-REMOVE` |
 | Hosts and architecture boundaries | `PR-HOST`, `PR-RUNTIME`, `PR-MODEL` | `FS-INTERFACE`, `FS-ENV` |
 
-The Acceptance Plan defines the required proof for this protocol. The next
-planning deliverable is the Technical Architecture, followed by the
-implementation plan. Neither may change this protocol without updating the
-Product Requirements, Functional Specification, and Artifact Model where their
-owned meaning is affected.
+The Acceptance Plan defines the required proof for this protocol, the Technical
+Architecture defines its implementation boundaries, and the Implementation Plan
+sequences its delivery. Implementation shall not change this protocol without
+updating the Product Requirements, Functional Specification, and Artifact Model
+where their owned meaning is affected.

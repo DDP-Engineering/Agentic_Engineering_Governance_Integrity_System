@@ -92,6 +92,7 @@ domains:
 |   |-- adapters/
 |   |-- defaults/
 |   `-- templates/
+|-- .runtime/                           # transient locks and recovery; not versioned
 |-- config.toml                         # generated integration map
 |-- rules.md                            # optional project-specific guidance
 |-- requirements/                       # project documentation
@@ -147,6 +148,9 @@ domains:
   their owning run directory.
 - **AM-LAYOUT-012:** Adoption state may span multiple sessions but shall remain
   separate from a normal eight-stage run.
+- **AM-LAYOUT-013:** `.agentic/.runtime/` may hold only transient lock and
+  interrupted-publication recovery material. It shall not be authoritative
+  project data, Run metadata, audit evidence, or agent context.
 
 ## 5. Project configuration
 
@@ -636,6 +640,13 @@ context source during Intake.
   a path-specific structured error.
 - **AM-DURABLE-009:** Artifacts shall not require secrets, credentials, or
   environment-variable values to be stored.
+- **AM-DURABLE-010:** Transient recovery material shall remain inside the
+  repository at `.agentic/.runtime/`, shall be excluded from version control,
+  and shall be sufficient to restore a complete before-or-after state after an
+  interrupted multi-file publication.
+- **AM-DURABLE-011:** AEGIS shall remove completed recovery transactions after
+  successful publication or recovery. Their temporary copies shall not become
+  retained project history.
 
 ## 17. Collaboration and post-integration validation
 
@@ -745,6 +756,7 @@ validation rules demonstrate that:
 13. every machine-significant template parses with its declared schema on
     Windows and Ubuntu.
 
-The CLI and Machine Protocol Contract operates on these artifacts, and the
-Acceptance Plan defines their required proof. The next planning deliverable is
-the Technical Architecture.
+The CLI and Machine Protocol Contract operates on these artifacts, the
+Acceptance Plan defines their required proof, the Technical Architecture
+defines their implementation boundaries, and the Implementation Plan sequences
+their delivery.

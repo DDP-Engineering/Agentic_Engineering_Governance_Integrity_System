@@ -1029,6 +1029,7 @@ through these observable scenarios:
 | Interfaces and hosts | `PR-PROTO`, `PR-ENC`, `PR-HOST` |
 | Product boundaries | `PR-BOUND`, `PR-WORKFLOW`, `PR-INT`, `PR-ZONE` |
 
-The CLI and Machine Protocol Contract exposes these behaviors, and the
-Acceptance Plan defines their required proof. The next planning deliverable is
-the Technical Architecture.
+The CLI and Machine Protocol Contract exposes these behaviors, the Acceptance
+Plan defines their required proof, the Technical Architecture defines their
+implementation boundaries, and the Implementation Plan sequences their
+delivery.

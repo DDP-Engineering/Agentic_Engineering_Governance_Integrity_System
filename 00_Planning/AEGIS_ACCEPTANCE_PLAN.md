@@ -387,6 +387,7 @@ The release acceptance record shall contain:
 - known limitations and unverified integrations; and
 - the final release verdict, actor, and time.
 
-The next planning deliverable is the Technical Architecture. It shall identify
-the implementation boundaries needed to satisfy these scenarios without
-changing their observable outcomes or the Product Requirements they cover.
+The Technical Architecture identifies the implementation boundaries needed to
+satisfy these scenarios. The Implementation Plan sequences their delivery
+without changing their observable outcomes or the Product Requirements they
+cover.
