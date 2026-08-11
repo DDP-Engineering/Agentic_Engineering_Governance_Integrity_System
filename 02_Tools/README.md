@@ -10,6 +10,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 Repository-level helper scripts and utilities for maintaining, validating, or
 packaging the standalone AEGIS project belong here.
 
+Offline AEGIS and WAEGIS archive construction, runtime-input locking, and
+archive inspection are maintained in `release_tools/`.
+
 AEGIS deployment is not maintained as a repository-level helper script.
 Deployment-tool behavior and compatibility are documented by the separate
 WAEGIS package while that package evolves.

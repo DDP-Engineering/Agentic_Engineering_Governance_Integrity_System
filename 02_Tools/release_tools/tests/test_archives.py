@@ -22,7 +22,7 @@ from aegis_release.archives import BuildError, build_archive
 from aegis_release.inspection import InspectionError, inspect_archive
 
 REPOSITORY = Path(__file__).parents[3]
-RUNTIME_INPUTS = REPOSITORY / "05_Software/release_tools/runtime_inputs.toml"
+RUNTIME_INPUTS = REPOSITORY / "02_Tools/release_tools/runtime_inputs.toml"
 
 
 def test_release_module_exposes_local_tool_help() -> None:

@@ -32,7 +32,7 @@ request operation.
 - `02_Tools/` — repository support tools.
 - `05_Software/aegis/` — canonical AEGIS payload source and package tests.
 - `05_Software/waegis/` — separate WAEGIS package and lifecycle tests.
-- `05_Software/release_tools/` — offline archive build and inspection tooling.
+- `02_Tools/release_tools/` — offline archive build and inspection tooling.
 - `06_SoftwareDocu/` — deeper current implementation guidance and retained
   historical material.
 

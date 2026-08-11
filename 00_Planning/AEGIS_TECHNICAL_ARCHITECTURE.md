@@ -160,16 +160,30 @@ that is copied into a target repository:
 |-- pyproject.toml
 |-- src/
 |   `-- waegis/
-|-- packaging/
 |-- tests/
 `-- dist/                                  # generated release output
+```
+
+Release archive construction and inspection are repository tools rather than
+WAEGIS runtime source:
+
+```text
+02_Tools/release_tools/
+|-- pyproject.toml
+|-- runtime_inputs.toml
+|-- src/
+|   `-- aegis_release/
+`-- tests/
 ```
 
 - **TA-SOURCE-005:** WAEGIS runtime source shall remain under `src/waegis/` and
   shall be independently importable and executable.
 - **TA-SOURCE-006:** WAEGIS tests may inspect an assembled AEGIS payload as data
   but shall not add AEGIS runtime source to WAEGIS's import path.
-- **TA-SOURCE-007:** Generated archives, private runtimes, and package staging
+- **TA-SOURCE-007:** Release build, runtime-input locking, and archive inspection
+  source shall remain under `02_Tools/release_tools/` and shall not become part
+  of either product runtime.
+- **TA-SOURCE-008:** Generated archives, private runtimes, and package staging
   directories are build outputs, not authoritative source.
 
 ## 6. AEGIS runtime modules

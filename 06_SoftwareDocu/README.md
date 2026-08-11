@@ -11,7 +11,7 @@ Current clean-break AEGIS version 1 implementation guidance is in
 `AEGIS_V1_IMPLEMENTATION.md`. The authoritative product behavior remains the
 planning contract set under `00_Planning/`; package commands and validation are
 documented in `05_Software/aegis/README.md`, `05_Software/waegis/README.md`, and
-`05_Software/release_tools/README.md`.
+`02_Tools/release_tools/README.md`.
 
 Other material retained in this directory describes earlier product lines and
 presentations. It is historical reference only and does not define, extend, or

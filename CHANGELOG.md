@@ -42,6 +42,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Move the offline release archive build, runtime-input lock, and inspection
+  tooling from `05_Software/release_tools/` to `02_Tools/release_tools/` so
+  repository packaging helpers remain outside the AEGIS and WAEGIS products.
+
 - Refresh maintained AEGIS documentation for the 3.0 payload, remove obsolete
   deployment-tool compatibility claims and retired historical/planning
   indexes, and keep the operator catalog limited to maintained guidance.
