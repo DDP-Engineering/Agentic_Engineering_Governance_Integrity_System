@@ -1,0 +1,5 @@
+schema = 1
+stage = "design"
+sequence = 4
+instruction = "Describe the smallest solution satisfying the Requirements, affected Components and files, interfaces, failure behavior, alternatives, risks, and intended checks. Short profile records Design as omitted."
+sections = ["inputs", "proposed_solution", "requirement_coverage", "interfaces_data_and_failure_behavior", "alternatives_and_risks", "outputs_and_handoff"]

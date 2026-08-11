@@ -1,0 +1,35 @@
+# WAEGIS
+
+WAEGIS is the separate, offline, standard-library-only operator application
+for planning and applying AEGIS repository initialization, installation,
+upgrade, and removal. It is not installed into target repositories.
+
+Every mutation uses an operator-owned JSON plan written outside the target.
+Apply requires the exact `sha256:` digest printed by the corresponding plan
+operation and refuses a changed target. Except for an explicitly authorized
+`repository-init-apply`, WAEGIS performs no Git mutation.
+
+The ten flat operations are `help-show`, `version-show`,
+`repository-init-plan/apply`, `install-plan/apply`, `upgrade-plan/apply`, and
+`remove-plan/apply`. Human and JSON modes share the AEGIS version 1 response
+envelope and error meanings.
+
+Installation detects conventional test roots, uses pytest only when a pytest
+configuration signal exists, otherwise configures standard-library unittest,
+and records Ruff when its project configuration is present. Missing tests use
+the shipped `.agentic/tests` unittest default. Existing configuration, rules,
+project knowledge, tests, application files, Adoption state, and Run evidence
+are preserved.
+
+## Development
+
+```powershell
+uv run --group dev python -m pytest -q tests
+uv run --group dev ruff check src tests
+uv run --group dev python -B -m waegis --help
+uv run --group dev python -B -m waegis --format json version-show
+```
+
+Source-checkout execution reads the canonical sibling AEGIS payload strictly
+as data. Release archives embed that exact payload below the WAEGIS package;
+WAEGIS never imports AEGIS runtime code.

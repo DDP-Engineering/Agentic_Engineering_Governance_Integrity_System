@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+bin_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -x "$bin_dir/../runtime/git/bin/git" ]; then
+  PATH="$bin_dir/../runtime/git/bin:$PATH"
+  export PATH
+fi
+if [ -x "$bin_dir/../runtime/python/bin/python3" ]; then
+  exec "$bin_dir/../runtime/python/bin/python3" "$bin_dir/launcher.py" "$@"
+fi
+exec python3 "$bin_dir/launcher.py" "$@"

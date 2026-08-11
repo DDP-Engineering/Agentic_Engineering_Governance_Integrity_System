@@ -13,6 +13,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Implement the clean-break AEGIS version 1 product through IP-17: the complete
+  repository-local workflow and current project-knowledge runtime, thin host
+  contract resources, the separate stdlib-only WAEGIS plan/apply lifecycle,
+  and reproducible offline archive build/inspection seams with truthful
+  unsupplied runtime-input locks. IP-18 release acceptance remains deferred.
+
 - AEGIS Light 0.2.0: two advisory checks complete the catalog at seventeen.
   `stage-zone` reports source edited under a stage whose write zone does not
   include it — the documentation stages (`frame`, `specify`, `design`) and

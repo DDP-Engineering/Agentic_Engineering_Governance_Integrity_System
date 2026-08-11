@@ -29,6 +29,7 @@ from aegis.application.product_operations import (
     show_version,
     unavailable_operation,
 )
+from aegis.application.workflow_operations import executor_for
 
 # -----------------------------------------------------------------------------
 # LOCAL HELPERS
@@ -82,9 +83,10 @@ def _operation(
     example: str,
     products: frozenset[str],
     arguments: tuple[ArgumentDefinition, ...] = (),
-    executor: OperationExecutor = unavailable_operation,
+    executor: OperationExecutor | None = None,
 ) -> OperationDefinition:
     """@return One immutable registry declaration."""
+    resolved_executor = executor_for(operation) if executor is None else executor
     return OperationDefinition(
         operation=operation,
         purpose=purpose,
@@ -92,8 +94,8 @@ def _operation(
         example=example,
         products=products,
         arguments=arguments,
-        executor=executor,
-        implemented=executor is not unavailable_operation,
+        executor=resolved_executor,
+        implemented=resolved_executor is not unavailable_operation,
     )
 
 

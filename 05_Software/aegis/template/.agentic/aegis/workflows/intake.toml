@@ -1,0 +1,5 @@
+schema = 1
+stage = "intake"
+sequence = 1
+instruction = "Start from the unchanged ticket text. Read project configuration, optional rules, relevant Components, linked Requirements, tests, and the opening Git state. Restate the ask, identify bounded scope, and expose uncertainty without requiring prepared scope."
+sections = ["inputs", "configured_project_paths", "relevant_project_knowledge", "restated_ask", "initially_affected_repository_area", "facts_and_uncertainties", "outputs_and_handoff"]

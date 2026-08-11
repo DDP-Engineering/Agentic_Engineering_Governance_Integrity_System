@@ -7,67 +7,54 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS package
 
-This directory develops and tests the AEGIS runtime from the exact source tree
-delivered to repositories:
+This package develops and tests the exact AEGIS version 1 runtime delivered at
+`template/.agentic/aegis/cli/src/aegis/`. There is no second runtime copy.
 
-```text
-template/.agentic/aegis/cli/src/aegis/
-```
+The central operation registry owns all 48 AEGIS command names, input schemas,
+help, examples, availability, and dispatch. Human output and one-line JSON use
+the same presentation-neutral result and the version 1
+`aegis.machine.response` envelope.
 
-The repository-level `pyproject.toml` points its editable package and test
-imports at that tree. There is no second development copy of the runtime.
+Implemented behavior includes:
 
-## Current version 1 protocol foundation
+- canonical configuration/artifact codecs, safe repository paths, exact
+  payload verification, and cohesive recoverable publication;
+- multiple durable Runs with one local selected context and eight self-owned
+  Stage documents for full and short profiles;
+- Stage evidence, findings, dispositions, decisions, exceptions, attachments,
+  skips, revisits, scope changes, Delivery, and abandonment;
+- current-only Requirements, Specifications, Components, trace validation,
+  and impacted-test selection;
+- configured shell-free tests, lints, and audits with pass, fail, timeout,
+  cancellation, launch-error, large-output, red-fingerprint, and Git integrity
+  evidence; and
+- bounded Adoption journals and thin shared host-adapter resources for direct
+  CLI, Claude Code, Codex, Qwen Code, OpenCode, and Pi use.
 
-The runnable foundation provides:
-
-- one registry containing the complete 56-operation AEGIS/WAEGIS protocol
-  catalog, product ownership, CLI inputs, help metadata, and executor bindings;
-- the 48-operation AEGIS command catalog with mechanically derived flat command
-  tokens and no aliases;
-- working `help-show` and `version-show` use cases, including complete bounded
-  exact-operation help with arguments, result, and one minimal example;
-- human output and the version 1 one-line JSON response envelope;
-- structured protocol errors and documented exit classes without traceback
-  output;
-- injected clock, UUIDv4, and SHA-256 services;
-- installed Git-repository discovery, with every explicit `--repo` validated;
-  and
-- atomic single-file replacement through a flushed temporary sibling and
-  `os.replace`.
-
-The remaining AEGIS catalog operations are intentionally unavailable at this
-foundation stage. Invoking one returns `capability_unavailable` with exit code
-4 when its declared arguments are valid. Missing, unknown, or malformed
-arguments return structured `invalid_input`; catalog presence is not
-represented as implemented behavior.
+Default policy is advisory and non-blocking. Findings never manufacture a pass
+and never perform developer-owned outward Git actions.
 
 ## Development
 
-From this directory:
-
 ```powershell
 uv run --group dev python -m pytest -q tests
-uv run --group dev ruff check .
+uv run --group dev ruff check template/.agentic/aegis/cli/src tests
 uv run --group dev python -B -m aegis --help
 uv run --group dev python -B -m aegis --format json version-show
 ```
 
-Runtime dependencies are limited to the Python standard library. Pytest,
-Ruff, setuptools, and uv are development or packaging tools only.
+Runtime dependencies are limited to the Python standard library. The package
+supports Python 3.11 or later.
 
-## Public commands in this foundation
+## Invocation
+
+Global options precede the flat command:
 
 ```text
-aegis help-show
-aegis help-show --operation run.create
-aegis version-show
-aegis --format json version-show
-aegis --repo C:\path\to\installed-project version-show
+aegis --repo C:\path\to\installed-project --format json stage-show
+aegis --repo C:\path\to\installed-project run-create --input ticket.json
+aegis --repo C:\path\to\installed-project execution-run --category tests --name project
 ```
 
-Global options precede the flat command. Machine mode writes exactly one
-compact UTF-8 JSON object plus LF to standard output and keeps standard error
-empty after the protocol starts. Omitting `--repo` keeps package-level help and
-version available before project configuration exists; supplying it requests
-installed-repository validation and never gets ignored.
+Structured input files and stdin use `aegis.machine.input` schema version 1.
+No operator-producible input or repository state is emitted as a traceback.

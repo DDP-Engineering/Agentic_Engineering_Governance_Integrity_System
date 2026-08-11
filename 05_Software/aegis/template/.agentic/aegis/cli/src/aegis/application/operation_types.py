@@ -23,7 +23,8 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from aegis.domain.results import OperationResult
-from aegis.ports.services import HashService
+from aegis.ports.services import Clock, HashService, UUIDService
+from aegis.ports.workspace import Workspace
 
 # -----------------------------------------------------------------------------
 # DATA MODELS / TYPEDEFINITIONS
@@ -60,7 +61,10 @@ class OperationContext:
     product_version: str
     protocol_version: int
     operation_id: str
+    clock: Clock
+    uuid_service: UUIDService
     hash_service: HashService
+    workspace: Workspace | None
     catalog: tuple[OperationDefinition, ...]
 
 

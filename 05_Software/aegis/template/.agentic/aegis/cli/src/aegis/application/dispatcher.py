@@ -27,6 +27,7 @@ from aegis.application.operation_types import OperationContext
 from aegis.domain.results import OperationResult, ProtocolError
 from aegis.ports.repository import RepositoryDiscovery, RepositoryDiscoveryError
 from aegis.ports.services import Clock, HashService, UUIDService
+from aegis.ports.workspace import WorkspaceFactory
 
 # -----------------------------------------------------------------------------
 # DATA MODELS / TYPEDEFINITIONS
@@ -41,6 +42,7 @@ class ApplicationServices:
     uuid: UUIDService
     hashes: HashService
     repositories: RepositoryDiscovery
+    workspaces: WorkspaceFactory
 
 
 class Dispatcher:
@@ -92,7 +94,13 @@ class Dispatcher:
             ),
         )
 
-    def dispatch(self, operation: str, inputs: dict[str, Any]) -> OperationResult:
+    def dispatch(
+        self,
+        operation: str,
+        inputs: dict[str, Any],
+        *,
+        repository: Any | None = None,
+    ) -> OperationResult:
         """
         @brief Invoke exactly one registered use case.
         @param[in] operation Stable dotted operation identifier.
@@ -114,10 +122,32 @@ class Dispatcher:
             product_version=self._product_version,
             protocol_version=self._protocol_version,
             operation_id=operation_id,
+            clock=self._services.clock,
+            uuid_service=self._services.uuid,
             hash_service=self._services.hashes,
+            workspace=(
+                None
+                if repository is None
+                else self._services.workspaces(repository.root)
+            ),
             catalog=operations_for(self._product),
         )
         return entry.executor(context, entry, inputs)
+
+    def resolve_repository(
+        self, start: str, *, operation: str
+    ) -> tuple[Any | None, OperationResult | None]:
+        """@brief Resolve one installed repository or a structured error."""
+        try:
+            return self._services.repositories(start), None
+        except RepositoryDiscoveryError as error:
+            return None, self.error_result(
+                operation=operation,
+                code=error.code,
+                summary=error.summary,
+                field="repo",
+                path=str(error.path),
+            )
 
     def validate_repository(
         self,
@@ -126,17 +156,8 @@ class Dispatcher:
         operation: str,
     ) -> OperationResult | None:
         """@brief Validate an explicitly supplied repository location."""
-        try:
-            self._services.repositories(start)
-        except RepositoryDiscoveryError as error:
-            return self.error_result(
-                operation=operation,
-                code=error.code,
-                summary=error.summary,
-                field="repo",
-                path=str(error.path),
-            )
-        return None
+        _, error = self.resolve_repository(start, operation=operation)
+        return error
 
 
 # -----------------------------------------------------------------------------

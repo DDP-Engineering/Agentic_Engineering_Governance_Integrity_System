@@ -1,0 +1,307 @@
+schema = 1
+artifact_type = "payload_manifest"
+payload_id = "PAYLOAD-2a26d660e004d95092288ffab56d8ee5"
+product = "AEGIS"
+product_version = "1.0.0"
+platform = "windows"
+architecture = "x86_64"
+
+[[files]]
+path = "README.md"
+size = 799
+sha256 = "a641bbc7d8a945e06c513e04b80d99c67e5deafe62b38661d10449196ca3bd9e"
+
+[[files]]
+path = "adapters/claude-code/adapter.json"
+size = 223
+sha256 = "23897aee57a1ea637cdb2686365e8874818a12fa7261645e780a8701c29c1e06"
+
+[[files]]
+path = "adapters/codex/adapter.json"
+size = 217
+sha256 = "3001e23270bb90b06d027e86f3cf18427c2871a77aa4be3518205c400c49b717"
+
+[[files]]
+path = "adapters/contract.json"
+size = 1237
+sha256 = "37c4b3497d3bfe29c75839fd62a1a68d6563fdc7f07713742e3d85fadc7891fa"
+
+[[files]]
+path = "adapters/opencode/adapter.json"
+size = 220
+sha256 = "2ae13509feb8dce6ba2cea8de34ca82585e9c549efa1081159c27f8a1ae3e6b4"
+
+[[files]]
+path = "adapters/pi/adapter.json"
+size = 214
+sha256 = "a511cb4b71e1f35fff085949f6d8a67dab3710499b4142a6f965d20f39dfb3f7"
+
+[[files]]
+path = "adapters/qwen-code/adapter.json"
+size = 221
+sha256 = "7adf6312f0de449bc79c798f558c7ab9df9266c2a93409b4f4a9c0c94031f1f5"
+
+[[files]]
+path = "bin/aegis"
+size = 358
+sha256 = "5a4367728030bbf53c6be5d8c52d7fe7e46077aa945b8260042d5037274f1864"
+
+[[files]]
+path = "bin/aegis.cmd"
+size = 317
+sha256 = "a446f09fae943d8bfdc81de3fe6565e8e08daf5a688de9a4e2fc2a6fb1b5e3d8"
+
+[[files]]
+path = "bin/launcher.py"
+size = 803
+sha256 = "7c114dffe70c107d077297ee397ce4efa2cf91c44d212417d69c6d5531ba5d1c"
+
+[[files]]
+path = "cli/README.md"
+size = 1520
+sha256 = "6e466e15867064fe45b374fb4b189d78f61bbe2f1ec4035b944a5f937fb3db09"
+
+[[files]]
+path = "cli/pyproject.toml"
+size = 479
+sha256 = "3002edca16a6c86ffbdc9b2eb073cd0ec4669c663aea3f8d5c3b6e6d3f170c9a"
+
+[[files]]
+path = "cli/src/aegis.egg-info/PKG-INFO"
+size = 3027
+sha256 = "3299a2d8176e1b5476b56fb85c7ee87bb35c670a577c73f399fa023fdb5f87e3"
+
+[[files]]
+path = "cli/src/aegis.egg-info/SOURCES.txt"
+size = 1856
+sha256 = "3f5cce64df303ab897d41be02c636adb1e1b70d00b541ddf490f3ad58e5f63ad"
+
+[[files]]
+path = "cli/src/aegis.egg-info/dependency_links.txt"
+size = 1
+sha256 = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+
+[[files]]
+path = "cli/src/aegis.egg-info/entry_points.txt"
+size = 49
+sha256 = "58dab2ec194215a3c3d5eebc8706d9d89539aa490a7de00ccdc67e99ebde5c9f"
+
+[[files]]
+path = "cli/src/aegis.egg-info/top_level.txt"
+size = 6
+sha256 = "c49ffda863700e6155e771ac6ba1100f58aefc25684fec5b4fe0d986630fa485"
+
+[[files]]
+path = "cli/src/aegis/__init__.py"
+size = 1057
+sha256 = "71f6bf51d7b4b1e70a4131f03d64a9e6e9ef2a97d75c5292cc44717003e141ac"
+
+[[files]]
+path = "cli/src/aegis/__main__.py"
+size = 1258
+sha256 = "6756b37cd514db55b99184313f389b03c18b90bffe8056055ae268eef24b1dcc"
+
+[[files]]
+path = "cli/src/aegis/application/__init__.py"
+size = 858
+sha256 = "1cbf23a9b8a2322e31a79163426febc0767ffbe4038d5fe539cbf10b56905402"
+
+[[files]]
+path = "cli/src/aegis/application/dispatcher.py"
+size = 5742
+sha256 = "9cd4091cb88cdc422c217c326e6415355bc95c844677a79d42146ce56df26b11"
+
+[[files]]
+path = "cli/src/aegis/application/execution_operations.py"
+size = 12981
+sha256 = "8ed8c74e26d3d432d87db4fd32553b11b416a42f0897f361880ad142d97548b4"
+
+[[files]]
+path = "cli/src/aegis/application/lifecycle_operations.py"
+size = 15015
+sha256 = "ea32bc02455b0e03e88c55b98bb2aff0f31115409ffab4a8a12f37aa6b1f6c2f"
+
+[[files]]
+path = "cli/src/aegis/application/operation_registry.py"
+size = 19838
+sha256 = "b38473387b7198e3f23c1a5bfe301269702e65bc26d0beffe041811b85537a3c"
+
+[[files]]
+path = "cli/src/aegis/application/operation_types.py"
+size = 3855
+sha256 = "cb43421517213306e2294c7cdb0407e285f6285c753db141b2f56a1b009a5b4e"
+
+[[files]]
+path = "cli/src/aegis/application/product_operations.py"
+size = 6183
+sha256 = "c4e90b87380cb262681c07e5cd319942ff875fda69447031dc8d2d7ba3b9441c"
+
+[[files]]
+path = "cli/src/aegis/application/project_operations.py"
+size = 39277
+sha256 = "421b12b7631b1e7026505367d4b43f7dd8088254d308412e9b490d38630bdc0a"
+
+[[files]]
+path = "cli/src/aegis/application/workflow_operations.py"
+size = 52020
+sha256 = "1e37e8273a880cd8118f34073bd5f37eb3a3d01e8258716ef8361b8d66d58c04"
+
+[[files]]
+path = "cli/src/aegis/composition.py"
+size = 3388
+sha256 = "ffba2e738790b1ef0ebc8baf284c3d5254ecfed2a8882842f73519716e945085"
+
+[[files]]
+path = "cli/src/aegis/domain/__init__.py"
+size = 846
+sha256 = "ba85b5aab90e043dbc0044c55f336597d4420583f49ed96460b3325c3f1837f4"
+
+[[files]]
+path = "cli/src/aegis/domain/configuration.py"
+size = 1384
+sha256 = "2bb6931178b00a43dc7a061c705265fb11cf1c8a0f522b91e891e5661aa8e171"
+
+[[files]]
+path = "cli/src/aegis/domain/execution.py"
+size = 1812
+sha256 = "1855722686bfe428eb13772ccbc0b72951842b19802aaff9345395a40a7f10a3"
+
+[[files]]
+path = "cli/src/aegis/domain/results.py"
+size = 3886
+sha256 = "146c3727569a0f030723f15580ce9c05511eb0ee70000958800990673faae2ed"
+
+[[files]]
+path = "cli/src/aegis/domain/values.py"
+size = 2360
+sha256 = "acc387a68d584ae509e6e19c206c0095cd3593705ae460c37a38a729f587d9f7"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/__init__.py"
+size = 859
+sha256 = "b2e899506a6a90007e3fef4195a38ba54adf9ddc983e781f6264e1d0c67dab17"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/codecs.py"
+size = 14086
+sha256 = "6a476c0d132cd4a7447df760512aa0f1a3369800b5f17a32f5d00d8062c4e5fb"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/discovery.py"
+size = 2485
+sha256 = "c2ae0db891358eb3e0c719eff588916e15644ae8d4c5ef2ad0cb0a41c74c07d0"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/payload.py"
+size = 5112
+sha256 = "e50bfbe28e126dfc73509905db342703312d16ee9273d627969efdb8c829b50d"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/process.py"
+size = 4724
+sha256 = "0e28133d2009c6f53fb50d7eec1dd8c621369b547ed316e77188e24595569953"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/publication.py"
+size = 4076
+sha256 = "37e552c31d328bc218550abe5bdd6efcd1a5e692fa86c368a4ad1728bdbea152"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/services.py"
+size = 2027
+sha256 = "516907ade3bc00a694dd91f48c1489ea36ef65e860bb7ccd5883812eb43ffdd4"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/transactions.py"
+size = 11484
+sha256 = "2f61f6daff644266dbfc5948fa4c0923ee1305da1eebcfc2e7fec7b65ab02378"
+
+[[files]]
+path = "cli/src/aegis/infrastructure/workspace.py"
+size = 14787
+sha256 = "4fa56ce0e5563de9461a1d7478afb227688be6d6968022851e0c61fac2a5cf15"
+
+[[files]]
+path = "cli/src/aegis/interface/__init__.py"
+size = 856
+sha256 = "0ecb7c6c4e4148b25c63e942361671839b2b37834cd1f11c73edb1282ea07eaf"
+
+[[files]]
+path = "cli/src/aegis/interface/cli.py"
+size = 12760
+sha256 = "fb0ddffeea4a360344504dc1210a9c4823a0fb3516cf75f53c4a8c26021a742e"
+
+[[files]]
+path = "cli/src/aegis/interface/human_presenter.py"
+size = 2919
+sha256 = "fd2bf001766f502fa8312964b7244b676b8e1e56de96048aa6a7e67f6e8b98bc"
+
+[[files]]
+path = "cli/src/aegis/interface/input.py"
+size = 1955
+sha256 = "b9108aa737ea77f21b7c8c046d07c0a9b81f8b4065c327232cd854db44059867"
+
+[[files]]
+path = "cli/src/aegis/interface/json_presenter.py"
+size = 1748
+sha256 = "a61e871c08c157852b3a05fd6d2860cf80a74795ecc865c48d7ec0061cd0b940"
+
+[[files]]
+path = "cli/src/aegis/ports/__init__.py"
+size = 847
+sha256 = "bbb2d9df1883d6e4b14992d9ae6814599d23cde43ce1ca1eb45606c7f47c88fb"
+
+[[files]]
+path = "cli/src/aegis/ports/repository.py"
+size = 2074
+sha256 = "72cbafa32f5c6779c49dd8d7f7a0d51a990090d69e196a97c98a0e64a67abb63"
+
+[[files]]
+path = "cli/src/aegis/ports/services.py"
+size = 1885
+sha256 = "e23fa1f748fc21a6316ed7a454c6c0356726b135e7bbf74e6c11dfc5501665a4"
+
+[[files]]
+path = "cli/src/aegis/ports/workspace.py"
+size = 3360
+sha256 = "ec8e06b5c48f26d4311c95399c431264d307c807212539940fdc54e82039038e"
+
+[[files]]
+path = "workflows/alignment.toml"
+size = 395
+sha256 = "c305838234cdbd05e8f401fd1b2fb006dade32ad7b6eba092d06625c38154c6d"
+
+[[files]]
+path = "workflows/check.toml"
+size = 426
+sha256 = "48b345890d0eae6641f31aede323a09c047e600b57edf1e53e8295c1bb898fcc"
+
+[[files]]
+path = "workflows/delivery.toml"
+size = 565
+sha256 = "ae5ea3221007ed4238822f7a920525d7e276594d2d96976599194575e35b5b30"
+
+[[files]]
+path = "workflows/design.toml"
+size = 417
+sha256 = "faee29460bb5418d89a47c1758125391efa3768a73ac88950a06dd1ba0036c78"
+
+[[files]]
+path = "workflows/implementation.toml"
+size = 444
+sha256 = "284747b29d0dbfac91d4ac5c635d4df9ad6bd198eaab3ab4f59d684bac881b63"
+
+[[files]]
+path = "workflows/intake.toml"
+size = 497
+sha256 = "a5e9649a4e90a3f495ce83da8d07dab9f74d42f199a786974b176dc9a3aabe9f"
+
+[[files]]
+path = "workflows/requirement.toml"
+size = 451
+sha256 = "9c1f9e8296ad2235cfea08d39155bdb9cc1c4be77dede51274b691a7c0777322"
+
+[[files]]
+path = "workflows/validation.toml"
+size = 422
+sha256 = "afe19782c87c81b287b137c1abaa16585a4c93b19bfaf4ac2f9ddeb255352314"

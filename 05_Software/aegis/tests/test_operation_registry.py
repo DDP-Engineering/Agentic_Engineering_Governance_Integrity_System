@@ -55,10 +55,7 @@ def test_product_catalogs_keep_aegis_and_waegis_boundaries_explicit() -> None:
 
     assert len(aegis) == 48
     assert len(waegis) == 10
-    assert {entry.operation for entry in aegis if entry.implemented} == {
-        "help.show",
-        "version.show",
-    }
+    assert all(entry.implemented for entry in aegis)
     assert "install.apply" not in {entry.operation for entry in aegis}
     assert "run.create" not in {entry.operation for entry in waegis}
 

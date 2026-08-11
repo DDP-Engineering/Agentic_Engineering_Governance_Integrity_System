@@ -1,0 +1,5 @@
+schema = 1
+stage = "alignment"
+sequence = 2
+instruction = "Record included work, exclusions, assumptions, open questions, corrections, and the proportional Run profile. Uncertainty may remain when its risk and accepted assumption are explicit. Do not write implementation code."
+sections = ["inputs_from_intake", "proposed_scope", "developer_corrections", "agreed_scope", "outputs_and_handoff"]

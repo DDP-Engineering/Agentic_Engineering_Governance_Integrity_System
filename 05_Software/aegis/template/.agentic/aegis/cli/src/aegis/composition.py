@@ -24,6 +24,7 @@ from aegis import PRODUCT_NAME, PROTOCOL_VERSION, __version__
 from aegis.application.dispatcher import ApplicationServices, Dispatcher
 from aegis.infrastructure.discovery import discover_repository
 from aegis.infrastructure.services import Sha256Service, SystemClock, Uuid4Service
+from aegis.infrastructure.workspace import FileWorkspace
 from aegis.interface.cli import configure_utf8, run_cli
 from aegis.ports.repository import RepositoryDiscovery
 from aegis.ports.services import Clock, HashService, UUIDService
@@ -57,6 +58,7 @@ def create_dispatcher(
             if repository_discovery is None
             else repository_discovery
         ),
+        workspaces=FileWorkspace,
     )
     return Dispatcher(
         product=PRODUCT_NAME,
@@ -71,6 +73,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     configure_utf8(sys.stdout)
     return run_cli(
         sys.argv[1:] if arguments is None else arguments,
+        stdin=sys.stdin,
         stdout=sys.stdout,
         stderr=sys.stderr,
         dispatcher=create_dispatcher(),

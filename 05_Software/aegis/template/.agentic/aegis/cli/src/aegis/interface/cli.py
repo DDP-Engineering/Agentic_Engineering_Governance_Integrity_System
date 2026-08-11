@@ -20,6 +20,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 from collections.abc import Sequence
 from typing import Any, TextIO
 
@@ -28,6 +30,7 @@ from aegis.application.dispatcher import Dispatcher
 from aegis.application.operation_registry import find_command, operations_for
 from aegis.domain.results import OperationResult
 from aegis.interface.human_presenter import render_human
+from aegis.interface.input import MachineInputError, load_machine_input
 from aegis.interface.json_presenter import render_json
 
 # -----------------------------------------------------------------------------
@@ -177,6 +180,7 @@ def configure_utf8(stream: TextIO) -> None:
 def run_cli(
     arguments: Sequence[str],
     *,
+    stdin: TextIO | None = None,
     stdout: TextIO,
     stderr: TextIO,
     dispatcher: Dispatcher | Any,
@@ -191,6 +195,7 @@ def run_cli(
     """
     del stderr
     application = dispatcher
+    input_stream = sys.stdin if stdin is None else stdin
     output_format = _requested_format(arguments)
     operation = _operation_hint(arguments)
 
@@ -198,6 +203,7 @@ def run_cli(
         parser = _build_parser()
         namespace = parser.parse_args(arguments)
         output_format = namespace.format
+        repository = None
 
         if namespace.protocol_version != PROTOCOL_VERSION:
             result = _safe_error_result(
@@ -211,17 +217,6 @@ def run_cli(
                     "supported": PROTOCOL_VERSION,
                 },
             )
-        elif (
-            namespace.repo is not None
-            and (
-                repository_error := application.validate_repository(
-                    namespace.repo,
-                    operation=operation,
-                )
-            )
-            is not None
-        ):
-            result = repository_error
         elif namespace.root_help or namespace.command is None:
             if namespace.command is None and not namespace.root_help:
                 result = _safe_error_result(
@@ -271,7 +266,49 @@ def run_cli(
                         if (value := getattr(namespace, argument.name, None))
                         is not None
                     }
-                    result = application.dispatch(entry.operation, inputs)
+                    source = inputs.pop("input", None)
+                    if source is not None:
+                        structured = load_machine_input(
+                            source,
+                            stdin=input_stream,
+                            operation=entry.operation,
+                        )
+                        conflicts = sorted(set(inputs).intersection(structured))
+                        if conflicts:
+                            raise MachineInputError(
+                                "A field was supplied through both CLI and "
+                                "structured input."
+                            )
+                        inputs.update(structured)
+                    if namespace.expected_revision is not None:
+                        inputs["expected_revision"] = namespace.expected_revision
+                    repository_free = entry.operation in {
+                        "help.show",
+                        "version.show",
+                    }
+                    if namespace.repo is not None or not repository_free:
+                        repository, repository_error = application.resolve_repository(
+                            namespace.repo or os.getcwd(),
+                            operation=entry.operation,
+                        )
+                        if repository_error is not None:
+                            result = repository_error
+                        else:
+                            result = application.dispatch(
+                                entry.operation,
+                                inputs,
+                                repository=None if repository_free else repository,
+                            )
+                    else:
+                        result = application.dispatch(entry.operation, inputs)
+    except MachineInputError as error:
+        result = _safe_error_result(
+            application,
+            operation=operation,
+            code="invalid_input",
+            summary=str(error),
+            field="input",
+        )
     except _CliInputError as error:
         result = _safe_error_result(
             application,

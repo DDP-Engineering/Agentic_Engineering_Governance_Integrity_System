@@ -1,0 +1,21 @@
+# Copyright (c) 2026 DDP Engineering
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+schema = 1
+artifact_type = "project_config"
+
+[paths]
+requirements = ".agentic/requirements"
+components = ".agentic/components"
+tests = [".agentic/tests"]
+adoptions = ".agentic/adoptions"
+runs = ".agentic/runs"
+
+[validation.tests.project]
+command = ["python", "-m", "unittest", "discover", "-s", ".agentic/tests"]
+working_directory = "."
+timeout_seconds = 0
+
+[policy]
+risk_attention_threshold = "medium"
+protected_scope_patterns = []

@@ -1,0 +1,5 @@
+schema = 1
+stage = "validation"
+sequence = 7
+instruction = "Select the complete safe impacted tests with reasons, or record and run the full-suite fallback. Record test, lint, audit, and manual outcomes independently without turning findings into blockers."
+sections = ["inputs", "impacted_test_selection", "automated_validation_evidence", "manual_validation_evidence", "test_integrity_conclusion", "outputs_and_handoff"]

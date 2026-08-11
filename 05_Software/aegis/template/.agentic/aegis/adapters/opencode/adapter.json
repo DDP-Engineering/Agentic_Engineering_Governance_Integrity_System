@@ -1,0 +1,8 @@
+{
+  "host": "opencode",
+  "contract": "../contract.json",
+  "dispatcher": [".agentic/aegis/bin/aegis", "--format", "json"],
+  "operation_identifiers": "contract",
+  "owns_transitions": false,
+  "owns_approvals": false
+}

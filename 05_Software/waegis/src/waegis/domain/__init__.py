@@ -1,0 +1,1 @@
+"""WAEGIS domain types."""

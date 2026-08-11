@@ -187,7 +187,7 @@ def test_exact_operation_help_exposes_complete_registry_owned_contract() -> None
         "optional_arguments": [],
         "result": "Created Run summary.",
         "example": "aegis run-create --input ticket.json",
-        "implemented": False,
+        "implemented": True,
     }
 
     exit_code, response, _, stderr = invoke_json(
@@ -200,27 +200,6 @@ def test_exact_operation_help_exposes_complete_registry_owned_contract() -> None
     assert exit_code == command_exit == 0
     assert stderr == command_stderr == ""
     assert response["data"] == command_response["data"] == expected
-
-
-@pytest.mark.parametrize(
-    "arguments",
-    [
-        ["config-show"],
-        ["run-create", "--input", "ticket.json"],
-        ["run-select", "RUN-0123456789abcdef0123456789abcdef"],
-    ],
-)
-def test_unimplemented_aegis_operation_reports_capability_unavailable(
-    arguments: list[str],
-) -> None:
-    """@brief Verify catalog presence cannot be mistaken for working behavior."""
-    exit_code, response, _, stderr = invoke_json(arguments)
-
-    assert exit_code == 4
-    assert stderr == ""
-    assert response["operation_status"] == "error"
-    assert response["error"]["code"] == "capability_unavailable"
-    assert response["error"]["retryable"] is False
 
 
 @pytest.mark.parametrize(
@@ -275,12 +254,12 @@ def test_noncanonical_execution_categories_and_stages_are_invalid(
 def test_canonical_execution_categories_and_stages_reach_the_operation(
     arguments: list[str],
 ) -> None:
-    """@brief Verify valid final enum values reach unavailable operations."""
+    """@brief Verify valid final enum values pass parsing and reach discovery."""
     exit_code, response, _, stderr = invoke_json(arguments)
 
-    assert exit_code == 4
+    assert exit_code == 5
     assert stderr == ""
-    assert response["error"]["code"] == "capability_unavailable"
+    assert response["error"]["code"] == "repository_error"
 
 
 def test_envelope_marks_bounded_next_actions_as_truncated() -> None:

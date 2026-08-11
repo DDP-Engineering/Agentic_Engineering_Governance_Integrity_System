@@ -1,0 +1,5 @@
+schema = 1
+stage = "requirement"
+sequence = 3
+instruction = "Express one current behavior per Requirement with confirmation separate from behavior. Link real impacted files and tests or a concrete manual method. Use a Specification only when the Requirement is not buildable alone."
+sections = ["inputs_from_alignment", "requirement_artifact_changes", "traceability", "risk_based_test_depth_decision", "gaps_and_uncertainties", "outputs_and_handoff"]

@@ -1,0 +1,5 @@
+schema = 1
+stage = "check"
+sequence = 5
+instruction = "Create or select proportional verification under configured test roots. Capture an actual failing result and exact-byte test fingerprints before implementation, or record an exception-approved reason and alternative confirmation."
+sections = ["inputs", "test_work", "recorded_red_evidence", "test_fingerprints_at_red", "red_before_green_decision", "outputs_and_handoff"]
