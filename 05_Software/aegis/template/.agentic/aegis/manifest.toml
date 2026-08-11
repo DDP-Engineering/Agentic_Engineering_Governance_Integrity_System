@@ -48,8 +48,8 @@ sha256 = "5a4367728030bbf53c6be5d8c52d7fe7e46077aa945b8260042d5037274f1864"
 
 [[files]]
 path = "bin/aegis.cmd"
-size = 317
-sha256 = "a446f09fae943d8bfdc81de3fe6565e8e08daf5a688de9a4e2fc2a6fb1b5e3d8"
+size = 327
+sha256 = "47723f7439cf8cb5865b350740958a823e93bab4f934ab0bfe69eb48692f8cef"
 
 [[files]]
 path = "bin/launcher.py"
@@ -65,31 +65,6 @@ sha256 = "6e466e15867064fe45b374fb4b189d78f61bbe2f1ec4035b944a5f937fb3db09"
 path = "cli/pyproject.toml"
 size = 479
 sha256 = "3002edca16a6c86ffbdc9b2eb073cd0ec4669c663aea3f8d5c3b6e6d3f170c9a"
-
-[[files]]
-path = "cli/src/aegis.egg-info/PKG-INFO"
-size = 3027
-sha256 = "3299a2d8176e1b5476b56fb85c7ee87bb35c670a577c73f399fa023fdb5f87e3"
-
-[[files]]
-path = "cli/src/aegis.egg-info/SOURCES.txt"
-size = 1856
-sha256 = "3f5cce64df303ab897d41be02c636adb1e1b70d00b541ddf490f3ad58e5f63ad"
-
-[[files]]
-path = "cli/src/aegis.egg-info/dependency_links.txt"
-size = 1
-sha256 = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
-
-[[files]]
-path = "cli/src/aegis.egg-info/entry_points.txt"
-size = 49
-sha256 = "58dab2ec194215a3c3d5eebc8706d9d89539aa490a7de00ccdc67e99ebde5c9f"
-
-[[files]]
-path = "cli/src/aegis.egg-info/top_level.txt"
-size = 6
-sha256 = "c49ffda863700e6155e771ac6ba1100f58aefc25684fec5b4fe0d986630fa485"
 
 [[files]]
 path = "cli/src/aegis/__init__.py"
@@ -198,8 +173,8 @@ sha256 = "e50bfbe28e126dfc73509905db342703312d16ee9273d627969efdb8c829b50d"
 
 [[files]]
 path = "cli/src/aegis/infrastructure/process.py"
-size = 4724
-sha256 = "0e28133d2009c6f53fb50d7eec1dd8c621369b547ed316e77188e24595569953"
+size = 4741
+sha256 = "8e53f64bbb6a42e793f6cbbc1a3ecb77da04d96c083ab92547dab102304fcc4d"
 
 [[files]]
 path = "cli/src/aegis/infrastructure/publication.py"

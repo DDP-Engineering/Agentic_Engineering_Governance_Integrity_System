@@ -168,12 +168,9 @@ Release archive construction and inspection are repository tools rather than
 WAEGIS runtime source:
 
 ```text
-02_Tools/release_tools/
-|-- pyproject.toml
-|-- runtime_inputs.toml
-|-- src/
-|   `-- aegis_release/
-`-- tests/
+02_Tools/
+|-- build_aegis_release.py
+`-- runtime_inputs.toml
 ```
 
 - **TA-SOURCE-005:** WAEGIS runtime source shall remain under `src/waegis/` and
@@ -181,8 +178,8 @@ WAEGIS runtime source:
 - **TA-SOURCE-006:** WAEGIS tests may inspect an assembled AEGIS payload as data
   but shall not add AEGIS runtime source to WAEGIS's import path.
 - **TA-SOURCE-007:** Release build, runtime-input locking, and archive inspection
-  source shall remain under `02_Tools/release_tools/` and shall not become part
-  of either product runtime.
+  logic shall remain in the standalone `02_Tools/build_aegis_release.py` script
+  and shall not become part of either product runtime.
 - **TA-SOURCE-008:** Generated archives, private runtimes, and package staging
   directories are build outputs, not authoritative source.
 

@@ -54,13 +54,14 @@ Only `repository-init-apply` can run Git, and that adapter exposes only local
 
 ## Release tooling and validation boundary
 
-Release tools build stable ZIP member order, timestamps, bytes, prerequisites,
-and exact archive inventories. Dependency-excluding Windows and Ubuntu archive
-shapes are buildable from source. Dependency-including builds refuse until the
-checked runtime lock contains real local Python 3.12 and Git archives with
-exact versions and SHA-256 digests.
+The standalone `02_Tools/build_aegis_release.py` script builds stable ZIP member
+order, timestamps, bytes, prerequisites, and exact archive inventories, and can
+inspect those archives without extracting them. Dependency-excluding Windows
+and Ubuntu archive shapes are buildable from source. Dependency-including builds
+refuse until `02_Tools/runtime_inputs.toml` contains real local Python 3.12 and
+Git archives with exact versions and SHA-256 digests.
 
-Synthetic tests exercise platform archive shapes and the locked-input seam.
-They do not establish supported-host, Ubuntu, private-runtime, network-denied,
-or downstream-repository acceptance. Those sessions belong to the later IP-18
-release campaign and must remain recorded as deferred until actually run.
+The repository does not retain a separate automated test package for this
+maintenance script. Compilation and explicit build/inspect smoke commands check
+the local tool path; supported-host, Ubuntu, private-runtime, network-denied,
+and downstream-repository acceptance remain part of the later IP-18 campaign.

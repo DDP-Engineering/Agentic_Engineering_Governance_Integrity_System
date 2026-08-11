@@ -29,10 +29,9 @@ request operation.
 
 - `00_Planning/` — authoritative version 1 product and acceptance contracts.
 - `01_Documentation/` — repository-wide engineering and code style.
-- `02_Tools/` — repository support tools.
+- `02_Tools/` — repository support and standalone release-packaging tools.
 - `05_Software/aegis/` — canonical AEGIS payload source and package tests.
 - `05_Software/waegis/` — separate WAEGIS package and lifecycle tests.
-- `02_Tools/release_tools/` — offline archive build and inspection tooling.
 - `06_SoftwareDocu/` — deeper current implementation guidance and retained
   historical material.
 
@@ -46,11 +45,12 @@ uv run --group dev ruff check .
 ```
 
 AEGIS and WAEGIS runtime code use only the Python standard library and support
-Python 3.11 or later. Release tooling builds deterministic external-runtime
-archives from repository content. Dependency-including archives require real,
-locally supplied Python 3.12 and Git archives whose versions and SHA-256
-digests are populated in the runtime-input lock; the checked-in lock truthfully
-records that those release inputs are not supplied.
+Python 3.11 or later. The standalone `02_Tools/build_aegis_release.py` script
+builds and inspects deterministic archives from repository content.
+Dependency-including archives require real, locally supplied Python 3.12 and
+Git archives whose versions and SHA-256 digests are populated in
+`02_Tools/runtime_inputs.toml`; the checked-in lock truthfully records that
+those release inputs are not supplied.
 
 Release acceptance is a later, explicit campaign. The current implementation
 does not claim real downstream-repository acceptance, supported-host sessions,

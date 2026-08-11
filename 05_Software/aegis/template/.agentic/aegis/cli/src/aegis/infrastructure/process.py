@@ -25,6 +25,8 @@ from aegis.domain.execution import (
     ExecutionResult,
 )
 
+_sleep = time.sleep
+
 
 def _drain(stream: BinaryIO, chunks: list[bytes]) -> None:
     """@brief Drain one child pipe concurrently until EOF."""
@@ -113,7 +115,7 @@ def execute_process(
                 outcome = "timed_out"
                 _terminate_group(process)
                 break
-            time.sleep(0.02)
+            _sleep(0.02)
     except KeyboardInterrupt:
         outcome = "cancelled"
         _terminate_group(process)

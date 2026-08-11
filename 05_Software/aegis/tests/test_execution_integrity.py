@@ -156,7 +156,7 @@ def test_keyboard_interrupt_cancels_process_group_without_escaping(
     def interrupt(_: float) -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(process_adapter.time, "sleep", interrupt)
+    monkeypatch.setattr(process_adapter, "_sleep", interrupt)
     result = execute_process(
         ExecutionRequest(
             (sys.executable, "-c", "import time; time.sleep(5)"), tmp_path, 0

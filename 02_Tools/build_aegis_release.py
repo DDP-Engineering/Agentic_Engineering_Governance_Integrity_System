@@ -4,24 +4,20 @@
 # Copyright (c) 2026 DDP Engineering
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # -----------------------------------------------------------------------------
-"""Build deterministic platform archives from only local locked inputs."""
+"""Build and inspect deterministic AEGIS release archives from local inputs."""
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
+import sys
 import tomllib
 import zipfile
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
-
-from aegis_release.payload import (
-    PayloadError,
-    generate_manifest,
-    render_manifest,
-    verify_manifest,
-)
 
 SUPPORTED_PRODUCTS = {"aegis", "waegis"}
 SUPPORTED_PLATFORMS = {"windows-x86_64", "ubuntu-22.04-x86_64"}
@@ -30,6 +26,110 @@ ZIP_TIME = (2026, 1, 1, 0, 0, 0)
 
 class BuildError(ValueError):
     """Report a refused archive build without leaving a partial archive."""
+
+
+class InspectionError(ValueError):
+    """Report an archive that is unsafe, inconsistent, or non-exact."""
+
+
+class PayloadError(ValueError):
+    """Report an invalid or non-exact canonical payload."""
+
+
+def _safe_payload_path(value: str) -> str:
+    path = PurePosixPath(value)
+    if not value or path.is_absolute() or ".." in path.parts or "\\" in value:
+        raise PayloadError(f"Unsafe payload path: {value!r}")
+    return path.as_posix()
+
+
+def render_manifest(files: dict[str, bytes], version: str, *, platform: str) -> bytes:
+    """Render exact manifest bytes from an assembled payload file mapping."""
+    entries = [
+        (relative, len(content), hashlib.sha256(content).hexdigest())
+        for relative, content in sorted(files.items())
+        if relative != "manifest.toml"
+    ]
+    identity_source = "\n".join(
+        f"{relative}\0{size}\0{digest}" for relative, size, digest in entries
+    ).encode("utf-8")
+    payload_id = hashlib.sha256(identity_source).hexdigest()[:32]
+    lines = [
+        "schema = 1",
+        'artifact_type = "payload_manifest"',
+        f'payload_id = "PAYLOAD-{payload_id}"',
+        'product = "AEGIS"',
+        f'product_version = "{version}"',
+        f'platform = "{platform}"',
+        'architecture = "x86_64"',
+        "",
+    ]
+    for relative, size, digest in entries:
+        lines.extend(
+            [
+                "[[files]]",
+                f'path = "{relative}"',
+                f"size = {size}",
+                f'sha256 = "{digest}"',
+                "",
+            ]
+        )
+    return "\n".join(lines).encode("utf-8")
+
+
+def generate_manifest(
+    payload_root: Path, version: str, *, platform: str = "source"
+) -> bytes:
+    """Render a sorted complete manifest for every regular payload file."""
+    files: dict[str, bytes] = {}
+    for path in sorted(payload_root.rglob("*"), key=lambda item: item.as_posix()):
+        if (
+            not path.is_file()
+            or path.name == "manifest.toml"
+            or "__pycache__" in path.parts
+        ):
+            continue
+        files[path.relative_to(payload_root).as_posix()] = path.read_bytes()
+    return render_manifest(files, version, platform=platform)
+
+
+def verify_manifest(
+    payload_root: Path, *, exact_bytes: bool = True
+) -> dict[str, bytes]:
+    """Return manifest-owned bytes or reject inventory and optional byte drift."""
+    try:
+        manifest = (payload_root / "manifest.toml").read_bytes()
+        data = tomllib.loads(manifest.decode("utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        raise PayloadError(f"Payload manifest is invalid: {exc}") from exc
+    if data.get("schema") != 1 or data.get("artifact_type") != "payload_manifest":
+        raise PayloadError("Payload manifest schema is unsupported")
+    files: dict[str, bytes] = {"manifest.toml": manifest}
+    for entry in data.get("files", []):
+        relative = _safe_payload_path(str(entry.get("path", "")))
+        if relative in files:
+            raise PayloadError(f"Duplicate payload path: {relative}")
+        try:
+            candidate = (payload_root / Path(relative)).resolve(strict=True)
+            candidate.relative_to(payload_root.resolve())
+            content = candidate.read_bytes()
+        except (OSError, ValueError) as exc:
+            raise PayloadError(f"Missing payload file: {relative}") from exc
+        differs = len(content) != entry.get("size") or (
+            hashlib.sha256(content).hexdigest() != entry.get("sha256")
+        )
+        if exact_bytes and differs:
+            raise PayloadError(f"Payload digest mismatch: {relative}")
+        files[relative] = content
+    actual = {
+        path.relative_to(payload_root).as_posix()
+        for path in payload_root.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    if actual != set(files):
+        differences = sorted(actual.symmetric_difference(files))
+        raise PayloadError(f"Payload inventory mismatch: {differences}")
+    return files
 
 
 def _regular_files(root: Path) -> dict[str, bytes]:
@@ -173,7 +273,10 @@ def _product_files(repository: Path, product: str, platform: str) -> dict[str, b
     template = repository / "05_Software/aegis/template"
     payload = template / ".agentic/aegis"
     try:
-        verify_manifest(payload)
+        # Git may materialize platform line endings in a clean checkout. The
+        # archive receives a new exact-byte manifest below, while this check
+        # still rejects missing, added, duplicate, and unsafe payload paths.
+        verify_manifest(payload, exact_bytes=False)
     except PayloadError as exc:
         raise BuildError(str(exc)) from exc
     manifest = generate_manifest(
@@ -322,3 +425,117 @@ def build_archive(
     output = output_directory / f"{product}-1.0.0-{platform}-{edition}.zip"
     _write_zip(output, files)
     return output
+
+
+def _safe_archive_path(name: str) -> bool:
+    path = PurePosixPath(name)
+    return (
+        bool(name)
+        and not path.is_absolute()
+        and ".." not in path.parts
+        and "\\" not in name
+    )
+
+
+def inspect_archive(path: Path) -> dict[str, Any]:
+    """Verify an archive entirely before any caller extracts it."""
+    try:
+        with zipfile.ZipFile(path) as bundle:
+            names = [entry.filename for entry in bundle.infolist()]
+            if len(names) != len(set(names)) or not all(
+                _safe_archive_path(name) for name in names
+            ):
+                raise InspectionError("Archive contains an unsafe or duplicate path")
+            if "ARCHIVE_INVENTORY.json" not in names:
+                raise InspectionError("Archive inventory is missing")
+            try:
+                inventory = json.loads(
+                    bundle.read("ARCHIVE_INVENTORY.json").decode("utf-8")
+                )
+            except (UnicodeError, json.JSONDecodeError) as exc:
+                raise InspectionError("Archive inventory is invalid") from exc
+            declared = {entry["path"]: entry for entry in inventory.get("files", [])}
+            actual = set(names) - {"ARCHIVE_INVENTORY.json"}
+            if actual != set(declared):
+                raise InspectionError(
+                    "Archive inventory does not match archive members"
+                )
+            for name, entry in declared.items():
+                content = bundle.read(name)
+                digest = hashlib.sha256(content).hexdigest()
+                if len(content) != entry.get("size") or digest != entry.get("sha256"):
+                    raise InspectionError(f"Archive inventory digest mismatch: {name}")
+            lowered = {name.lower() for name in names}
+            if any(name.endswith("pyvenv.cfg") for name in lowered):
+                raise InspectionError(
+                    "Archive contains a persistent virtual-environment marker"
+                )
+            bundled = bool(inventory.get("with_dependencies"))
+            runtime_members = [
+                name
+                for name in names
+                if name.startswith(("runtime/", ".agentic/aegis/runtime/"))
+            ]
+            if not bundled and runtime_members:
+                raise InspectionError(
+                    "External-runtime archive unexpectedly contains runtime files"
+                )
+            if bundled and not inventory.get("runtime_inputs"):
+                raise InspectionError("Bundled archive has no locked runtime inputs")
+            return {
+                "product": inventory.get("product"),
+                "platform": inventory.get("platform"),
+                "with_dependencies": bundled,
+                "file_count": len(declared),
+            }
+    except zipfile.BadZipFile as exc:
+        raise InspectionError("Archive is not a valid ZIP file") from exc
+
+
+def _argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Build and inspect deterministic offline AEGIS archives."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    build = subparsers.add_parser("build", help="Build one release archive.")
+    build.add_argument("--repository", required=True)
+    build.add_argument("--output", required=True)
+    build.add_argument("--product", choices=sorted(SUPPORTED_PRODUCTS), required=True)
+    build.add_argument("--platform", choices=sorted(SUPPORTED_PLATFORMS), required=True)
+    build.add_argument("--with-dependencies", action="store_true")
+    build.add_argument(
+        "--runtime-lock",
+        default=str(Path(__file__).with_name("runtime_inputs.toml")),
+    )
+    inspect = subparsers.add_parser("inspect", help="Inspect one release archive.")
+    inspect.add_argument("archive")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Dispatch one local build or inspection command."""
+    args = _argument_parser().parse_args(argv)
+    try:
+        if args.command == "build":
+            archive = build_archive(
+                Path(args.repository),
+                Path(args.output),
+                product=args.product,
+                platform=args.platform,
+                with_dependencies=args.with_dependencies,
+                runtime_lock=Path(args.runtime_lock),
+            )
+            print(archive)
+        else:
+            print(json.dumps(inspect_archive(Path(args.archive)), sort_keys=True))
+    except BuildError as exc:
+        print(f"Build refused: {exc}", file=sys.stderr)
+        return 2
+    except (InspectionError, OSError) as exc:
+        print(f"Inspection failed: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

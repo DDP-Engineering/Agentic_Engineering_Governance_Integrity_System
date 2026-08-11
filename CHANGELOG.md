@@ -42,9 +42,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Move the offline release archive build, runtime-input lock, and inspection
-  tooling from `05_Software/release_tools/` to `02_Tools/release_tools/` so
-  repository packaging helpers remain outside the AEGIS and WAEGIS products.
+- Consolidate offline release archive construction and inspection into the
+  standalone stdlib-only `02_Tools/build_aegis_release.py` script, with its
+  truthful local-input lock beside it and no separate package or test project.
 
 - Refresh maintained AEGIS documentation for the 3.0 payload, remove obsolete
   deployment-tool compatibility claims and retired historical/planning
@@ -62,6 +62,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Keep the manifest digest for the CRLF Windows launcher consistent across
+  source checkouts and WAEGIS delivery, keep generated package metadata outside
+  the canonical payload, and isolate Linux interrupt injection from Python's
+  process-wait implementation.
 - Restore the AEGIS 3 human-approval boundary in development-stage guidance;
   make `run context` report the authoritative lifecycle next step; and preserve
   distinct waiver targets, disabled guardrail modes, config-repair access from
