@@ -15,6 +15,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+from aegis.infrastructure.codecs import parse_markdown_document
+
 from tests.test_run_stage_workflow import create_run, installed_repository, invoke
 
 
@@ -72,7 +75,10 @@ def test_requirement_and_specification_replace_current_content_without_provenanc
         "title": "Retry history format",
         "status": "active",
         "purpose": "Define the retained attempt list.",
-        "contract": "Attempts are append ordered and immutable.",
+        "contract": (
+            "Attempts are append ordered and immutable.\n\n"
+            "## Nested protocol detail\n\nThe attempt number increases monotonically."
+        ),
         "inputs_outputs": "Input attempt; output durable ordered record.",
         "rules": ["Never replace an earlier attempt."],
         "error_behavior": "Malformed state is preserved and reported.",
@@ -85,6 +91,23 @@ def test_requirement_and_specification_replace_current_content_without_provenanc
     assert exit_code == 0, specified
     spec_path = repo / ".agentic" / "requirements" / f"SPEC-{requirement_id[4:]}.md"
     assert spec_path.exists()
+    specification = spec_path.read_text(encoding="utf-8")
+    assert "state_json" not in specification
+    assert f"# Specification - {spec_data['title']}" in specification
+    for heading in (
+        "## Purpose",
+        "## Contract",
+        "## Inputs and outputs",
+        "## Rules and invariants",
+        "## Error behavior",
+        "## Examples",
+        "## Open details",
+    ):
+        assert heading in specification
+    _, specification_state, _ = parse_markdown_document(
+        spec_path.read_bytes(), path=spec_path.as_posix()
+    )
+    assert specification_state["contract"] == spec_data["contract"]
 
     updated_data = requirement_data()
     updated_data["behavior"] = (
@@ -118,9 +141,16 @@ def test_component_find_validate_and_requirement_delete_preserve_source_and_test
         "name": "Retry recorder",
         "status": "active",
         "files": ["src/retry.py"],
+        "file_roles": [
+            {"path": "src/retry.py", "role": "Persist ordered retry outcomes."}
+        ],
         "requirement_ids": [requirement],
         "test_links": [
-            {"path": ".agentic/tests/test_retry.py", "selector": "test_retry_history"}
+            {
+                "path": ".agentic/tests/test_retry.py",
+                "selector": "test_retry_history",
+                "description": "Verifies ordered retry evidence persistence.",
+            }
         ],
         "purpose_boundary": "Own retry evidence; not process execution.",
         "interfaces": "record_attempt(result)",
@@ -137,6 +167,27 @@ def test_component_find_validate_and_requirement_delete_preserve_source_and_test
     exit_code, component = invoke(repo, "component-create", component_data)
     assert exit_code == 0, component
     component_id = component["data"]["id"]
+    run_id = component["run_id"]
+    run_text = (
+        repo / ".agentic" / "runs" / run_id / "run.md"
+    ).read_text(encoding="utf-8")
+    assert f'requirement_ids = ["{requirement}"]' in run_text
+    assert f'component_ids = ["{component_id}"]' in run_text
+    component_path = repo / ".agentic" / "components" / f"{component_id}.md"
+    component_text = component_path.read_text(encoding="utf-8")
+    assert "state_json" not in component_text
+    assert "# Retry recorder" in component_text
+    for heading in (
+        "## Purpose and boundary",
+        "## Interfaces",
+        "## Behaviors and requirements",
+        "## File roles",
+        "## Tests",
+        "## Dependencies",
+        "## Known gaps",
+        "## Drift review",
+    ):
+        assert heading in component_text
     found = invoke(repo, "component-find", None, "--path", "src/retry.py")[1]
     assert found["data"]["items"][0]["id"] == component_id
     assert (
@@ -151,9 +202,7 @@ def test_component_find_validate_and_requirement_delete_preserve_source_and_test
     )
     assert exit_code == 0, deleted
     assert source.exists() and test.exists()
-    component_text = (
-        repo / ".agentic" / "components" / f"{component_id}.md"
-    ).read_text(encoding="utf-8")
+    component_text = component_path.read_text(encoding="utf-8")
     assert requirement not in component_text
     assert not (repo / ".agentic" / "requirements" / f"{requirement}.toml").exists()
 
@@ -193,6 +242,65 @@ def test_trace_union_and_explicit_full_suite_fallback(tmp_path: Path) -> None:
     ]
     validation = invoke(repo, "trace-validate")[1]
     assert validation["operation_status"] == "completed"
+
+
+@pytest.mark.parametrize(
+    ("test_path", "selector", "create_test", "reason_fragment"),
+    (
+        (
+            ".agentic/tests/test_missing.py",
+            "test_retry_history",
+            False,
+            "does not exist",
+        ),
+        (
+            "tests/test_retry.py",
+            "test_retry_history",
+            True,
+            "outside configured test roots",
+        ),
+        (
+            ".agentic/tests/test_retry.py",
+            "--collect-only",
+            True,
+            "unsafe selector",
+        ),
+    ),
+)
+def test_trace_impacted_invalid_link_uses_explicit_full_suite_fallback(
+    tmp_path: Path,
+    test_path: str,
+    selector: str,
+    create_test: bool,
+    reason_fragment: str,
+) -> None:
+    """@brief Unsafe linked tests never become executable impacted selectors."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    (repo / "src").mkdir()
+    (repo / "src" / "retry.py").write_text("pass\n", encoding="utf-8")
+    if create_test:
+        target = repo / test_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("def test_retry_history(): pass\n", encoding="utf-8")
+    data = requirement_data(test_path)
+    tests = data["tests"]
+    assert isinstance(tests, list)
+    tests[0]["selector"] = selector
+    assert invoke(repo, "requirement-create", data)[0] == 0
+
+    exit_code, impacted = invoke(
+        repo, "trace-impacted", {"changed_files": ["src/retry.py"], "changed_tests": []}
+    )
+
+    assert exit_code == 0, impacted
+    assert impacted["data"]["mode"] == "full"
+    assert impacted["data"]["tests"] == []
+    assert any(
+        reason_fragment in reason.lower()
+        for reason in impacted["data"]["fallback_reasons"]
+    )
+    assert impacted["data"]["full_suite_commands"] == ["tests.project"]
 
 
 def test_trace_validate_reports_incomplete_and_diverged_file_coverage(

@@ -238,6 +238,7 @@ def _launcher_files(product: str, platform: str) -> dict[str, bytes]:
 from __future__ import annotations
 import sys
 from pathlib import Path
+sys.dont_write_bytecode = True
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "lib"))
 from {name}.composition import main

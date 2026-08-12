@@ -21,6 +21,10 @@ the shipped `.agentic/tests` unittest default. Existing configuration, rules,
 project knowledge, tests, application files, Adoption state, and Run evidence
 are preserved.
 
+Normal repositories and linked Git worktrees are accepted as installation
+targets. For a linked worktree, WAEGIS does not mutate the primary repository's
+shared `.git/info/exclude`; the plan reports that omission as a warning.
+
 ## Development
 
 ```powershell

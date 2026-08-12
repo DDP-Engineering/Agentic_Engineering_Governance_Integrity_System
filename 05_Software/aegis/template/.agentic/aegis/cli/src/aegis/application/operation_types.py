@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any, Protocol
 
 from aegis.domain.results import OperationResult
@@ -29,6 +30,26 @@ from aegis.ports.workspace import Workspace
 # -----------------------------------------------------------------------------
 # DATA MODELS / TYPEDEFINITIONS
 # -----------------------------------------------------------------------------
+
+
+class MachineRevisionPolicy(StrEnum):
+    """@brief Classify the caller revision contract for one machine operation."""
+
+    EXEMPT_READ_ONLY = "exempt:read_only"
+    EXEMPT_CREATE = "exempt:create"
+    EXEMPT_WORKING_CONTEXT = "exempt:working_context"
+    EXEMPT_SEPARATE_PLAN_PROTOCOL = "exempt:separate_plan_protocol"
+    REQUIRED_RUN = "required:run"
+    CONDITIONAL_RUN = "conditional:run"
+    REQUIRED_STAGE = "required:stage"
+    REQUIRED_REQUIREMENT = "required:requirement"
+    REQUIRED_COMPONENT = "required:component"
+    REQUIRED_ADOPTION = "required:adoption"
+
+    @property
+    def requires_explicit_revision(self) -> bool:
+        """@return Whether every machine invocation requires a caller token."""
+        return self.value.startswith("required:")
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +87,7 @@ class OperationContext:
     hash_service: HashService
     workspace: Workspace | None
     catalog: tuple[OperationDefinition, ...]
+    machine_mode: bool
 
 
 class OperationExecutor(Protocol):
@@ -92,6 +114,7 @@ class OperationDefinition:
     products: frozenset[str]
     arguments: tuple[ArgumentDefinition, ...]
     executor: OperationExecutor
+    machine_revision_policy: MachineRevisionPolicy
     implemented: bool = False
 
     @property

@@ -19,6 +19,7 @@ from waegis.domain.results import OperationResult, ProtocolError
 from waegis.infrastructure.payload import PayloadManifest
 from waegis.infrastructure.target import (
     ensure_output_outside,
+    git_directory,
     render_config,
     resolve_target,
     target_fingerprint,
@@ -131,7 +132,7 @@ class Application:
     ) -> OperationResult:
         target = resolve_target(str(inputs["target"]))
         output = ensure_output_outside(target, str(inputs["output"]))
-        if operation != "repository_init.plan" and not (target / ".git").is_dir():
+        if operation != "repository_init.plan" and git_directory(target) is None:
             raise PlanError(
                 "Target is not a Git repository; authorize repository-init first"
             )
@@ -253,6 +254,11 @@ class Application:
             actions.append(
                 Action("write", ".agentic/tests/.gitkeep", "project", b"").to_dict()
             )
+        if (target / ".git").is_file():
+            warnings.append(
+                "Linked Git worktree detected; shared info/exclude was not modified."
+            )
+            return actions, warnings
         exclude_path = target / ".git/info/exclude"
         before = exclude_path.read_bytes() if exclude_path.is_file() else b""
         text = before.decode("utf-8", errors="strict")

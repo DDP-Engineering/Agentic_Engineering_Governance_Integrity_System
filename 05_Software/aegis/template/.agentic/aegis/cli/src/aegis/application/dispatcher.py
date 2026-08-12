@@ -100,6 +100,7 @@ class Dispatcher:
         inputs: dict[str, Any],
         *,
         repository: Any | None = None,
+        machine_mode: bool = False,
     ) -> OperationResult:
         """
         @brief Invoke exactly one registered use case.
@@ -114,6 +115,21 @@ class Dispatcher:
                 code="invalid_input",
                 summary="The requested operation is not in this product catalog.",
                 field="command",
+            )
+        if (
+            machine_mode
+            and entry.machine_revision_policy.requires_explicit_revision
+            and inputs.get("expected_revision") is None
+        ):
+            return self.error_result(
+                operation=operation,
+                code="invalid_input",
+                summary=(
+                    "This machine-mode mutation requires an explicit "
+                    "expected revision."
+                ),
+                field="expected_revision",
+                details={"policy": entry.machine_revision_policy.value},
             )
 
         operation_id = self._operation_id()
@@ -131,6 +147,7 @@ class Dispatcher:
                 else self._services.workspaces(repository.root)
             ),
             catalog=operations_for(self._product),
+            machine_mode=machine_mode,
         )
         return entry.executor(context, entry, inputs)
 

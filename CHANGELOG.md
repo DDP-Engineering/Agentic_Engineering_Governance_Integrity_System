@@ -13,6 +13,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add the standalone offline acceptance-record catalog and fail-closed release
+  evidence validator. This is an IP-18 inventory slice, not release acceptance.
+
 - Implement the clean-break AEGIS version 1 product through IP-17: the complete
   repository-local workflow and current project-knowledge runtime, thin host
   contract resources, the separate stdlib-only WAEGIS plan/apply lifecycle,
@@ -62,10 +65,52 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Prevent extracted AEGIS and WAEGIS launchers from writing Python bytecode
+  into product-owned package paths, so normal use leaves no removal residue.
+
+- Record full-AEGIS Run change attribution at durable mutation boundaries from
+  the opening Git snapshot; retain dirty-start state, report later paths and
+  repository transitions without claiming authorship, and accept adoption only
+  through explicitly scoped observed paths.
+
+- Make `stage-show` return a deterministic, self-contained, profile-bounded
+  resume context from the Run, exact requested Stage, relevant Requirement/
+  Specification/Component trace graph, optional project rules, and applicable
+  configured tool/risk context; report every omission and broken reference
+  explicitly, redact secret-like command values, and preserve historical
+  `--run`/`--stage` inspection as a revision-free, nonselecting, strictly
+  read-only `stage.show` operation.
+- Evaluate every included full/short AEGIS Stage's completion expectations from
+  recorded state and publish unmet section, red-before-green, green-evidence,
+  and configured-Validation findings atomically without blocking closure,
+  approving or advancing the Stage, or launching configured commands; preserve
+  Delivery terminal rules, immutable evidence/history, and read-only Check Git
+  comparison behavior.
+- Require explicit optimistic-concurrency revisions for applicable JSON-mode
+  AEGIS mutations; reject missing tokens as `invalid_input` and stale tokens as
+  `state_conflict` without changing target bytes, while preserving read-only,
+  creation, human-mode, disposable-context, and exceptional-abandonment
+  behavior and rejecting stale execution requests before process launch.
+- Preserve completed Stage and Run bytes by rejecting ordinary project,
+  attachment, trace-selection, execution, evidence, disposition, and
+  abandonment mutations until the Stage is active; reject every unsupported
+  Markdown artifact schema as `unsupported_schema`; and require complete,
+  internally consistent execution facts for imported automated evidence.
+- Require the latest applicable Delivery decision to be approved, fall back to
+  the configured full test suite when linked tests or selectors are missing or
+  unsafe, and use the real `stage-show` CLI token in all native host guidance
+  while preserving `stage.show` as the machine-operation identifier.
+- Render and parse Run, Specification, and Component artifacts through their
+  canonical human-readable Markdown shapes instead of duplicated JSON state;
+  keep Run intent, scope, Stage summaries, events, Requirement/Component links,
+  handoff context, and concise opening attribution current; and require useful
+  Component file-role and test-purpose documentation.
 - Keep the manifest digest for the CRLF Windows launcher consistent across
   source checkouts and WAEGIS delivery, keep generated package metadata outside
   the canonical payload, and isolate Linux interrupt injection from Python's
   process-wait implementation.
+- Accept standard linked Git worktree pointer files as WAEGIS lifecycle targets
+  without mutating the primary repository's shared local exclusions.
 - Restore the AEGIS 3 human-approval boundary in development-stage guidance;
   make `run context` report the authoritative lifecycle next step; and preserve
   distinct waiver targets, disabled guardrail modes, config-repair access from

@@ -25,6 +25,7 @@ from aegis.application.workflow_operations import (
     _event,
     _identity,
     _load_current,
+    _require_active_stage,
     _require_text,
     _save_stage_run,
     _time,
@@ -201,11 +202,32 @@ def _record_project_change(
         stage_revision,
         stage_path,
     ) = _load_current(workspace)
+    _require_active_stage(stage_meta)
     now = _time(context)
     stage_state["events"].append(_event(now, "operator", action, target))
     stage_state["work_applied"] = True
     stage_meta["updated_at"] = now
     run_meta["updated_at"] = now
+    if action.startswith("requirement_"):
+        linked = run_meta.setdefault("requirement_ids", [])
+        if action == "requirement_deleted":
+            run_meta["requirement_ids"] = [item for item in linked if item != target]
+        elif target not in linked:
+            linked.append(target)
+    elif action.startswith("component_"):
+        linked = run_meta.setdefault("component_ids", [])
+        if action == "component_deleted":
+            run_meta["component_ids"] = [item for item in linked if item != target]
+        elif target not in linked:
+            linked.append(target)
+    elif action == "specification_set":
+        specification_name = target.rsplit("/", 1)[-1]
+        requirement_id = "REQ-" + specification_name.removeprefix("SPEC-").removesuffix(
+            ".md"
+        )
+        linked = run_meta.setdefault("requirement_ids", [])
+        if requirement_id not in linked:
+            linked.append(requirement_id)
     revisions = _save_stage_run(
         workspace,
         stage_path=stage_path,
@@ -364,6 +386,29 @@ def _test_in_roots(workspace: Workspace, path: str) -> bool:
         path == str(root) or path.startswith(f"{root}/")
         for root in workspace.config.test_roots
     )
+
+
+def _test_link_problem(workspace: Workspace, path: Any, selector: Any) -> str | None:
+    """@brief Explain why one linked test cannot be selected safely."""
+    try:
+        canonical = _path(path, "tests.path")
+    except UseCaseError:
+        return f"Linked test path is unsafe: {path!r}."
+    if not _test_in_roots(workspace, canonical):
+        return f"Linked test is outside configured test roots: {canonical}."
+    try:
+        if workspace.read_optional(canonical) is None:
+            return f"Linked test does not exist: {canonical}."
+    except WorkspaceError:
+        return f"Linked test path is unsafe or unreadable: {canonical}."
+    if (
+        not isinstance(selector, str)
+        or selector != selector.strip()
+        or selector.startswith("-")
+        or any(ord(character) < 32 or ord(character) == 127 for character in selector)
+    ):
+        return f"Linked test has an unsafe selector: {selector!r}."
+    return None
 
 
 def _requirement_findings(
@@ -581,19 +626,42 @@ def _component_input(
             "invalid_input", "Component status is invalid.", field="status"
         )
     files = inputs.get("files")
+    file_roles = inputs.get("file_roles")
     requirements = inputs.get("requirement_ids")
     links = inputs.get("test_links")
     if (
         not isinstance(files, list)
         or not files
+        or not isinstance(file_roles, list)
         or not isinstance(requirements, list)
         or not isinstance(links, list)
     ):
         raise UseCaseError(
             "invalid_input",
-            "Component files, Requirement IDs, and test links must be lists.",
+            (
+                "Component files, file roles, Requirement IDs, and test links "
+                "must be lists."
+            ),
         )
     normalized_files = [_path(value, "files") for value in files]
+    normalized_roles = []
+    for role in file_roles:
+        if not isinstance(role, dict):
+            raise UseCaseError(
+                "invalid_input", "Component file role is invalid.", field="file_roles"
+            )
+        normalized_roles.append(
+            {
+                "path": _path(role.get("path"), "file_roles.path"),
+                "role": _require_text(role, "role"),
+            }
+        )
+    if {item["path"] for item in normalized_roles} != set(normalized_files):
+        raise UseCaseError(
+            "invalid_input",
+            "Component file roles must describe every Component file exactly.",
+            field="file_roles",
+        )
     if not all(_REQ_ID.fullmatch(value) for value in requirements):
         raise UseCaseError(
             "invalid_input",
@@ -610,6 +678,7 @@ def _component_input(
             {
                 "path": _path(link.get("path"), "test_links.path"),
                 "selector": link.get("selector", ""),
+                "description": _require_text(link, "description"),
             }
         )
     for field in ("purpose_boundary", "interfaces"):
@@ -628,6 +697,7 @@ def _component_input(
         "purpose_boundary": inputs["purpose_boundary"],
         "interfaces": inputs["interfaces"],
         "behaviors": inputs.get("behaviors", []),
+        "file_roles": normalized_roles,
         "dependencies": inputs.get("dependencies", []),
         "test_links": normalized_links,
         "known_gaps": inputs.get("known_gaps", []),
@@ -1048,6 +1118,7 @@ def _trace_impacted(
     selected: dict[tuple[str, str], set[str]] = defaultdict(set)
     covered: set[str] = set()
     incomplete: list[str] = []
+    incomplete_files: set[str] = set()
     for _, requirement, _ in _all_requirements(workspace):
         impacted = set(requirement.get("impacted_files", [])).intersection(changed)
         for file_path in impacted:
@@ -1061,7 +1132,15 @@ def _trace_impacted(
                     f"{requirement['id']} has no complete test coverage "
                     f"for {file_path}."
                 )
+                incomplete_files.add(file_path)
             for test in links:
+                problem = _test_link_problem(
+                    workspace, test.get("path"), test.get("selector", "")
+                )
+                if problem is not None:
+                    incomplete.append(problem)
+                    incomplete_files.add(file_path)
+                    continue
                 covered.add(file_path)
                 selected[(test["path"], test.get("selector", ""))].add(
                     f"{requirement['id']} covers {file_path}"
@@ -1073,7 +1152,7 @@ def _trace_impacted(
         f"No complete test coverage for {file_path}."
         for file_path in changed
         if file_path not in covered
-        and not any(reason.endswith(f"for {file_path}.") for reason in incomplete)
+        and file_path not in incomplete_files
     ]
     tests = [
         {"path": path, "selector": selector, "reasons": sorted(reasons)}
@@ -1102,6 +1181,7 @@ def _trace_impacted(
         stage_revision,
         stage_path,
     ) = _load_current(workspace)
+    _require_active_stage(stage_meta)
     now = _time(context)
     stage_state["evidence"].append(
         {
@@ -1124,6 +1204,7 @@ def _trace_impacted(
         run_meta=run_meta,
         run_state=run_state,
         run_revision=run_revision,
+        expected_stage=inputs.get("expected_revision"),
     )
     return _done(
         context,

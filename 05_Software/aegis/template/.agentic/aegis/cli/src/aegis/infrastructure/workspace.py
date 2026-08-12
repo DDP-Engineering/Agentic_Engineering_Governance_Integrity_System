@@ -88,6 +88,13 @@ class FileWorkspace:
             return None
         return self.read_bytes(path)
 
+    def read_text(self, path: str) -> str:
+        """@brief Read one repository text artifact through the general codec."""
+        try:
+            return decode_general_text(self.read_bytes(path), path=path)
+        except ArtifactDecodeError as error:
+            raise WorkspaceError(error.code, error.summary, path=path) from error
+
     def revision(self, path: str) -> str | None:
         content = self.read_optional(path)
         return None if content is None else revision_of(content)
@@ -134,7 +141,7 @@ class FileWorkspace:
             metadata, state, _ = parse_markdown_document(content, path=path)
             return metadata, state, revision_of(content)
         except ArtifactDecodeError as error:
-            raise WorkspaceError("malformed_state", error.summary, path=path) from error
+            raise WorkspaceError(error.code, error.summary, path=path) from error
 
     def render_document(
         self, metadata: dict[str, Any], state: dict[str, Any], *, kind: str

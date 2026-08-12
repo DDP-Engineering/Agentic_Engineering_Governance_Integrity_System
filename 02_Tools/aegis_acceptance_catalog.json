@@ -1,0 +1,980 @@
+{
+  "catalog_name": "AEGIS version 1 acceptance catalog",
+  "required_matrices": {
+    "package_cases": [
+      {"id": "aegis-external-windows", "edition": "aegis-external", "platform": "windows", "architecture": "x86_64", "runtime": "external-python-3.11"},
+      {"id": "waegis-external-windows", "edition": "waegis-external", "platform": "windows", "architecture": "x86_64", "runtime": "external-python-3.11"},
+      {"id": "aegis-bundled-windows", "edition": "aegis-bundled", "platform": "windows", "architecture": "x86_64", "runtime": "bundled-python-3.12"},
+      {"id": "waegis-bundled-windows", "edition": "waegis-bundled", "platform": "windows", "architecture": "x86_64", "runtime": "bundled-python-3.12"},
+      {"id": "aegis-external-ubuntu", "edition": "aegis-external", "platform": "ubuntu", "architecture": "x86_64", "runtime": "external-python-3.11"},
+      {"id": "waegis-external-ubuntu", "edition": "waegis-external", "platform": "ubuntu", "architecture": "x86_64", "runtime": "external-python-3.11"},
+      {"id": "aegis-bundled-ubuntu", "edition": "aegis-bundled", "platform": "ubuntu", "architecture": "x86_64", "runtime": "bundled-python-3.12"},
+      {"id": "waegis-bundled-ubuntu", "edition": "waegis-bundled", "platform": "ubuntu", "architecture": "x86_64", "runtime": "bundled-python-3.12"}
+    ],
+    "workflow_cases": [
+      {"id": "windows-pytest", "platform": "windows", "architecture": "x86_64", "framework": "pytest"},
+      {"id": "windows-unittest", "platform": "windows", "architecture": "x86_64", "framework": "unittest"},
+      {"id": "ubuntu-pytest", "platform": "ubuntu", "architecture": "x86_64", "framework": "pytest"},
+      {"id": "ubuntu-unittest", "platform": "ubuntu", "architecture": "x86_64", "framework": "unittest"}
+    ],
+    "required_success_scenario": "AC-SUCCESS-001"
+  },
+  "requirements": {
+    "PR-ADOPT-001": "Should",
+    "PR-ADOPT-002": "Should",
+    "PR-ADOPT-003": "Should",
+    "PR-ADOPT-004": "Should",
+    "PR-ADOPT-005": "Should",
+    "PR-ADOPT-006": "Should",
+    "PR-ART-001": "Must",
+    "PR-ART-002": "Must",
+    "PR-ART-003": "Must",
+    "PR-ART-004": "Must",
+    "PR-BOUND-001": "Must",
+    "PR-BOUND-002": "Could",
+    "PR-BOUND-003": "Must",
+    "PR-BOUND-004": "Must",
+    "PR-BOUND-005": "Must",
+    "PR-BOUND-006": "Must",
+    "PR-COLLAB-001": "Must",
+    "PR-COLLAB-002": "Must",
+    "PR-COLLAB-003": "Must",
+    "PR-COLLAB-004": "Must",
+    "PR-COLLAB-005": "Must",
+    "PR-COLLAB-006": "Must",
+    "PR-COLLAB-007": "Must",
+    "PR-COLLAB-008": "Must",
+    "PR-COLLAB-009": "Should",
+    "PR-COLLAB-010": "Should",
+    "PR-COLLAB-011": "Must",
+    "PR-COMP-001": "Must",
+    "PR-COMP-002": "Must",
+    "PR-COMP-003": "Must",
+    "PR-COMP-004": "Must",
+    "PR-CONFIG-001": "Must",
+    "PR-CONFIG-002": "Must",
+    "PR-CONFIG-003": "Must",
+    "PR-CONFIG-004": "Must",
+    "PR-CONFIG-005": "Must",
+    "PR-CONFIG-006": "Must",
+    "PR-CONFIG-007": "Must",
+    "PR-CONFIG-008": "Must",
+    "PR-CONFIG-009": "Must",
+    "PR-CONFIG-010": "Must",
+    "PR-CONFIG-011": "Must",
+    "PR-CONFIG-012": "Must",
+    "PR-CONFIG-013": "Must",
+    "PR-DEFAULT-001": "Must",
+    "PR-DEFAULT-002": "Must",
+    "PR-DEFAULT-003": "Must",
+    "PR-DEFAULT-004": "Must",
+    "PR-DEFAULT-005": "Must",
+    "PR-DEFAULT-006": "Must",
+    "PR-DELIVERY-001": "Must",
+    "PR-DELIVERY-002": "Must",
+    "PR-DELIVERY-003": "Must",
+    "PR-DELIVERY-004": "Must",
+    "PR-ENC-001": "Must",
+    "PR-ENC-002": "Must",
+    "PR-ENC-003": "Must",
+    "PR-ENC-004": "Must",
+    "PR-ESCAPE-001": "Must",
+    "PR-ESCAPE-002": "Must",
+    "PR-ESCAPE-003": "Must",
+    "PR-ESCAPE-004": "Must",
+    "PR-ESCAPE-005": "Must",
+    "PR-ESCAPE-006": "Must",
+    "PR-ESCAPE-007": "Must",
+    "PR-ESCAPE-008": "Must",
+    "PR-ESCAPE-009": "Must",
+    "PR-ESCAPE-010": "Must",
+    "PR-EVOL-001": "Must",
+    "PR-EVOL-002": "Must",
+    "PR-EVOL-003": "Must",
+    "PR-EVOL-004": "Must",
+    "PR-EVOL-005": "Must",
+    "PR-HOST-001": "Should",
+    "PR-HOST-002": "Should",
+    "PR-HOST-003": "Must",
+    "PR-HOST-004": "Must",
+    "PR-INT-001": "Must",
+    "PR-INT-002": "Must",
+    "PR-INT-003": "Must",
+    "PR-INT-004": "Must",
+    "PR-INT-005": "Must",
+    "PR-INT-006": "Must",
+    "PR-INT-007": "Could",
+    "PR-MODEL-001": "Must",
+    "PR-MODEL-002": "Must",
+    "PR-MODEL-003": "Must",
+    "PR-MODEL-004": "Must",
+    "PR-MODEL-005": "Must",
+    "PR-OFF-001": "Must",
+    "PR-OFF-002": "Must",
+    "PR-OFF-003": "Must",
+    "PR-OFF-004": "Must",
+    "PR-OFF-005": "Must",
+    "PR-OFF-006": "Must",
+    "PR-OFF-007": "Should",
+    "PR-OFF-008": "Must",
+    "PR-OFF-009": "Must",
+    "PR-PAYLOAD-001": "Must",
+    "PR-PAYLOAD-002": "Must",
+    "PR-PAYLOAD-003": "Should",
+    "PR-PAYLOAD-004": "Must",
+    "PR-PAYLOAD-005": "Must",
+    "PR-PKG-001": "Must",
+    "PR-PKG-002": "Must",
+    "PR-PKG-003": "Must",
+    "PR-PKG-004": "Must",
+    "PR-PKG-005": "Must",
+    "PR-PKG-006": "Must",
+    "PR-PKG-007": "Must",
+    "PR-PKG-008": "Must",
+    "PR-PKG-009": "Must",
+    "PR-PLAT-001": "Must",
+    "PR-PLAT-002": "Must",
+    "PR-PLAT-003": "Must",
+    "PR-PLAT-004": "Must",
+    "PR-POSTURE-001": "Must",
+    "PR-POSTURE-002": "Must",
+    "PR-POSTURE-003": "Must",
+    "PR-POSTURE-004": "Must",
+    "PR-POSTURE-005": "Must",
+    "PR-POSTURE-006": "Must",
+    "PR-PROTO-001": "Must",
+    "PR-PROTO-002": "Must",
+    "PR-PROTO-003": "Must",
+    "PR-PROTO-004": "Must",
+    "PR-PROTO-005": "Must",
+    "PR-PROTO-006": "Must",
+    "PR-RED-001": "Must",
+    "PR-RED-002": "Must",
+    "PR-RED-003": "Must",
+    "PR-RED-004": "Must",
+    "PR-RED-005": "Must",
+    "PR-REPORT-001": "Must",
+    "PR-REPORT-002": "Must",
+    "PR-REPORT-003": "Must",
+    "PR-REQ-001": "Must",
+    "PR-REQ-002": "Should",
+    "PR-REQ-003": "Must",
+    "PR-REQ-004": "Must",
+    "PR-REQ-005": "Should",
+    "PR-REQ-006": "Should",
+    "PR-REQ-007": "Must",
+    "PR-REQ-008": "Must",
+    "PR-REQ-009": "Must",
+    "PR-ROLE-001": "Must",
+    "PR-ROLE-002": "Must",
+    "PR-ROLE-003": "Must",
+    "PR-ROLE-004": "Must",
+    "PR-ROLE-005": "Must",
+    "PR-ROLE-006": "Must",
+    "PR-ROLE-007": "Must",
+    "PR-RUN-001": "Must",
+    "PR-RUN-002": "Must",
+    "PR-RUN-003": "Must",
+    "PR-RUN-004": "Must",
+    "PR-RUN-005": "Must",
+    "PR-RUN-006": "Must",
+    "PR-RUN-007": "Must",
+    "PR-RUNTIME-001": "Must",
+    "PR-RUNTIME-002": "Must",
+    "PR-RUNTIME-003": "Must",
+    "PR-RUNTIME-004": "Must",
+    "PR-RUNTIME-005": "Must",
+    "PR-RUNTIME-006": "Must",
+    "PR-RUNTIME-007": "Must",
+    "PR-SCOPE-001": "Must",
+    "PR-SCOPE-002": "Must",
+    "PR-SCOPE-003": "Must",
+    "PR-SCOPE-004": "Must",
+    "PR-SCOPE-005": "Must",
+    "PR-SCOPE-006": "Must",
+    "PR-SCOPE-007": "Must",
+    "PR-SCOPE-008": "Must",
+    "PR-SCOPE-009": "Must",
+    "PR-SNAPSHOT-001": "Must",
+    "PR-SNAPSHOT-002": "Must",
+    "PR-SNAPSHOT-003": "Must",
+    "PR-SNAPSHOT-004": "Must",
+    "PR-STATE-001": "Must",
+    "PR-STATE-002": "Must",
+    "PR-STATE-003": "Must",
+    "PR-SUCCESS-001": "Must",
+    "PR-SUCCESS-002": "Must",
+    "PR-SUCCESS-003": "Must",
+    "PR-SUCCESS-004": "Must",
+    "PR-SUCCESS-005": "Must",
+    "PR-SUCCESS-006": "Should",
+    "PR-TRACE-001": "Must",
+    "PR-TRACE-002": "Must",
+    "PR-TRACE-003": "Must",
+    "PR-TRACE-004": "Must",
+    "PR-TRACE-005": "Must",
+    "PR-TRACE-006": "Must",
+    "PR-TRACE-007": "Must",
+    "PR-TRACE-008": "Must",
+    "PR-TRACE-009": "Must",
+    "PR-TRACE-010": "Must",
+    "PR-TRACE-011": "Must",
+    "PR-TRACE-012": "Must",
+    "PR-TRACE-013": "Must",
+    "PR-TRACE-014": "Must",
+    "PR-TRACE-015": "Must",
+    "PR-TRACE-016": "Must",
+    "PR-WAEGIS-001": "Must",
+    "PR-WAEGIS-002": "Must",
+    "PR-WAEGIS-003": "Could",
+    "PR-WAEGIS-004": "Should",
+    "PR-WAEGIS-005": "Must",
+    "PR-WAEGIS-006": "Must",
+    "PR-WAEGIS-007": "Must",
+    "PR-WORKFLOW-001": "Must",
+    "PR-WORKFLOW-002": "Must",
+    "PR-WORKFLOW-003": "Must",
+    "PR-WORKFLOW-004": "Must",
+    "PR-WORKFLOW-005": "Must",
+    "PR-WORKFLOW-006": "Must",
+    "PR-WORKFLOW-007": "Must",
+    "PR-WORKFLOW-008": "Must",
+    "PR-ZONE-001": "Must",
+    "PR-ZONE-002": "Must",
+    "PR-ZONE-003": "Must",
+    "PR-ZONE-004": "Must",
+    "PR-ZONE-005": "Must",
+    "PR-ZONE-006": "Must",
+    "PR-ZONE-007": "Must"
+  },
+  "scenarios": [
+    {
+      "id": "AC-WAEGIS-001",
+      "method": "Package + automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-WAEGIS-001",
+        "PR-WAEGIS-002",
+        "PR-WAEGIS-005",
+        "PR-WAEGIS-006",
+        "PR-DEFAULT-001",
+        "PR-DEFAULT-002"
+      ]
+    },
+    {
+      "id": "AC-WAEGIS-002",
+      "method": "Package + automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-WAEGIS-007",
+        "PR-SCOPE-001",
+        "PR-BOUND-004"
+      ]
+    },
+    {
+      "id": "AC-WAEGIS-003",
+      "method": "Package + automated/manual",
+      "priority": "Could",
+      "requirements": [
+        "PR-WAEGIS-003"
+      ]
+    },
+    {
+      "id": "AC-WAEGIS-004",
+      "method": "Package + automated",
+      "priority": "Should",
+      "requirements": [
+        "PR-WAEGIS-004",
+        "PR-WAEGIS-005",
+        "PR-PAYLOAD-003",
+        "PR-PAYLOAD-005",
+        "PR-SUCCESS-006"
+      ]
+    },
+    {
+      "id": "AC-WAEGIS-005",
+      "method": "Package + automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-POSTURE-004",
+        "PR-POSTURE-005",
+        "PR-POSTURE-006",
+        "PR-ART-004",
+        "PR-PAYLOAD-005"
+      ]
+    },
+    {
+      "id": "AC-PKG-001",
+      "method": "Package",
+      "priority": "Must",
+      "requirements": [
+        "PR-PKG-001",
+        "PR-PKG-002",
+        "PR-PKG-003",
+        "PR-PKG-004",
+        "PR-PKG-005",
+        "PR-PKG-006",
+        "PR-OFF-001",
+        "PR-OFF-002",
+        "PR-OFF-003",
+        "PR-OFF-004",
+        "PR-OFF-005",
+        "PR-OFF-006"
+      ]
+    },
+    {
+      "id": "AC-PKG-002",
+      "method": "Package + inspection",
+      "priority": "Must",
+      "requirements": [
+        "PR-PKG-007",
+        "PR-PKG-009",
+        "PR-RUNTIME-004",
+        "PR-RUNTIME-005"
+      ]
+    },
+    {
+      "id": "AC-RUNTIME-001",
+      "method": "Automated matrix",
+      "priority": "Must",
+      "requirements": [
+        "PR-RUNTIME-001",
+        "PR-RUNTIME-002",
+        "PR-RUNTIME-003",
+        "PR-RUNTIME-004",
+        "PR-RUNTIME-005",
+        "PR-RUNTIME-006",
+        "PR-RUNTIME-007",
+        "PR-PKG-008"
+      ]
+    },
+    {
+      "id": "AC-PLATFORM-001",
+      "method": "Automated differential",
+      "priority": "Must",
+      "requirements": [
+        "PR-PLAT-001",
+        "PR-PLAT-002",
+        "PR-PLAT-003",
+        "PR-PLAT-004",
+        "PR-SCOPE-002",
+        "PR-SCOPE-005"
+      ]
+    },
+    {
+      "id": "AC-CONFIG-001",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-CONFIG-001",
+        "PR-CONFIG-002",
+        "PR-CONFIG-003",
+        "PR-DEFAULT-001",
+        "PR-DEFAULT-002"
+      ]
+    },
+    {
+      "id": "AC-CONFIG-002",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-CONFIG-004",
+        "PR-CONFIG-005",
+        "PR-CONFIG-006",
+        "PR-CONFIG-007",
+        "PR-SCOPE-003",
+        "PR-SCOPE-004",
+        "PR-SCOPE-005",
+        "PR-SCOPE-009"
+      ]
+    },
+    {
+      "id": "AC-CONFIG-003",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-CONFIG-006",
+        "PR-CONFIG-008",
+        "PR-CONFIG-009",
+        "PR-CONFIG-010",
+        "PR-CONFIG-011",
+        "PR-CONFIG-012",
+        "PR-CONFIG-013"
+      ]
+    },
+    {
+      "id": "AC-DEFAULT-001",
+      "method": "Automated + manual",
+      "priority": "Must",
+      "requirements": [
+        "PR-DEFAULT-003",
+        "PR-DEFAULT-004",
+        "PR-DEFAULT-005",
+        "PR-DEFAULT-006",
+        "PR-POSTURE-001",
+        "PR-POSTURE-002",
+        "PR-POSTURE-003"
+      ]
+    },
+    {
+      "id": "AC-OFFLINE-001",
+      "method": "Automated network-denied",
+      "priority": "Must",
+      "requirements": [
+        "PR-OFF-001",
+        "PR-OFF-002",
+        "PR-OFF-003",
+        "PR-OFF-004",
+        "PR-OFF-005",
+        "PR-OFF-006",
+        "PR-OFF-008",
+        "PR-OFF-009"
+      ]
+    },
+    {
+      "id": "AC-OFFLINE-002",
+      "method": "Manual + integration",
+      "priority": "Should",
+      "requirements": [
+        "PR-OFF-007"
+      ]
+    },
+    {
+      "id": "AC-MODEL-001",
+      "method": "Model-assisted + recorded",
+      "priority": "Must",
+      "requirements": [
+        "PR-MODEL-001",
+        "PR-MODEL-002",
+        "PR-MODEL-003",
+        "PR-MODEL-004",
+        "PR-MODEL-005",
+        "PR-WORKFLOW-003",
+        "PR-PROTO-006"
+      ]
+    },
+    {
+      "id": "AC-REPO-001",
+      "method": "Automated + inspection",
+      "priority": "Must",
+      "requirements": [
+        "PR-SCOPE-006",
+        "PR-SCOPE-007",
+        "PR-SCOPE-008"
+      ]
+    },
+    {
+      "id": "AC-PROTO-001",
+      "method": "Automated catalog",
+      "priority": "Must",
+      "requirements": [
+        "PR-PROTO-001",
+        "PR-PROTO-002",
+        "PR-PROTO-005",
+        "PR-PROTO-006"
+      ]
+    },
+    {
+      "id": "AC-PROTO-002",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-PROTO-001",
+        "PR-PROTO-002",
+        "PR-PROTO-003",
+        "PR-PROTO-004",
+        "PR-PROTO-005",
+        "PR-MODEL-005"
+      ]
+    },
+    {
+      "id": "AC-PROTO-003",
+      "method": "Automated generated-input",
+      "priority": "Must",
+      "requirements": [
+        "PR-PROTO-002",
+        "PR-PROTO-003",
+        "PR-PROTO-004",
+        "PR-ENC-004"
+      ]
+    },
+    {
+      "id": "AC-PROTO-004",
+      "method": "Automated client",
+      "priority": "Must",
+      "requirements": [
+        "PR-MODEL-003",
+        "PR-MODEL-004",
+        "PR-MODEL-005",
+        "PR-PROTO-001",
+        "PR-PROTO-002",
+        "PR-PROTO-003",
+        "PR-PROTO-004",
+        "PR-PROTO-005",
+        "PR-PROTO-006",
+        "PR-RUN-003"
+      ]
+    },
+    {
+      "id": "AC-PROTO-005",
+      "method": "Automated concurrency",
+      "priority": "Must",
+      "requirements": [
+        "PR-STATE-001",
+        "PR-STATE-002",
+        "PR-STATE-003",
+        "PR-COLLAB-008",
+        "PR-COLLAB-011"
+      ]
+    },
+    {
+      "id": "AC-ENC-001",
+      "method": "Automated matrix",
+      "priority": "Must",
+      "requirements": [
+        "PR-ENC-001",
+        "PR-ENC-002",
+        "PR-ENC-003",
+        "PR-ENC-004",
+        "PR-PLAT-003"
+      ]
+    },
+    {
+      "id": "AC-STATE-001",
+      "method": "Fault-injection",
+      "priority": "Must",
+      "requirements": [
+        "PR-STATE-001",
+        "PR-STATE-002",
+        "PR-STATE-003",
+        "PR-SNAPSHOT-001",
+        "PR-SUCCESS-004"
+      ]
+    },
+    {
+      "id": "AC-PAYLOAD-001",
+      "method": "Automated + inspection",
+      "priority": "Must",
+      "requirements": [
+        "PR-PAYLOAD-001",
+        "PR-PAYLOAD-002",
+        "PR-PAYLOAD-004",
+        "PR-PAYLOAD-005",
+        "PR-DEFAULT-003",
+        "PR-DEFAULT-004"
+      ]
+    },
+    {
+      "id": "AC-RUN-001",
+      "method": "End-to-end matrix",
+      "priority": "Must",
+      "requirements": [
+        "PR-WORKFLOW-001",
+        "PR-WORKFLOW-002",
+        "PR-WORKFLOW-003",
+        "PR-WORKFLOW-004",
+        "PR-WORKFLOW-006",
+        "PR-WORKFLOW-007",
+        "PR-WORKFLOW-008",
+        "PR-DELIVERY-001",
+        "PR-DELIVERY-002",
+        "PR-BOUND-004"
+      ]
+    },
+    {
+      "id": "AC-RUN-002",
+      "method": "End-to-end matrix",
+      "priority": "Must",
+      "requirements": [
+        "PR-WORKFLOW-005",
+        "PR-POSTURE-001",
+        "PR-POSTURE-003",
+        "PR-RED-003"
+      ]
+    },
+    {
+      "id": "AC-RUN-003",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-RUN-001",
+        "PR-RUN-002",
+        "PR-RUN-003",
+        "PR-RUN-004",
+        "PR-COLLAB-001",
+        "PR-COLLAB-002",
+        "PR-COLLAB-003",
+        "PR-COLLAB-004"
+      ]
+    },
+    {
+      "id": "AC-RUN-004",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-RUN-005",
+        "PR-RUN-006",
+        "PR-RUN-007"
+      ]
+    },
+    {
+      "id": "AC-STAGE-001",
+      "method": "Automated + cross-session",
+      "priority": "Must",
+      "requirements": [
+        "PR-WORKFLOW-008",
+        "PR-SNAPSHOT-001",
+        "PR-SNAPSHOT-002",
+        "PR-SNAPSHOT-003",
+        "PR-SNAPSHOT-004",
+        "PR-SUCCESS-002"
+      ]
+    },
+    {
+      "id": "AC-EVOL-001",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-EVOL-001",
+        "PR-EVOL-002",
+        "PR-EVOL-003",
+        "PR-EVOL-004",
+        "PR-EVOL-005"
+      ]
+    },
+    {
+      "id": "AC-ROLE-001",
+      "method": "End-to-end + inspection",
+      "priority": "Must",
+      "requirements": [
+        "PR-ROLE-001",
+        "PR-ROLE-002",
+        "PR-ROLE-003",
+        "PR-ROLE-004",
+        "PR-ROLE-005",
+        "PR-ROLE-006",
+        "PR-ROLE-007",
+        "PR-ESCAPE-008"
+      ]
+    },
+    {
+      "id": "AC-ESCAPE-001",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-ESCAPE-001",
+        "PR-ESCAPE-002",
+        "PR-ESCAPE-004",
+        "PR-ESCAPE-005",
+        "PR-ESCAPE-006",
+        "PR-ESCAPE-007",
+        "PR-ESCAPE-008",
+        "PR-ESCAPE-009",
+        "PR-DEFAULT-004"
+      ]
+    },
+    {
+      "id": "AC-ABANDON-001",
+      "method": "Fault-injection + automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-ESCAPE-003",
+        "PR-ESCAPE-010",
+        "PR-STATE-002",
+        "PR-STATE-003"
+      ]
+    },
+    {
+      "id": "AC-DELIVERY-001",
+      "method": "Automated + manual judgement",
+      "priority": "Must",
+      "requirements": [
+        "PR-REPORT-001",
+        "PR-REPORT-002",
+        "PR-REPORT-003",
+        "PR-DELIVERY-001",
+        "PR-DELIVERY-002",
+        "PR-DELIVERY-003",
+        "PR-DELIVERY-004",
+        "PR-SUCCESS-003",
+        "PR-SUCCESS-004"
+      ]
+    },
+    {
+      "id": "AC-REQ-001",
+      "method": "Automated schema + review",
+      "priority": "Must",
+      "requirements": [
+        "PR-REQ-001",
+        "PR-REQ-003",
+        "PR-REQ-004",
+        "PR-REQ-007",
+        "PR-REQ-008",
+        "PR-REQ-009"
+      ]
+    },
+    {
+      "id": "AC-REQ-002",
+      "method": "Automated + review",
+      "priority": "Should",
+      "requirements": [
+        "PR-REQ-002",
+        "PR-REQ-005",
+        "PR-REQ-006"
+      ]
+    },
+    {
+      "id": "AC-REQ-003",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-REQ-003",
+        "PR-REQ-007",
+        "PR-REQ-008",
+        "PR-TRACE-001",
+        "PR-ART-004"
+      ]
+    },
+    {
+      "id": "AC-COMP-001",
+      "method": "Automated + review",
+      "priority": "Must",
+      "requirements": [
+        "PR-COMP-001",
+        "PR-COMP-002",
+        "PR-COMP-003",
+        "PR-COMP-004",
+        "PR-WORKFLOW-002"
+      ]
+    },
+    {
+      "id": "AC-ART-001",
+      "method": "Automated parse + manual review",
+      "priority": "Must",
+      "requirements": [
+        "PR-ART-001",
+        "PR-ART-002",
+        "PR-ART-003",
+        "PR-ART-004",
+        "PR-SNAPSHOT-004"
+      ]
+    },
+    {
+      "id": "AC-TRACE-001",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-TRACE-001",
+        "PR-TRACE-002",
+        "PR-TRACE-003",
+        "PR-TRACE-006",
+        "PR-TRACE-007",
+        "PR-TRACE-008",
+        "PR-TRACE-009",
+        "PR-TRACE-010",
+        "PR-SUCCESS-005"
+      ]
+    },
+    {
+      "id": "AC-TRACE-002",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-TRACE-004",
+        "PR-TRACE-005",
+        "PR-TRACE-011"
+      ]
+    },
+    {
+      "id": "AC-TRACE-003",
+      "method": "Automated + review",
+      "priority": "Must",
+      "requirements": [
+        "PR-TRACE-006",
+        "PR-TRACE-007",
+        "PR-TRACE-012",
+        "PR-TRACE-013",
+        "PR-TRACE-014",
+        "PR-TRACE-015",
+        "PR-TRACE-016"
+      ]
+    },
+    {
+      "id": "AC-ADOPT-001",
+      "method": "End-to-end + cross-session",
+      "priority": "Should",
+      "requirements": [
+        "PR-ADOPT-001",
+        "PR-ADOPT-002",
+        "PR-ADOPT-003",
+        "PR-ADOPT-004",
+        "PR-ADOPT-005",
+        "PR-ADOPT-006"
+      ]
+    },
+    {
+      "id": "AC-RED-001",
+      "method": "Automated end-to-end",
+      "priority": "Must",
+      "requirements": [
+        "PR-RED-001",
+        "PR-RED-002",
+        "PR-RED-003",
+        "PR-INT-001",
+        "PR-INT-004"
+      ]
+    },
+    {
+      "id": "AC-RED-002",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-RED-004",
+        "PR-RED-005",
+        "PR-ESCAPE-007",
+        "PR-ESCAPE-008",
+        "PR-ESCAPE-009"
+      ]
+    },
+    {
+      "id": "AC-INT-001",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-INT-001",
+        "PR-INT-002",
+        "PR-INT-003",
+        "PR-INT-004",
+        "PR-INT-005",
+        "PR-INT-006"
+      ]
+    },
+    {
+      "id": "AC-ZONE-001",
+      "method": "Automated Git-state matrix",
+      "priority": "Must",
+      "requirements": [
+        "PR-ZONE-001",
+        "PR-ZONE-002",
+        "PR-ZONE-003",
+        "PR-ZONE-004",
+        "PR-ZONE-005",
+        "PR-ZONE-006",
+        "PR-ZONE-007"
+      ]
+    },
+    {
+      "id": "AC-EXEC-001",
+      "method": "Automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-CONFIG-006",
+        "PR-CONFIG-008",
+        "PR-CONFIG-009",
+        "PR-CONFIG-010",
+        "PR-CONFIG-011",
+        "PR-CONFIG-012",
+        "PR-CONFIG-013",
+        "PR-REPORT-002"
+      ]
+    },
+    {
+      "id": "AC-HARDEN-001",
+      "method": "Automated/manual",
+      "priority": "Could",
+      "requirements": [
+        "PR-INT-007"
+      ]
+    },
+    {
+      "id": "AC-COLLAB-001",
+      "method": "Multi-working-copy automated",
+      "priority": "Must",
+      "requirements": [
+        "PR-COLLAB-001",
+        "PR-COLLAB-002",
+        "PR-COLLAB-003",
+        "PR-COLLAB-004",
+        "PR-COLLAB-005",
+        "PR-COLLAB-006",
+        "PR-COLLAB-007",
+        "PR-REQ-008",
+        "PR-RUN-001",
+        "PR-RUN-002"
+      ]
+    },
+    {
+      "id": "AC-COLLAB-002",
+      "method": "Git integration + inspection",
+      "priority": "Must",
+      "requirements": [
+        "PR-COLLAB-008",
+        "PR-COLLAB-011"
+      ]
+    },
+    {
+      "id": "AC-COLLAB-003",
+      "method": "Automated",
+      "priority": "Should",
+      "requirements": [
+        "PR-COLLAB-009",
+        "PR-COLLAB-010"
+      ]
+    },
+    {
+      "id": "AC-HOST-001",
+      "method": "Adapter contract",
+      "priority": "Must",
+      "requirements": [
+        "PR-HOST-003",
+        "PR-HOST-004",
+        "PR-SCOPE-005"
+      ]
+    },
+    {
+      "id": "AC-HOST-002",
+      "method": "Host matrix",
+      "priority": "Should",
+      "requirements": [
+        "PR-HOST-001",
+        "PR-HOST-002"
+      ]
+    },
+    {
+      "id": "AC-BOUND-001",
+      "method": "Automated observation + review",
+      "priority": "Must",
+      "requirements": [
+        "PR-WORKFLOW-006",
+        "PR-WORKFLOW-007",
+        "PR-BOUND-001",
+        "PR-BOUND-003",
+        "PR-BOUND-004",
+        "PR-BOUND-005",
+        "PR-BOUND-006"
+      ]
+    },
+    {
+      "id": "AC-BOUND-002",
+      "method": "Automated/manual",
+      "priority": "Could",
+      "requirements": [
+        "PR-BOUND-002"
+      ]
+    },
+    {
+      "id": "AC-SUCCESS-001",
+      "method": "Evidence audit + representative demonstration",
+      "priority": "Must/Should",
+      "requirements": [
+        "PR-SUCCESS-001",
+        "PR-SUCCESS-002",
+        "PR-SUCCESS-003",
+        "PR-SUCCESS-004",
+        "PR-SUCCESS-005",
+        "PR-SUCCESS-006"
+      ]
+    }
+  ],
+  "schema_version": 1
+}

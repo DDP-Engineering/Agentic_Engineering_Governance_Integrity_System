@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from aegis.application.operation_types import (
     ArgumentDefinition,
+    MachineRevisionPolicy,
     OperationDefinition,
     OperationExecutor,
 )
@@ -95,6 +96,7 @@ def _operation(
         products=products,
         arguments=arguments,
         executor=resolved_executor,
+        machine_revision_policy=_MACHINE_REVISION_POLICIES[operation],
         implemented=resolved_executor is not unavailable_operation,
     )
 
@@ -118,6 +120,97 @@ _STAGES = (
     "validation",
     "delivery",
 )
+
+_MACHINE_REVISION_POLICIES = {
+    **{
+        operation: MachineRevisionPolicy.EXEMPT_READ_ONLY
+        for operation in (
+            "help.show",
+            "version.show",
+            "config.show",
+            "config.validate",
+            "payload.verify",
+            "run.list",
+            "run.show",
+            "stage.show",
+            "requirement.show",
+            "requirement.list",
+            "requirement.validate",
+            "component.show",
+            "component.list",
+            "component.validate",
+            "component.find",
+            "trace.validate",
+            "execution.list",
+            "adoption.show",
+        )
+    },
+    **{
+        operation: MachineRevisionPolicy.EXEMPT_CREATE
+        for operation in (
+            "run.create",
+            "requirement.create",
+            "component.create",
+            "adoption.create",
+        )
+    },
+    "run.select": MachineRevisionPolicy.EXEMPT_WORKING_CONTEXT,
+    "run.set_profile": MachineRevisionPolicy.REQUIRED_RUN,
+    "run.abandon": MachineRevisionPolicy.CONDITIONAL_RUN,
+    "scope.revise": MachineRevisionPolicy.REQUIRED_RUN,
+    **{
+        operation: MachineRevisionPolicy.REQUIRED_STAGE
+        for operation in (
+            "stage.start",
+            "stage.set_section",
+            "stage.complete",
+            "stage.skip",
+            "stage.revisit",
+            "evidence.add",
+            "finding.add",
+            "finding.set_disposition",
+            "finding.waive",
+            "decision.add",
+            "attachment.add",
+            "trace.impacted",
+            "execution.run",
+        )
+    },
+    **{
+        operation: MachineRevisionPolicy.REQUIRED_REQUIREMENT
+        for operation in (
+            "requirement.update",
+            "requirement.delete",
+            "specification.set",
+            "specification.delete",
+        )
+    },
+    **{
+        operation: MachineRevisionPolicy.REQUIRED_COMPONENT
+        for operation in ("component.update", "component.delete")
+    },
+    **{
+        operation: MachineRevisionPolicy.REQUIRED_ADOPTION
+        for operation in (
+            "adoption.set_section",
+            "adoption.complete",
+            "adoption.abandon",
+        )
+    },
+    **{
+        operation: MachineRevisionPolicy.EXEMPT_SEPARATE_PLAN_PROTOCOL
+        for operation in (
+            "repository_init.plan",
+            "repository_init.apply",
+            "install.plan",
+            "install.apply",
+            "upgrade.plan",
+            "upgrade.apply",
+            "remove.plan",
+            "remove.apply",
+        )
+    },
+}
 
 _HELP_OPERATION = _option(
     "operation", "--operation <id>", "Show help for one operation or command."

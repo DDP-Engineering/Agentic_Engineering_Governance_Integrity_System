@@ -28,6 +28,8 @@ from aegis.application.workflow_operations import (
     _identity,
     _load_current,
     _load_run,
+    _observe_run_changes,
+    _require_active_stage,
     _require_text,
     _run_ids,
     _run_path,
@@ -100,6 +102,14 @@ def _run_abandon(
             raise UseCaseError(
                 "invalid_transition", "Only the selected active Run can be abandoned."
             )
+        if context.machine_mode and inputs.get("expected_revision") is None:
+            raise UseCaseError(
+                "invalid_input",
+                "This machine-mode mutation requires an explicit expected revision.",
+                field="expected_revision",
+                details={"policy": definition.machine_revision_policy.value},
+            )
+        _require_active_stage(stage_meta)
         stage_state["events"].append(_event(now, actor, "run_abandoned", reason))
         stage_meta["updated_at"] = now
         run_meta.update({"status": "abandoned", "updated_at": now})
@@ -111,6 +121,7 @@ def _run_abandon(
         }
         run_state["next_action"] = "None; this Run is terminal."
         run_state["events"].append(_event(now, actor, "run_abandoned", reason))
+        _observe_run_changes(workspace, run_state, observed_at=now)
         revisions = workspace.publish(
             (
                 RepositoryMutation(

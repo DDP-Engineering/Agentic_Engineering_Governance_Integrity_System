@@ -75,6 +75,52 @@ def test_approved_delivery_atomically_completes_stage_run_and_pointer(
     ).read_text(encoding="utf-8")
 
 
+def test_delivery_latest_applicable_decision_must_be_approved(tmp_path: Path) -> None:
+    """@brief A rejection after an approval keeps Delivery and the Run active."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo, profile="short")
+    advance_to(repo, "validation")
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "delivery")[0] == 0
+    assert (
+        invoke(
+            repo,
+            "stage-set-section",
+            {"section": "terminal_result", "content": "achieved", "actor": "agent"},
+        )[0]
+        == 0
+    )
+    for value, reason in (
+        ("approved", "The report was accurate at first review."),
+        ("rejected", "A later review found the report incomplete."),
+    ):
+        assert (
+            invoke(
+                repo,
+                "decision-add",
+                {
+                    "value": value,
+                    "actor": "agent",
+                    "target": "delivery",
+                    "reason": reason,
+                },
+            )[0]
+            == 0
+        )
+
+    exit_code, rejected = invoke(repo, "stage-complete")
+
+    assert exit_code == 4, rejected
+    assert rejected["error"]["code"] == "invalid_transition"
+    assert "latest" in rejected["error"]["summary"].lower()
+    current = invoke(repo, "stage-show")[1]
+    assert current["data"]["status"] == "active"
+    run_text = (repo / ".agentic" / "runs" / created["run_id"] / "run.md").read_text(
+        encoding="utf-8"
+    )
+    assert 'status = "active"' in run_text
+
+
 def test_normal_and_exceptional_abandonment_preserve_existing_bytes(
     tmp_path: Path,
 ) -> None:

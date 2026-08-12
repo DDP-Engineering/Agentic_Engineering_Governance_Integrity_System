@@ -23,6 +23,35 @@ def resolve_target(value: str) -> Path:
     return target
 
 
+def git_directory(target: Path) -> Path | None:
+    """Resolve a normal Git directory or one standard linked-worktree pointer."""
+    marker = target / ".git"
+    if marker.is_dir():
+        return marker.resolve()
+    if not marker.is_file():
+        return None
+    try:
+        text = marker.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return None
+    prefix = "gitdir:"
+    if len(text.splitlines()) != 1 or not text.lower().startswith(prefix):
+        return None
+    value = text[len(prefix) :].strip()
+    if not value:
+        return None
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = marker.parent / candidate
+    try:
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError):
+        return None
+    if not resolved.is_dir() or not (resolved / "HEAD").is_file():
+        return None
+    return resolved
+
+
 def target_fingerprint(target: Path) -> str:
     """Hash target identity and relevant bytes, excluding transient recovery."""
     digest = hashlib.sha256()
@@ -42,7 +71,7 @@ def target_fingerprint(target: Path) -> str:
         except OSError as exc:
             raise PlanError(f"Cannot inspect target path: {relative}") from exc
         digest.update(b"\0")
-    digest.update(b"git=1" if (target / ".git").is_dir() else b"git=0")
+    digest.update(b"git=1" if git_directory(target) is not None else b"git=0")
     return f"sha256:{digest.hexdigest()}"
 
 

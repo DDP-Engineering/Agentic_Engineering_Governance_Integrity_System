@@ -11,6 +11,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
+
 
 def main() -> int:
     """Resolve only payload-relative runtime paths and enter AEGIS."""

@@ -1,6 +1,6 @@
 schema = 1
 artifact_type = "payload_manifest"
-payload_id = "PAYLOAD-2a26d660e004d95092288ffab56d8ee5"
+payload_id = "PAYLOAD-1f1efcc5a853ecd5014a984fa1b3653d"
 product = "AEGIS"
 product_version = "1.0.0"
 platform = "windows"
@@ -53,8 +53,8 @@ sha256 = "47723f7439cf8cb5865b350740958a823e93bab4f934ab0bfe69eb48692f8cef"
 
 [[files]]
 path = "bin/launcher.py"
-size = 803
-sha256 = "7c114dffe70c107d077297ee397ce4efa2cf91c44d212417d69c6d5531ba5d1c"
+size = 835
+sha256 = "fb75365b75f644324d28a1ea5ebe05901471627f8b62db035e8f17398011e239"
 
 [[files]]
 path = "cli/README.md"
@@ -83,28 +83,28 @@ sha256 = "1cbf23a9b8a2322e31a79163426febc0767ffbe4038d5fe539cbf10b56905402"
 
 [[files]]
 path = "cli/src/aegis/application/dispatcher.py"
-size = 5742
-sha256 = "9cd4091cb88cdc422c217c326e6415355bc95c844677a79d42146ce56df26b11"
+size = 6395
+sha256 = "888c6d31ad1764306516e7b17bc7892b55c476aa6694c089d2863177ae2553ee"
 
 [[files]]
 path = "cli/src/aegis/application/execution_operations.py"
-size = 12981
-sha256 = "8ed8c74e26d3d432d87db4fd32553b11b416a42f0897f361880ad142d97548b4"
+size = 13491
+sha256 = "e7054e7f50d1f7972bea0671cc391c3d49f24d214cf94df628e89b7cea0da14e"
 
 [[files]]
 path = "cli/src/aegis/application/lifecycle_operations.py"
-size = 15015
-sha256 = "ea32bc02455b0e03e88c55b98bb2aff0f31115409ffab4a8a12f37aa6b1f6c2f"
+size = 15541
+sha256 = "ab0a8b3c47d37cd3e206e271860a2e1cd9c4b145fbe4546593eb101681171ddd"
 
 [[files]]
 path = "cli/src/aegis/application/operation_registry.py"
-size = 19838
-sha256 = "b38473387b7198e3f23c1a5bfe301269702e65bc26d0beffe041811b85537a3c"
+size = 22537
+sha256 = "647a2affc314c10c339a185d190b8d281fbfab947b92e6d47db0352ac837c2e6"
 
 [[files]]
 path = "cli/src/aegis/application/operation_types.py"
-size = 3855
-sha256 = "cb43421517213306e2294c7cdb0407e285f6285c753db141b2f56a1b009a5b4e"
+size = 4724
+sha256 = "56bbfdb6844afad76436c5e8ecde546226da5627a6252c5ea692fa5807fd7be4"
 
 [[files]]
 path = "cli/src/aegis/application/product_operations.py"
@@ -113,13 +113,23 @@ sha256 = "c4e90b87380cb262681c07e5cd319942ff875fda69447031dc8d2d7ba3b9441c"
 
 [[files]]
 path = "cli/src/aegis/application/project_operations.py"
-size = 39277
-sha256 = "421b12b7631b1e7026505367d4b43f7dd8088254d308412e9b490d38630bdc0a"
+size = 42623
+sha256 = "2ad63e61d5ccb3f4eb928c0e42505f63d2896719a733624617a0fbd0bd33f3b9"
+
+[[files]]
+path = "cli/src/aegis/application/resume_context.py"
+size = 36729
+sha256 = "a0c608d83b7327b367ee9e5c96b5f950ef072a0f7d6ba2a6bf9b6fad02c798f7"
+
+[[files]]
+path = "cli/src/aegis/application/stage_expectations.py"
+size = 12825
+sha256 = "e9b8e7ff33b2885ec426522f71dec3cab9d53cb7605fa631e64ec6ba6c115f7b"
 
 [[files]]
 path = "cli/src/aegis/application/workflow_operations.py"
-size = 52020
-sha256 = "1e37e8273a880cd8118f34073bd5f37eb3a3d01e8258716ef8361b8d66d58c04"
+size = 67012
+sha256 = "62135b02dbb79405b764478496284f39b76f770626dd3048f89f0f1b5d553713"
 
 [[files]]
 path = "cli/src/aegis/composition.py"
@@ -158,8 +168,8 @@ sha256 = "b2e899506a6a90007e3fef4195a38ba54adf9ddc983e781f6264e1d0c67dab17"
 
 [[files]]
 path = "cli/src/aegis/infrastructure/codecs.py"
-size = 14086
-sha256 = "6a476c0d132cd4a7447df760512aa0f1a3369800b5f17a32f5d00d8062c4e5fb"
+size = 34487
+sha256 = "87c48ca0b1b217e0cff6e34978546908798769bf375ecd0b2f27c11e9d6e2d61"
 
 [[files]]
 path = "cli/src/aegis/infrastructure/discovery.py"
@@ -193,8 +203,8 @@ sha256 = "2f61f6daff644266dbfc5948fa4c0923ee1305da1eebcfc2e7fec7b65ab02378"
 
 [[files]]
 path = "cli/src/aegis/infrastructure/workspace.py"
-size = 14787
-sha256 = "4fa56ce0e5563de9461a1d7478afb227688be6d6968022851e0c61fac2a5cf15"
+size = 15119
+sha256 = "0c6480e599c13efdf0164c02588cc920f9f011b58a27ec1e845a8b56b1779ef1"
 
 [[files]]
 path = "cli/src/aegis/interface/__init__.py"
@@ -203,8 +213,8 @@ sha256 = "0ecb7c6c4e4148b25c63e942361671839b2b37834cd1f11c73edb1282ea07eaf"
 
 [[files]]
 path = "cli/src/aegis/interface/cli.py"
-size = 12760
-sha256 = "fb0ddffeea4a360344504dc1210a9c4823a0fb3516cf75f53c4a8c26021a742e"
+size = 12830
+sha256 = "432671caad5f9130e83736514dd4cebb5f95b11d2cdd76aee9b1094c93faf9e3"
 
 [[files]]
 path = "cli/src/aegis/interface/human_presenter.py"
@@ -238,8 +248,8 @@ sha256 = "e23fa1f748fc21a6316ed7a454c6c0356726b135e7bbf74e6c11dfc5501665a4"
 
 [[files]]
 path = "cli/src/aegis/ports/workspace.py"
-size = 3360
-sha256 = "ec8e06b5c48f26d4311c95399c431264d307c807212539940fdc54e82039038e"
+size = 3407
+sha256 = "30cde1db109ef49174a0ce75fdffd0f0da2096e22091be5298a87256f7cce6d3"
 
 [[files]]
 path = "workflows/alignment.toml"

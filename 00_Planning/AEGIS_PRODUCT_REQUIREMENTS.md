@@ -107,10 +107,10 @@ first column. For example, `001-003` in the `PR-ROLE` row represents
 
 | Priority | Requirement count |
 |---|---:|
-| Must | 205 |
+| Must | 206 |
 | Should | 17 |
 | Could | 3 |
-| **Total** | **225** |
+| **Total** | **226** |
 
 This priority register is authoritative. `AEGIS_RELEASE_SCOPE.md` may present
 the same information as a release-oriented view but shall not assign a

@@ -222,7 +222,7 @@ release; the lower-priority subset is reported separately.
 | `AC-PKG-001` | Must | Package | All four editions exist for Windows and Ubuntu x86-64, can be transferred as complete archives, and perform their applicable first operation with network access denied. | `PR-PKG-001-006`; `PR-OFF-001-006` |
 | `AC-PKG-002` | Must | Package + inspection | Bundled editions use private Python 3.12 and Git, remain relocatable, do not install or alter global runtimes/configuration, and record exact fixed bundled versions. | `PR-PKG-007, 009`; `PR-RUNTIME-004-005` |
 | `AC-RUNTIME-001` | Must | Automated matrix | Dependency-excluding AEGIS and WAEGIS run with Python 3.11 on both platforms; source uses the standard library only; bundled editions run with their private Python 3.12. | `PR-RUNTIME-001-007`; `PR-PKG-008` |
-| `AC-PLATFORM-001` | Must | Automated differential | Equivalent inputs on Windows and Ubuntu produce the same states, enums, findings, operation identifiers, and semantic outcomes, with only documented platform path/presentation differences. | `PR-PLAT-001-004`; `PR-SCOPE-005` |
+| `AC-PLATFORM-001` | Must | Automated differential | Equivalent inputs on Windows and Ubuntu produce the same states, enums, findings, operation identifiers, and semantic outcomes, with only documented platform path/presentation differences. | `PR-PLAT-001-004`; `PR-SCOPE-002, 005` |
 
 ## 8. Defaults, configuration, offline use, and model usability
 

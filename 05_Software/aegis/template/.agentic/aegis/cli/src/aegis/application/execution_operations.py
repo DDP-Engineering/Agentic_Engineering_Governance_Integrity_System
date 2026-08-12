@@ -24,6 +24,7 @@ from aegis.application.workflow_operations import (
     _identity,
     _load_current,
     _load_run,
+    _require_active_stage,
     _save_stage_run,
     _selected_run_id,
     _time,
@@ -120,6 +121,16 @@ def _execution_run(
         stage_revision,
         stage_path,
     ) = _load_current(workspace)
+    _require_active_stage(stage_meta)
+    expected_revision = inputs.get("expected_revision")
+    if expected_revision is not None and expected_revision != stage_revision:
+        raise UseCaseError(
+            "state_conflict",
+            "The expected Stage revision is stale.",
+            field="expected_revision",
+            path=stage_path,
+            details={"expected": expected_revision, "current": stage_revision},
+        )
     stage = stage_meta["stage"]
     if category == "tests" and stage not in {"check", "implementation", "validation"}:
         raise UseCaseError(
@@ -268,6 +279,7 @@ def _execution_run(
         run_meta=run_meta,
         run_state=run_state,
         run_revision=run_revision,
+        expected_stage=expected_revision,
         extra=tuple(extra),
         extra_expected={item.path: None for item in extra},
     )

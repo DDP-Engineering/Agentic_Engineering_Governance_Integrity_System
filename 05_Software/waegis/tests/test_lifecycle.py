@@ -105,11 +105,80 @@ def test_install_plan_is_read_only_and_apply_requires_exact_current_plan(
     )
     assert applied["operation_status"] == "completed"
     assert (target / ".agentic/aegis/cli/marker.txt").read_text() == "payload-one\n"
+
+    removal_output = tmp_path / "remove.json"
+    removal = execute(
+        app, "remove.plan", target=str(target), output=str(removal_output)
+    )
+    removed = execute(
+        app,
+        "remove.apply",
+        target=str(target),
+        plan=str(removal_output),
+        confirm_digest=removal["data"]["plan_digest"],
+    )
+
+    assert removed["operation_status"] == "completed"
+    assert not (target / ".agentic/aegis").exists()
+    assert (target / ".agentic/config.toml").is_file()
     config = (target / ".agentic/config.toml").read_text(encoding="utf-8")
     assert 'tests = [".agentic/tests"]' in config
     assert 'command = ["python", "-m", "unittest", "discover"' in config
     assert ".agentic/runs/context.toml" in (target / ".git/info/exclude").read_text()
     assert not (target / ".git/index").exists()
+
+
+def test_install_supports_linked_git_worktree_without_shared_metadata_write(
+    tmp_path: Path,
+) -> None:
+    """A linked worktree is a repository without a target-local Git directory."""
+    payload = make_payload(tmp_path / "source")
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    subprocess.run(["git", "init", "-q", str(primary)], check=True)
+    subprocess.run(
+        ["git", "-C", str(primary), "config", "user.name", "WAEGIS Test"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(primary), "config", "user.email", "test@example.invalid"],
+        check=True,
+    )
+    (primary / "tracked.txt").write_text("baseline\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(primary), "add", "tracked.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(primary), "commit", "-q", "-m", "baseline"],
+        check=True,
+    )
+    target = tmp_path / "linked"
+    subprocess.run(
+        ["git", "-C", str(primary), "worktree", "add", "-q", "--detach", str(target)],
+        check=True,
+    )
+    assert (target / ".git").is_file()
+    output = tmp_path / "install.json"
+    app = create_application(payload)
+
+    planned = execute(app, "install.plan", target=str(target), output=str(output))
+
+    assert planned["operation_status"] == "completed"
+    assert (
+        "Linked Git worktree detected; shared info/exclude was not modified."
+        in planned["data"]["warnings"]
+    )
+    plan = json.loads(output.read_text(encoding="utf-8"))
+    assert ".git/info/exclude" not in {action["path"] for action in plan["actions"]}
+
+    applied = execute(
+        app,
+        "install.apply",
+        target=str(target),
+        plan=str(output),
+        confirm_digest=planned["data"]["plan_digest"],
+    )
+
+    assert applied["operation_status"] == "completed"
+    assert (target / ".agentic/aegis/cli/marker.txt").read_text() == "payload-one\n"
 
 
 def test_install_detects_existing_pytest_root_and_preserves_dirty_files(

@@ -298,6 +298,7 @@ def run_cli(
                                 entry.operation,
                                 inputs,
                                 repository=None if repository_free else repository,
+                                machine_mode=output_format == "json",
                             )
                     else:
                         result = application.dispatch(entry.operation, inputs)

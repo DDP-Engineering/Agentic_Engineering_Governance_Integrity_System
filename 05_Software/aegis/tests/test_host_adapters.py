@@ -59,7 +59,8 @@ def test_native_host_guidance_routes_resume_through_stage_show() -> None:
     }
     for host, path in native.items():
         guidance = path.read_text(encoding="utf-8")
-        assert "stage.show" in guidance, host
+        assert "stage-show" in guidance, host
+        assert "stage.show" not in guidance, host
         assert "aegis.machine.response" in guidance, host
         assert "Do not infer approval" in guidance, host
         assert "commit" in guidance and "outside AEGIS" in guidance, host

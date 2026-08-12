@@ -26,10 +26,23 @@ from aegis.domain.values import RepositoryPath, ValueValidationError, WorkingDir
 class ArtifactDecodeError(ValueError):
     """@brief Report a path-specific decoding or schema error."""
 
-    def __init__(self, summary: str, *, path: str) -> None:
+    def __init__(
+        self, summary: str, *, path: str, code: str = "malformed_state"
+    ) -> None:
         super().__init__(f"{path}: {summary}")
         self.summary = summary
         self.path = path
+        self.code = code
+
+
+_MARKDOWN_SCHEMAS = {
+    "run": 1,
+    "stage": 1,
+    "component": 1,
+    "specification": 1,
+    "adoption": 1,
+    "abandonment": 1,
+}
 
 
 def decode_general_text(content: bytes, *, path: str) -> str:
@@ -174,39 +187,196 @@ def render_project_config(config: ProjectConfig) -> bytes:
     return "\n".join(lines).encode("utf-8")
 
 
+def _render_toml_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, list):
+        return _toml_array(value)
+    return _toml_string(str(value))
+
+
+def _render_front_matter(
+    metadata: dict[str, Any], *, tables: dict[str, list[dict[str, Any]]] | None = None
+) -> list[str]:
+    lines = ["+++"]
+    for key, value in metadata.items():
+        lines.append(f"{key} = {_render_toml_value(value)}")
+    for name, entries in (tables or {}).items():
+        for entry in entries:
+            lines.extend(("", f"[[{name}]]"))
+            for key, value in entry.items():
+                lines.append(f"{key} = {_render_toml_value(value)}")
+    lines.extend(("+++", ""))
+    return lines
+
+
+def _escape_section_content(value: Any) -> str:
+    return "\n".join(
+        "\\" + line if line.startswith("## ") else line
+        for line in str(value).splitlines()
+    )
+
+
+def _unescape_section_content(value: str) -> str:
+    return "\n".join(
+        line[1:] if line.startswith("\\## ") else line
+        for line in value.splitlines()
+    ).strip("\n")
+
+
+def _markdown_sections(body: str) -> tuple[str, dict[str, str]]:
+    lines = body.strip().splitlines()
+    if not lines or not lines[0].startswith("# "):
+        raise ValueError("Markdown artifact has no title")
+    title = lines[0][2:].strip()
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in lines[1:]:
+        if line.startswith("## "):
+            current = line[3:].strip()
+            sections[current] = []
+        elif current is not None:
+            sections[current].append(line)
+    return title, {
+        name: _unescape_section_content("\n".join(content))
+        for name, content in sections.items()
+    }
+
+
+def _bullet_items(content: str, *, marker: str = "- ") -> list[str]:
+    return [
+        line[len(marker) :].replace("<br>", "\n")
+        for line in content.splitlines()
+        if line.startswith(marker)
+    ]
+
+
+def _render_bullets(values: list[Any], *, empty: str = "None") -> list[str]:
+    if not values:
+        return [f"- {empty}"]
+    return [f"- {str(value).replace(chr(10), '<br>')}" for value in values]
+
+
+def _table_cell(value: Any) -> str:
+    return (
+        str(value)
+        .replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("\n", "<br>")
+    )
+
+
+def _split_table_row(line: str) -> list[str]:
+    cells: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for character in line.strip().strip("|"):
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == "|":
+            cells.append("".join(current).strip().replace("<br>", "\n"))
+            current = []
+        else:
+            current.append(character)
+    current.append("\\" if escaped else "")
+    cells.append("".join(current).strip().replace("<br>", "\n"))
+    return cells
+
+
+def _table_rows(content: str) -> list[list[str]]:
+    lines = [line for line in content.splitlines() if line.startswith("|")]
+    return [_split_table_row(line) for line in lines[2:]] if len(lines) >= 2 else []
+
+
+def _after_label(content: str, label: str, default: str = "None") -> str:
+    prefix = f"- {label}:"
+    for line in content.splitlines():
+        if line.startswith(prefix):
+            return (
+                line[len(prefix) :]
+                .strip()
+                .replace("<br>", "\n")
+                .replace("\\|", "|")
+                .replace("\\\\", "\\")
+            )
+    return default
+
+
+def _json_or_text(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return value
+
+
+def _scope_change_row(change: dict[str, Any]) -> str:
+    actor_reason = f"{change.get('actor', '')}; {change.get('reason', '')}"
+    affected = ", ".join(change.get("affected_work", []))
+    return (
+        f"| {_table_cell(change.get('time', ''))} "
+        f"| {_table_cell(change.get('before', ''))} "
+        f"| {_table_cell(change.get('after', ''))} "
+        f"| {_table_cell(actor_reason)} | {_table_cell(affected)} |"
+    )
+
+
 def render_markdown_document(
     metadata: dict[str, Any], state: dict[str, Any], *, kind: str
 ) -> bytes:
     """@brief Render machine front matter plus bounded human-readable state."""
     front = dict(metadata)
-    front["state_json"] = json.dumps(
-        state, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    )
-    lines = ["+++"]
-    for key, value in front.items():
-        if isinstance(value, bool):
-            rendered = "true" if value else "false"
-        elif isinstance(value, int):
-            rendered = str(value)
-        elif isinstance(value, list):
-            rendered = _toml_array(value)
-        else:
-            rendered = _toml_string(str(value))
-        lines.append(f"{key} = {rendered}")
-    lines.extend(("+++", ""))
     if kind == "run":
+        tables = {
+            "stages": [
+                {
+                    key: stage.get(key, "")
+                    for key in ("sequence", "name", "path", "status", "updated_at")
+                }
+                for stage in state.get("stages", [])
+            ]
+        }
+        lines = _render_front_matter(front, tables=tables)
         lines.extend(_render_run_body(metadata, state))
-    elif kind == "stage":
-        lines.extend(_render_stage_body(metadata, state))
     elif kind == "component":
-        lines.extend(_render_project_body(metadata, state, "Component"))
+        tables = {
+            "test_links": [
+                {"path": link.get("path", ""), "selector": link.get("selector", "")}
+                for link in state.get("test_links", [])
+            ]
+        }
+        lines = _render_front_matter(front, tables=tables)
+        lines.extend(_render_component_body(metadata, state))
     elif kind == "specification":
-        lines.extend(_render_project_body(metadata, state, "Specification"))
+        lines = _render_front_matter(front)
+        lines.extend(_render_specification_body(metadata, state))
+    elif kind == "stage":
+        front["state_json"] = json.dumps(
+            state, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        lines = _render_front_matter(front)
+        lines.extend(_render_stage_body(metadata, state))
     elif kind == "adoption":
+        front["state_json"] = json.dumps(
+            state, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        lines = _render_front_matter(front)
         lines.extend(_render_project_body(metadata, state, "Adoption"))
     elif kind == "abandonment":
+        front["state_json"] = json.dumps(
+            state, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        lines = _render_front_matter(front)
         lines.extend(_render_project_body(metadata, state, "Exceptional abandonment"))
     else:
+        front["state_json"] = json.dumps(
+            state, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        lines = _render_front_matter(front)
         lines.extend(
             (
                 f"# {kind.replace('_', ' ').title()}",
@@ -231,11 +401,38 @@ def parse_markdown_document(
         if end < 0:
             raise ArtifactDecodeError("unterminated TOML front matter", path=path)
         metadata = tomllib.loads(text[4:end])
-        state_value = metadata.pop("state_json")
-        state = json.loads(state_value)
-        if not isinstance(state, dict):
-            raise ArtifactDecodeError("state_json must contain an object", path=path)
-        return metadata, state, text[end + 5 :]
+        body = text[end + 5 :]
+        kind = metadata.get("artifact_type")
+        supported_schema = _MARKDOWN_SCHEMAS.get(kind)
+        if supported_schema is None:
+            raise ArtifactDecodeError(
+                "unsupported Markdown artifact type",
+                path=path,
+                code="unsupported_schema",
+            )
+        schema = metadata.get("schema")
+        if type(schema) is not int or schema != supported_schema:
+            raise ArtifactDecodeError(
+                f"unsupported {kind} schema",
+                path=path,
+                code="unsupported_schema",
+            )
+        if kind == "run":
+            stages = metadata.pop("stages", [])
+            state = _parse_run_body(body, stages=stages)
+        elif kind == "component":
+            test_links = metadata.pop("test_links", [])
+            state = _parse_component_body(body, test_links=test_links)
+        elif kind == "specification":
+            state = _parse_specification_body(body)
+        else:
+            state_value = metadata.pop("state_json")
+            state = json.loads(state_value)
+            if not isinstance(state, dict):
+                raise ArtifactDecodeError(
+                    "state_json must contain an object", path=path
+                )
+        return metadata, state, body
     except ArtifactDecodeError:
         raise
     except (
@@ -282,8 +479,25 @@ def render_requirement(data: dict[str, Any]) -> bytes:
 
 def _render_run_body(metadata: dict[str, Any], state: dict[str, Any]) -> list[str]:
     ticket = state.get("ticket_text", "")
+    title = state.get("title") or str(ticket).splitlines()[0][:100]
+    opening = state.get("opening_repository_state", {})
+    baseline = f"{opening.get('branch', 'unknown')} @ {opening.get('head', 'unknown')}"
+    classifications = opening.get("classifications", {})
+    preexisting = json.dumps(classifications, ensure_ascii=False, sort_keys=True)
+    baseline_index = opening.get("index_revision") or "none"
+    baseline_dirty = json.dumps(
+        opening.get("dirty_paths", []), ensure_ascii=False, sort_keys=True
+    )
+    first_observed = json.dumps(
+        state.get("changes_first_observed", []), ensure_ascii=False
+    )
+    adopted = json.dumps(state.get("changes_adopted", []), ensure_ascii=False)
+    uncertain = json.dumps(state.get("uncertain_authorship", []), ensure_ascii=False)
+    attribution_findings = json.dumps(
+        state.get("attribution_findings", []), ensure_ascii=False, sort_keys=True
+    )
     lines = [
-        f"# {metadata.get('id', 'Run')}",
+        f"# {metadata.get('id', 'Run')} - {title}",
         "",
         "## Ticket input",
         "",
@@ -297,35 +511,372 @@ def _render_run_body(metadata: dict[str, Any], state: dict[str, Any]) -> list[st
         "",
         "## Current scope",
         "",
-        str(state.get("scope", "None")),
+        f"- Included: {_table_cell(state.get('scope', 'None'))}",
+        f"- Excluded: {_table_cell(state.get('excluded_scope', 'None'))}",
+        f"- Open questions: {_table_cell(state.get('open_questions', 'None'))}",
+        "",
+        "## Execution instruction",
+        "",
+        f"- Actor: {_table_cell(state.get('actor', 'operator'))}",
+        (
+            "- Developer instruction affecting interaction: "
+            f"{_table_cell(state.get('execution_instruction', 'None'))}"
+        ),
+        "",
+        "## Scope-change log",
+        "",
+        (
+            "| Time (UTC) | Previous interpretation | New interpretation "
+            "| Actor and reason | Affected artifacts |"
+        ),
+        "|---|---|---|---|---|",
+    ]
+    lines.extend(_scope_change_row(change) for change in state.get("scope_changes", []))
+    lines.extend(
+        (
+            "",
+            "## Stage summary",
+            "",
+            "| Stage | Status | Result | Updated |",
+            "|---|---|---|---|",
+        )
+    )
+    lines.extend(
+        (
+            f"| {str(stage.get('name', '')).replace('_', ' ').title()} "
+            f"| {_table_cell(stage.get('status', ''))} "
+            f"| {_table_cell(stage.get('result', ''))} "
+            f"| {_table_cell(stage.get('updated_at', ''))} |"
+        )
+        for stage in state.get("stages", [])
+    )
+    lines.extend(
+        (
+            "",
         "",
         "## Change attribution",
         "",
-        "```json",
-        json.dumps(
-            state.get("opening_repository_state", {}), ensure_ascii=False, indent=2
+        f"- Baseline branch and revision: {_table_cell(baseline)}",
+        (
+            "- Pre-existing working changes: "
+            f"{_table_cell(preexisting)}"
         ),
-        "```",
+        f"- Baseline index revision: {_table_cell(baseline_index)}",
+        f"- Baseline dirty-path revisions: {_table_cell(baseline_dirty)}",
+        (
+            "- Changes first observed during this Run: "
+            f"{_table_cell(first_observed)}"
+        ),
+        f"- Changes adopted into scope: {_table_cell(adopted)}",
+        f"- Uncertain authorship: {_table_cell(uncertain)}",
+        f"- Attribution uncertainty findings: {_table_cell(attribution_findings)}",
         "",
         "## Current handoff",
         "",
-        str(state.get("next_action", "None")),
+        f"- Current Stage: `{metadata.get('current_stage', 'none')}`",
+        f"- Durable context: {_table_cell(state.get('durable_context', 'None'))}",
+        f"- Next action: {_table_cell(state.get('next_action', 'None'))}",
+        f"- Blockers: {_table_cell(state.get('blockers', 'None'))}",
         "",
         "## Terminal outcome",
         "",
-        str(state.get("outcome", "Active")),
+        _escape_section_content(
+            json.dumps(state.get("outcome"), ensure_ascii=False)
+            if isinstance(state.get("outcome"), (dict, list))
+            else state.get("outcome", "Active")
+        ),
         "",
         "## Run event history",
         "",
-    ]
+        "| Time (UTC) | Actor | Event | Result |",
+        "|---|---|---|---|",
+        )
+    )
     lines.extend(
         (
-            f"- {event.get('time')} {event.get('actor')}: "
-            f"{event.get('event')} - {event.get('result')}"
+            f"| {_table_cell(event.get('time', ''))} "
+            f"| {_table_cell(event.get('actor', ''))} "
+            f"| {_table_cell(event.get('event', ''))} "
+            f"| {_table_cell(event.get('result', ''))} |"
         )
         for event in state.get("events", [])
     )
     return lines
+
+
+def _parse_run_body(body: str, *, stages: list[dict[str, Any]]) -> dict[str, Any]:
+    title, sections = _markdown_sections(body)
+    ticket = sections["Ticket input"]
+    if ticket.startswith("```text\n") and ticket.endswith("\n```"):
+        ticket = ticket[8:-4]
+    scope = sections.get("Current scope", "")
+    execution = sections.get("Execution instruction", "")
+    attribution = sections.get("Change attribution", "")
+    handoff = sections.get("Current handoff", "")
+    scope_changes = []
+    for row in _table_rows(sections.get("Scope-change log", "")):
+        actor, separator, reason = row[3].partition(";")
+        scope_changes.append(
+            {
+                "time": row[0],
+                "before": row[1],
+                "after": row[2],
+                "actor": actor.strip(),
+                "reason": reason.strip() if separator else "",
+                "affected_work": [
+                    item.strip() for item in row[4].split(",") if item.strip()
+                ],
+            }
+        )
+    baseline = _after_label(attribution, "Baseline branch and revision")
+    branch, separator, head = baseline.partition(" @ ")
+    classifications = _json_or_text(
+        _after_label(attribution, "Pre-existing working changes", "{}")
+    )
+    index_revision = _after_label(attribution, "Baseline index revision", "none")
+    dirty_paths = _json_or_text(
+        _after_label(attribution, "Baseline dirty-path revisions", "[]")
+    )
+    stage_results = {
+        row[0].lower().replace(" ", "_"): row[2]
+        for row in _table_rows(sections.get("Stage summary", ""))
+    }
+    for stage in stages:
+        stage["result"] = stage_results.get(stage.get("name", ""), "")
+    return {
+        "title": title.split(" - ", 1)[1] if " - " in title else title,
+        "ticket_text": ticket,
+        "intent": sections.get("Intent", "None"),
+        "scope": _after_label(scope, "Included"),
+        "excluded_scope": _after_label(scope, "Excluded"),
+        "open_questions": _after_label(scope, "Open questions"),
+        "actor": _after_label(execution, "Actor", "operator"),
+        "execution_instruction": _after_label(
+            execution, "Developer instruction affecting interaction"
+        ),
+        "opening_repository_state": {
+            "branch": branch,
+            "head": head if separator else "unknown",
+            "classifications": (
+                classifications if isinstance(classifications, dict) else {}
+            ),
+            "index_revision": None if index_revision == "none" else index_revision,
+            "dirty_paths": dirty_paths if isinstance(dirty_paths, list) else [],
+        },
+        "changes_first_observed": _json_or_text(
+            _after_label(attribution, "Changes first observed during this Run", "[]")
+        ),
+        "changes_adopted": _json_or_text(
+            _after_label(attribution, "Changes adopted into scope", "[]")
+        ),
+        "uncertain_authorship": _json_or_text(
+            _after_label(attribution, "Uncertain authorship", "[]")
+        ),
+        "attribution_findings": _json_or_text(
+            _after_label(attribution, "Attribution uncertainty findings", "[]")
+        ),
+        "scope_changes": scope_changes,
+        "stages": stages,
+        "durable_context": _after_label(handoff, "Durable context"),
+        "next_action": _after_label(handoff, "Next action"),
+        "blockers": _after_label(handoff, "Blockers"),
+        "outcome": _json_or_text(sections.get("Terminal outcome", "Active")),
+        "events": [
+            {"time": row[0], "actor": row[1], "event": row[2], "result": row[3]}
+            for row in _table_rows(sections.get("Run event history", ""))
+        ],
+    }
+
+
+def _render_component_body(
+    metadata: dict[str, Any], state: dict[str, Any]
+) -> list[str]:
+    file_roles = {
+        item.get("path", ""): item.get("role", "Role not recorded.")
+        for item in state.get("file_roles", [])
+        if isinstance(item, dict)
+    }
+    lines = [
+        f"# {metadata.get('name', metadata.get('id', 'Component'))}",
+        "",
+        "## Purpose and boundary",
+        "",
+        _escape_section_content(state.get("purpose_boundary", "None")),
+        "",
+        "## Interfaces",
+        "",
+        _escape_section_content(state.get("interfaces", "None")),
+        "",
+        "## Behaviors and requirements",
+        "",
+    ]
+    requirements = metadata.get("requirement_ids", [])
+    behaviors = state.get("behaviors", [])
+    for index, requirement_id in enumerate(requirements):
+        behavior = (
+            behaviors[index] if index < len(behaviors) else "Behavior not recorded."
+        )
+        lines.append(
+            f"- `{requirement_id}` - {str(behavior).replace(chr(10), '<br>')}"
+        )
+    lines.extend(
+        f"- `(gap)` - {str(behavior).replace(chr(10), '<br>')}"
+        for behavior in behaviors[len(requirements) :]
+    )
+    if not metadata.get("requirement_ids") and not state.get("behaviors"):
+        lines.append("- None")
+    lines.extend(("", "## File roles", ""))
+    lines.extend(
+        f"- `{path}` - {file_roles.get(path, 'Role not recorded.')}"
+        for path in metadata.get("files", [])
+    )
+    if not metadata.get("files"):
+        lines.append("- None")
+    lines.extend(("", "## Tests", ""))
+    lines.extend(
+        (
+            f"- `{link.get('path', '')}"
+            f"{('::' + link.get('selector', '')) if link.get('selector') else ''}` "
+            f"- {link.get('description', 'Linked project test.')}"
+        )
+        for link in state.get("test_links", [])
+    )
+    if not state.get("test_links"):
+        lines.append("- None")
+    lines.extend(("", "## Dependencies", ""))
+    lines.extend(_render_bullets(state.get("dependencies", [])))
+    lines.extend(("", "## Known gaps", ""))
+    lines.extend(_render_bullets(state.get("known_gaps", [])))
+    review = state.get("drift_review", {})
+    lines.extend(
+        (
+            "",
+            "## Drift review",
+            "",
+            f"- Behavior current: {review.get('behavior', 'uncertain')}",
+            f"- Interfaces current: {review.get('interfaces', 'uncertain')}",
+            f"- Dependencies current: {review.get('dependencies', 'uncertain')}",
+            f"- File membership current: {review.get('files', 'uncertain')}",
+            f"- Review finding: {review.get('finding', 'none')}",
+        )
+    )
+    return lines
+
+
+def _parse_component_body(
+    body: str, *, test_links: list[dict[str, Any]]
+) -> dict[str, Any]:
+    _, sections = _markdown_sections(body)
+    behavior_lines = _bullet_items(sections.get("Behaviors and requirements", ""))
+    file_roles = []
+    for item in _bullet_items(sections.get("File roles", "")):
+        path, separator, role = item.partition("` - ")
+        if path.startswith("`") and separator:
+            file_roles.append({"path": path[1:], "role": role})
+    dependencies = _bullet_items(sections.get("Dependencies", ""))
+    known_gaps = _bullet_items(sections.get("Known gaps", ""))
+    test_descriptions = []
+    for item in _bullet_items(sections.get("Tests", "")):
+        _, separator, description = item.partition("` - ")
+        if separator:
+            test_descriptions.append(description)
+    for index, link in enumerate(test_links):
+        link["description"] = (
+            test_descriptions[index]
+            if index < len(test_descriptions)
+            else "Linked project test."
+        )
+    return {
+        "purpose_boundary": sections.get("Purpose and boundary", "None"),
+        "interfaces": sections.get("Interfaces", "None"),
+        "behaviors": [
+            item.split("` - ", 1)[1]
+            for item in behavior_lines
+            if item.startswith("`REQ-") and "` - " in item
+        ]
+        + [
+            item.removeprefix("`(gap)` - ")
+            for item in behavior_lines
+            if item.startswith("`(gap)` - ")
+        ],
+        "file_roles": file_roles,
+        "dependencies": [] if dependencies == ["None"] else dependencies,
+        "test_links": test_links,
+        "known_gaps": [] if known_gaps == ["None"] else known_gaps,
+        "drift_review": {
+            "behavior": _after_label(
+                sections.get("Drift review", ""), "Behavior current", "uncertain"
+            ),
+            "interfaces": _after_label(
+                sections.get("Drift review", ""), "Interfaces current", "uncertain"
+            ),
+            "dependencies": _after_label(
+                sections.get("Drift review", ""), "Dependencies current", "uncertain"
+            ),
+            "files": _after_label(
+                sections.get("Drift review", ""), "File membership current", "uncertain"
+            ),
+            "finding": _after_label(
+                sections.get("Drift review", ""), "Review finding", "none"
+            ),
+        },
+    }
+
+
+def _render_specification_body(
+    metadata: dict[str, Any], state: dict[str, Any]
+) -> list[str]:
+    lines = [
+        f"# Specification - {state.get('title', metadata.get('requirement_id', ''))}",
+        "",
+        "## Purpose",
+        "",
+        _escape_section_content(state.get("purpose", "None")),
+        "",
+        "## Contract",
+        "",
+        _escape_section_content(state.get("contract", "None")),
+        "",
+        "## Inputs and outputs",
+        "",
+        _escape_section_content(state.get("inputs_outputs", "None")),
+        "",
+        "## Rules and invariants",
+        "",
+    ]
+    lines.extend(_render_bullets(state.get("rules", [])))
+    lines.extend(
+        (
+            "",
+            "## Error behavior",
+            "",
+            _escape_section_content(state.get("error_behavior", "None")),
+            "",
+            "## Examples",
+            "",
+            _escape_section_content(state.get("examples", "None")),
+            "",
+            "## Open details",
+            "",
+            _escape_section_content(state.get("open_details", "None")),
+        )
+    )
+    return lines
+
+
+def _parse_specification_body(body: str) -> dict[str, Any]:
+    title, sections = _markdown_sections(body)
+    rules = _bullet_items(sections.get("Rules and invariants", ""))
+    return {
+        "title": title.removeprefix("Specification - "),
+        "purpose": sections.get("Purpose", "None"),
+        "contract": sections.get("Contract", "None"),
+        "inputs_outputs": sections.get("Inputs and outputs", "None"),
+        "rules": [] if rules == ["None"] else rules,
+        "error_behavior": sections.get("Error behavior", "None"),
+        "examples": sections.get("Examples", "None"),
+        "open_details": sections.get("Open details", "None"),
+    }
 
 
 def _render_stage_body(metadata: dict[str, Any], state: dict[str, Any]) -> list[str]:
