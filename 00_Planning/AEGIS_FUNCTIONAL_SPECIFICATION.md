@@ -865,8 +865,9 @@ before developer-owned Git actions.
 
 - **FS-ENV-006:** Workflow states and outcomes have the same meaning on Windows
   11 or later and Ubuntu 22.04 LTS on x86-64.
-- **FS-ENV-007:** Dependency-excluding editions operate with Python 3.11 or
-  later and compatible Git.
+- **FS-ENV-007:** Dependency-excluding editions operate with Python 3.12 and
+  compatible Git; their platform launcher checks both prerequisites and does
+  not install them.
 - **FS-ENV-008:** Dependency-including editions contain a private Python 3.12
   runtime; complete WAEGIS editions can also contain private compatible Git.
 - **FS-ENV-009:** Bundled tools do not replace or modify global Python, Git, or
@@ -892,9 +893,10 @@ before developer-owned Git actions.
 
 ### 16.4 Delivery editions
 
-- **FS-PACKAGE-001:** Releases provide platform-specific archives for AEGIS
+- **FS-PACKAGE-001:** Releases provide eight platform-specific archives: AEGIS
   without bundled dependencies, AEGIS with bundled dependencies, WAEGIS without
-  bundled dependencies, and WAEGIS with bundled dependencies.
+  bundled dependencies, and WAEGIS with bundled dependencies, each for Windows
+  and Ubuntu.
 - **FS-PACKAGE-002:** Dependency-including archives require no runtime download
   before first use.
 - **FS-PACKAGE-003:** Dependency-excluding archives document exact prerequisites

@@ -37,3 +37,7 @@ uv run --group dev python -B -m waegis --format json version-show
 Source-checkout execution reads the canonical sibling AEGIS payload strictly
 as data. Release archives embed that exact payload below the WAEGIS package;
 WAEGIS never imports AEGIS runtime code.
+
+External-runtime delivery launchers check for Python 3.12 and Git, then use
+those existing tools without installing or configuring them. Bundled delivery
+launchers use the private Python 3.12 and Git copies inside their archive.

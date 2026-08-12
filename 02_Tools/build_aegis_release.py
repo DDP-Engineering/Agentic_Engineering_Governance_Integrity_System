@@ -253,7 +253,15 @@ raise SystemExit(main(sys.argv[1:]))
             b'set "PATH=%ROOT%\\runtime\\git\\cmd;%PATH%"\r\n'
             b'if exist "%ROOT%\\runtime\\python\\python.exe" '
             b'("%ROOT%\\runtime\\python\\python.exe" "%~dp0launcher.py" %*) '
-            b'else (py -3 "%~dp0launcher.py" %*)\r\n'
+            b"else (\r\n"
+            b"  where git >nul 2>nul\r\n"
+            b"  if errorlevel 1 (echo WAEGIS requires Git on PATH. 1>&2 "
+            b"& exit /b 5)\r\n"
+            b'  py -3.12 -c "import sys" >nul 2>nul\r\n'
+            b"  if errorlevel 1 (echo WAEGIS requires Python 3.12. 1>&2 "
+            b"& exit /b 5)\r\n"
+            b'  py -3.12 "%~dp0launcher.py" %*\r\n'
+            b")\r\n"
             b"exit /b %ERRORLEVEL%\r\n"
         )
         return {"bin/launcher.py": python_launcher, f"bin/{name}.cmd": wrapper}
@@ -265,7 +273,11 @@ raise SystemExit(main(sys.argv[1:]))
         b'PATH="$root/runtime/git/bin:$PATH"; export PATH; fi\n'
         b'if [ -x "$root/runtime/python/bin/python3" ]; then '
         b'exec "$root/runtime/python/bin/python3" "$root/bin/launcher.py" "$@"; fi\n'
-        b'exec python3 "$root/bin/launcher.py" "$@"\n'
+        b'if ! command -v git >/dev/null 2>&1; then '
+        b'echo "WAEGIS requires Git on PATH." >&2; exit 5; fi\n'
+        b'if ! command -v python3.12 >/dev/null 2>&1; then '
+        b'echo "WAEGIS requires Python 3.12." >&2; exit 5; fi\n'
+        b'exec python3.12 "$root/bin/launcher.py" "$@"\n'
     )
     return {"bin/launcher.py": python_launcher, f"bin/{name}": wrapper}
 
@@ -357,7 +369,7 @@ def build_archive(
         ["Bundled locked Python 3.12 runtime", "Bundled locked Git runtime"]
         if with_dependencies
         else [
-            "Python >=3.11,<4 available to the launcher",
+            "Python 3.12 available to the launcher",
             "Git with porcelain-v2 support available to the launcher",
         ]
     )
@@ -399,7 +411,7 @@ def build_archive(
         "python_version": (
             runtime_entries["python"]["version"]
             if with_dependencies
-            else "external >=3.11,<4"
+            else "external 3.12"
         ),
         "git_version": (
             runtime_entries["git"]["version"]

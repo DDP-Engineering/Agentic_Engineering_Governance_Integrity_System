@@ -570,8 +570,9 @@ waegis/
   and an exact Python/Git prerequisite document.
 - **TA-PACKAGE-002:** WAEGIS without dependencies contains the WAEGIS package,
   embedded AEGIS payload, platform launcher, and prerequisite document.
-- **TA-PACKAGE-003:** Both use an external Python 3.11-or-later interpreter and a
-  resolved compatible Git executable without downloading either.
+- **TA-PACKAGE-003:** Both use external Python 3.12 and a resolved compatible
+  Git executable without downloading or installing either. Platform launchers
+  check their presence before product startup.
 
 ### 18.2 Dependency-including editions
 
@@ -596,6 +597,8 @@ waegis/
   from WAEGIS code.
 - **TA-PACKAGE-010:** Windows and Ubuntu archives are built and accepted
   independently for x86-64.
+- **TA-PACKAGE-011:** The four editions on each target platform produce eight
+  release archives under `07_Delivery/dist/`.
 
 ## 19. Error and result architecture
 

@@ -723,7 +723,7 @@ The initial planning templates are:
 - **AM-TEMPLATE-002:** Placeholder values shall be visibly synthetic and shall
   fail publication validation until replaced.
 - **AM-TEMPLATE-003:** TOML templates and Markdown TOML front matter shall parse
-  with Python 3.11 or later `tomllib`.
+  with standard-library `tomllib` on the supported Python 3.12 runtime.
 - **AM-TEMPLATE-004:** The eight Stage templates shall share a common state and
   history shape while retaining stage-specific instructions and sections.
 

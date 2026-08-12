@@ -125,7 +125,7 @@ uv run --group dev python -B -m aegis --format json version-show
 ```
 
 Runtime dependencies are limited to the Python standard library. The package
-supports Python 3.11 or later.
+supports Python 3.12.
 
 ## Invocation
 

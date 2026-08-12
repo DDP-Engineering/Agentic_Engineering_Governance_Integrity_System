@@ -8,4 +8,12 @@ fi
 if [ -x "$bin_dir/../runtime/python/bin/python3" ]; then
   exec "$bin_dir/../runtime/python/bin/python3" "$bin_dir/launcher.py" "$@"
 fi
-exec python3 "$bin_dir/launcher.py" "$@"
+if ! command -v git >/dev/null 2>&1; then
+  echo "AEGIS requires Git on PATH." >&2
+  exit 5
+fi
+if ! command -v python3.12 >/dev/null 2>&1; then
+  echo "AEGIS requires Python 3.12." >&2
+  exit 5
+fi
+exec python3.12 "$bin_dir/launcher.py" "$@"

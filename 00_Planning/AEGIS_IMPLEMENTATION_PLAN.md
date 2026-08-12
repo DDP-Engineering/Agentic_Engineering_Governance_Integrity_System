@@ -564,8 +564,9 @@ removal followed by successful project tests; and no outward Git action.
 
 ### IP-17 — Platform archives and offline runtime
 
-**Outcome:** All four delivery editions exist as self-contained transferable
-archives for Windows 11 and Ubuntu 22.04 x86-64 and work with networking denied.
+**Outcome:** All four delivery editions exist for each target platform as eight
+self-contained transferable archives for Windows 11 and Ubuntu 22.04 x86-64,
+are written below `07_Delivery/dist/`, and work with networking denied.
 
 **Implement:**
 
@@ -577,7 +578,8 @@ archives for Windows 11 and Ubuntu 22.04 x86-64 and work with networking denied.
 - reproducible offline build/inspection tooling for local runtime inputs.
 
 **Test and evidence:** archive inventory/digests; clean extraction; relocation;
-first applicable operation; external Python 3.11; private Python 3.12/Git;
+first applicable operation; external Python 3.12/Git prerequisite checks;
+private Python 3.12/Git;
 network-denied execution; no telemetry/update request; no global PATH,
 registration, association, or Git-configuration change; platform semantic
 parity; and Python 3.12 target projects with `pytest` and `unittest`.
@@ -618,12 +620,12 @@ priority interpreted exactly as defined by the Acceptance Plan.
 
 | Milestone | Included slices | Demonstrable result | Required broad validation |
 |---|---|---|---|
-| **M1 — Protocol foundation** | `IP-01` through `IP-03` | The real CLI exposes final command/protocol structure and durable state primitives. | AEGIS package suite on Python 3.11 and 3.12; codec, protocol, and fault-injection suites. |
+| **M1 — Protocol foundation** | `IP-01` through `IP-03` | The real CLI exposes final command/protocol structure and durable state primitives. | AEGIS package suite on Python 3.12; codec, protocol, and fault-injection suites. |
 | **M2 — Resumable workflow core** | `IP-04` through `IP-06` | Ticket text creates a resumable Run with Stage state, decisions, findings, and truthful escapes. | AEGIS package suite; cross-session workflow matrix; Windows/POSIX persistence adapters. |
 | **M3 — Traceable delivery** | `IP-07` through `IP-12` | Current project knowledge, impacted tests, red/green evidence, and complete Delivery work end to end. | AEGIS package suite; full/short workflow, real Git, subprocess, and integrity matrices. |
 | **M4 — Adoption and hosts** | `IP-13` through `IP-14` | Existing repositories and direct/agent hosts use the same resumable contract. | Adoption resume suite, adapter contract suite, local-model exercise, supported-host matrix. |
 | **M5 — Operator lifecycle** | `IP-15` through `IP-16` | WAEGIS safely initializes, installs, upgrades, and removes the payload. | AEGIS and WAEGIS package suites; plan/apply, ownership, and WAEGIS fault-injection matrices. |
-| **M6 — Release candidate** | `IP-17` through `IP-18` | Four offline archives are accepted on both target platforms. | Complete Acceptance Plan and product-success audit. |
+| **M6 — Release candidate** | `IP-17` through `IP-18` | Eight offline archives, four per target platform, are accepted. | Complete Acceptance Plan and product-success audit. |
 
 No milestone result substitutes for the slice-level evidence beneath it.
 

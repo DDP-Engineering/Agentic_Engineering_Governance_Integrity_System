@@ -641,10 +641,10 @@ from outside that repository.
 ### 4.1 Python runtime baseline
 
 - **PR-RUNTIME-001:** The minimum supported system interpreter shall be Python
-  3.11.
+  3.12.
 - **PR-RUNTIME-002:** AEGIS and WAEGIS source code shall remain compatible with
-  Python 3.11 or later.
-- **PR-RUNTIME-003:** Compatibility validation shall include Python 3.11 on
+  the Python 3.12 release line.
+- **PR-RUNTIME-003:** Compatibility validation shall include Python 3.12 on
   Windows 11 and Ubuntu 22.04 LTS.
 - **PR-RUNTIME-004:** The first dependency-bundled editions shall include Python
   3.12. A later product release may move the bundled runtime while preserving
@@ -654,8 +654,7 @@ from outside that repository.
   virtual environment, because such environments are not generally portable
   between locations or machines.
 - **PR-RUNTIME-006:** Code shall not use syntax or standard-library behavior
-  introduced after Python 3.11 unless a compatible fallback is provided and
-  tested.
+  unavailable in Python 3.12.
 - **PR-RUNTIME-007:** Runtime code for AEGIS and WAEGIS shall depend only on the
   Python standard library. Normal operation shall not require third-party Python
   packages.
@@ -729,7 +728,8 @@ fixed context quota is required for a run or stage to proceed.
   or an appropriate application archive or package for the target operating
   system.
 - **PR-PKG-003:** Each release shall provide the following four delivery
-  editions:
+  editions for each supported platform, producing eight platform-specific
+  archives in the initial Windows and Ubuntu matrix:
 
   1. **AEGIS without external dependencies:** the AEGIS payload and its product
      assets, with external runtimes and tools declared as prerequisites and not
@@ -751,9 +751,9 @@ fixed context quota is required for a run or stage to proceed.
 - **PR-PKG-007:** Bundled Python and Git runtimes shall remain private to the
   product package. They shall not replace, modify, or require installation into
   the operating system's global runtime or Git configuration.
-- **PR-PKG-008:** Dependency-excluding editions shall require Python 3.11 or
-  later and a compatible Git installation, with exact prerequisites documented
-  in the package.
+- **PR-PKG-008:** Dependency-excluding editions shall require Python 3.12 and a
+  compatible Git installation, with exact prerequisites documented in the
+  package and checked by the product launcher.
 - **PR-PKG-009:** Bundled Python and Git versions shall remain fixed within a
   released AEGIS or WAEGIS version. Dependency refreshes, including security and
   maintenance refreshes, shall be delivered only through a new product update.

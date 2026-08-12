@@ -45,7 +45,7 @@ uv run --group dev ruff check .
 ```
 
 AEGIS and WAEGIS runtime code use only the Python standard library and support
-Python 3.11 or later. The standalone `02_Tools/build_aegis_release.py` script
+Python 3.12. The standalone `02_Tools/build_aegis_release.py` script
 builds and inspects deterministic archives from repository content.
 Dependency-including archives require real, locally supplied Python 3.12 and
 Git archives whose versions and SHA-256 digests are populated in

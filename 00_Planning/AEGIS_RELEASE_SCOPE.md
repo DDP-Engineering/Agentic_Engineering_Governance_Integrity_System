@@ -37,6 +37,11 @@ offline, preserve repository ownership, and operate through both human-readable
 artifacts and a stable machine interface. It must support Python 3.12 projects
 using `pytest` or `unittest` on Windows 11 and Ubuntu 22.04 x86-64.
 
+The release package matrix contains eight archives under `07_Delivery/dist/`:
+AEGIS and WAEGIS, each in external-runtime and bundled-runtime editions, for
+Windows and Ubuntu. External-runtime launchers check existing Python 3.12 and
+Git prerequisites without installing them.
+
 Adoption, upgrade execution, post-integration trace validation, and the
 complete named host-adapter set remain part of the product direction. They do
 not block the first usable forward-workflow release.

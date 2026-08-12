@@ -15,9 +15,15 @@ standard-library script `build_aegis_release.py`. Its dependency-including
 editions read exact local Python and Git inputs from `runtime_inputs.toml`.
 
 ```powershell
-python 02_Tools/build_aegis_release.py build --repository . --output dist --product aegis --platform windows-x86_64
-python 02_Tools/build_aegis_release.py inspect dist/aegis-1.0.0-windows-x86_64-external-runtime.zip
+python 02_Tools/build_aegis_release.py build --repository . --output 07_Delivery/dist --product aegis --platform windows-x86_64
+python 02_Tools/build_aegis_release.py inspect 07_Delivery/dist/aegis-1.0.0-windows-x86_64-external-runtime.zip
 ```
+
+Version 1 produces eight archives: AEGIS and WAEGIS, with external or bundled
+runtimes, for Windows x86-64 and Ubuntu 22.04 x86-64. External-runtime launchers
+check existing Python 3.12 and Git prerequisites without installing them.
+Bundled archives are built only after exact private Python 3.12 and Git inputs
+are supplied and verified by `runtime_inputs.toml`.
 
 Release launchers disable Python bytecode writes so running an extracted
 package does not add generated files below the product-owned payload.

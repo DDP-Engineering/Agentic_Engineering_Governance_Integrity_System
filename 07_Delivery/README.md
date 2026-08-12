@@ -10,6 +10,23 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 Release notes, delivery metadata, packaging notes, prompt references, and
 publication records for the standalone AEGIS project belong here.
 
+## AEGIS version 1 delivery matrix
+
+AEGIS version 1 is delivered as eight platform-specific ZIP archives in
+`07_Delivery/dist/`:
+
+| Product | Runtime edition | Windows x86-64 | Ubuntu 22.04 x86-64 |
+|---|---|---|---|
+| AEGIS | External Python 3.12 and Git | `aegis-1.0.0-windows-x86_64-external-runtime.zip` | `aegis-1.0.0-ubuntu-22.04-x86_64-external-runtime.zip` |
+| AEGIS | Private Python 3.12 and Git | `aegis-1.0.0-windows-x86_64-with-dependencies.zip` | `aegis-1.0.0-ubuntu-22.04-x86_64-with-dependencies.zip` |
+| WAEGIS containing AEGIS | External Python 3.12 and Git | `waegis-1.0.0-windows-x86_64-external-runtime.zip` | `waegis-1.0.0-ubuntu-22.04-x86_64-external-runtime.zip` |
+| WAEGIS containing AEGIS | Private Python 3.12 and Git | `waegis-1.0.0-windows-x86_64-with-dependencies.zip` | `waegis-1.0.0-ubuntu-22.04-x86_64-with-dependencies.zip` |
+
+External-runtime launchers only check and use the existing prerequisites; they
+do not install or configure Python or Git. Bundled archives use private runtime
+copies below the extracted archive and are built only from locally supplied,
+locked inputs. No release build downloads dependencies.
+
 ## Layout
 
 ```text
@@ -163,7 +180,7 @@ Windows x64 and Linux x64 builds and full internal-manifest verification.
   Windows and Linux archives (embedded CPython). See `waegis-0.3.0/RELEASE.md`
   for artifacts, checksums, usage, and the build command.
 
-## Current Delivery Model
+## Legacy AEGIS 2.1 / WAEGIS 1.1 delivery model
 
 WAEGIS deploys the template as copied files plus a bundled Python CLI:
 

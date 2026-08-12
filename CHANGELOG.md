@@ -45,6 +45,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Define the AEGIS version 1 delivery matrix as eight archives under
+  `07_Delivery/dist`: AEGIS and WAEGIS, with external or bundled runtimes, for
+  Windows and Ubuntu. External editions check existing Python 3.12 and Git
+  without installing them; bundled editions retain private locked runtimes.
+
 - Consolidate offline release archive construction and inspection into the
   standalone stdlib-only `02_Tools/build_aegis_release.py` script, with its
   truthful local-input lock beside it and no separate package or test project.

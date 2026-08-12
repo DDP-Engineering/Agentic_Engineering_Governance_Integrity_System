@@ -2,12 +2,12 @@
   "catalog_name": "AEGIS version 1 acceptance catalog",
   "required_matrices": {
     "package_cases": [
-      {"id": "aegis-external-windows", "edition": "aegis-external", "platform": "windows", "architecture": "x86_64", "runtime": "external-python-3.11"},
-      {"id": "waegis-external-windows", "edition": "waegis-external", "platform": "windows", "architecture": "x86_64", "runtime": "external-python-3.11"},
+      {"id": "aegis-external-windows", "edition": "aegis-external", "platform": "windows", "architecture": "x86_64", "runtime": "external-python-3.12"},
+      {"id": "waegis-external-windows", "edition": "waegis-external", "platform": "windows", "architecture": "x86_64", "runtime": "external-python-3.12"},
       {"id": "aegis-bundled-windows", "edition": "aegis-bundled", "platform": "windows", "architecture": "x86_64", "runtime": "bundled-python-3.12"},
       {"id": "waegis-bundled-windows", "edition": "waegis-bundled", "platform": "windows", "architecture": "x86_64", "runtime": "bundled-python-3.12"},
-      {"id": "aegis-external-ubuntu", "edition": "aegis-external", "platform": "ubuntu", "architecture": "x86_64", "runtime": "external-python-3.11"},
-      {"id": "waegis-external-ubuntu", "edition": "waegis-external", "platform": "ubuntu", "architecture": "x86_64", "runtime": "external-python-3.11"},
+      {"id": "aegis-external-ubuntu", "edition": "aegis-external", "platform": "ubuntu", "architecture": "x86_64", "runtime": "external-python-3.12"},
+      {"id": "waegis-external-ubuntu", "edition": "waegis-external", "platform": "ubuntu", "architecture": "x86_64", "runtime": "external-python-3.12"},
       {"id": "aegis-bundled-ubuntu", "edition": "aegis-bundled", "platform": "ubuntu", "architecture": "x86_64", "runtime": "bundled-python-3.12"},
       {"id": "waegis-bundled-ubuntu", "edition": "waegis-bundled", "platform": "ubuntu", "architecture": "x86_64", "runtime": "bundled-python-3.12"}
     ],

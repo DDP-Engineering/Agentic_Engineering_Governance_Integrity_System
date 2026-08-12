@@ -8,7 +8,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # AEGIS command runtime
 
 This standard-library-only package supplies the repository-local AEGIS command
-protocol. It supports Python 3.11 or later.
+protocol. It supports Python 3.12.
 
 Use the flat help and version commands through the package or installed script:
 

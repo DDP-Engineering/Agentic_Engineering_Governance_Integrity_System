@@ -142,15 +142,15 @@ remain available as evidence.
 
 | Environment | Operating system | Architecture | Runtime purpose |
 |---|---|---|---|
-| `ENV-WIN-SYSTEM-311` | Windows 11 | x86-64 | Minimum external Python compatibility. |
-| `ENV-UBU-SYSTEM-311` | Ubuntu 22.04 LTS | x86-64 | Minimum external Python compatibility. |
+| `ENV-WIN-SYSTEM-312` | Windows 11 | x86-64 | External Python 3.12 and Git prerequisites. |
+| `ENV-UBU-SYSTEM-312` | Ubuntu 22.04 LTS | x86-64 | External Python 3.12 and Git prerequisites. |
 | `ENV-WIN-BUNDLED-312` | Windows 11 | x86-64 | Private bundled Python 3.12 and Git. |
 | `ENV-UBU-BUNDLED-312` | Ubuntu 22.04 LTS | x86-64 | Private bundled Python 3.12 and Git. |
 
 The complete forward workflow is exercised with Python 3.12 target repositories
-using both `pytest` and standard-library `unittest` on Windows and Ubuntu. Python
-3.11 environments verify the minimum system-interpreter contract and shall not
-depend on language or standard-library behavior introduced after Python 3.11.
+using both `pytest` and standard-library `unittest` on Windows and Ubuntu.
+External-runtime environments verify that the launchers check Python 3.12 and
+Git without installing or modifying either prerequisite.
 
 ### 5.2 Delivery-edition matrix
 
@@ -219,9 +219,9 @@ release; the lower-priority subset is reported separately.
 | `AC-WAEGIS-003` | Could | Package + automated/manual | If diagnosis and repair are included, an unhealthy installation is reported and an approved repair restores payload-owned files without changing project-owned data. Otherwise the capability is declared deferred. | `PR-WAEGIS-003` |
 | `AC-WAEGIS-004` | Should | Package + automated | Upgrade plan is read-only; exact-digest apply replaces payload-owned files wholesale and preserves configuration, Requirements, Components, tests, Adoptions, and Runs. | `PR-WAEGIS-004-005`; `PR-PAYLOAD-003, 005`; `PR-SUCCESS-006` |
 | `AC-WAEGIS-005` | Must | Package + automated | Removal preview identifies only payload-owned paths. Apply removes the payload while the application and all project-owned artifacts remain usable and present. | `PR-POSTURE-004-006`; `PR-ART-004`; `PR-PAYLOAD-005` |
-| `AC-PKG-001` | Must | Package | All four editions exist for Windows and Ubuntu x86-64, can be transferred as complete archives, and perform their applicable first operation with network access denied. | `PR-PKG-001-006`; `PR-OFF-001-006` |
+| `AC-PKG-001` | Must | Package | All four editions exist for each of Windows and Ubuntu x86-64, producing eight transferable archives that perform their applicable first operation with network access denied. | `PR-PKG-001-006`; `PR-OFF-001-006` |
 | `AC-PKG-002` | Must | Package + inspection | Bundled editions use private Python 3.12 and Git, remain relocatable, do not install or alter global runtimes/configuration, and record exact fixed bundled versions. | `PR-PKG-007, 009`; `PR-RUNTIME-004-005` |
-| `AC-RUNTIME-001` | Must | Automated matrix | Dependency-excluding AEGIS and WAEGIS run with Python 3.11 on both platforms; source uses the standard library only; bundled editions run with their private Python 3.12. | `PR-RUNTIME-001-007`; `PR-PKG-008` |
+| `AC-RUNTIME-001` | Must | Automated matrix | Dependency-excluding AEGIS and WAEGIS launchers check and run with external Python 3.12 and Git on both platforms without installing them; source uses the standard library only; bundled editions run with their private Python 3.12 and Git. | `PR-RUNTIME-001-007`; `PR-PKG-008` |
 | `AC-PLATFORM-001` | Must | Automated differential | Equivalent inputs on Windows and Ubuntu produce the same states, enums, findings, operation identifiers, and semantic outcomes, with only documented platform path/presentation differences. | `PR-PLAT-001-004`; `PR-SCOPE-002, 005` |
 
 ## 8. Defaults, configuration, offline use, and model usability

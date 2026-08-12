@@ -1,6 +1,6 @@
 schema = 1
 artifact_type = "payload_manifest"
-payload_id = "PAYLOAD-1f1efcc5a853ecd5014a984fa1b3653d"
+payload_id = "PAYLOAD-498927f217ffdf57f9a766f5e619169f"
 product = "AEGIS"
 product_version = "1.0.0"
 platform = "windows"
@@ -43,13 +43,13 @@ sha256 = "7adf6312f0de449bc79c798f558c7ab9df9266c2a93409b4f4a9c0c94031f1f5"
 
 [[files]]
 path = "bin/aegis"
-size = 358
-sha256 = "5a4367728030bbf53c6be5d8c52d7fe7e46077aa945b8260042d5037274f1864"
+size = 558
+sha256 = "aea5921451f9b8235e9a9d04375a9e4885a53df895833174a29308f2daf611f1"
 
 [[files]]
 path = "bin/aegis.cmd"
-size = 327
-sha256 = "47723f7439cf8cb5865b350740958a823e93bab4f934ab0bfe69eb48692f8cef"
+size = 544
+sha256 = "edbcee9712a8e243f10663eef3f1e57e7dd5403b9ba08f1530549d4bc22ef0be"
 
 [[files]]
 path = "bin/launcher.py"
@@ -58,13 +58,13 @@ sha256 = "fb75365b75f644324d28a1ea5ebe05901471627f8b62db035e8f17398011e239"
 
 [[files]]
 path = "cli/README.md"
-size = 1520
-sha256 = "6e466e15867064fe45b374fb4b189d78f61bbe2f1ec4035b944a5f937fb3db09"
+size = 1511
+sha256 = "3ecec9d7b1afdca8a6ddcec9538e7d48ee9e5bcf143d9b1ccd6e25a0630a6b01"
 
 [[files]]
 path = "cli/pyproject.toml"
-size = 479
-sha256 = "3002edca16a6c86ffbdc9b2eb073cd0ec4669c663aea3f8d5c3b6e6d3f170c9a"
+size = 485
+sha256 = "610bd280940b5bd519a2acf4fcbb10cbbd46ea44c2627b91b37f8e6b7cac50f8"
 
 [[files]]
 path = "cli/src/aegis/__init__.py"
