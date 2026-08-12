@@ -1,0 +1,22 @@
+schema = 1
+id = "REQ-TEST-07679fdc"
+title = "Focused regression with safe fallback"
+status = "active"
+requirement = """
+When impacted testing is requested, AEGIS Light shall select the union of tests linked through requirements covering changed files and shall fall back visibly to the full configured test command when a safe focused set is unavailable.
+"""
+verification = "Change covered and uncovered files, verify focused selector substitution, and verify full-suite fallback for absent templates, coverage, or linked tests."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_run_report.py::test_impacted_substitutes_the_focused_set",
+    "05_Software/aegis-light/tests/test_run_report.py::test_impacted_falls_back_when_nothing_is_covered",
+    "05_Software/aegis-light/tests/test_run_report.py::test_impacted_falls_back_when_a_covered_file_has_no_tests",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_LIGHT_PLAN/02_Artifacts_And_Formats.md, Traceability model; 03_Companion_CLI.md, Focused regression; 05_Implementation_Phases.md, P4."
+created = 2026-08-12
+updated = 2026-08-12
+

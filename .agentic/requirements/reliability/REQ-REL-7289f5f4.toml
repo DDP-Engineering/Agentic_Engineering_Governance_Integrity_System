@@ -1,0 +1,21 @@
+schema = 1
+id = "REQ-REL-7289f5f4"
+title = "Make lifecycle plans exact and digestible"
+status = "active"
+requirement = """
+A lifecycle plan shall contain target identity and state, exact writes or deletions, ownership classification, prerequisites, warnings, and a SHA-256 digest.
+"""
+verification = "Create representative lifecycle plans and inspect their canonical actions, target fingerprint, ownership, warnings, and digest."
+affected_paths = [
+    "05_Software/waegis/src/waegis/domain/plans.py",
+    "05_Software/waegis/src/waegis/application/lifecycle.py",
+]
+linked_tests = [
+    "05_Software/waegis/tests/test_lifecycle.py::test_install_plan_is_read_only_and_apply_requires_exact_current_plan",
+    "05_Software/waegis/tests/test_lifecycle.py::test_upgrade_and_remove_use_manifest_ownership_and_preserve_project_data",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-WAEGIS-002."
+created = 2026-08-12
+updated = 2026-08-12

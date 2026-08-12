@@ -1,0 +1,24 @@
+schema = 1
+id = "REQ-FUNC-e5c2b57d"
+title = "Keep workflow meaning identical across hosts"
+status = "active"
+requirement = """
+The workflow contract, states, defaults, findings, and report meaning shall be identical across supported hosts.
+"""
+verification = "Compare all host descriptors with the shared contract and confirm none overrides workflow policy or result meaning."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/adapters/contract.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/claude-code/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/codex/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/qwen-code/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/opencode/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/pi/adapter.json",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_host_adapters.py::test_host_descriptors_use_one_contract_and_own_no_workflow_policy",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-HOST-003."
+created = 2026-08-12
+updated = 2026-08-12

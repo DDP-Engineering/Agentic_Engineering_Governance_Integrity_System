@@ -1,0 +1,19 @@
+schema = 1
+id = "REQ-FUNC-e04edca3"
+title = "Keep each ticket in a distinct run"
+status = "active"
+requirement = """
+Each ticket shall be handled through a distinct Run with its own collision-resistant identifier, workflow state, artifacts, evidence, findings, approvals, and outcome.
+"""
+verification = "Create multiple Runs and confirm their identifiers and durable state remain distinct."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_run_stage_workflow.py::test_multiple_runs_list_select_and_profile_change_do_not_combine_state",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-RUN-001."
+created = 2026-08-12
+updated = 2026-08-12

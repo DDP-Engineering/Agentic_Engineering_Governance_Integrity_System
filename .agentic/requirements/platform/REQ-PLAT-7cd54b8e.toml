@@ -1,0 +1,24 @@
+schema = 1
+id = "REQ-PLAT-7cd54b8e"
+title = "Support multiple agent hosts"
+status = "active"
+requirement = """
+AEGIS shall be usable from multiple agent applications through host-specific adapters where integration is required.
+"""
+verification = "Load every shipped host descriptor and confirm it conforms to the common adapter contract."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/adapters/contract.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/claude-code/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/codex/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/qwen-code/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/opencode/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/pi/adapter.json",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_host_adapters.py::test_host_descriptors_use_one_contract_and_own_no_workflow_policy",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-HOST-001."
+created = 2026-08-12
+updated = 2026-08-12

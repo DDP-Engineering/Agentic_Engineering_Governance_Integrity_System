@@ -1,0 +1,22 @@
+schema = 1
+id = "REQ-FUNC-428573c5"
+title = "Assemble bounded relevant stage context"
+status = "active"
+requirement = """
+Stage reading shall assemble bounded context from the Run summary, current Stage, directly relevant Components and Requirements, project rules, and concise tool findings without concatenating the complete repository register.
+"""
+verification = "Read selected and historical Stages across small, missing, and oversized graphs and confirm relevant bounded context, stable ordering, findings, and omission counts."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/resume_context.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_stage_resume_context.py::test_selected_stage_show_assembles_relevant_resume_graph_and_absent_rules",
+    "05_Software/aegis/tests/test_stage_resume_context.py::test_missing_references_remain_visible_as_nonfabricated_context_findings",
+    "05_Software/aegis/tests/test_stage_resume_context.py::test_large_resume_graph_has_profile_budget_and_deterministic_omission_counts",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-HOST-002."
+created = 2026-08-12
+updated = 2026-08-12

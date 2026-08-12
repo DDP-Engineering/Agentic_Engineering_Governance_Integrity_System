@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-PLAT-c1bc7244"
+title = "Avoid outward and integration Git actions"
+status = "active"
+requirement = """
+Except for separately authorized repository initialization, WAEGIS shall not stage, commit, create or switch branches, tag, merge, push, or create pull requests.
+"""
+verification = "Inspect the operation catalog and exercise lifecycle operations; confirm no outward or integration Git action exists."
+affected_paths = [
+    "05_Software/waegis/src/waegis/application/registry.py",
+    "05_Software/waegis/src/waegis/infrastructure/git.py",
+]
+linked_tests = [
+    "05_Software/waegis/tests/test_lifecycle.py::test_catalog_and_envelope_are_bounded_and_have_no_outward_git_action",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-WAEGIS-006."
+created = 2026-08-12
+updated = 2026-08-12

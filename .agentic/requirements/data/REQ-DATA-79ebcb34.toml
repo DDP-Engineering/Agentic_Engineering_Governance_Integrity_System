@@ -1,0 +1,24 @@
+schema = 1
+id = "REQ-DATA-79ebcb34"
+title = "Plain-file traceability and resumable journals"
+status = "active"
+requirement = """
+AEGIS Light shall keep each requirement, specification, task journal, and component knowledge artifact in a separate human-readable repository file, with traceability links stored on requirements and tasks.
+"""
+verification = "Inspect generated artifacts and run link, header, duplicate identity, and component-state checks across separate files."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/AGENTS.md",
+    "05_Software/aegis-light/template/.agentic/templates",
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_check.py::test_journal_header_silent_when_requirements_exist",
+    "05_Software/aegis-light/tests/test_check.py::test_dup_id_fires_on_mismatch_wrong_folder_and_duplicates",
+    "05_Software/aegis-light/tests/test_run_report.py::test_components_section_is_parsed_and_shown",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_LIGHT_PLAN/00_README.md, Thesis items 3 and 5; 02_Artifacts_And_Formats.md, Directory layout and traceability model."
+created = 2026-08-12
+updated = 2026-08-12
+

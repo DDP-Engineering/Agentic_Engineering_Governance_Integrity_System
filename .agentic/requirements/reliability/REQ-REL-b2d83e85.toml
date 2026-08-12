@@ -1,0 +1,22 @@
+schema = 1
+id = "REQ-REL-b2d83e85"
+title = "Compile acceptance verdicts without manufacturing passes"
+status = "active"
+requirement = """
+The acceptance compiler shall return accepted only when all applicable Must coverage and required matrix evidence are retained and valid; missing, unfavorable, blocked, deferred, or not-run results shall remain visible and shall not become passes.
+"""
+verification = "Compile complete and incomplete records with retries and deferrals, confirming only complete retained evidence yields accepted and reports preserve every unfavorable result."
+affected_paths = [
+    "02_Tools/aegis_acceptance.py",
+]
+linked_tests = [
+    "02_Tools/tests/test_aegis_acceptance.py::AcceptanceTests::test_requirement_coverage_and_matrix_are_required",
+    "02_Tools/tests/test_aegis_acceptance.py::AcceptanceTests::test_unfavorable_attempt_and_matrix_spoof_reject",
+    "02_Tools/tests/test_aegis_acceptance.py::AcceptanceTests::test_cli_init_validate_report_and_overwrite",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_ACCEPTANCE_PLAN.md, Priority and verdict policy, Evidence contract, and acceptance completion record; AEGIS_IMPLEMENTATION_PLAN.md, IP-18."
+created = 2026-08-12
+updated = 2026-08-12
+

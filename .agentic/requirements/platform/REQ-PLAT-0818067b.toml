@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-PLAT-0818067b"
+title = "Authorize local repository initialization separately"
+status = "active"
+requirement = """
+When the target is not a Git repository, WAEGIS shall offer local `git init` through a separate dry-run preview and operator-authorized apply.
+"""
+verification = "Plan repository initialization and confirm only its exact authorized apply invokes local Git initialization."
+affected_paths = [
+    "05_Software/waegis/src/waegis/application/lifecycle.py",
+    "05_Software/waegis/src/waegis/infrastructure/git.py",
+]
+linked_tests = [
+    "05_Software/waegis/tests/test_lifecycle.py::test_repository_init_is_separately_planned_and_only_apply_runs_git",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-WAEGIS-007."
+created = 2026-08-12
+updated = 2026-08-12

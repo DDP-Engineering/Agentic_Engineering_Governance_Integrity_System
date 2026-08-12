@@ -1,0 +1,23 @@
+schema = 1
+id = "REQ-REL-5fc2eb80"
+title = "Build a version-consistent transferable archive"
+status = "active"
+requirement = """
+When an AEGIS Light release archive is built, the builder shall verify the payload, require the requested release label to match the payload version, and produce a transferable package with recorded checksums.
+"""
+verification = "Run release-builder unit tests for version extraction, disagreement refusal, payload verification ordering, and archive metadata."
+affected_paths = [
+    "02_Tools/build_aegis_light_release.py",
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_release_builder.py::test_payload_version_reads_python_string_assignments",
+    "05_Software/aegis-light/tests/test_release_builder.py::test_build_rejects_a_label_that_disagrees_with_the_payload",
+    "05_Software/aegis-light/tests/test_release_builder.py::test_build_resolves_default_and_matching_versions_before_verification",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_LIGHT_PLAN/00_README.md, Product goals 2-4; 05_Implementation_Phases.md, P5 structural guards and packaging."
+created = 2026-08-12
+updated = 2026-08-12
+

@@ -1,0 +1,25 @@
+schema = 1
+id = "REQ-REL-65d839d8"
+title = "Return state conflict for stale revisions"
+status = "active"
+requirement = """
+A mismatched revision shall return `state_conflict`, preserve both existing and caller-supplied information, and propose a new read action.
+"""
+verification = "Attempt stale Run, Stage, project-knowledge, Adoption, Attachment, and execution mutations and confirm no target bytes or process state change."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/dispatcher.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/project_operations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/lifecycle_operations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/execution_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_machine_revision_contract.py::test_stage_matching_and_stale_revisions_preserve_exact_stage_and_run_bytes",
+    "05_Software/aegis/tests/test_machine_revision_contract.py::test_missing_and_stale_project_revisions_preserve_project_and_workflow_bytes",
+    "05_Software/aegis/tests/test_machine_revision_contract.py::test_execution_revision_is_rejected_before_process_launch",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_CLI_MACHINE_PROTOCOL.md, CP-REVISION-003."
+created = 2026-08-12
+updated = 2026-08-12

@@ -1,0 +1,23 @@
+schema = 1
+id = "REQ-PLAT-bc526721"
+title = "Support the initial five agent hosts"
+status = "active"
+requirement = """
+The initial supported agent hosts shall be Claude Code, Codex, Qwen Code, OpenCode, and Pi.
+"""
+verification = "Enumerate shipped adapter descriptors and confirm exactly the five initial host identities are present."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/adapters/claude-code/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/codex/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/qwen-code/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/opencode/adapter.json",
+    "05_Software/aegis/template/.agentic/aegis/adapters/pi/adapter.json",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_host_adapters.py::test_host_descriptors_use_one_contract_and_own_no_workflow_policy",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-HOST-002."
+created = 2026-08-12
+updated = 2026-08-12

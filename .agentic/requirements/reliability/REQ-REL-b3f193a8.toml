@@ -1,0 +1,22 @@
+schema = 1
+id = "REQ-REL-b3f193a8"
+title = "Produce the eight offline release editions"
+status = "active"
+requirement = """
+The release builder shall support AEGIS and WAEGIS external-runtime and bundled-runtime editions independently for Windows and Ubuntu x86-64, producing eight transferable archives when all required local inputs are available.
+"""
+verification = "Build or inspect each product, runtime edition, and target-platform combination and confirm its inventory identity and offline launcher contract."
+affected_paths = [
+    "02_Tools/build_aegis_release.py",
+    "02_Tools/runtime_inputs.toml",
+]
+linked_tests = [
+    "02_Tools/tests/test_release_launchers.py::ReleaseLauncherTests::test_launchers_do_not_write_bytecode_into_product_files",
+    "02_Tools/tests/test_release_launchers.py::ReleaseLauncherTests::test_external_editions_check_python_312_and_git",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-PKG-001 through PR-PKG-006; AEGIS_TECHNICAL_ARCHITECTURE.md, TA-PACKAGE-010 through TA-PACKAGE-011."
+created = 2026-08-12
+updated = 2026-08-12
+

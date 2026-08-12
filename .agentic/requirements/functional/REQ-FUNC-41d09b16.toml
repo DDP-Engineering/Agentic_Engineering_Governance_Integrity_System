@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-FUNC-41d09b16"
+title = "Present one application result consistently"
+status = "active"
+requirement = """
+Human and JSON presenters shall consume the same application result, and neither presenter shall recalculate findings, outcomes, or next actions.
+"""
+verification = "Present identical application results in both formats and compare their semantics."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/interface/human_presenter.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/interface/json_presenter.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_cli_protocol.py::test_human_and_json_present_the_same_implemented_result",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-CLI-005."
+created = 2026-08-12
+updated = 2026-08-12

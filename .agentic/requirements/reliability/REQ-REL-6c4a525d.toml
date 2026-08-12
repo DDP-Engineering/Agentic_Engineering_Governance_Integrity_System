@@ -1,0 +1,22 @@
+schema = 1
+id = "REQ-REL-6c4a525d"
+title = "Publish state atomically"
+status = "active"
+requirement = """
+AEGIS state shall be published atomically. An interrupted or killed process shall leave either the previous complete state or the new complete state, never a partially published artifact presented as valid.
+"""
+verification = "Inject interruption before, during, and after replacement and confirm only complete before or after bytes are observable."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/publication.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/transactions.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_atomic_publication.py::test_interruption_exposes_only_before_or_after_state",
+    "05_Software/aegis/tests/test_atomic_publication.py::test_hard_process_exit_exposes_only_before_or_after_state",
+    "05_Software/aegis/tests/test_transactions.py::test_create_replace_and_delete_publish_as_one_decided_state",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-STATE-001."
+created = 2026-08-12
+updated = 2026-08-12

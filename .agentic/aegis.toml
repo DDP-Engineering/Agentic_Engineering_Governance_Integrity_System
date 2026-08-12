@@ -1,0 +1,46 @@
+# AEGIS Light configuration. Written once by `aegis init` and yours from
+# then on - upgrades never overwrite this file.
+
+schema = 1
+
+[commands]
+# `aegis test` runs `test`; `aegis check --run` runs every entry here.
+test = "uv run --directory 05_Software/aegis --group dev python -m pytest -q tests && uv run --directory 05_Software/waegis --group dev python -m pytest -q tests && uv run --project 05_Software/aegis --group dev python -m pytest -q 05_Software/aegis-light/tests"
+test_impacted = "uv run --project 05_Software/aegis --group dev python -m pytest -q {tests}"
+lint = "uv run --directory 05_Software/aegis --group dev ruff check . && uv run --directory 05_Software/waegis --group dev ruff check ."
+# timeout = 1800                        # seconds allowed per command
+
+[layout]
+# Globs used by the traceability heuristics of `aegis check`.
+source = [
+    "02_Tools/",
+    "05_Software/aegis/template/.agentic/aegis/",
+    "05_Software/aegis-light/template/.agentic/",
+    "05_Software/waegis/src/",
+]
+tests = [
+    "05_Software/aegis/tests/",
+    "05_Software/aegis-light/tests/",
+    "05_Software/waegis/tests/",
+]
+
+[zones]
+# What each stage may write besides `.agentic/`, which every stage may
+# always write. Values name the globs above: "source", "tests". A stage
+# left out entirely may write anywhere - that is why build and deliver
+# are not listed. Advisory like everything else: check reports an edit
+# outside the zone, it never stops one. The defaults are shown; uncomment
+# and change a line to widen or narrow one stage.
+# frame = []
+# specify = []
+# design = []
+# survey = []
+# components = ["tests"]
+# close = []
+
+[check]
+secret_patterns_extra = []
+ignore = []
+strict_promote = []
+# run = ["test", "lint"]   # restrict what `check --run` executes; without
+#                          # this, side-effect-looking names are skipped

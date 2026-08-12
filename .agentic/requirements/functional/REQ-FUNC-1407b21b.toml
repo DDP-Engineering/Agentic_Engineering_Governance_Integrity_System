@@ -1,0 +1,23 @@
+schema = 1
+id = "REQ-FUNC-1407b21b"
+title = "Idempotent repository initialization"
+status = "active"
+requirement = """
+When initialization runs in a repository, AEGIS Light shall create missing data folders and pointer guidance while preserving existing pointer content, configuration, and user-owned data.
+"""
+verification = "Run initialization twice over empty and pre-populated repositories and compare bytes and user-owned content."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+    "05_Software/aegis-light/template/.agentic/templates",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_cli_core.py::test_init_is_a_byte_for_byte_no_op_on_the_second_run",
+    "05_Software/aegis-light/tests/test_cli_core.py::test_init_appends_to_pointer_files_without_clobbering",
+    "05_Software/aegis-light/tests/test_cli_core.py::test_init_leaves_user_data_folders_untouched",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_LIGHT_PLAN/03_Companion_CLI.md, Deployment init upgrade ownership; 05_Implementation_Phases.md, P2."
+created = 2026-08-12
+updated = 2026-08-12
+

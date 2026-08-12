@@ -1,0 +1,19 @@
+schema = 1
+id = "REQ-PLAT-4253ae41"
+title = "Expose no mutating Git operations"
+status = "active"
+requirement = """
+The Git observer may inspect worktree root, HEAD, index, staged and unstaged state, untracked paths, and exact content. It shall expose no staging, commit, branch, merge, tag, push, pull-request, or remote operation.
+"""
+verification = "Inspect the workspace adapter and exercise Git observation; confirm only read-only subprocess commands and observation results are available."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/workspace.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_execution_integrity.py::test_check_git_comparison_reports_implementation_change_without_mutation",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-REPO-005."
+created = 2026-08-12
+updated = 2026-08-12

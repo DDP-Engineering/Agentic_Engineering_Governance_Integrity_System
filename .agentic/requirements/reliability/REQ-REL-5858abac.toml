@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-REL-5858abac"
+title = "Drain process output without deadlocks"
+status = "active"
+requirement = """
+Standard output and error shall be drained concurrently to avoid pipe deadlocks. Bounded tails shall remain in the response or evidence, and large complete output shall be streamed to an Attachment.
+"""
+verification = "Execute a command producing large output and confirm completion, bounded evidence, and retained Attachment content."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/process.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/workspace.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_execution_integrity.py::test_execution_run_records_all_operational_outcomes_and_large_attachment",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-PROCESS-005."
+created = 2026-08-12
+updated = 2026-08-12

@@ -1,0 +1,23 @@
+schema = 1
+id = "REQ-TEST-c33c5899"
+title = "Require executed red-before-green evidence"
+status = "active"
+requirement = """
+AEGIS shall require recorded evidence that a test failed before implementation and passed after implementation before describing the Requirement as having complete red-before-green evidence.
+"""
+verification = "Record actual failing and passing executions around Implementation and confirm only an immutable prior red witness plus later green evidence satisfies the expectation."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/stage_expectations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/execution_operations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_stage_completion_expectations.py::test_check_valid_red_witness_remains_immutable_and_satisfies_expectation",
+    "05_Software/aegis/tests/test_stage_completion_expectations.py::test_check_passing_execution_without_prior_red_is_reported",
+    "05_Software/aegis/tests/test_stage_completion_expectations.py::test_implementation_without_green_test_evidence_is_advisory",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-RED-001."
+created = 2026-08-12
+updated = 2026-08-12

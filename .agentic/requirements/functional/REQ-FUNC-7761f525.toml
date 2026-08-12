@@ -1,0 +1,21 @@
+schema = 1
+id = "REQ-FUNC-7761f525"
+title = "Maintain current requirement-file-test traceability"
+status = "active"
+requirement = """
+AEGIS shall maintain current traceability from each Requirement to its impacted implementation files and from those files to their tests. Updating or deleting project knowledge shall update or remove dependent current links rather than preserve historical links.
+"""
+verification = "Create and replace Requirement, Specification, and Component links, validate the trace graph, then delete a Requirement and confirm dependent current links are removed without deleting source or tests."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/project_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_project_knowledge_trace.py::test_requirement_and_specification_replace_current_content_without_provenance",
+    "05_Software/aegis/tests/test_project_knowledge_trace.py::test_component_find_validate_and_requirement_delete_preserve_source_and_tests",
+    "05_Software/aegis/tests/test_project_knowledge_trace.py::test_trace_validate_reports_incomplete_and_diverged_file_coverage",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-TRACE-001."
+created = 2026-08-12
+updated = 2026-08-12

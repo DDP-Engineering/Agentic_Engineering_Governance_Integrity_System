@@ -1,0 +1,19 @@
+schema = 1
+id = "REQ-REL-92820eeb"
+title = "Reject stale reads before transaction preparation"
+status = "active"
+requirement = """
+Optimistic concurrency shall use the caller's expected content revision and detect stale reads before transaction preparation.
+"""
+verification = "Attempt a multi-file mutation with one stale revision and confirm no target or transaction state changes."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/transactions.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_transactions.py::test_stale_revision_rejects_the_complete_mutation",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-CONCURRENCY-001."
+created = 2026-08-12
+updated = 2026-08-12

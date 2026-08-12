@@ -1,0 +1,22 @@
+schema = 1
+id = "REQ-FUNC-5acb044e"
+title = "Heuristic integrity reporting"
+status = "active"
+requirement = """
+AEGIS Light shall report malformed artifacts, broken traceability, scope drift, secret patterns, and workflow hygiene as stable findings while keeping default checks advisory.
+"""
+verification = "Exercise each check with firing and silent fixtures and confirm clean, warning, and error summaries have stable bounded formatting."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_check.py::test_golden_output_is_stable",
+    "05_Software/aegis-light/tests/test_check.py::test_clean_repo_reports_ok",
+    "05_Software/aegis-light/tests/test_check.py::test_help_lists_all_seventeen_slugs_and_the_diff_basis",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_LIGHT_PLAN/03_Companion_CLI.md, Heuristic check catalog; 05_Implementation_Phases.md, P3."
+created = 2026-08-12
+updated = 2026-08-12
+

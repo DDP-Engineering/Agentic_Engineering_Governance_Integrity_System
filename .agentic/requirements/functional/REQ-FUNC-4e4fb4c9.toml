@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-FUNC-4e4fb4c9"
+title = "Upgrade without losing project data"
+status = "active"
+requirement = """
+An operator shall be able to use WAEGIS to upgrade a repository to a newer AEGIS payload without losing repository-owned rules, configuration, workflow state, evidence, or other project data.
+"""
+verification = "Plan and apply upgrade over modified payload and project-owned artifacts and confirm only manifest-owned paths change."
+affected_paths = [
+    "05_Software/waegis/src/waegis/application/lifecycle.py",
+    "05_Software/waegis/src/waegis/infrastructure/payload.py",
+]
+linked_tests = [
+    "05_Software/waegis/tests/test_lifecycle.py::test_upgrade_and_remove_use_manifest_ownership_and_preserve_project_data",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-WAEGIS-004."
+created = 2026-08-12
+updated = 2026-08-12

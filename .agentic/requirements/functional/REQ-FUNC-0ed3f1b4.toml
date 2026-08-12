@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-FUNC-0ed3f1b4"
+title = "Close delivery only after approval"
+status = "active"
+requirement = """
+Delivery approval shall accept the accuracy of the report and authorize closure without changing failed, skipped, waived, missing, uncertain, or unverified results into passes. Completing Delivery after approval shall set the Run outcome to `delivered`.
+"""
+verification = "Record approval and rejection sequences and confirm only the latest applicable approval atomically completes Delivery and the Run."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_delivery_adoption.py::test_approved_delivery_atomically_completes_stage_run_and_pointer",
+    "05_Software/aegis/tests/test_delivery_adoption.py::test_delivery_latest_applicable_decision_must_be_approved",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-DELIVERY-002."
+created = 2026-08-12
+updated = 2026-08-12

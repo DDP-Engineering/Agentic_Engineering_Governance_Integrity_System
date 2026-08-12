@@ -1,0 +1,19 @@
+schema = 1
+id = "REQ-REL-d204dc36"
+title = "Verify exact local bundled runtime inputs"
+status = "active"
+requirement = """
+When a bundled edition is requested, the release builder shall use explicit local Python and Git archives only after their versions and SHA-256 digests match the checked-in runtime lock.
+"""
+verification = "Provide missing, mismatched, and matching local runtime archives and confirm the builder refuses unsafe inputs before creating an output archive."
+affected_paths = [
+    "02_Tools/build_aegis_release.py",
+    "02_Tools/runtime_inputs.toml",
+]
+linked_tests = []
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_TECHNICAL_ARCHITECTURE.md, TA-PACKAGE-004 through TA-PACKAGE-007; AEGIS_PRODUCT_REQUIREMENTS.md, PR-PKG-007 and PR-PKG-009."
+created = 2026-08-12
+updated = 2026-08-12
+

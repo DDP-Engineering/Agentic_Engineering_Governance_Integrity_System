@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-REL-862a5141"
+title = "Avoid unsupported change authorship"
+status = "active"
+requirement = """
+When AEGIS cannot establish who or what produced a change, it shall report only the observed timing and state of that change rather than claim authorship it cannot prove.
+"""
+verification = "Change branch, HEAD, index, and worktree state after Run opening and confirm observations record uncertainty rather than authorship."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_run_stage_workflow.py::test_branch_and_head_transition_record_exact_timed_uncertainty",
+    "05_Software/aegis/tests/test_run_stage_workflow.py::test_index_transition_is_durable_attribution_uncertainty",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-RUN-007."
+created = 2026-08-12
+updated = 2026-08-12

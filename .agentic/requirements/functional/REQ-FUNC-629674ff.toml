@@ -1,0 +1,20 @@
+schema = 1
+id = "REQ-FUNC-629674ff"
+title = "Preview installation before writing"
+status = "active"
+requirement = """
+Before installation performs its first write, WAEGIS shall provide a dry-run preview of the files and repository state it would create, replace, or modify. The dry run itself shall not modify the target repository.
+"""
+verification = "Create an install plan, compare target bytes before and after planning, and inspect every intended action before apply."
+affected_paths = [
+    "05_Software/waegis/src/waegis/application/lifecycle.py",
+    "05_Software/waegis/src/waegis/domain/plans.py",
+]
+linked_tests = [
+    "05_Software/waegis/tests/test_lifecycle.py::test_install_plan_is_read_only_and_apply_requires_exact_current_plan",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-WAEGIS-002."
+created = 2026-08-12
+updated = 2026-08-12

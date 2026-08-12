@@ -1,0 +1,19 @@
+schema = 1
+id = "REQ-REL-de2680dc"
+title = "Record unresolved adoption gaps"
+status = "active"
+requirement = """
+Adoption shall record behavior, coverage, or relationships it could not derive as explicit gaps. It shall not invent requirements or links to create the appearance of complete adoption.
+"""
+verification = "Record unresolved Adoption sections and confirm gaps remain visible after resume and completion attempts."
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/lifecycle_operations.py",
+]
+linked_tests = [
+    "05_Software/aegis/tests/test_delivery_adoption.py::test_adoption_is_incremental_resumable_and_preserves_visible_gaps",
+]
+spec = ""
+priority = "normal"
+rationale = "Authoritative source: 00_Planning/AEGIS_PRODUCT_REQUIREMENTS.md, PR-ADOPT-006."
+created = 2026-08-12
+updated = 2026-08-12
