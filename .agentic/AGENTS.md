@@ -61,12 +61,13 @@ defined in that one file; `status` points them back at it.
 | Component knowledge | `.agentic/knowledge/<component>.md`, one page per component |
 | Templates | `.agentic/templates/` — `requirement.toml`, `spec.md`, `task.md`, `component.md` |
 | Step files | `.agentic/steps/` |
+| CLI reference | `.agentic/CLI.md` |
 | Config | `.agentic/aegis.toml` — test/lint commands, source and test globs |
 
 Source code and tests stay where the repo already keeps them. Never write
 work products anywhere else; `check` flags strays.
 
-**Do not edit the payload.** `AGENTS.md`, `steps/`, `templates/`,
+**Do not edit the payload.** `AGENTS.md`, `CLI.md`, `steps/`, `templates/`,
 `aegis.py` and `LICENSE.txt` are replaced wholesale when this workflow is
 upgraded, so any change you make there is silently lost. Found a bug in
 `aegis.py`, or need a rule the steps do not cover? Say so and let the
@@ -140,11 +141,14 @@ For a small local model, give one stage per session:
 
 ## Commands you will use
 
+The complete syntax, options, examples, exit behavior, and guidance on when
+to use each command are in `.agentic/CLI.md`.
+
 ```
 # "python" throughout - use "python3" on Linux distributions without it
 python .agentic/aegis.py status                 # open tasks, or one task's state
-python .agentic/aegis.py task new "<title>"     # new task journal
-python .agentic/aegis.py req new <cat> "<t>"    # new requirement file
+python .agentic/aegis.py task "<title>"         # new task journal
+python .agentic/aegis.py req <cat> "<title>"    # new requirement file
 python .agentic/aegis.py check                  # advisory report, always exits 0
 python .agentic/aegis.py test --impacted        # fast inner loop during build
 python .agentic/aegis.py test                   # full suite, used at validate

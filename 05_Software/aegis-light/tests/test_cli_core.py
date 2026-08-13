@@ -96,9 +96,9 @@ def test_ids_are_collision_checked_against_existing_files(tmp_path, monkeypatch)
     monkeypatch.setattr(aegis.secrets, "token_hex", lambda _n: next(draws))
     monkeypatch.setattr(aegis, "git_branch", lambda: "main")
 
-    assert aegis.main(["task", "new", "second"]) == 0
+    assert aegis.main(["task", "second"]) == 0
     assert (agentic / "tasks" / "TASK-0f0f.md").is_file()
-    assert aegis.main(["req", "new", "functional", "second"]) == 0
+    assert aegis.main(["req", "functional", "second"]) == 0
     assert (agentic / "requirements" / "functional" / "REQ-FUNC-1e1e.toml").is_file()
 
 
@@ -215,14 +215,14 @@ def test_init_reports_an_incomplete_payload(tmp_path, capsys):
     assert capsys.readouterr().err.startswith("error: payload looks incomplete")
 
 
-# TESTS - req new
+# TESTS - req
 
 
-def test_req_new_writes_the_category_folder_and_id(tmp_path, capsys):
+def test_req_writes_the_category_folder_and_id(tmp_path, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     capsys.readouterr()
-    assert aegis.main(["req", "new", "security", "Reject unsigned payloads"]) == 0
+    assert aegis.main(["req", "security", "Reject unsigned payloads"]) == 0
 
     printed = capsys.readouterr().out.strip()
     path = tmp_path / printed
@@ -253,21 +253,21 @@ def test_req_new_writes_the_category_folder_and_id(tmp_path, capsys):
         ("testing", "test", "TEST"),
     ],
 )
-def test_req_new_covers_all_eight_categories(tmp_path, capsys, category, folder, code):
+def test_req_covers_all_eight_categories(tmp_path, capsys, category, folder, code):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     capsys.readouterr()
-    assert aegis.main(["req", "new", category, "A behavior"]) == 0
+    assert aegis.main(["req", category, "A behavior"]) == 0
     path = tmp_path / capsys.readouterr().out.strip()
     assert path.parent == agentic / "requirements" / folder
     assert path.stem.startswith(f"REQ-{code}-")
 
 
-def test_req_new_rejects_an_unknown_category(tmp_path, capsys):
+def test_req_rejects_an_unknown_category(tmp_path, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     capsys.readouterr()
-    assert aegis.main(["req", "new", "performance", "Be fast"]) == 1
+    assert aegis.main(["req", "performance", "Be fast"]) == 1
 
     err = capsys.readouterr().err
     assert err.startswith("error: unknown category 'performance'")
@@ -275,19 +275,19 @@ def test_req_new_rejects_an_unknown_category(tmp_path, capsys):
     assert not list((agentic / "requirements").rglob("*.toml"))
 
 
-def test_req_new_reports_a_missing_template(tmp_path, capsys):
+def test_req_reports_a_missing_template(tmp_path, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     (agentic / "templates" / "requirement.toml").unlink()
-    assert aegis.main(["req", "new", "ux", "A behavior"]) == 1
+    assert aegis.main(["req", "ux", "A behavior"]) == 1
     assert "missing template" in capsys.readouterr().err
 
 
-def test_req_new_quotes_a_title_containing_quotes(tmp_path, capsys):
+def test_req_quotes_a_title_containing_quotes(tmp_path, capsys):
     _, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     capsys.readouterr()
-    assert aegis.main(["req", "new", "ux", 'Show "n of m" in the footer']) == 0
+    assert aegis.main(["req", "ux", 'Show "n of m" in the footer']) == 0
 
     import tomllib
 
@@ -296,16 +296,27 @@ def test_req_new_quotes_a_title_containing_quotes(tmp_path, capsys):
     assert loaded["title"] == 'Show "n of m" in the footer'
 
 
-# TESTS - task new and status round trip
+@pytest.mark.parametrize("argv", [
+    ["task", "new", "Legacy task form"],
+    ["req", "new", "functional", "Legacy requirement form"],
+])
+def test_nested_new_forms_are_not_accepted(tmp_path, argv):
+    """The public CLI has one flat creation form, without compatibility parsing."""
+    _, aegis = make_repo(tmp_path)
+    with pytest.raises(SystemExit):
+        aegis.build_parser().parse_args(argv)
 
 
-def test_task_new_then_status_round_trip(tmp_path, capsys, monkeypatch):
+# TESTS - task and status round trip
+
+
+def test_task_then_status_round_trip(tmp_path, capsys, monkeypatch):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_branch", lambda: "feature/m3u-export")
     capsys.readouterr()
 
-    assert aegis.main(["task", "new", "Export playlist as M3U", "--type", "fix"]) == 0
+    assert aegis.main(["task", "Export playlist as M3U", "--type", "fix"]) == 0
     printed = capsys.readouterr().out.strip()
     path = tmp_path / printed
     assert path.parent == agentic / "tasks"
@@ -385,19 +396,22 @@ def test_status_on_an_empty_repo_and_on_a_missing_task(tmp_path, capsys):
     capsys.readouterr()
 
     assert aegis.main(["status"]) == 0
-    assert "no task journals yet" in capsys.readouterr().out
+    empty = capsys.readouterr().out
+    assert "no task journals yet" in empty
+    assert 'aegis.py task "<title>"' in empty
+    assert "task new" not in empty
     assert aegis.main(["status", "TASK-dead"]) == 1
     assert capsys.readouterr().err.startswith("error: no such task journal")
 
 
-def test_task_new_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
+def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
     """The only differences from the template are the substituted values."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_branch", lambda: "main")
     capsys.readouterr()
 
-    aegis.main(["task", "new", "Keep the shape"])
+    aegis.main(["task", "Keep the shape"])
     generated = (tmp_path / capsys.readouterr().out.strip()).read_text("utf-8")
     original = (agentic / "templates" / "task.md").read_text("utf-8")
 

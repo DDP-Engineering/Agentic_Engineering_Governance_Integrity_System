@@ -52,7 +52,7 @@ markers without clobbering existing content. Commit, done. Edit
 `.agentic/aegis.toml` to point `[commands] test` and `[layout]` at your
 project.
 
-Upgrade = copy the newer payload-owned files over (`AGENTS.md`,
+Upgrade = copy the newer payload-owned files over (`AGENTS.md`, `CLI.md`,
 `steps/`, `templates/`, `aegis.py`) and review the `git diff`. Your data
 (`requirements/`, `specs/`, `tasks/`, `knowledge/`, `aegis.toml`) is
 never part of the payload. Uninstall = delete `.agentic/` and the
@@ -80,11 +80,16 @@ that candidate, returning to validation if it changes.
 
 ## CLI
 
+The complete installed command reference is
+[`template/.agentic/CLI.md`](template/.agentic/CLI.md). It documents every
+command and option, examples, exit behavior, and when each command belongs
+in the workflow.
+
 | Command | Purpose |
 |---|---|
 | `init` | Finish installation in a repo (idempotent). |
-| `task new "<title>" [--type]` | Open a task journal. |
-| `req new <category> "<title>"` | Scaffold a requirement file. |
+| `task "<title>" [--type]` | Open a task journal. |
+| `req <category> "<title>"` | Scaffold a requirement file. |
 | `status [TASK-id] [--all] [--json]` | List open tasks, or show one — the resume entry point. |
 | `check [--task ID] [--run] [--strict] [--full] [--json]` | The 17-check heuristic catalog; advisory, always exits 0 — `--strict` (CI) exits 1 on errors and promoted warnings; `--run` also executes the configured verification commands. |
 | `test [name] [--impacted] [--task ID]` | Run a configured command; `--impacted` runs only the tests linked to requirements the diff touches. |
@@ -104,8 +109,9 @@ treat empty stdout as an error rather than as an empty result.
 
 ```
 .agentic/
-  AGENTS.md      the contract        steps/       one file per stage
-  aegis.py       the CLI             templates/   scaffolding sources
+  AGENTS.md      the contract        CLI.md        complete CLI reference
+  aegis.py       the CLI             steps/       one file per stage
+  templates/     scaffolding sources
   aegis.toml     the config          requirements/  specs/  tasks/  knowledge/
 ```
 

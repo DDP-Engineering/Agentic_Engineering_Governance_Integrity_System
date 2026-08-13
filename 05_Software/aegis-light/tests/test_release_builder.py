@@ -64,8 +64,8 @@ def test_current_payload_version_and_inventory_are_release_ready(builder):
     builder.verify_payload()
 
 
-def test_dry_run_builds_archives_with_both_delivery_steps(builder, monkeypatch,
-                                                          tmp_path):
+def test_dry_run_builds_archives_with_workflow_and_cli_docs(builder, monkeypatch,
+                                                            tmp_path):
     """REQ-REL-5fc2eb80: a dry run packages the exact 0.3.0 payload."""
     dist = tmp_path / "dist"
     monkeypatch.setattr(builder, "DIST", dist)
@@ -79,8 +79,10 @@ def test_dry_run_builds_archives_with_both_delivery_steps(builder, monkeypatch,
     assert zip_path.is_file() and tar_path.is_file()
 
     expected = {
+        f"{archive_prefix}/.agentic/CLI.md",
         f"{archive_prefix}/.agentic/steps/5_validate.md",
         f"{archive_prefix}/.agentic/steps/6_deliver.md",
+        f"{archive_prefix}/docs/09_CLI_Reference.md",
     }
     with zipfile.ZipFile(zip_path) as archive:
         assert expected <= set(archive.namelist())

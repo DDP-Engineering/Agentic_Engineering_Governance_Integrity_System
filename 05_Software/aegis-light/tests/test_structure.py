@@ -63,6 +63,7 @@ LICENSE_MARK = "PolyForm Noncommercial License 1.0.0"
 #: the complete expected payload inventory (relative to .agentic/).
 EXPECTED_FILES = (
     "AGENTS.md",
+    "CLI.md",
     "LICENSE.txt",
     "aegis.py",
     "steps/1_frame.md",
@@ -130,6 +131,17 @@ def test_payload_ships_no_adapter_or_policy_files():
 def test_payload_inventory_is_exactly_the_documented_set():
     found = {path.relative_to(PAYLOAD).as_posix() for path in payload_files()}
     assert found == set(EXPECTED_FILES)
+
+
+def test_payload_ships_a_complete_cli_reference():
+    """The installed payload explains every accepted top-level command."""
+    text = (PAYLOAD / "CLI.md").read_text(encoding="utf-8")
+    for command in ("init", "task", "req", "check", "test",
+                    "report", "status"):
+        assert f"`{command}" in text
+    assert "When to use" in text
+    assert "Examples" in text
+    assert "--version" in text
 
 
 def test_build_stage_records_reproducible_red_evidence_without_git_witness():

@@ -427,14 +427,14 @@ def cmd_init(_args: argparse.Namespace) -> int:
     for name in POINTER_FILES:
         print(f"  {name:<16} {write_pointer(name)}")
 
-    print("Next: python .agentic/aegis.py task new \"<title>\"")
+    print("Next: python .agentic/aegis.py task \"<title>\"")
     return 0
 
 
-# task new / req new
+# task / req
 
 
-def cmd_task_new(args: argparse.Namespace) -> int:
+def cmd_task(args: argparse.Namespace) -> int:
     """@brief Scaffold a task journal from templates/task.md."""
     title = args.title.strip()
     if not title:
@@ -462,7 +462,7 @@ def cmd_task_new(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_req_new(args: argparse.Namespace) -> int:
+def cmd_req(args: argparse.Namespace) -> int:
     """@brief Scaffold a requirement from templates/requirement.toml."""
     key = args.category.strip().lower()
     if key not in CATEGORIES:
@@ -530,7 +530,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     for path in unreadable:
         print(f"  {path.stem:<15} (unreadable) not valid UTF-8")
     if not paths:
-        print("no task journals yet - python .agentic/aegis.py task new \"<title>\"")
+        print("no task journals yet - python .agentic/aegis.py task \"<title>\"")
         return 0
     print(f"{len(parsed)} open task journal(s) in {rel(AGENTIC / 'tasks')}"
           + (f" ({hidden} done hidden - use --all)" if hidden and not args.all else "")
@@ -1722,19 +1722,15 @@ def build_parser() -> argparse.ArgumentParser:
     init = subs.add_parser("init", help="finish installing the payload in this repo")
     init.set_defaults(func=cmd_init)
 
-    task = subs.add_parser("task", help="task journals")
-    task_subs = task.add_subparsers(dest="task_command", required=True)
-    task_new = task_subs.add_parser("new", help="create a task journal")
-    task_new.add_argument("title")
-    task_new.add_argument("--type", choices=TASK_TYPES, default="feature")
-    task_new.set_defaults(func=cmd_task_new)
+    task = subs.add_parser("task", help="create a task journal")
+    task.add_argument("title")
+    task.add_argument("--type", choices=TASK_TYPES, default="feature")
+    task.set_defaults(func=cmd_task)
 
-    req = subs.add_parser("req", help="requirements")
-    req_subs = req.add_subparsers(dest="req_command", required=True)
-    req_new = req_subs.add_parser("new", help="create a requirement file")
-    req_new.add_argument("category", help=", ".join(sorted(CATEGORIES)))
-    req_new.add_argument("title")
-    req_new.set_defaults(func=cmd_req_new)
+    req = subs.add_parser("req", help="create a requirement file")
+    req.add_argument("category", help=", ".join(sorted(CATEGORIES)))
+    req.add_argument("title")
+    req.set_defaults(func=cmd_req)
 
     check = subs.add_parser(
         "check",

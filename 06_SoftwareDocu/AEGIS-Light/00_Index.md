@@ -21,6 +21,7 @@ new user: 01, 02, then the example matching your situation.
 | [06_Team_Setup.md](06_Team_Setup.md) | Working as a team: branches, merges, the CI strict gate. |
 | [07_FAQ.md](07_FAQ.md) | The questions everyone asks, answered honestly. |
 | [08_Prompt_Cheatsheet.md](08_Prompt_Cheatsheet.md) | Copy-paste operator prompts: install, new project, adopt, feature, quick fix, drift review, resume, post-merge. |
+| [09_CLI_Reference.md](09_CLI_Reference.md) | Complete syntax, descriptions, options, examples, exit behavior, and guidance on when to use each command. |
 
 If a doc ever disagrees with the payload (`AGENTS.md`, the step files,
 `aegis.py --help`), the payload wins — and the doc gets fixed.

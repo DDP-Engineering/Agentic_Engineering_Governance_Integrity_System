@@ -19,7 +19,7 @@ using aegis workflow, implement: export a playlist as an M3U file
 
 ## Stage 1-3 — frame, specify, design
 
-The agent creates a branch and a journal (`aegis task new`), explores
+The agent creates a branch and a journal (`aegis task`), explores
 the code, and comes back with the **frame checkpoint**:
 
 > Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
@@ -28,7 +28,7 @@ the code, and comes back with the **frame checkpoint**:
 
 You answer — trim it, extend it, or just "yes". This is the cheap moment
 to course-correct; everything after is mechanical. The agent then writes
-the requirement file (`aegis req new functional "Export playlist as
+the requirement file (`aegis req functional "Export playlist as
 M3U"`, then fills prose, verification, paths, tests), a short spec for
 the M3U format, and a design note in the journal. No pause — the journal
 records each stage transition:

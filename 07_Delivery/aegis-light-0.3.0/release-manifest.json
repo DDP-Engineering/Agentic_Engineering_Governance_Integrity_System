@@ -1,0 +1,20 @@
+{
+  "aegis_light_version": "0.3.0",
+  "artifact_metadata": {
+    "aegis-light-0.3.0.tar.gz": {
+      "edition": "payload",
+      "sha256": "c688b3b79fa9930afe93020580df5fc70e25c4be19fb749e3e943e0ac6200f9e",
+      "size": 65135
+    },
+    "aegis-light-0.3.0.zip": {
+      "edition": "payload",
+      "sha256": "5ec30c8e06c46f5d3945209e01d6bbfc03ad1240abd32afc85d5b9de65a08050",
+      "size": 85228
+    }
+  },
+  "artifacts": {
+    "aegis-light-0.3.0.tar.gz": "c688b3b79fa9930afe93020580df5fc70e25c4be19fb749e3e943e0ac6200f9e",
+    "aegis-light-0.3.0.zip": "5ec30c8e06c46f5d3945209e01d6bbfc03ad1240abd32afc85d5b9de65a08050"
+  },
+  "schema_version": 1
+}

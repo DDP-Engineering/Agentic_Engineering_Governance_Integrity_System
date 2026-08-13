@@ -14,6 +14,7 @@ repo. This page tours `.agentic/` with a filled-in example per format.
 ```
 .agentic/
   AGENTS.md        the contract your agent reads      (payload)
+  CLI.md           complete CLI reference             (payload)
   aegis.py         the CLI                            (payload)
   LICENSE.txt      license text                       (payload)
   steps/           one instruction file per stage     (payload)

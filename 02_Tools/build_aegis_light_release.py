@@ -62,6 +62,7 @@ FIXED_MTIME = 315532800  # the same instant, for tar
 #: the payload is the product; anything unexpected here must fail the build.
 EXPECTED_PAYLOAD = {
     "AGENTS.md",
+    "CLI.md",
     "LICENSE.txt",
     "aegis.py",
     "steps/1_frame.md",
@@ -118,7 +119,8 @@ using aegis workflow, implement <what you want>
 `docs/` holds the guided tour - start with `01_Install_and_Setup.md`,
 then `02_Folders_and_Files.md`, then the worked example that matches
 your situation. `docs/08_Prompt_Cheatsheet.md` has copy-paste prompts
-for every common operation.
+for every common operation. `.agentic/CLI.md` and
+`docs/09_CLI_Reference.md` contain the complete command reference.
 """
 
 
