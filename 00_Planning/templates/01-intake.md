@@ -1,98 +1,90 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "intake"
 sequence = 1
-status = "active" # pending | active | completed | skipped | omitted
-started_at = 2026-01-01T00:00:00Z
-updated_at = 2026-01-01T00:00:00Z
+status = "active"
+started_at = "2026-01-01T00:00:00Z"
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"inputs\",\"configured_project_paths\",\"relevant_project_knowledge\",\"restated_ask\",\"initially_affected_repository_area\",\"facts_and_uncertainties\",\"outputs_and_handoff\"],\"attachments\":[],\"common_findings\":[\"The restatement adds scope or loses a constraint from the ticket.\",\"An assumption is presented as a confirmed repository fact.\"],\"decisions\":[],\"escapes\":[],\"events\":[{\"actor\":\"reference-generator\",\"event\":\"stage_started\",\"result\":\"Intake became active.\",\"time\":\"2026-01-01T00:00:00Z\"}],\"evidence\":[],\"findings\":[],\"instruction\":\"Start from the unchanged ticket text. Read project configuration, optional rules, relevant Components, linked Requirements, tests, and the opening Git state. Restate the ask, identify bounded scope, and expose uncertainty without requiring prepared scope.\",\"recovery_actions\":[{\"condition\":\"Context is incomplete but bounded work can continue.\",\"guidance\":\"Record known facts, explicit uncertainties, and the next focused inspection.\",\"operation\":\"stage.set_section\"},{\"condition\":\"The request is withdrawn or no truthful development path remains.\",\"guidance\":\"End the Run with the actor and concrete reason; do not fabricate progress.\",\"operation\":\"run.abandon\"}],\"sections\":{\"configured_project_paths\":\"None\",\"facts_and_uncertainties\":\"None\",\"initially_affected_repository_area\":\"None\",\"inputs\":\"None\",\"outputs_and_handoff\":\"None\",\"relevant_project_knowledge\":\"None\",\"restated_ask\":\"None\"},\"work_applied\":false}"
 +++
 
-# 01 - Intake
+# 1 - Intake
 
 ## Stage instruction
 
-Start from the ticket text. Read `.agentic/config.toml`, optional
-`.agentic/rules.md`, the relevant Component documents, and the Requirements and
-real tests linked by those Components. Inspect only enough repository state to
-restate the ask, identify the affected area, and expose uncertainty. Do not
-require the developer to pre-digest the ticket.
+Start from the unchanged ticket text. Read project configuration, optional rules, relevant Components, linked Requirements, tests, and the opening Git state. Restate the ask, identify bounded scope, and expose uncertainty without requiring prepared scope.
 
 ## Inputs
 
-- Ticket source: `run.md`
-- Rules read: <path or none>
-- Repository revision and branch observed: <values>
-- Pre-existing working changes: <paths and states, or none>
+None
 
-## Configured project paths
+## Configured Project Paths
 
-- Requirements: <configured path>
-- Components: <configured path>
-- Tests: <configured path or paths>
-- Adoptions: <configured path>
-- Runs: <configured path>
+None
 
-## Relevant project knowledge
+## Relevant Project Knowledge
 
-| Component | Why relevant | Requirements read | Tests read | Drift or gap |
-|---|---|---|---|---|
-| `<COMP-ID>` | `<reason>` | `<REQ-IDs>` | `<paths/selectors>` | `<none or finding>` |
+None
 
-## Restated ask
+## Restated Ask
 
-<Restate the requested outcome in plain, testable language.>
+None
 
-## Initially affected repository area
+## Initially Affected Repository Area
 
-- Components: <IDs or unknown>
-- Implementation paths: <paths or unknown>
-- Requirements: <IDs or to be created>
-- Tests: <paths/selectors or to be created>
+None
 
-## Facts and uncertainties
+## Facts And Uncertainties
 
-- <Relevant fact or uncertainty>
+None
+
+## Outputs And Handoff
+
+None
 
 ## Evidence
 
-| Label | Time (UTC) | Procedure or command | Observed result | Attachment |
-|---|---|---|---|---|
-| `E1` | 2026-01-01T00:00:00Z | `<inspection>` | `<result>` | `<path or none>` |
+```json
+[]
+```
 
 ## Findings
 
-| Label | Severity | Observation and consequence | Disposition |
-|---|---|---|---|
-| `F1` | `<info | warning | high>` | `<finding>` | `<open | resolved | accepted | waived | not_applicable>` |
+```json
+[]
+```
 
 ## Decisions
 
-| Time (UTC) | Decision | Actor | Target | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected | exception_approved>` | `<actor>` | `<target>` | `<reason or conditions>` |
+```json
+[]
+```
 
-## Outputs and handoff
+## Escapes
 
-- Intake result: <concise result>
-- Information carried to Alignment: <scope and questions>
-- Next action: <first Alignment action>
-- Resume context: <everything a new session needs that is not in linked files>
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-<!-- Append corrections and events; do not erase earlier facts. -->
-
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `stage_started` | `<result>` |
+```json
+[
+  {
+    "time": "2026-01-01T00:00:00Z",
+    "actor": "reference-generator",
+    "event": "stage_started",
+    "result": "Intake became active."
+  }
+]
+```

@@ -1,84 +1,79 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "implementation"
 sequence = 6
-status = "pending" # pending | active | completed | skipped | omitted
+status = "pending"
 started_at = ""
-updated_at = 2026-01-01T00:00:00Z
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"inputs\",\"implementation_changes\",\"test_integrity_comparison\",\"implementation_evidence\",\"component_documentation_review\",\"outputs_and_handoff\"],\"attachments\":[],\"common_findings\":[\"Changed paths exceed agreed scope without a recorded scope revision.\",\"Tests changed after the red witness without an explicit integrity conclusion.\"],\"decisions\":[],\"escapes\":[],\"events\":[],\"evidence\":[],\"findings\":[],\"instruction\":\"Implement the agreed behavior, record attributed changed paths, compare current test fingerprints with the immutable red witness, and review affected Component documentation. Test changes remain permitted and visible.\",\"recovery_actions\":[{\"condition\":\"Necessary work changes the agreed scope.\",\"guidance\":\"Record the included and excluded scope, reason, actor, and whether approval is required.\",\"operation\":\"scope.revise\"},{\"condition\":\"The red witness or test intent must be re-established.\",\"guidance\":\"Revisit Check with the concrete reason before continuing forward.\",\"operation\":\"stage.revisit\"}],\"sections\":{\"component_documentation_review\":\"None\",\"implementation_changes\":\"None\",\"implementation_evidence\":\"None\",\"inputs\":\"None\",\"outputs_and_handoff\":\"None\",\"test_integrity_comparison\":\"None\"},\"work_applied\":false}"
 +++
 
-# 06 - Implementation
+# 6 - Implementation
 
 ## Stage instruction
 
-Implement the agreed behavior to make the recorded red tests green. Record what
-changed and attribute newly observed files carefully. Re-fingerprint the tests
-and report every difference from Check; do not prevent or hide legitimate test
-corrections.
+Implement the agreed behavior, record attributed changed paths, compare current test fingerprints with the immutable red witness, and review affected Component documentation. Test changes remain permitted and visible.
 
 ## Inputs
 
-- Requirements: <IDs>
-- Design: <summary or omitted>
-- Recorded red evidence: <labels>
-- Test fingerprints at red: <paths and digests>
+None
 
-## Implementation changes
+## Implementation Changes
 
-| Path | Change | Requirements | Component | Attribution |
-|---|---|---|---|---|
-| `<path>` | `<concise change>` | `<REQ-IDs>` | `<COMP-ID>` | `<this Run | pre-existing | uncertain>` |
+None
 
-## Test integrity comparison
+## Test Integrity Comparison
 
-| Test path | Red fingerprint | Current fingerprint | Changed? | Explanation or finding |
-|---|---|---|---|---|
-| `<test path>` | `<sha256>` | `<sha256>` | `<yes | no>` | `<reason or finding label>` |
+None
 
-## Implementation evidence
+## Implementation Evidence
 
-| Label | Time (UTC) | Command/selector and working directory | Exit | Observed result | Attachment |
-|---|---|---|---:|---|---|
-| `GREEN1` | 2026-01-01T00:00:00Z | `<command; cwd>` | `<code>` | `<concise result>` | `<path or none>` |
+None
 
-## Component documentation review
+## Component Documentation Review
 
-| Component | Behavior/interface/file-set changed? | Documentation action | Result |
-|---|---|---|---|
-| `<COMP-ID>` | `<yes | no>` | `<updated | reviewed | finding>` | `<result>` |
+None
+
+## Outputs And Handoff
+
+None
+
+## Evidence
+
+```json
+[]
+```
 
 ## Findings
 
-| Label | Severity | Observation and consequence | Disposition |
-|---|---|---|---|
-| `F1` | `<severity>` | `<including any changed test>` | `<disposition>` |
+```json
+[]
+```
 
 ## Decisions
 
-| Time (UTC) | Decision | Actor | Target | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected | exception_approved>` | `<actor>` | `<target>` | `<reason or conditions>` |
+```json
+[]
+```
 
-## Outputs and handoff
+## Escapes
 
-- Implementation result: <concise result>
-- Changed tests requiring a recorded decision: <paths or none>
-- Next action: <first Validation action>
-- Resume context: <what another session needs>
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `<event>` | `<result>` |
+```json
+[]
+```

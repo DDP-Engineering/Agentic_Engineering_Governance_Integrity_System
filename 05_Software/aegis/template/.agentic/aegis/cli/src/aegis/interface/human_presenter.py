@@ -170,26 +170,29 @@ def _render_machine_input(
         lines.append(_line("  constraints", _summary(constraints, detail_reference)))
 
 
-def _render_finding(finding: dict[str, object]) -> str:
-    """@brief Render the actionable fields of one finding."""
+def _render_finding(finding: dict[str, object]) -> tuple[str, ...]:
+    """@brief Render each actionable finding field on its own bounded line."""
     label = finding.get("label") or finding.get("code", "unknown")
     severity = finding.get("severity")
     summary = finding.get("summary") or finding.get("message")
     code = finding.get("code")
+    observation = finding.get("observation")
+    consequence = finding.get("consequence")
     path = finding.get("path") or finding.get("artifact")
-    value = str(label)
+    lines = [_line("Finding", label)]
     if severity:
-        value += f" [{severity}]"
+        lines.append(_line("  Severity", severity))
+    if code:
+        lines.append(_line("  Code", code))
     if summary:
-        value += f" - {summary}"
-    qualifiers = []
-    if code and code != label:
-        qualifiers.append(f"code={code}")
+        lines.append(_line("  Summary", summary))
+    if observation:
+        lines.append(_line("  Observation", observation))
+    if consequence:
+        lines.append(_line("  Consequence", consequence))
     if path:
-        qualifiers.append(f"path={path}")
-    if qualifiers:
-        value += f" ({'; '.join(qualifiers)})"
-    return _line("Finding", value)
+        lines.append(_line("  Path", path))
+    return tuple(lines)
 
 
 def _render_artifact(artifact: dict[str, object]) -> str:
@@ -276,7 +279,7 @@ def render_human(result: OperationResult) -> str:
         lines.append(_line("Data", f"{omitted_data} more fields omitted"))
 
     for finding in result.findings[:_MAX_SECTION_ITEMS]:
-        lines.append(_render_finding(finding))
+        lines.extend(_render_finding(finding))
     if len(result.findings) > _MAX_SECTION_ITEMS:
         lines.append(
             _line("Findings", f"{len(result.findings) - _MAX_SECTION_ITEMS} more")

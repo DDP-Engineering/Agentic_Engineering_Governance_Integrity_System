@@ -30,10 +30,77 @@ from aegis.application.workflow_operations import (
     _time,
     _workspace,
 )
+from aegis.domain.execution import ExecutionResult
 from aegis.domain.results import OperationResult
 from aegis.ports.workspace import RepositoryMutation, Workspace
 
 _OUTPUT_LIMIT = 8192
+_EXPECTED_EXECUTION_STAGES = {
+    "tests": ("check", "implementation", "validation"),
+    "lints": ("validation",),
+    "audits": ("validation",),
+}
+_NO_TESTS_REASON = (
+    "The test runner completed without collecting or executing tests; "
+    "the test conclusion remains unknown."
+)
+
+
+def _is_python_launcher(executable: str) -> bool:
+    """@return Whether a basename is a bounded Python or Windows py launcher."""
+    name = executable.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if name.endswith(".exe"):
+        name = name[:-4]
+    if name in {"python", "pythonw", "py"}:
+        return True
+    for prefix in ("python", "pythonw"):
+        if not name.startswith(prefix):
+            continue
+        version = name[len(prefix) :]
+        if version and all(part.isdigit() for part in version.split(".")):
+            return True
+    return False
+
+
+def _command_module(command: tuple[str, ...], module: str) -> bool:
+    """@return Whether an argument-array command invokes one Python module."""
+    if not command or not _is_python_launcher(command[0]):
+        return False
+    lowered = tuple(argument.lower() for argument in command)
+    return any(
+        argument == "-m" and index + 1 < len(lowered)
+        and lowered[index + 1] == module
+        for index, argument in enumerate(lowered)
+    )
+
+
+def _recognized_test_runner_ran_no_tests(
+    category: str,
+    command: tuple[str, ...],
+    result: ExecutionResult,
+) -> bool:
+    """@return Whether a known test runner's status 5 means no tests ran."""
+    if category != "tests" or result.outcome != "failed" or result.exit_status != 5:
+        return False
+    executable = command[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    pytest = _command_module(command, "pytest") or executable in {
+        "pytest",
+        "pytest.exe",
+        "py.test",
+        "py.test.exe",
+    }
+    unittest_discovery = _command_module(command, "unittest") and any(
+        argument.lower() == "discover" for argument in command
+    )
+    return pytest or unittest_discovery
+
+
+def _stage_window(stages: tuple[str, ...]) -> str:
+    """@return A readable expected Stage window derived from its canonical tuple."""
+    names = tuple(stage.title() for stage in stages)
+    if len(names) == 1:
+        return names[0]
+    return f"{', '.join(names[:-1])}, or {names[-1]}"
 
 
 def _selection_arguments(
@@ -65,6 +132,19 @@ def _selection_arguments(
     if selection.get("mode") == "full":
         return (), selection
     executable = " ".join(command).lower()
+    if "unittest" in executable and any(
+        argument.lower() == "discover" for argument in command
+    ):
+        effective_selection = dict(selection)
+        effective_selection["mode"] = "full"
+        effective_selection["fallback_reasons"] = [
+            *selection.get("fallback_reasons", []),
+            (
+                "Impacted selection cannot be safely applied to the configured "
+                "unittest discover command; the unchanged full suite was executed."
+            ),
+        ]
+        return (), effective_selection
     arguments: list[str] = []
     for test in selection.get("tests", []):
         path = test["path"]
@@ -132,15 +212,6 @@ def _execution_run(
             details={"expected": expected_revision, "current": stage_revision},
         )
     stage = stage_meta["stage"]
-    if category == "tests" and stage not in {"check", "implementation", "validation"}:
-        raise UseCaseError(
-            "invalid_transition",
-            "Tests execute only during Check, Implementation, or Validation.",
-        )
-    if category in {"lints", "audits"} and stage != "validation":
-        raise UseCaseError(
-            "invalid_transition", "Lints and audits execute only during Validation."
-        )
     configured = workspace.config.commands.get(f"{category}.{name}")
     if configured is None:
         raise UseCaseError("not_found", "Configured validation command does not exist.")
@@ -166,6 +237,16 @@ def _execution_run(
         name,
         additional_arguments=additional_arguments,
     )
+    no_tests_ran = _recognized_test_runner_ran_no_tests(
+        category,
+        command.command + additional_arguments,
+        result,
+    )
+    outcome = "launch_error" if no_tests_ran else result.outcome
+    engineering_conclusion = (
+        "unknown" if no_tests_ran else result.engineering_conclusion
+    )
+    reason = _NO_TESTS_REASON if no_tests_ran else result.reason
     now = _time(context)
     stdout_tail = result.stdout[-4096:].decode("utf-8", "replace")
     stderr_tail = result.stderr[-4096:].decode("utf-8", "replace")
@@ -178,39 +259,75 @@ def _execution_run(
         "command": list(command.command + additional_arguments),
         "working_directory": str(command.working_directory),
         "timeout_seconds": command.timeout_seconds,
-        "outcome": result.outcome,
-        "engineering_conclusion": result.engineering_conclusion,
+        "outcome": outcome,
+        "engineering_conclusion": engineering_conclusion,
         "exit_status": result.exit_status,
         "duration_seconds": round(result.duration_seconds, 6),
         "stdout_tail": stdout_tail,
         "stderr_tail": stderr_tail,
-        "reason": result.reason,
+        "reason": reason,
         "selection": selection_label,
         "selection_mode": None if selection is None else selection.get("mode"),
         "attachment": None,
+        "provenance": "executed",
     }
+    if no_tests_ran:
+        evidence["no_tests_ran"] = True
+    if selection is not None and selection.get("fallback_reasons"):
+        evidence["selection_fallback_reasons"] = list(
+            selection["fallback_reasons"]
+        )
     findings: list[dict[str, Any]] = []
-    if category == "tests" and stage == "check" and result.outcome == "failed":
+    expected_stages = _EXPECTED_EXECUTION_STAGES[category]
+    if stage not in expected_stages:
+        expected_window = _stage_window(expected_stages)
+        findings.append(
+            {
+                "label": f"F{len(stage_state['findings']) + 1}",
+                "code": "execution_outside_expected_stage",
+                "severity": "warning",
+                "observation": (
+                    f"{category}.{name} executed during {stage.title()}, outside "
+                    f"its expected Stage window: {expected_window}."
+                ),
+                "consequence": (
+                    "The actual command outcome remains recorded evidence and "
+                    "the Run may continue."
+                ),
+                "disposition": "open",
+                "time": now,
+            }
+        )
+    if category == "tests" and stage == "check" and outcome == "failed":
         evidence["fingerprints"] = _fingerprints(context, workspace)
         evidence["red_witness"] = True
     elif category == "tests" and stage in {"implementation", "validation"}:
         check_path = f"{workspace.config.runs}/{run_id}/05-check.md"
         _, check_state, _ = workspace.load_document(check_path)
-        red = next(
-            (
-                item
-                for item in reversed(check_state["evidence"])
-                if item.get("red_witness")
-            ),
-            None,
-        )
-        if red is not None:
+        red_fingerprints = []
+        for item in check_state.get("evidence", []):
+            if not isinstance(item, dict) or item.get("red_witness") is not True:
+                continue
+            fingerprints = item.get("fingerprints")
+            if not isinstance(fingerprints, dict):
+                continue
+            usable = {
+                path: digest
+                for path, digest in fingerprints.items()
+                if isinstance(path, str) and isinstance(digest, str)
+            }
+            if usable:
+                red_fingerprints.append(usable)
+        if red_fingerprints:
             current = _fingerprints(context, workspace)
-            changed = sorted(
-                path
-                for path in set(red.get("fingerprints", {})) | set(current)
-                if current.get(path) != red.get("fingerprints", {}).get(path)
-            )
+            changed_paths = set()
+            for recorded in red_fingerprints:
+                changed_paths.update(
+                    path
+                    for path in set(recorded) | set(current)
+                    if current.get(path) != recorded.get(path)
+                )
+            changed = sorted(changed_paths)
             evidence["red_fingerprint_comparison"] = {
                 "changed_tests": changed,
                 "current": current,
@@ -230,13 +347,13 @@ def _execution_run(
                         "time": now,
                     }
                 )
-    if result.outcome != "passed":
+    if outcome != "passed":
         findings.append(
             {
                 "label": f"F{len(stage_state['findings']) + len(findings) + 1}",
-                "code": f"execution_{result.outcome}",
+                "code": f"execution_{outcome}",
                 "severity": "warning",
-                "observation": f"{category}.{name} recorded {result.outcome}.",
+                "observation": f"{category}.{name} recorded {outcome}.",
                 "consequence": (
                     "Engineering conclusion is failed only for a completed "
                     "failing status; otherwise it is unknown."
@@ -264,7 +381,7 @@ def _execution_run(
             now,
             "operator",
             "execution_recorded",
-            f"{category}.{name} -> {result.outcome}",
+            f"{category}.{name} -> {outcome}",
         )
     )
     stage_meta["updated_at"] = now
@@ -290,18 +407,18 @@ def _execution_run(
     return _done(
         context,
         definition,
-        f"{category}.{name} execution outcome recorded: {result.outcome}.",
+        f"{category}.{name} execution outcome recorded: {outcome}.",
         data={
             "category": category,
             "name": name,
             "exit_status": result.exit_status,
             "evidence_label": evidence["label"],
-            "engineering_conclusion": result.engineering_conclusion,
+            "engineering_conclusion": engineering_conclusion,
         },
         run_id=run_id,
         stage=stage,
         revision=revisions[stage_path],
-        outcome=result.outcome,
+        outcome=outcome,
         findings=tuple(_finding_summary(item, stage_path) for item in findings),
         artifacts=tuple(artifacts),
         next_actions=(

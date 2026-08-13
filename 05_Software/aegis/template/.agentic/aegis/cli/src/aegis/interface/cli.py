@@ -52,6 +52,16 @@ _EXIT_CODES = {
     "internal_error": 70,
 }
 
+_GLOBAL_OPTIONS = frozenset(
+    {
+        "--repo",
+        "--format",
+        "--protocol-version",
+        "--no-color",
+        "--expected-revision",
+    }
+)
+
 
 # -----------------------------------------------------------------------------
 # DATA MODELS / TYPEDEFINITIONS
@@ -131,6 +141,29 @@ def _operation_hint(arguments: Sequence[str]) -> str:
     return "unknown"
 
 
+def _argument_error_reason(arguments: Sequence[str], reason: str) -> str:
+    """@return Bounded argparse detail with canonical global-option placement."""
+    if "unrecognized arguments:" not in reason:
+        return reason
+    command_index = next(
+        (
+            index
+            for index, argument in enumerate(arguments)
+            if find_command(argument, PRODUCT_NAME) is not None
+        ),
+        None,
+    )
+    if command_index is None:
+        return reason
+    misplaced = any(
+        argument.partition("=")[0] in _GLOBAL_OPTIONS
+        for argument in arguments[command_index + 1 :]
+    )
+    if not misplaced:
+        return reason
+    return f"{reason}. Canonical global options precede the command."
+
+
 def _safe_error_result(
     dispatcher: Any,
     *,
@@ -138,6 +171,7 @@ def _safe_error_result(
     code: str,
     summary: str,
     field: str | None = None,
+    path: str | None = None,
     details: dict[str, Any] | None = None,
 ) -> OperationResult:
     return dispatcher.error_result(
@@ -145,6 +179,7 @@ def _safe_error_result(
         code=code,
         summary=summary,
         field=field,
+        path=path,
         details=details,
     )
 
@@ -309,15 +344,17 @@ def run_cli(
             code="invalid_input",
             summary=str(error),
             field="input",
+            path=error.path,
         )
     except _CliInputError as error:
+        reason = _argument_error_reason(arguments, str(error))
         result = _safe_error_result(
             application,
             operation=operation,
             code="invalid_input",
             summary="The command arguments are invalid.",
             field="arguments",
-            details={"reason": str(error)},
+            details={"reason": reason},
         )
     except KeyboardInterrupt:
         result = _safe_error_result(

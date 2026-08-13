@@ -153,6 +153,25 @@ class TransactionStore:
         with self.locked():
             self._recover_locked()
 
+    def pending_paths(self, *, limit: int) -> tuple[tuple[str, ...], int]:
+        """@brief Inspect bounded transaction paths without parsing or recovery."""
+        if limit < 1:
+            raise ValueError("Pending transaction inspection limit must be positive.")
+        if not self.transactions.exists():
+            return (), 0
+        try:
+            names = sorted(
+                entry.name
+                for entry in self.transactions.iterdir()
+                if entry.name.startswith("TXN-")
+            )
+        except OSError as error:
+            raise RecoveryError(
+                "Transaction recovery material is unreadable."
+            ) from error
+        prefix = ".agentic/.runtime/transactions"
+        return tuple(f"{prefix}/{name}" for name in names[:limit]), len(names)
+
     def _recover_locked(self) -> None:
         if not self.transactions.exists():
             return

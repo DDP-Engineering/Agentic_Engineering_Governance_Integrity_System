@@ -106,9 +106,197 @@ def invoke_json(arguments: Sequence[str]) -> tuple[int, dict[str, Any], str, str
     return exit_code, json.loads(stdout), stdout, stderr
 
 
+def invoke_json_with_stdin(
+    arguments: Sequence[str], stdin_text: str
+) -> tuple[int, dict[str, Any], str, str]:
+    """@brief Invoke machine mode with explicit standard-input text."""
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    exit_code = run_cli(
+        ["--format", "json", *arguments],
+        stdin=io.StringIO(stdin_text),
+        stdout=stdout,
+        stderr=stderr,
+        dispatcher=create_dispatcher(),
+    )
+    return (
+        exit_code,
+        json.loads(stdout.getvalue()),
+        stdout.getvalue(),
+        stderr.getvalue(),
+    )
+
+
+def _advance_to_requirement_stage(repo: Path) -> dict[str, Any]:
+    """@brief Create a Run and make its Requirement Stage active."""
+    create_run(repo)
+    for stage in ("alignment", "requirement"):
+        current = show_stage(repo)
+        completed_exit, _ = invoke_revision(
+            repo,
+            "stage.complete",
+            "stage-complete",
+            expected_revision=current["revision"],
+        )
+        assert completed_exit == 0
+        pending = show_stage(repo, stage)
+        started_exit, _ = invoke_revision(
+            repo,
+            "stage.start",
+            "stage-start",
+            None,
+            stage,
+            expected_revision=pending["revision"],
+        )
+        assert started_exit == 0
+    return show_stage(repo)
+
+
+def _artifact_bytes(repo: Path) -> dict[str, bytes]:
+    """@return Exact installed-project artifact bytes below ``.agentic``."""
+    agentic = repo / ".agentic"
+    return {
+        path.relative_to(repo).as_posix(): path.read_bytes()
+        for path in sorted(agentic.rglob("*"))
+        if path.is_file()
+    }
+
+
 # -----------------------------------------------------------------------------
 # TESTS
 # -----------------------------------------------------------------------------
+
+
+def test_unreadable_machine_input_names_file_but_not_stdin(tmp_path: Path) -> None:
+    """@brief PR-ENC-004 names a supplied file while stdin remains pathless."""
+    invalid_utf8 = tmp_path / "invalid-utf8.json"
+    invalid_utf8.write_bytes(b'\x93not UTF-8 JSON\x94')
+    malformed_json = tmp_path / "malformed.json"
+    malformed_json.write_text("not JSON", encoding="utf-8")
+    missing = tmp_path / "missing.json"
+
+    for source in (invalid_utf8, malformed_json, missing):
+        exit_code, response, stdout, stderr = invoke_json(
+            ["run-create", "--input", str(source)]
+        )
+
+        assert exit_code == 2
+        assert stderr == ""
+        assert stdout.count("\n") == 1
+        assert response["error"] == {
+            "code": "invalid_input",
+            "summary": "Structured input is not readable UTF-8 JSON.",
+            "field": "input",
+            "path": str(source),
+            "retryable": False,
+            "details": {},
+        }
+
+    stdin_exit, stdin_response, _, stdin_stderr = invoke_json_with_stdin(
+        ["run-create", "--input", "-"], "not JSON"
+    )
+    assert stdin_exit == 2
+    assert stdin_stderr == ""
+    assert stdin_response["error"]["path"] is None
+
+
+@pytest.mark.parametrize(
+    ("case", "operation", "command", "field", "allowed"),
+    (
+        (
+            "status",
+            "requirement.create",
+            "requirement-create",
+            "status",
+            ["active", "draft"],
+        ),
+        (
+            "priority",
+            "requirement.create",
+            "requirement-create",
+            "priority",
+            ["Could", "Must", "Should"],
+        ),
+        (
+            "verification_kind",
+            "requirement.create",
+            "requirement-create",
+            "verification_kind",
+            ["automated", "manual"],
+        ),
+        (
+            "purposes",
+            "requirement.create",
+            "requirement-create",
+            "tests",
+            ["boundary", "edge", "failure_path", "happy_path", "negative"],
+        ),
+        (
+            "decision",
+            "decision.add",
+            "decision-add",
+            "value",
+            ["approved", "exception_approved", "rejected"],
+        ),
+        (
+            "evidence",
+            "evidence.add",
+            "evidence-add",
+            "kind",
+            ["automated", "imported", "manual"],
+        ),
+    ),
+)
+def test_enum_rejection_lists_allowed_values(
+    tmp_path: Path,
+    case: str,
+    operation: str,
+    command: str,
+    field: str,
+    allowed: list[str],
+) -> None:
+    """@brief PR-PROTO-004 enum errors enumerate every accepted literal."""
+    repo = installed_repository(tmp_path)
+    current = _advance_to_requirement_stage(repo)
+    (repo / "src").mkdir()
+    (repo / "src" / "retry.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repo / ".agentic" / "tests" / "test_retry.py").write_text(
+        "def test_retry_history(): pass\n", encoding="utf-8"
+    )
+    if operation == "requirement.create":
+        data = requirement_data()
+        if case == "purposes":
+            data["tests"][0]["purposes"] = ["unsupported"]
+        else:
+            data[case] = "unsupported"
+        expected_revision = None
+    elif operation == "decision.add":
+        data = {
+            "value": "unsupported",
+            "actor": "agent",
+            "target": "requirement",
+            "reason": "Exercise the closed enum rejection.",
+        }
+        expected_revision = current["revision"]
+    else:
+        data = {"kind": "unsupported"}
+        expected_revision = current["revision"]
+    before = _artifact_bytes(repo)
+
+    exit_code, response = invoke_revision(
+        repo,
+        operation,
+        command,
+        data,
+        expected_revision=expected_revision,
+    )
+
+    assert exit_code == 2
+    assert isinstance(response, dict)
+    assert response["error"]["code"] == "invalid_input"
+    assert response["error"]["field"] == field
+    assert response["error"]["details"] == {"allowed": allowed}
+    assert _artifact_bytes(repo) == before
 
 
 @pytest.mark.parametrize(
@@ -175,7 +363,7 @@ def test_help_show_returns_bounded_catalog_and_operation_help() -> None:
     )
 
     assert exit_code == detail_exit == 0
-    assert len(catalog["data"]["operations"]) == 48
+    assert len(catalog["data"]["operations"]) == 49
     assert detail["data"]["operation"] == "version.show"
     assert detail["data"]["command"] == "version-show"
     assert detail["data"]["implemented"] is True
@@ -197,6 +385,10 @@ def test_exact_operation_help_exposes_complete_registry_owned_contract() -> None
         "result": "Created Run summary.",
         "example": "aegis run-create --input ticket.json",
         "implemented": True,
+        "next_action_arguments": (
+            "Keys are canonical operation input names; registry CLI metadata maps "
+            "each key to its positional argument or named option."
+        ),
     }
 
     exit_code, response, _, stderr = invoke_json(
@@ -269,6 +461,25 @@ def test_help_documents_revision_read_and_structured_input_envelope() -> None:
         ],
         "constraints": [],
     }
+
+
+def test_global_option_after_command_explains_canonical_placement() -> None:
+    """@brief G-27 keeps root grammar while explaining global option placement."""
+    revision = "sha256:" + ("a" * 64)
+
+    exit_code, response, _, stderr = invoke_json(
+        ["stage-complete", "--expected-revision", revision]
+    )
+
+    assert exit_code == 2
+    assert stderr == ""
+    assert response["error"]["code"] == "invalid_input"
+    assert "global options precede the command" in response["error"]["details"][
+        "reason"
+    ]
+    assert response["run_id"] is None
+    assert response["stage"] is None
+    assert response["revision"] is None
 
 
 @pytest.mark.parametrize(
@@ -381,8 +592,29 @@ def test_stage_show_returns_next_actions(tmp_path: Path) -> None:
     completed = show_stage(repo)
 
     assert completed["next_actions"][0]["operation"] == "stage.start"
-    assert completed["next_actions"][0]["arguments"] == {"stage_name": "alignment"}
+    pending = show_stage(repo, "alignment")
+    assert completed["next_actions"][0]["arguments"] == {
+        "stage_name": "alignment",
+        "expected_revision": pending["revision"],
+    }
     assert completed["next_actions"][0]["reason"]
+    action = completed["next_actions"][0]
+    started_exit, started = invoke_revision(
+        repo,
+        action["operation"],
+        "stage-start",
+        None,
+        action["arguments"]["stage_name"],
+        expected_revision=action["arguments"]["expected_revision"],
+    )
+    assert started_exit == 0, started
+    historical = show_stage(repo, "intake")
+    assert historical["stage"] == "intake"
+    assert historical["next_actions"][0] == {
+        "operation": "stage.show",
+        "arguments": {"run": historical["run_id"], "stage_name": "alignment"},
+        "reason": "Resume the Run's current Stage.",
+    }
 
 
 def test_required_revision_error_proposes_a_read(tmp_path: Path) -> None:
@@ -515,6 +747,157 @@ def test_state_conflict_proposes_a_read(tmp_path: Path) -> None:
             "reason": "Read the current Requirement revision before retrying.",
         }
     ]
+
+
+def test_post_resolution_errors_retain_truthful_selection_context(
+    tmp_path: Path,
+) -> None:
+    """@brief G-28 errors retain resolvable current or explicit target context."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    original = show_stage(repo)
+
+    missing_exit, missing = invoke_revision(
+        repo,
+        "stage.set_section",
+        "stage-set-section",
+        {"section": "restated_ask", "content": "Missing revision."},
+    )
+
+    assert missing_exit == 2
+    assert isinstance(missing, dict)
+    assert missing["error"]["field"] == "expected_revision"
+    assert (missing["run_id"], missing["stage"], missing["revision"]) == (
+        created["run_id"],
+        "intake",
+        original["revision"],
+    )
+
+    changed_exit, changed = invoke_revision(
+        repo,
+        "stage.set_section",
+        "stage-set-section",
+        {"section": "restated_ask", "content": "Current state."},
+        expected_revision=original["revision"],
+    )
+    assert changed_exit == 0
+    assert isinstance(changed, dict)
+    stale_exit, stale = invoke_revision(
+        repo,
+        "stage.set_section",
+        "stage-set-section",
+        {"section": "restated_ask", "content": "Stale state."},
+        expected_revision=original["revision"],
+    )
+
+    assert stale_exit == 4
+    assert isinstance(stale, dict)
+    assert stale["error"]["code"] == "state_conflict"
+    assert (stale["run_id"], stale["stage"], stale["revision"]) == (
+        created["run_id"],
+        "intake",
+        changed["revision"],
+    )
+
+    pending = show_stage(repo, "alignment")
+    transition_exit, transition = invoke_revision(
+        repo,
+        "stage.start",
+        "stage-start",
+        None,
+        "alignment",
+        expected_revision=pending["revision"],
+    )
+
+    assert transition_exit == 4
+    assert isinstance(transition, dict)
+    assert transition["error"]["code"] == "invalid_transition"
+    assert (
+        transition["run_id"],
+        transition["stage"],
+        transition["revision"],
+    ) == (created["run_id"], "alignment", pending["revision"])
+
+    unknown_run = "RUN-" + ("0" * 32)
+    fallback_exit, fallback = invoke_revision(
+        repo,
+        "stage.show",
+        "stage-show",
+        None,
+        "--run",
+        unknown_run,
+    )
+
+    assert fallback_exit == 3
+    assert isinstance(fallback, dict)
+    assert fallback["error"]["code"] == "not_found"
+    assert (fallback["run_id"], fallback["stage"], fallback["revision"]) == (
+        created["run_id"],
+        "intake",
+        changed["revision"],
+    )
+
+    (repo / ".agentic" / "config.toml").write_text(
+        "not valid TOML = [", encoding="utf-8"
+    )
+    unreadable_exit, unreadable = invoke_revision(
+        repo,
+        "stage.set_section",
+        "stage-set-section",
+        {"section": "restated_ask", "content": "Unreadable context."},
+    )
+
+    assert unreadable_exit == 2
+    assert isinstance(unreadable, dict)
+    assert unreadable["error"]["field"] == "expected_revision"
+    assert (
+        unreadable["run_id"],
+        unreadable["stage"],
+        unreadable["revision"],
+    ) == (None, None, None)
+
+
+def test_next_action_arguments_use_operation_input_vocabulary(
+    tmp_path: Path,
+) -> None:
+    """@brief G-29 actions use dispatcher keys with registry-owned CLI mapping."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    pending = show_stage(repo, "alignment")
+
+    exit_code, response = invoke_revision(
+        repo,
+        "stage.start",
+        "stage-start",
+        None,
+        "alignment",
+    )
+
+    assert exit_code == 2
+    assert isinstance(response, dict)
+    action = response["next_actions"][0]
+    assert action["operation"] == "stage.show"
+    assert action["arguments"] == {"stage_name": "alignment"}
+    shown_exit, shown = invoke_revision(
+        repo,
+        action["operation"],
+        "stage-show",
+        None,
+        "--stage",
+        action["arguments"]["stage_name"],
+    )
+    assert shown_exit == 0
+    assert isinstance(shown, dict)
+    assert shown["revision"] == pending["revision"]
+
+    help_exit, help_response, _, _ = invoke_json(
+        ["help-show", "--operation", "stage.show"]
+    )
+    assert help_exit == 0
+    assert help_response["data"]["next_action_arguments"] == (
+        "Keys are canonical operation input names; registry CLI metadata maps "
+        "each key to its positional argument or named option."
+    )
 
 
 def test_explicit_repo_is_validated_while_repo_free_version_remains_available(
@@ -660,6 +1043,55 @@ def test_human_output_preserves_bounded_response_guidance() -> None:
         for line in lines
     )
     assert output.count(".agentic/runs/RUN-123/01-intake.md") >= 2
+
+
+def test_human_findings_carry_observation_and_severity() -> None:
+    """@brief Human findings retain machine-mode meaning on bounded lines."""
+    artifact_path = ".agentic/runs/RUN-123/05-check.md"
+    observation = "The red witness is missing. " + ("review evidence " * 30)
+    consequence = "Delivery cannot claim test-first evidence without an exception."
+    result = OperationResult(
+        product="AEGIS",
+        product_version="1.0.0",
+        operation="stage.show",
+        operation_id="operation-id",
+        operation_status="completed",
+        message="Stage loaded.",
+        findings=(
+            {
+                "label": "F1",
+                "code": "check_red_witness_missing",
+                "severity": "warning",
+                "summary": "A red witness is required.",
+                "observation": observation,
+                "consequence": consequence,
+                "artifact": artifact_path,
+            },
+        ),
+        next_actions=(
+            {
+                "operation": "decision.add",
+                "arguments": {"target": "red_before_green"},
+                "reason": "Record an honest exception when applicable.",
+            },
+        ),
+    )
+
+    output = render_human(result)
+    lines = output.splitlines()
+
+    assert max(map(len, lines)) < 240
+    assert "Finding: F1" in lines
+    assert "  Severity: warning" in lines
+    assert "  Code: check_red_witness_missing" in lines
+    assert any(line.startswith("  Summary:") for line in lines)
+    assert any(
+        line.startswith("  Observation: The red witness is missing.")
+        for line in lines
+    )
+    assert f"  Consequence: {consequence}" in lines
+    assert f"  Path: {artifact_path}" in lines
+    assert any(line.startswith("Next:") and "decision.add" in line for line in lines)
 
 
 @pytest.mark.parametrize(

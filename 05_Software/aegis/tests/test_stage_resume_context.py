@@ -36,15 +36,9 @@ def _project_bytes(repo: Path) -> dict[str, bytes]:
     }
 
 
-def _collection(items: list[Any]) -> dict[str, Any]:
-    """@return One expected complete bounded-collection shape."""
-    return {
-        "items": items,
-        "total_count": len(items),
-        "returned_count": len(items),
-        "omitted_count": 0,
-        "truncated": False,
-    }
+def _collection(items: list[Any]) -> list[Any]:
+    """@return One expected complete compact collection shape."""
+    return items
 
 
 def _create_linked_graph(repo: Path) -> tuple[str, str, str]:
@@ -81,7 +75,12 @@ def _create_linked_graph(repo: Path) -> tuple[str, str, str]:
         "status": "active",
         "files": ["src/retry.py"],
         "file_roles": [{"path": "src/retry.py", "role": "Persist retry outcomes."}],
-        "requirement_ids": [requirement_id],
+        "requirement_links": [
+            {
+                "requirement_id": requirement_id,
+                "behavior": "Retains ordered attempts.",
+            }
+        ],
         "test_links": [
             {
                 "path": ".agentic/tests/test_retry.py",
@@ -91,7 +90,6 @@ def _create_linked_graph(repo: Path) -> tuple[str, str, str]:
         ],
         "purpose_boundary": "Own retry evidence; not process execution.",
         "interfaces": "retry()",
-        "behaviors": ["Retains ordered attempts."],
         "dependencies": [],
         "known_gaps": [],
         "drift_review": {
@@ -131,26 +129,128 @@ def test_selected_stage_show_assembles_relevant_resume_graph_and_absent_rules(
         "selected_run": True,
         "current_stage_target": True,
     }
-    assert data["run_summary"]["scope"]["content"] == "Pending Alignment."
+    assert data["run_summary"]["scope"] == "Pending Alignment."
     assert data["stage_state"]["revision"] == response["revision"]
-    assert data["instruction"]["content"]
-    assert data["sections"]["items"]
+    assert data["instruction"]
+    assert data["sections"]
     knowledge = data["project_knowledge"]
-    assert [item["id"] for item in knowledge["requirements"]["items"]] == [
-        requirement_id
-    ]
-    assert knowledge["requirements"]["items"][0]["specification"]["path"] == (
+    assert [item["id"] for item in knowledge["requirements"]] == [requirement_id]
+    assert knowledge["requirements"][0]["specification"]["path"] == (
         specification_path
     )
-    assert [item["id"] for item in knowledge["components"]["items"]] == [component_id]
+    assert [item["id"] for item in knowledge["components"]] == [component_id]
     assert knowledge["affected_files"] == _collection(["src/retry.py"])
-    assert knowledge["tests"]["items"][0]["path"] == (".agentic/tests/test_retry.py")
+    assert knowledge["tests"][0]["path"] == (".agentic/tests/test_retry.py")
     assert data["project_rules"]["state"] == "absent"
-    assert data["project_rules"]["content"]["content"] == ""
-    assert data["tool_context"]["test_roots"]["items"] == [".agentic/tests"]
+    assert data["project_rules"]["content"] == ""
+    assert data["tool_context"]["test_roots"] == [".agentic/tests"]
     assert data["tool_context"]["risk"]["attention_threshold"] == "medium"
     assert data["tool_context"]["risk"]["protected_scope_patterns"] == (_collection([]))
     assert response["truncated"] is False
+
+
+def test_stage_resume_context_returns_direct_structured_rows(tmp_path: Path) -> None:
+    """@brief PR-PROTO-005 rows remain inspectable without a second JSON decode."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    assert invoke(
+        repo,
+        "evidence-add",
+        {
+            "kind": "manual",
+            "actor": "agent",
+            "procedure": "inspect structured resume rows",
+            "expected": "direct objects",
+            "actual": "direct objects",
+        },
+    )[0] == 0
+    assert invoke(
+        repo,
+        "scope-revise",
+        {
+            "before": "Inspect encoded resume rows.",
+            "after": "Inspect direct structured resume rows.",
+            "actor": "agent",
+            "reason": "Keep machine values directly invokable.",
+            "affected_work": [],
+        },
+    )[0] == 0
+    config_path = repo / ".agentic" / "config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + "\n[validation.audits.rows]\n"
+        + 'command = ["audit-tool", "--mode", "inspect"]\n'
+        + 'working_directory = "."\n'
+        + "timeout_seconds = 5\n",
+        encoding="utf-8",
+    )
+
+    intake_exit, intake = invoke(repo, "stage-show")
+    validation_exit, validation = invoke(
+        repo, "stage-show", None, "--stage", "validation"
+    )
+
+    assert intake_exit == validation_exit == 0
+    data = intake["data"]
+    assert data["run_summary"]["stages"][0]["name"] == "intake"
+    assert data["run_summary"]["scope_changes"][0]["actor"] == "agent"
+    assert data["evidence"][0]["procedure"] == "inspect structured resume rows"
+    assert data["stage_state"]["events"][0]["event"] == "stage_started"
+    attribution = data["run_summary"]["change_attribution"]
+    assert all(isinstance(rows, list) for rows in attribution.values())
+    command = validation["data"]["tool_context"]["commands"][0]
+    assert command["name"] == "rows"
+    assert command["command"][0].startswith("audit-")
+
+
+def test_stage_resume_context_compacts_complete_values_and_accounts_truncation(
+    tmp_path: Path,
+) -> None:
+    """@brief PR-MODEL-003/005 accounting appears only for actual omission."""
+    repo = installed_repository(tmp_path)
+    create_run(repo, profile="short")
+
+    complete_exit, complete = invoke(repo, "stage-show")
+
+    assert complete_exit == 0, complete
+    data = complete["data"]
+    assert complete["truncated"] is False
+    assert isinstance(data["instruction"], str)
+    assert isinstance(data["sections"], list)
+    assert isinstance(data["run_summary"]["scope"], str)
+    assert isinstance(data["run_summary"]["stages"], list)
+    assert isinstance(data["project_knowledge"]["requirements"], list)
+    assert isinstance(data["tool_context"]["commands"], list)
+    assert len(json.dumps(data, separators=(",", ":"), ensure_ascii=False)) < 9000
+
+    rules_text = "Keep evidence locally reviewable.\n" * 300
+    rules_path = repo / ".agentic" / "rules.md"
+    rules_path.write_text(rules_text, encoding="utf-8")
+    for index in range(10):
+        requirement = requirement_data()
+        requirement["title"] = f"Bounded context {index:02d}"
+        requirement["behavior"] = f"Context item {index:02d} remains deterministic."
+        assert invoke(repo, "requirement-create", requirement)[0] == 0
+
+    truncated_exit, truncated = invoke(repo, "stage-show")
+
+    assert truncated_exit == 0, truncated
+    truncated_data = truncated["data"]
+    rules = truncated_data["project_rules"]["content"]
+    assert rules["truncated"] is True
+    assert rules["total_characters"] == len(rules_text)
+    assert rules["returned_characters"] == len(rules["content"])
+    assert rules["omitted_characters"] == (
+        rules["total_characters"] - rules["returned_characters"]
+    )
+    requirements = truncated_data["project_knowledge"]["requirements"]
+    assert requirements["truncated"] is True
+    assert requirements["total_count"] == 10
+    assert requirements["returned_count"] == 8
+    assert requirements["omitted_count"] == 2
+    assert len(requirements["items"]) == requirements["returned_count"]
+    assert truncated["truncated"] is True
+    assert truncated["details_ref"].endswith("/01-intake.md")
 
 
 def test_stage_show_does_not_duplicate_collections(tmp_path: Path) -> None:
@@ -228,25 +328,14 @@ def test_stage_show_does_not_duplicate_collections(tmp_path: Path) -> None:
     }
     for name in collection_names:
         collection = data[name]
-        assert set(collection) == {
-            "items",
-            "total_count",
-            "returned_count",
-            "omitted_count",
-            "truncated",
-        }
-        assert collection["total_count"] == (
-            collection["returned_count"] + collection["omitted_count"]
-        )
-        assert collection["truncated"] is bool(collection["omitted_count"])
-        assert collection["returned_count"] > 0
+        assert isinstance(collection, list)
+        assert collection
+        assert all(isinstance(item, dict) for item in collection)
     for name in ("attachments", "events"):
         collection = stage_state[name]
-        assert collection["total_count"] == (
-            collection["returned_count"] + collection["omitted_count"]
-        )
-        assert collection["truncated"] is bool(collection["omitted_count"])
-        assert collection["returned_count"] > 0
+        assert isinstance(collection, list)
+        assert collection
+        assert all(isinstance(item, dict) for item in collection)
     assert "guidance" in data
     assert "guidance" not in stage_state
 
@@ -305,7 +394,9 @@ def test_historical_run_expands_component_linked_by_current_requirement(
         "status": "active",
         "files": ["src/retry.py"],
         "file_roles": [{"path": "src/retry.py", "role": "Persist retries."}],
-        "requirement_ids": [requirement],
+        "requirement_links": [
+            {"requirement_id": requirement, "behavior": "Retains retries."}
+        ],
         "test_links": [
             {
                 "path": ".agentic/tests/test_retry.py",
@@ -315,7 +406,6 @@ def test_historical_run_expands_component_linked_by_current_requirement(
         ],
         "purpose_boundary": "Own retry state.",
         "interfaces": "retry()",
-        "behaviors": ["Retains retries."],
         "dependencies": [],
         "known_gaps": [],
         "drift_review": {
@@ -332,7 +422,7 @@ def test_historical_run_expands_component_linked_by_current_requirement(
     )
 
     assert exit_code == 0, response
-    items = response["data"]["project_knowledge"]["components"]["items"]
+    items = response["data"]["project_knowledge"]["components"]
     assert [item["id"] for item in items] == [component]
     assert response["data"]["target"]["selected_run"] is False
     assert selected["run_id"] in (
@@ -362,7 +452,7 @@ def test_present_rules_are_bounded_and_invalid_rules_become_findings(
     rules_path.write_bytes("Règle locale.\r\n".encode("cp1252"))
     exit_code, legacy = invoke(repo, "stage-show")
     assert exit_code == 0, legacy
-    assert legacy["data"]["project_rules"]["content"]["content"] == ("Règle locale.\n")
+    assert legacy["data"]["project_rules"]["content"] == ("Règle locale.\n")
 
     rules_path.write_bytes(b"\xff\xfe\x00")
     exit_code, unreadable = invoke(repo, "stage-show")
@@ -396,10 +486,10 @@ def test_stage_tool_context_filters_commands_and_redacts_secret_arguments(
     )
 
     assert intake_exit == validation_exit == 0
-    assert intake["data"]["tool_context"]["commands"]["items"] == []
-    commands = validation["data"]["tool_context"]["commands"]["items"]
+    assert intake["data"]["tool_context"]["commands"] == []
+    commands = validation["data"]["tool_context"]["commands"]
     assert commands[0]["name"] == "private"
-    assert [item["content"] for item in commands[0]["command"]["items"]] == [
+    assert commands[0]["command"] == [
         "audit-tool",
         "--token",
         "<redacted>",
@@ -443,8 +533,8 @@ def test_missing_references_remain_visible_as_nonfabricated_context_findings(
     exit_code, response = invoke(repo, "stage-show")
 
     assert exit_code == 0, response
-    requirements = response["data"]["project_knowledge"]["requirements"]["items"]
-    components = response["data"]["project_knowledge"]["components"]["items"]
+    requirements = response["data"]["project_knowledge"]["requirements"]
+    components = response["data"]["project_knowledge"]["components"]
     assert (
         next(item for item in requirements if item["id"] == missing_requirement)[
             "state"
@@ -509,8 +599,7 @@ def test_large_resume_graph_has_profile_budget_and_deterministic_omission_counts
     assert requirements["omitted_count"] == created_count - expected_limit
     assert requirements["truncated"] is True
     omitted_ids = first["data"]["project_knowledge"]["omitted_requirement_ids"]
-    assert omitted_ids["items"] == sorted(ids)[expected_limit:]
-    assert omitted_ids["omitted_count"] == 0
+    assert omitted_ids == sorted(ids)[expected_limit:]
     assert first["truncated"] is True
 
 

@@ -73,6 +73,10 @@ def show_help(
             "result": entry.result,
             "example": entry.example,
             "implemented": entry.implemented,
+            "next_action_arguments": (
+                "Keys are canonical operation input names; registry CLI metadata "
+                "maps each key to its positional argument or named option."
+            ),
         }
         if entry.machine_revision_policy.requires_explicit_revision:
             data["revision"] = {

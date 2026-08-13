@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 STAGE_SECTION_EXPECTATIONS: dict[str, tuple[str, ...]] = {
@@ -95,7 +96,15 @@ PROFILE_STAGES = {
 }
 
 _UNRECORDED_VALUES = {"", "none", "unknown", "not recorded", "pending"}
-_APPROVAL_STAGES = {"alignment", "requirement", "design"}
+_APPROVAL_STAGES = {"alignment", "requirement", "design", "delivery"}
+
+
+@dataclass(frozen=True)
+class StageExpectationEvaluation:
+    """@brief Findings and exact evaluated-expectation count for one Stage."""
+
+    findings: tuple[dict[str, str], ...]
+    evaluated_expectation_count: int
 
 
 def _finding(
@@ -282,7 +291,7 @@ def evaluate_stage_expectations(
     check_state: dict[str, Any] | None = None,
     implementation_started_at: str = "",
     configured_commands: tuple[str, ...] = (),
-) -> tuple[dict[str, str], ...]:
+) -> StageExpectationEvaluation:
     """
     @brief Evaluate one included Stage entirely from supplied durable state.
     @param[in] stage Canonical Stage name.
@@ -291,11 +300,12 @@ def evaluate_stage_expectations(
     @param[in] check_state Durable Check state used by Implementation.
     @param[in] implementation_started_at Durable Implementation start time.
     @param[in] configured_commands Applicable configured command identities.
-    @return Ordered label-free advisory finding facts.
+    @return Ordered advisory findings and the exact expectation count.
     """
     if stage not in PROFILE_STAGES.get(profile, ()):
-        return ()
+        return StageExpectationEvaluation((), 0)
     findings: list[dict[str, str]] = []
+    evaluated_count = len(STAGE_SECTION_EXPECTATIONS[stage])
     sections = state.get("sections", {})
     if not isinstance(sections, dict):
         sections = {}
@@ -310,6 +320,7 @@ def evaluate_stage_expectations(
                 )
             )
     if stage in _APPROVAL_STAGES:
+        evaluated_count += 1
         latest_by_target: dict[str, dict[str, Any]] = {}
         for decision in state.get("decisions", []):
             if isinstance(decision, dict) and isinstance(decision.get("target"), str):
@@ -328,12 +339,14 @@ def evaluate_stage_expectations(
                 )
             )
     if stage == "check":
+        evaluated_count += 1
         findings.extend(
             _check_expectations(
                 state, implementation_started_at=implementation_started_at
             )
         )
     elif stage == "implementation":
+        evaluated_count += 1
         check_exception = _valid_red_exception(
             [
                 item
@@ -355,6 +368,7 @@ def evaluate_stage_expectations(
                 )
             )
     elif stage == "validation":
+        evaluated_count += len(configured_commands)
         recorded = {
             f"{item.get('category')}.{item.get('name')}"
             for item in state.get("evidence", [])
@@ -373,7 +387,7 @@ def evaluate_stage_expectations(
                         expectation=f"validation.command.{command}",
                     )
                 )
-    return tuple(findings)
+    return StageExpectationEvaluation(tuple(findings), evaluated_count)
 
 
 # -----------------------------------------------------------------------------

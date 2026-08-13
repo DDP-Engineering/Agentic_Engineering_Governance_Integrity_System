@@ -13,17 +13,33 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add a reviewable project-owned root `AGENTS.md` bridge during WAEGIS install
+  and upgrade. Missing files receive minimal AEGIS discovery guidance; existing
+  UTF-8 guidance continues unchanged after one bounded marker block, subsequent
+  upgrades do not duplicate it, and unsafe destinations are preserved with an
+  explanatory finding.
+
+- Add a no-argument interactive WAEGIS adoption wizard that guides an
+  unfamiliar developer through target selection, prerequisite and repository
+  reporting, optional plan-authorized local Git initialization, automatic
+  install-or-upgrade selection, plan summary and paged review, default-no exact
+  digest apply confirmation, cancellation, and post-apply verification steps.
+  Existing flat operations and machine output remain unchanged.
+
 - Add the standalone offline acceptance-record catalog and fail-closed release
   evidence validator. Its catalog totals are authoritative regardless of the
   catalog name, and its records and reports identify results as operator-attested
   evidence that the validator did not execute. This is an IP-18 inventory slice,
   not release acceptance.
 
-- Implement the clean-break AEGIS version 1 product through IP-17: the complete
+- Implement the current clean-break AEGIS version 1 product slice: the runnable
   repository-local workflow and current project-knowledge runtime, thin host
   contract resources, the separate stdlib-only WAEGIS plan/apply lifecycle,
   and reproducible offline archive build/inspection seams with truthful
-  unsupplied runtime-input locks. IP-18 release acceptance remains deferred.
+  unsupplied runtime-input locks. The current packaging boundary is the four
+  external-runtime archives; bundled-runtime editions, network-denied and
+  supported-host execution evidence, and full IP-17/IP-18 acceptance remain
+  outstanding.
 
 - AEGIS Light 0.2.0: two advisory checks complete the catalog at seventeen.
   `stage-zone` reports source edited under a stage whose write zone does not
@@ -48,14 +64,18 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Define the AEGIS version 1 delivery matrix as eight archives under
+- Define the intended AEGIS version 1 delivery matrix as eight archives under
   `07_Delivery/dist`: AEGIS and WAEGIS, with external or bundled runtimes, for
-  Windows and Ubuntu. External editions check existing Python 3.12 and Git
-  without installing them; bundled editions retain private locked runtimes.
+  Windows and Ubuntu. The current external-runtime AEGIS pair carries the same
+  portable payload and both launcher wrappers; its target label records
+  launcher/prerequisite expectations and inventory metadata, not
+  architecture-specific executable bytes. Future bundled editions retain
+  genuinely platform-specific private locked runtimes.
 
 - Consolidate offline release archive construction and inspection into the
   standalone stdlib-only `02_Tools/build_aegis_release.py` script, with its
-  truthful local-input lock beside it and no separate package or test project.
+  truthful local-input lock beside it and retained automated coverage under
+  `02_Tools/tests/`, without a separate runtime package.
 
 - Refresh maintained AEGIS documentation for the 3.0 payload, remove obsolete
   deployment-tool compatibility claims and retired historical/planning
@@ -72,6 +92,151 @@ All notable changes to this project will be documented in this file.
   RepoWise boundaries.
 
 ### Fixed
+
+- Label every interactive plan-review page with its exact action range and
+  total, confirm completion only after all consecutive numbered actions were
+  displayed, and report where an intentionally shortened review stopped.
+
+- Detect conventional test roots in nested software projects up to four levels
+  below the repository root, prune generated/dependency/linked trees, and use
+  the owning nested project's pytest configuration when selecting the initial
+  AEGIS validation framework.
+
+- Render successful WAEGIS `help-show` and `--help` output as a readable
+  operator reference with command signatures, purposes, lifecycle guidance,
+  while preserving the complete JSON registry for explicit machine-mode use.
+
+- Deliver host-specific Claude Code, Codex, OpenCode, Pi, and Qwen Code starter
+  guidance through WAEGIS from manifest-owned canonical payload resources.
+  Install and upgrade create missing project-owned host files without replacing
+  edits, removal preserves them, payload verification ignores the external
+  copies, and Pi now uses its current `.pi/skills/aegis/SKILL.md` discovery path.
+
+- Bind each full-AEGIS Component Requirement identity and behavior in one
+  canonical `requirement_links` entry, derive legacy trace IDs without
+  persisting positional duplicate state, reject inconsistent legacy documents
+  and legacy positional machine inputs explicitly, and validate every drift
+  review key and axis value before mutation.
+
+- Gate missing Git in WAEGIS only for the authorized
+  `repository-init-apply` operation that invokes `git init --quiet`; keep help,
+  version, plan review, lifecycle plans, and install/upgrade/remove applies
+  available as filesystem/protocol work without weakening repository structure
+  checks or exact plan-digest authorization.
+
+- Return the exact supplied `--input` file path on unreadable UTF-8 JSON errors,
+  create project-owned placeholders for every missing configured root during
+  fresh or relocated WAEGIS installation, and make `config-validate` report
+  bounded pending `TXN-*` recovery material without parsing, recovering, or
+  rewriting it; stdin remains pathless, lifecycle plan/apply ownership remains
+  exact, and normal verified lazy recovery is unchanged.
+
+- Route WAEGIS startup/composition failures through the standard result
+  envelope in human and JSON modes, omit untracked repository-ignored disposable
+  files from exact-plan revalidation while retaining tracked/staged worktree
+  bytes without a Git subprocess, and add bounded paginated `plan-show` review
+  of canonical plan digests and action summaries without encoded content bodies
+  or a new gate.
+
+- Keep Delivery-start prose bounded to deterministic counts and durable Stage
+  references, add paginated degradation-tolerant Adoption rediscovery, and
+  require actor/reason-attributed Run profile changes with durable Run and
+  Design history while retaining profile and revision compatibility.
+
+- Keep full-AEGIS Requirement provenance, orphan-test traceability, and Check
+  zone integrity advisory and explicit: create/update/validation now name exact
+  forbidden identifiers by Requirement field, `trace.validate` enumerates
+  recognizable unlinked tests across configured roots without support/cache
+  noise, and Check completion combines working-byte with per-path Git-state
+  deltas so staging-only source transitions are attributed without repeating
+  unchanged pre-existing dirt.
+
+- Return `stage.show` Run, Stage, attribution, and configured-command rows as
+  directly inspectable JSON objects and lists, and compact bounded response
+  values so exact omission accounting appears only for actual truncation while
+  preserving all declared budgets, aggregate detail references, and the unique
+  F-21 Stage/guidance collections.
+
+- Keep canonical global-option placement discoverable on parse errors, retain
+  readable Run, Stage, and revision context on post-resolution errors, and use
+  one registry-mapped operation-input vocabulary for structured next actions.
+
+- Complete full-AEGIS durable workflow truthfulness by reporting actual
+  impacted/full selections, fallback and green provenance, Check content and
+  repository-state changes, skipped-Check red/green conclusions, exact
+  evaluated-expectation counts, and Run-attributed implicit mutation events;
+  `stage.show` now supplies the proposed `stage.start` target revision so the
+  returned action succeeds without a conflict refresh, while all findings and
+  completion behavior remain advisory.
+
+- Record each full-AEGIS scope revision as one durable current-Stage advisory
+  warning that preserves the caller's affected work, completed or skipped
+  Stage names, and current Run Requirement and Component identities without
+  mutating prior Stage status or artifacts.
+
+- Replace retired 2.x full-AEGIS/WAEGIS delivery claims with builder-backed
+  version 1 archive names, prerequisites, local built or pending state,
+  advisory posture, and truthful verification and publication boundaries; drop
+  the stale ignored `waegis.pyz` build output while preserving AEGIS Light.
+
+- Write clone-propagated `.agentic/.gitignore` rules for full-AEGIS transient
+  recovery and the configured Run pointer during WAEGIS install and upgrade,
+  preserving existing project rules, linked-worktree safety, transitional
+  `.git/info/exclude` behavior, and removal ownership boundaries.
+
+- Normalize valid TOML datetime, date, and time values recursively across
+  full-AEGIS workspace and codec entry paths so Requirement reads remain
+  protocol-safe without rewriting artifacts or weakening malformed-path errors.
+
+- Render full-AEGIS human finding severity, code, observation, consequence,
+  summary compatibility, and artifact path on bounded independent lines while
+  preserving existing next-action and response-size behavior.
+
+- Detect class-style pytest methods and safe conventional `tests`/`test` roots
+  at repository depths one and two when WAEGIS generates full-AEGIS project
+  configuration, while retaining deterministic multiple-root behavior.
+
+- Accept exact Python 3.12 interpreters exposed by venv, pyenv, conda, or other
+  environments as `python3` or `python` in external-runtime launchers, retain
+  bundled and named-interpreter precedence, and envelope missing-Python failures
+  with exit code 5 instead of emitting ad-hoc plaintext.
+
+- Prevent recognized pytest and `unittest discover` no-tests exit status 5
+  from becoming a full-AEGIS red witness by recording an unknown, explicitly
+  reasoned compatibility `launch_error`; require a recognized Python launcher
+  for `-m` forms so arbitrary tools retain genuine failed outcomes, while
+  preserving genuine test failures and unrelated exit-5 command outcomes.
+
+- Record deterministic SHA-256 baselines for readable declared Component
+  members on create and update, report changed or previously unbaselined bytes
+  as advisory Component drift in direct, trace, and resume reads, and preserve
+  missing-file findings and validation immutability.
+
+- Enumerate the complete deterministic accepted-value set in structured errors
+  for the six closed Requirement, decision, and evidence enum inputs, while
+  keeping structural test-link and covered-file errors distinct from invalid
+  test-purpose guidance.
+
+- Execute configured tests, lints, and audits during any active full-AEGIS
+  Stage while retaining their documented expected windows, recording actual
+  evidence and outcomes, and adding an advisory outside-window finding instead
+  of refusing the command.
+
+- Create or update automated Requirements with incomplete test traceability and
+  return the existing advisory findings with the changed artifact, while
+  retaining input validation for supplied links and manual verification
+  methods.
+
+- Keep `run.list` available when one Run summary is unreadable by degrading
+  only that page entry to its identity, `unreadable` status, and actual
+  repository-relative path while preserving healthy summaries and source
+  bytes.
+
+- Close a readable active Run when exceptional abandonment is required by an
+  unreadable current Stage, atomically publishing the terminal Run summary,
+  sibling record, and cleared pointer while naming and preserving the actual
+  unreadable path; fully unreadable Run summaries remain byte-exact and use the
+  sibling-only fallback.
 
 - Replace full-AEGIS human-mode nested JSON dumps with deterministic labelled
   envelope fields, readable bounded help and scalar values, concise nested-data
@@ -102,6 +267,32 @@ All notable changes to this project will be documented in this file.
 - Return Stage sections, evidence, findings, decisions, and escapes exactly
   once in `stage.show`, while preserving bounded omission accounting and the
   unique status, revision, timestamp, attachment, event, and work-state fields.
+
+- Distinguish AEGIS-executed evidence from caller-reported evidence with
+  unspoofable provenance, and make Delivery state explicitly report whether a
+  successful red-to-green fingerprint comparison was performed without
+  blocking reported green results.
+
+- Preserve configured `unittest discover` command semantics when consuming an
+  impacted selection by executing the unchanged full suite and recording its
+  effective full-suite mode and explicit unsafe-subset fallback reason.
+
+- Limit full-AEGIS Check working-file snapshots to tracked and unignored files,
+  excluding ignored generated test caches from durable snapshots and false
+  out-of-zone findings while retaining genuine Git-visible changes.
+
+- Make both terminal Delivery precondition errors name their exact corrective
+  operation, required fixed fields, and allowed assessment values, with one
+  bounded atomic next action and matching shipped workflow recovery guidance.
+
+- Add compact open-finding totals, severity counts, and Stage names to the
+  AEGIS-owned Delivery record after completion findings are evaluated, while
+  preserving advisory completion and author-written report sections.
+
+- Compare Implementation and Validation test fingerprints with every usable
+  recorded red witness and report the deterministic union of changed tests, so
+  a later Check revisit cannot hide changes relative to earlier durable red
+  evidence.
 
 - Move external-runtime Git prerequisite checks behind the Python application
   boundary so missing Git returns the normal structured AEGIS or WAEGIS

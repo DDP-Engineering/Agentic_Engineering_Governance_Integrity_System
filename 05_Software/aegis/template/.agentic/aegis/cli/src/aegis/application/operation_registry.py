@@ -9,7 +9,7 @@
 # -----------------------------------------------------------------------------
 """
 @file    operation_registry.py
-@brief   Declare all 56 version 1 protocol operations exactly once.
+@brief   Declare all 57 version 1 protocol operations exactly once.
 @details Owns canonical inputs, bounded help, and executor bindings.
 """
 
@@ -175,6 +175,7 @@ _MACHINE_REVISION_POLICIES = {
             "component.find",
             "trace.validate",
             "execution.list",
+            "adoption.list",
             "adoption.show",
         )
     },
@@ -305,9 +306,9 @@ _COMPONENT_FIELDS = (
         "One path and role object for every Component file.",
     ),
     _field(
-        "requirement_ids",
-        "array[string]",
-        "Canonical Requirement identifiers related to the Component.",
+        "requirement_links",
+        "array[object]",
+        "Atomic links containing exactly requirement_id and non-empty behavior.",
     ),
     _field(
         "test_links",
@@ -316,10 +317,21 @@ _COMPONENT_FIELDS = (
     ),
     _field("purpose_boundary", "string", "Component purpose and boundary."),
     _field("interfaces", "string", "Component interfaces."),
-    _field("behaviors", "array", "Recorded Component behaviors.", required=False),
     _field("dependencies", "array", "Recorded dependencies.", required=False),
     _field("known_gaps", "array", "Known gaps kept visible.", required=False),
-    _field("drift_review", "object", "Current drift review result.", required=False),
+    _field(
+        "drift_review",
+        "object",
+        (
+            "Current behavior, interfaces, dependencies, and files review axes; "
+            "each accepts yes, no, or uncertain, with optional finding text."
+        ),
+        required=False,
+    ),
+)
+_COMPONENT_CONSTRAINTS = (
+    "Do not provide legacy requirement_ids or behaviors fields; use requirement_links.",
+    "Unknown drift_review fields are invalid; omitted axes default to uncertain.",
 )
 _MACHINE_INPUTS = {
     "run.create": _machine_input(
@@ -502,8 +514,12 @@ _MACHINE_INPUTS = {
             choices=("draft", "active"),
         ),
     ),
-    "component.create": _machine_input(*_COMPONENT_FIELDS),
-    "component.update": _machine_input(*_COMPONENT_FIELDS),
+    "component.create": _machine_input(
+        *_COMPONENT_FIELDS, constraints=_COMPONENT_CONSTRAINTS
+    ),
+    "component.update": _machine_input(
+        *_COMPONENT_FIELDS, constraints=_COMPONENT_CONSTRAINTS
+    ),
     "trace.impacted": _machine_input(
         _field(
             "changed_files",
@@ -517,6 +533,7 @@ _MACHINE_INPUTS = {
             required=False,
         ),
     ),
+    "run.set_profile": _machine_input(*_ACTOR_REASON_FIELDS),
     "adoption.create": _machine_input(
         _field("scope", "string", "Bounded Adoption scope."),
         _field("actor", "string", "Actor opening the Adoption."),
@@ -568,6 +585,12 @@ _PROFILE = _option(
 )
 _STAGE = _option(
     "stage", "--stage <name>", "Use the named canonical Stage.", choices=_STAGES
+)
+_STAGE_TARGET = _option(
+    "stage_name",
+    "--stage <name>",
+    "Use the named canonical Stage.",
+    choices=_STAGES,
 )
 _STAGE_NAME = _positional(
     "stage_name",
@@ -698,9 +721,9 @@ ALL_OPERATIONS = (
         "run.set_profile",
         "Change one active Run profile.",
         "Updated Run state.",
-        "aegis run-set-profile --profile full",
+        "aegis run-set-profile --profile full --input profile-change.json",
         _AEGIS,
-        (_PROFILE,),
+        (_PROFILE, _INPUT),
     ),
     _operation(
         "run.abandon",
@@ -724,7 +747,7 @@ ALL_OPERATIONS = (
         "Stage context.",
         "aegis stage-show --stage implementation",
         _AEGIS,
-        (_RUN, _STAGE),
+        (_RUN, _STAGE_TARGET),
     ),
     _operation(
         "stage.start",
@@ -974,6 +997,14 @@ ALL_OPERATIONS = (
         "aegis adoption-create --input adoption.json",
         _AEGIS,
         (_INPUT,),
+    ),
+    _operation(
+        "adoption.list",
+        "List bounded Adoption resume summaries.",
+        "Adoption summary page.",
+        "aegis adoption-list",
+        _AEGIS,
+        (_CURSOR,),
     ),
     _operation(
         "adoption.show",

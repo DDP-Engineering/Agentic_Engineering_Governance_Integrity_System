@@ -24,9 +24,18 @@ import subprocess
 import tomllib
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+import pytest
 from aegis.composition import create_dispatcher
+from aegis.domain.values import RepositoryPath
 from aegis.infrastructure.codecs import render_markdown_document, render_requirement
+from aegis.infrastructure.transactions import (
+    FileMutation,
+    TransactionCheckpoint,
+    TransactionStore,
+)
+from aegis.infrastructure.workspace import FileWorkspace
 from aegis.interface.cli import run_cli
 
 _AUTO_REVISION = object()
@@ -359,6 +368,90 @@ def test_config_validate_accepts_existing_empty_configured_roots(
     assert response["data"]["finding_count"] == 0
 
 
+def test_config_validate_reports_pending_transaction_before_lazy_recovery(
+    tmp_path: Path,
+) -> None:
+    """@brief AM validation item 18 reports residue without recovering it."""
+    repo = installed_repository(tmp_path)
+    store = TransactionStore(repo)
+
+    def interrupt(checkpoint: TransactionCheckpoint) -> None:
+        if checkpoint == TransactionCheckpoint.PREPARED:
+            raise RuntimeError("simulated interruption")
+
+    with pytest.raises(RuntimeError, match="simulated interruption"):
+        store.publish(
+            (
+                FileMutation(
+                    RepositoryPath(".agentic/rules.md"), b"recovered content\n"
+                ),
+            ),
+            checkpoint=interrupt,
+        )
+    transaction = next(store.transactions.glob("TXN-*"))
+    for index in range(11):
+        shutil.copytree(
+            transaction,
+            store.transactions / f"TXN-{index:032x}",
+        )
+    transactions = sorted(store.transactions.glob("TXN-*"))
+
+    exit_code, response = invoke(repo, "config-validate")
+
+    assert exit_code == 0, response
+    assert response["data"] == {
+        "finding_count": 10,
+        "pending_recovery_count": 12,
+        "reported_pending_recovery_count": 10,
+    }
+    assert response["truncated"] is True
+    expected_findings = [
+        {
+            "label": f"F{index}",
+            "code": "pending_recovery_transaction",
+            "severity": "info",
+            "summary": "Pending interrupted publication recovery material is present.",
+            "disposition": "open",
+            "artifact": item.relative_to(repo).as_posix(),
+        }
+        for index, item in enumerate(transactions[:10], start=1)
+    ]
+    assert response["findings"] == expected_findings
+    assert all(item.is_dir() for item in transactions)
+    assert not (repo / ".agentic/rules.md").exists()
+
+    recovered_exit, recovered = invoke(repo, "config-show")
+    assert recovered_exit == 0, recovered
+    assert (repo / ".agentic/rules.md").exists() is False
+    assert not store.transactions.exists() or not list(store.transactions.iterdir())
+
+
+def test_config_validate_preserves_malformed_transaction_material(
+    tmp_path: Path,
+) -> None:
+    """@brief PR-STATE-002/003 validation never rewrites malformed residue."""
+    repo = installed_repository(tmp_path)
+    transaction = (
+        repo
+        / ".agentic"
+        / ".runtime"
+        / "transactions"
+        / "TXN-malformed"
+    )
+    transaction.mkdir(parents=True)
+    malformed = b"\xffnot a recovery plan\x00"
+    (transaction / "plan.json").write_bytes(malformed)
+
+    exit_code, response = invoke(repo, "config-validate")
+
+    assert exit_code == 0, response
+    assert response["data"]["pending_recovery_count"] == 1
+    assert response["findings"][0]["artifact"] == (
+        ".agentic/.runtime/transactions/TXN-malformed"
+    )
+    assert (transaction / "plan.json").read_bytes() == malformed
+
+
 def test_run_creation_publishes_eight_stages_dirty_baseline_and_local_selection(
     tmp_path: Path,
 ) -> None:
@@ -433,9 +526,9 @@ def test_run_mutation_records_new_changes_without_claiming_authorship(
     assert state["uncertain_authorship"][0]["observed_at"].endswith("Z")
     assert "preexisting.txt" not in str(state["changes_first_observed"])
     context = invoke(repo, "stage-show")[1]["data"]["run_summary"]
-    observed = context["change_attribution"]["first_observed"]["items"]
-    assert json.loads(observed[0]["content"])["path"] == "later.py"
-    assert json.loads(observed[0]["content"])["observed_at"].endswith("Z")
+    observed = context["change_attribution"]["first_observed"]
+    assert observed[0]["path"] == "later.py"
+    assert observed[0]["observed_at"].endswith("Z")
 
     before = (repo / ".agentic" / "runs" / created["run_id"] / "run.md").read_bytes()
     assert invoke(repo, "run-show")[0] == 0
@@ -500,8 +593,10 @@ def test_index_transition_is_durable_attribution_uncertainty(tmp_path: Path) -> 
         "repository_index_revision_changed"
     ]
     assert (
-        invoke(repo, "stage-show")[1]["data"]["run_summary"]["change_attribution"]
-        ["findings"]["total_count"]
+        len(
+            invoke(repo, "stage-show")[1]["data"]["run_summary"]
+            ["change_attribution"]["findings"]
+        )
         == 1
     )
 
@@ -665,6 +760,114 @@ def test_scope_revision_explicitly_adopts_observed_paths_once(tmp_path: Path) ->
     )
 
 
+def test_scope_revision_records_affected_completed_stages(tmp_path: Path) -> None:
+    """@brief PR-EVOL-003/004 preserve affected prior work as one finding."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    run_dir = repo / ".agentic" / "runs" / created["run_id"]
+
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "alignment")[0] == 0
+    assert (
+        invoke(
+            repo,
+            "stage-skip",
+            {"actor": "agent", "reason": "The original scope was already explicit."},
+        )[0]
+        == 0
+    )
+    assert invoke(repo, "stage-start", None, "requirement")[0] == 0
+
+    requirement_id = "REQ-11111111111111111111111111111111"
+    component_id = "COMP-22222222222222222222222222222222"
+    run_path = run_dir / "run.md"
+    run_text = run_path.read_text(encoding="utf-8")
+    run_text = run_text.replace(
+        "requirement_ids = []", f'requirement_ids = ["{requirement_id}"]', 1
+    ).replace("component_ids = []", f'component_ids = ["{component_id}"]', 1)
+    run_path.write_text(run_text, encoding="utf-8", newline="\n")
+
+    prior_paths = (run_dir / "01-intake.md", run_dir / "02-alignment.md")
+    prior_bytes = {path: path.read_bytes() for path in prior_paths}
+    stale_revision = invoke(repo, "run-show")[1]["revision"]
+    affected_work = ["src/retry.py", ".agentic/requirements/current.toml"]
+
+    exit_code, revised = invoke(
+        repo,
+        "scope-revise",
+        {
+            "before": "Only retry recording.",
+            "after": "Retry recording and cancellation recovery.",
+            "actor": "agent",
+            "reason": "Cancellation recovery is now in scope.",
+            "affected_work": affected_work,
+        },
+    )
+
+    assert exit_code == 0, revised
+    assert len(revised["findings"]) == 1
+    finding = revised["findings"][0]
+    assert finding["code"] == "scope_revision_affected_work"
+    assert finding["severity"] == "warning"
+    assert finding["disposition"] == "open"
+    assert finding["completed_or_skipped_stages"] == ["intake", "alignment"]
+    assert finding["requirement_ids"] == [requirement_id]
+    assert finding["component_ids"] == [component_id]
+    assert finding["affected_work"] == affected_work
+    assert all(path.read_bytes() == prior_bytes[path] for path in prior_paths)
+
+    stage_show = invoke(repo, "stage-show")[1]["data"]
+    persisted = stage_show["findings"]
+    assert persisted == [finding]
+    stage_path = run_dir / "03-requirement.md"
+    run_after = run_path.read_bytes()
+    stage_after = stage_path.read_bytes()
+
+    conflict_exit, conflict = invoke(
+        repo,
+        "scope-revise",
+        {
+            "before": "Retry recording and cancellation recovery.",
+            "after": "Conflicting scope.",
+            "actor": "agent",
+            "reason": "Use a stale revision to verify atomic refusal.",
+            "affected_work": [],
+        },
+        expected_revision=stale_revision,
+    )
+
+    assert conflict_exit == 4, conflict
+    assert conflict["error"]["code"] == "state_conflict"
+    assert run_path.read_bytes() == run_after
+    assert stage_path.read_bytes() == stage_after
+
+
+def test_scope_revision_records_empty_affected_sets_truthfully(tmp_path: Path) -> None:
+    """@brief PR-EVOL-003 keeps empty impact sets explicit and advisory."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+
+    exit_code, revised = invoke(
+        repo,
+        "scope-revise",
+        {
+            "before": "Initial scope.",
+            "after": "Clarified scope.",
+            "actor": "agent",
+            "reason": "Clarify wording without identifying prior work.",
+            "affected_work": [],
+        },
+    )
+
+    assert exit_code == 0, revised
+    finding = revised["findings"][0]
+    assert finding["completed_or_skipped_stages"] == []
+    assert finding["requirement_ids"] == []
+    assert finding["component_ids"] == []
+    assert finding["affected_work"] == []
+    assert revised["operation_status"] == "completed"
+
+
 def test_multiple_runs_list_select_and_profile_change_do_not_combine_state(
     tmp_path: Path,
 ) -> None:
@@ -681,12 +884,74 @@ def test_multiple_runs_list_select_and_profile_change_do_not_combine_state(
     }
     exit_code, selected = invoke(repo, "run-select", None, first["run_id"])
     assert exit_code == 0
-    exit_code, changed = invoke(repo, "run-set-profile", None, "--profile", "short")
+    exit_code, changed = invoke(
+        repo,
+        "run-set-profile",
+        {"actor": "agent", "reason": "Use the short profile for this Run."},
+        "--profile",
+        "short",
+    )
     assert exit_code == 0
     assert changed["data"]["profile"] == "short"
     assert first["run_id"] in (repo / ".agentic" / "runs" / "context.toml").read_text(
         encoding="utf-8"
     )
+
+
+def test_run_list_degrades_over_an_unreadable_run(tmp_path: Path) -> None:
+    """@brief Unreadable Run state does not hide or block a healthy Run."""
+    repo = installed_repository(tmp_path)
+    unreadable = create_run(repo)
+    healthy = create_run(repo, profile="short")
+    unreadable_path = (
+        repo / ".agentic" / "runs" / unreadable["run_id"] / "run.md"
+    )
+    corrupted_bytes = b"corrupt\n"
+    select_exit, selected = invoke(repo, "run-select", None, unreadable["run_id"])
+    assert select_exit == 0, selected
+
+    run_path = unreadable_path.relative_to(repo).as_posix()
+    original_load_document = FileWorkspace.load_document
+    corrupted = False
+
+    def load_then_corrupt_selected(
+        workspace: FileWorkspace, path: str
+    ) -> tuple[dict[str, Any], dict[str, Any], str]:
+        """@brief Corrupt the selected Run after pointer resolution reads it."""
+        nonlocal corrupted
+        loaded = original_load_document(workspace, path)
+        if path == run_path and not corrupted:
+            unreadable_path.write_bytes(corrupted_bytes)
+            corrupted = True
+        return loaded
+
+    with patch.object(FileWorkspace, "load_document", load_then_corrupt_selected):
+        exit_code, listed = invoke(repo, "run-list")
+
+    assert exit_code == 0, listed
+    assert listed["data"]["has_more"] is False
+    assert listed["data"]["next_cursor"] is None
+    items = {item["id"]: item for item in listed["data"]["items"]}
+    assert items[unreadable["run_id"]] == {
+        "id": unreadable["run_id"],
+        "status": "unreadable",
+        "path": run_path,
+        "selected": True,
+    }
+    assert items[healthy["run_id"]]["status"] == "active"
+    assert items[healthy["run_id"]]["profile"] == "short"
+    assert items[healthy["run_id"]]["current_stage"] == "intake"
+    assert items[healthy["run_id"]]["ticket_summary"]
+    assert items[healthy["run_id"]]["selected"] is False
+    assert unreadable_path.read_bytes() == corrupted_bytes
+
+    select_exit, selected = invoke(repo, "run-select", None, healthy["run_id"])
+    show_exit, shown = invoke(repo, "run-show", None, "--run", healthy["run_id"])
+
+    assert select_exit == 0, selected
+    assert show_exit == 0, shown
+    assert shown["run_id"] == healthy["run_id"]
+    assert unreadable_path.read_bytes() == corrupted_bytes
 
 
 def test_list_cursor_returns_the_next_page(tmp_path: Path) -> None:
@@ -760,6 +1025,91 @@ def test_stage_sections_transitions_and_resume_state_are_atomic(tmp_path: Path) 
     assert "stage_started" in run_text
 
 
+def test_implicit_workflow_events_use_run_actor_with_operator_compatibility(
+    tmp_path: Path,
+) -> None:
+    """@brief Implicit events inherit agent or default operator Run attribution."""
+    agent_repo = installed_repository(tmp_path / "agent")
+    created = create_run(agent_repo)
+    attachment = tmp_path / "agent-evidence.txt"
+    attachment.write_text("durable evidence\n", encoding="utf-8")
+    assert (
+        invoke(
+            agent_repo,
+            "run-set-profile",
+            {"actor": "agent", "reason": "Use the short profile."},
+            "--profile",
+            "short",
+        )[0]
+        == 0
+    )
+    assert (
+        invoke(
+            agent_repo,
+            "attachment-add",
+            {
+                "source": str(attachment),
+                "purpose": "actor attribution proof",
+                "content_type": "text/plain",
+            },
+        )[0]
+        == 0
+    )
+    assert invoke(agent_repo, "stage-complete")[0] == 0
+    assert invoke(agent_repo, "stage-start", None, "alignment")[0] == 0
+    workspace = FileWorkspace(agent_repo)
+    _, run_state, _ = workspace.load_document(
+        f".agentic/runs/{created['run_id']}/run.md"
+    )
+    _, intake_state, _ = workspace.load_document(
+        f".agentic/runs/{created['run_id']}/01-intake.md"
+    )
+    _, design_state, _ = workspace.load_document(
+        f".agentic/runs/{created['run_id']}/04-design.md"
+    )
+    all_events = [
+        *run_state["events"],
+        *intake_state["events"],
+        *design_state["events"],
+    ]
+    implicit = [
+        event
+        for event in all_events
+        if event["event"]
+        in {"stage_started", "stage_completed", "profile_changed", "attachment_added"}
+    ]
+    assert {event["event"] for event in implicit} == {
+        "attachment_added",
+        "profile_changed",
+        "stage_completed",
+        "stage_started",
+    }
+    assert {event["actor"] for event in implicit} == {"agent"}
+
+    operator_repo = installed_repository(tmp_path / "operator")
+    exit_code, operator_run = invoke(
+        operator_repo,
+        "run-create",
+        {
+            "ticket_text": "Retain default operator attribution.",
+            "profile": "full",
+            "work_type": "change",
+        },
+    )
+    assert exit_code == 0, operator_run
+    assert invoke(operator_repo, "stage-complete")[0] == 0
+    assert invoke(operator_repo, "stage-start", None, "alignment")[0] == 0
+    _, operator_state, _ = FileWorkspace(operator_repo).load_document(
+        f".agentic/runs/{operator_run['run_id']}/run.md"
+    )
+    assert operator_state["actor"] == "operator"
+    assert {
+        event["actor"]
+        for event in operator_state["events"]
+        if event["event"] in {"stage_started", "stage_completed"}
+    } == {"operator"}
+
+
 def test_revisit_returns_the_later_stage_to_pending(tmp_path: Path) -> None:
     """@brief PR-EVOL-004 and PR-WORKFLOW-004 keep revisited Runs resumable."""
     repo = installed_repository(tmp_path)
@@ -788,10 +1138,7 @@ def test_revisit_returns_the_later_stage_to_pending(tmp_path: Path) -> None:
     ] == ["intake"]
     assert summaries["intake"]["status"] == intake["status"] == "active"
     assert summaries["alignment"]["status"] == alignment["status"] == "pending"
-    alignment_events = [
-        json.loads(item["content"])
-        for item in alignment["stage_state"]["events"]["items"]
-    ]
+    alignment_events = alignment["stage_state"]["events"]
     assert alignment_events[-1] == {
         "actor": "agent",
         "event": "stage_returned_to_pending",

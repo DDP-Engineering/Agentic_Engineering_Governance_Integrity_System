@@ -51,7 +51,8 @@ _STAGE_FILES = {
 }
 _RUN_ID = re.compile(r"^RUN-[0-9a-f]{32}$")
 _CURSOR = re.compile(r"^(0|[1-9][0-9]*)$")
-_DECISIONS = {"approved", "rejected", "exception_approved"}
+_DECISIONS = frozenset({"approved", "rejected", "exception_approved"})
+_EVIDENCE_KINDS = frozenset({"manual", "automated", "imported"})
 _DISPOSITIONS = {"open", "resolved", "accepted", "waived", "not_applicable"}
 _AUTOMATED_OUTCOMES = {
     "passed",
@@ -60,6 +61,7 @@ _AUTOMATED_OUTCOMES = {
     "cancelled",
     "launch_error",
 }
+_PENDING_RECOVERY_FINDING_LIMIT = 10
 
 
 class UseCaseError(ValueError):
@@ -349,7 +351,15 @@ def _delivery_recorded_state(
     skipped_or_omitted = []
     waiver_escapes = []
     non_passing_executions = []
+    green_test_evidence = []
+    test_selections = []
+    selections_by_label: dict[str, dict[str, Any]] = {}
+    linked_selection_executions = []
     changed_tests: set[str] = set()
+    fingerprint_comparison_performed = False
+    open_finding_total = 0
+    open_findings_by_severity: dict[str, int] = {}
+    open_finding_stages: set[str] = set()
     for stage in _STAGES:
         stage_metadata, state = stage_records[stage]
         status = stage_metadata.get("status")
@@ -388,6 +398,37 @@ def _delivery_recorded_state(
         for evidence in state.get("evidence", []):
             if not isinstance(evidence, dict):
                 continue
+            if evidence.get("kind") == "trace_selection":
+                label = evidence.get("label")
+                selected_tests = []
+                for selected in evidence.get("tests", []):
+                    if not isinstance(selected, dict) or not isinstance(
+                        selected.get("path"), str
+                    ):
+                        continue
+                    selector = selected.get("selector")
+                    suffix = (
+                        f"::{selector}"
+                        if isinstance(selector, str) and selector
+                        else ""
+                    )
+                    selected_tests.append(
+                        selected["path"] + suffix
+                    )
+                selection = {
+                    "stage": stage,
+                    "label": label,
+                    "mode": evidence.get("mode"),
+                    "tests": selected_tests,
+                    "fallback_reasons": list(evidence.get("fallback_reasons", [])),
+                    "full_suite_commands": list(
+                        evidence.get("full_suite_commands", [])
+                    ),
+                    "executions": [],
+                }
+                test_selections.append(selection)
+                if isinstance(label, str):
+                    selections_by_label[label] = selection
             if (
                 evidence.get("kind") == "automated"
                 and evidence.get("outcome") != "passed"
@@ -400,34 +441,149 @@ def _delivery_recorded_state(
                         "outcome": evidence.get("outcome"),
                     }
                 )
+            if (
+                evidence.get("kind") == "automated"
+                and evidence.get("category") == "tests"
+                and evidence.get("outcome") == "passed"
+            ):
+                evidence_tests = [
+                    test
+                    for test in evidence.get("tests", [])
+                    if isinstance(test, str)
+                ]
+                linked_selection = selections_by_label.get(evidence.get("selection"))
+                if not evidence_tests and linked_selection is not None:
+                    evidence_tests = list(linked_selection["tests"])
+                green_test_evidence.append(
+                    {
+                        "stage": stage,
+                        "name": evidence.get("name"),
+                        "provenance": evidence.get("provenance", "unknown"),
+                        "tests": evidence_tests,
+                    }
+                )
+            if isinstance(evidence.get("selection"), str):
+                linked_selection_executions.append(
+                    (
+                        evidence["selection"],
+                        {
+                            "stage": stage,
+                            "name": evidence.get("name"),
+                            "outcome": evidence.get("outcome"),
+                            "mode": evidence.get("selection_mode"),
+                            "fallback_reasons": list(
+                                evidence.get("selection_fallback_reasons", [])
+                            ),
+                        },
+                    )
+                )
             comparison = evidence.get("red_fingerprint_comparison")
-            if isinstance(comparison, dict):
+            if (
+                evidence.get("kind") == "automated"
+                and evidence.get("category") == "tests"
+                and evidence.get("outcome") == "passed"
+                and evidence.get("provenance") == "executed"
+                and isinstance(comparison, dict)
+            ):
+                fingerprint_comparison_performed = True
                 changed_tests.update(
                     item
                     for item in comparison.get("changed_tests", [])
                     if isinstance(item, str)
                 )
+        for finding in state.get("findings", []):
+            if not isinstance(finding, dict) or finding.get("disposition") != "open":
+                continue
+            severity = finding["severity"]
+            open_finding_total += 1
+            open_findings_by_severity[severity] = (
+                open_findings_by_severity.get(severity, 0) + 1
+            )
+            open_finding_stages.add(stage)
 
-    check_state = stage_records["check"][1]
+    for label, execution in linked_selection_executions:
+        selection = selections_by_label.get(label)
+        if selection is not None:
+            selection["executions"].append(execution)
+
+    check_meta, check_state = stage_records["check"]
     implementation_started_at = str(
         stage_records["implementation"][0].get("started_at", "")
     )
+    raw_red_state = summarize_red_before_green_state(
+        check_state, implementation_started_at=implementation_started_at
+    )
+    check_skipped = check_meta.get("status") == "skipped"
+    later_executed_green = any(
+        item["stage"] in {"implementation", "validation"}
+        and item["provenance"] == "executed"
+        for item in green_test_evidence
+    )
+    valid_witness = raw_red_state["valid_witness"] and not check_skipped
+    approved_exception = raw_red_state["approved_exception"] and not check_skipped
+    red_before_green = {
+        "check_skipped": check_skipped,
+        "recorded_witness": raw_red_state["valid_witness"],
+        "valid_witness": valid_witness,
+        "approved_exception": approved_exception,
+        "later_executed_green": later_executed_green,
+        "conclusion": (
+            "witness_established"
+            if valid_witness
+            else "exception_approved"
+            if approved_exception
+            else "not_established"
+        ),
+    }
+    check_changes = [
+        {"code": finding.get("code"), "artifact": finding.get("artifact")}
+        for finding in check_state.get("findings", [])
+        if isinstance(finding, dict)
+        and finding.get("code")
+        in {"check_out_of_zone_change", "check_git_state_changed"}
+    ]
     categories = (
         ("skipped_or_omitted_stages", skipped_or_omitted),
         ("waiver_escapes", waiver_escapes),
         ("non_passing_executions", non_passing_executions),
+        ("green_test_evidence", green_test_evidence),
+        ("test_selections", test_selections),
+        ("check_changes", check_changes),
         ("changed_tests", sorted(changed_tests)),
         (
-            "red_before_green",
-            summarize_red_before_green_state(
-                check_state, implementation_started_at=implementation_started_at
-            ),
+            "fingerprint_comparison",
+            "performed" if fingerprint_comparison_performed else "not_performed",
+        ),
+        ("red_before_green", red_before_green),
+        (
+            "open_findings",
+            {
+                "total": open_finding_total,
+                "by_severity": dict(sorted(open_findings_by_severity.items())),
+                "stages": sorted(open_finding_stages),
+            },
         ),
     )
     return "\n".join(
         f"- {name}: "
         + json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         for name, value in categories
+    )
+
+
+def _delivery_prior_stage_reference(
+    *, run_id: str, record_name: str, record_count: int
+) -> str:
+    """@return One bounded prose reference to durable pre-Delivery Stage state."""
+    root = f".agentic/runs/{run_id}/"
+    if record_count == 0:
+        return (
+            f"No prior Stage {record_name} records were recorded; durable Stage "
+            f"artifacts are under {root}"
+        )
+    return (
+        f"{record_count} prior Stage {record_name} records are preserved in durable "
+        f"Stage artifacts under {root}"
     )
 
 
@@ -562,6 +718,12 @@ def _load_current(
 
 def _event(time: str, actor: str, name: str, result: str) -> dict[str, str]:
     return {"time": time, "actor": actor, "event": name, "result": result}
+
+
+def _run_actor(run_state: dict[str, Any]) -> str:
+    """@return The durable Run actor or the legacy operator default."""
+    actor = run_state.get("actor")
+    return actor if isinstance(actor, str) and actor.strip() else "operator"
 
 
 def _next_finding_label(findings: list[dict[str, Any]]) -> str:
@@ -846,6 +1008,22 @@ def _config_validate(
     del inputs
     workspace = _workspace(context)
     findings: list[dict[str, Any]] = []
+    pending_paths, pending_count = workspace.pending_recovery_paths(
+        limit=_PENDING_RECOVERY_FINDING_LIMIT
+    )
+    for path in pending_paths:
+        findings.append(
+            {
+                "label": f"F{len(findings) + 1}",
+                "code": "pending_recovery_transaction",
+                "severity": "info",
+                "summary": (
+                    "Pending interrupted publication recovery material is present."
+                ),
+                "disposition": "open",
+                "artifact": path,
+            }
+        )
     configured = (
         str(workspace.config.requirements),
         str(workspace.config.components),
@@ -854,7 +1032,7 @@ def _config_validate(
         str(workspace.config.runs),
     )
     for path in configured:
-        if not workspace.path_exists(path, directory=True):
+        if not workspace.path_exists(path, directory=True, recover=False):
             findings.append(
                 {
                     "label": f"F{len(findings) + 1}",
@@ -870,7 +1048,12 @@ def _config_validate(
         definition,
         "Project configuration validation completed.",
         findings=tuple(findings),
-        data={"finding_count": len(findings)},
+        data={
+            "finding_count": len(findings),
+            "pending_recovery_count": pending_count,
+            "reported_pending_recovery_count": len(pending_paths),
+        },
+        truncated=pending_count > len(pending_paths),
     )
 
 
@@ -1082,7 +1265,18 @@ def _run_list(
     offset = _page_offset(inputs, len(run_ids))
     items = []
     for run_id in run_ids[offset : offset + 20]:
-        metadata, state, revision, _ = _load_run(workspace, run_id)
+        try:
+            metadata, state, revision, _ = _load_run(workspace, run_id)
+        except (UseCaseError, WorkspaceError) as error:
+            items.append(
+                {
+                    "id": run_id,
+                    "status": "unreadable",
+                    "path": error.path or _run_path(workspace, run_id),
+                    "selected": run_id == selected,
+                }
+            )
+            continue
         items.append(
             {
                 "id": run_id,
@@ -1160,6 +1354,8 @@ def _run_set_profile(
     context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
 ) -> OperationResult:
     workspace = _workspace(context)
+    actor = _require_text(inputs, "actor")
+    reason = _require_text(inputs, "reason")
     profile = inputs.get("profile")
     if profile not in {"full", "short"}:
         raise UseCaseError("invalid_input", "Run profile is invalid.", field="profile")
@@ -1177,15 +1373,18 @@ def _run_set_profile(
             "invalid_transition", "Design work already exists and cannot be omitted."
         )
     now = _time(context)
+    before_profile = run_meta["profile"]
+    event_result = (
+        f"Profile changed from {before_profile} to {profile}. Reason: {reason}"
+    )
     design_meta["status"] = "omitted" if profile == "short" else "pending"
     design_meta["updated_at"] = now
     design_state["events"].append(
-        _event(
-            now, "operator", "profile_changed", f"Design is {design_meta['status']}."
-        )
+        _event(now, actor, "profile_changed", event_result)
     )
     run_meta["profile"] = profile
     run_meta["updated_at"] = now
+    run_state["events"].append(_event(now, actor, "profile_changed", event_result))
     for summary in run_state["stages"]:
         if summary["name"] == "design":
             summary["status"] = design_meta["status"]
@@ -1225,6 +1424,8 @@ def _stage_show_next_actions(
     stage: str,
     stage_meta: dict[str, Any],
     stage_state: dict[str, Any],
+    stage_revision: str,
+    next_stage_revision: str | None,
 ) -> tuple[dict[str, Any], ...]:
     """
     @brief Derive one deterministic atomic continuation for a Stage resume read.
@@ -1234,6 +1435,8 @@ def _stage_show_next_actions(
     @param[in] stage Name of the inspected Stage.
     @param[in] stage_meta Current inspected Stage metadata.
     @param[in] stage_state Current inspected Stage state.
+    @param[in] stage_revision Current inspected Stage revision.
+    @param[in] next_stage_revision First later pending Stage revision, when applicable.
     @return Exactly one bounded next action derived from the persisted statuses.
     """
     if run_meta.get("status") != "active":
@@ -1250,7 +1453,7 @@ def _stage_show_next_actions(
         return (
             {
                 "operation": "stage.show",
-                "arguments": {"run": run_id, "stage": current_stage},
+                "arguments": {"run": run_id, "stage_name": current_stage},
                 "reason": "Resume the Run's current Stage.",
             },
         )
@@ -1293,7 +1496,10 @@ def _stage_show_next_actions(
         return (
             {
                 "operation": "stage.start",
-                "arguments": {"stage_name": stage},
+                "arguments": {
+                    "stage_name": stage,
+                    "expected_revision": stage_revision,
+                },
                 "reason": f"Start the pending {stage.title()} Stage.",
             },
         )
@@ -1310,7 +1516,10 @@ def _stage_show_next_actions(
         return (
             {
                 "operation": "stage.start",
-                "arguments": {"stage_name": next_stage},
+                "arguments": {
+                    "stage_name": next_stage,
+                    "expected_revision": next_stage_revision,
+                },
                 "reason": f"Start the pending {next_stage.title()} Stage.",
             },
         )
@@ -1329,7 +1538,7 @@ def _stage_show(
     workspace = _workspace(context)
     run_id = inputs.get("run") or _selected_run_id(workspace)
     run_meta, run_state, run_revision, run_path = _load_run(workspace, run_id)
-    stage = inputs.get("stage") or run_meta["current_stage"]
+    stage = inputs.get("stage_name") or run_meta["current_stage"]
     if stage not in _STAGES:
         raise UseCaseError("invalid_input", "Stage name is invalid.", field="stage")
     path = f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[stage]}"
@@ -1355,6 +1564,23 @@ def _stage_show(
         stage_revision=revision,
         selected_run=selected_run,
     )
+    next_stage = next(
+        (
+            str(item.get("name"))
+            for item in run_state.get("stages", [])
+            if item.get("status") == "pending"
+        ),
+        None,
+    )
+    next_stage_revision = (
+        workspace.revision(
+            f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[next_stage]}"
+        )
+        if stage == run_meta.get("current_stage")
+        and metadata.get("status") not in {"active", "pending"}
+        and next_stage is not None
+        else None
+    )
     return _done(
         context,
         definition,
@@ -1375,6 +1601,8 @@ def _stage_show(
             stage=stage,
             stage_meta=metadata,
             stage_state=state,
+            stage_revision=revision,
+            next_stage_revision=next_stage_revision,
         ),
         truncated=truncated,
         details_ref=path if truncated else None,
@@ -1413,6 +1641,7 @@ def _stage_start(
             field="stage_name",
         )
     now = _time(context)
+    actor = _run_actor(run_state)
     stage_meta.update(
         {
             "status": "active",
@@ -1421,29 +1650,35 @@ def _stage_start(
         }
     )
     stage_state["events"].append(
-        _event(now, "operator", "stage_started", f"{requested} became active.")
+        _event(now, actor, "stage_started", f"{requested} became active.")
     )
     if requested == "check":
         stage_state["git_baseline"] = workspace.git_snapshot()
     if requested == "delivery":
-        prior_findings = []
-        prior_evidence = []
+        prior_finding_count = 0
+        prior_evidence_count = 0
         for summary in run_state["stages"][:-1]:
             prior_path = f"{workspace.config.runs}/{run_id}/{summary['path']}"
             _, prior_state, _ = workspace.load_document(prior_path)
-            prior_findings.extend(
-                {"stage": summary["name"], **finding}
-                for finding in prior_state.get("findings", [])
-            )
-            prior_evidence.extend(
-                {"stage": summary["name"], **evidence}
-                for evidence in prior_state.get("evidence", [])
-            )
+            prior_finding_count += len(prior_state.get("findings", []))
+            prior_evidence_count += len(prior_state.get("evidence", []))
         stage_state["sections"]["requested_and_delivered_outcome"] = (
             f"Requested: {run_state['ticket_text']}\nDelivered assessment: pending."
         )
-        stage_state["sections"]["evidence_summary"] = str(prior_evidence)
-        stage_state["sections"]["findings_and_residual_risk"] = str(prior_findings)
+        stage_state["sections"]["evidence_summary"] = (
+            _delivery_prior_stage_reference(
+                run_id=run_id,
+                record_name="evidence",
+                record_count=prior_evidence_count,
+            )
+        )
+        stage_state["sections"]["findings_and_residual_risk"] = (
+            _delivery_prior_stage_reference(
+                run_id=run_id,
+                record_name="finding",
+                record_count=prior_finding_count,
+            )
+        )
         stage_state["sections"]["skips_waivers_and_omitted_stages"] = str(
             [
                 {"stage": item["name"], "status": item["status"]}
@@ -1456,7 +1691,7 @@ def _stage_start(
         if summary["name"] == requested:
             summary.update({"status": "active", "updated_at": now})
     run_state["events"].append(
-        _event(now, "operator", "stage_started", f"{requested} became active.")
+        _event(now, actor, "stage_started", f"{requested} became active.")
     )
     run_state["next_action"] = f"Complete the {requested} Stage instruction."
     _observe_run_changes(workspace, run_state, observed_at=now)
@@ -1587,20 +1822,53 @@ def _stage_complete(
         latest_delivery_decision is None
         or latest_delivery_decision["value"] != "approved"
     ):
-        raise UseCaseError(
-            "invalid_transition",
-            "Delivery requires its latest applicable decision to be approved.",
+        return _error(
+            context,
+            definition,
+            UseCaseError(
+                "invalid_transition",
+                (
+                    'Delivery requires the latest decision.add with target "delivery" '
+                    "to have value approved."
+                ),
+            ),
+            next_actions=(
+                {
+                    "operation": "decision.add",
+                    "arguments": {"value": "approved", "target": "delivery"},
+                    "reason": (
+                        "Supply actor and reason to approve the truthful Delivery "
+                        "report."
+                    ),
+                },
+            ),
         )
     if stage == "delivery" and stage_state["sections"].get("terminal_result") not in {
         "achieved",
         "partially_achieved",
         "not_achieved",
     }:
-        raise UseCaseError(
-            "invalid_transition",
-            (
-                "Delivery requires achieved, partially_achieved, or "
-                "not_achieved assessment."
+        return _error(
+            context,
+            definition,
+            UseCaseError(
+                "invalid_transition",
+                (
+                    "Delivery requires stage.set_section with section "
+                    '"terminal_result" set to achieved, partially_achieved, or '
+                    "not_achieved."
+                ),
+            ),
+            next_actions=(
+                {
+                    "operation": "stage.set_section",
+                    "arguments": {"section": "terminal_result"},
+                    "reason": (
+                        "Set content to exactly one of achieved, partially_achieved, "
+                        "or not_achieved; the caller must choose the truthful "
+                        "assessment."
+                    ),
+                },
             ),
         )
     check_state: dict[str, Any] | None = None
@@ -1618,17 +1886,8 @@ def _stage_complete(
         tuple(sorted(workspace.config.commands)) if stage == "validation" else ()
     )
     now = _time(context)
-    if stage == "delivery":
-        stage_state["sections"]["recorded_state"] = _delivery_recorded_state(
-            workspace,
-            run_id=run_id,
-            run_meta=run_meta,
-            run_state=run_state,
-            delivery_meta=stage_meta,
-            delivery_state=stage_state,
-        )
     completion_findings: list[dict[str, Any]] = []
-    expectation_findings = evaluate_stage_expectations(
+    expectation_evaluation = evaluate_stage_expectations(
         stage=stage,
         profile=run_meta["profile"],
         state=stage_state,
@@ -1636,6 +1895,7 @@ def _stage_complete(
         implementation_started_at=implementation_started_at,
         configured_commands=configured_commands,
     )
+    expectation_findings = expectation_evaluation.findings
     for evaluated in expectation_findings:
         if any(
             _completion_finding_is_current(existing, evaluated)
@@ -1657,16 +1917,25 @@ def _stage_complete(
         current = workspace.git_snapshot()
         before_files = baseline.get("working_files", {})
         after_files = current.get("working_files", {})
+        before_states = _classification_states(baseline)
+        after_states = _classification_states(current)
         changed_paths = sorted(
             path
-            for path in set(before_files) | set(after_files)
-            if before_files.get(path) != after_files.get(path)
+            for path in (
+                set(before_files)
+                | set(after_files)
+                | set(before_states)
+                | set(after_states)
+            )
+            if (
+                before_files.get(path) != after_files.get(path)
+                or before_states.get(path, []) != after_states.get(path, [])
+            )
             and not any(
                 path == str(root) or path.startswith(f"{root}/")
                 for root in workspace.config.test_roots
             )
-            and not path.startswith(".agentic/runs/")
-            and not path.startswith(".agentic/.runtime/")
+            and _attribution_path(path)
         )
         for changed_path in changed_paths:
             finding = {
@@ -1705,9 +1974,19 @@ def _stage_complete(
             )
         stage_state["git_completion"] = current
     stage_state["findings"].extend(completion_findings)
+    if stage == "delivery":
+        stage_state["sections"]["recorded_state"] = _delivery_recorded_state(
+            workspace,
+            run_id=run_id,
+            run_meta=run_meta,
+            run_state=run_state,
+            delivery_meta=stage_meta,
+            delivery_state=stage_state,
+        )
     stage_meta.update({"status": "completed", "updated_at": now, "completed_at": now})
+    actor = _run_actor(run_state)
     stage_state["events"].append(
-        _event(now, "operator", "stage_completed", "Actual Stage state recorded.")
+        _event(now, actor, "stage_completed", "Actual Stage state recorded.")
     )
     run_meta["updated_at"] = now
     for summary in run_state["stages"]:
@@ -1716,7 +1995,7 @@ def _stage_complete(
                 {"status": "completed", "updated_at": now, "result": "Recorded"}
             )
     run_state["events"].append(
-        _event(now, "operator", "stage_completed", f"{stage} completed.")
+        _event(now, actor, "stage_completed", f"{stage} completed.")
     )
     extra: tuple[RepositoryMutation, ...] = ()
     if stage == "delivery":
@@ -1760,7 +2039,9 @@ def _stage_complete(
         data={
             "status": "completed",
             "profile": run_meta["profile"],
-            "evaluated_expectation_count": len(expectation_findings),
+            "evaluated_expectation_count": (
+                expectation_evaluation.evaluated_expectation_count
+            ),
         },
         run_id=run_id,
         stage=stage,
@@ -1966,18 +2247,23 @@ def _append_entry(
             "red_witness",
             "fingerprints",
             "red_fingerprint_comparison",
+            "provenance",
         ):
             entry.pop(reserved, None)
         evidence_kind = entry.get("kind")
-        if evidence_kind not in {"manual", "automated", "imported"}:
+        if evidence_kind not in _EVIDENCE_KINDS:
             raise UseCaseError(
-                "invalid_input", "Evidence kind is invalid.", field="kind"
+                "invalid_input",
+                "Evidence kind is invalid.",
+                field="kind",
+                details={"allowed": sorted(_EVIDENCE_KINDS)},
             )
         if evidence_kind == "manual":
             for field in ("actor", "procedure", "expected", "actual"):
                 _require_text(entry, field)
         elif evidence_kind == "automated":
             _validate_automated_evidence(entry)
+        entry["provenance"] = "reported"
         entry["label"] = f"E{len(stage_state['evidence']) + 1}"
     elif kind == "finding":
         for field in ("severity", "observation", "consequence"):
@@ -1989,7 +2275,10 @@ def _append_entry(
         value = entry.get("value")
         if value not in _DECISIONS:
             raise UseCaseError(
-                "invalid_input", "Decision value is invalid.", field="value"
+                "invalid_input",
+                "Decision value is invalid.",
+                field="value",
+                details={"allowed": sorted(_DECISIONS)},
             )
         for field in ("actor", "target", "reason"):
             _require_text(entry, field)
@@ -2187,7 +2476,9 @@ def _attachment_add(
         "time": now,
     }
     stage_state["attachments"].append(entry)
-    stage_state["events"].append(_event(now, "operator", "attachment_added", path))
+    stage_state["events"].append(
+        _event(now, _run_actor(run_state), "attachment_added", path)
+    )
     stage_meta["attachments"].append(path)
     stage_meta["updated_at"] = now
     run_meta["updated_at"] = now
@@ -2233,9 +2524,17 @@ def _scope_revise(
             "affected_work must be a list of names.",
             field="affected_work",
         )
-    run_id, run_meta, run_state, run_revision, run_path = (
-        _load_selected_run_for_mutation(workspace)
-    )
+    (
+        run_id,
+        run_meta,
+        run_state,
+        run_revision,
+        run_path,
+        stage_meta,
+        stage_state,
+        stage_revision,
+        stage_path,
+    ) = _load_current(workspace)
     now = _time(context)
     change = {
         "time": now,
@@ -2248,16 +2547,61 @@ def _scope_revise(
     run_state["scope_changes"].append(change)
     _observe_run_changes(workspace, run_state, observed_at=now)
     _adopt_explicitly_scoped_paths(run_state, change)
+    affected_stages = [
+        item["name"]
+        for item in run_state.get("stages", [])
+        if item.get("status") in {"completed", "skipped"}
+    ]
+    requirement_ids = list(run_meta.get("requirement_ids", []))
+    component_ids = list(run_meta.get("component_ids", []))
+    finding = {
+        "code": "scope_revision_affected_work",
+        "severity": "warning",
+        "observation": (
+            "Scope revision affected_work="
+            f"{json.dumps(affected, ensure_ascii=False)}; completed or skipped "
+            f"Stages={json.dumps(affected_stages, ensure_ascii=False)}; Run "
+            f"requirement_ids={json.dumps(requirement_ids, ensure_ascii=False)}; "
+            f"Run component_ids={json.dumps(component_ids, ensure_ascii=False)}."
+        ),
+        "consequence": (
+            "Prior work may require review against the revised scope; existing "
+            "Stage status and artifacts remain unchanged."
+        ),
+        "completed_or_skipped_stages": affected_stages,
+        "requirement_ids": requirement_ids,
+        "component_ids": component_ids,
+        "affected_work": list(affected),
+        "scope_before": before,
+        "scope_after": after,
+        "reason": reason,
+        "actor": actor,
+        "label": _next_finding_label(stage_state["findings"]),
+        "disposition": "open",
+        "time": now,
+    }
+    stage_state["findings"].append(finding)
+    stage_state["events"].append(
+        _event(now, actor, "scope_revision_impact_recorded", finding["label"])
+    )
+    stage_meta["updated_at"] = now
     run_state["scope"] = after
     run_state["events"].append(_event(now, actor, "scope_revised", reason))
     run_meta["updated_at"] = now
     revisions = workspace.publish(
         (
             RepositoryMutation(
+                stage_path,
+                workspace.render_document(stage_meta, stage_state, kind="stage"),
+            ),
+            RepositoryMutation(
                 run_path, workspace.render_document(run_meta, run_state, kind="run")
             ),
         ),
-        expected_revisions={run_path: inputs.get("expected_revision", run_revision)},
+        expected_revisions={
+            stage_path: stage_revision,
+            run_path: inputs.get("expected_revision", run_revision),
+        },
     )
     return _done(
         context,
@@ -2267,6 +2611,7 @@ def _scope_revise(
         run_id=run_id,
         stage=run_meta["current_stage"],
         revision=revisions[run_path],
+        findings=(finding,),
     )
 
 

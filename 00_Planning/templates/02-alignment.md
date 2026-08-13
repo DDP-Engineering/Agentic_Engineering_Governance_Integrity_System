@@ -1,84 +1,75 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "alignment"
 sequence = 2
-status = "pending" # pending | active | completed | skipped | omitted
+status = "pending"
 started_at = ""
-updated_at = 2026-01-01T00:00:00Z
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"inputs_from_intake\",\"proposed_scope\",\"developer_corrections\",\"agreed_scope\",\"outputs_and_handoff\"],\"attachments\":[],\"common_findings\":[\"The agreed scope omits exclusions or expands beyond the ticket.\",\"A material open question is hidden instead of carried forward explicitly.\"],\"decisions\":[],\"escapes\":[],\"events\":[],\"evidence\":[],\"findings\":[],\"instruction\":\"Record included work, exclusions, assumptions, open questions, corrections, and the proportional Run profile. Uncertainty may remain when its risk and accepted assumption are explicit. Do not write implementation code.\",\"recovery_actions\":[{\"condition\":\"Scope or assumptions need correction before build work.\",\"guidance\":\"Update the affected section with the bounded correction and handoff impact.\",\"operation\":\"stage.set_section\"},{\"condition\":\"Alignment is disproportionate and no Stage work was applied.\",\"guidance\":\"Skip with a truthful actor and reason; the omission remains visible.\",\"operation\":\"stage.skip\"}],\"sections\":{\"agreed_scope\":\"None\",\"developer_corrections\":\"None\",\"inputs_from_intake\":\"None\",\"outputs_and_handoff\":\"None\",\"proposed_scope\":\"None\"},\"work_applied\":false}"
 +++
 
-# 02 - Alignment
+# 2 - Alignment
 
 ## Stage instruction
 
-Present what will be done, what will not be done, and what remains open. Let the
-developer correct scope before Requirements, tests, or implementation make a
-misunderstanding expensive. Record whether the full or short profile applies.
+Record included work, exclusions, assumptions, open questions, corrections, and the proportional Run profile. Uncertainty may remain when its risk and accepted assumption are explicit. Do not write implementation code.
 
-## Inputs from Intake
+## Inputs From Intake
 
-- Restated ask: <concise restatement>
-- Affected area: <components and paths>
-- Questions and uncertainties: <items or none>
+None
 
-## Proposed scope
+## Proposed Scope
 
-- Included: <proposed work>
-- Excluded: <explicit non-goals>
-- Assumptions: <assumptions or none>
+None
 
-## Developer corrections
+## Developer Corrections
 
-| Time (UTC) | Earlier interpretation | Correction | Effect |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<earlier>` | `<correction>` | `<scope effect>` |
+None
 
-## Agreed scope
+## Agreed Scope
 
-- Included: <agreed work>
-- Excluded: <agreed exclusions>
-- Open questions: <questions allowed to remain open, or none>
-- Run profile: <full | short>
-- Profile rationale: <why proportional to this work>
+None
+
+## Outputs And Handoff
+
+None
 
 ## Evidence
 
-| Label | Time (UTC) | Basis | Observed result | Attachment |
-|---|---|---|---|---|
-| `E1` | 2026-01-01T00:00:00Z | `<ticket, inspection, or discussion>` | `<result>` | `<path or none>` |
+```json
+[]
+```
 
 ## Findings
 
-| Label | Severity | Observation and consequence | Disposition |
-|---|---|---|---|
-| `F1` | `<severity>` | `<finding>` | `<disposition>` |
+```json
+[]
+```
 
 ## Decisions
 
-| Time (UTC) | Decision | Actor | Target | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected | exception_approved>` | `<actor>` | `<target>` | `<reason or conditions>` |
+```json
+[]
+```
 
-## Outputs and handoff
+## Escapes
 
-- Alignment result: <concise result>
-- Scope changes appended to `run.md`: <yes and summary, or none>
-- Next action: <first Requirement action>
-- Resume context: <what another session needs>
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `<event>` | `<result>` |
+```json
+[]
+```

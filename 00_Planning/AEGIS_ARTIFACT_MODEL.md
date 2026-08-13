@@ -9,7 +9,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 **Status:** Working draft  
 **Product version:** 1  
-**Last updated:** 2026-08-10  
+**Last updated:** 2026-08-13
 **Requirements source:** `AEGIS_PRODUCT_REQUIREMENTS.md`  
 **Functional source:** `AEGIS_FUNCTIONAL_SPECIFICATION.md`  
 **Release priorities:** `AEGIS_RELEASE_SCOPE.md`
@@ -25,8 +25,13 @@ one file for each workflow stage. Stage evidence, findings, decisions, and
 handoff state are sections of the relevant stage file, not separate artifact
 types. Approvals and exceptions are represented as decisions.
 
-The templates under `00_Planning/templates/` demonstrate the schemas defined
-here. Command names and implementation modules are outside this document.
+The files under `00_Planning/templates/` are planning and reference material.
+They are not installed into a target repository, listed in the AEGIS payload
+manifest, or copied into a release archive. The Stage, Adoption, and exceptional
+Abandonment references are snapshots emitted by the current codec from
+synthetic default state. The remaining files are schematic planning examples
+unless they explicitly say that they are renderer-generated. Command names and
+implementation modules are outside this document.
 
 ## 2. Artifact principles
 
@@ -62,7 +67,7 @@ domains:
 
 | Path | Owner | WAEGIS may replace it? | Purpose |
 |---|---|---:|---|
-| `.agentic/aegis/` | AEGIS product | Yes, as a complete versioned payload | CLI, workflows, adapters, defaults, templates, manifest, and product assets. |
+| `.agentic/aegis/` | AEGIS product | Yes, as a complete versioned payload | CLI, workflows, adapters, launchers, manifest, and product documentation. |
 | Every other path below `.agentic/` | Target repository | No | Configuration, project rules, requirements, components, tests, adoptions, and run history. |
 
 - **AM-OWNER-001:** `.agentic/aegis/manifest.toml` and the payload files it
@@ -87,11 +92,11 @@ domains:
 .agentic/
 |-- aegis/                              # product-owned, replaceable payload
 |   |-- manifest.toml
-|   |-- cli/
-|   |-- workflows/
+|   |-- README.md
 |   |-- adapters/
-|   |-- defaults/
-|   `-- templates/
+|   |-- bin/
+|   |-- cli/
+|   `-- workflows/
 |-- .runtime/                           # transient locks and recovery; not versioned
 |-- config.toml                         # generated integration map
 |-- rules.md                            # optional project-specific guidance
@@ -292,17 +297,20 @@ schema = 1
 artifact_type = "stage"
 run_id = "RUN-0123456789abcdef0123456789abcdef"
 stage = "intake"
+sequence = 1
 status = "active"
+state_json = "{\"allowed_sections\":[],\"events\":[],\"sections\":{}}"
 +++
 
-# Intake
+# 1 - Intake
 ```
 
 - **AM-SCHEMA-001:** `schema` shall be a positive integer scoped to the
   `artifact_type`.
 - **AM-SCHEMA-002:** `artifact_type` shall be stable lowercase snake case.
-- **AM-SCHEMA-003:** Machine state shall be read from front matter, not inferred
-  from Markdown headings or prose.
+- **AM-SCHEMA-003:** Machine state shall be read from front matter or from the
+  codec-defined Run, Component, and Specification body sections. It shall not
+  be inferred from unrecognized Markdown headings or prose.
 - **AM-SCHEMA-004:** A parser shall return a structured error for malformed or
   unsupported front matter and shall preserve the original file.
 - **AM-SCHEMA-005:** A published artifact shall contain no angle-bracket
@@ -310,6 +318,38 @@ status = "active"
 - **AM-SCHEMA-006:** Timestamps shall be RFC 3339 UTC values ending in `Z`.
 - **AM-SCHEMA-007:** Enum values shall use lowercase snake case except the exact
   priority vocabulary `Must`, `Should`, and `Could`.
+
+### 7.1 Current renderer representation
+
+The current codec uses two Markdown representations:
+
+1. Run, Component, and Specification artifacts store selected tabular metadata
+   in front matter and reconstruct their remaining state from codec-defined body
+   sections.
+2. Stage, Adoption, and exceptional Abandonment artifacts store their complete
+   state as compact, key-sorted JSON in the TOML string field `state_json`.
+   Their Markdown body is a generated projection and is not parsed back into
+   state.
+
+For a Stage, the generated projection begins with
+`# <un-padded sequence> - <title-cased stage>`. It then renders the Stage
+instruction, each allowed section with a title-cased heading and its current
+text, and the `evidence`, `findings`, `decisions`, `escapes`, `attachments`, and
+`events` collections as fenced, indented JSON arrays. The last heading is
+`## Event history`; generated headings do not preserve punctuation or the
+capitalization used by earlier hand-written planning examples.
+
+Adoption renders as `# Adoption <ADOPT-ID>` followed by one fenced, indented
+JSON object. Exceptional Abandonment renders as `# Exceptional abandonment`
+followed by the same JSON-object projection. The compact `state_json` value,
+not either body projection, is authoritative for these artifact types.
+
+Parsing and rendering shall preserve the metadata and structured state. Byte-
+for-byte identity after a parse/render cycle is not required because parsing
+the key-sorted `state_json` can normalize dictionary order in the indented JSON
+projection. Redesigning this representation for more reviewable diffs is
+deferred; planning references shall describe and exercise the current codec
+rather than imply that redesign has occurred.
 
 ## 8. Run summary
 
@@ -351,9 +391,10 @@ shall contain:
 
 ## 9. Stage files as durable snapshots
 
-Every Stage file has the same machine envelope, an embedded stage-specific
-instruction, and stage-specific human sections. It shall contain enough
-information for a new session to continue without chat history.
+Every Stage file has the same machine envelope, a complete `state_json` object,
+an embedded stage-specific instruction, and generated stage-specific sections.
+It shall contain enough information for a new session to continue without chat
+history.
 
 ### 9.1 Common stage state
 
@@ -702,7 +743,7 @@ AEGIS shall report at least:
 
 ## 19. Template set
 
-The initial planning templates are:
+The planning/reference set is:
 
 | Template | Purpose |
 |---|---|
@@ -712,20 +753,28 @@ The initial planning templates are:
 | `requirement.toml` | One behavior and its direct impacted-file/test traceability. |
 | `spec.md` | Optional build-level detail for one Requirement. |
 | `component.md` | Mandatory component knowledge used during Intake. |
-| `adoption.md` | Incremental existing-repository adoption state. |
+| `adoption.md` | Renderer-generated incremental existing-repository adoption reference. |
 | `context.toml` | Non-authoritative selected-Run pointer for one working copy. |
 | `run.md` | Run identity, ticket, scope, execution instruction, stage summary, and outcome. |
-| `01-intake.md` through `08-delivery.md` | Durable, stage-specific state and resume snapshots. |
-| `abandonment.md` | Exceptional fallback when normal Run state cannot be updated. |
+| `01-intake.md` through `08-delivery.md` | Renderer-generated default Stage state and resume references. |
+| `abandonment.md` | Renderer-generated exceptional fallback reference for an unreadable normal Run. |
 
 - **AM-TEMPLATE-001:** Templates shall contain no project-specific fact,
   completed evidence, real identifier, or default success claim.
 - **AM-TEMPLATE-002:** Placeholder values shall be visibly synthetic and shall
   fail publication validation until replaced.
-- **AM-TEMPLATE-003:** TOML templates and Markdown TOML front matter shall parse
-  with standard-library `tomllib` on the supported Python 3.12 runtime.
+- **AM-TEMPLATE-003:** Standalone TOML reference files and TOML snippets in
+  planning Markdown examples shall parse with standard-library `tomllib` on the
+  supported Python 3.12 runtime. A schematic planning Markdown file is not a
+  runtime artifact unless it is explicitly marked as renderer-generated.
 - **AM-TEMPLATE-004:** The eight Stage templates shall share a common state and
   history shape while retaining stage-specific instructions and sections.
+- **AM-TEMPLATE-005:** The renderer-generated Stage, Adoption, and exceptional
+  Abandonment references shall parse through the current artifact codec and
+  round-trip their metadata and structured state.
+- **AM-TEMPLATE-006:** No file under `00_Planning/templates/` shall be treated as
+  a payload file or copied into a release artifact. Runtime authority remains
+  the codec and workflow resources under `05_Software/aegis/template/`.
 
 ## 20. Acceptance conditions
 
@@ -753,8 +802,8 @@ validation rules demonstrate that:
 12. updating or deleting a Requirement, Specification, Component, or
     traceability relationship leaves only current project knowledge while the
     owning Run retains the workflow evidence; and
-13. every machine-significant template parses with its declared schema on
-    Windows and Ubuntu.
+13. every renderer-generated machine-artifact reference parses with its
+    declared schema on Windows and Ubuntu.
 
 The CLI and Machine Protocol Contract operates on these artifacts, the
 Acceptance Plan defines their required proof, the Technical Architecture

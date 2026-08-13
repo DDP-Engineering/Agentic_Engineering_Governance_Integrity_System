@@ -1,88 +1,79 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "requirement"
 sequence = 3
-status = "pending" # pending | active | completed | skipped | omitted
+status = "pending"
 started_at = ""
-updated_at = 2026-01-01T00:00:00Z
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"inputs_from_alignment\",\"requirement_artifact_changes\",\"traceability\",\"risk_based_test_depth_decision\",\"gaps_and_uncertainties\",\"outputs_and_handoff\"],\"attachments\":[],\"common_findings\":[\"A Requirement mixes multiple behaviors or embeds its confirmation method.\",\"Traceability names hoped-for files or tests rather than verified paths.\"],\"decisions\":[],\"escapes\":[],\"events\":[],\"evidence\":[],\"findings\":[],\"instruction\":\"Express one current behavior per Requirement with confirmation separate from behavior. Link real impacted files and tests or a concrete manual method. Use a Specification only when the Requirement is not buildable alone.\",\"recovery_actions\":[{\"condition\":\"Behavior or confirmation is not yet buildable.\",\"guidance\":\"Record the smallest clarification, gap, or manual confirmation needed to continue.\",\"operation\":\"stage.set_section\"},{\"condition\":\"No Requirement change is needed and no Stage work was applied.\",\"guidance\":\"Skip with the proportional reason and preserve the existing Requirement truth.\",\"operation\":\"stage.skip\"}],\"sections\":{\"gaps_and_uncertainties\":\"None\",\"inputs_from_alignment\":\"None\",\"outputs_and_handoff\":\"None\",\"requirement_artifact_changes\":\"None\",\"risk_based_test_depth_decision\":\"None\",\"traceability\":\"None\"},\"work_applied\":false}"
 +++
 
-# 03 - Requirement
+# 3 - Requirement
 
 ## Stage instruction
 
-Express one behavior per Requirement, with its confirmation stated separately.
-Use EARS phrasing when it improves clarity, not as a mandatory form. Link each
-Requirement directly to impacted implementation files and real project tests,
-or record a concrete manual-test method. Create a Specification only when the
-Requirement alone is not buildable.
+Express one current behavior per Requirement with confirmation separate from behavior. Link real impacted files and tests or a concrete manual method. Use a Specification only when the Requirement is not buildable alone.
 
-## Inputs from Alignment
+## Inputs From Alignment
 
-- Agreed scope: <scope>
-- Profile: <full | short>
-- Relevant existing Requirements: <IDs or none>
+None
 
-## Requirement artifact changes
+## Requirement Artifact Changes
 
-| Requirement | Action | One behavior | Confirmation | Specification |
-|---|---|---|---|---|
-| `<REQ-ID>` | `<created | updated | deleted | unchanged>` | `<summary>` | `<automated or manual>` | `<path or none>` |
+None
 
 ## Traceability
 
-| Requirement | Impacted files | Real tests or manual method | Risk purposes |
-|---|---|---|---|
-| `<REQ-ID>` | `<paths>` | `<paths/selectors or method>` | `<happy_path plus risk-based depth>` |
+None
 
-## Risk-based test depth decision
+## Risk Based Test Depth Decision
 
-- Behavior risk: <impact, likelihood, complexity, and failure cost>
-- Beyond happy path: <boundary, edge, negative, failure path, or none>
-- Rationale: <why this depth is proportionate>
+None
 
-## Gaps and uncertainties
+## Gaps And Uncertainties
 
-- <Missing coverage, uncertain impacted file, or none>
+None
+
+## Outputs And Handoff
+
+None
 
 ## Evidence
 
-| Label | Time (UTC) | Validation performed | Observed result | Attachment |
-|---|---|---|---|---|
-| `E1` | 2026-01-01T00:00:00Z | `<schema/link validation>` | `<result>` | `<path or none>` |
+```json
+[]
+```
 
 ## Findings
 
-| Label | Severity | Observation and consequence | Disposition |
-|---|---|---|---|
-| `F1` | `<severity>` | `<finding>` | `<disposition>` |
+```json
+[]
+```
 
 ## Decisions
 
-| Time (UTC) | Decision | Actor | Target | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected | exception_approved>` | `<actor>` | `<target>` | `<reason or conditions>` |
+```json
+[]
+```
 
-## Outputs and handoff
+## Escapes
 
-- Project artifacts published: <paths>
-- Requirement result: <concise result>
-- Next action: <first Design or Check action>
-- Resume context: <what another session needs>
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `<event>` | `<result>` |
+```json
+[]
+```

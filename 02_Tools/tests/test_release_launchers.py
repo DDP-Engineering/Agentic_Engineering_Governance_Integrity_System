@@ -13,6 +13,7 @@
 @details Confirms runtime checks preserve the structured product protocol.
 """
 
+import hashlib
 import json
 import os
 import pathlib
@@ -118,15 +119,25 @@ class ReleaseLauncherTests(unittest.TestCase):
                     self.assertIn("Git", prerequisites)
                     self.assertEqual("external 3.12", inventory["python_version"])
                     if platform == "windows-x86_64":
-                        self.assertIn("py -3.12", wrapper)
+                        for probe in (
+                            "python3.12 --version",
+                            "py -3.12 --version",
+                            "python3 --version",
+                            "python --version",
+                        ):
+                            self.assertIn(probe, wrapper)
                         self.assertNotIn("where git", wrapper)
                     else:
-                        self.assertIn("python3.12", wrapper)
+                        self.assertIn("is_python_312 python3.12", wrapper)
+                        self.assertIn("candidate in python3 python", wrapper)
                         self.assertNotIn("command -v git", wrapper)
+                    self.assertIn("missing_prerequisite", wrapper)
+                    self.assertIn("launcher.start", wrapper)
+                    self.assertNotIn(">&2", wrapper)
                     self.assertIn('shutil.which("git")', python_launcher)
 
     def test_missing_prerequisite_is_reported_as_an_envelope(self) -> None:
-        """@brief PR-PROTO-004 reports missing Git through one JSON response."""
+        """@brief PR-PROTO-004/PR-WAEGIS-007 gate only required Git use."""
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             empty_path = root / "empty-path"
@@ -167,14 +178,17 @@ class ReleaseLauncherTests(unittest.TestCase):
                     else:
                         launcher = extracted / "bin/launcher.py"
                         wrapper = extracted / "bin/waegis.cmd"
+                        target = extracted / "target"
+                        target.mkdir()
+                        plan = extracted / "plan.json"
                         arguments = (
                             "--format",
                             "json",
                             "repository-init-plan",
                             "--target",
-                            str(extracted / "target"),
+                            str(target),
                             "--output",
-                            str(extracted / "plan.json"),
+                            str(plan),
                         )
                         operation = "repository_init.plan"
 
@@ -197,16 +211,219 @@ class ReleaseLauncherTests(unittest.TestCase):
                         env=environment,
                     )
 
-                    self.assertEqual(5, completed.returncode)
                     self.assertEqual("", completed.stderr)
                     self.assertEqual(1, completed.stdout.count("\n"))
                     response = json.loads(completed.stdout)
                     self.assertEqual("aegis.machine.response", response["schema"])
                     self.assertEqual(operation, response["operation"])
+                    if product == "aegis":
+                        self.assertEqual(5, completed.returncode)
+                        self.assertEqual("error", response["operation_status"])
+                        self.assertEqual(
+                            "missing_prerequisite", response["error"]["code"]
+                        )
+                    else:
+                        self.assertEqual(0, completed.returncode)
+                        self.assertEqual("completed", response["operation_status"])
+                        self.assertTrue(plan.is_file())
+                        digest = "sha256:" + hashlib.sha256(
+                            plan.read_bytes()
+                        ).hexdigest()
+                        self.assertEqual(digest, response["data"]["plan_digest"])
+
+                        apply_arguments = (
+                            "--format",
+                            "json",
+                            "repository-init-apply",
+                            "--target",
+                            str(target),
+                            "--plan",
+                            str(plan),
+                            "--confirm-digest",
+                            digest,
+                        )
+                        apply_invocation = (
+                            [
+                                os.environ.get("COMSPEC", "cmd.exe"),
+                                "/d",
+                                "/c",
+                                str(wrapper),
+                                *apply_arguments,
+                            ]
+                            if py_launcher
+                            else [
+                                sys.executable,
+                                str(launcher),
+                                *apply_arguments,
+                            ]
+                        )
+                        applied = subprocess.run(
+                            apply_invocation,
+                            check=False,
+                            capture_output=True,
+                            text=True,
+                            env=environment,
+                        )
+
+                        self.assertEqual(5, applied.returncode)
+                        self.assertEqual("", applied.stderr)
+                        self.assertEqual(1, applied.stdout.count("\n"))
+                        apply_response = json.loads(applied.stdout)
+                        self.assertEqual(
+                            "aegis.machine.response", apply_response["schema"]
+                        )
+                        self.assertEqual(
+                            "repository_init.apply", apply_response["operation"]
+                        )
+                        self.assertEqual(
+                            "error", apply_response["operation_status"]
+                        )
+                        self.assertEqual(
+                            "missing_prerequisite",
+                            apply_response["error"]["code"],
+                        )
+                        self.assertFalse((target / ".git").exists())
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows launcher regression")
+    def test_launcher_accepts_a_venv_provided_3_12(self) -> None:
+        """@brief PR-RUNTIME-001 accepts an exact 3.12 exposed as python."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            shim_directory = root / "venv" / "Scripts"
+            shim_directory.mkdir(parents=True)
+            (shim_directory / "python.cmd").write_text(
+                "@echo off\r\n"
+                'if "%~1"=="--version" (\r\n'
+                "  echo Python 3.12.9\r\n"
+                "  exit /b 0\r\n"
+                ")\r\n"
+                f'"{sys.executable}" %*\r\n',
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment["PATH"] = str(shim_directory)
+
+            for product in ("aegis", "waegis"):
+                with self.subTest(product=product):
+                    archive = release.build_archive(
+                        REPOSITORY,
+                        root / "archives",
+                        product=product,
+                        platform="windows-x86_64",
+                        with_dependencies=False,
+                        runtime_lock=TOOLS / "runtime_inputs.toml",
+                    )
+                    extracted = root / product
+                    with zipfile.ZipFile(archive) as bundle:
+                        bundle.extractall(extracted)
+                    launcher = (
+                        extracted / ".agentic/aegis/bin/aegis.cmd"
+                        if product == "aegis"
+                        else extracted / "bin/waegis.cmd"
+                    )
+                    arguments = ("--format", "json", "version-show")
+
+                    completed = subprocess.run(
+                        [
+                            os.environ.get("COMSPEC", "cmd.exe"),
+                            "/d",
+                            "/c",
+                            str(launcher),
+                            *arguments,
+                        ],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        env=environment,
+                    )
+
+                    self.assertEqual(
+                        0, completed.returncode, completed.stderr or completed.stdout
+                    )
+                    self.assertEqual("", completed.stderr)
+                    response = json.loads(completed.stdout)
+                    self.assertEqual("completed", response["operation_status"])
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows launcher regression")
+    def test_launcher_prerequisite_failure_is_an_envelope(self) -> None:
+        """@brief PR-PROTO-001 envelopes an unavailable Python prerequisite."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            empty_path = root / "empty-path"
+            empty_path.mkdir()
+            (empty_path / "python.cmd").write_text(
+                "@echo off\r\n"
+                'if "%~1"=="--version" echo Python 3.13.1\r\n'
+                "exit /b 0\r\n",
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment["PATH"] = str(empty_path)
+
+            for product in ("aegis", "waegis"):
+                with self.subTest(product=product):
+                    archive = release.build_archive(
+                        REPOSITORY,
+                        root / "archives",
+                        product=product,
+                        platform="windows-x86_64",
+                        with_dependencies=False,
+                        runtime_lock=TOOLS / "runtime_inputs.toml",
+                    )
+                    extracted = root / product
+                    with zipfile.ZipFile(archive) as bundle:
+                        bundle.extractall(extracted)
+                    launcher = (
+                        extracted / ".agentic/aegis/bin/aegis.cmd"
+                        if product == "aegis"
+                        else extracted / "bin/waegis.cmd"
+                    )
+
+                    completed = subprocess.run(
+                        [
+                            os.environ.get("COMSPEC", "cmd.exe"),
+                            "/d",
+                            "/c",
+                            str(launcher),
+                            "--format",
+                            "json",
+                            "version-show",
+                        ],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        env=environment,
+                    )
+
+                    self.assertEqual(5, completed.returncode)
+                    self.assertEqual("", completed.stderr)
+                    self.assertEqual(1, completed.stdout.count("\n"))
+                    response = json.loads(completed.stdout)
+                    self.assertEqual("aegis.machine.response", response["schema"])
+                    self.assertEqual(product.upper(), response["product"])
+                    self.assertEqual("launcher.start", response["operation"])
                     self.assertEqual("error", response["operation_status"])
                     self.assertEqual(
                         "missing_prerequisite", response["error"]["code"]
                     )
+
+                    human = subprocess.run(
+                        [
+                            os.environ.get("COMSPEC", "cmd.exe"),
+                            "/d",
+                            "/c",
+                            str(launcher),
+                            "version-show",
+                        ],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        env=environment,
+                    )
+                    self.assertEqual(5, human.returncode)
+                    self.assertEqual("", human.stderr)
+                    self.assertIn("Operation: launcher.start", human.stdout)
+                    self.assertIn("Error: missing_prerequisite:", human.stdout)
 
     def test_repository_free_operations_do_not_require_git(self) -> None:
         """@brief PR-PROTO-004 keeps help and version independent of Git."""

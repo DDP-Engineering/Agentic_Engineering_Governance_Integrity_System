@@ -23,8 +23,11 @@ import pytest
 from aegis.domain.values import RepositoryPath, ValueValidationError
 from aegis.infrastructure.codecs import (
     ArtifactDecodeError,
+    _load_toml,
     decode_general_text,
+    parse_markdown_document,
     parse_project_config,
+    render_markdown_document,
     render_project_config,
 )
 from aegis.infrastructure.payload import load_payload_manifest, verify_payload
@@ -92,6 +95,69 @@ def test_configuration_round_trip_is_canonical_and_supports_multiple_roots() -> 
     ]
     assert reparsed.commands["tests.project"].timeout_seconds == 0
     assert reparsed.commands["lints.ruff"].command == ("ruff", "check", ".")
+
+
+def test_toml_temporal_values_are_normalized_recursively() -> None:
+    """@brief Low-level TOML decoding emits protocol-safe temporal strings."""
+    parsed = _load_toml(
+        b"created = 2026-01-01T00:00:00Z\n"
+        b"dates = [2026-01-02, 2026-01-03]\n"
+        b"[nested]\nlocal_time = 12:34:56\n",
+        path="temporal.toml",
+    )
+
+    assert parsed == {
+        "created": "2026-01-01T00:00:00+00:00",
+        "dates": ["2026-01-02", "2026-01-03"],
+        "nested": {"local_time": "12:34:56"},
+    }
+
+
+def test_component_codec_round_trip_preserves_file_digest_baselines() -> None:
+    """@brief Component exact-byte baselines survive canonical codec round trips."""
+    metadata = {
+        "schema": 1,
+        "artifact_type": "component",
+        "id": "COMP-0123456789abcdef0123456789abcdef",
+        "status": "active",
+        "name": "Binary member owner",
+        "files": ["src/alpha.py", "src/zeta.bin"],
+        "requirement_ids": [],
+        "reviewed_at": "2026-08-13T00:00:00Z",
+    }
+    state = {
+        "purpose_boundary": "Own two declared members.",
+        "interfaces": "None",
+        "requirement_links": [],
+        "file_roles": [
+            {"path": "src/alpha.py", "role": "Text member."},
+            {"path": "src/zeta.bin", "role": "Binary member."},
+        ],
+        "dependencies": [],
+        "test_links": [],
+        "known_gaps": [],
+        "drift_review": {
+            "behavior": "yes",
+            "interfaces": "yes",
+            "dependencies": "yes",
+            "files": "yes",
+        },
+        "file_digests": {
+            "src/alpha.py": "a" * 64,
+            "src/zeta.bin": "f" * 64,
+        },
+    }
+
+    rendered = render_markdown_document(metadata, state, kind="component")
+    reparsed_metadata, reparsed_state, _ = parse_markdown_document(
+        rendered, path=".agentic/components/COMP-example.md"
+    )
+
+    assert reparsed_state["file_digests"] == state["file_digests"]
+    assert (
+        render_markdown_document(reparsed_metadata, reparsed_state, kind="component")
+        == rendered
+    )
 
 
 def test_payload_verification_reports_exact_missing_modified_and_unowned_files(

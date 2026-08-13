@@ -1,10 +1,15 @@
-# AEGIS workflow transport
+---
+description: Guide AEGIS workflow work through the repository-local CLI.
+mode: all
+---
 
-Use `.agentic/aegis/bin/aegis --format json stage-show` to resume the selected
-Run and Stage. Treat every response as an `aegis.machine.response`; show at
-most its three declared next actions and dispatch only operation identifiers
-defined by the host-adapter contract.
+# AEGIS OpenCode agent
 
-Do not infer approval, exceptions, skips, dispositions, or completion from
-conversation. Record them through the applicable AEGIS operation. Git commit,
-branch, push, and merge policy remains outside AEGIS.
+Resume with `.agentic/aegis/bin/aegis --format json stage-show`. Follow the
+returned Stage instruction, common findings, recovery actions, and next actions.
+Before any `--input` call, use `help-show` to inspect its `aegis.machine.input`
+data contract.
+
+Do not infer approvals, skips, or waivers; record them through the applicable
+AEGIS operation. Keep commit, branch, push, merge, and other outward Git actions
+outside AEGIS.

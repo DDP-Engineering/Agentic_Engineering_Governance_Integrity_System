@@ -17,6 +17,10 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
+from aegis.application.component_drift import (
+    capture_file_digests,
+    compare_file_digests,
+)
 from aegis.application.operation_types import OperationContext, OperationDefinition
 from aegis.application.workflow_operations import (
     UseCaseError,
@@ -37,7 +41,33 @@ from aegis.ports.workspace import RepositoryMutation, Workspace, WorkspaceError
 
 _REQ_ID = re.compile(r"^REQ-[0-9a-f]{32}$")
 _COMP_ID = re.compile(r"^COMP-[0-9a-f]{32}$")
-_PURPOSES = {"happy_path", "boundary", "edge", "negative", "failure_path"}
+_REQUIREMENT_STATUSES = frozenset({"draft", "active"})
+_REQUIREMENT_PRIORITIES = frozenset({"Must", "Should", "Could"})
+_VERIFICATION_KINDS = frozenset({"automated", "manual"})
+_PURPOSES = frozenset({"happy_path", "boundary", "edge", "negative", "failure_path"})
+_FORBIDDEN_REQUIREMENT_IDENTIFIER = re.compile(
+    r"(?<![A-Za-z0-9])(?:RUN-[0-9a-f]{32}|REQ-[0-9a-f]{32}|[A-Z]{2,}-[0-9]+)"
+    r"(?![A-Za-z0-9])"
+)
+_TEST_FILE_NAME = re.compile(
+    r"(?:^test_.+|.+_test)\.[^.]+$|^.+\.(?:test|spec)\.[^.]+$"
+)
+_TEST_SUPPORT_FILES = frozenset({"__init__.py", "conftest.py"})
+_TEST_EXCLUDED_DIRECTORIES = frozenset(
+    {
+        "__pycache__",
+        "build",
+        "cache",
+        "coverage",
+        "dist",
+        "generated",
+        "node_modules",
+    }
+)
+_FORBIDDEN_IDENTIFIER_LIMIT = 8
+_DRIFT_REVIEW_AXES = ("behavior", "interfaces", "dependencies", "files")
+_DRIFT_REVIEW_VALUES = frozenset({"yes", "no", "uncertain"})
+_DRIFT_REVIEW_KEYS = frozenset((*_DRIFT_REVIEW_AXES, "finding"))
 
 
 def _path(value: Any, field: str) -> str:
@@ -93,17 +123,26 @@ def _validate_requirement_input(
     status = inputs.get("status")
     priority = inputs.get("priority")
     verification = inputs.get("verification_kind")
-    if status not in {"draft", "active"}:
+    if status not in _REQUIREMENT_STATUSES:
         raise UseCaseError(
-            "invalid_input", "Requirement status is invalid.", field="status"
+            "invalid_input",
+            "Requirement status is invalid.",
+            field="status",
+            details={"allowed": sorted(_REQUIREMENT_STATUSES)},
         )
-    if priority not in {"Must", "Should", "Could"}:
+    if priority not in _REQUIREMENT_PRIORITIES:
         raise UseCaseError(
-            "invalid_input", "Requirement priority is invalid.", field="priority"
+            "invalid_input",
+            "Requirement priority is invalid.",
+            field="priority",
+            details={"allowed": sorted(_REQUIREMENT_PRIORITIES)},
         )
-    if verification not in {"automated", "manual"}:
+    if verification not in _VERIFICATION_KINDS:
         raise UseCaseError(
-            "invalid_input", "verification_kind is invalid.", field="verification_kind"
+            "invalid_input",
+            "verification_kind is invalid.",
+            field="verification_kind",
+            details={"allowed": sorted(_VERIFICATION_KINDS)},
         )
     impacted = inputs.get("impacted_files")
     if not isinstance(impacted, list) or not impacted:
@@ -127,13 +166,21 @@ def _validate_requirement_input(
         if (
             not isinstance(purposes, list)
             or not purposes
-            or not set(purposes) <= _PURPOSES
-            or not isinstance(covered, list)
-            or not covered
+            or any(
+                not isinstance(purpose, str) or purpose not in _PURPOSES
+                for purpose in purposes
+            )
         ):
             raise UseCaseError(
                 "invalid_input",
-                "Test purposes or covered files are invalid.",
+                "Test purposes are invalid.",
+                field="tests",
+                details={"allowed": sorted(_PURPOSES)},
+            )
+        if not isinstance(covered, list) or not covered:
+            raise UseCaseError(
+                "invalid_input",
+                "Test covered files are invalid.",
                 field="tests",
             )
         normalized_tests.append(
@@ -147,15 +194,6 @@ def _validate_requirement_input(
             }
         )
     manual_method = inputs.get("manual_method", "")
-    if verification == "automated" and (
-        not normalized_tests
-        or not any("happy_path" in test["purposes"] for test in normalized_tests)
-    ):
-        raise UseCaseError(
-            "invalid_input",
-            "Automated Requirements need a happy-path real test link.",
-            field="tests",
-        )
     if verification == "manual" and (
         not isinstance(manual_method, str) or not manual_method.strip()
     ):
@@ -205,7 +243,10 @@ def _record_project_change(
     ) = _load_current(workspace)
     _require_active_stage(stage_meta)
     now = _time(context)
-    stage_state["events"].append(_event(now, "operator", action, target))
+    actor = run_state.get("actor")
+    if not isinstance(actor, str) or not actor.strip():
+        actor = "operator"
+    stage_state["events"].append(_event(now, actor, action, target))
     stage_state["work_applied"] = True
     stage_meta["updated_at"] = now
     run_meta["updated_at"] = now
@@ -262,6 +303,7 @@ def _requirement_create(
     data = _validate_requirement_input(
         inputs, requirement_id=requirement_id, now=_time(context)
     )
+    findings = tuple(_requirement_findings(workspace, data, path))
     revisions, run_id, stage, _ = _record_project_change(
         context,
         workspace,
@@ -279,6 +321,7 @@ def _requirement_create(
         stage=stage,
         revision=revisions[path],
         artifacts=(_artifact(path, "created", revisions[path], kind="requirement"),),
+        findings=findings,
     )
 
 
@@ -310,6 +353,7 @@ def _requirement_update(
         now=_time(context),
         specification=current.get("specification", ""),
     )
+    findings = tuple(_requirement_findings(workspace, data, path))
     revisions, run_id, stage, _ = _record_project_change(
         context,
         workspace,
@@ -327,6 +371,7 @@ def _requirement_update(
         stage=stage,
         revision=revisions[path],
         artifacts=(_artifact(path, "updated", revisions[path], kind="requirement"),),
+        findings=findings,
     )
 
 
@@ -431,6 +476,25 @@ def _requirement_findings(
             }
         )
 
+    for field in ("title", "behavior", "confirmation"):
+        value = data.get(field, "")
+        identifiers = (
+            list(dict.fromkeys(_FORBIDDEN_REQUIREMENT_IDENTIFIER.findall(value)))
+            if isinstance(value, str)
+            else []
+        )
+        if identifiers:
+            shown = identifiers[:_FORBIDDEN_IDENTIFIER_LIMIT]
+            omitted = len(identifiers) - len(shown)
+            suffix = f" (+{omitted} more)" if omitted else ""
+            add(
+                "forbidden_requirement_identifier",
+                (
+                    f"Requirement {field} contains forbidden identifier(s): "
+                    f"{', '.join(shown)}{suffix}; rewrite {field} as self-contained "
+                    "provenance-free prose."
+                ),
+            )
     if data.get("verification_kind") == "automated" and not any(
         "happy_path" in test.get("purposes", []) for test in data.get("tests", [])
     ):
@@ -630,19 +694,28 @@ def _component_input(
         )
     files = inputs.get("files")
     file_roles = inputs.get("file_roles")
-    requirements = inputs.get("requirement_ids")
+    if "requirement_ids" in inputs or "behaviors" in inputs:
+        raise UseCaseError(
+            "invalid_input",
+            (
+                "Positional requirement_ids and behaviors are no longer accepted; "
+                "provide requirement_links objects instead."
+            ),
+            field="requirement_links",
+        )
+    requirement_links = inputs.get("requirement_links")
     links = inputs.get("test_links")
     if (
         not isinstance(files, list)
         or not files
         or not isinstance(file_roles, list)
-        or not isinstance(requirements, list)
+        or not isinstance(requirement_links, list)
         or not isinstance(links, list)
     ):
         raise UseCaseError(
             "invalid_input",
             (
-                "Component files, file roles, Requirement IDs, and test links "
+                "Component files, file roles, Requirement links, and test links "
                 "must be lists."
             ),
         )
@@ -665,11 +738,42 @@ def _component_input(
             "Component file roles must describe every Component file exactly.",
             field="file_roles",
         )
-    if not all(_REQ_ID.fullmatch(value) for value in requirements):
-        raise UseCaseError(
-            "invalid_input",
-            "Component Requirement identity is invalid.",
-            field="requirement_ids",
+    normalized_requirement_links = []
+    seen_requirements = set()
+    for index, link in enumerate(requirement_links):
+        field = f"requirement_links[{index}]"
+        if not isinstance(link, dict) or set(link) != {"requirement_id", "behavior"}:
+            raise UseCaseError(
+                "invalid_input",
+                (
+                    "Each Component Requirement link needs only requirement_id "
+                    "and behavior."
+                ),
+                field=field,
+            )
+        requirement_id = link.get("requirement_id")
+        behavior = link.get("behavior")
+        if not isinstance(requirement_id, str) or not _REQ_ID.fullmatch(requirement_id):
+            raise UseCaseError(
+                "invalid_input",
+                "Component Requirement identity is invalid.",
+                field=f"{field}.requirement_id",
+            )
+        if requirement_id in seen_requirements:
+            raise UseCaseError(
+                "invalid_input",
+                "A Component Requirement may be linked only once.",
+                field=f"{field}.requirement_id",
+            )
+        if not isinstance(behavior, str) or not behavior.strip():
+            raise UseCaseError(
+                "invalid_input",
+                "Component linked behavior must be non-empty text.",
+                field=f"{field}.behavior",
+            )
+        seen_requirements.add(requirement_id)
+        normalized_requirement_links.append(
+            {"requirement_id": requirement_id, "behavior": behavior}
         )
     normalized_links = []
     for link in links:
@@ -686,6 +790,44 @@ def _component_input(
         )
     for field in ("purpose_boundary", "interfaces"):
         _require_text(inputs, field)
+    drift_review = inputs.get("drift_review", {})
+    if not isinstance(drift_review, dict):
+        raise UseCaseError(
+            "invalid_input",
+            "Component drift review must be an object.",
+            field="drift_review",
+        )
+    unknown_review_keys = sorted(set(drift_review) - _DRIFT_REVIEW_KEYS)
+    if unknown_review_keys:
+        key = unknown_review_keys[0]
+        raise UseCaseError(
+            "invalid_input",
+            "Component drift review contains an unknown field.",
+            field=f"drift_review.{key}",
+            details={"allowed": sorted(_DRIFT_REVIEW_KEYS)},
+        )
+    normalized_review = {}
+    for axis in _DRIFT_REVIEW_AXES:
+        value = drift_review.get(axis, "uncertain")
+        if value not in _DRIFT_REVIEW_VALUES:
+            raise UseCaseError(
+                "invalid_input",
+                "Component drift review value is invalid.",
+                field=f"drift_review.{axis}",
+                details={"allowed": sorted(_DRIFT_REVIEW_VALUES)},
+            )
+        normalized_review[axis] = value
+    finding = drift_review.get("finding", "none")
+    if not isinstance(finding, str) or not finding.strip():
+        raise UseCaseError(
+            "invalid_input",
+            "Component drift review finding must be non-empty text.",
+            field="drift_review.finding",
+        )
+    normalized_review["finding"] = finding
+    requirements = [
+        link["requirement_id"] for link in normalized_requirement_links
+    ]
     metadata = {
         "schema": 1,
         "artifact_type": "component",
@@ -699,12 +841,12 @@ def _component_input(
     state = {
         "purpose_boundary": inputs["purpose_boundary"],
         "interfaces": inputs["interfaces"],
-        "behaviors": inputs.get("behaviors", []),
+        "requirement_links": normalized_requirement_links,
         "file_roles": normalized_roles,
         "dependencies": inputs.get("dependencies", []),
         "test_links": normalized_links,
         "known_gaps": inputs.get("known_gaps", []),
-        "drift_review": inputs.get("drift_review", {}),
+        "drift_review": normalized_review,
     }
     return metadata, state
 
@@ -726,6 +868,7 @@ def _component_create(
     metadata, state = _component_input(
         inputs, component_id=component_id, now=_time(context)
     )
+    state["file_digests"] = capture_file_digests(workspace, metadata["files"])
     revisions, run_id, stage, _ = _record_project_change(
         context,
         workspace,
@@ -774,6 +917,7 @@ def _component_update(
     metadata, state = _component_input(
         inputs, component_id=component_id, now=_time(context)
     )
+    state["file_digests"] = capture_file_digests(workspace, metadata["files"])
     revisions, run_id, stage, _ = _record_project_change(
         context,
         workspace,
@@ -884,12 +1028,24 @@ def _component_findings(
                 "missing_component_test",
                 f"Component test link is invalid: {link['path']}",
             )
+    drift_reasons = []
     review = state.get("drift_review", {})
     if any(
         review.get(key) not in {"yes", "not_applicable"}
         for key in ("behavior", "interfaces", "dependencies", "files")
     ):
-        add("component_drift", "Component drift review is incomplete or uncertain.")
+        drift_reasons.append("the recorded drift review is incomplete or uncertain")
+    changed, unreviewed = compare_file_digests(
+        workspace, metadata.get("files", []), state.get("file_digests")
+    )
+    if changed:
+        drift_reasons.append(f"member bytes changed: {', '.join(changed)}")
+    if unreviewed:
+        drift_reasons.append(
+            f"readable members have no recorded baseline: {', '.join(unreviewed)}"
+        )
+    if drift_reasons:
+        add("component_drift", f"Component drift detected; {'; '.join(drift_reasons)}.")
     return findings
 
 
@@ -995,6 +1151,11 @@ def _requirement_delete(
                 for value in metadata["requirement_ids"]
                 if value != requirement_id
             ]
+            state["requirement_links"] = [
+                link
+                for link in state.get("requirement_links", [])
+                if link.get("requirement_id") != requirement_id
+            ]
             mutations.append(
                 RepositoryMutation(
                     component_path,
@@ -1043,6 +1204,31 @@ def _all_requirements(workspace: Workspace) -> list[tuple[str, dict[str, Any], s
     return result
 
 
+def _recognizable_test_file(path: str, root: str) -> bool:
+    """@brief Apply a small naming heuristic while excluding test support output."""
+    if root == ".":
+        relative = path
+    else:
+        prefix = f"{root}/"
+        if not path.startswith(prefix):
+            return False
+        relative = path[len(prefix) :]
+    parts = relative.split("/")
+    if not relative or any(
+        part.startswith(".") or part.lower() in _TEST_EXCLUDED_DIRECTORIES
+        for part in parts[:-1]
+    ):
+        return False
+    filename = parts[-1]
+    if (
+        filename.startswith(".")
+        or filename.lower() in _TEST_SUPPORT_FILES
+        or filename.lower().endswith(".pyc")
+    ):
+        return False
+    return _TEST_FILE_NAME.fullmatch(filename) is not None
+
+
 def _trace_validate(
     context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
 ) -> OperationResult:
@@ -1062,8 +1248,10 @@ def _trace_validate(
             }
         )
 
+    requirements = _all_requirements(workspace)
     identities: dict[str, list[str]] = defaultdict(list)
-    for path, data, _ in _all_requirements(workspace):
+    linked_tests: set[str] = set()
+    for path, data, _ in requirements:
         identity = data.get("id", "")
         identities[identity].append(path)
         if path.rsplit("/", 1)[-1] != f"{identity}.toml":
@@ -1074,6 +1262,13 @@ def _trace_validate(
             )
         for finding in _requirement_findings(workspace, data, path):
             add(finding["code"], finding["summary"], path)
+        for test in data.get("tests", []):
+            test_path = test.get("path")
+            if isinstance(test_path, str):
+                try:
+                    linked_tests.add(_path(test_path, "tests.path"))
+                except UseCaseError:
+                    continue
     memberships: dict[str, list[str]] = defaultdict(list)
     for path in workspace.list_files(str(workspace.config.components), suffix=".md"):
         metadata, state, _ = workspace.load_document(path)
@@ -1096,6 +1291,41 @@ def _trace_validate(
                 f"File belongs to multiple Components: {file_path}",
                 file_path,
             )
+    recognizable_tests: set[str] = set()
+    for root_value in sorted({str(root) for root in workspace.config.test_roots}):
+        try:
+            if not workspace.path_exists(root_value, directory=True):
+                add(
+                    "test_enumeration_incomplete",
+                    (
+                        f"Configured test root is unavailable: {root_value}; "
+                        "unlinked-test enumeration is incomplete."
+                    ),
+                    root_value,
+                )
+                continue
+            visible_files = workspace.git_visible_files(root_value)
+        except (OSError, WorkspaceError):
+            add(
+                "test_enumeration_incomplete",
+                (
+                    f"Configured test root is unreadable: {root_value}; "
+                    "unlinked-test enumeration is incomplete."
+                ),
+                root_value,
+            )
+            continue
+        recognizable_tests.update(
+            path
+            for path in visible_files
+            if _recognizable_test_file(path, root_value)
+        )
+    for test_path in sorted(recognizable_tests - linked_tests):
+        add(
+            "unlinked_test",
+            f"Recognizable test file is linked to no Requirement: {test_path}",
+            test_path,
+        )
     return _done(
         context,
         definition,
@@ -1196,7 +1426,10 @@ def _trace_impacted(
             **data,
         }
     )
-    stage_state["events"].append(_event(now, "operator", "trace_impacted", mode))
+    actor = run_state.get("actor")
+    if not isinstance(actor, str) or not actor.strip():
+        actor = "operator"
+    stage_state["events"].append(_event(now, actor, "trace_impacted", mode))
     stage_meta["updated_at"] = now
     run_meta["updated_at"] = now
     revisions = _save_stage_run(

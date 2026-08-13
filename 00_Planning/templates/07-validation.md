@@ -1,89 +1,79 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "validation"
 sequence = 7
-status = "pending" # pending | active | completed | skipped | omitted
+status = "pending"
 started_at = ""
-updated_at = 2026-01-01T00:00:00Z
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"inputs\",\"impacted_test_selection\",\"automated_validation_evidence\",\"manual_validation_evidence\",\"test_integrity_conclusion\",\"outputs_and_handoff\"],\"attachments\":[],\"common_findings\":[\"Impacted selection omits a linked test without a reason or fallback.\",\"Test, lint, audit, or manual results are merged into a stronger conclusion than evidence supports.\"],\"decisions\":[],\"escapes\":[],\"events\":[],\"evidence\":[],\"findings\":[],\"instruction\":\"Select the complete safe impacted tests with reasons, or record and run the full-suite fallback. Record test, lint, audit, and manual outcomes independently without turning findings into blockers.\",\"recovery_actions\":[{\"condition\":\"A configured safe validation command still needs evidence.\",\"guidance\":\"Run the named command and preserve its independent operational outcome.\",\"operation\":\"execution.run\"},{\"condition\":\"A completed or skipped implementation step must be corrected.\",\"guidance\":\"Revisit Implementation with the concrete reason, then resume the forward path.\",\"operation\":\"stage.revisit\"}],\"sections\":{\"automated_validation_evidence\":\"None\",\"impacted_test_selection\":\"None\",\"inputs\":\"None\",\"manual_validation_evidence\":\"None\",\"outputs_and_handoff\":\"None\",\"test_integrity_conclusion\":\"None\"},\"work_applied\":false}"
 +++
 
-# 07 - Validation
+# 7 - Validation
 
 ## Stage instruction
 
-Use Requirement-to-impacted-file-to-test traceability to select the relevant
-regression tests. Prefer the safely determined impacted set for speed. If the
-set is unsafe or incomplete, run the full configured suite and state why.
-Record actual outcomes, manual checks, findings, waivers, and test-integrity
-results without converting them into blockers.
+Select the complete safe impacted tests with reasons, or record and run the full-suite fallback. Record test, lint, audit, and manual outcomes independently without turning findings into blockers.
 
 ## Inputs
 
-- Requirements: <IDs>
-- Changed implementation files: <paths>
-- Changed test files: <paths or none>
-- Implementation evidence: <labels>
+None
 
-## Impacted-test selection
+## Impacted Test Selection
 
-| Changed file | Requirement | Selected test path/selector | Selection reason |
-|---|---|---|---|
-| `<path>` | `<REQ-ID>` | `<test>` | `<traceability link>` |
+None
 
-- Selection completeness: <safe and complete | uncertain | incomplete>
-- Full-suite fallback used: <yes | no>
-- Fallback reason: <reason or not applicable>
+## Automated Validation Evidence
 
-## Automated validation evidence
+None
 
-| Label | Time (UTC) | Command/selector and working directory | Exit | Observed result | Attachment |
-|---|---|---|---:|---|---|
-| `VAL1` | 2026-01-01T00:00:00Z | `<command; cwd>` | `<code>` | `<passed, failed, or launch error with details>` | `<path or none>` |
+## Manual Validation Evidence
 
-## Manual validation evidence
+None
 
-| Label | Time (UTC) | Actor | Procedure | Expected | Actual |
-|---|---|---|---|---|---|
-| `MAN1` | 2026-01-01T00:00:00Z | `<actor>` | `<steps>` | `<expected>` | `<actual>` |
+## Test Integrity Conclusion
 
-## Test integrity conclusion
+None
 
-- Tests changed between red and green: <paths or none>
-- Recorded decision: <accepted correction, unexplained change, or none>
-- Related findings: <labels or none>
+## Outputs And Handoff
+
+None
+
+## Evidence
+
+```json
+[]
+```
 
 ## Findings
 
-| Label | Severity | Observation and consequence | Disposition |
-|---|---|---|---|
-| `F1` | `<severity>` | `<finding>` | `<disposition>` |
+```json
+[]
+```
 
 ## Decisions
 
-| Time (UTC) | Decision | Actor | Target | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected | exception_approved>` | `<actor>` | `<target>` | `<reason or conditions>` |
+```json
+[]
+```
 
-## Outputs and handoff
+## Escapes
 
-- Validation result: <concise honest result>
-- Unresolved risk: <risk or none>
-- Next action: <first Delivery action>
-- Resume context: <what another session needs>
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `<event>` | `<result>` |
+```json
+[]
+```

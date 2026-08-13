@@ -355,10 +355,10 @@ def test_automated_evidence_rejects_incomplete_or_inconsistent_claims(
     assert run_path.read_bytes() == before_run
 
 
-def test_complete_automated_and_manual_evidence_remain_recordable(
+def test_complete_valid_evidence_kinds_remain_recordable(
     tmp_path: Path,
 ) -> None:
-    """@brief Complete automated facts and valid manual observations are retained."""
+    """@brief Every accepted evidence kind remains recordable."""
     repo = installed_repository(tmp_path)
     create_run(repo)
 
@@ -374,12 +374,15 @@ def test_complete_automated_and_manual_evidence_remain_recordable(
             "actual": "Both entries remain visible.",
         },
     )
+    imported = invoke(repo, "evidence-add", {"kind": "imported"})
 
     assert automated[0] == 0, automated[1]
     assert automated[1]["data"]["entry"]["outcome"] == "passed"
     assert automated[1]["data"]["entry"]["time"].endswith("Z")
     assert manual[0] == 0, manual[1]
     assert manual[1]["data"]["entry"]["kind"] == "manual"
+    assert imported[0] == 0, imported[1]
+    assert imported[1]["data"]["entry"]["kind"] == "imported"
 
 
 # -----------------------------------------------------------------------------

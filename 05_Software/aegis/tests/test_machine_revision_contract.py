@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from aegis.application.operation_registry import ALL_OPERATIONS
 from aegis.composition import create_dispatcher
+from aegis.infrastructure.codecs import parse_markdown_document
 from aegis.infrastructure.workspace import FileWorkspace
 from aegis.interface.cli import run_cli
 
@@ -141,6 +142,7 @@ def test_registry_declares_the_complete_machine_revision_policy() -> None:
         "component.find",
         "trace.validate",
         "execution.list",
+        "adoption.list",
         "adoption.show",
     }
     creates = {
@@ -209,7 +211,12 @@ def test_missing_run_revision_is_invalid_input_and_preserves_run_bytes(
     before = (run_path.read_bytes(), design_path.read_bytes())
 
     exit_code, response = invoke(
-        repo, "run.set_profile", "run-set-profile", None, "--profile", "short"
+        repo,
+        "run.set_profile",
+        "run-set-profile",
+        {"actor": "agent", "reason": "Use the short profile."},
+        "--profile",
+        "short",
     )
 
     assert exit_code == 2
@@ -217,6 +224,87 @@ def test_missing_run_revision_is_invalid_input_and_preserves_run_bytes(
     assert response["error"]["code"] == "invalid_input"
     assert response["error"]["field"] == "expected_revision"
     assert (run_path.read_bytes(), design_path.read_bytes()) == before
+
+
+def test_profile_change_requires_attribution_and_preserves_atomic_history(
+    tmp_path: Path,
+) -> None:
+    """@brief FS-PROFILE-007 records actor, reason, and truthful profiles."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    run_dir = repo / ".agentic" / "runs" / created["run_id"]
+    run_path = run_dir / "run.md"
+    design_path = run_dir / "04-design.md"
+    shown_exit, shown = invoke(repo, "run.show", "run-show")
+    assert shown_exit == 0
+    assert isinstance(shown, dict)
+    original_revision = shown["revision"]
+    original = (run_path.read_bytes(), design_path.read_bytes())
+
+    for data, field in (({}, "actor"), ({"actor": "agent"}, "reason")):
+        exit_code, rejected = invoke(
+            repo,
+            "run.set_profile",
+            "run-set-profile",
+            data,
+            "--profile",
+            "short",
+            expected_revision=original_revision,
+        )
+        assert exit_code == 2, rejected
+        assert isinstance(rejected, dict)
+        assert rejected["error"]["code"] == "invalid_input"
+        assert rejected["error"]["field"] == field
+        assert (run_path.read_bytes(), design_path.read_bytes()) == original
+
+    reason = "Use the bounded workflow for this small correction."
+    changed_exit, changed = invoke(
+        repo,
+        "run.set_profile",
+        "run-set-profile",
+        {"actor": "review-agent", "reason": reason},
+        "--profile",
+        "short",
+        expected_revision=original_revision,
+    )
+    assert changed_exit == 0, changed
+    assert isinstance(changed, dict)
+    run_metadata, run_state, _ = parse_markdown_document(
+        run_path.read_bytes(), path=run_path.relative_to(repo).as_posix()
+    )
+    design_metadata, design_state, _ = parse_markdown_document(
+        design_path.read_bytes(), path=design_path.relative_to(repo).as_posix()
+    )
+    expected_result = f"Profile changed from full to short. Reason: {reason}"
+    assert run_metadata["profile"] == "short"
+    assert design_metadata["status"] == "omitted"
+    assert run_state["events"][-1] == {
+        "time": run_state["events"][-1]["time"],
+        "actor": "review-agent",
+        "event": "profile_changed",
+        "result": expected_result,
+    }
+    assert design_state["events"][-1] == {
+        "time": design_state["events"][-1]["time"],
+        "actor": "review-agent",
+        "event": "profile_changed",
+        "result": expected_result,
+    }
+
+    changed_bytes = (run_path.read_bytes(), design_path.read_bytes())
+    stale_exit, stale = invoke(
+        repo,
+        "run.set_profile",
+        "run-set-profile",
+        {"actor": "review-agent", "reason": "Return to the full workflow."},
+        "--profile",
+        "full",
+        expected_revision=original_revision,
+    )
+    assert stale_exit == 4, stale
+    assert isinstance(stale, dict)
+    assert stale["error"]["code"] == "state_conflict"
+    assert (run_path.read_bytes(), design_path.read_bytes()) == changed_bytes
 
 
 def test_stage_matching_and_stale_revisions_preserve_exact_stage_and_run_bytes(
@@ -496,7 +584,77 @@ def test_exceptional_abandonment_is_exempt_when_no_readable_run_target_exists(
     assert exit_code == 0
     assert isinstance(response, dict)
     assert response["data"]["exceptional"] is True
+    assert response["data"]["run_summary_updated"] is False
     assert run_path.read_bytes() == unreadable
+
+
+def test_readable_run_exceptional_abandonment_accepts_no_revision(
+    tmp_path: Path,
+) -> None:
+    """@brief A corrupt Stage keeps conditional machine abandonment available."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    run_dir = repo / ".agentic" / "runs" / created["run_id"]
+    run_path = run_dir / "run.md"
+    (run_dir / "01-intake.md").write_bytes(b"corrupt Stage")
+
+    exit_code, response = invoke(
+        repo,
+        "run.abandon",
+        "run-abandon",
+        {"actor": "agent", "reason": "The current Stage is unreadable."},
+    )
+
+    assert exit_code == 0, response
+    assert isinstance(response, dict)
+    assert response["data"]["run_summary_updated"] is True
+    assert 'status = "abandoned"' in run_path.read_text(encoding="utf-8")
+
+
+def test_readable_run_exceptional_abandonment_rejects_a_stale_revision(
+    tmp_path: Path,
+) -> None:
+    """@brief A caller-supplied stale readable Run token blocks all publication."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    shown_exit, shown = invoke(repo, "run.show", "run-show")
+    assert shown_exit == 0
+    assert isinstance(shown, dict)
+    update_exit, updated = invoke(
+        repo,
+        "run.set_profile",
+        "run-set-profile",
+        {"actor": "agent", "reason": "Use the short profile."},
+        "--profile",
+        "short",
+        expected_revision=shown["revision"],
+    )
+    assert update_exit == 0, updated
+    run_dir = repo / ".agentic" / "runs" / created["run_id"]
+    run_path = run_dir / "run.md"
+    stage_path = run_dir / "01-intake.md"
+    pointer_path = repo / ".agentic" / "runs" / "context.toml"
+    sibling = repo / ".agentic" / "runs" / f"ABANDON-{created['run_id']}.md"
+    stage_path.write_bytes(b"corrupt Stage")
+    before = (run_path.read_bytes(), stage_path.read_bytes(), pointer_path.read_bytes())
+
+    exit_code, response = invoke(
+        repo,
+        "run.abandon",
+        "run-abandon",
+        {"actor": "agent", "reason": "The current Stage is unreadable."},
+        expected_revision=shown["revision"],
+    )
+
+    assert exit_code == 4, response
+    assert isinstance(response, dict)
+    assert response["error"]["code"] == "state_conflict"
+    assert (
+        run_path.read_bytes(),
+        stage_path.read_bytes(),
+        pointer_path.read_bytes(),
+    ) == before
+    assert not sibling.exists()
 
 
 # -----------------------------------------------------------------------------

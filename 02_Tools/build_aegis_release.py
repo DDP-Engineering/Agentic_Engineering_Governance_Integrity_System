@@ -36,6 +36,43 @@ class PayloadError(ValueError):
     """Report an invalid or non-exact canonical payload."""
 
 
+def _missing_python_envelope(product: str) -> str:
+    """Render the interpreter-independent missing-Python machine response."""
+    name = product.upper()
+    summary = f"{name} requires Python 3.12 on PATH."
+    return json.dumps(
+        {
+            "schema": "aegis.machine.response",
+            "schema_version": 1,
+            "product": name,
+            "product_version": "1.0.0",
+            "operation": "launcher.start",
+            "operation_id": "OP-00000000000000000000000000000000",
+            "operation_status": "error",
+            "run_id": None,
+            "stage": None,
+            "revision": None,
+            "outcome": None,
+            "message": summary,
+            "data": {},
+            "findings": [],
+            "artifacts": [],
+            "next_actions": [],
+            "error": {
+                "code": "missing_prerequisite",
+                "summary": summary,
+                "field": None,
+                "path": None,
+                "retryable": False,
+                "details": {},
+            },
+            "truncated": False,
+            "details_ref": None,
+        },
+        separators=(",", ":"),
+    )
+
+
 def _safe_payload_path(value: str) -> str:
     path = PurePosixPath(value)
     if not value or path.is_absolute() or ".." in path.parts or "\\" in value:
@@ -234,6 +271,9 @@ def _runtime_files(
 
 def _launcher_files(product: str, platform: str) -> dict[str, bytes]:
     name = product
+    display_name = product.upper()
+    missing_summary = f"{display_name} requires Python 3.12 on PATH."
+    missing_envelope = _missing_python_envelope(product)
     python_launcher = f"""#!/usr/bin/env python3
 from __future__ import annotations
 import shutil
@@ -249,33 +289,118 @@ raise SystemExit(
     """.encode()
     if platform == "windows-x86_64":
         wrapper = (
-            b"@echo off\r\n"
-            b"setlocal\r\n"
-            b'set "ROOT=%~dp0.."\r\n'
-            b'if exist "%ROOT%\\runtime\\git\\cmd\\git.exe" '
-            b'set "PATH=%ROOT%\\runtime\\git\\cmd;%PATH%"\r\n'
-            b'if exist "%ROOT%\\runtime\\python\\python.exe" '
-            b'("%ROOT%\\runtime\\python\\python.exe" "%~dp0launcher.py" %*) '
-            b"else (\r\n"
-            b'  py -3.12 -c "import sys" >nul 2>nul\r\n'
-            b"  if errorlevel 1 (echo WAEGIS requires Python 3.12. 1>&2 "
-            b"& exit /b 5)\r\n"
-            b'  py -3.12 "%~dp0launcher.py" %*\r\n'
-            b")\r\n"
-            b"exit /b %ERRORLEVEL%\r\n"
+            "\r\n".join(
+                [
+                    "@echo off",
+                    "setlocal",
+                    'set "ROOT=%~dp0.."',
+                    'if exist "%ROOT%\\runtime\\git\\cmd\\git.exe" '
+                    'set "PATH=%ROOT%\\runtime\\git\\cmd;%PATH%"',
+                    'if not exist "%ROOT%\\runtime\\python\\python.exe" '
+                    "goto probe_external_python",
+                    '"%ROOT%\\runtime\\python\\python.exe" '
+                    '"%~dp0launcher.py" %*',
+                    "exit /b %ERRORLEVEL%",
+                    ":probe_external_python",
+                    'for /f "tokens=1-3 delims=. " %%A in '
+                    "('python3.12 --version 2^>^&1') do if "
+                    '"%%A.%%B.%%C"=="Python.3.12" goto use_python312',
+                    'for /f "tokens=1-3 delims=. " %%A in '
+                    "('py -3.12 --version 2^>^&1') do if "
+                    '"%%A.%%B.%%C"=="Python.3.12" goto use_py312',
+                    'for /f "tokens=1-3 delims=. " %%A in '
+                    "('python3 --version 2^>^&1') do if "
+                    '"%%A.%%B.%%C"=="Python.3.12" goto use_python3',
+                    'for /f "tokens=1-3 delims=. " %%A in '
+                    "('python --version 2^>^&1') do if "
+                    '"%%A.%%B.%%C"=="Python.3.12" goto use_python',
+                    "goto missing_python",
+                    ":use_python312",
+                    'python3.12 "%~dp0launcher.py" %*',
+                    "exit /b %ERRORLEVEL%",
+                    ":use_py312",
+                    'py -3.12 "%~dp0launcher.py" %*',
+                    "exit /b %ERRORLEVEL%",
+                    ":use_python3",
+                    'python3 "%~dp0launcher.py" %*',
+                    "exit /b %ERRORLEVEL%",
+                    ":use_python",
+                    'python "%~dp0launcher.py" %*',
+                    "exit /b %ERRORLEVEL%",
+                    ":missing_python",
+                    'if "%~1"=="" goto emit_missing_python_human',
+                    'if /i "%~1"=="--format=json" goto emit_missing_python_json',
+                    'if /i "%~1"=="--format" goto inspect_format_value',
+                    "shift",
+                    "goto missing_python",
+                    ":inspect_format_value",
+                    "shift",
+                    'if /i "%~1"=="json" goto emit_missing_python_json',
+                    "goto missing_python",
+                    ":emit_missing_python_json",
+                    f"echo {missing_envelope}",
+                    "exit /b 5",
+                    ":emit_missing_python_human",
+                    f"echo {missing_summary}",
+                    "echo Operation: launcher.start",
+                    "echo Status: error",
+                    f"echo Product: {display_name} 1.0.0",
+                    f"echo Error: missing_prerequisite: {missing_summary}",
+                    "exit /b 5",
+                    "",
+                ]
+            ).encode("utf-8")
         )
         return {"bin/launcher.py": python_launcher, f"bin/{name}.cmd": wrapper}
     wrapper = (
-        b"#!/bin/sh\n"
-        b"set -eu\n"
-        b'root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)\n'
-        b'if [ -x "$root/runtime/git/bin/git" ]; then '
-        b'PATH="$root/runtime/git/bin:$PATH"; export PATH; fi\n'
-        b'if [ -x "$root/runtime/python/bin/python3" ]; then '
-        b'exec "$root/runtime/python/bin/python3" "$root/bin/launcher.py" "$@"; fi\n'
-        b'if ! command -v python3.12 >/dev/null 2>&1; then '
-        b'echo "WAEGIS requires Python 3.12." >&2; exit 5; fi\n'
-        b'exec python3.12 "$root/bin/launcher.py" "$@"\n'
+        "\n".join(
+            [
+                "#!/bin/sh",
+                "set -eu",
+                'root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)',
+                'if [ -x "$root/runtime/git/bin/git" ]; then '
+                'PATH="$root/runtime/git/bin:$PATH"; export PATH; fi',
+                'if [ -x "$root/runtime/python/bin/python3" ]; then '
+                'exec "$root/runtime/python/bin/python3" '
+                '"$root/bin/launcher.py" "$@"; fi',
+                "is_python_312() {",
+                '  version=$("$@" --version 2>&1) || return 1',
+                '  case "$version" in "Python 3.12."*) return 0 ;; *) return 1 ;; esac',
+                "}",
+                "if command -v python3.12 >/dev/null 2>&1 && "
+                "is_python_312 python3.12; then",
+                '  exec python3.12 "$root/bin/launcher.py" "$@"',
+                "fi",
+                "for candidate in python3 python; do",
+                '  if command -v "$candidate" >/dev/null 2>&1 && '
+                'is_python_312 "$candidate"; then',
+                '    exec "$candidate" "$root/bin/launcher.py" "$@"',
+                "  fi",
+                "done",
+                "wants_json=0",
+                "format_value=0",
+                'for argument in "$@"; do',
+                '  if [ "$format_value" -eq 1 ]; then',
+                '    [ "$argument" = "json" ] && wants_json=1',
+                "    format_value=0",
+                '  elif [ "$argument" = "--format" ]; then',
+                "    format_value=1",
+                '  elif [ "$argument" = "--format=json" ]; then',
+                "    wants_json=1",
+                "  fi",
+                "done",
+                'if [ "$wants_json" -eq 1 ]; then',
+                f"  printf '%s\\n' '{missing_envelope}'",
+                "else",
+                f"  printf '%s\\n' '{missing_summary}'",
+                "  printf '%s\\n' 'Operation: launcher.start' 'Status: error'",
+                f"  printf '%s\\n' 'Product: {display_name} 1.0.0'",
+                f"  printf '%s\\n' 'Error: missing_prerequisite: {missing_summary}'",
+                "fi",
+                "exit 5",
+                "",
+            ]
+        ).encode("utf-8")
     )
     return {"bin/launcher.py": python_launcher, f"bin/{name}": wrapper}
 

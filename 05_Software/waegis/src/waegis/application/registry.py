@@ -18,6 +18,7 @@ class OperationDefinition:
     operation: str
     purpose: str
     arguments: tuple[str, ...] = ()
+    optional_arguments: tuple[str, ...] = ()
 
     @property
     def command(self) -> str:
@@ -28,6 +29,12 @@ class OperationDefinition:
 OPERATIONS = (
     OperationDefinition("help.show", "Show WAEGIS operations."),
     OperationDefinition("version.show", "Show WAEGIS version."),
+    OperationDefinition(
+        "plan.show",
+        "Review one exact lifecycle plan without action bodies.",
+        ("plan",),
+        ("offset", "limit"),
+    ),
     OperationDefinition(
         "repository_init.plan",
         "Preview local Git initialization.",

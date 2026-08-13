@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tomllib
 from datetime import date, datetime, time
 from typing import Any
@@ -44,6 +45,8 @@ _MARKDOWN_SCHEMAS = {
     "adoption": 1,
     "abandonment": 1,
 }
+_REQUIREMENT_ID = re.compile(r"^REQ-[0-9a-f]{32}$")
+_DRIFT_REVIEW_VALUES = frozenset({"yes", "no", "uncertain"})
 
 
 def decode_general_text(content: bytes, *, path: str) -> str:
@@ -87,9 +90,11 @@ def _normalize_toml_temporal_values(value: Any) -> Any:
 
 def _load_toml(source: bytes | dict[str, Any], *, path: str) -> dict[str, Any]:
     if isinstance(source, dict):
-        return source
+        return _normalize_toml_temporal_values(source)
     try:
-        return tomllib.loads(source.decode("utf-8-sig"))
+        return _normalize_toml_temporal_values(
+            tomllib.loads(source.decode("utf-8-sig"))
+        )
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
         raise ArtifactDecodeError("invalid UTF-8 TOML", path=path) from error
 
@@ -358,6 +363,7 @@ def render_markdown_document(
         lines = _render_front_matter(front, tables=tables)
         lines.extend(_render_run_body(metadata, state))
     elif kind == "component":
+        front.pop("requirement_ids", None)
         tables = {
             "test_links": [
                 {"path": link.get("path", ""), "selector": link.get("selector", "")}
@@ -437,7 +443,19 @@ def parse_markdown_document(
             state = _parse_run_body(body, stages=stages)
         elif kind == "component":
             test_links = metadata.pop("test_links", [])
-            state = _parse_component_body(body, test_links=test_links)
+            legacy_requirement_ids = metadata.pop("requirement_ids", None)
+            state = _parse_component_body(body, test_links=test_links, path=path)
+            requirement_ids = [
+                link["requirement_id"] for link in state["requirement_links"]
+            ]
+            if legacy_requirement_ids is not None and legacy_requirement_ids != (
+                requirement_ids
+            ):
+                raise ArtifactDecodeError(
+                    "legacy Component Requirement IDs disagree with atomic links",
+                    path=path,
+                )
+            metadata["requirement_ids"] = requirement_ids
         elif kind == "specification":
             state = _parse_specification_body(body)
         else:
@@ -725,20 +743,17 @@ def _render_component_body(
         "## Behaviors and requirements",
         "",
     ]
-    requirements = metadata.get("requirement_ids", [])
-    behaviors = state.get("behaviors", [])
-    for index, requirement_id in enumerate(requirements):
-        behavior = (
-            behaviors[index] if index < len(behaviors) else "Behavior not recorded."
-        )
+    requirement_links = state.get("requirement_links", [])
+    for link in requirement_links:
         lines.append(
-            f"- `{requirement_id}` - {str(behavior).replace(chr(10), '<br>')}"
+            f"- `{link.get('requirement_id', '')}` - "
+            f"{str(link.get('behavior', '')).replace(chr(10), '<br>')}"
         )
     lines.extend(
         f"- `(gap)` - {str(behavior).replace(chr(10), '<br>')}"
-        for behavior in behaviors[len(requirements) :]
+        for behavior in state.get("unlinked_behaviors", [])
     )
-    if not metadata.get("requirement_ids") and not state.get("behaviors"):
+    if not requirement_links and not state.get("unlinked_behaviors"):
         lines.append("- None")
     lines.extend(("", "## File roles", ""))
     lines.extend(
@@ -746,6 +761,14 @@ def _render_component_body(
         for path in metadata.get("files", [])
     )
     if not metadata.get("files"):
+        lines.append("- None")
+    file_digests = state.get("file_digests", {})
+    lines.extend(("", "## File digests", ""))
+    if isinstance(file_digests, dict):
+        lines.extend(
+            f"- `{path}` - `{file_digests[path]}`" for path in sorted(file_digests)
+        )
+    if not isinstance(file_digests, dict) or not file_digests:
         lines.append("- None")
     lines.extend(("", "## Tests", ""))
     lines.extend(
@@ -779,15 +802,48 @@ def _render_component_body(
 
 
 def _parse_component_body(
-    body: str, *, test_links: list[dict[str, Any]]
+    body: str, *, test_links: list[dict[str, Any]], path: str
 ) -> dict[str, Any]:
     _, sections = _markdown_sections(body)
     behavior_lines = _bullet_items(sections.get("Behaviors and requirements", ""))
+    requirement_links = []
+    unlinked_behaviors = []
+    seen_requirements = set()
+    for item in behavior_lines:
+        if item == "None":
+            continue
+        identity, separator, behavior = item.partition("` - ")
+        if identity.startswith("`REQ-") and separator:
+            requirement_id = identity[1:]
+            if (
+                not _REQUIREMENT_ID.fullmatch(requirement_id)
+                or not behavior.strip()
+                or requirement_id in seen_requirements
+            ):
+                raise ArtifactDecodeError(
+                    "Component Requirement link is malformed or duplicated",
+                    path=path,
+                )
+            seen_requirements.add(requirement_id)
+            requirement_links.append(
+                {"requirement_id": requirement_id, "behavior": behavior}
+            )
+        elif item.startswith("`(gap)` - "):
+            unlinked_behaviors.append(item.removeprefix("`(gap)` - "))
+        else:
+            raise ArtifactDecodeError(
+                "Component behavior entry is malformed", path=path
+            )
     file_roles = []
     for item in _bullet_items(sections.get("File roles", "")):
         path, separator, role = item.partition("` - ")
         if path.startswith("`") and separator:
             file_roles.append({"path": path[1:], "role": role})
+    file_digests = {}
+    for item in _bullet_items(sections.get("File digests", "")):
+        path, separator, digest = item.partition("` - `")
+        if path.startswith("`") and separator and digest.endswith("`"):
+            file_digests[path[1:]] = digest[:-1]
     dependencies = _bullet_items(sections.get("Dependencies", ""))
     known_gaps = _bullet_items(sections.get("Known gaps", ""))
     test_descriptions = []
@@ -801,40 +857,51 @@ def _parse_component_body(
             if index < len(test_descriptions)
             else "Linked project test."
         )
+    review_section = sections.get("Drift review", "")
+    review_labels = {
+        "Behavior current",
+        "Interfaces current",
+        "Dependencies current",
+        "File membership current",
+        "Review finding",
+    }
+    for item in _bullet_items(review_section):
+        label, separator, _ = item.partition(": ")
+        if not separator or label not in review_labels:
+            raise ArtifactDecodeError(
+                "Component drift review entry is unknown or malformed", path=path
+            )
+    drift_review = {
+        "behavior": _after_label(review_section, "Behavior current", "uncertain"),
+        "interfaces": _after_label(
+            review_section, "Interfaces current", "uncertain"
+        ),
+        "dependencies": _after_label(
+            review_section, "Dependencies current", "uncertain"
+        ),
+        "files": _after_label(
+            review_section, "File membership current", "uncertain"
+        ),
+        "finding": _after_label(review_section, "Review finding", "none"),
+    }
+    if any(
+        drift_review[axis] not in _DRIFT_REVIEW_VALUES
+        for axis in ("behavior", "interfaces", "dependencies", "files")
+    ) or not drift_review["finding"].strip():
+        raise ArtifactDecodeError(
+            "Component drift review value is invalid", path=path
+        )
     return {
         "purpose_boundary": sections.get("Purpose and boundary", "None"),
         "interfaces": sections.get("Interfaces", "None"),
-        "behaviors": [
-            item.split("` - ", 1)[1]
-            for item in behavior_lines
-            if item.startswith("`REQ-") and "` - " in item
-        ]
-        + [
-            item.removeprefix("`(gap)` - ")
-            for item in behavior_lines
-            if item.startswith("`(gap)` - ")
-        ],
+        "requirement_links": requirement_links,
+        "unlinked_behaviors": unlinked_behaviors,
         "file_roles": file_roles,
+        "file_digests": file_digests,
         "dependencies": [] if dependencies == ["None"] else dependencies,
         "test_links": test_links,
         "known_gaps": [] if known_gaps == ["None"] else known_gaps,
-        "drift_review": {
-            "behavior": _after_label(
-                sections.get("Drift review", ""), "Behavior current", "uncertain"
-            ),
-            "interfaces": _after_label(
-                sections.get("Drift review", ""), "Interfaces current", "uncertain"
-            ),
-            "dependencies": _after_label(
-                sections.get("Drift review", ""), "Dependencies current", "uncertain"
-            ),
-            "files": _after_label(
-                sections.get("Drift review", ""), "File membership current", "uncertain"
-            ),
-            "finding": _after_label(
-                sections.get("Drift review", ""), "Review finding", "none"
-            ),
-        },
+        "drift_review": drift_review,
     }
 
 

@@ -29,6 +29,7 @@ from aegis.application.workflow_operations import (
     _load_current,
     _load_run,
     _observe_run_changes,
+    _page_offset,
     _require_text,
     _run_ids,
     _run_path,
@@ -36,6 +37,7 @@ from aegis.application.workflow_operations import (
     _workspace,
 )
 from aegis.domain.results import OperationResult
+from aegis.domain.values import RepositoryPath, ValueValidationError
 from aegis.ports.workspace import RepositoryMutation, Workspace, WorkspaceError
 
 _ADOPTION_ID = re.compile(r"^ADOPT-[0-9a-f]{32}$")
@@ -155,6 +157,52 @@ def _run_abandon(
             raise
         run_id = selected
         run_path = _run_path(workspace, run_id)
+        recorded_error = load_error
+        unreadable_path = run_path
+        last_known_state = "unknown"
+        if load_error.path:
+            try:
+                unreadable_path = str(RepositoryPath(load_error.path))
+            except ValueValidationError:
+                pass
+        run_summary_updated = False
+        run_revision = None
+        run_mutation = None
+        try:
+            run_meta, run_state, run_revision, run_path = _load_run(
+                workspace, run_id
+            )
+        except (UseCaseError, WorkspaceError) as run_load_error:
+            recorded_error = run_load_error
+            if run_load_error.path:
+                try:
+                    unreadable_path = str(RepositoryPath(run_load_error.path))
+                except ValueValidationError:
+                    pass
+        else:
+            if run_meta.get("status") != "active":
+                raise UseCaseError(
+                    "invalid_transition",
+                    "Only the selected active Run can be abandoned.",
+                )
+            last_known_state = f"active at {run_meta['current_stage']}"
+            run_meta.update({"status": "abandoned", "updated_at": now})
+            run_state["outcome"] = {
+                "workflow": "abandoned",
+                "reason": reason,
+                "actor": actor,
+                "time": now,
+            }
+            run_state["next_action"] = "None; this Run is terminal."
+            run_state["events"].append(
+                _event(now, actor, "run_abandoned", reason)
+            )
+            _observe_run_changes(workspace, run_state, observed_at=now)
+            run_mutation = RepositoryMutation(
+                run_path,
+                workspace.render_document(run_meta, run_state, kind="run"),
+            )
+            run_summary_updated = True
         exceptional_path = f"{workspace.config.runs}/ABANDON-{run_id}.md"
         metadata = {
             "schema": 1,
@@ -165,38 +213,45 @@ def _run_abandon(
         }
         state = {
             "reason": reason,
-            "normal_update_failure": str(load_error),
-            "last_known_state": "unknown",
-            "unreadable_paths": [run_path],
+            "normal_update_failure": str(recorded_error),
+            "last_known_state": last_known_state,
+            "unreadable_paths": [unreadable_path],
             "diagnostics": "Original bytes were preserved.",
             "outcome": "abandoned",
         }
-        revisions = workspace.publish(
-            (
-                RepositoryMutation(
-                    exceptional_path,
-                    workspace.render_document(metadata, state, kind="abandonment"),
-                ),
-                RepositoryMutation(pointer_path, _context_bytes(None)),
+        mutations = [
+            RepositoryMutation(
+                exceptional_path,
+                workspace.render_document(metadata, state, kind="abandonment"),
             ),
-            expected_revisions={
-                exceptional_path: None,
-                pointer_path: workspace.revision(pointer_path),
-            },
+            RepositoryMutation(pointer_path, _context_bytes(None)),
+        ]
+        expected_revisions = {
+            exceptional_path: None,
+            pointer_path: workspace.revision(pointer_path),
+        }
+        if run_mutation is not None:
+            mutations.insert(0, run_mutation)
+            expected_revisions[run_path] = inputs.get(
+                "expected_revision", run_revision
+            )
+        revisions = workspace.publish(
+            tuple(mutations),
+            expected_revisions=expected_revisions,
         )
         return _done(
             context,
             definition,
-            (
-                "Exceptional abandonment recorded without overwriting "
-                "unreadable Run state."
-            ),
+            "Exceptional abandonment recorded while preserving unreadable state.",
             data={
                 "exceptional": True,
                 "reason": reason,
-                "unreadable_paths": [run_path],
+                "unreadable_paths": [unreadable_path],
+                "run_summary_updated": run_summary_updated,
+                "last_known_state": last_known_state,
             },
             run_id=run_id,
+            revision=revisions.get(run_path) if run_summary_updated else None,
             outcome="abandoned",
             artifacts=(
                 _artifact(
@@ -290,6 +345,80 @@ def _adoption_create(
         revision=revisions[path],
         outcome="active",
         artifacts=(_artifact(path, "created", revisions[path], kind="adoption"),),
+    )
+
+
+def _adoption_list(
+    context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
+) -> OperationResult:
+    """@brief List stable bounded Adoption resume summaries without mutation."""
+    workspace = _workspace(context)
+    root = str(workspace.config.adoptions)
+    paths = tuple(
+        path
+        for path in workspace.list_files(root, suffix=".md")
+        if _ADOPTION_ID.fullmatch(path.rsplit("/", 1)[-1].removesuffix(".md"))
+    )
+    offset = _page_offset(inputs, len(paths))
+    items = []
+    for path in paths[offset : offset + 20]:
+        adoption_id = path.rsplit("/", 1)[-1].removesuffix(".md")
+        try:
+            metadata, state, revision, _ = _load_adoption(workspace, adoption_id)
+        except (UseCaseError, WorkspaceError):
+            items.append(
+                {
+                    "id": adoption_id,
+                    "status": "unreadable",
+                    "component_id": "",
+                    "path": path,
+                    "revision": workspace.revision(path),
+                    "resume_state": {
+                        "completed_discovery_count": 0,
+                        "current_artifact_count": 0,
+                        "current_gap_count": 0,
+                        "next_action": "Repair or restore this Adoption journal.",
+                    },
+                }
+            )
+            continue
+        resume = state.get("resume_state", {})
+        if not isinstance(resume, dict):
+            resume = {}
+
+        def item_count(name: str) -> int:
+            value = resume.get(name, [])
+            return len(value) if isinstance(value, list) else 0
+
+        next_action = resume.get("next_action", "")
+        items.append(
+            {
+                "id": adoption_id,
+                "status": metadata.get("status"),
+                "component_id": metadata.get("component_id", ""),
+                "path": path,
+                "revision": revision,
+                "resume_state": {
+                    "completed_discovery_count": item_count("completed_discovery"),
+                    "current_artifact_count": item_count("current_artifacts"),
+                    "current_gap_count": item_count("current_gaps"),
+                    "next_action": (
+                        next_action[:120] if isinstance(next_action, str) else ""
+                    ),
+                },
+            }
+        )
+    next_offset = offset + 20
+    has_more = len(paths) > next_offset
+    return _done(
+        context,
+        definition,
+        "Adoption resume summaries listed.",
+        data={
+            "items": items,
+            "has_more": has_more,
+            "next_cursor": str(next_offset) if has_more else None,
+        },
     )
 
 
@@ -431,6 +560,7 @@ def _adoption_abandon(
 HANDLERS: dict[str, Callable[..., OperationResult]] = {
     "run.abandon": _run_abandon,
     "adoption.create": _adoption_create,
+    "adoption.list": _adoption_list,
     "adoption.show": _adoption_show,
     "adoption.set_section": _adoption_set_section,
     "adoption.complete": _adoption_complete,

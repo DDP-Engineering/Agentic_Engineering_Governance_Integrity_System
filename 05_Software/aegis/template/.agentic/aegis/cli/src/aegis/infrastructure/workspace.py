@@ -24,6 +24,7 @@ from aegis.domain.execution import CancellationToken, ExecutionRequest, Executio
 from aegis.domain.values import RepositoryPath, ValueValidationError
 from aegis.infrastructure.codecs import (
     ArtifactDecodeError,
+    _normalize_toml_temporal_values,
     decode_general_text,
     parse_markdown_document,
     parse_project_config,
@@ -99,11 +100,21 @@ class FileWorkspace:
         content = self.read_optional(path)
         return None if content is None else revision_of(content)
 
-    def path_exists(self, path: str, *, directory: bool = False) -> bool:
+    def path_exists(
+        self, path: str, *, directory: bool = False, recover: bool = True
+    ) -> bool:
         """@brief Test a safe repository path without conflating emptiness."""
-        self._transactions.recover()
+        if recover:
+            self._transactions.recover()
         target = self._path(path)
         return target.is_dir() if directory else target.exists()
+
+    def pending_recovery_paths(self, *, limit: int) -> tuple[tuple[str, ...], int]:
+        """@brief Inspect pending publication paths without parsing or recovery."""
+        try:
+            return self._transactions.pending_paths(limit=limit)
+        except RecoveryError as error:
+            raise WorkspaceError("repository_error", str(error)) from error
 
     def list_files(self, root: str, *, suffix: str | None = None) -> tuple[str, ...]:
         directory = self._path(root)
@@ -118,7 +129,7 @@ class FileWorkspace:
 
     def git_visible_files(self, root: str) -> tuple[str, ...]:
         """@brief List safe existing tracked and unignored files below one root."""
-        canonical_root = str(RepositoryPath(root))
+        canonical_root = "." if root == "." else str(RepositoryPath(root))
         try:
             result = subprocess.run(
                 [
@@ -139,6 +150,21 @@ class FileWorkspace:
             )
             paths = result.stdout.decode("utf-8", "strict").split("\0")
         except (OSError, UnicodeError, subprocess.CalledProcessError):
+            if root == ".":
+                files = set()
+                for path in self.root.rglob("*"):
+                    relative = path.relative_to(self.root).as_posix()
+                    if relative.startswith(".git/") or relative.startswith(
+                        ".agentic/.runtime/"
+                    ):
+                        continue
+                    try:
+                        target = self._path(relative)
+                    except WorkspaceError:
+                        continue
+                    if target.is_file():
+                        files.add(relative)
+                return tuple(sorted(files))
             return self.list_files(root)
 
         files = set()
@@ -190,7 +216,12 @@ class FileWorkspace:
         """@brief Load one exact UTF-8 TOML artifact and its revision."""
         content = self.read_bytes(path)
         try:
-            return tomllib.loads(content.decode("utf-8-sig")), revision_of(content)
+            return (
+                _normalize_toml_temporal_values(
+                    tomllib.loads(content.decode("utf-8-sig"))
+                ),
+                revision_of(content),
+            )
         except (UnicodeError, tomllib.TOMLDecodeError) as error:
             raise WorkspaceError(
                 "malformed_state", "TOML artifact is malformed.", path=path
@@ -323,16 +354,10 @@ class FileWorkspace:
             index_revision = (
                 revision_of(index_path.read_bytes()) if index_path.is_file() else None
             )
-            working_files = {}
-            for path in self.root.rglob("*"):
-                if not path.is_file():
-                    continue
-                relative = path.relative_to(self.root).as_posix()
-                if relative.startswith(".git/") or relative.startswith(
-                    ".agentic/.runtime/"
-                ):
-                    continue
-                working_files[relative] = revision_of(path.read_bytes())
+            working_files = {
+                path: revision_of(self._path(path).read_bytes())
+                for path in self.git_visible_files(".")
+            }
             return {
                 "branch": branch,
                 "head": head,

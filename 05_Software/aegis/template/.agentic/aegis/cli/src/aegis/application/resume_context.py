@@ -19,6 +19,7 @@ import json
 import re
 from typing import Any
 
+from aegis.application.component_drift import compare_file_digests
 from aegis.ports.workspace import Workspace, WorkspaceError
 
 _REQUIREMENT_ID = re.compile(r"REQ-[0-9a-f]{32}")
@@ -86,61 +87,80 @@ _BUDGETS: dict[str, dict[str, int]] = {
 }
 
 
-def _bounded_text(value: Any, limit: int) -> dict[str, Any]:
-    """@return Text cut at a stable boundary with exact omission accounting."""
+def _bounded_text(value: Any, limit: int) -> str | dict[str, Any]:
+    """@return Direct text, or truncated content with exact omission accounting."""
     text = "" if value is None else str(value)
     total = len(text)
     if total <= limit:
-        content = text
-    else:
-        boundary = max(text.rfind("\n", 0, limit + 1), text.rfind(" ", 0, limit + 1))
-        content = text[: boundary if boundary >= max(1, limit // 2) else limit]
+        return text
+    boundary = max(text.rfind("\n", 0, limit + 1), text.rfind(" ", 0, limit + 1))
+    content = text[: boundary if boundary >= max(1, limit // 2) else limit]
     returned = len(content)
     return {
         "content": content,
         "total_characters": total,
         "returned_characters": returned,
         "omitted_characters": total - returned,
-        "truncated": returned < total,
+        "truncated": True,
     }
 
 
-def _bounded_collection(items: list[Any], limit: int) -> dict[str, Any]:
-    """@return A deterministic prefix with exact item omission accounting."""
+def _bounded_collection(
+    items: list[Any], limit: int, *, total_count: int | None = None
+) -> list[Any] | dict[str, Any]:
+    """@return A direct list, or a truncated prefix with exact accounting."""
     returned = items[:limit]
+    total = len(items) if total_count is None else total_count
+    if len(returned) == total:
+        return returned
     return {
         "items": returned,
-        "total_count": len(items),
+        "total_count": total,
         "returned_count": len(returned),
-        "omitted_count": len(items) - len(returned),
-        "truncated": len(returned) < len(items),
+        "omitted_count": total - len(returned),
+        "truncated": True,
     }
 
 
-def _latest_collection(items: list[Any], limit: int) -> dict[str, Any]:
-    """@return The latest persisted entries with exact earlier omission counts."""
+def _latest_collection(items: list[Any], limit: int) -> list[Any] | dict[str, Any]:
+    """@return A direct list, or latest entries with exact earlier omissions."""
     returned = items[-limit:] if limit else []
+    if len(returned) == len(items):
+        return returned
     return {
         "items": returned,
         "total_count": len(items),
         "returned_count": len(returned),
         "omitted_count": len(items) - len(returned),
-        "truncated": len(returned) < len(items),
+        "truncated": True,
     }
+
+
+def _bounded_record_value(value: Any, text_limit: int) -> Any:
+    """@return A structured value whose oversized nested text stays explicit."""
+    if isinstance(value, str):
+        return _bounded_text(value, text_limit)
+    if isinstance(value, dict):
+        return {
+            key: _bounded_record_value(value[key], text_limit)
+            for key in sorted(value)
+        }
+    if isinstance(value, (list, tuple)):
+        return [_bounded_record_value(item, text_limit) for item in value]
+    return value
 
 
 def _bounded_records(
     items: list[Any], count_limit: int, text_limit: int
-) -> dict[str, Any]:
-    """@return Structured entries as bounded deterministic JSON text."""
-    records = [
-        _bounded_text(
-            json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
-            text_limit,
-        )
-        for item in items
-    ]
+) -> list[Any] | dict[str, Any]:
+    """@return Structured entries with collection and nested-text budgets."""
+    records = [_bounded_record_value(item, text_limit) for item in items]
     return _latest_collection(records, count_limit)
+
+
+def _bounded_items(value: list[Any] | dict[str, Any]) -> list[Any]:
+    """@return Items from either compact or truncated collection shape."""
+    return value["items"] if isinstance(value, dict) else value
 
 
 def _contains_truncation(value: Any) -> bool:
@@ -391,6 +411,7 @@ def _requirement_context(
 
 
 def _component_context(
+    workspace: Workspace,
     component_id: str,
     loaded: tuple[dict[str, Any] | None, dict[str, Any] | None, str],
     budget: dict[str, int],
@@ -402,14 +423,27 @@ def _component_context(
     if metadata is None or state is None:
         return {"id": component_id, "path": path, "state": "unavailable"}
     drift = state.get("drift_review", {})
+    stale_reasons = []
     if any(
         drift.get(field) != "yes"
         for field in ("behavior", "interfaces", "dependencies", "files")
     ):
+        stale_reasons.append("its drift review is incomplete")
+    changed, unreviewed = compare_file_digests(
+        workspace, metadata.get("files", []), state.get("file_digests")
+    )
+    if changed:
+        stale_reasons.append(f"member bytes changed: {', '.join(changed)}")
+    if unreviewed:
+        stale_reasons.append(
+            f"readable members have no recorded baseline: {', '.join(unreviewed)}"
+        )
+    if stale_reasons:
         findings.append(
             _finding(
                 "resume_reference_stale",
-                f"Referenced Component {component_id} has incomplete drift review.",
+                f"Referenced Component {component_id} is stale; "
+                f"{'; '.join(stale_reasons)}.",
                 "The Component is included but its currency remains uncertain.",
                 path=path,
             )
@@ -438,7 +472,16 @@ def _component_context(
         "behaviors": _bounded_collection(
             [
                 _bounded_text(item, text_limit)
-                for item in sorted(str(item) for item in state.get("behaviors", []))
+                for item in sorted(
+                    [
+                        str(link.get("behavior", ""))
+                        for link in state.get("requirement_links", [])
+                    ]
+                    + [
+                        str(item)
+                        for item in state.get("unlinked_behaviors", [])
+                    ]
+                )
             ],
             budget["artifact_relationships"],
         ),
@@ -835,6 +878,7 @@ def assemble_stage_resume_context(
     ]
     component_contexts = [
         _component_context(
+            workspace,
             component_id,
             component_loads.get(
                 component_id,
@@ -854,24 +898,24 @@ def assemble_stage_resume_context(
         str(path)
         for item in requirement_contexts
         if item.get("state") == "available"
-        for path in item["impacted_files"]["items"]
+        for path in _bounded_items(item["impacted_files"])
     }
     affected_files.update(
         str(path)
         for item in component_contexts
         if item.get("state") == "available"
-        for path in item["files"]["items"]
+        for path in _bounded_items(item["files"])
     )
     tests: dict[tuple[str, str], dict[str, Any]] = {}
     for item in requirement_contexts:
-        for test in item.get("tests", {}).get("items", []):
+        for test in _bounded_items(item.get("tests", [])):
             tests[(str(test["path"]), str(test["selector"]))] = {
                 "path": test["path"],
                 "selector": test["selector"],
                 "source": "requirement",
             }
     for item in component_contexts:
-        for test in item.get("test_links", {}).get("items", []):
+        for test in _bounded_items(item.get("test_links", [])):
             tests.setdefault(
                 (str(test["path"]), str(test["selector"])),
                 {
@@ -922,20 +966,16 @@ def assemble_stage_resume_context(
     rules = _project_rules(workspace, budget["rules_characters"], findings)
     findings = _deduplicate_findings(findings)
     finding_context = _bounded_collection(findings, budget["findings"])
-    requirements = {
-        "items": requirement_contexts,
-        "total_count": len(requirement_ids),
-        "returned_count": len(requirement_contexts),
-        "omitted_count": len(requirement_ids) - len(requirement_contexts),
-        "truncated": len(requirement_contexts) < len(requirement_ids),
-    }
-    components = {
-        "items": component_contexts,
-        "total_count": len(component_ids),
-        "returned_count": len(component_contexts),
-        "omitted_count": len(component_ids) - len(component_contexts),
-        "truncated": len(component_contexts) < len(component_ids),
-    }
+    requirements = _bounded_collection(
+        requirement_contexts,
+        budget["requirements"],
+        total_count=len(requirement_ids),
+    )
+    components = _bounded_collection(
+        component_contexts,
+        budget["components"],
+        total_count=len(component_ids),
+    )
     stage_context = _stage_context(stage_meta, stage_state, stage_revision, budget)
     stage_state_context = {
         "status": stage_context["status"],
@@ -947,26 +987,28 @@ def assemble_stage_resume_context(
         "events": stage_context["events"],
         "work_applied": stage_context["work_applied"],
     }
+    common_findings = [
+        _bounded_text(item, budget["guidance_text_characters"])
+        for item in list(stage_state.get("common_findings", []))
+        if isinstance(item, str)
+    ]
+    recovery_actions = [
+        {
+            key: _bounded_text(
+                item.get(key, ""), budget["guidance_text_characters"]
+            )
+            for key in ("condition", "operation", "guidance")
+        }
+        for item in list(stage_state.get("recovery_actions", []))
+        if isinstance(item, dict)
+    ]
     guidance = {
-        "common_findings": [
-            _bounded_text(item, budget["guidance_text_characters"])["content"]
-            for item in list(stage_state.get("common_findings", []))[
-                : budget["guidance_entries"]
-            ]
-            if isinstance(item, str)
-        ],
-        "recovery_actions": [
-            {
-                key: _bounded_text(
-                    item.get(key, ""), budget["guidance_text_characters"]
-                )["content"]
-                for key in ("condition", "operation", "guidance")
-            }
-            for item in list(stage_state.get("recovery_actions", []))[
-                : budget["guidance_entries"]
-            ]
-            if isinstance(item, dict)
-        ],
+        "common_findings": _bounded_collection(
+            common_findings, budget["guidance_entries"]
+        ),
+        "recovery_actions": _bounded_collection(
+            recovery_actions, budget["guidance_entries"]
+        ),
     }
     data = {
         "schema": "aegis.stage.resume_context",
@@ -1009,20 +1051,24 @@ def assemble_stage_resume_context(
             "tests": _bounded_collection(
                 [tests[key] for key in sorted(tests)], budget["tests"]
             ),
-            "component_discovery": {
-                "source_root": str(workspace.config.components),
-                "total_count": len(component_paths),
-                "scanned_count": len(scanned_paths),
-                "omitted_count": len(component_paths) - len(scanned_paths),
-                "truncated": len(scanned_paths) < len(component_paths),
-            },
+            "component_discovery": (
+                {
+                    "source_root": str(workspace.config.components),
+                    "total_count": len(component_paths),
+                    "returned_count": len(scanned_paths),
+                    "omitted_count": len(component_paths) - len(scanned_paths),
+                    "truncated": True,
+                }
+                if len(scanned_paths) < len(component_paths)
+                else {"source_root": str(workspace.config.components)}
+            ),
         },
         "project_rules": rules,
         "tool_context": _tool_context(workspace, stage, budget),
         "context_findings": finding_context,
     }
     truncated = _contains_truncation(data)
-    return data, tuple(finding_context["items"]), truncated
+    return data, tuple(_bounded_items(finding_context)), truncated
 
 
 # -----------------------------------------------------------------------------

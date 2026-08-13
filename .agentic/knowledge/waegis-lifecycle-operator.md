@@ -31,6 +31,8 @@ workflow stages or outward Git operations.
 - `REQ-PLAT-c820ce6c` - detected or complete default integration configuration.
 - `REQ-NFR-c6ba4132` - independent publication and recovery.
 - `REQ-PLAT-d5dd084c` - locally implemented protocol-envelope parity.
+- `REQ-PLAT-bd3ae391` - install and upgrade expose AEGIS through one
+  project-owned root instruction bridge while retaining existing guidance.
 
 ## Files
 

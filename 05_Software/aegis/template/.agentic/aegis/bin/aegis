@@ -8,8 +8,39 @@ fi
 if [ -x "$bin_dir/../runtime/python/bin/python3" ]; then
   exec "$bin_dir/../runtime/python/bin/python3" "$bin_dir/launcher.py" "$@"
 fi
-if ! command -v python3.12 >/dev/null 2>&1; then
-  echo "AEGIS requires Python 3.12." >&2
-  exit 5
+is_python_312() {
+  version=$("$@" --version 2>&1) || return 1
+  case "$version" in
+    "Python 3.12."*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+if command -v python3.12 >/dev/null 2>&1 && is_python_312 python3.12; then
+  exec python3.12 "$bin_dir/launcher.py" "$@"
 fi
-exec python3.12 "$bin_dir/launcher.py" "$@"
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1 && is_python_312 "$candidate"; then
+    exec "$candidate" "$bin_dir/launcher.py" "$@"
+  fi
+done
+wants_json=0
+format_value=0
+for argument in "$@"; do
+  if [ "$format_value" -eq 1 ]; then
+    [ "$argument" = "json" ] && wants_json=1
+    format_value=0
+  elif [ "$argument" = "--format" ]; then
+    format_value=1
+  elif [ "$argument" = "--format=json" ]; then
+    wants_json=1
+  fi
+done
+if [ "$wants_json" -eq 1 ]; then
+  printf '%s\n' '{"schema":"aegis.machine.response","schema_version":1,"product":"AEGIS","product_version":"1.0.0","operation":"launcher.start","operation_id":"OP-00000000000000000000000000000000","operation_status":"error","run_id":null,"stage":null,"revision":null,"outcome":null,"message":"AEGIS requires Python 3.12 on PATH.","data":{},"findings":[],"artifacts":[],"next_actions":[],"error":{"code":"missing_prerequisite","summary":"AEGIS requires Python 3.12 on PATH.","field":null,"path":null,"retryable":false,"details":{}},"truncated":false,"details_ref":null}'
+else
+  printf '%s\n' 'AEGIS requires Python 3.12 on PATH.'
+  printf '%s\n' 'Operation: launcher.start' 'Status: error'
+  printf '%s\n' 'Product: AEGIS 1.0.0'
+  printf '%s\n' 'Error: missing_prerequisite: AEGIS requires Python 3.12 on PATH.'
+fi
+exit 5

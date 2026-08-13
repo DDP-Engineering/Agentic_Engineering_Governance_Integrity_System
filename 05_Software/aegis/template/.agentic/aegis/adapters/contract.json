@@ -48,6 +48,7 @@
     "execution.list",
     "execution.run",
     "adoption.create",
+    "adoption.list",
     "adoption.show",
     "adoption.set_section",
     "adoption.complete",

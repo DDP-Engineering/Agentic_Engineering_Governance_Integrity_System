@@ -11,7 +11,8 @@
 @file    test_stage_completion_expectations.py
 @brief   Verify truthful advisory expectation evaluation at Stage completion.
 @details Covers CP-STAGE-004, PR-POSTURE-002, PR-RED, PR-STATE, FS-STAGE-015,
-         AC-RUN-001/002, AC-RED-001/002, AC-PROTO-005, and AC-ZONE-001.
+         PR-REPORT-001, PR-DELIVERY-004, AC-RUN-001/002, AC-RED-001/002,
+         AC-PROTO-005, and AC-ZONE-001.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from aegis.infrastructure.workspace import FileWorkspace
 from aegis.ports.workspace import WorkspaceError
 
 from tests.test_execution_integrity import advance_to, configure_commands
+from tests.test_project_knowledge_trace import requirement_data
 from tests.test_run_stage_workflow import create_run, installed_repository, invoke
 
 FULL_SECTION_EXPECTATIONS = {
@@ -153,6 +155,16 @@ def _set_delivery_section(repo: Path, section: str, content: str) -> None:
     )
 
 
+def _recorded_categories(repo: Path, run_id: str) -> dict[str, Any]:
+    """@return Decoded deterministic categories from Delivery recorded_state."""
+    _, delivery_state = _stage_document(repo, run_id, "delivery")
+    categories = {}
+    for line in delivery_state["sections"]["recorded_state"].splitlines():
+        name, value = line.removeprefix("- ").split(": ", maxsplit=1)
+        categories[name] = json.loads(value)
+    return categories
+
+
 def test_delivery_records_derived_state(tmp_path: Path) -> None:
     """@brief Delivery records six truthful skips beside contradictory prose."""
     repo = installed_repository(tmp_path)
@@ -218,10 +230,14 @@ def test_delivery_records_derived_state(tmp_path: Path) -> None:
     assert "- waiver_escapes: []" in recorded_state
     assert "- non_passing_executions: []" in recorded_state
     assert "- changed_tests: []" in recorded_state
-    assert (
-        '- red_before_green: {"approved_exception":false,'
-        '"valid_witness":false}' in recorded_state
-    )
+    assert _recorded_categories(repo, created["run_id"])["red_before_green"] == {
+        "approved_exception": False,
+        "check_skipped": True,
+        "conclusion": "not_established",
+        "later_executed_green": False,
+        "recorded_witness": False,
+        "valid_witness": False,
+    }
     delivery_bytes = _stage_path(repo, created["run_id"], "delivery").read_bytes()
     assert b"## Recorded State\n" in delivery_bytes
 
@@ -246,6 +262,103 @@ def test_delivery_recorded_state_is_not_writable(tmp_path: Path) -> None:
     assert exit_code == 2, rejected
     assert rejected["error"]["code"] == "invalid_input"
     assert "recorded_state" not in rejected["error"]["details"]["allowed"]
+
+
+def test_recorded_state_reports_open_findings(tmp_path: Path) -> None:
+    """@brief Delivery truthfully aggregates only open findings from every Stage."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    assert (
+        invoke(
+            repo,
+            "finding-add",
+            {
+                "severity": "critical",
+                "observation": "The Intake risk remains open.",
+                "consequence": "Delivery must retain its visibility.",
+            },
+        )[0]
+        == 0
+    )
+    assert (
+        invoke(
+            repo,
+            "finding-add",
+            {
+                "severity": "info",
+                "observation": "This Intake note is resolved.",
+                "consequence": "It must not appear in the open aggregate.",
+            },
+        )[0]
+        == 0
+    )
+    assert (
+        invoke(
+            repo,
+            "finding-set-disposition",
+            {
+                "disposition": "resolved",
+                "actor": "agent",
+                "reason": "The note was confirmed before Delivery.",
+            },
+            "--finding",
+            "F2",
+        )[0]
+        == 0
+    )
+    advance_to(repo, "validation")
+    assert (
+        invoke(
+            repo,
+            "finding-add",
+            {
+                "severity": "error",
+                "observation": "The Validation risk remains open.",
+                "consequence": "Delivery must retain its visibility.",
+            },
+        )[0]
+        == 0
+    )
+    _prepare_delivery(repo)
+    denial = "No findings remain open."
+    _set_delivery_section(repo, "findings_and_residual_risk", denial)
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    stage_names = list(FULL_SECTION_EXPECTATIONS)
+    open_findings = []
+    for stage in stage_names:
+        _, state = _stage_document(repo, created["run_id"], stage)
+        open_findings.extend(
+            (stage, finding)
+            for finding in state["findings"]
+            if finding.get("disposition") == "open"
+        )
+    _, delivery_state = _stage_document(repo, created["run_id"], "delivery")
+    assert delivery_state["sections"]["findings_and_residual_risk"] == denial
+    assert any(
+        finding.get("code", "").startswith("delivery_")
+        and finding.get("disposition") == "open"
+        for finding in delivery_state["findings"]
+    )
+    counts_by_severity: dict[str, int] = {}
+    for _, finding in open_findings:
+        severity = finding["severity"]
+        counts_by_severity[severity] = counts_by_severity.get(severity, 0) + 1
+    recorded_categories = {}
+    for line in delivery_state["sections"]["recorded_state"].splitlines():
+        name, value = line.removeprefix("- ").split(": ", maxsplit=1)
+        recorded_categories[name] = json.loads(value)
+    assert recorded_categories["open_findings"] == {
+        "total": len(open_findings),
+        "by_severity": dict(sorted(counts_by_severity.items())),
+        "stages": sorted({stage for stage, _ in open_findings}),
+    }
+    assert recorded_categories["open_findings"]["by_severity"]["critical"] == 1
+    assert recorded_categories["open_findings"]["by_severity"]["error"] == 1
+    assert "info" not in recorded_categories["open_findings"]["by_severity"]
+    assert "delivery" in recorded_categories["open_findings"]["stages"]
 
 
 def test_delivery_recorded_state_covers_structured_integrity_facts(
@@ -302,6 +415,18 @@ def test_delivery_recorded_state_covers_structured_integrity_facts(
 
     assert exit_code == 0, completed
     _, delivery_state = _stage_document(repo, created["run_id"], "delivery")
+    open_findings = []
+    for stage in FULL_SECTION_EXPECTATIONS:
+        _, durable_state = _stage_document(repo, created["run_id"], stage)
+        open_findings.extend(
+            (stage, finding)
+            for finding in durable_state["findings"]
+            if finding.get("disposition") == "open"
+        )
+    counts_by_severity: dict[str, int] = {}
+    for _, finding in open_findings:
+        severity = finding["severity"]
+        counts_by_severity[severity] = counts_by_severity.get(severity, 0) + 1
     categories = {
         "skipped_or_omitted_stages": [
             {"reason": "profile=short", "stage": "design", "status": "omitted"}
@@ -317,10 +442,30 @@ def test_delivery_recorded_state_covers_structured_integrity_facts(
                 "stage": "check",
             }
         ],
+        "green_test_evidence": [
+            {
+                "name": "red",
+                "provenance": "executed",
+                "stage": "implementation",
+                "tests": [],
+            }
+        ],
+        "test_selections": [],
+        "check_changes": [],
         "changed_tests": [".agentic/tests/test_red.py"],
+        "fingerprint_comparison": "performed",
         "red_before_green": {
             "approved_exception": True,
+            "check_skipped": False,
+            "conclusion": "witness_established",
+            "later_executed_green": True,
+            "recorded_witness": True,
             "valid_witness": True,
+        },
+        "open_findings": {
+            "total": len(open_findings),
+            "by_severity": dict(sorted(counts_by_severity.items())),
+            "stages": sorted({stage for stage, _ in open_findings}),
         },
     }
     assert delivery_state["sections"]["recorded_state"] == "\n".join(
@@ -328,6 +473,306 @@ def test_delivery_recorded_state_covers_structured_integrity_facts(
         + json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         for name, value in categories.items()
     )
+
+
+def test_delivery_records_actual_test_selection_and_green_provenance(
+    tmp_path: Path,
+) -> None:
+    """@brief Author prose cannot hide selected tests or green provenance."""
+    repo = installed_repository(tmp_path)
+    configure_commands(repo)
+    (repo / "src").mkdir()
+    (repo / "src" / "retry.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repo / ".agentic" / "tests" / "test_retry.py").write_text(
+        "def test_retry_history(): pass\n", encoding="utf-8"
+    )
+    created = create_run(repo, profile="short")
+    assert invoke(repo, "requirement-create", requirement_data())[0] == 0
+    impacted = invoke(
+        repo,
+        "trace-impacted",
+        {"changed_files": ["src/retry.py"], "changed_tests": []},
+    )[1]["data"]
+    fallback = invoke(
+        repo,
+        "trace-impacted",
+        {"changed_files": ["src/unmapped.py"], "changed_tests": []},
+    )[1]["data"]
+    assert impacted["mode"] == "impacted"
+    assert fallback["mode"] == "full"
+    advance_to(repo, "check")
+    assert (
+        invoke(
+            repo,
+            "decision-add",
+            {
+                "value": "exception_approved",
+                "actor": "agent",
+                "target": "red_before_green",
+                "reason": "Selection reporting is the behavior under test.",
+                "alternative_confirmation": "Inspect durable execution evidence.",
+            },
+        )[0]
+        == 0
+    )
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "implementation")[0] == 0
+    executed = invoke(
+        repo,
+        "execution-run",
+        None,
+        "--category",
+        "tests",
+        "--name",
+        "select",
+        "--selection",
+        impacted["label"],
+    )[1]
+    assert executed["outcome"] == "passed"
+    assert (
+        invoke(
+            repo,
+            "evidence-add",
+            {
+                "kind": "automated",
+                "category": "tests",
+                "command": ["python", "-m", "pytest", "-q"],
+                "working_directory": ".",
+                "outcome": "passed",
+                "exit_status": 0,
+                "observed_result": "A separately reported green run passed.",
+                "tests": [".agentic/tests/test_retry.py::test_retry_history"],
+            },
+        )[0]
+        == 0
+    )
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "validation")[0] == 0
+    _prepare_delivery(repo)
+    _set_delivery_section(repo, "evidence_summary", "No test selection was recorded.")
+    _set_delivery_section(repo, "findings_and_residual_risk", "Nothing to report.")
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    categories = _recorded_categories(repo, created["run_id"])
+    selections = {item["label"]: item for item in categories["test_selections"]}
+    assert selections[impacted["label"]] == {
+        "executions": [
+            {
+                "fallback_reasons": [],
+                "mode": "impacted",
+                "name": "select",
+                "outcome": "passed",
+                "stage": "implementation",
+            }
+        ],
+        "fallback_reasons": [],
+        "full_suite_commands": [],
+        "label": impacted["label"],
+        "mode": "impacted",
+        "stage": "intake",
+        "tests": [".agentic/tests/test_retry.py::test_retry_history"],
+    }
+    assert selections[fallback["label"]]["mode"] == "full"
+    assert selections[fallback["label"]]["fallback_reasons"] == [
+        "No complete test coverage for src/unmapped.py."
+    ]
+    assert selections[fallback["label"]]["full_suite_commands"] == fallback[
+        "full_suite_commands"
+    ]
+    assert selections[fallback["label"]]["executions"] == []
+    assert categories["green_test_evidence"] == [
+        {
+            "name": "select",
+            "provenance": "executed",
+            "stage": "implementation",
+            "tests": [".agentic/tests/test_retry.py::test_retry_history"],
+        },
+        {
+            "name": None,
+            "provenance": "reported",
+            "stage": "implementation",
+            "tests": [".agentic/tests/test_retry.py::test_retry_history"],
+        },
+    ]
+    assert categories["red_before_green"] == {
+        "approved_exception": True,
+        "check_skipped": False,
+        "conclusion": "exception_approved",
+        "later_executed_green": True,
+        "recorded_witness": False,
+        "valid_witness": False,
+    }
+
+
+def test_delivery_records_check_content_and_repository_state_changes(
+    tmp_path: Path,
+) -> None:
+    """@brief Author findings text cannot hide either Check change category."""
+    repo = installed_repository(tmp_path)
+    (repo / "src").mkdir()
+    source = repo / "src" / "app.py"
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "src/app.py"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    created = create_run(repo, profile="short")
+    advance_to(repo, "check")
+    source.write_text("VALUE = 2\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "src/app.py"], check=True)
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "implementation")[0] == 0
+    assert invoke(repo, "stage-skip", {"actor": "agent", "reason": "No build."})[0] == 0
+    assert invoke(repo, "stage-start", None, "validation")[0] == 0
+    assert (
+        invoke(repo, "stage-skip", {"actor": "agent", "reason": "No validation."})[0]
+        == 0
+    )
+    assert invoke(repo, "stage-start", None, "delivery")[0] == 0
+    _set_delivery_section(repo, "findings_and_residual_risk", "Nothing to report.")
+    _set_delivery_section(repo, "terminal_result", "partially_achieved")
+    assert (
+        invoke(
+            repo,
+            "decision-add",
+            {
+                "value": "approved",
+                "actor": "agent",
+                "target": "delivery",
+                "reason": "Approve the truthful durable state.",
+            },
+        )[0]
+        == 0
+    )
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    assert _recorded_categories(repo, created["run_id"])["check_changes"] == [
+        {"artifact": "src/app.py", "code": "check_out_of_zone_change"},
+        {
+            "artifact": ".agentic/runs/" + created["run_id"] + "/05-check.md",
+            "code": "check_git_state_changed",
+        },
+    ]
+
+
+def test_skipped_check_red_is_not_a_valid_delivery_witness(tmp_path: Path) -> None:
+    """@brief A skipped Check cannot launder an earlier red without green."""
+    repo = installed_repository(tmp_path)
+    configure_commands(repo)
+    red_test = repo / ".agentic" / "tests" / "test_red.py"
+    red_test.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    created = create_run(repo, profile="short")
+    advance_to(repo, "check")
+    red = invoke(repo, "execution-run", None, "--category", "tests", "--name", "red")
+    assert red[1]["outcome"] == "failed"
+    assert (
+        invoke(
+            repo,
+            "stage-skip",
+            {"actor": "agent", "reason": "Check cannot continue."},
+        )[0]
+        == 0
+    )
+    assert invoke(repo, "stage-start", None, "implementation")[0] == 0
+    assert (
+        invoke(
+            repo,
+            "stage-skip",
+            {"actor": "agent", "reason": "No implementation."},
+        )[0]
+        == 0
+    )
+    assert invoke(repo, "stage-start", None, "validation")[0] == 0
+    assert (
+        invoke(repo, "stage-skip", {"actor": "agent", "reason": "No validation."})[0]
+        == 0
+    )
+    assert invoke(repo, "stage-start", None, "delivery")[0] == 0
+    _set_delivery_section(repo, "terminal_result", "not_achieved")
+    assert (
+        invoke(
+            repo,
+            "decision-add",
+            {
+                "value": "approved",
+                "actor": "agent",
+                "target": "delivery",
+                "reason": "Approve the incomplete outcome.",
+            },
+        )[0]
+        == 0
+    )
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    categories = _recorded_categories(repo, created["run_id"])
+    assert categories["red_before_green"] == {
+        "approved_exception": False,
+        "check_skipped": True,
+        "conclusion": "not_established",
+        "later_executed_green": False,
+        "recorded_witness": True,
+        "valid_witness": False,
+    }
+    assert categories["green_test_evidence"] == []
+    assert any(
+        item["stage"] == "check" and item["outcome"] == "failed"
+        for item in categories["non_passing_executions"]
+    )
+
+
+def test_clean_delivery_reports_every_evaluated_expectation(tmp_path: Path) -> None:
+    """@brief Clean results count evaluated sections and approval, not findings."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    advance_to(repo, "validation")
+    _prepare_delivery(repo)
+    for section in (
+        "project_artifact_changes",
+        "implementation_changes",
+        "test_integrity",
+        "component_drift_review",
+        "delivery_decision",
+    ):
+        _set_delivery_section(repo, section, f"Recorded {section}.")
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    assert completed["findings"] == []
+    assert completed["data"]["evaluated_expectation_count"] == 11
+
+
+def test_non_clean_stage_counts_clean_and_failing_expectations_once(
+    tmp_path: Path,
+) -> None:
+    """@brief Evaluation count remains distinct when only one section is clean."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    _set_delivery_section(repo, "inputs", "Recorded Intake input.")
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    assert len(completed["findings"]) == 6
+    assert completed["data"]["evaluated_expectation_count"] == 7
 
 
 @pytest.mark.parametrize("stage", tuple(FULL_SECTION_EXPECTATIONS))
@@ -572,10 +1017,18 @@ def test_validation_reports_each_configured_command_without_recorded_evidence(
         if finding["code"] == "validation_command_evidence_missing"
     ]
     assert {finding["summary"].split()[0] for finding in missing} == {
+        "audits.pass",
+        "lints.exit5",
+        "lints.pass",
+        "tests.arbitrary_exit5",
+        "tests.cache",
+        "tests.discover",
         "tests.fail",
+        "tests.integrity",
         "tests.large",
         "tests.missing",
         "tests.pass",
+        "tests.pytest_empty",
         "tests.red",
         "tests.select",
         "tests.slow",

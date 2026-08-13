@@ -30,12 +30,12 @@ from aegis.application.operation_registry import (
 # -----------------------------------------------------------------------------
 
 
-def test_registry_declares_all_56_unique_protocol_operations() -> None:
+def test_registry_declares_all_57_unique_protocol_operations() -> None:
     """@brief Verify the complete cross-product catalog is declared once."""
     operation_ids = [entry.operation for entry in ALL_OPERATIONS]
     commands = [entry.command for entry in ALL_OPERATIONS]
 
-    assert len(ALL_OPERATIONS) == 56
+    assert len(ALL_OPERATIONS) == 57
     assert len(operation_ids) == len(set(operation_ids))
     assert len(commands) == len(set(commands))
 
@@ -53,7 +53,7 @@ def test_product_catalogs_keep_aegis_and_waegis_boundaries_explicit() -> None:
     aegis = operations_for("AEGIS")
     waegis = operations_for("WAEGIS")
 
-    assert len(aegis) == 48
+    assert len(aegis) == 49
     assert len(waegis) == 10
     assert all(entry.implemented for entry in aegis)
     assert "install.apply" not in {entry.operation for entry in aegis}
@@ -127,6 +127,17 @@ def test_input_operations_document_the_machine_envelope_and_data_fields() -> Non
         "profile",
         "work_type",
     }
+    component_input = by_operation["component.create"].machine_input
+    assert component_input is not None
+    component_fields = {field.name for field in component_input.data_fields}
+    assert "requirement_links" in component_fields
+    assert "requirement_ids" not in component_fields
+    assert "behaviors" not in component_fields
+    assert component_input.constraints == (
+        "Do not provide legacy requirement_ids or behaviors fields; use "
+        "requirement_links.",
+        "Unknown drift_review fields are invalid; omitted axes default to uncertain.",
+    )
 
 
 def test_registry_declares_representative_final_cli_input_schemas() -> None:
@@ -139,11 +150,26 @@ def test_registry_declares_representative_final_cli_input_schemas() -> None:
 
     run_profile = by_operation["run.set_profile"]
     assert run_profile.arguments[0].choices == ("full", "short")
+    assert run_profile.required_arguments == (
+        "--profile <name>",
+        "--input <source>",
+        "--expected-revision <sha256>",
+    )
+    assert run_profile.machine_input is not None
+    assert [field.name for field in run_profile.machine_input.data_fields] == [
+        "actor",
+        "reason",
+    ]
 
     stage_show = by_operation["stage.show"]
     assert stage_show.optional_arguments == ("--run <id>", "--stage <name>")
 
-    for operation in ("run.list", "requirement.list", "component.list"):
+    for operation in (
+        "run.list",
+        "requirement.list",
+        "component.list",
+        "adoption.list",
+    ):
         assert by_operation[operation].optional_arguments == ("--cursor <token>",)
 
 

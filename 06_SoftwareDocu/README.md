@@ -8,7 +8,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Software Documentation
 
 Current clean-break AEGIS version 1 implementation guidance is in
-`AEGIS_V1_IMPLEMENTATION.md`. The authoritative product behavior remains the
+`AEGIS_V1_IMPLEMENTATION.md`. The platform-neutral end-user installation,
+verification, adoption, upgrade, and removal flow is in
+`AEGIS_ADOPTION_GUIDE.md`. The authoritative product behavior remains the
 planning contract set under `00_Planning/`; package commands and validation are
 documented in `05_Software/aegis/README.md`, `05_Software/waegis/README.md`, and
 `02_Tools/README.md`.

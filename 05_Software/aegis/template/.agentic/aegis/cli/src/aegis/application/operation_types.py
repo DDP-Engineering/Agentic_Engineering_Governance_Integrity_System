@@ -240,7 +240,7 @@ def revision_read_next_actions(
         "stage.start",
         "stage.revisit",
     }:
-        arguments["stage"] = inputs.get("stage_name")
+        arguments["stage_name"] = inputs.get("stage_name")
     return (
         {
             "operation": read_operation,

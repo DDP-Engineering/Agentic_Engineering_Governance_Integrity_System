@@ -1,99 +1,95 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "delivery"
 sequence = 8
-status = "pending" # pending | active | completed | skipped | omitted
+status = "pending"
 started_at = ""
-updated_at = 2026-01-01T00:00:00Z
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"requested_and_delivered_outcome\",\"project_artifact_changes\",\"implementation_changes\",\"evidence_summary\",\"test_integrity\",\"findings_and_residual_risk\",\"skips_waivers_and_omitted_stages\",\"component_drift_review\",\"delivery_decision\",\"terminal_result\"],\"attachments\":[],\"common_findings\":[\"The delivery claim is stronger than recorded evidence or omits a failed check.\",\"Residual risk, skipped work, waivers, or changed tests are not disclosed.\"],\"decisions\":[],\"escapes\":[],\"events\":[],\"evidence\":[],\"findings\":[],\"instruction\":\"Summarize requested and delivered outcomes, current project changes, actual evidence, changed tests, findings, skips, waivers, omissions, and residual risk. Approval accepts report truthfulness; AEGIS stops before outward Git actions.\",\"recovery_actions\":[{\"condition\":\"The report is incomplete but the recorded evidence is sufficient.\",\"guidance\":\"Correct the affected summary section without changing the underlying evidence.\",\"operation\":\"stage.set_section\"},{\"condition\":\"Missing evidence or work requires an earlier completed Stage.\",\"guidance\":\"Revisit that Stage with the concrete reason; Delivery remains unfinished.\",\"operation\":\"stage.revisit\"}],\"sections\":{\"component_drift_review\":\"None\",\"delivery_decision\":\"None\",\"evidence_summary\":\"None\",\"findings_and_residual_risk\":\"None\",\"implementation_changes\":\"None\",\"project_artifact_changes\":\"None\",\"requested_and_delivered_outcome\":\"None\",\"skips_waivers_and_omitted_stages\":\"None\",\"terminal_result\":\"None\",\"test_integrity\":\"None\"},\"work_applied\":false}"
 +++
 
-# 08 - Delivery
+# 8 - Delivery
 
 ## Stage instruction
 
-Summarize the delivered work so the developer can judge it without
-reconstructing the Run. Be concise but expose scope differences, actual
-evidence, test changes, unresolved findings, and every escape hatch used.
-Delivery ends at an approved recorded outcome; AEGIS performs no commit, push,
-tag, merge, pull request, or outward-facing Git preflight.
+Summarize requested and delivered outcomes, current project changes, actual evidence, changed tests, findings, skips, waivers, omissions, and residual risk. Approval accepts report truthfulness; AEGIS stops before outward Git actions.
 
-## Requested and delivered outcome
+## Requested And Delivered Outcome
 
-- Ticket outcome requested: <concise request>
-- Outcome delivered: <concise result>
-- Scope differences: <none, or differences with actor and reason>
+None
 
-## Project artifact changes
+## Project Artifact Changes
 
-| Type | Path or ID | Change |
-|---|---|---|
-| Requirement | `<REQ-ID>` | `<created, updated, deleted, or unchanged>` |
-| Specification | `<SPEC path>` | `<created, updated, deleted, or unchanged>` |
-| Component | `<COMP-ID>` | `<created, updated, deleted, or reviewed>` |
-| Test | `<real test path>` | `<created, updated, or selected>` |
+None
 
-## Implementation changes
+## Implementation Changes
 
-- <Path and concise behavior change>
+None
 
-## Evidence summary
+## Evidence Summary
 
-| Claim | Evidence label and owning Stage | Actual result |
-|---|---|---|
-| Red before implementation | `<05-check.md RED1>` | `<result or approved non-applicability>` |
-| Green after implementation | `<06-implementation.md GREEN1>` | `<result>` |
-| Impacted regression validation | `<07-validation.md VAL1>` | `<result>` |
-| Manual verification | `<07-validation.md MAN1 or none>` | `<result>` |
+None
 
-## Test integrity
+## Test Integrity
 
-- Test files changed between red and green: <paths or none>
-- Developer judgement: <accepted, unresolved, or not applicable>
-- Findings: <labels and Stage paths or none>
+None
 
-## Findings and residual risk
+## Findings And Residual Risk
 
-| Finding | Owning Stage | Disposition | Delivery consequence |
-|---|---|---|---|
-| `<label>` | `<stage path>` | `<open, resolved, accepted, waived, not_applicable>` | `<consequence>` |
+None
 
-## Skips, waivers, and omitted stages
+## Skips Waivers And Omitted Stages
 
-| Stage | Type and target | Actor | Mandatory reason | Recorded outcome |
-|---|---|---|---|---|
-| `<stage>` | `<skip, waiver, or profile omission>` | `<actor>` | `<reason>` | `<skipped, waived, or omitted; never passed>` |
+None
 
-## Component drift review
+## Component Drift Review
 
-- Components reviewed: <IDs>
-- Documentation current: <yes | no | uncertain>
-- Remaining findings: <labels or none>
+None
 
-## Delivery decision
+## Delivery Decision
 
-| Time (UTC) | Decision | Actor | Scope | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected>` | `<actor>` | `<this delivery>` | `<reason or conditions>` |
+None
 
-## Terminal result
+## Terminal Result
 
-- Run outcome: <delivered, or active after rejection>
-- Developer-owned next action: <commit, further work, or other action outside AEGIS>
-- Atomic terminal publication: <Delivery completed and `run.md` delivered, or not completed after rejection>
+None
+
+## Evidence
+
+```json
+[]
+```
+
+## Findings
+
+```json
+[]
+```
+
+## Decisions
+
+```json
+[]
+```
+
+## Escapes
+
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `<event>` | `<result>` |
+```json
+[]
+```

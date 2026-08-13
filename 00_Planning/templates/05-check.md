@@ -1,85 +1,79 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 +++
 schema = 1
 artifact_type = "stage"
-run_id = "RUN-00000000000000000000000000000000"
+run_id = "RUN-00000000000040008000000000000000"
 stage = "check"
 sequence = 5
-status = "pending" # pending | active | completed | skipped | omitted
+status = "pending"
 started_at = ""
-updated_at = 2026-01-01T00:00:00Z
+updated_at = "2026-01-01T00:00:00Z"
 completed_at = ""
 attachments = []
+state_json = "{\"allowed_sections\":[\"inputs\",\"test_work\",\"recorded_red_evidence\",\"test_fingerprints_at_red\",\"red_before_green_decision\",\"outputs_and_handoff\"],\"attachments\":[],\"common_findings\":[\"The selected test passes before implementation or does not exercise the requested behavior.\",\"The proposed check is unsafe, overbroad, or outside configured test roots.\"],\"decisions\":[],\"escapes\":[],\"events\":[],\"evidence\":[],\"findings\":[],\"instruction\":\"Create or select proportional verification under configured test roots. Use execution-run for an actual failing witness with exact-byte test fingerprints. When red-before-green genuinely does not apply, use decision-add with target red_before_green, value exception_approved, reason, and alternative_confirmation.\",\"recovery_actions\":[{\"condition\":\"Red-before-green genuinely does not apply.\",\"guidance\":\"Record target red_before_green, value exception_approved, a reason, and alternative_confirmation.\",\"operation\":\"decision.add\"},{\"condition\":\"Check is disproportionate and no Stage work was applied.\",\"guidance\":\"Skip with the concrete reason; missing verification remains visible downstream.\",\"operation\":\"stage.skip\"}],\"sections\":{\"inputs\":\"None\",\"outputs_and_handoff\":\"None\",\"recorded_red_evidence\":\"None\",\"red_before_green_decision\":\"None\",\"test_fingerprints_at_red\":\"None\",\"test_work\":\"None\"},\"work_applied\":false}"
 +++
 
-# 05 - Check
+# 5 - Check
 
 ## Stage instruction
 
-Create or select the tests that confirm the Requirements, using the configured
-project test roots. Record actual failing evidence before implementation and
-fingerprint the exact bytes of every relevant test file. If red-before-green is
-genuinely inapplicable, record an exception decision, its actor, and its reason.
+Create or select proportional verification under configured test roots. Use execution-run for an actual failing witness with exact-byte test fingerprints. When red-before-green genuinely does not apply, use decision-add with target red_before_green, value exception_approved, reason, and alternative_confirmation.
 
 ## Inputs
 
-- Requirements and linked tests: <IDs and paths/selectors>
-- Design: <summary or omitted>
-- Configured test roots: <paths>
+None
 
-## Test work
+## Test Work
 
-| Test path and selector | Action | Requirements | Covered files | Risk purposes |
-|---|---|---|---|---|
-| `<path>::<selector>` | `<created | updated | selected>` | `<REQ-IDs>` | `<paths>` | `<purposes>` |
+None
 
-## Recorded red evidence
+## Recorded Red Evidence
 
-| Label | Time (UTC) | Command/selector and working directory | Exit | Observed failure | Attachment |
-|---|---|---|---:|---|---|
-| `RED1` | 2026-01-01T00:00:00Z | `<command; cwd>` | `<code>` | `<concise actual failure>` | `<path or none>` |
+None
 
-### Test fingerprints at red
+## Test Fingerprints At Red
 
-| Evidence | Test path | SHA-256 of exact bytes |
-|---|---|---|
-| `RED1` | `<test path>` | `<64 lowercase hex>` |
+None
 
-## Red-before-green decision
+## Red Before Green Decision
 
-- Applicable: <yes | no>
-- If no, decision: `exception_approved`
-- Actor: <developer or instructed AI agent>
-- Mandatory reason when excepted: <reason>
-- Alternative confirmation when excepted: <method>
+None
+
+## Outputs And Handoff
+
+None
+
+## Evidence
+
+```json
+[]
+```
 
 ## Findings
 
-| Label | Severity | Observation and consequence | Disposition |
-|---|---|---|---|
-| `F1` | `<severity>` | `<finding>` | `<disposition>` |
+```json
+[]
+```
 
 ## Decisions
 
-| Time (UTC) | Decision | Actor | Target | Reason or conditions |
-|---|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<approved | rejected | exception_approved>` | `<actor>` | `<target>` | `<reason or conditions>` |
+```json
+[]
+```
 
-## Outputs and handoff
+## Escapes
 
-- Check result: <concise result>
-- Tests protected by recorded fingerprints: <paths>
-- Next action: <first Implementation action>
-- Resume context: <what another session needs>
+```json
+[]
+```
+
+## Attachments
+
+```json
+[]
+```
 
 ## Event history
 
-| Time (UTC) | Actor | Event | Result or correction |
-|---|---|---|---|
-| 2026-01-01T00:00:00Z | `<actor>` | `<event>` | `<result>` |
+```json
+[]
+```

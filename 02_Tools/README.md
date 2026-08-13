@@ -24,11 +24,23 @@ external or bundled runtimes, for Windows x86-64 and Ubuntu 22.04 x86-64. The
 current local full-AEGIS/WAEGIS matrix inventory contains the four external-
 runtime archives only. The four bundled-runtime editions remain pending because
 `runtime_inputs.toml` records that their exact private Python 3.12 and Git
-inputs, versions, and digests have not been supplied. External-runtime shell
-and command wrappers check for Python 3.12, then the Python launcher checks Git
-without installing either prerequisite. Missing Git is reported through the
-selected product's normal response envelope with exit code 5; repository-free
-help and version operations remain available.
+inputs, versions, and digests have not been supplied.
+
+The Windows- and Ubuntu-labelled external-runtime AEGIS archives contain the
+same portable payload and both `bin/aegis` and `bin/aegis.cmd`. Their platform
+label selects the target launcher and prerequisite expectations and is recorded
+in manifest/inventory metadata; the `x86_64` inventory value is target metadata,
+not a claim that those archives contain architecture-specific executable bytes.
+WAEGIS external-runtime archives select a platform launcher, and future bundled-
+runtime editions will contain genuinely platform-specific locked Python and Git
+inputs.
+
+External-runtime shell and command wrappers prefer bundled Python, then probe
+exact-3.12 `python3.12`, Windows `py -3.12`, `python3`, and `python` candidates
+before the Python launcher checks Git, without installing either prerequisite.
+Missing Python or Git is reported through the selected product's normal
+response envelope with exit code 5 and empty machine-mode stderr; repository-
+free help and version operations remain available when only Git is missing.
 
 Release launchers disable Python bytecode writes so running an extracted
 package does not add generated files below the product-owned payload.

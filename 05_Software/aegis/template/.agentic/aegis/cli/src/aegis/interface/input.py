@@ -16,9 +16,14 @@ from typing import Any, TextIO
 class MachineInputError(ValueError):
     """@brief Report invalid structured input before application dispatch."""
 
+    def __init__(self, summary: str, *, path: str | None = None) -> None:
+        super().__init__(summary)
+        self.path = path
+
 
 def load_machine_input(source: str, *, stdin: TextIO, operation: str) -> dict[str, Any]:
     """@brief Load and validate one operation-matched JSON input object."""
+    path = None if source == "-" else source
     try:
         text = (
             stdin.read()
@@ -28,7 +33,7 @@ def load_machine_input(source: str, *, stdin: TextIO, operation: str) -> dict[st
         envelope = json.loads(text)
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise MachineInputError(
-            "Structured input is not readable UTF-8 JSON."
+            "Structured input is not readable UTF-8 JSON.", path=path
         ) from error
     if not isinstance(envelope, dict):
         raise MachineInputError("Structured input must be one JSON object.")
