@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -140,6 +141,195 @@ def _prepare_delivery(repo: Path) -> None:
     )
 
 
+def _set_delivery_section(repo: Path, section: str, content: str) -> None:
+    """@brief Replace one author-writable Delivery section."""
+    assert (
+        invoke(
+            repo,
+            "stage-set-section",
+            {"section": section, "content": content, "actor": "agent"},
+        )[0]
+        == 0
+    )
+
+
+def test_delivery_records_derived_state(tmp_path: Path) -> None:
+    """@brief Delivery records six truthful skips beside contradictory prose."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo)
+    assert invoke(repo, "stage-complete")[0] == 0
+    skip_reasons = {
+        stage: f"Recorded reason for skipping {stage}."
+        for stage in (
+            "alignment",
+            "requirement",
+            "design",
+            "check",
+            "implementation",
+            "validation",
+        )
+    }
+    for stage, reason in skip_reasons.items():
+        assert invoke(repo, "stage-start", None, stage)[0] == 0
+        assert (
+            invoke(
+                repo,
+                "stage-skip",
+                {"actor": "agent", "reason": reason},
+            )[0]
+            == 0
+        )
+    assert invoke(repo, "stage-start", None, "delivery")[0] == 0
+    author_sections = {
+        "skips_waivers_and_omitted_stages": (
+            "No Stage was skipped, waived, or omitted."
+        ),
+        "evidence_summary": "All automated tests passed.",
+        "test_integrity": "No test was changed between red and green.",
+    }
+    for section, content in author_sections.items():
+        _set_delivery_section(repo, section, content)
+    _set_delivery_section(repo, "terminal_result", "achieved")
+    assert (
+        invoke(
+            repo,
+            "decision-add",
+            {
+                "value": "approved",
+                "actor": "agent",
+                "target": "delivery",
+                "reason": "Approve the author-written Delivery assessment.",
+            },
+        )[0]
+        == 0
+    )
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    _, delivery_state = _stage_document(repo, created["run_id"], "delivery")
+    assert {
+        section: delivery_state["sections"][section] for section in author_sections
+    } == author_sections
+    recorded_state = delivery_state["sections"]["recorded_state"]
+    for stage, reason in skip_reasons.items():
+        assert f'"stage":"{stage}"' in recorded_state
+        assert f'"reason":"{reason}"' in recorded_state
+    assert "- waiver_escapes: []" in recorded_state
+    assert "- non_passing_executions: []" in recorded_state
+    assert "- changed_tests: []" in recorded_state
+    assert (
+        '- red_before_green: {"approved_exception":false,'
+        '"valid_witness":false}' in recorded_state
+    )
+    delivery_bytes = _stage_path(repo, created["run_id"], "delivery").read_bytes()
+    assert b"## Recorded State\n" in delivery_bytes
+
+
+def test_delivery_recorded_state_is_not_writable(tmp_path: Path) -> None:
+    """@brief The derived Delivery section stays outside caller authority."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    advance_to(repo, "validation")
+    _prepare_delivery(repo)
+
+    exit_code, rejected = invoke(
+        repo,
+        "stage-set-section",
+        {
+            "section": "recorded_state",
+            "content": "Caller-supplied state.",
+            "actor": "agent",
+        },
+    )
+
+    assert exit_code == 2, rejected
+    assert rejected["error"]["code"] == "invalid_input"
+    assert "recorded_state" not in rejected["error"]["details"]["allowed"]
+
+
+def test_delivery_recorded_state_covers_structured_integrity_facts(
+    tmp_path: Path,
+) -> None:
+    """@brief The fixed record covers every structured integrity category."""
+    repo = installed_repository(tmp_path)
+    configure_commands(repo)
+    red_test = repo / ".agentic" / "tests" / "test_red.py"
+    red_test.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    created = create_run(repo, profile="short")
+    advance_to(repo, "check")
+    assert (
+        invoke(repo, "execution-run", None, "--category", "tests", "--name", "red")
+        [1]["outcome"]
+        == "failed"
+    )
+    waiver_reason = "The failing execution is accepted for this focused record."
+    waiver_exit, waiver = invoke(
+        repo,
+        "finding-waive",
+        {"actor": "agent", "reason": waiver_reason},
+        "--finding",
+        "F1",
+    )
+    assert waiver_exit == 0, json.dumps(waiver, indent=2)
+    assert (
+        invoke(
+            repo,
+            "decision-add",
+            {
+                "value": "exception_approved",
+                "actor": "agent",
+                "target": "red_before_green",
+                "reason": "An explicit exception is also recorded.",
+                "alternative_confirmation": "Inspect the durable evidence.",
+            },
+        )[0]
+        == 0
+    )
+    red_test.write_text("print('passed')\n", encoding="utf-8")
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "implementation")[0] == 0
+    assert (
+        invoke(repo, "execution-run", None, "--category", "tests", "--name", "red")
+        [1]["outcome"]
+        == "passed"
+    )
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "validation")[0] == 0
+    _prepare_delivery(repo)
+
+    exit_code, completed = invoke(repo, "stage-complete")
+
+    assert exit_code == 0, completed
+    _, delivery_state = _stage_document(repo, created["run_id"], "delivery")
+    categories = {
+        "skipped_or_omitted_stages": [
+            {"reason": "profile=short", "stage": "design", "status": "omitted"}
+        ],
+        "waiver_escapes": [
+            {"reason": waiver_reason, "stage": "check", "target": "F1"}
+        ],
+        "non_passing_executions": [
+            {
+                "category": "tests",
+                "name": "red",
+                "outcome": "failed",
+                "stage": "check",
+            }
+        ],
+        "changed_tests": [".agentic/tests/test_red.py"],
+        "red_before_green": {
+            "approved_exception": True,
+            "valid_witness": True,
+        },
+    }
+    assert delivery_state["sections"]["recorded_state"] == "\n".join(
+        f"- {name}: "
+        + json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        for name, value in categories.items()
+    )
+
+
 @pytest.mark.parametrize("stage", tuple(FULL_SECTION_EXPECTATIONS))
 def test_full_profile_evaluates_every_stage_section_expectation(
     tmp_path: Path, stage: str
@@ -257,7 +447,7 @@ def test_check_passing_execution_without_prior_red_is_reported(tmp_path: Path) -
 def test_check_without_test_execution_reports_missing_red(tmp_path: Path) -> None:
     """@brief Absence of actual red evidence remains visible without blocking."""
     repo = installed_repository(tmp_path)
-    create_run(repo)
+    created = create_run(repo)
     advance_to(repo, "check")
 
     exit_code, completed = invoke(repo, "stage-complete")
@@ -269,6 +459,24 @@ def test_check_without_test_execution_reports_missing_red(tmp_path: Path) -> Non
         if item["code"] == "check_red_witness_missing"
     )
     assert finding["disposition"] == "open"
+    _, check_state = _stage_document(repo, created["run_id"], "check")
+    durable_finding = next(
+        item
+        for item in check_state["findings"]
+        if item["code"] == "check_red_witness_missing"
+    )
+    guidance = " ".join(
+        (durable_finding["observation"], durable_finding["consequence"])
+    )
+    for required in (
+        "execution-run",
+        "decision-add",
+        "red_before_green",
+        "exception_approved",
+        "reason",
+        "alternative_confirmation",
+    ):
+        assert required in guidance
 
 
 def test_check_valid_red_witness_remains_immutable_and_satisfies_expectation(

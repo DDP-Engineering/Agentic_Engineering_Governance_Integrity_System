@@ -25,6 +25,11 @@ sys.path.insert(0, str(TOOLS))
 
 import aegis_acceptance as acceptance
 
+PROVENANCE_NOTICE = (
+    "Operator-attested evidence only: this tool validates acceptance records "
+    "and retained evidence; it executes no acceptance scenarios or project commands."
+)
+
 
 def sha256(content: bytes) -> str:
     """@brief Returns a SHA-256 suitable for retained evidence."""
@@ -35,7 +40,14 @@ class AcceptanceTests(unittest.TestCase):
     """@brief Tests integrity, coverage, matrix, and CLI contracts."""
 
     def setUp(self) -> None:
-        self.catalog = {"schema_version": 1, "requirements": {"PR-MUST-001": "Must", "PR-SHOULD-001": "Should"}, "scenarios": [{"id": "AC-ONE-001", "priority": "Must", "method": "Automated", "requirements": ["PR-MUST-001"]}, {"id": "AC-SUCCESS-001", "priority": "Must/Should", "method": "Automated/manual", "requirements": ["PR-MUST-001", "PR-SHOULD-001"]}], "required_matrices": {"required_success_scenario": "AC-SUCCESS-001", "package_cases": [{"id": "aegis-win", "edition": "aegis", "platform": "windows", "architecture": "x86_64", "runtime": "external"}], "workflow_cases": [{"id": "win-pytest", "platform": "windows", "architecture": "x86_64", "framework": "pytest"}]}}
+        requirements = {"PR-MUST-001": "Must", "PR-SHOULD-001": "Should"}
+        requirements.update({f"PR-MUST-{index:03d}": "Must" for index in range(2, 207)})
+        requirements.update({f"PR-SHOULD-{index:03d}": "Should" for index in range(2, 18)})
+        requirements.update({f"PR-COULD-{index:03d}": "Could" for index in range(1, 4)})
+        scenarios = [{"id": "AC-ONE-001", "priority": "Must", "method": "Automated", "requirements": ["PR-MUST-001"]}, {"id": "AC-SUCCESS-001", "priority": "Must/Should", "method": "Automated/manual", "requirements": ["PR-MUST-001", "PR-SHOULD-001"]}]
+        scenarios.append({"id": "AC-EXTRA-001", "priority": "Must/Should", "method": "Automated", "requirements": list(requirements)[2:]})
+        scenarios.extend({"id": f"AC-EXTRA-{index:03d}", "priority": "Must", "method": "Automated", "requirements": ["PR-MUST-001"]} for index in range(2, 57))
+        self.catalog = {"schema_version": 1, "catalog_name": "synthetic acceptance catalog", "requirements": requirements, "scenarios": scenarios, "required_matrices": {"required_success_scenario": "AC-SUCCESS-001", "package_cases": [{"id": "aegis-win", "edition": "aegis", "platform": "windows", "architecture": "x86_64", "runtime": "external"}], "workflow_cases": [{"id": "win-pytest", "platform": "windows", "architecture": "x86_64", "framework": "pytest"}]}}
 
     def candidate(self) -> dict:
         return {"product_version": "1.0.0", "source_revision": "a" * 40, "created_at": "2026-08-12T00:00:00Z", "python": {"implementation": "CPython", "version": "3.12"}, "git": {"version": "2.0"}, "runtime": {"identity": "external"}, "packages": [{"edition": "aegis", "platform": "windows", "architecture": "x86_64", "runtime": "external", "digest": "b" * 64}], "environments": [{"id": "win-pytest", "os": "Windows", "platform": "windows", "architecture": "x86_64", "runtime": "external", "framework": "pytest"}], "known_limitations": ["synthetic"]}
@@ -57,7 +69,9 @@ class AcceptanceTests(unittest.TestCase):
     def test_requirement_coverage_and_matrix_are_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary); record = self.passing(root)
-            self.assertEqual("accepted", acceptance.compile_verdict(record, self.catalog, root)["verdict"])
+            report = acceptance.compile_verdict(record, self.catalog, root)
+            self.assertEqual("accepted", report["verdict"])
+            self.assertEqual(PROVENANCE_NOTICE, report["provenance"])
             record["results"][1]["attempts"][0]["evidence"][0]["covered_requirements"] = ["PR-MUST-001"]
             report = acceptance.compile_verdict(record, self.catalog, root)
             self.assertIn("PR-SHOULD-001", " ".join(report["errors"]))
@@ -119,6 +133,13 @@ class AcceptanceTests(unittest.TestCase):
             record["results"][0] = {"scenario_id": "AC-ONE-001", "result": "not_applicable", "attempts": [{"result": "not_applicable", "time": "2026-08-12T00:00:01Z", "actor": "r", "reason": "no", "requirements": ["PR-MUST-001"]}]}
             with self.assertRaises(acceptance.ValidationError): acceptance.validate_record(record, self.catalog, root)
 
+    def test_totals_invariant_applies_to_a_renamed_catalog(self) -> None:
+        catalog = json.loads(json.dumps(self.catalog))
+        catalog["catalog_name"] = "renamed acceptance catalog"
+        catalog["scenarios"].pop()
+        with self.assertRaisesRegex(acceptance.ValidationError, "authoritative catalog totals"):
+            acceptance.validate_catalog(catalog)
+
     def test_cli_init_validate_report_and_overwrite(self) -> None:
         command = [sys.executable, str(TOOLS / "aegis_acceptance.py")]
         self.assertEqual(0, subprocess.run(command + ["--help"], capture_output=True, text=True, check=False).returncode)
@@ -127,12 +148,18 @@ class AcceptanceTests(unittest.TestCase):
             record = root / "record.json"; catalog = TOOLS / "aegis_acceptance_catalog.json"
             done = subprocess.run(command + ["init", "--catalog", str(catalog), "--candidate-json", str(candidate), "--output", str(record)], capture_output=True, text=True, check=False)
             self.assertEqual(0, done.returncode, done.stderr)
-            self.assertNotEqual(0, subprocess.run(command + ["validate", "--catalog", str(catalog), "--evidence-root", str(root), str(record)], capture_output=True, text=True, check=False).returncode)
+            self.assertEqual(PROVENANCE_NOTICE, json.loads(record.read_text(encoding="utf-8"))["provenance"])
+            validated = subprocess.run(command + ["validate", "--catalog", str(catalog), "--evidence-root", str(root), str(record)], capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, validated.returncode)
+            self.assertEqual(PROVENANCE_NOTICE, json.loads(validated.stdout)["provenance"])
             self.assertNotEqual(0, subprocess.run(command + ["init", "--catalog", str(catalog), "--candidate-json", str(candidate), "--output", str(record)], capture_output=True, text=True, check=False).returncode)
             report = subprocess.run(command + ["report", "--catalog", str(catalog), "--evidence-root", str(root), "--json-output", str(root / "report.json"), "--markdown-output", str(root / "report.md"), "--report-timestamp", "2026-08-12T00:00:00Z", "--verdict-actor", "release-reviewer", "--verdict-timestamp", "2026-08-12T00:00:00Z", str(record)], capture_output=True, text=True, check=False)
             self.assertNotEqual(0, report.returncode)
-            self.assertIn("incomplete", (root / "report.json").read_text(encoding="utf-8"))
-            self.assertIn("release-reviewer", (root / "report.md").read_text(encoding="utf-8"))
+            report_json = json.loads((root / "report.json").read_text(encoding="utf-8"))
+            report_markdown = (root / "report.md").read_text(encoding="utf-8")
+            self.assertEqual(PROVENANCE_NOTICE, report_json["provenance"])
+            self.assertIn(PROVENANCE_NOTICE, report_markdown)
+            self.assertIn("release-reviewer", report_markdown)
 
 
 if __name__ == "__main__":

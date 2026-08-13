@@ -82,7 +82,7 @@ def _selection_arguments(
 def _fingerprints(context: OperationContext, workspace: Workspace) -> dict[str, str]:
     result = {}
     for root in workspace.config.test_roots:
-        for path in workspace.list_files(str(root)):
+        for path in workspace.git_visible_files(str(root)):
             result[path] = context.hash_service.digest(workspace.read_bytes(path))
     return result
 

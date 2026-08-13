@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from aegis.application.operation_types import (
     ArgumentDefinition,
+    DataFieldDefinition,
+    MachineInputDefinition,
     MachineRevisionPolicy,
     OperationDefinition,
     OperationExecutor,
@@ -88,6 +90,10 @@ def _operation(
 ) -> OperationDefinition:
     """@return One immutable registry declaration."""
     resolved_executor = executor_for(operation) if executor is None else executor
+    policy = _MACHINE_REVISION_POLICIES[operation]
+    if policy.requires_explicit_revision:
+        executable, command = example.split(" ", 1)
+        example = f"{executable} --expected-revision {_SHA256_EXAMPLE} {command}"
     return OperationDefinition(
         operation=operation,
         purpose=purpose,
@@ -96,9 +102,36 @@ def _operation(
         products=products,
         arguments=arguments,
         executor=resolved_executor,
-        machine_revision_policy=_MACHINE_REVISION_POLICIES[operation],
+        machine_revision_policy=policy,
+        machine_input=_MACHINE_INPUTS.get(operation),
         implemented=resolved_executor is not unavailable_operation,
     )
+
+
+def _field(
+    name: str,
+    type_name: str,
+    description: str,
+    *,
+    required: bool = True,
+    choices: tuple[str, ...] = (),
+) -> DataFieldDefinition:
+    """@return One operation-data field declaration."""
+    return DataFieldDefinition(
+        name=name,
+        type_name=type_name,
+        description=description,
+        required=required,
+        choices=choices,
+    )
+
+
+def _machine_input(
+    *data_fields: DataFieldDefinition,
+    constraints: tuple[str, ...] = (),
+) -> MachineInputDefinition:
+    """@return One structured input declaration for registry-owned help."""
+    return MachineInputDefinition(data_fields, constraints)
 
 
 # -----------------------------------------------------------------------------
@@ -212,6 +245,303 @@ _MACHINE_REVISION_POLICIES = {
     },
 }
 
+_ACTOR_REASON_FIELDS = (
+    _field("actor", "string", "Actor authorizing the recorded action."),
+    _field("reason", "string", "Non-empty reason for the recorded action."),
+)
+_REQUIREMENT_FIELDS = (
+    _field("title", "string", "Concise Requirement title."),
+    _field("behavior", "string", "One structured behavior statement."),
+    _field("confirmation", "string", "Observable confirmation of the behavior."),
+    _field(
+        "status",
+        "string",
+        "Current Requirement status.",
+        choices=("draft", "active"),
+    ),
+    _field(
+        "priority",
+        "string",
+        "Requirement priority.",
+        choices=("Must", "Should", "Could"),
+    ),
+    _field(
+        "verification_kind",
+        "string",
+        "Whether confirmation is automated or manual.",
+        choices=("automated", "manual"),
+    ),
+    _field(
+        "impacted_files",
+        "array[string]",
+        "Non-empty repository-relative impacted path list.",
+    ),
+    _field(
+        "tests",
+        "array[object]",
+        "Test links with path, selector, purposes, and covered_files.",
+        required=False,
+    ),
+    _field(
+        "manual_method",
+        "string",
+        "Concrete method required for manual verification.",
+        required=False,
+    ),
+    _field("rationale", "string", "Optional Requirement rationale.", required=False),
+)
+_COMPONENT_FIELDS = (
+    _field("name", "string", "Component name."),
+    _field(
+        "status",
+        "string",
+        "Current Component status.",
+        choices=("draft", "active"),
+    ),
+    _field("files", "array[string]", "Non-empty owned path list."),
+    _field(
+        "file_roles",
+        "array[object]",
+        "One path and role object for every Component file.",
+    ),
+    _field(
+        "requirement_ids",
+        "array[string]",
+        "Canonical Requirement identifiers related to the Component.",
+    ),
+    _field(
+        "test_links",
+        "array[object]",
+        "Test links with path, optional selector, and description.",
+    ),
+    _field("purpose_boundary", "string", "Component purpose and boundary."),
+    _field("interfaces", "string", "Component interfaces."),
+    _field("behaviors", "array", "Recorded Component behaviors.", required=False),
+    _field("dependencies", "array", "Recorded dependencies.", required=False),
+    _field("known_gaps", "array", "Known gaps kept visible.", required=False),
+    _field("drift_review", "object", "Current drift review result.", required=False),
+)
+_MACHINE_INPUTS = {
+    "run.create": _machine_input(
+        _field(
+            "ticket_text",
+            "string",
+            "Inline non-empty ticket text.",
+            required=False,
+        ),
+        _field(
+            "ticket_path",
+            "string",
+            "Path to UTF-8 ticket text.",
+            required=False,
+        ),
+        _field(
+            "profile",
+            "string",
+            "Run profile; defaults to full.",
+            required=False,
+            choices=("full", "short"),
+        ),
+        _field(
+            "work_type",
+            "string",
+            "Run work type; defaults to change.",
+            required=False,
+            choices=("feature", "change", "quick_fix", "bug_fix"),
+        ),
+        _field(
+            "actor",
+            "string",
+            "Opening actor; defaults to operator.",
+            required=False,
+        ),
+        _field(
+            "execution_instruction",
+            "string",
+            "Optional durable execution instruction.",
+            required=False,
+        ),
+        constraints=("Provide exactly one of ticket_text or ticket_path.",),
+    ),
+    "run.abandon": _machine_input(*_ACTOR_REASON_FIELDS),
+    "scope.revise": _machine_input(
+        _field("before", "string", "Scope before the approved revision."),
+        _field("after", "string", "Scope after the approved revision."),
+        *_ACTOR_REASON_FIELDS,
+        _field(
+            "affected_work",
+            "array[string]",
+            "Paths or work names affected by the scope revision.",
+        ),
+    ),
+    "stage.set_section": _machine_input(
+        _field("section", "string", "Allowed section name from stage.show."),
+        _field("content", "string", "Non-empty replacement section content."),
+        _field(
+            "actor",
+            "string",
+            "Actor replacing the section; defaults to operator.",
+            required=False,
+        ),
+    ),
+    "stage.skip": _machine_input(*_ACTOR_REASON_FIELDS),
+    "stage.revisit": _machine_input(*_ACTOR_REASON_FIELDS),
+    "evidence.add": _machine_input(
+        _field(
+            "kind",
+            "string",
+            "Evidence kind selecting its field contract.",
+            choices=("manual", "automated", "imported"),
+        ),
+        _field("actor", "string", "Actor for manual evidence.", required=False),
+        _field("procedure", "string", "Manual procedure used.", required=False),
+        _field("expected", "string", "Manual expected result.", required=False),
+        _field("actual", "string", "Manual observed result.", required=False),
+        _field(
+            "command",
+            "array[string]",
+            "Automated command argument vector.",
+            required=False,
+        ),
+        _field(
+            "selector",
+            "string",
+            "Automated configured selector alternative to command.",
+            required=False,
+        ),
+        _field(
+            "working_directory",
+            "string",
+            "Automated execution working directory.",
+            required=False,
+        ),
+        _field(
+            "outcome",
+            "string",
+            "Automated execution outcome.",
+            required=False,
+            choices=("passed", "failed", "timed_out", "cancelled", "launch_error"),
+        ),
+        _field(
+            "exit_status",
+            "integer|null",
+            "Automated exit code, or null for incomplete execution.",
+            required=False,
+        ),
+        _field(
+            "observed_result",
+            "string",
+            "Concise automated observed result.",
+            required=False,
+        ),
+        _field(
+            "tests",
+            "array[string]",
+            "Non-empty automated test or check selectors covered.",
+            required=False,
+        ),
+        constraints=(
+            "Manual evidence requires actor, procedure, expected, and actual.",
+            "Automated evidence requires command or selector, working_directory, "
+            "outcome, exit_status, observed_result, and tests.",
+        ),
+    ),
+    "finding.add": _machine_input(
+        _field("severity", "string", "Non-empty finding severity."),
+        _field("observation", "string", "Observed condition."),
+        _field("consequence", "string", "Why the finding matters."),
+    ),
+    "finding.set_disposition": _machine_input(
+        *_ACTOR_REASON_FIELDS,
+        _field(
+            "disposition",
+            "string",
+            "New finding disposition.",
+            choices=("open", "resolved", "accepted", "waived", "not_applicable"),
+        ),
+    ),
+    "finding.waive": _machine_input(*_ACTOR_REASON_FIELDS),
+    "decision.add": _machine_input(
+        _field(
+            "value",
+            "string",
+            "Recorded decision value.",
+            choices=("approved", "rejected", "exception_approved"),
+        ),
+        _field("actor", "string", "Decision actor."),
+        _field("target", "string", "Decision target."),
+        _field("reason", "string", "Decision reason or conditions."),
+        _field(
+            "alternative_confirmation",
+            "string",
+            "Required confirmation for an approved exception.",
+            required=False,
+        ),
+        constraints=("exception_approved requires alternative_confirmation.",),
+    ),
+    "attachment.add": _machine_input(
+        _field("source", "string", "Readable source file path."),
+        _field("purpose", "string", "Purpose of the imported attachment."),
+        _field("content_type", "string", "Attachment media or content type."),
+    ),
+    "requirement.create": _machine_input(*_REQUIREMENT_FIELDS),
+    "requirement.update": _machine_input(*_REQUIREMENT_FIELDS),
+    "specification.set": _machine_input(
+        _field("title", "string", "Specification title."),
+        _field("purpose", "string", "Specification purpose."),
+        _field("contract", "string", "Behavioral contract."),
+        _field("inputs_outputs", "string", "Inputs and outputs."),
+        _field("rules", "array", "Specification rules."),
+        _field("error_behavior", "string", "Error behavior."),
+        _field("examples", "string", "Examples."),
+        _field("open_details", "string", "Open implementation details."),
+        _field(
+            "status",
+            "string",
+            "Current Specification status.",
+            choices=("draft", "active"),
+        ),
+    ),
+    "component.create": _machine_input(*_COMPONENT_FIELDS),
+    "component.update": _machine_input(*_COMPONENT_FIELDS),
+    "trace.impacted": _machine_input(
+        _field(
+            "changed_files",
+            "array[string]",
+            "Repository-relative changed implementation paths.",
+        ),
+        _field(
+            "changed_tests",
+            "array[string]",
+            "Repository-relative tests created or changed by the Run.",
+            required=False,
+        ),
+    ),
+    "adoption.create": _machine_input(
+        _field("scope", "string", "Bounded Adoption scope."),
+        _field("actor", "string", "Actor opening the Adoption."),
+        _field(
+            "observed_implementation",
+            "array",
+            "Observed implementation facts.",
+        ),
+        _field("observed_tests", "array", "Observed test facts."),
+        _field("unresolved_gaps", "array", "Unresolved gaps kept visible."),
+        _field(
+            "component_id",
+            "string",
+            "Optional related Component identifier.",
+            required=False,
+        ),
+    ),
+    "adoption.set_section": _machine_input(
+        _field("section", "string", "Allowed Adoption section name."),
+        _field("content", "any JSON value", "Replacement section value."),
+        _field("actor", "string", "Actor replacing the section."),
+    ),
+    "adoption.abandon": _machine_input(*_ACTOR_REASON_FIELDS),
+}
+
 _HELP_OPERATION = _option(
     "operation", "--operation <id>", "Show help for one operation or command."
 )
@@ -272,6 +602,9 @@ _NAME = _option(
 )
 _SELECTION = _option(
     "selection", "--selection <label>", "Use the impacted-test selection label."
+)
+_CURSOR = _option(
+    "cursor", "--cursor <token>", "Continue a bounded list at this item offset."
 )
 _ADOPTION = _option(
     "adoption", "--adoption <id>", "Select the Adoption identifier.", required=True
@@ -351,6 +684,7 @@ ALL_OPERATIONS = (
         "Run summary page.",
         "aegis run-list",
         _AEGIS,
+        (_CURSOR,),
     ),
     _operation(
         "run.show",
@@ -518,6 +852,7 @@ ALL_OPERATIONS = (
         "Requirement summary page.",
         "aegis requirement-list",
         _AEGIS,
+        (_CURSOR,),
     ),
     _operation(
         "requirement.validate",
@@ -583,6 +918,7 @@ ALL_OPERATIONS = (
         "Component summary page.",
         "aegis component-list",
         _AEGIS,
+        (_CURSOR,),
     ),
     _operation(
         "component.validate",

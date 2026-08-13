@@ -153,6 +153,104 @@ def test_selected_stage_show_assembles_relevant_resume_graph_and_absent_rules(
     assert response["truncated"] is False
 
 
+def test_stage_show_does_not_duplicate_collections(tmp_path: Path) -> None:
+    """@brief Stage collections occur once without losing bounded accounting."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    attachment = repo / "resume-context.log"
+    attachment.write_text("bounded context evidence\n", encoding="utf-8")
+    operations = (
+        (
+            "evidence-add",
+            {
+                "kind": "manual",
+                "actor": "agent",
+                "procedure": "inspect stage context",
+                "expected": "one bounded collection",
+                "actual": "one bounded collection",
+            },
+            (),
+        ),
+        (
+            "finding-add",
+            {
+                "severity": "warning",
+                "observation": "Resume context was duplicated.",
+                "consequence": "Model context was wasted.",
+            },
+            (),
+        ),
+        (
+            "finding-waive",
+            {"actor": "agent", "reason": "Regression coverage added."},
+            ("--finding", "F1"),
+        ),
+        (
+            "decision-add",
+            {
+                "value": "approved",
+                "actor": "agent",
+                "target": "resume_context_shape",
+                "reason": "Keep each Stage collection once.",
+            },
+            (),
+        ),
+        (
+            "attachment-add",
+            {
+                "source": str(attachment),
+                "purpose": "resume context evidence",
+                "content_type": "text/plain",
+            },
+            (),
+        ),
+    )
+    for operation, data, arguments in operations:
+        exit_code, response = invoke(repo, operation, data, *arguments)
+        assert exit_code == 0, response
+
+    exit_code, response = invoke(repo, "stage-show")
+
+    assert exit_code == 0, response
+    data = response["data"]
+    stage_state = data["stage_state"]
+    collection_names = {"sections", "evidence", "findings", "decisions", "escapes"}
+    assert collection_names.isdisjoint(stage_state)
+    assert set(stage_state) == {
+        "status",
+        "revision",
+        "started_at",
+        "updated_at",
+        "completed_at",
+        "attachments",
+        "events",
+        "work_applied",
+    }
+    for name in collection_names:
+        collection = data[name]
+        assert set(collection) == {
+            "items",
+            "total_count",
+            "returned_count",
+            "omitted_count",
+            "truncated",
+        }
+        assert collection["total_count"] == (
+            collection["returned_count"] + collection["omitted_count"]
+        )
+        assert collection["truncated"] is bool(collection["omitted_count"])
+        assert collection["returned_count"] > 0
+    for name in ("attachments", "events"):
+        collection = stage_state[name]
+        assert collection["total_count"] == (
+            collection["returned_count"] + collection["omitted_count"]
+        )
+        assert collection["truncated"] is bool(collection["omitted_count"])
+        assert collection["returned_count"] > 0
+    assert "guidance" in data
+    assert "guidance" not in stage_state
+
+
 def test_explicit_historical_stage_show_preserves_selection_and_all_bytes(
     tmp_path: Path,
 ) -> None:

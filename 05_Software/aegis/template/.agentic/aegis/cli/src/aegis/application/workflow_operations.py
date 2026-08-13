@@ -15,16 +15,24 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from aegis.application.operation_types import OperationContext, OperationDefinition
+from aegis.application.operation_types import (
+    OperationContext,
+    OperationDefinition,
+    revision_read_next_actions,
+)
 from aegis.application.product_operations import unavailable_operation
 from aegis.application.resume_context import assemble_stage_resume_context
-from aegis.application.stage_expectations import evaluate_stage_expectations
+from aegis.application.stage_expectations import (
+    evaluate_stage_expectations,
+    summarize_red_before_green_state,
+)
 from aegis.domain.results import OperationResult, ProtocolError
 from aegis.ports.workspace import RepositoryMutation, Workspace, WorkspaceError
 
@@ -42,6 +50,7 @@ _STAGE_FILES = {
     stage: f"{index:02d}-{stage}.md" for index, stage in enumerate(_STAGES, start=1)
 }
 _RUN_ID = re.compile(r"^RUN-[0-9a-f]{32}$")
+_CURSOR = re.compile(r"^(0|[1-9][0-9]*)$")
 _DECISIONS = {"approved", "rejected", "exception_approved"}
 _DISPOSITIONS = {"open", "resolved", "accepted", "waived", "not_applicable"}
 _AUTOMATED_OUTCOMES = {
@@ -131,6 +140,8 @@ def _error(
     context: OperationContext,
     definition: OperationDefinition,
     error: UseCaseError,
+    *,
+    next_actions: tuple[dict[str, Any], ...] = (),
 ) -> OperationResult:
     return OperationResult(
         product=context.product,
@@ -147,6 +158,7 @@ def _error(
             retryable=error.retryable,
             details=error.details,
         ),
+        next_actions=next_actions,
     )
 
 
@@ -163,9 +175,29 @@ def _wrap(handler: Callable[..., OperationResult]) -> Callable[..., OperationRes
                 context,
                 definition,
                 UseCaseError(error.code, error.summary, path=error.path),
+                next_actions=(
+                    revision_read_next_actions(definition, inputs)
+                    if error.code == "state_conflict"
+                    else ()
+                ),
             )
         except UseCaseError as error:
-            return _error(context, definition, error)
+            return _error(
+                context,
+                definition,
+                error,
+                next_actions=(
+                    revision_read_next_actions(definition, inputs)
+                    if error.code == "state_conflict"
+                    and (
+                        error.field == "expected_revision"
+                        or definition.machine_revision_policy.value.startswith(
+                            ("required:", "conditional:")
+                        )
+                    )
+                    else ()
+                ),
+            )
 
     execute.__name__ = f"execute_{handler.__name__.removeprefix('_')}"
     return execute
@@ -178,6 +210,41 @@ def _require_text(inputs: dict[str, Any], field: str) -> str:
             "invalid_input", f"{field} must be non-empty text.", field=field
         )
     return value
+
+
+def _page_offset(inputs: dict[str, Any], item_count: int) -> int:
+    """
+    @brief Validate one canonical integer list cursor as an item offset.
+    @param[in] inputs Operation inputs that may contain a cursor token.
+    @param[in] item_count Number of ordered items available to the operation.
+    @return Zero for the first page or the validated cursor offset.
+    @exception UseCaseError The cursor is malformed or beyond the item range.
+    """
+    cursor = inputs.get("cursor")
+    if cursor is None:
+        return 0
+    if not isinstance(cursor, str) or _CURSOR.fullmatch(cursor) is None:
+        raise UseCaseError(
+            "invalid_input",
+            "cursor must be a canonical non-negative integer offset.",
+            field="cursor",
+        )
+    try:
+        offset = int(cursor)
+    except ValueError as error:
+        raise UseCaseError(
+            "invalid_input",
+            "cursor must be a canonical non-negative integer offset.",
+            field="cursor",
+        ) from error
+    if offset > item_count:
+        raise UseCaseError(
+            "invalid_input",
+            "cursor exceeds the available item range.",
+            field="cursor",
+            details={"item_count": item_count},
+        )
+    return offset
 
 
 def _require_active_stage(metadata: dict[str, Any]) -> None:
@@ -259,6 +326,111 @@ def _validate_automated_evidence(entry: dict[str, Any]) -> None:
         )
 
 
+def _delivery_recorded_state(
+    workspace: Workspace,
+    *,
+    run_id: str,
+    run_meta: dict[str, Any],
+    run_state: dict[str, Any],
+    delivery_meta: dict[str, Any],
+    delivery_state: dict[str, Any],
+) -> str:
+    """@return A compact deterministic Delivery record from durable Stage state."""
+    stage_records: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+    summaries = {item["name"]: item for item in run_state["stages"]}
+    for stage in _STAGES:
+        if stage == "delivery":
+            stage_records[stage] = (delivery_meta, delivery_state)
+            continue
+        stage_path = f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[stage]}"
+        stage_metadata, state, _ = workspace.load_document(stage_path)
+        stage_records[stage] = (stage_metadata, state)
+
+    skipped_or_omitted = []
+    waiver_escapes = []
+    non_passing_executions = []
+    changed_tests: set[str] = set()
+    for stage in _STAGES:
+        stage_metadata, state = stage_records[stage]
+        status = stage_metadata.get("status")
+        escapes = [
+            item for item in state.get("escapes", []) if isinstance(item, dict)
+        ]
+        if status in {"skipped", "omitted"}:
+            if status == "skipped":
+                skip = next(
+                    (
+                        item
+                        for item in reversed(escapes)
+                        if item.get("type") == "skip"
+                    ),
+                    {},
+                )
+                reason = (
+                    skip.get("reason")
+                    or summaries[stage].get("result")
+                    or "not recorded"
+                )
+            else:
+                reason = f"profile={run_meta['profile']}"
+            skipped_or_omitted.append(
+                {"stage": stage, "status": status, "reason": reason}
+            )
+        waiver_escapes.extend(
+            {
+                "stage": stage,
+                "target": escape.get("target"),
+                "reason": escape.get("reason"),
+            }
+            for escape in escapes
+            if escape.get("type") == "waiver"
+        )
+        for evidence in state.get("evidence", []):
+            if not isinstance(evidence, dict):
+                continue
+            if (
+                evidence.get("kind") == "automated"
+                and evidence.get("outcome") != "passed"
+            ):
+                non_passing_executions.append(
+                    {
+                        "stage": stage,
+                        "category": evidence.get("category"),
+                        "name": evidence.get("name"),
+                        "outcome": evidence.get("outcome"),
+                    }
+                )
+            comparison = evidence.get("red_fingerprint_comparison")
+            if isinstance(comparison, dict):
+                changed_tests.update(
+                    item
+                    for item in comparison.get("changed_tests", [])
+                    if isinstance(item, str)
+                )
+
+    check_state = stage_records["check"][1]
+    implementation_started_at = str(
+        stage_records["implementation"][0].get("started_at", "")
+    )
+    categories = (
+        ("skipped_or_omitted_stages", skipped_or_omitted),
+        ("waiver_escapes", waiver_escapes),
+        ("non_passing_executions", non_passing_executions),
+        ("changed_tests", sorted(changed_tests)),
+        (
+            "red_before_green",
+            summarize_red_before_green_state(
+                check_state, implementation_started_at=implementation_started_at
+            ),
+        ),
+    )
+    return "\n".join(
+        f"- {name}: "
+        + json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        for name, value in categories
+    )
+
+
 def _run_path(workspace: Workspace, run_id: str) -> str:
     if not _RUN_ID.fullmatch(run_id):
         raise UseCaseError(
@@ -331,6 +503,25 @@ def _selected_run_id(workspace: Workspace) -> str:
     )
 
 
+def _load_selected_run_for_mutation(
+    workspace: Workspace,
+) -> tuple[str, dict[str, Any], dict[str, Any], str, str]:
+    """
+    @brief Load the selected non-terminal Run for mutation.
+    @param[in] workspace Repository storage boundary.
+    @return Run identity, decoded state, revision, and path.
+    @exception UseCaseError The selected Run is delivered or abandoned.
+    """
+    run_id = _selected_run_id(workspace)
+    run_meta, run_state, run_revision, run_path = _load_run(workspace, run_id)
+    status = run_meta.get("status")
+    if status in {"delivered", "abandoned"}:
+        raise UseCaseError(
+            "invalid_transition", f"A {status} Run cannot be mutated."
+        )
+    return run_id, run_meta, run_state, run_revision, run_path
+
+
 def _load_current(
     workspace: Workspace,
 ) -> tuple[
@@ -344,8 +535,9 @@ def _load_current(
     str,
     str,
 ]:
-    run_id = _selected_run_id(workspace)
-    run_meta, run_state, run_revision, run_path = _load_run(workspace, run_id)
+    run_id, run_meta, run_state, run_revision, run_path = (
+        _load_selected_run_for_mutation(workspace)
+    )
     stage = run_meta["current_stage"]
     stage_path = f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[stage]}"
     stage_meta, stage_state, stage_revision = workspace.load_document(stage_path)
@@ -773,6 +965,8 @@ def _run_create(
         }
         state = {
             "instruction": resource["instruction"],
+            "common_findings": resource["common_findings"],
+            "recovery_actions": resource["recovery_actions"],
             "allowed_sections": resource["sections"],
             "sections": {section: "None" for section in resource["sections"]},
             "evidence": [],
@@ -879,14 +1073,15 @@ def _run_create(
 def _run_list(
     context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
 ) -> OperationResult:
-    del inputs
     workspace = _workspace(context)
     try:
         selected = _selected_run_id(workspace)
     except UseCaseError:
         selected = None
+    run_ids = _run_ids(workspace)
+    offset = _page_offset(inputs, len(run_ids))
     items = []
-    for run_id in _run_ids(workspace)[:20]:
+    for run_id in run_ids[offset : offset + 20]:
         metadata, state, revision, _ = _load_run(workspace, run_id)
         items.append(
             {
@@ -899,7 +1094,8 @@ def _run_list(
                 "ticket_summary": state["ticket_text"][:120],
             }
         )
-    has_more = len(_run_ids(workspace)) > 20
+    next_offset = offset + 20
+    has_more = len(run_ids) > next_offset
     return _done(
         context,
         definition,
@@ -907,7 +1103,7 @@ def _run_list(
         data={
             "items": items,
             "has_more": has_more,
-            "next_cursor": "20" if has_more else None,
+            "next_cursor": str(next_offset) if has_more else None,
         },
         run_id=selected,
     )
@@ -1021,6 +1217,112 @@ def _run_set_profile(
     )
 
 
+def _stage_show_next_actions(
+    *,
+    run_id: str,
+    run_meta: dict[str, Any],
+    run_state: dict[str, Any],
+    stage: str,
+    stage_meta: dict[str, Any],
+    stage_state: dict[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    """
+    @brief Derive one deterministic atomic continuation for a Stage resume read.
+    @param[in] run_id Identity of the inspected Run.
+    @param[in] run_meta Current Run metadata.
+    @param[in] run_state Current Run state.
+    @param[in] stage Name of the inspected Stage.
+    @param[in] stage_meta Current inspected Stage metadata.
+    @param[in] stage_state Current inspected Stage state.
+    @return Exactly one bounded next action derived from the persisted statuses.
+    """
+    if run_meta.get("status") != "active":
+        return (
+            {
+                "operation": "run.show",
+                "arguments": {"run": run_id},
+                "reason": "Read the terminal Run state.",
+            },
+        )
+
+    current_stage = str(run_meta.get("current_stage", ""))
+    if stage != current_stage:
+        return (
+            {
+                "operation": "stage.show",
+                "arguments": {"run": run_id, "stage": current_stage},
+                "reason": "Resume the Run's current Stage.",
+            },
+        )
+
+    status = stage_meta.get("status")
+    if status == "active":
+        sections = stage_state.get("sections", {})
+        allowed_sections = stage_state.get("allowed_sections", [])
+        next_section = (
+            "restated_ask"
+            if stage == "intake"
+            and "restated_ask" in allowed_sections
+            and sections.get("restated_ask") == "None"
+            else next(
+                (
+                    section
+                    for section in allowed_sections
+                    if sections.get(section) == "None"
+                ),
+                None,
+            )
+        )
+        if next_section is not None:
+            return (
+                {
+                    "operation": "stage.set_section",
+                    "arguments": {"section": next_section},
+                    "reason": f"Record the next {stage.title()} Stage section.",
+                },
+            )
+        return (
+            {
+                "operation": "stage.complete",
+                "arguments": {},
+                "reason": f"Evaluate and complete the active {stage.title()} Stage.",
+            },
+        )
+
+    if status == "pending":
+        return (
+            {
+                "operation": "stage.start",
+                "arguments": {"stage_name": stage},
+                "reason": f"Start the pending {stage.title()} Stage.",
+            },
+        )
+
+    next_stage = next(
+        (
+            str(item.get("name"))
+            for item in run_state.get("stages", [])
+            if item.get("status") == "pending"
+        ),
+        None,
+    )
+    if next_stage is not None:
+        return (
+            {
+                "operation": "stage.start",
+                "arguments": {"stage_name": next_stage},
+                "reason": f"Start the pending {next_stage.title()} Stage.",
+            },
+        )
+    return (
+        {
+            "operation": "run.show",
+            "arguments": {"run": run_id},
+            "reason": "Read the Run state before choosing another operation.",
+        },
+    )
+
+
 def _stage_show(
     context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
 ) -> OperationResult:
@@ -1065,6 +1367,14 @@ def _stage_show(
         artifacts=(
             _artifact(run_path, "read", run_revision, kind="run"),
             _artifact(path, "read", revision, kind="stage"),
+        ),
+        next_actions=_stage_show_next_actions(
+            run_id=run_id,
+            run_meta=run_meta,
+            run_state=run_state,
+            stage=stage,
+            stage_meta=metadata,
+            stage_state=state,
         ),
         truncated=truncated,
         details_ref=path if truncated else None,
@@ -1308,6 +1618,15 @@ def _stage_complete(
         tuple(sorted(workspace.config.commands)) if stage == "validation" else ()
     )
     now = _time(context)
+    if stage == "delivery":
+        stage_state["sections"]["recorded_state"] = _delivery_recorded_state(
+            workspace,
+            run_id=run_id,
+            run_meta=run_meta,
+            run_state=run_state,
+            delivery_meta=stage_meta,
+            delivery_state=stage_state,
+        )
     completion_findings: list[dict[str, Any]] = []
     expectation_findings = evaluate_stage_expectations(
         stage=stage,
@@ -1534,8 +1853,9 @@ def _stage_revisit(
     stage = inputs.get("stage_name")
     actor = _require_text(inputs, "actor")
     reason = _require_text(inputs, "reason")
-    run_id = _selected_run_id(workspace)
-    run_meta, run_state, run_revision, run_path = _load_run(workspace, run_id)
+    run_id, run_meta, run_state, run_revision, run_path = (
+        _load_selected_run_for_mutation(workspace)
+    )
     stage_path = f"{workspace.config.runs}/{run_id}/{_STAGE_FILES.get(stage, '')}"
     if stage not in _STAGES:
         raise UseCaseError(
@@ -1548,6 +1868,43 @@ def _stage_revisit(
             "Only completed or skipped Stage work can be revisited.",
         )
     now = _time(context)
+    extra: tuple[RepositoryMutation, ...] = ()
+    extra_expected: dict[str, str | None] = {}
+    previous_stage = run_meta["current_stage"]
+    if (
+        previous_stage != stage
+        and previous_stage in _STAGES
+        and _STAGES.index(previous_stage) > _STAGES.index(stage)
+    ):
+        previous_path = (
+            f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[previous_stage]}"
+        )
+        previous_meta, previous_state, previous_revision = workspace.load_document(
+            previous_path
+        )
+        if previous_meta.get("status") == "active":
+            previous_meta.update({"status": "pending", "updated_at": now})
+            previous_state["events"].append(
+                _event(
+                    now,
+                    actor,
+                    "stage_returned_to_pending",
+                    f"{previous_stage.title()} returned to pending because "
+                    f"{stage.title()} was revisited.",
+                )
+            )
+            for summary in run_state["stages"]:
+                if summary["name"] == previous_stage:
+                    summary.update({"status": "pending", "updated_at": now})
+            extra = (
+                RepositoryMutation(
+                    previous_path,
+                    workspace.render_document(
+                        previous_meta, previous_state, kind="stage"
+                    ),
+                ),
+            )
+            extra_expected = {previous_path: previous_revision}
     stage_meta.update({"status": "active", "updated_at": now, "completed_at": ""})
     stage_state["events"].append(_event(now, actor, "stage_revisited", reason))
     run_meta.update({"current_stage": stage, "updated_at": now})
@@ -1567,6 +1924,8 @@ def _stage_revisit(
         run_state=run_state,
         run_revision=run_revision,
         expected_stage=inputs.get("expected_revision"),
+        extra=extra,
+        extra_expected=extra_expected,
     )
     return _done(
         context,
@@ -1603,6 +1962,12 @@ def _append_entry(
     entry = dict(inputs)
     entry.pop("expected_revision", None)
     if kind == "evidence":
+        for reserved in (
+            "red_witness",
+            "fingerprints",
+            "red_fingerprint_comparison",
+        ):
+            entry.pop(reserved, None)
         evidence_kind = entry.get("kind")
         if evidence_kind not in {"manual", "automated", "imported"}:
             raise UseCaseError(
@@ -1868,8 +2233,9 @@ def _scope_revise(
             "affected_work must be a list of names.",
             field="affected_work",
         )
-    run_id = _selected_run_id(workspace)
-    run_meta, run_state, run_revision, run_path = _load_run(workspace, run_id)
+    run_id, run_meta, run_state, run_revision, run_path = (
+        _load_selected_run_for_mutation(workspace)
+    )
     now = _time(context)
     change = {
         "time": now,

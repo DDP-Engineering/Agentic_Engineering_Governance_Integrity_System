@@ -91,14 +91,26 @@ optional bounded Specification sections, bounded Component purpose/interface/
 file/Requirement/test data, and the derived file/test union. It never emits the
 complete project registers.
 
-The read model also returns bounded Run intent/scope/handoff and Stage sections,
-evidence, findings, decisions, escapes, attachments, and events. Optional
-`.agentic/rules.md` is `present`, `absent`, or `unreadable`; absence selects
-shipped rules normally. Configured commands are filtered by Stage: Check and
-Implementation receive tests, Validation and Delivery receive tests/lints/
-audits, and earlier Stages receive no command vectors. Test roots and advisory
-risk/protected-path configuration remain visible for every Stage. Common
-secret-bearing command options and values are redacted before presentation.
+The read model also returns bounded Run intent/scope/handoff and each Stage
+collection exactly once. Sections, evidence, findings, decisions, and escapes
+are top-level collections; `stage_state` retains status, revision, timestamps,
+the work-applied flag, and the otherwise unique bounded attachment and event
+histories. Optional `.agentic/rules.md` is `present`, `absent`, or `unreadable`;
+absence selects shipped rules normally. Configured commands are filtered by
+Stage: Check and Implementation receive tests, Validation and Delivery receive
+tests/lints/audits, and earlier Stages receive no command vectors. Test roots
+and advisory risk/protected-path configuration remain visible for every Stage.
+Common secret-bearing command options and values are redacted before presentation.
+Each workflow resource may also define up to four common-finding strings and
+four recovery-action records with a condition, existing operation, and concise
+guidance. Run creation snapshots those records into each Stage artifact;
+`stage.show` returns them in `data.guidance`. The read model never evaluates
+them, launches them, or turns them into completion conditions.
+The Stage read derives one deterministic atomic next action from the Run and
+Stage status. Active work selects the Intake restatement or the next unfilled
+allowed section, then completion after every section has content; completed or
+skipped current work selects the next pending Stage. Historical inspection
+returns to the current Stage, and terminal Run inspection selects `run.show`.
 
 Every text wrapper carries character totals and every collection wrapper
 carries item totals, returned counts, omitted counts, and `truncated`. Stable
@@ -132,13 +144,17 @@ full-suite fallback. The dotted `stage.show` identifier remains the machine
 operation, while shipped native-host command guidance uses the flat
 `stage-show` CLI token.
 
-Application mutation seams validate that the selected current Stage is active
-before they publish project knowledge, Stage entries, attachments, trace
-selections, execution evidence, or abandonment context. Stage lifecycle
-operations retain their own transition rules, so `stage.revisit` remains the
-explicit way to make completed or skipped work mutable again. Rejected
-mutations do not publish either Stage or Run bytes, and execution rejection
-occurs before the configured process is launched.
+Application mutation seams reject a selected delivered or abandoned Run before
+they load mutable Stage state, even when the local context pointer still names
+that Run. They also validate that the selected current Stage is active before
+they publish project knowledge, Stage entries, attachments, trace selections,
+execution evidence, or abandonment context. Stage lifecycle operations retain
+their own transition rules, so `stage.revisit` remains the explicit way to make
+completed or skipped work in an active Run mutable again. Rejected mutations do
+not publish either Stage or Run bytes. When an earlier Stage is revisited, a
+different active later Stage returns to pending in the same publication so
+forward work can be started again. Execution rejection occurs before the
+configured process is launched.
 
 Every successful Run/Stage publication also performs a read-only repository
 comparison against the Run opening snapshot. The Run retains the original
@@ -181,9 +197,35 @@ caller-revision rule. Human mode continues to use the revision loaded by the
 use case when the caller does not supply one. In JSON mode, central dispatch
 returns `invalid_input` before invoking a required mutation when the token is
 missing. Existing publication comparison returns `state_conflict` for stale
-tokens before transaction preparation. `execution.run` additionally compares
-the Stage token before process launch, then retains the same token for its
-atomic evidence publication.
+tokens before transaction preparation. Each of those revision errors includes
+one next action for the matching `run.show`, `stage.show`, `requirement.show`,
+`component.show`, or `adoption.show` read, carrying the target identity when
+the read requires one. `execution.run` additionally compares the Stage token
+before process launch, then retains the same token for its atomic evidence
+publication.
+
+The help use case renders this revision contract directly from each registry
+entry. Required revision policies synthesize the global
+`--expected-revision <sha256>` help argument, identify the matching read
+operation, and place a canonical token before the flat command in the example.
+Registry entries that accept `--input` also own bounded structured-input
+metadata: the fixed `aegis.machine.input` schema and version, matching operation
+identifier, accepted `data` fields with types and required flags, enum choices,
+and cross-field constraints. The human presenter and JSON presenter consume the
+same metadata; runtime input loading and mutation enforcement remain unchanged.
+The human presenter renders ordinary scalar values and bounded help listings
+directly, but summarizes large or nested response data and points to a
+`details_ref` or artifact path when one is available. Findings retain their
+label, severity, summary, and durable location; artifacts retain their action
+and path; and next actions retain their reason. The JSON presenter remains the
+complete, unchanged machine representation.
+
+The `run.list`, `requirement.list`, and `component.list` registry entries expose
+one optional `--cursor <token>` argument. Each use case interprets the token as
+a canonical decimal item offset over its existing stable order, retains the
+twenty-item page size, and emits the next offset using the existing decimal
+string format. A malformed, negative, or beyond-end offset stays inside the
+normal `invalid_input` protocol envelope with `cursor` as the field.
 
 Configured commands execute as argument arrays with `shell=False`, isolated
 process groups, concurrently drained output, explicit timeout/cancellation,

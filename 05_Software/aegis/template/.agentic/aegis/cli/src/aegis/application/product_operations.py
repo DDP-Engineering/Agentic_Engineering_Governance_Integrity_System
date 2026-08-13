@@ -64,11 +64,7 @@ def show_help(
             "operation": entry.operation,
             "command": entry.command,
             "purpose": entry.purpose,
-            "required_arguments": [
-                argument.help_entry()
-                for argument in entry.arguments
-                if argument.required
-            ],
+            "required_arguments": entry.required_help_entries(),
             "optional_arguments": [
                 argument.help_entry()
                 for argument in entry.arguments
@@ -78,6 +74,13 @@ def show_help(
             "example": entry.example,
             "implemented": entry.implemented,
         }
+        if entry.machine_revision_policy.requires_explicit_revision:
+            data["revision"] = {
+                "policy": entry.machine_revision_policy.value,
+                "read_operation": entry.revision_read_operation,
+            }
+        if entry.machine_input is not None:
+            data["machine_input"] = entry.machine_input.help_entry(entry.operation)
         return OperationResult(
             product=context.product,
             product_version=context.product_version,

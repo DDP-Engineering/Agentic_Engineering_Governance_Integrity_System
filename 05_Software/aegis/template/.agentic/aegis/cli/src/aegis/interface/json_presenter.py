@@ -35,6 +35,7 @@ def render_json(result: OperationResult, schema_version: int) -> str:
     """
     return json.dumps(
         result.to_envelope(schema_version),
+        allow_nan=False,
         ensure_ascii=False,
         separators=(",", ":"),
     )

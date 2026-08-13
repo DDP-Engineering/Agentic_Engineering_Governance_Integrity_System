@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import tomllib
+from datetime import date, datetime, time
 from typing import Any
 
 from aegis.domain.configuration import ProjectConfig, ValidationCommand
@@ -68,6 +69,20 @@ def _toml_string(value: str) -> str:
 
 def _toml_array(values: tuple[str, ...] | list[str]) -> str:
     return "[" + ", ".join(_toml_string(value) for value in values) + "]"
+
+
+def _normalize_toml_temporal_values(value: Any) -> Any:
+    """@brief Convert TOML temporal values to stable protocol strings."""
+    if isinstance(value, (date, datetime, time)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {
+            key: _normalize_toml_temporal_values(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_normalize_toml_temporal_values(item) for item in value]
+    return value
 
 
 def _load_toml(source: bytes | dict[str, Any], *, path: str) -> dict[str, Any]:
@@ -400,7 +415,7 @@ def parse_markdown_document(
         end = text.find("\n+++\n", 4)
         if end < 0:
             raise ArtifactDecodeError("unterminated TOML front matter", path=path)
-        metadata = tomllib.loads(text[4:end])
+        metadata = _normalize_toml_temporal_values(tomllib.loads(text[4:end]))
         body = text[end + 5 :]
         kind = metadata.get("artifact_type")
         supported_schema = _MARKDOWN_SCHEMAS.get(kind)
@@ -895,6 +910,16 @@ def _render_stage_body(metadata: dict[str, Any], state: dict[str, Any]) -> list[
                 f"## {section.replace('_', ' ').title()}",
                 "",
                 str(state.get("sections", {}).get(section, "None")),
+                "",
+            )
+        )
+    sections = state.get("sections", {})
+    if metadata.get("stage") == "delivery" and "recorded_state" in sections:
+        lines.extend(
+            (
+                "## Recorded State",
+                "",
+                str(sections["recorded_state"]),
                 "",
             )
         )

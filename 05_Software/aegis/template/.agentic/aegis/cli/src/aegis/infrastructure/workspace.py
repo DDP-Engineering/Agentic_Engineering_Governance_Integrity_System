@@ -116,6 +116,44 @@ class FileWorkspace:
                 files.append(relative)
         return tuple(sorted(files))
 
+    def git_visible_files(self, root: str) -> tuple[str, ...]:
+        """@brief List safe existing tracked and unignored files below one root."""
+        canonical_root = str(RepositoryPath(root))
+        try:
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(self.root),
+                    "ls-files",
+                    "-z",
+                    "--cached",
+                    "--others",
+                    "--exclude-standard",
+                    "--",
+                    canonical_root,
+                ],
+                capture_output=True,
+                check=True,
+                shell=False,
+            )
+            paths = result.stdout.decode("utf-8", "strict").split("\0")
+        except (OSError, UnicodeError, subprocess.CalledProcessError):
+            return self.list_files(root)
+
+        files = set()
+        for path in paths:
+            if not path:
+                continue
+            try:
+                canonical = str(RepositoryPath(path))
+                target = self._path(canonical)
+            except (ValueValidationError, WorkspaceError):
+                continue
+            if target.is_file():
+                files.add(canonical)
+        return tuple(sorted(files))
+
     def publish(
         self,
         mutations: tuple[RepositoryMutation, ...],
@@ -168,6 +206,32 @@ class FileWorkspace:
             data = tomllib.loads(self.read_bytes(path).decode("utf-8"))
             if data.get("schema") != 1 or data.get("stage") != stage:
                 raise ValueError
+            findings = data.get("common_findings", [])
+            actions = data.get("recovery_actions", [])
+            if (
+                not isinstance(findings, list)
+                or len(findings) > 4
+                or any(
+                    not isinstance(item, str) or not item or len(item) > 240
+                    for item in findings
+                )
+                or not isinstance(actions, list)
+                or len(actions) > 4
+                or any(
+                    not isinstance(item, dict)
+                    or set(item) != {"condition", "operation", "guidance"}
+                    or any(
+                        not isinstance(item[key], str)
+                        or not item[key]
+                        or len(item[key]) > 240
+                        for key in item
+                    )
+                    for item in actions
+                )
+            ):
+                raise ValueError
+            data["common_findings"] = findings
+            data["recovery_actions"] = actions
             return data
         except (UnicodeError, tomllib.TOMLDecodeError, ValueError, KeyError) as error:
             raise WorkspaceError(

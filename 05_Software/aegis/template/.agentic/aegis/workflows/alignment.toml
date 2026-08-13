@@ -3,3 +3,8 @@ stage = "alignment"
 sequence = 2
 instruction = "Record included work, exclusions, assumptions, open questions, corrections, and the proportional Run profile. Uncertainty may remain when its risk and accepted assumption are explicit. Do not write implementation code."
 sections = ["inputs_from_intake", "proposed_scope", "developer_corrections", "agreed_scope", "outputs_and_handoff"]
+common_findings = ["The agreed scope omits exclusions or expands beyond the ticket.", "A material open question is hidden instead of carried forward explicitly."]
+recovery_actions = [
+  { condition = "Scope or assumptions need correction before build work.", operation = "stage.set_section", guidance = "Update the affected section with the bounded correction and handoff impact." },
+  { condition = "Alignment is disproportionate and no Stage work was applied.", operation = "stage.skip", guidance = "Skip with a truthful actor and reason; the omission remains visible." },
+]

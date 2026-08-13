@@ -236,13 +236,16 @@ def _launcher_files(product: str, platform: str) -> dict[str, bytes]:
     name = product
     python_launcher = f"""#!/usr/bin/env python3
 from __future__ import annotations
+import shutil
 import sys
 from pathlib import Path
 sys.dont_write_bytecode = True
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "lib"))
 from {name}.composition import main
-raise SystemExit(main(sys.argv[1:]))
+raise SystemExit(
+    main(sys.argv[1:], git_available=shutil.which("git") is not None)
+)
     """.encode()
     if platform == "windows-x86_64":
         wrapper = (
@@ -254,9 +257,6 @@ raise SystemExit(main(sys.argv[1:]))
             b'if exist "%ROOT%\\runtime\\python\\python.exe" '
             b'("%ROOT%\\runtime\\python\\python.exe" "%~dp0launcher.py" %*) '
             b"else (\r\n"
-            b"  where git >nul 2>nul\r\n"
-            b"  if errorlevel 1 (echo WAEGIS requires Git on PATH. 1>&2 "
-            b"& exit /b 5)\r\n"
             b'  py -3.12 -c "import sys" >nul 2>nul\r\n'
             b"  if errorlevel 1 (echo WAEGIS requires Python 3.12. 1>&2 "
             b"& exit /b 5)\r\n"
@@ -273,8 +273,6 @@ raise SystemExit(main(sys.argv[1:]))
         b'PATH="$root/runtime/git/bin:$PATH"; export PATH; fi\n'
         b'if [ -x "$root/runtime/python/bin/python3" ]; then '
         b'exec "$root/runtime/python/bin/python3" "$root/bin/launcher.py" "$@"; fi\n'
-        b'if ! command -v git >/dev/null 2>&1; then '
-        b'echo "WAEGIS requires Git on PATH." >&2; exit 5; fi\n'
         b'if ! command -v python3.12 >/dev/null 2>&1; then '
         b'echo "WAEGIS requires Python 3.12." >&2; exit 5; fi\n'
         b'exec python3.12 "$root/bin/launcher.py" "$@"\n'

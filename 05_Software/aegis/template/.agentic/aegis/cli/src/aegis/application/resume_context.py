@@ -30,6 +30,8 @@ _BUDGETS: dict[str, dict[str, int]] = {
     "full": {
         "run_text_characters": 3000,
         "instruction_characters": 12000,
+        "guidance_entries": 4,
+        "guidance_text_characters": 240,
         "section_characters": 3000,
         "artifact_text_characters": 2000,
         "rules_characters": 8000,
@@ -56,6 +58,8 @@ _BUDGETS: dict[str, dict[str, int]] = {
     "short": {
         "run_text_characters": 1500,
         "instruction_characters": 8000,
+        "guidance_entries": 4,
+        "guidance_text_characters": 240,
         "section_characters": 1500,
         "artifact_text_characters": 1000,
         "rules_characters": 4000,
@@ -933,6 +937,37 @@ def assemble_stage_resume_context(
         "truncated": len(component_contexts) < len(component_ids),
     }
     stage_context = _stage_context(stage_meta, stage_state, stage_revision, budget)
+    stage_state_context = {
+        "status": stage_context["status"],
+        "revision": stage_context["revision"],
+        "started_at": stage_context["started_at"],
+        "updated_at": stage_context["updated_at"],
+        "completed_at": stage_context["completed_at"],
+        "attachments": stage_context["attachments"],
+        "events": stage_context["events"],
+        "work_applied": stage_context["work_applied"],
+    }
+    guidance = {
+        "common_findings": [
+            _bounded_text(item, budget["guidance_text_characters"])["content"]
+            for item in list(stage_state.get("common_findings", []))[
+                : budget["guidance_entries"]
+            ]
+            if isinstance(item, str)
+        ],
+        "recovery_actions": [
+            {
+                key: _bounded_text(
+                    item.get(key, ""), budget["guidance_text_characters"]
+                )["content"]
+                for key in ("condition", "operation", "guidance")
+            }
+            for item in list(stage_state.get("recovery_actions", []))[
+                : budget["guidance_entries"]
+            ]
+            if isinstance(item, dict)
+        ],
+    }
     data = {
         "schema": "aegis.stage.resume_context",
         "schema_version": 1,
@@ -949,13 +984,14 @@ def assemble_stage_resume_context(
         "instruction": _bounded_text(
             stage_state.get("instruction", ""), budget["instruction_characters"]
         ),
+        "guidance": guidance,
         "sections": stage_context["sections"],
         "evidence": stage_context["evidence"],
         "findings": stage_context["findings"],
         "decisions": stage_context["decisions"],
         "escapes": stage_context["escapes"],
         "run_summary": _run_summary(run_meta, run_state, budget),
-        "stage_state": stage_context,
+        "stage_state": stage_state_context,
         "project_knowledge": {
             "requirements": requirements,
             "components": components,

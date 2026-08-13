@@ -19,11 +19,16 @@ python 02_Tools/build_aegis_release.py build --repository . --output 07_Delivery
 python 02_Tools/build_aegis_release.py inspect 07_Delivery/dist/aegis-1.0.0-windows-x86_64-external-runtime.zip
 ```
 
-Version 1 produces eight archives: AEGIS and WAEGIS, with external or bundled
-runtimes, for Windows x86-64 and Ubuntu 22.04 x86-64. External-runtime launchers
-check existing Python 3.12 and Git prerequisites without installing them.
-Bundled archives are built only after exact private Python 3.12 and Git inputs
-are supplied and verified by `runtime_inputs.toml`.
+Version 1's intended matrix contains eight archives: AEGIS and WAEGIS, with
+external or bundled runtimes, for Windows x86-64 and Ubuntu 22.04 x86-64. The
+current local full-AEGIS/WAEGIS matrix inventory contains the four external-
+runtime archives only. The four bundled-runtime editions remain pending because
+`runtime_inputs.toml` records that their exact private Python 3.12 and Git
+inputs, versions, and digests have not been supplied. External-runtime shell
+and command wrappers check for Python 3.12, then the Python launcher checks Git
+without installing either prerequisite. Missing Git is reported through the
+selected product's normal response envelope with exit code 5; repository-free
+help and version operations remain available.
 
 Release launchers disable Python bytecode writes so running an extracted
 package does not add generated files below the product-owned payload.
@@ -44,4 +49,7 @@ the bound candidate identities.
 
 When evidence binds both a package and an environment, their recorded platform
 and architecture must agree. Completion reports record the final verdict actor
-and timestamp in both JSON and Markdown.
+and timestamp in both JSON and Markdown. Initialized records and compiled
+reports also state prominently that their results are operator-attested: the
+tool validates records and retained evidence but executes no acceptance
+scenarios or project commands.

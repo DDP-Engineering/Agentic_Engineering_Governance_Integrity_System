@@ -115,11 +115,12 @@ class Application:
                 "Unexpected WAEGIS failure; no target state was claimed successful.",
             )
 
+    @staticmethod
     def error_result(
-        self, operation: str, code: str, summary: str, *, field: str | None = None
+        operation: str, code: str, summary: str, *, field: str | None = None
     ) -> OperationResult:
         """Construct one outer-boundary error through the common result model."""
-        return self._error(
+        return Application._error(
             operation,
             f"OP-{uuid.uuid4().hex}",
             code,

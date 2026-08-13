@@ -3,3 +3,8 @@ stage = "intake"
 sequence = 1
 instruction = "Start from the unchanged ticket text. Read project configuration, optional rules, relevant Components, linked Requirements, tests, and the opening Git state. Restate the ask, identify bounded scope, and expose uncertainty without requiring prepared scope."
 sections = ["inputs", "configured_project_paths", "relevant_project_knowledge", "restated_ask", "initially_affected_repository_area", "facts_and_uncertainties", "outputs_and_handoff"]
+common_findings = ["The restatement adds scope or loses a constraint from the ticket.", "An assumption is presented as a confirmed repository fact."]
+recovery_actions = [
+  { condition = "Context is incomplete but bounded work can continue.", operation = "stage.set_section", guidance = "Record known facts, explicit uncertainties, and the next focused inspection." },
+  { condition = "The request is withdrawn or no truthful development path remains.", operation = "run.abandon", guidance = "End the Run with the actor and concrete reason; do not fabricate progress." },
+]

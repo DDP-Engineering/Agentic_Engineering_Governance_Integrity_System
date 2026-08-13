@@ -1,5 +1,10 @@
 schema = 1
 stage = "check"
 sequence = 5
-instruction = "Create or select proportional verification under configured test roots. Capture an actual failing result and exact-byte test fingerprints before implementation, or record an exception-approved reason and alternative confirmation."
+instruction = "Create or select proportional verification under configured test roots. Use execution-run for an actual failing witness with exact-byte test fingerprints. When red-before-green genuinely does not apply, use decision-add with target red_before_green, value exception_approved, reason, and alternative_confirmation."
 sections = ["inputs", "test_work", "recorded_red_evidence", "test_fingerprints_at_red", "red_before_green_decision", "outputs_and_handoff"]
+common_findings = ["The selected test passes before implementation or does not exercise the requested behavior.", "The proposed check is unsafe, overbroad, or outside configured test roots."]
+recovery_actions = [
+  { condition = "Red-before-green genuinely does not apply.", operation = "decision.add", guidance = "Record target red_before_green, value exception_approved, a reason, and alternative_confirmation." },
+  { condition = "Check is disproportionate and no Stage work was applied.", operation = "stage.skip", guidance = "Skip with the concrete reason; missing verification remains visible downstream." },
+]

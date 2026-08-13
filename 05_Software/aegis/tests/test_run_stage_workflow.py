@@ -21,10 +21,12 @@ import io
 import json
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import Any
 
 from aegis.composition import create_dispatcher
+from aegis.infrastructure.codecs import render_markdown_document, render_requirement
 from aegis.interface.cli import run_cli
 
 _AUTO_REVISION = object()
@@ -117,6 +119,80 @@ def installed_repository(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def test_shipped_workflow_guidance_has_bounded_advisory_shape() -> None:
+    """@brief Every shipped Stage provides compact findings and recovery actions."""
+    workflows = (
+        Path(__file__).parents[1]
+        / "template"
+        / ".agentic"
+        / "aegis"
+        / "workflows"
+    )
+    resources = {
+        path.stem: tomllib.loads(path.read_text(encoding="utf-8"))
+        for path in workflows.glob("*.toml")
+    }
+
+    assert set(resources) == {
+        "intake",
+        "alignment",
+        "requirement",
+        "design",
+        "check",
+        "implementation",
+        "validation",
+        "delivery",
+    }
+    operations = set()
+    for stage, resource in resources.items():
+        assert resource["schema"] == 1
+        assert resource["stage"] == stage
+        assert 1 <= len(resource["common_findings"]) <= 4
+        assert all(
+            isinstance(finding, str) and 1 <= len(finding) <= 240
+            for finding in resource["common_findings"]
+        )
+        assert 1 <= len(resource["recovery_actions"]) <= 4
+        for action in resource["recovery_actions"]:
+            assert set(action) == {"condition", "operation", "guidance"}
+            assert all(
+                isinstance(action[key], str) and 1 <= len(action[key]) <= 240
+                for key in action
+            )
+            operations.add(action["operation"])
+        assert len((workflows / f"{stage}.toml").read_bytes()) <= 1600
+
+    assert {
+        "stage.set_section",
+        "stage.skip",
+        "stage.revisit",
+        "decision.add",
+    } <= operations
+
+
+def test_stage_show_exposes_snapshotted_workflow_guidance(tmp_path: Path) -> None:
+    """@brief Resume context exposes the guidance captured when a Run begins."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+    source = tomllib.loads(
+        (
+            repo
+            / ".agentic"
+            / "aegis"
+            / "workflows"
+            / "check.toml"
+        ).read_text(encoding="utf-8")
+    )
+
+    exit_code, shown = invoke(repo, "stage-show", None, "--stage", "check")
+
+    assert exit_code == 0, shown
+    assert shown["data"]["guidance"] == {
+        "common_findings": source["common_findings"],
+        "recovery_actions": source["recovery_actions"],
+    }
+
+
 def invoke(
     repo: Path,
     command: str,
@@ -191,6 +267,73 @@ def create_run(repo: Path, *, profile: str = "full") -> dict[str, Any]:
     )
     assert exit_code == 0, response
     return response
+
+
+def write_list_artifacts(repo: Path, *, count: int = 25) -> dict[str, list[str]]:
+    """@brief Write deterministic Run, Requirement, and Component list fixtures."""
+    identities = {"run-list": [], "requirement-list": [], "component-list": []}
+    for index in range(count):
+        suffix = f"{index:032x}"
+        run_id = f"RUN-{suffix}"
+        requirement_id = f"REQ-{suffix}"
+        component_id = f"COMP-{suffix}"
+        identities["run-list"].append(run_id)
+        identities["requirement-list"].append(requirement_id)
+        identities["component-list"].append(component_id)
+
+        run_dir = repo / ".agentic" / "runs" / run_id
+        run_dir.mkdir()
+        (run_dir / "run.md").write_bytes(
+            render_markdown_document(
+                {
+                    "schema": 1,
+                    "artifact_type": "run",
+                    "id": run_id,
+                    "status": "delivered",
+                    "profile": "full",
+                    "current_stage": "delivery",
+                    "updated_at": "2026-08-12T00:00:00Z",
+                },
+                {"ticket_text": f"Run ticket {index}", "stages": []},
+                kind="run",
+            )
+        )
+        (repo / ".agentic" / "requirements" / f"{requirement_id}.toml").write_bytes(
+            render_requirement(
+                {
+                    "id": requirement_id,
+                    "title": f"Requirement {index}",
+                    "status": "active",
+                    "priority": "Must",
+                    "behavior": "The numbered behavior remains addressable.",
+                    "confirmation": "List the numbered Requirement.",
+                    "verification_kind": "manual",
+                    "manual_method": "Inspect the list response.",
+                    "impacted_files": [],
+                    "tests": [],
+                    "updated_at": "2026-08-12T00:00:00Z",
+                }
+            )
+        )
+        (
+            repo / ".agentic" / "components" / f"{component_id}.md"
+        ).write_bytes(
+            render_markdown_document(
+                {
+                    "schema": 1,
+                    "artifact_type": "component",
+                    "id": component_id,
+                    "status": "active",
+                    "name": f"Component {index}",
+                    "files": [],
+                    "requirement_ids": [],
+                    "reviewed_at": "2026-08-12T00:00:00Z",
+                },
+                {"known_gaps": [], "test_links": []},
+                kind="component",
+            )
+        )
+    return identities
 
 
 def commit_repository(repo: Path, message: str = "baseline") -> None:
@@ -546,6 +689,39 @@ def test_multiple_runs_list_select_and_profile_change_do_not_combine_state(
     )
 
 
+def test_list_cursor_returns_the_next_page(tmp_path: Path) -> None:
+    """@brief PR-MODEL-006/007 keep every bounded list item reachable."""
+    repo = installed_repository(tmp_path)
+    identities = write_list_artifacts(repo)
+
+    for command, expected_ids in identities.items():
+        first_exit, first = invoke(repo, command)
+        second_exit, second = invoke(repo, command, None, "--cursor", "20")
+
+        assert first_exit == second_exit == 0
+        assert [item["id"] for item in first["data"]["items"]] == expected_ids[:20]
+        assert first["data"]["has_more"] is True
+        assert first["data"]["next_cursor"] == "20"
+        assert [item["id"] for item in second["data"]["items"]] == expected_ids[20:]
+        assert second["data"]["has_more"] is False
+        assert second["data"]["next_cursor"] is None
+
+
+def test_list_cursor_rejects_invalid_offsets(tmp_path: Path) -> None:
+    """@brief PR-MODEL-006 rejects malformed, negative, and out-of-range cursors."""
+    repo = installed_repository(tmp_path)
+    write_list_artifacts(repo)
+
+    for command in ("run-list", "requirement-list", "component-list"):
+        for cursor in ("01", "-1", "twenty", "26"):
+            exit_code, response = invoke(repo, command, None, "--cursor", cursor)
+
+            assert exit_code == 2
+            assert response["operation_status"] == "error"
+            assert response["error"]["code"] == "invalid_input"
+            assert response["error"]["field"] == "cursor"
+
+
 def test_stage_sections_transitions_and_resume_state_are_atomic(tmp_path: Path) -> None:
     """@brief Each command changes one Stage concern without auto-advancing."""
     repo = installed_repository(tmp_path)
@@ -582,6 +758,61 @@ def test_stage_sections_transitions_and_resume_state_are_atomic(tmp_path: Path) 
     assert "| Intake | completed | Recorded |" in run_text
     assert "stage_completed" in run_text
     assert "stage_started" in run_text
+
+
+def test_revisit_returns_the_later_stage_to_pending(tmp_path: Path) -> None:
+    """@brief PR-EVOL-004 and PR-WORKFLOW-004 keep revisited Runs resumable."""
+    repo = installed_repository(tmp_path)
+    create_run(repo)
+
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "alignment")[0] == 0
+
+    exit_code, revisited = invoke(
+        repo,
+        "stage-revisit",
+        {"actor": "agent", "reason": "Correct the earlier intake record."},
+        "intake",
+    )
+
+    assert exit_code == 0, revisited
+    run = invoke(repo, "run-show")[1]["data"]
+    summaries = {item["name"]: item for item in run["state"]["stages"]}
+    intake = invoke(repo, "stage-show", None, "--stage", "intake")[1]["data"]
+    alignment = invoke(repo, "stage-show", None, "--stage", "alignment")[1][
+        "data"
+    ]
+    assert run["metadata"]["current_stage"] == "intake"
+    assert [
+        item["name"] for item in run["state"]["stages"] if item["status"] == "active"
+    ] == ["intake"]
+    assert summaries["intake"]["status"] == intake["status"] == "active"
+    assert summaries["alignment"]["status"] == alignment["status"] == "pending"
+    alignment_events = [
+        json.loads(item["content"])
+        for item in alignment["stage_state"]["events"]["items"]
+    ]
+    assert alignment_events[-1] == {
+        "actor": "agent",
+        "event": "stage_returned_to_pending",
+        "result": "Alignment returned to pending because Intake was revisited.",
+        "time": alignment["stage_state"]["updated_at"],
+    }
+
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "alignment")[0] == 0
+    run = invoke(repo, "run-show")[1]["data"]
+    summaries = {item["name"]: item for item in run["state"]["stages"]}
+    intake = invoke(repo, "stage-show", None, "--stage", "intake")[1]["data"]
+    alignment = invoke(repo, "stage-show", None, "--stage", "alignment")[1][
+        "data"
+    ]
+    assert run["metadata"]["current_stage"] == "alignment"
+    assert [
+        item["name"] for item in run["state"]["stages"] if item["status"] == "active"
+    ] == ["alignment"]
+    assert summaries["intake"]["status"] == intake["status"] == "completed"
+    assert summaries["alignment"]["status"] == alignment["status"] == "active"
 
 
 def test_entries_scope_skip_attachment_and_revisit_preserve_distinct_meaning(

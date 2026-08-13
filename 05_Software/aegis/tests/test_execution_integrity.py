@@ -233,6 +233,87 @@ def test_execution_run_records_all_operational_outcomes_and_large_attachment(
     assert len(listed["data"]["executions"]) == 5
 
 
+def test_reported_evidence_cannot_become_a_red_witness(tmp_path: Path) -> None:
+    """@brief PR-RED-002 rejects caller integrity fields as red execution proof."""
+    repo = installed_repository(tmp_path)
+    red_test = repo / ".agentic" / "tests" / "test_red.py"
+    red_test.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    created = create_run(repo)
+    advance_to(repo, "check")
+
+    added = invoke(
+        repo,
+        "evidence-add",
+        {
+            "kind": "automated",
+            "category": "tests",
+            "command": ["python", ".agentic/tests/test_red.py"],
+            "working_directory": ".",
+            "outcome": "failed",
+            "exit_status": 1,
+            "observed_result": "The reported test failed.",
+            "tests": [".agentic/tests/test_red.py"],
+            "red_witness": True,
+            "fingerprints": {
+                ".agentic/tests/test_red.py": "sha256:" + ("0" * 64)
+            },
+            "red_fingerprint_comparison": {"changed_tests": []},
+        },
+    )
+
+    assert added[0] == 0, added[1]
+    check_path = repo / ".agentic" / "runs" / created["run_id"] / "05-check.md"
+    _, check_state, _ = parse_markdown_document(
+        check_path.read_bytes(), path=str(check_path)
+    )
+    reported = check_state["evidence"][-1]
+    assert {
+        "red_witness",
+        "fingerprints",
+        "red_fingerprint_comparison",
+    }.isdisjoint(reported)
+
+    completed = invoke(repo, "stage-complete")[1]
+
+    assert "check_red_witness_incomplete" in {
+        finding["code"] for finding in completed["findings"]
+    }
+
+
+def test_executed_failure_is_a_red_witness(tmp_path: Path) -> None:
+    """@brief PR-RED-002/PR-INT-001 retain genuine execution fingerprints."""
+    repo = installed_repository(tmp_path)
+    configure_commands(repo)
+    red_test = repo / ".agentic" / "tests" / "test_red.py"
+    red_test.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    created = create_run(repo)
+    advance_to(repo, "check")
+
+    executed = invoke(
+        repo, "execution-run", None, "--category", "tests", "--name", "red"
+    )
+
+    assert executed[0] == 0, executed[1]
+    assert executed[1]["outcome"] == "failed"
+    check_path = repo / ".agentic" / "runs" / created["run_id"] / "05-check.md"
+    _, check_state, _ = parse_markdown_document(
+        check_path.read_bytes(), path=str(check_path)
+    )
+    witness = check_state["evidence"][-1]
+    assert witness["red_witness"] is True
+    assert witness["fingerprints"]
+
+    completed = invoke(repo, "stage-complete")[1]
+
+    assert not {
+        finding["code"] for finding in completed["findings"]
+    } & {
+        "check_red_witness_missing",
+        "check_red_witness_incomplete",
+        "check_red_witness_not_prior",
+    }
+
+
 def test_red_fingerprint_is_immutable_and_changed_test_is_reported(
     tmp_path: Path,
 ) -> None:
@@ -274,6 +355,117 @@ def test_red_fingerprint_is_immutable_and_changed_test_is_reported(
         check_path.read_bytes(), path=str(check_path)
     )
     assert completed_check_state["evidence"][-1] == immutable_red
+
+
+def test_fingerprints_exclude_ignored_cache_files(tmp_path: Path) -> None:
+    """@brief PR-INT-001 fingerprints Git-visible tests, not ignored caches."""
+    repo = installed_repository(tmp_path)
+    configure_commands(repo)
+    (repo / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+    red_test = repo / ".agentic" / "tests" / "test_red.py"
+    red_test.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    cache = repo / ".agentic" / "tests" / "__pycache__"
+    cache.mkdir()
+    (cache / "test_red.cpython-312.pyc").write_bytes(b"ignored cache")
+    create_run(repo)
+    advance_to(repo, "check")
+
+    red = invoke(repo, "execution-run", None, "--category", "tests", "--name", "red")
+
+    assert red[0] == 0, red[1]
+    check_path = repo / ".agentic" / "runs" / red[1]["run_id"] / "05-check.md"
+    _, check_state, _ = parse_markdown_document(
+        check_path.read_bytes(), path=str(check_path)
+    )
+    assert set(check_state["evidence"][-1]["fingerprints"]) == {
+        ".agentic/tests/test_red.py"
+    }
+
+
+def test_tracked_test_stays_fingerprinted_when_gitignored(tmp_path: Path) -> None:
+    """@brief PR-INT-001/003 keep tracked tests in red/green comparison."""
+    repo = installed_repository(tmp_path)
+    configure_commands(repo)
+    red_test = repo / ".agentic" / "tests" / "test_red.py"
+    red_test.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(repo), "add", ".agentic/tests/test_red.py"], check=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "track test",
+        ],
+        check=True,
+    )
+    (repo / ".gitignore").write_text(
+        ".agentic/tests/test_red.py\n", encoding="utf-8"
+    )
+    create_run(repo)
+    advance_to(repo, "check")
+
+    red = invoke(repo, "execution-run", None, "--category", "tests", "--name", "red")
+
+    assert red[0] == 0, red[1]
+    check_path = repo / ".agentic" / "runs" / red[1]["run_id"] / "05-check.md"
+    _, check_state, _ = parse_markdown_document(
+        check_path.read_bytes(), path=str(check_path)
+    )
+    assert ".agentic/tests/test_red.py" in check_state["evidence"][-1][
+        "fingerprints"
+    ]
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "implementation")[0] == 0
+    red_test.write_text("raise SystemExit(0)\n", encoding="utf-8")
+
+    green = invoke(repo, "execution-run", None, "--category", "tests", "--name", "red")
+
+    assert green[0] == 0, green[1]
+    assert any(
+        finding["code"] == "test_changed_after_red"
+        and ".agentic/tests/test_red.py" in finding["summary"]
+        for finding in green[1]["findings"]
+    )
+
+
+def test_git_visible_files_fall_back_when_git_is_unavailable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """@brief PR-INT-001 keeps filesystem fingerprints when Git is unavailable."""
+    repo = installed_repository(tmp_path)
+    test_path = repo / ".agentic" / "tests" / "test_fallback.py"
+    test_path.write_text("def test_fallback(): pass\n", encoding="utf-8")
+    workspace = FileWorkspace(repo)
+
+    def git_unavailable(*args, **kwargs):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(subprocess, "run", git_unavailable)
+
+    assert workspace.git_visible_files(".agentic/tests") == (
+        ".agentic/tests/test_fallback.py",
+    )
+
+
+def test_git_visible_files_skip_tracked_deleted_paths(tmp_path: Path) -> None:
+    """@brief PR-INT-001 omits index entries without existing regular files."""
+    repo = installed_repository(tmp_path)
+    deleted = repo / ".agentic" / "tests" / "test_deleted.py"
+    deleted.write_text("def test_deleted(): pass\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(repo), "add", ".agentic/tests/test_deleted.py"], check=True
+    )
+    deleted.unlink()
+
+    assert FileWorkspace(repo).git_visible_files(".agentic/tests") == ()
 
 
 def test_check_git_comparison_reports_implementation_change_without_mutation(

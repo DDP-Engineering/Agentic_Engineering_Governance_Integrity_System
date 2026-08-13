@@ -3,3 +3,8 @@ stage = "design"
 sequence = 4
 instruction = "Describe the smallest solution satisfying the Requirements, affected Components and files, interfaces, failure behavior, alternatives, risks, and intended checks. Short profile records Design as omitted."
 sections = ["inputs", "proposed_solution", "requirement_coverage", "interfaces_data_and_failure_behavior", "alternatives_and_risks", "outputs_and_handoff"]
+common_findings = ["The proposal introduces architecture not required by the agreed behavior.", "Interfaces or failure behavior are left implicit where they affect implementation."]
+recovery_actions = [
+  { condition = "The solution is too broad or misses an affected contract.", operation = "stage.set_section", guidance = "Narrow the proposal and record the specific interface, failure, risk, or check." },
+  { condition = "Design is disproportionate and no Stage work was applied.", operation = "stage.skip", guidance = "Skip with a truthful reason and continue through the recorded handoff." },
+]

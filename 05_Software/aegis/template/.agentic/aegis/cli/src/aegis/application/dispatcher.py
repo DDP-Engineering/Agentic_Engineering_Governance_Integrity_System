@@ -23,7 +23,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from aegis.application.operation_registry import find_operation, operations_for
-from aegis.application.operation_types import OperationContext
+from aegis.application.operation_types import (
+    OperationContext,
+    revision_read_next_actions,
+)
 from aegis.domain.results import OperationResult, ProtocolError
 from aegis.ports.repository import RepositoryDiscovery, RepositoryDiscoveryError
 from aegis.ports.services import Clock, HashService, UUIDService
@@ -75,6 +78,7 @@ class Dispatcher:
         path: str | None = None,
         retryable: bool = False,
         details: dict[str, Any] | None = None,
+        next_actions: tuple[dict[str, Any], ...] = (),
     ) -> OperationResult:
         """@brief Construct one presentation-neutral error result."""
         return OperationResult(
@@ -92,6 +96,7 @@ class Dispatcher:
                 retryable=retryable,
                 details={} if details is None else details,
             ),
+            next_actions=next_actions,
         )
 
     def dispatch(
@@ -130,6 +135,7 @@ class Dispatcher:
                 ),
                 field="expected_revision",
                 details={"policy": entry.machine_revision_policy.value},
+                next_actions=revision_read_next_actions(entry, inputs),
             )
 
         operation_id = self._operation_id()

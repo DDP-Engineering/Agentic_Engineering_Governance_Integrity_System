@@ -10,17 +10,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
+from typing import TextIO
 
 from waegis.application.lifecycle import Application
 from waegis.application.registry import OPERATIONS
+from waegis.domain.results import OperationResult
 from waegis.version import PROTOCOL_VERSION
 
 _EXIT_CODES = {
     "invalid_input": 2,
+    "not_found": 3,
+    "ambiguous_run": 3,
+    "invalid_transition": 4,
     "state_conflict": 4,
     "malformed_state": 4,
-    "invalid_transition": 4,
+    "unsupported_schema": 4,
+    "capability_unavailable": 4,
     "repository_error": 5,
     "missing_prerequisite": 5,
     "publication_failed": 6,
@@ -40,7 +47,68 @@ class ProtocolArgumentParser(argparse.ArgumentParser):
         raise CliInputError(message)
 
 
-def run_cli(app: Application, argv: Sequence[str] | None = None) -> int:
+def requested_output_format(arguments: Sequence[str]) -> str:
+    """Parse the requested presentation mode independently of command errors."""
+    parser = ProtocolArgumentParser(prog="waegis", add_help=False)
+    parser.add_argument("--format", choices=("human", "json"), default="human")
+    try:
+        namespace, _unknown = parser.parse_known_args(arguments)
+    except CliInputError:
+        return "human"
+    return str(namespace.format)
+
+
+def configure_utf8(stream: TextIO) -> None:
+    """Configure a process text stream for canonical UTF-8 and LF output."""
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(encoding="utf-8", errors="strict", newline="\n")
+
+
+def present_result(
+    result: OperationResult,
+    output_format: str,
+    stdout: TextIO | None = None,
+) -> int:
+    """Write one result through the selected protocol presenter."""
+    stream = sys.stdout if stdout is None else stdout
+    envelope = result.to_envelope(PROTOCOL_VERSION)
+    if output_format == "json":
+        stream.write(
+            json.dumps(
+                envelope,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(",", ":"),
+            )
+        )
+        stream.write("\n")
+    else:
+        print(envelope["message"], file=stream)
+        print(f"Operation: {envelope['operation']}", file=stream)
+        print(f"Status: {envelope['operation_status']}", file=stream)
+        print(
+            f"Product: {envelope['product']} {envelope['product_version']}",
+            file=stream,
+        )
+        for key, value in envelope["data"].items():
+            print(f"{key}: {json.dumps(value, ensure_ascii=False)}", file=stream)
+        if envelope["error"]:
+            print(
+                f"Error: {envelope['error']['code']}: {envelope['error']['summary']}",
+                file=stream,
+            )
+    if result.operation_status == "completed":
+        return 0
+    return _EXIT_CODES.get(result.error.code if result.error else "", 70)
+
+
+def run_cli(
+    app: Application,
+    argv: Sequence[str] | None = None,
+    *,
+    git_available: bool = True,
+) -> int:
     """Parse, execute, and present one WAEGIS operation."""
     arguments = list(argv or ())
     parser = ProtocolArgumentParser(prog="waegis")
@@ -50,7 +118,7 @@ def run_cli(app: Application, argv: Sequence[str] | None = None) -> int:
         child = subparsers.add_parser(definition.command, help=definition.purpose)
         for name in definition.arguments:
             child.add_argument(f"--{name.replace('_', '-')}", dest=name, required=True)
-    output_format = "json" if "json" in arguments else "human"
+    output_format = requested_output_format(arguments)
     operation = next(
         (
             entry.operation
@@ -67,7 +135,14 @@ def run_cli(app: Application, argv: Sequence[str] | None = None) -> int:
             values = vars(namespace)
             command = values.pop("command")
             output_format = values.pop("format")
-            result = app.execute(command, values)
+            if not git_available and operation not in {"help.show", "version.show"}:
+                result = app.error_result(
+                    operation,
+                    "missing_prerequisite",
+                    "WAEGIS requires Git on PATH.",
+                )
+            else:
+                result = app.execute(command, values)
     except KeyboardInterrupt:
         result = app.error_result(
             operation,
@@ -81,24 +156,4 @@ def run_cli(app: Application, argv: Sequence[str] | None = None) -> int:
             "The command arguments are invalid.",
             field="arguments",
         )
-    if output_format == "json":
-        print(
-            json.dumps(
-                result.to_envelope(PROTOCOL_VERSION),
-                ensure_ascii=False,
-                allow_nan=False,
-            )
-        )
-    else:
-        envelope = result.to_envelope(PROTOCOL_VERSION)
-        print(envelope["message"])
-        print(f"Operation: {envelope['operation']}")
-        print(f"Status: {envelope['operation_status']}")
-        print(f"Product: {envelope['product']} {envelope['product_version']}")
-        for key, value in envelope["data"].items():
-            print(f"{key}: {json.dumps(value, ensure_ascii=False)}")
-        if envelope["error"]:
-            print(f"Error: {envelope['error']['code']}: {envelope['error']['summary']}")
-    if result.operation_status == "completed":
-        return 0
-    return _EXIT_CODES.get(result.error.code if result.error else "", 70)
+    return present_result(result, output_format)

@@ -55,6 +55,7 @@ class Workspace(Protocol):
     def list_files(
         self, root: str, *, suffix: str | None = None
     ) -> tuple[str, ...]: ...
+    def git_visible_files(self, root: str) -> tuple[str, ...]: ...
     def publish(
         self,
         mutations: tuple[RepositoryMutation, ...],

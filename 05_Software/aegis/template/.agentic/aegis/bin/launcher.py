@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 
@@ -20,7 +21,10 @@ def main() -> int:
     sys.path.insert(0, str(payload / "cli" / "src"))
     from aegis.composition import main as aegis_main
 
-    return aegis_main(sys.argv[1:])
+    return aegis_main(
+        sys.argv[1:],
+        git_available=shutil.which("git") is not None,
+    )
 
 
 if __name__ == "__main__":

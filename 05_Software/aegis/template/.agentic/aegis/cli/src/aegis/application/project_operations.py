@@ -25,6 +25,7 @@ from aegis.application.workflow_operations import (
     _event,
     _identity,
     _load_current,
+    _page_offset,
     _require_active_stage,
     _require_text,
     _save_stage_run,
@@ -348,7 +349,6 @@ def _requirement_show(
 def _requirement_list(
     context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
 ) -> OperationResult:
-    del inputs
     workspace = _workspace(context)
     paths = [
         path
@@ -357,8 +357,9 @@ def _requirement_list(
         )
         if "/REQ-" in path
     ]
+    offset = _page_offset(inputs, len(paths))
     items = []
-    for path in paths[:20]:
+    for path in paths[offset : offset + 20]:
         data, revision = workspace.load_toml(path)
         items.append(
             {
@@ -375,8 +376,10 @@ def _requirement_list(
         "Requirement summaries listed.",
         data={
             "items": items,
-            "has_more": len(paths) > 20,
-            "next_cursor": "20" if len(paths) > 20 else None,
+            "has_more": len(paths) > offset + 20,
+            "next_cursor": (
+                str(offset + 20) if len(paths) > offset + 20 else None
+            ),
         },
     )
 
@@ -814,11 +817,11 @@ def _component_show(
 def _component_list(
     context: OperationContext, definition: OperationDefinition, inputs: dict[str, Any]
 ) -> OperationResult:
-    del inputs
     workspace = _workspace(context)
     paths = workspace.list_files(str(workspace.config.components), suffix=".md")
+    offset = _page_offset(inputs, len(paths))
     items = []
-    for path in paths[:20]:
+    for path in paths[offset : offset + 20]:
         metadata, state, revision = workspace.load_document(path)
         items.append(
             {
@@ -836,8 +839,10 @@ def _component_list(
         "Component summaries listed.",
         data={
             "items": items,
-            "has_more": len(paths) > 20,
-            "next_cursor": "20" if len(paths) > 20 else None,
+            "has_more": len(paths) > offset + 20,
+            "next_cursor": (
+                str(offset + 20) if len(paths) > offset + 20 else None
+            ),
         },
     )
 

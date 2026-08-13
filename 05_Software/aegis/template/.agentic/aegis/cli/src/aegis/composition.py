@@ -19,6 +19,7 @@
 
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from aegis import PRODUCT_NAME, PROTOCOL_VERSION, __version__
 from aegis.application.dispatcher import ApplicationServices, Dispatcher
@@ -26,12 +27,23 @@ from aegis.infrastructure.discovery import discover_repository
 from aegis.infrastructure.services import Sha256Service, SystemClock, Uuid4Service
 from aegis.infrastructure.workspace import FileWorkspace
 from aegis.interface.cli import configure_utf8, run_cli
-from aegis.ports.repository import RepositoryDiscovery
+from aegis.ports.repository import RepositoryDiscovery, RepositoryDiscoveryError
 from aegis.ports.services import Clock, HashService, UUIDService
 
 # -----------------------------------------------------------------------------
 # EXPORTED FUNCTIONS / PUBLIC API
 # -----------------------------------------------------------------------------
+
+
+class _MissingGitError(RepositoryDiscoveryError):
+    """@brief Report the external runtime's unavailable Git prerequisite."""
+
+    code = "missing_prerequisite"
+
+
+def _missing_git_repository(start: str | Path) -> None:
+    """@exception _MissingGitError Always, before repository observation."""
+    raise _MissingGitError("AEGIS requires Git on PATH.", Path(start).resolve())
 
 
 def create_dispatcher(
@@ -68,15 +80,26 @@ def create_dispatcher(
     )
 
 
-def main(arguments: Sequence[str] | None = None) -> int:
-    """@brief Assemble the runtime, configure UTF-8, and execute one CLI request."""
+def main(
+    arguments: Sequence[str] | None = None,
+    *,
+    git_available: bool = True,
+) -> int:
+    """
+    @brief Assemble the runtime, configure UTF-8, and execute one CLI request.
+    @param[in] arguments CLI arguments excluding the executable name.
+    @param[in] git_available Whether the external launcher resolved Git.
+    @return Protocol exit class.
+    """
     configure_utf8(sys.stdout)
     return run_cli(
         sys.argv[1:] if arguments is None else arguments,
         stdin=sys.stdin,
         stdout=sys.stdout,
         stderr=sys.stderr,
-        dispatcher=create_dispatcher(),
+        dispatcher=create_dispatcher(
+            repository_discovery=(None if git_available else _missing_git_repository)
+        ),
     )
 
 

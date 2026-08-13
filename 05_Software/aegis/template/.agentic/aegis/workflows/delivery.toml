@@ -3,3 +3,8 @@ stage = "delivery"
 sequence = 8
 instruction = "Summarize requested and delivered outcomes, current project changes, actual evidence, changed tests, findings, skips, waivers, omissions, and residual risk. Approval accepts report truthfulness; AEGIS stops before outward Git actions."
 sections = ["requested_and_delivered_outcome", "project_artifact_changes", "implementation_changes", "evidence_summary", "test_integrity", "findings_and_residual_risk", "skips_waivers_and_omitted_stages", "component_drift_review", "delivery_decision", "terminal_result"]
+common_findings = ["The delivery claim is stronger than recorded evidence or omits a failed check.", "Residual risk, skipped work, waivers, or changed tests are not disclosed."]
+recovery_actions = [
+  { condition = "The report is incomplete but the recorded evidence is sufficient.", operation = "stage.set_section", guidance = "Correct the affected summary section without changing the underlying evidence." },
+  { condition = "Missing evidence or work requires an earlier completed Stage.", operation = "stage.revisit", guidance = "Revisit that Stage with the concrete reason; Delivery remains unfinished." },
+]

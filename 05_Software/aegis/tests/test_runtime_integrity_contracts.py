@@ -183,10 +183,8 @@ def test_completed_stage_rejects_execution_before_launch_and_preserves_bytes(
     )
 
 
-def test_abandonment_requires_an_active_stage_but_remains_valid_while_active(
-    tmp_path: Path,
-) -> None:
-    """@brief AM-ABANDON-001 records stopping context only in an active Stage."""
+def test_abandonment_remains_valid_while_active(tmp_path: Path) -> None:
+    """@brief AM-ABANDON-001 records stopping context in the current Stage."""
     active_repo = installed_repository(tmp_path / "active")
     create_run(active_repo)
     abandoned = invoke(
@@ -195,21 +193,6 @@ def test_abandonment_requires_an_active_stage_but_remains_valid_while_active(
         {"actor": "agent", "reason": "The request was withdrawn."},
     )
     assert abandoned[0] == 0, abandoned[1]
-
-    completed_repo = installed_repository(tmp_path / "completed")
-    created = create_run(completed_repo)
-    completed = invoke(completed_repo, "stage-complete")
-    assert completed[0] == 0, completed[1]
-    stage_path, run_path = _current_paths(
-        completed_repo, created["run_id"], "01-intake.md"
-    )
-    _assert_invalid_transition_without_run_mutation(
-        completed_repo,
-        stage_path,
-        run_path,
-        "run-abandon",
-        {"actor": "agent", "reason": "The request was withdrawn."},
-    )
 
 
 def _markdown_artifact(

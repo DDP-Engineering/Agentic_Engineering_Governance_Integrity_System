@@ -75,6 +75,60 @@ def test_registry_owns_complete_bounded_help_and_execution_metadata() -> None:
         assert set(entry.required_arguments).isdisjoint(entry.optional_arguments)
 
 
+def test_revision_bearing_operations_document_the_token() -> None:
+    """@brief Verify PR-MODEL-001 exposes each required revision read and token."""
+    for entry in ALL_OPERATIONS:
+        if not entry.machine_revision_policy.requires_explicit_revision:
+            continue
+
+        assert "--expected-revision <sha256>" in entry.required_arguments
+        assert entry.revision_read_operation in {
+            "run.show",
+            "stage.show",
+            "requirement.show",
+            "component.show",
+            "adoption.show",
+        }
+        assert entry.example.startswith("aegis --expected-revision sha256:")
+        assert f" {entry.command}" in entry.example
+
+
+def test_input_operations_document_the_machine_envelope_and_data_fields() -> None:
+    """@brief Verify CP-INPUT-004 help can construct every structured request."""
+    for entry in ALL_OPERATIONS:
+        accepts_input = any(argument.name == "input" for argument in entry.arguments)
+        if not accepts_input:
+            assert entry.machine_input is None
+            continue
+
+        machine_input = entry.machine_input
+        assert machine_input is not None
+        help_entry = machine_input.help_entry(entry.operation)
+        assert help_entry["envelope"] == {
+            "schema": "aegis.machine.input",
+            "schema_version": 1,
+            "operation": entry.operation,
+            "data": "Object containing the data_fields below.",
+        }
+        assert help_entry["data_fields"]
+        assert all(field["name"] for field in help_entry["data_fields"])
+        assert all(field["type"] for field in help_entry["data_fields"])
+        assert all(field["description"] for field in help_entry["data_fields"])
+
+    by_operation = {entry.operation: entry for entry in ALL_OPERATIONS}
+    run_input = by_operation["run.create"].machine_input
+    assert run_input is not None
+    assert run_input.constraints == (
+        "Provide exactly one of ticket_text or ticket_path.",
+    )
+    assert {field.name for field in run_input.data_fields} >= {
+        "ticket_text",
+        "ticket_path",
+        "profile",
+        "work_type",
+    }
+
+
 def test_registry_declares_representative_final_cli_input_schemas() -> None:
     """@brief Verify parser-relevant input contracts live in the registry."""
     by_operation = {entry.operation: entry for entry in ALL_OPERATIONS}
@@ -88,6 +142,9 @@ def test_registry_declares_representative_final_cli_input_schemas() -> None:
 
     stage_show = by_operation["stage.show"]
     assert stage_show.optional_arguments == ("--run <id>", "--stage <name>")
+
+    for operation in ("run.list", "requirement.list", "component.list"):
+        assert by_operation[operation].optional_arguments == ("--cursor <token>",)
 
 
 def test_registry_declares_canonical_execution_and_stage_choices() -> None:
@@ -109,7 +166,11 @@ def test_registry_declares_canonical_execution_and_stage_choices() -> None:
     assert category.display_name == "--category <tests|lints|audits>"
     assert category.description == "Select the tests, lints, or audits category."
     assert category.choices == ("tests", "lints", "audits")
-    assert execution.example == "aegis execution-run --category tests --name project"
+    assert execution.example == (
+        "aegis --expected-revision sha256:"
+        + ("a" * 64)
+        + " execution-run --category tests --name project"
+    )
     assert selection.display_name == "--selection <label>"
 
     assert by_operation["stage.start"].arguments[0].choices == stages

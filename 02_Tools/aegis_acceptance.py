@@ -26,6 +26,10 @@ RESULTS = frozenset({"not_run", "passed", "failed", "blocked", "not_applicable",
 OUTCOMES = frozenset({"passed", "failed", "timed_out", "cancelled", "launch_error"})
 SHA256_LENGTH = 64
 MAX_RETAINED_OUTPUT_CHARS = 4096
+PROVENANCE_NOTICE = (
+    "Operator-attested evidence only: this tool validates acceptance records "
+    "and retained evidence; it executes no acceptance scenarios or project commands."
+)
 
 
 class ValidationError(ValueError):
@@ -119,10 +123,9 @@ def validate_catalog(catalog: dict[str, Any]) -> None:
     identifiers = [item.get("id") for item in scenarios]
     if len(identifiers) != len(set(identifiers)) or any(not str(value).startswith("AC-") for value in identifiers):
         raise ValidationError("catalog scenario IDs must be unique")
-    if catalog.get("catalog_name") == "AEGIS version 1 acceptance catalog":
-        totals = [len(identifiers), len(requirements), list(requirements.values()).count("Must"), list(requirements.values()).count("Should"), list(requirements.values()).count("Could")]
-        if totals != [58, 226, 206, 17, 3]:
-            raise ValidationError("authoritative catalog totals are invalid")
+    totals = [len(identifiers), len(requirements), list(requirements.values()).count("Must"), list(requirements.values()).count("Should"), list(requirements.values()).count("Could")]
+    if totals != [58, 226, 206, 17, 3]:
+        raise ValidationError("authoritative catalog totals are invalid")
     for scenario in scenarios:
         covered = scenario.get("requirements", [])
         if scenario.get("priority") not in {"Must", "Should", "Could", "Must/Should"} or not scenario.get("method") or not covered or any(item not in requirements for item in covered):
@@ -292,7 +295,7 @@ def compile_verdict(record: dict[str, Any], catalog: dict[str, Any], evidence_ro
     try:
         validate_record(record, catalog, evidence_root)
     except ValidationError as error:
-        return {"verdict": "incomplete", "errors": [str(error)], "unfavorable": [], "retries": [], "deferrals": [], "missing_matrices": [], "evidence_references": [], "known_limitations": []}
+        return {"provenance": PROVENANCE_NOTICE, "verdict": "incomplete", "errors": [str(error)], "unfavorable": [], "retries": [], "deferrals": [], "missing_matrices": [], "evidence_references": [], "known_limitations": []}
     scenarios = {item["id"]: item for item in catalog["scenarios"]}
     entries = {item["scenario_id"]: item for item in record["results"]}
     covered: set[str] = set()
@@ -342,16 +345,16 @@ def compile_verdict(record: dict[str, Any], catalog: dict[str, Any], evidence_ro
         errors.append("AC-SUCCESS-001 is not passing")
     scenario_results = {result: sum(entry["result"] == result for entry in entries.values()) for result in sorted(RESULTS)}
     requirement_results = {priority: {"passed": sum(requirements[item] == priority and item in covered for item in requirements), "deferred": sum(requirements[item] == priority and item in deferred for item in requirements)} for priority in ("Must", "Should", "Could")}
-    return {"verdict": "accepted" if not errors else "incomplete", "errors": errors, "candidate": record["candidate"], "catalog_digest": record["catalog_digest"], "catalog_totals": {"scenarios": len(scenarios), "requirements": len(requirements)}, "scenario_results": scenario_results, "requirement_results": requirement_results, "unfavorable": sorted(unfavorable), "unfavorable_attempts": unfavorable_attempts, "retries": sorted(retries), "deferrals": sorted(deferred), "missing_matrices": sorted(matrix_missing), "evidence_references": sorted(set(evidence_refs)), "known_limitations": record["candidate"].get("known_limitations", [])}
+    return {"provenance": PROVENANCE_NOTICE, "verdict": "accepted" if not errors else "incomplete", "errors": errors, "candidate": record["candidate"], "catalog_digest": record["catalog_digest"], "catalog_totals": {"scenarios": len(scenarios), "requirements": len(requirements)}, "scenario_results": scenario_results, "requirement_results": requirement_results, "unfavorable": sorted(unfavorable), "unfavorable_attempts": unfavorable_attempts, "retries": sorted(retries), "deferrals": sorted(deferred), "missing_matrices": sorted(matrix_missing), "evidence_references": sorted(set(evidence_refs)), "known_limitations": record["candidate"].get("known_limitations", [])}
 
 
 def _record_template(catalog: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
-    return {"schema_version": 1, "catalog_digest": canonical_digest(catalog), "candidate": candidate, "results": [{"scenario_id": item["id"], "result": "not_run", "attempts": []} for item in catalog["scenarios"]]}
+    return {"schema_version": 1, "provenance": PROVENANCE_NOTICE, "catalog_digest": canonical_digest(catalog), "candidate": candidate, "results": [{"scenario_id": item["id"], "result": "not_run", "attempts": []} for item in catalog["scenarios"]]}
 
 
 def _markdown(report: dict[str, Any], timestamp: str) -> str:
     candidate = report.get("candidate", {})
-    lines = ["# AEGIS acceptance completion record", "", f"Verdict: `{report['verdict']}`", f"Report timestamp: `{timestamp}`", f"Product version: `{candidate.get('product_version', 'unavailable')}`", f"Source revision: `{candidate.get('source_revision', 'unavailable')}`", f"Catalog digest: `{report.get('catalog_digest', 'unavailable')}`", "", "## Missing evidence", ""]
+    lines = ["# AEGIS acceptance completion record", "", f"> **Provenance:** {PROVENANCE_NOTICE}", "", f"Verdict: `{report['verdict']}`", f"Report timestamp: `{timestamp}`", f"Product version: `{candidate.get('product_version', 'unavailable')}`", f"Source revision: `{candidate.get('source_revision', 'unavailable')}`", f"Catalog digest: `{report.get('catalog_digest', 'unavailable')}`", "", "## Missing evidence", ""]
     decision = report.get("verdict_decision", {})
     lines.insert(4, f"Verdict actor: `{decision.get('actor', 'unavailable')}`")
     lines.insert(5, f"Verdict timestamp: `{decision.get('timestamp', 'unavailable')}`")

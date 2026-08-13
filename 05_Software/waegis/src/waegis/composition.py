@@ -16,7 +16,12 @@ from waegis.application.lifecycle import Application
 from waegis.domain.plans import PlanError
 from waegis.infrastructure.git import LocalGitInitializer
 from waegis.infrastructure.payload import PayloadManifest
-from waegis.interface.cli import run_cli
+from waegis.interface.cli import (
+    configure_utf8,
+    present_result,
+    requested_output_format,
+    run_cli,
+)
 
 
 def create_application(
@@ -40,19 +45,39 @@ def bundled_payload_root() -> Path:
     return development
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    git_available: bool = True,
+) -> int:
     """Run WAEGIS and ensure absent runtime data never produces a traceback."""
     arguments = list(sys.argv[1:] if argv is None else argv)
+    output_format = requested_output_format(arguments)
+    configure_utf8(sys.stdout)
     try:
         app = create_application(bundled_payload_root())
     except PlanError as exc:
+        if output_format == "json":
+            result = Application.error_result(
+                "unknown",
+                "malformed_state",
+                f"WAEGIS cannot start: {exc}",
+            )
+            return present_result(result, output_format)
         print(f"WAEGIS cannot start: {exc}", file=sys.stderr)
         return 4
     try:
-        return run_cli(app, arguments)
+        return run_cli(app, arguments, git_available=git_available)
     except SystemExit as exc:
         return int(exc.code or 0)
     except Exception:
+        if output_format == "json":
+            result = Application.error_result(
+                "unknown",
+                "internal_error",
+                "WAEGIS failed before dispatch; no target success is claimed.",
+            )
+            return present_result(result, output_format)
         print(
             "WAEGIS failed before dispatch; no target success is claimed.",
             file=sys.stderr,

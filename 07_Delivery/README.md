@@ -12,15 +12,19 @@ publication records for the standalone AEGIS project belong here.
 
 ## AEGIS version 1 delivery matrix
 
-AEGIS version 1 is delivered as eight platform-specific ZIP archives in
-`07_Delivery/dist/`:
+The intended AEGIS version 1 matrix contains eight platform-specific ZIP
+archives in `07_Delivery/dist/`. The current local full-AEGIS/WAEGIS matrix
+inventory contains only the four external-runtime archives marked **Built**
+below. The four bundled-runtime archives remain **Pending** until their Python
+3.12 and Git runtime inputs and supporting version/digest evidence are supplied
+locally in `02_Tools/runtime_inputs.toml`.
 
-| Product | Runtime edition | Windows x86-64 | Ubuntu 22.04 x86-64 |
-|---|---|---|---|
-| AEGIS | External Python 3.12 and Git | `aegis-1.0.0-windows-x86_64-external-runtime.zip` | `aegis-1.0.0-ubuntu-22.04-x86_64-external-runtime.zip` |
-| AEGIS | Private Python 3.12 and Git | `aegis-1.0.0-windows-x86_64-with-dependencies.zip` | `aegis-1.0.0-ubuntu-22.04-x86_64-with-dependencies.zip` |
-| WAEGIS containing AEGIS | External Python 3.12 and Git | `waegis-1.0.0-windows-x86_64-external-runtime.zip` | `waegis-1.0.0-ubuntu-22.04-x86_64-external-runtime.zip` |
-| WAEGIS containing AEGIS | Private Python 3.12 and Git | `waegis-1.0.0-windows-x86_64-with-dependencies.zip` | `waegis-1.0.0-ubuntu-22.04-x86_64-with-dependencies.zip` |
+| Product | Runtime edition | Current local state | Windows x86-64 | Ubuntu 22.04 x86-64 |
+|---|---|---|---|---|
+| AEGIS | External Python 3.12 and Git | **Built** | `aegis-1.0.0-windows-x86_64-external-runtime.zip` | `aegis-1.0.0-ubuntu-22.04-x86_64-external-runtime.zip` |
+| AEGIS | Private Python 3.12 and Git | **Pending** | `aegis-1.0.0-windows-x86_64-with-dependencies.zip` | `aegis-1.0.0-ubuntu-22.04-x86_64-with-dependencies.zip` |
+| WAEGIS containing AEGIS | External Python 3.12 and Git | **Built** | `waegis-1.0.0-windows-x86_64-external-runtime.zip` | `waegis-1.0.0-ubuntu-22.04-x86_64-external-runtime.zip` |
+| WAEGIS containing AEGIS | Private Python 3.12 and Git | **Pending** | `waegis-1.0.0-windows-x86_64-with-dependencies.zip` | `waegis-1.0.0-ubuntu-22.04-x86_64-with-dependencies.zip` |
 
 External-runtime launchers only check and use the existing prerequisites; they
 do not install or configure Python or Git. Bundled archives use private runtime

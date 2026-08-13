@@ -334,6 +334,24 @@ def run_cli(
             summary="An unexpected AEGIS failure prevented completion.",
         )
 
+    try:
+        _present(result, output_format, stdout)
+        return _exit_code(result)
+    except KeyboardInterrupt:
+        result = _safe_error_result(
+            application,
+            operation=operation,
+            code="internal_error",
+            summary="The AEGIS invocation was interrupted before completion.",
+        )
+    except Exception:
+        result = _safe_error_result(
+            application,
+            operation=operation,
+            code="internal_error",
+            summary="An unexpected AEGIS failure prevented completion.",
+        )
+
     _present(result, output_format, stdout)
     return _exit_code(result)
 

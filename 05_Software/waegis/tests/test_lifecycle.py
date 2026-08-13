@@ -214,6 +214,59 @@ def test_install_detects_existing_pytest_root_and_preserves_dirty_files(
     assert (target / "notes.txt").read_text() == "keep me\n"
 
 
+def test_bare_function_tests_are_detected_as_pytest(tmp_path: Path) -> None:
+    """PR-DEFAULT-001: Bare pytest functions select a usable test command."""
+    payload = make_payload(tmp_path / "source")
+    target = tmp_path / "project"
+    (target / "tests").mkdir(parents=True)
+    (target / "tests/test_calc.py").write_text(
+        "def test_addition():\n    assert 1 + 1 == 2\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "-q", str(target)], check=True)
+    plan = tmp_path / "install.json"
+    app = create_application(payload)
+
+    planned = execute(app, "install.plan", target=str(target), output=str(plan))
+    execute(
+        app,
+        "install.apply",
+        target=str(target),
+        plan=str(plan),
+        confirm_digest=planned["data"]["plan_digest"],
+    )
+
+    config = (target / ".agentic/config.toml").read_text(encoding="utf-8")
+    assert 'command = ["python", "-m", "pytest"]' in config
+    assert (
+        "Selected pytest test framework: bare pytest-style test function detected "
+        "in tests/test_calc.py."
+        in planned["data"]["warnings"]
+    )
+
+
+def test_detection_basis_is_reported(tmp_path: Path) -> None:
+    """PR-CONFIG-007: The selected framework warning identifies its basis."""
+    payload = make_payload(tmp_path / "source")
+    target = tmp_path / "project"
+    (target / "tests").mkdir(parents=True)
+    (target / "tests/test_existing.py").write_text(
+        "import unittest\n\nclass Existing(unittest.TestCase):\n    pass\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "-q", str(target)], check=True)
+    plan = tmp_path / "install.json"
+    app = create_application(payload)
+
+    planned = execute(app, "install.plan", target=str(target), output=str(plan))
+
+    assert (
+        "Selected unittest test framework: unittest.TestCase usage detected in "
+        "tests/test_existing.py."
+        in planned["data"]["warnings"]
+    )
+
+
 def test_install_uses_unittest_for_existing_tests_without_pytest_signal(
     tmp_path: Path,
 ) -> None:

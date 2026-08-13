@@ -170,6 +170,25 @@ def _valid_red_exception(decisions: list[dict[str, Any]]) -> dict[str, Any] | No
     return latest
 
 
+def summarize_red_before_green_state(
+    state: dict[str, Any], *, implementation_started_at: str
+) -> dict[str, bool]:
+    """@return Truthful flags for the two valid red-before-green alternatives."""
+    evidence = [item for item in state.get("evidence", []) if isinstance(item, dict)]
+    decisions = [
+        item for item in state.get("decisions", []) if isinstance(item, dict)
+    ]
+    return {
+        "valid_witness": any(
+            _valid_red_witness(
+                item, implementation_started_at=implementation_started_at
+            )
+            for item in evidence
+        ),
+        "approved_exception": _valid_red_exception(decisions) is not None,
+    }
+
+
 def _check_expectations(
     state: dict[str, Any], *, implementation_started_at: str
 ) -> list[dict[str, str]]:
@@ -245,7 +264,10 @@ def _check_expectations(
     return [
         _finding(
             "check_red_witness_missing",
-            "Check contains no actual failing test witness before implementation.",
+            "Check contains no actual failing test witness before implementation. "
+            "Use execution-run to establish one, or use decision-add with target "
+            "red_before_green, value exception_approved, reason, and "
+            "alternative_confirmation when red-before-green genuinely does not apply.",
             "Red-before-green evidence remains missing.",
             expectation="check.red_before_green",
         )

@@ -10,9 +10,17 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
+from collections.abc import Iterator
 from pathlib import Path
 
 from waegis.domain.plans import PlanError
+
+MAX_TEST_FILES_TO_INSPECT = 32
+MAX_TEST_FILE_BYTES_TO_INSPECT = 64 * 1024
+BARE_PYTEST_TEST_PATTERN = re.compile(
+    rb"^(?:async[ \t]+)?def[ \t]+test_[A-Za-z0-9_]*[ \t]*\(", re.MULTILINE
+)
 
 
 def resolve_target(value: str) -> Path:
@@ -89,6 +97,64 @@ def detected_test_roots(target: Path) -> list[str]:
     return [candidate for candidate in candidates if (target / candidate).is_dir()]
 
 
+def _matching_test_files(target: Path, roots: list[str]) -> Iterator[Path]:
+    """Yield conventional Python test files without following directory links."""
+    for root in roots:
+        root_path = target / root
+        for directory, directories, filenames in os.walk(root_path, followlinks=False):
+            directories.sort()
+            for filename in sorted(filenames):
+                if not (
+                    filename.endswith(".py")
+                    and (
+                        filename.startswith("test_") or filename.endswith("_test.py")
+                    )
+                ):
+                    continue
+                path = Path(directory) / filename
+                if path.is_file() and not path.is_symlink():
+                    yield path
+
+
+def _detect_test_framework(
+    target: Path, roots: list[str], project_text: str
+) -> tuple[str, str]:
+    """Choose a framework from configuration or a bounded source-text scan."""
+    if (target / "pytest.ini").is_file():
+        return "pytest", "pytest.ini is present"
+    if (target / "conftest.py").is_file():
+        return "pytest", "conftest.py is present"
+    if "[tool.pytest" in project_text:
+        return "pytest", "pyproject.toml contains a [tool.pytest] section"
+
+    unittest_basis: str | None = None
+    for index, path in enumerate(_matching_test_files(target, roots)):
+        if index >= MAX_TEST_FILES_TO_INSPECT:
+            break
+        try:
+            with path.open("rb") as stream:
+                content = stream.read(MAX_TEST_FILE_BYTES_TO_INSPECT)
+        except OSError:
+            continue
+        relative = path.relative_to(target).as_posix()
+        if b"unittest.TestCase" in content:
+            if unittest_basis is None:
+                unittest_basis = f"unittest.TestCase usage detected in {relative}"
+            continue
+        if BARE_PYTEST_TEST_PATTERN.search(content):
+            return "pytest", f"bare pytest-style test function detected in {relative}"
+
+    if unittest_basis is not None:
+        return "unittest", unittest_basis
+    if not roots:
+        return "unittest", "no existing test root was detected"
+    return (
+        "unittest",
+        "no pytest configuration or bare pytest-style test function was detected "
+        "in the bounded test scan",
+    )
+
+
 def render_config(target: Path) -> tuple[bytes, list[str]]:
     """Generate immediately usable test paths and a shipped command default."""
     roots = detected_test_roots(target)
@@ -101,10 +167,11 @@ def render_config(target: Path) -> tuple[bytes, list[str]]:
     except (OSError, UnicodeError):
         project_text = ""
         warnings.append("pyproject.toml could not be inspected confidently.")
-    pytest_detected = (
-        (target / "pytest.ini").is_file()
-        or (target / "conftest.py").is_file()
-        or "[tool.pytest" in project_text
+    test_framework, detection_basis = _detect_test_framework(
+        target, roots, project_text
+    )
+    warnings.append(
+        f"Selected {test_framework} test framework: {detection_basis}."
     )
     ruff_detected = (
         (target / "ruff.toml").is_file()
@@ -118,7 +185,7 @@ def render_config(target: Path) -> tuple[bytes, list[str]]:
         tests = '".agentic/tests"'
         warnings.append("No existing test root was detected; using .agentic/tests.")
     validation: list[str] = []
-    if pytest_detected:
+    if test_framework == "pytest":
         validation.extend(
             [
                 "[validation.tests.project]",
