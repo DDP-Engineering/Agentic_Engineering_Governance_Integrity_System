@@ -71,7 +71,7 @@ first column. For example, `001-003` in the `PR-ROLE` row represents
 | Requirement area | Must | Should | Could |
 |---|---|---|---|
 | `PR-ROLE` | `001-007` | — | — |
-| `PR-WORKFLOW` | `001-008` | — | — |
+| `PR-WORKFLOW` | `001-013` | - | - |
 | `PR-RUN` | `001-007` | — | — |
 | `PR-EVOL` | `001-005` | — | — |
 | `PR-SNAPSHOT` | `001-004` | — | — |
@@ -107,10 +107,10 @@ first column. For example, `001-003` in the `PR-ROLE` row represents
 
 | Priority | Requirement count |
 |---|---:|
-| Must | 206 |
+| Must | 211 |
 | Should | 17 |
 | Could | 3 |
-| **Total** | **226** |
+| **Total** | **231** |
 
 This priority register is authoritative. `AEGIS_RELEASE_SCOPE.md` may present
 the same information as a release-oriented view but shall not assign a
@@ -169,7 +169,9 @@ operator.
 - **PR-ROLE-002:** When the developer instructs an AI agent to complete the Run
   without intermediate prompts, the agent shall be able to perform the workflow,
   record decisions and approvals, and continue through Delivery as the
-  developer's representative.
+  developer's representative. Only an explicit developer instruction shall
+  authorize this uninterrupted behavior; the agent shall not infer it from the
+  ticket, host permissions, prior autonomy, or the absence of an objection.
 - **PR-ROLE-003:** A workflow decision shall record the decision, actor, reason,
   and time. A decision recorded by an instructed AI agent shall have the same
   workflow effect as one entered directly by the developer.
@@ -228,6 +230,34 @@ One AEGIS run transforms ticket text into a delivered, traceable change:
 - **PR-WORKFLOW-008:** Every stage shall be resumable from recorded repository
   state. A later session, on another supported computer and using another AI
   model, shall be able to continue without re-deriving completed work.
+- **PR-WORKFLOW-009:** Unless PR-ROLE-002 has been explicitly invoked for the
+  current Run, the AI agent shall stop at every included Stage handoff, present
+  the Stage result to the developer, and wait for the developer's direction
+  before starting the next Stage or closing Delivery.
+- **PR-WORKFLOW-010:** A default Stage checkpoint shall give the developer a
+  concise summary of outcomes, changed artifacts, evidence, findings, open
+  questions, and the proposed handoff, followed by choices to continue, review
+  the result, revise or reimplement affected work, or park the Run for later
+  resumption. Delivery shall replace continue-to-next with approve-and-close.
+- **PR-WORKFLOW-011:** Stage completion evaluation shall use only a small common
+  set of objective record checks: the Stage's configured minimum required
+  sections contain non-blank recorded results; references designated as existing
+  artifacts or paths resolve safely; recorded command executions have a
+  recognized outcome; and the required developer approval or explicit continuous
+  delegation is present where applicable.
+- **PR-WORKFLOW-012:** Stage completion evaluation shall not infer or enforce an
+  engineering-quality judgement. It shall not automatically judge whether scope
+  is precise, a design is proportionate, tests are adequate, a red witness is
+  persuasive, a finding is important, or a risk is acceptable. The AI agent
+  shall identify such concerns and present them to the developer at the
+  checkpoint; the developer shall decide whether to continue, revise, accept
+  risk, waive work, or park.
+- **PR-WORKFLOW-013:** The limitation in PR-WORKFLOW-012 shall not remove factual
+  evidence collection or comparison. AEGIS may record and present command
+  outcomes, safe reference validity, execution timing, Git-state observations,
+  changed-test fingerprints, traceability relationships, and other observable
+  facts as evidence or findings without treating them as Stage-completion
+  quality gates.
 
 ### 2.3 Run identity, change attribution, and working context
 
@@ -600,27 +630,30 @@ from outside that repository.
 - **PR-CONFIG-005:** Project configuration shall support multiple test roots for
   repositories whose language, framework, or organization requires them.
 - **PR-CONFIG-006:** AEGIS shall support uniquely named local validation
-  commands categorized as tests, lints, or repository-specific audits.
+  command guides categorized as tests, lints, or repository-specific audits.
 - **PR-CONFIG-007:** WAEGIS shall record test and lint commands that it can
   detect confidently. When it cannot detect a command, AEGIS shall use an
-  appropriate shipped adapter default and report the command it selected.
+  appropriate shipped adapter default and report the command it selected as
+  guidance for the agent or developer.
 - **PR-CONFIG-008:** Each validation command shall support its own repository-
-  relative working directory and optional execution timeout.
-- **PR-CONFIG-009:** The shipped timeout value shall impose no automatic time
-  limit. A developer or instructed agent shall still be able to cancel a
-  running command through a recorded escape hatch.
-- **PR-CONFIG-010:** AEGIS shall distinguish the command outcomes `passed`,
-  `failed`, `timed_out`, `cancelled`, and `launch_error`.
+  relative working directory. Process time limits, cancellation, and output
+  capture remain the responsibility of the agent or developer that runs it.
+- **PR-CONFIG-009:** AEGIS shall not launch project tests, lints, audits, or
+  other validation commands. The agent or developer shall run them through the
+  host's normal tooling and record the observed result in AEGIS.
+- **PR-CONFIG-010:** AEGIS shall distinguish the recorded command outcomes
+  `passed`, `failed`, `timed_out`, `cancelled`, and `launch_error`.
 - **PR-CONFIG-011:** A timed-out, cancelled, or unlaunched command shall leave
   the corresponding test, lint, or audit result unknown. It shall never be
   reported as passed or as a completed failing result. A retry shall preserve
   the earlier attempt as evidence.
-- **PR-CONFIG-012:** Test, lint, and audit execution shall produce recorded
-  evidence and findings. Their results shall remain advisory and shall not
-  prevent stage closure or Delivery under the shipped defaults.
+- **PR-CONFIG-012:** Test, lint, and audit outcomes reported by the agent or
+  developer shall produce recorded evidence and any applicable factual
+  findings. Their results shall remain advisory and shall not prevent stage
+  closure or Delivery under the shipped defaults.
 - **PR-CONFIG-013:** A project shall be able to add named repository-specific
-  audits to Validation. An audit may use its own changed-file option so its work
-  remains proportional to the Run.
+  audits to Validation guidance. An audit may use its own changed-file option so
+  the agent's or developer's work remains proportional to the Run.
 
 ---
 
@@ -796,9 +829,10 @@ functionality or implementation domain.
 - **PR-TRACE-002:** Validation shall include the tests created or changed for
   the current requirement and every additional test associated with an
   implementation file affected by the change.
-- **PR-TRACE-003:** AEGIS shall normally run the complete impacted test set
-  instead of the full test suite, so validation remains fast enough for regular
-  development work.
+- **PR-TRACE-003:** AEGIS shall compute the complete impacted test set and
+  present it to the agent or developer, who normally runs that set instead of
+  the full test suite so validation remains fast enough for regular development
+  work.
 - **PR-TRACE-004:** When AEGIS cannot determine a safe and complete impacted
   test set, it shall select the full test suite and report why the fallback was
   necessary.

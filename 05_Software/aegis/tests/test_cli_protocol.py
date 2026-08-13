@@ -363,7 +363,7 @@ def test_help_show_returns_bounded_catalog_and_operation_help() -> None:
     )
 
     assert exit_code == detail_exit == 0
-    assert len(catalog["data"]["operations"]) == 49
+    assert len(catalog["data"]["operations"]) == 48
     assert detail["data"]["operation"] == "version.show"
     assert detail["data"]["command"] == "version-show"
     assert detail["data"]["implemented"] is True
@@ -507,12 +507,12 @@ def test_malformed_operation_arguments_report_invalid_input(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["execution-run", "--category", "test", "--name", "project"],
+        ["execution-run", "--category", "tests", "--name", "project"],
         ["stage-start", "review"],
         ["execution-list", "--stage", "review"],
     ],
 )
-def test_noncanonical_execution_categories_and_stages_are_invalid(
+def test_noncanonical_commands_and_stages_are_invalid(
     arguments: list[str],
 ) -> None:
     """@brief Verify known enums reject values outside their final schema."""
@@ -526,7 +526,6 @@ def test_noncanonical_execution_categories_and_stages_are_invalid(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["execution-run", "--category", "tests", "--name", "project"],
         ["stage-start", "validation"],
         ["execution-list", "--stage", "check"],
     ],
@@ -570,8 +569,10 @@ def test_envelope_marks_bounded_next_actions_as_truncated() -> None:
     assert envelope["truncated"] is True
 
 
-def test_stage_show_returns_next_actions(tmp_path: Path) -> None:
-    """@brief Stage resume reads propose one status-appropriate atomic action."""
+def test_stage_show_returns_actions_without_bypassing_checkpoint(
+    tmp_path: Path,
+) -> None:
+    """@brief Stage resume reads separate agent actions from human choices."""
     repo = installed_repository(tmp_path)
     create_run(repo)
 
@@ -591,14 +592,18 @@ def test_stage_show_returns_next_actions(tmp_path: Path) -> None:
 
     completed = show_stage(repo)
 
-    assert completed["next_actions"][0]["operation"] == "stage.start"
+    assert completed["next_actions"] == []
     pending = show_stage(repo, "alignment")
-    assert completed["next_actions"][0]["arguments"] == {
+    checkpoint = completed["data"]["checkpoint"]
+    assert checkpoint["required"] is True
+    action = next(
+        choice for choice in checkpoint["choices"] if choice["id"] == "continue"
+    )
+    assert action["operation"] == "stage.start"
+    assert action["arguments"] == {
         "stage_name": "alignment",
         "expected_revision": pending["revision"],
     }
-    assert completed["next_actions"][0]["reason"]
-    action = completed["next_actions"][0]
     started_exit, started = invoke_revision(
         repo,
         action["operation"],
@@ -1043,6 +1048,56 @@ def test_human_output_preserves_bounded_response_guidance() -> None:
         for line in lines
     )
     assert output.count(".agentic/runs/RUN-123/01-intake.md") >= 2
+
+
+def test_human_output_presents_checkpoint_summary_and_four_choices() -> None:
+    """@brief AC-STAGE-002 remains actionable without reading machine JSON."""
+    checkpoint = {
+        "required": True,
+        "interaction_mode": "checkpoint",
+        "summary": {
+            "outcome": "Intake Stage completed.",
+            "changed_artifacts": [
+                ".agentic/runs/RUN-123/run.md",
+                ".agentic/runs/RUN-123/01-intake.md",
+            ],
+            "evidence": {"count": 0, "items": []},
+            "findings": {"count": 1, "items": ["F1: review scope"]},
+            "open_questions": "Confirm the retry limit.",
+            "proposed_handoff": "Start the Alignment Stage.",
+        },
+        "choices": [
+            {"id": "continue", "label": "Continue to the proposed next Stage."},
+            {"id": "review", "label": "Review or expand the Stage result."},
+            {"id": "revise", "label": "Revise or reimplement affected work."},
+            {"id": "park", "label": "Park the Run."},
+        ],
+    }
+    result = OperationResult(
+        product="AEGIS",
+        product_version="1.0.0",
+        operation="stage.complete",
+        operation_id="operation-id",
+        operation_status="completed",
+        message="Intake Stage completed.",
+        data={"status": "completed", "checkpoint": checkpoint},
+        run_id="RUN-123",
+        stage="intake",
+    )
+
+    output = render_human(result)
+
+    assert "Checkpoint: developer choice required" in output
+    assert "Stage outcome: Intake Stage completed." in output
+    assert "Changed artifact: .agentic/runs/RUN-123/01-intake.md" in output
+    assert "Evidence: 0 entries" in output
+    assert "Findings: 1 entry" in output
+    assert "  Finding: F1: review scope" in output
+    assert "Open questions: Confirm the retry limit." in output
+    assert "Proposed handoff: Start the Alignment Stage." in output
+    assert output.count("Choice:") == 4
+    assert "Continue to the proposed next Stage." in output
+    assert "Park the Run." in output
 
 
 def test_human_findings_carry_observation_and_severity() -> None:

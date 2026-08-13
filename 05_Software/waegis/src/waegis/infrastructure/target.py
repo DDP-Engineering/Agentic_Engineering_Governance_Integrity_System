@@ -501,7 +501,6 @@ def render_config(target: Path) -> tuple[bytes, list[str]]:
                 "[validation.tests.project]",
                 'command = ["python", "-m", "pytest"]',
                 'working_directory = "."',
-                "timeout_seconds = 0",
                 "",
             ]
         )
@@ -514,7 +513,6 @@ def render_config(target: Path) -> tuple[bytes, list[str]]:
                     'command = ["python", "-m", "unittest", '
                     f'"discover", "-s", "{root}"]',
                     'working_directory = "."',
-                    "timeout_seconds = 0",
                     "",
                 ]
             )
@@ -524,7 +522,6 @@ def render_config(target: Path) -> tuple[bytes, list[str]]:
                 "[validation.lints.ruff]",
                 'command = ["python", "-m", "ruff", "check", "."]',
                 'working_directory = "."',
-                "timeout_seconds = 0",
                 "",
             ]
         )

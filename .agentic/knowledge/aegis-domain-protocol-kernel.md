@@ -42,6 +42,8 @@ launching, presentation, or host integration.
   conclusion under `PR-CONFIG-011`.
 - `REQ-FUNC-29f57326` - a response exposes at most three next actions under
   `CP-MODEL-005`.
+- `REQ-FUNC-ba164e6e` - Run creation declares checkpoint or explicitly delegated
+  continuous interaction without treating four human choices as next actions.
 - `REQ-FUNC-a6f115bd` - supported input cannot escape as an unhandled traceback
   under `PR-PROTO-003`.
 - `REQ-PLAT-608b140d` - one registry declaration owns operation metadata under

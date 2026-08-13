@@ -61,7 +61,10 @@ or lacks its required acceptance evidence.
 `Must` includes:
 
 - the ticket-to-Delivery workflow and truthful state model;
-- non-blocking defaults, escape hatches, and developer control;
+- non-blocking defaults, escape hatches, developer control, default per-Stage
+  agent checkpoints, and explicitly delegated continuous execution;
+- agent- and developer-owned project-command execution with AEGIS recording
+  observed evidence rather than launching tests, lints, or audits;
 - durable snapshots, run isolation, scope evolution, and change attribution;
 - requirement, test, file, and evidence traceability;
 - red-before-green evidence and changed-test detection;
@@ -107,7 +110,7 @@ write zones, and optional strict CI integration.
 
 ## 4. Requirement classification
 
-The table reproduces all 226 priorities declared in the Product Requirements
+The table reproduces all 231 priorities declared in the Product Requirements
 Register. Each row supplies the common identifier prefix. Numeric entries are
 the three-digit suffixes under that prefix; for example, `001-003` in the
 `PR-ROLE` row means `PR-ROLE-001`, `PR-ROLE-002`, and `PR-ROLE-003`.
@@ -115,7 +118,7 @@ the three-digit suffixes under that prefix; for example, `001-003` in the
 | Requirement area | Must | Should | Could |
 |---|---|---|---|
 | `PR-ROLE` | `001-007` | — | — |
-| `PR-WORKFLOW` | `001-008` | — | — |
+| `PR-WORKFLOW` | `001-013` | - | - |
 | `PR-RUN` | `001-007` | — | — |
 | `PR-EVOL` | `001-005` | — | — |
 | `PR-SNAPSHOT` | `001-004` | — | — |
@@ -153,10 +156,10 @@ the three-digit suffixes under that prefix; for example, `001-003` in the
 
 | Priority | Requirement count |
 |---|---:|
-| Must | 206 |
+| Must | 211 |
 | Should | 17 |
 | Could | 3 |
-| **Total** | **226** |
+| **Total** | **231** |
 
 ## 5. Deferred capability groups
 

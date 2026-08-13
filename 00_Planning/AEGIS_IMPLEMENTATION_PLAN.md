@@ -119,7 +119,7 @@ and escape hatches       |
           IP-09 Trace graph and impacted selection
              |
              v
-          IP-10 Configured command execution
+          IP-10 Validation command guidance and recorded evidence
              |
              v
           IP-11 Red/green and change integrity
@@ -260,8 +260,8 @@ missing selection; profile transitions; and multi-working-copy identity tests.
 ### IP-05 — Stage lifecycle and resumable snapshots
 
 **Outcome:** A developer or agent can read one self-contained Stage instruction,
-record its current content, advance truthfully, stop, and resume in a new
-session.
+record its current content, reach a default developer checkpoint, advance
+truthfully when directed, stop, and resume in a new session.
 
 **Implement:**
 
@@ -269,18 +269,32 @@ session.
 - Stage transition rules and event append behavior;
 - `stage-show`, `stage-start`, `stage-set-section`, `stage-complete`, and
   `stage-revisit`;
+- persisted `checkpoint` and explicitly delegated `continuous` interaction
+  modes, with checkpoint as the default;
+- concise Stage handoff summaries and the developer choices continue, review,
+  revise or reimplement, and park;
+- a minimal common completion evaluator for non-blank required sections,
+  designated existing references, recorded execution outcomes, and applicable
+  approval or continuous-delegation state;
+- no per-Stage evaluator that judges scope quality, design proportionality,
+  test adequacy, red-witness persuasiveness, finding importance, or risk
+  acceptability;
 - atomic Stage-then-Run summary publication; and
 - bounded resume context from the Run, current Stage, relevant project
   artifacts, and rules.
 
 **Test and evidence:** every legal/illegal transition; one-section replacement;
 front-matter and event preservation; Delivery completion preconditions without
-premature terminal transition; stop/resume at every Stage position; bounded
-ordered context; and a representative local-model-readable Stage session.
+premature terminal transition; default checkpoint handoff at every included
+Stage; each checkpoint choice; explicit continuous-mode traversal; stop/resume
+at every Stage position; the four common completion checks; no automatic
+quality finding for scope, design, test adequacy, risk, or red-witness quality;
+bounded ordered context; and a representative local-model-readable Stage
+session.
 
-**Coverage:** `PR-WORKFLOW-002-004, 008`, `PR-SNAPSHOT`, `PR-MODEL`,
-`PR-SUCCESS-002`; `AC-STAGE-001`, `AC-MODEL-001`, `AC-PROTO-004` (Stage
-subset), `AC-ART-001` (Run/Stage subset).
+**Coverage:** `PR-WORKFLOW-002-004, 008-013`, `PR-SNAPSHOT`, `PR-MODEL`,
+`PR-SUCCESS-002`; `AC-STAGE-001`, `AC-STAGE-002`, `AC-MODEL-001`,
+`AC-PROTO-004` (Stage subset), `AC-ART-001` (Run/Stage subset).
 
 **Depends on:** `IP-04`.
 
@@ -298,17 +312,18 @@ result.
   `decision-add`, `attachment-add`, `scope-revise`, and `stage-skip`;
 - `approved`, `rejected`, and `exception_approved` decisions; and
 - represented-human attribution for explicitly instructed uninterrupted agent
-  work.
+  work, with no inference of that authority in checkpoint mode.
 
 **Test and evidence:** append preservation; required actor/reason/target fields;
 distinct skipped, waived, exception-approved, omitted, passed, and rejected
 meaning; applied-work skip rejection; attachment atomicity; scope before/after
-and affected-work recording; no permission denial from default findings; and
-agent-directed continuation without an extra prompt.
+and affected-work recording; no permission denial from default findings;
+developer-directed checkpoint continuation; and explicitly delegated agent
+continuation without an extra prompt.
 
 **Coverage:** `PR-ROLE`, `PR-EVOL`, `PR-ESCAPE-001-002, 004-009`,
 `PR-DEFAULT-003-006`, `PR-POSTURE`; `AC-EVOL-001`, `AC-ROLE-001`,
-`AC-ESCAPE-001`, `AC-DEFAULT-001`.
+`AC-STAGE-002`, `AC-ESCAPE-001`, `AC-DEFAULT-001`.
 
 **Depends on:** `IP-05`.
 
@@ -387,28 +402,30 @@ fallback; read-only validation; and two-branch integration fixtures.
 
 **Depends on:** `IP-07`, `IP-08`.
 
-### IP-10 — Configured command execution
+### IP-10 — Validation command guidance and recorded evidence
 
-**Outcome:** One named configured test, lint, or audit command executes locally
-and records an exact, durable outcome without confusing project failure with an
-AEGIS protocol failure.
+**Outcome:** An agent or developer can read one named configured test, lint, or
+audit command guide, run it through normal host tooling, and record its exact,
+durable observed outcome without asking AEGIS to execute the command.
 
 **Implement:**
 
-- cross-platform argument-array process runner with `shell=False`;
-- working-directory and executable resolution;
-- unlimited and positive timeouts, cancellation, and process-group cleanup;
-- concurrent standard-output/error draining and bounded result tails;
-- Attachment streaming for large output; and
-- `execution-list` and `execution-run` for one named command.
+- configured command guides with executable argument arrays and working
+  directories;
+- `execution-list` for read-only command guidance;
+- evidence input that records agent- or developer-observed outcome, exit status,
+  concise result, selected tests, and optional output Attachment; and
+- removal of AEGIS process execution, timeout, cancellation, process cleanup,
+  output-draining, and `execution-run` behavior.
 
-**Test and evidence:** pass, fail, timeout, cancellation, launch error, signals/
-termination, large output, nonzero project exit with successful AEGIS protocol,
-unsafe working directories, independent test/lint/audit commands, and zero as
-no AEGIS-imposed timeout on Windows and Linux adapters.
+**Test and evidence:** agent- or developer-reported pass, fail, timeout,
+cancellation, launch error, and attached large output; independently recorded
+test/lint/audit evidence; unsafe configured working directories; no process
+runner in the AEGIS runtime; and identical evidence records on Windows and
+Linux adapters.
 
-**Coverage:** `PR-CONFIG-006, 008-013`, `PR-REPORT-002`, `PR-PLAT`;
-`AC-CONFIG-003`, `AC-EXEC-001`, `AC-PROTO-002` (captured-output subset).
+**Coverage:** `PR-CONFIG-006-013`, `PR-REPORT-002`, `PR-PLAT`;
+`AC-CONFIG-003`, `AC-EXEC-001`, `AC-PROTO-002` (reported-output subset).
 
 **Depends on:** `IP-06`, `IP-09`.
 
@@ -424,12 +441,14 @@ execution makes test and implementation changes visible without refusing them.
 - read-only Git comparison points for Check and implementation changes;
 - staged, unstaged, untracked, renamed, deleted, `HEAD`, and index change
   classification; and
-- red-before-green expectations for both full and short profiles.
+- red-before-green evidence capture and comparison for both full and short
+  profiles, without using a Stage-completion evaluator to judge witness quality.
 
 **Test and evidence:** real failing then passing tests; unchanged and legitimately
 changed tests; immutable original red witness; exception-approved inapplicable
-red; every Git-state mutation form; editor/host independence; findings rather
-than blocking; and no Git mutation by AEGIS.
+red; every Git-state mutation form; editor/host independence; factual evidence
+and findings rather than blocking or automatic quality assessment; and no Git
+mutation by AEGIS.
 
 **Coverage:** `PR-RED`, `PR-INT-001-006`, `PR-ZONE`, `PR-BOUND-004`;
 `AC-RED-001`, `AC-RED-002`, `AC-INT-001`, `AC-ZONE-001`, `AC-BOUND-001`
@@ -497,16 +516,20 @@ instructions, operation identifiers, machine results, and workflow meaning.
 - generic adapter resources under `.agentic/aegis/adapters/`;
 - host integration resources for Claude Code, Codex, Qwen Code, OpenCode, and
   Pi; and
+- default adapter instructions that stop after every included Stage summary,
+  present continue, review, revise or reimplement, and park choices, and bypass
+  the stop only for explicit continuous-mode delegation; and
 - bounded operation discovery suitable for a limited local model.
 
 **Test and evidence:** identical operation/result fixtures across direct CLI and
-adapters; no adapter-owned workflow transitions or approvals; representative
-resume-and-continue flow per supported host; human-only CLI flow; no dependence
-on hooks for fingerprint detection; and the reference local-model Stage
-exercise.
+adapters; no adapter-owned workflow transitions or approvals; default
+checkpoint and explicit continuous flows per supported host; every checkpoint
+choice; human-only CLI flow; no dependence on hooks for fingerprint detection;
+and the reference local-model Stage exercise.
 
 **Coverage:** `PR-HOST`, `PR-ROLE`, `PR-MODEL`, `PR-SCOPE-005`;
-`AC-HOST-001`, `AC-HOST-002`, `AC-MODEL-001`, `AC-ROLE-001`.
+`AC-HOST-001`, `AC-HOST-002`, `AC-MODEL-001`, `AC-ROLE-001`,
+`AC-STAGE-002`.
 
 **Depends on:** `IP-12`.
 
@@ -622,7 +645,7 @@ priority interpreted exactly as defined by the Acceptance Plan.
 |---|---|---|---|
 | **M1 — Protocol foundation** | `IP-01` through `IP-03` | The real CLI exposes final command/protocol structure and durable state primitives. | AEGIS package suite on Python 3.12; codec, protocol, and fault-injection suites. |
 | **M2 — Resumable workflow core** | `IP-04` through `IP-06` | Ticket text creates a resumable Run with Stage state, decisions, findings, and truthful escapes. | AEGIS package suite; cross-session workflow matrix; Windows/POSIX persistence adapters. |
-| **M3 — Traceable delivery** | `IP-07` through `IP-12` | Current project knowledge, impacted tests, red/green evidence, and complete Delivery work end to end. | AEGIS package suite; full/short workflow, real Git, subprocess, and integrity matrices. |
+| **M3 — Traceable delivery** | `IP-07` through `IP-12` | Current project knowledge, impacted tests, red/green evidence, and complete Delivery work end to end. | AEGIS package suite; full/short workflow, real Git, agent-recorded evidence, and integrity matrices. |
 | **M4 — Adoption and hosts** | `IP-13` through `IP-14` | Existing repositories and direct/agent hosts use the same resumable contract. | Adoption resume suite, adapter contract suite, local-model exercise, supported-host matrix. |
 | **M5 — Operator lifecycle** | `IP-15` through `IP-16` | WAEGIS safely initializes, installs, upgrades, and removes the payload. | AEGIS and WAEGIS package suites; plan/apply, ownership, and WAEGIS fault-injection matrices. |
 | **M6 — Release candidate** | `IP-17` through `IP-18` | Eight offline archives, four per target platform, are accepted. | Complete Acceptance Plan and product-success audit. |
@@ -636,7 +659,7 @@ No milestone result substitutes for the slice-level evidence beneath it.
 Beginning with `IP-01`, every added operation is checked against the one
 registry for canonical command spelling, input decoding, output schema, bounded
 next actions, JSON-line discipline, exit class, and help metadata. The complete
-56-operation catalog becomes executable incrementally without introducing
+55-operation catalog becomes executable incrementally without introducing
 temporary public commands.
 
 ### 7.2 Persistence integrity
@@ -649,9 +672,9 @@ new artifact type rather than waiting for the final milestone.
 ### 7.3 Cross-platform parity
 
 Pure domain/use-case suites run on every supported development interpreter.
-Filesystem locking, process execution, path safety, Git parsing, encoding, and
-launchers receive Windows and Linux integration coverage at the first slice
-that introduces them. Package-level equivalence is confirmed in `IP-17`.
+Filesystem locking, path safety, Git parsing, encoding, and launchers receive
+Windows and Linux integration coverage at the first slice that introduces them.
+Package-level equivalence is confirmed in `IP-17`.
 
 ### 7.4 Offline and dependency discipline
 

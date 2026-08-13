@@ -161,8 +161,8 @@ domains:
 
 `.agentic/config.toml` is a generated integration map, not a policy form that a
 developer must complete before AEGIS works. It describes where project
-artifacts live, how project validation commands are invoked, and any optional
-advisory policy the project deliberately adds.
+artifacts live, suggested project validation commands for the agent or
+developer, and any optional advisory policy the project deliberately adds.
 
 ```toml
 schema = 1
@@ -178,19 +178,16 @@ runs = ".agentic/runs"
 [validation.tests.project]
 command = ["python", "-m", "unittest", "discover", "-s", ".agentic/tests"]
 working_directory = "."
-timeout_seconds = 0
 
 # WAEGIS adds detected project lint commands when present.
 # [validation.lints.project]
 # command = ["python", "-m", "ruff", "check", "."]
 # working_directory = "."
-# timeout_seconds = 0
 
 # Optional repository-specific advisory audit.
 # [validation.audits.codestyle]
 # command = ["python", "02_Tools/audits/audit_codestyle.py", "--changed-only"]
 # working_directory = "."
-# timeout_seconds = 0
 
 [policy]
 risk_attention_threshold = "medium"
@@ -223,25 +220,29 @@ protected_scope_patterns = []
   shall provide stable machine-interface names such as `project`, `codestyle`,
   or `logging_coverage`.
 - **AM-CONFIG-011:** A command shall be stored as an executable and argument
-  array, not as a shell command string, so invocation has the same meaning on
-  Windows and Linux.
+  array, not as a shell command string, so the agent or developer can invoke it
+  consistently on Windows and Linux.
 - **AM-CONFIG-012:** Each command shall declare a repository-relative working
-  directory and a non-negative `timeout_seconds` value.
-- **AM-CONFIG-013:** `timeout_seconds = 0` shall mean that AEGIS imposes no
-  automatic timeout. The operator shall still be able to cancel the command.
+  directory. Timeout, cancellation, and output retention belong to the host
+  that runs the command.
+- **AM-CONFIG-013:** AEGIS shall never launch a configured project command.
+  The agent or developer runs a selected command with normal host tooling and
+  records its observed outcome through the evidence interface.
 - **AM-CONFIG-014:** WAEGIS shall record test and lint commands that it can
   detect confidently from the repository. Where no command is detected, AEGIS
   shall use the shipped adapter default appropriate to the selected language
   and test framework and shall report what it selected.
 - **AM-CONFIG-015:** Repository-specific audits shall be optional. Adding a
-  named audit to `config.toml` shall request that it be run during Validation.
+  named audit to `config.toml` shall make it available as Validation guidance.
 - **AM-CONFIG-016:** Audit commands may implement changed-file scoping through
   their own arguments, such as `--changed-only`, so advisory work remains
   proportional to the Run.
-- **AM-CONFIG-017:** Test, lint, and audit commands shall produce evidence and
-  findings. None shall become a Delivery blocker under the shipped defaults.
+- **AM-CONFIG-017:** Test, lint, and audit outcomes recorded by the agent or
+  developer shall produce evidence and any applicable factual findings. None
+  shall become a Delivery blocker under the shipped defaults.
 - **AM-CONFIG-018:** The presence of a validation command shall make it active;
-  a separate `enabled` switch shall not be required.
+  it is active guidance for the agent or developer, and a separate `enabled`
+  switch shall not be required.
 - **AM-CONFIG-020:** Open questions and risk shall be recorded by Alignment,
   but configuration shall not force a blocking `pause` outcome. Proceeding
   shall record the accepted assumptions or recommended responses and the actor.
@@ -360,8 +361,8 @@ shall contain:
    opening;
 2. the ticket text preserved verbatim;
 3. the restated intent and current scope;
-4. the developer's execution instruction when it affects interaction, such as
-   completing the workflow without intermediate prompts;
+4. the interaction mode, defaulting to `checkpoint`, and the developer's
+   execution instruction when it explicitly selects `continuous` interaction;
 5. the scope-change log;
 6. a compact outcome and last-updated time for every stage;
 7. change-attribution information;
@@ -375,12 +376,14 @@ shall contain:
   timestamp, previous interpretation, new interpretation, actor, reason, and
   affected artifacts.
 - **AM-RUN-004:** Scope changes shall not require separate Revision files.
-- **AM-RUN-005:** When the developer asks an AI agent to complete the workflow
-  without intermediate prompts, the Run shall record that execution instruction
-  as ordinary context.
-- **AM-RUN-006:** A decision recorded by an instructed AI agent shall identify
-  the agent as actor and shall have the same workflow effect as a decision
-  entered directly by the developer.
+- **AM-RUN-005:** Run interaction mode shall be `checkpoint` or `continuous` and
+  shall default to `checkpoint`. `continuous` shall be recorded only when the
+  developer explicitly asks the AI agent to complete the workflow without
+  intermediate prompts; the Run shall preserve that execution instruction as
+  ordinary context.
+- **AM-RUN-006:** A decision recorded by an AI agent under explicit continuous
+  delegation shall identify the agent as actor and shall have the same workflow
+  effect as a decision entered directly by the developer.
 - **AM-RUN-007:** `run.md` shall summarize stage state but shall not duplicate
   the full stage contents.
 - **AM-RUN-008:** Multiple recorded Runs may exist, but one working copy shall
@@ -388,6 +391,12 @@ shall contain:
 - **AM-RUN-009:** The selected Run's `current_stage` shall be the only working
   Stage pointer. If no valid Run is selected, AEGIS shall select the sole active
   candidate or list multiple candidates rather than guess.
+- **AM-RUN-010:** Absence of an execution instruction, an ambiguous autonomy
+  request, host permissions, or prior agent behavior shall resolve to
+  `checkpoint`, never `continuous`.
+- **AM-RUN-011:** Parking a checkpoint shall leave the Run `active` and its
+  durable Stage state resumable. It shall not add another Run status or depend
+  on chat history to recover the next action.
 
 ## 9. Stage files as durable snapshots
 
@@ -452,6 +461,23 @@ history.
   Stage as `completed`, `run.md` as `delivered`, and the local context as
   unselected in one atomic operation. No separate Run-delivery operation is
   required. Delivery does not mean commit, push, tag, merge, or pull request.
+- **AM-STAGE-017:** In checkpoint interaction, every included Stage handoff
+  shall expose a concise projection of outcome, changed artifacts, evidence,
+  findings, open questions, and proposed next Stage, plus continue, review,
+  revise or reimplement, and park choices.
+- **AM-STAGE-018:** A non-Delivery Stage may be durably completed before its
+  checkpoint is presented, but the agent shall not start the next Stage until
+  the developer chooses continue. Review and park shall not mutate workflow
+  state; revision shall use the existing Stage update or revisit history.
+- **AM-STAGE-019:** Delivery shall remain active until approve-and-close is
+  explicitly chosen in checkpoint interaction. Continuous interaction may
+  record approval only when `run.md` contains the explicit delegation defined
+  by AM-RUN-005.
+- **AM-STAGE-020:** Automated Stage-completion findings shall be limited to the
+  common structural checks for minimum non-blank sections, designated existing
+  references, recorded execution outcomes, and applicable approval or
+  delegation. Engineering-quality concerns belong to agent-authored findings
+  and developer checkpoint decisions.
 
 ## 10. Embedded evidence, findings, and decisions
 
@@ -509,8 +535,12 @@ history.
   alternative confirmation. It shall never be recorded as passed.
 - **AM-APPROVAL-004:** Earlier decisions shall remain visible. A later approval
   shall state what changed since a prior rejection.
-- **AM-APPROVAL-005:** An instructed AI agent may record Delivery approval and
-  continue without another developer prompt.
+- **AM-APPROVAL-005:** An AI agent may record Delivery approval and continue
+  without another developer prompt only when the current Run records explicit
+  continuous-interaction delegation.
+- **AM-APPROVAL-006:** Checkpoint-mode approval shall come from the developer's
+  presented choice; an agent shall not synthesize it from completion evidence
+  or from the lack of a rejection.
 
 ### 10.4 Skips and waivers
 
@@ -729,8 +759,8 @@ AEGIS shall report at least:
 16. payload files missing from or differing from the manifest;
 17. paths that escape the repository or are unsafe on supported platforms; and
 18. temporary files left by interrupted publication;
-19. duplicate validation command names, invalid working directories, malformed
-    argument arrays, or negative timeouts; and
+19. duplicate validation command names, invalid working directories, or malformed
+    argument arrays; and
 20. command evidence that confuses failure with timeout, cancellation, or
     launch error.
 

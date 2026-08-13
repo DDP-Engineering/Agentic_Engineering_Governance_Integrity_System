@@ -621,6 +621,7 @@ def test_install_detects_existing_pytest_root_and_preserves_dirty_files(
     config = (target / ".agentic/config.toml").read_text(encoding="utf-8")
     assert 'tests = ["tests"]' in config
     assert 'command = ["python", "-m", "pytest"]' in config
+    assert "timeout_seconds" not in config
     assert "[validation.lints.ruff]" in config
     assert 'command = ["python", "-m", "ruff", "check", "."]' in config
     assert (target / "notes.txt").read_text() == "keep me\n"

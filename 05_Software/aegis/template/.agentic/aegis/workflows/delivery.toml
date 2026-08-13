@@ -1,11 +1,11 @@
 schema = 1
 stage = "delivery"
 sequence = 8
-instruction = "Summarize outcomes, changes, evidence, tests, findings, skips, waivers, omissions, and risk. Use stage.set_section for section \"terminal_result\" with exactly one of achieved, partially_achieved, or not_achieved. Use decision.add with value approved and target \"delivery\"; actor and reason are caller supplied. AEGIS stops before outward Git actions."
+instruction = "Summarize outcomes, changes, evidence, tests, findings, escapes, and risk. Set terminal_result to achieved, partially_achieved, or not_achieved. At a checkpoint, present Approve and close and wait; then add delivery approval with approval_source developer. Only a continuous Run may use continuous_delegation. Stop before outward Git actions."
 sections = ["requested_and_delivered_outcome", "project_artifact_changes", "implementation_changes", "evidence_summary", "test_integrity", "findings_and_residual_risk", "skips_waivers_and_omitted_stages", "component_drift_review", "delivery_decision", "terminal_result"]
 common_findings = ["The delivery claim is stronger than recorded evidence or omits a failed check.", "Residual risk, skipped work, waivers, or changed tests are not disclosed."]
 recovery_actions = [
-  { condition = "Approval is missing or rejected.", operation = "decision.add", guidance = "Use value approved and target \"delivery\"; actor and reason are caller supplied." },
+  { condition = "Approval is missing or rejected.", operation = "decision.add", guidance = "After explicit approval, record approved delivery with actor, reason, and truthful approval_source." },
   { condition = "Assessment is missing or invalid.", operation = "stage.set_section", guidance = "Set section \"terminal_result\" to exactly one of achieved, partially_achieved, or not_achieved." },
   { condition = "Report incomplete; evidence sufficient.", operation = "stage.set_section", guidance = "Correct its summary without changing evidence." },
   { condition = "Earlier work or evidence is required.", operation = "stage.revisit", guidance = "Revisit that Stage with a reason; Delivery stays unfinished." },

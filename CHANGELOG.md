@@ -13,6 +13,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add default per-Stage developer checkpoints for AI-operated AEGIS Runs, with
+  durable `checkpoint` or explicitly delegated `continuous` interaction mode,
+  structured machine and human handoff summaries, Continue/Review/Revise/Park
+  choices, explicit Delivery approval provenance, legacy checkpoint fallback,
+  and equivalent guidance for Claude Code, Codex, OpenCode, Pi, and Qwen Code.
+
 - Add a reviewable project-owned root `AGENTS.md` bridge during WAEGIS install
   and upgrade. Missing files receive minimal AEGIS discovery guidance; existing
   UTF-8 guidance continues unchanged after one bounded marker block, subsequent
@@ -63,6 +69,15 @@ All notable changes to this project will be documented in this file.
   retirement replays with no host Python available.
 
 ### Changed
+
+- Limit `stage.complete` evaluation to common structural records, designated
+  reference resolution, recognized reported-command outcomes, and applicable
+  approval or explicit continuous delegation while retaining factual Git,
+  traceability, fingerprint, and command evidence.
+- Make configured test, lint, and audit commands execution-neutral guides:
+  callers run them with normal host tooling and record all five supported
+  outcomes, optional test selectors, and optional output Attachments through
+  `evidence.add`; new configuration omits legacy command timeouts.
 
 - Define the intended AEGIS version 1 delivery matrix as eight archives under
   `07_Delivery/dist`: AEGIS and WAEGIS, with external or bundled runtimes, for
@@ -408,6 +423,11 @@ All notable changes to this project will be documented in this file.
   and direct same-version rebuild and kept-local workflow refusals to re-adopt.
 
 ### Removed
+
+- Remove `execution.run` / `execution-run` and the AEGIS project-command process
+  runner, timeout, cancellation, cleanup, drain, and capture implementation.
+- Remove obsolete internal compatibility arguments and unused configuration,
+  command-name, and repository-validation helpers.
 
 - Remove the optional Windows-only ReportLab start-guide PDF generator and its
   local-output contract; the maintained Markdown guide remains canonical.

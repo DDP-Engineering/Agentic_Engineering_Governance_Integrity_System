@@ -53,8 +53,9 @@ arguments, response schemas, and exit-code conventions.
 - **FS-CORE-003:** Each Stage provides a written, self-contained instruction
   usable by a human developer or a supported AI agent.
 - **FS-CORE-004:** The human or AI performs the engineering work. AEGIS records
-  state, computes comparisons and traceability, executes selected local tools,
-  and reports evidence and findings.
+  state, computes comparisons and traceability, and reports evidence and
+  findings. AEGIS does not execute project tests, lints, audits, or other
+  validation commands.
 - **FS-CORE-005:** Under shipped defaults, AEGIS does not refuse an edit,
   command, exception, or Stage closure because of a policy result.
 - **FS-CORE-006:** A human-only Run and an AI-operated Run use the same stages,
@@ -62,21 +63,29 @@ arguments, response schemas, and exit-code conventions.
 - **FS-CORE-007:** Workflow effort remains proportional to the work; a small,
   understood change can use the short profile without losing truthful evidence.
 
-### 2.2 Responsibilities and uninterrupted agent operation
+### 2.2 Responsibilities and interaction modes
 
 - **FS-ROLE-001:** The developer owns scope, approvals, exception decisions,
   interpretation of findings, and every outward-facing Git action.
 - **FS-ROLE-002:** When the developer instructs an AI agent to complete the Run
   without intermediate prompts, the agent performs the workflow and records
   decisions and approvals as the developer's representative.
-- **FS-ROLE-003:** Agent-recorded decisions identify the agent as actor and have
-  the same workflow effect as decisions entered directly by the developer.
+- **FS-ROLE-003:** Under explicit continuous-interaction delegation,
+  agent-recorded decisions identify the agent as actor and have the same
+  workflow effect as decisions entered directly by the developer.
 - **FS-ROLE-004:** The AI follows the developer's Run instruction and preserves
   that instruction as context when it affects workflow interaction.
 - **FS-ROLE-005:** The developer is also the normal reviewer. A separate reviewer
   persona is not required.
 - **FS-ROLE-006:** The WAEGIS operator manages installation and payload lifecycle
   and will normally be the same developer.
+- **FS-ROLE-007:** An AI-operated Run defaults to checkpoint interaction. At
+  every included Stage handoff, the agent presents the Stage result and waits
+  for the developer's direction before it advances.
+- **FS-ROLE-008:** Continuous interaction is enabled only by an explicit
+  developer instruction recorded for the current Run. The agent does not infer
+  continuous authority from a broad implementation request, host permissions,
+  prior autonomy, or developer silence.
 
 ## 3. Installed project experience and configuration
 
@@ -103,28 +112,32 @@ arguments, response schemas, and exit-code conventions.
 - **FS-CONFIG-007:** When no existing test root is detected, the generated
   configuration selects `.agentic/tests/`.
 - **FS-CONFIG-008:** More than one configured test root can be active.
-- **FS-CONFIG-009:** AEGIS creates new tests within a configured test root using
-  the target repository's selected language and framework conventions.
+- **FS-CONFIG-009:** The agent creates new tests within a configured test root
+  using the target repository's selected language and framework conventions;
+  AEGIS records the resulting links and evidence.
 - **FS-CONFIG-010:** A linked test outside all configured test roots produces a
   finding and remains visible; it does not block the Run.
 
 ### 3.3 Validation command configuration
 
-- **FS-CONFIG-011:** Configuration supports uniquely named local command entries
+- **FS-CONFIG-011:** Configuration supports uniquely named local command guides
   categorized as tests, lints, or audits.
 - **FS-CONFIG-012:** WAEGIS records test and lint commands it can detect
   confidently from the repository.
 - **FS-CONFIG-013:** When no suitable command is detected, the relevant AEGIS
-  adapter selects and reports its shipped default for the language and
-  framework in use.
+  adapter selects and reports its shipped default as guidance for the agent or
+  developer.
 - **FS-CONFIG-014:** Each command has its own repository-relative working
-  directory and timeout value.
-- **FS-CONFIG-015:** A timeout value of zero means AEGIS imposes no automatic
-  timeout. The operator can still cancel execution.
-- **FS-CONFIG-016:** Adding a named repository audit makes it available to the
-  Validation Stage without turning it into a gate.
+  directory. Timeout and cancellation behavior belongs to the host that runs
+  the command.
+- **FS-CONFIG-015:** AEGIS never invokes a configured command. The agent or
+  developer runs it using normal host tooling and records the observed outcome
+  through the evidence interface.
+- **FS-CONFIG-016:** Adding a named repository audit makes it available as
+  Validation guidance without turning it into a gate.
 - **FS-CONFIG-017:** A repository audit can implement changed-file scoping
-  through its own command options so audit cost remains proportional.
+  through its own command options so the agent's or developer's audit cost
+  remains proportional.
 
 ## 4. Run lifecycle and working context
 
@@ -276,8 +289,36 @@ Each Run contains all eight canonical Stage records:
   mandatory sections are not removed to imply success.
 - **FS-STAGE-014:** Large or binary material can be attached, but the Stage file
   retains the conclusion, finding, decision, and next action.
-- **FS-STAGE-015:** A Stage update reports unmet expectations but does not refuse
-  closure under shipped policy.
+- **FS-STAGE-015:** Stage completion applies one small common structural
+  evaluator. It checks only configured required non-blank sections, references
+  designated as existing paths or artifacts, recognized outcomes for recorded
+  command executions, and applicable approval or explicit continuous-delegation
+  state. Its findings do not refuse closure under shipped policy.
+- **FS-STAGE-016:** In checkpoint interaction, completion of an included
+  non-Delivery Stage produces a developer-facing handoff before the agent starts
+  the next Stage. The pause is an agent interaction rule rather than a
+  mechanical prohibition on direct CLI use.
+- **FS-STAGE-017:** The handoff summarizes the Stage outcome, changed artifacts,
+  evidence, findings, open questions, and proposed next Stage, then offers four
+  developer choices: continue, review, revise or reimplement, and park.
+- **FS-STAGE-018:** Continue authorizes the agent to start the proposed next
+  Stage. Review returns further explanation without changing workflow state.
+  Revise or reimplement keeps or makes the affected Stage active. Park returns
+  control to the developer without changing the active Run into a terminal or
+  synthetic paused status.
+- **FS-STAGE-019:** In continuous interaction, the agent records the explicit
+  delegation and may pass Stage handoffs without another prompt while retaining
+  the same summaries, evidence, decisions, and resumable state.
+- **FS-STAGE-020:** Stage completion does not make automatic findings about
+  scope quality, design proportionality, test adequacy, the persuasiveness of
+  red-before-green evidence, finding importance, or risk acceptability. Such
+  engineering concerns are identified and explained by the AI agent for the
+  developer's checkpoint decision.
+- **FS-STAGE-021:** AEGIS continues to preserve and present observable facts,
+  including execution outcomes, reference validity, execution timing, Git-state
+  observations, changed-test fingerprints, and traceability relationships. A
+  factual observation may be a finding, but it is not an automatic judgement
+  that the Stage engineering work was insufficient.
 
 ## 6. Stage contracts
 
@@ -320,7 +361,8 @@ implementation make misunderstanding expensive.
 questions.
 
 **Outputs:** Included scope, exclusions, assumptions, remaining questions,
-profile choice, approval, and any instruction to continue without prompts.
+profile choice, approval, and any explicit instruction to use continuous
+interaction.
 
 - **FS-ALIGN-001:** Alignment presents included work, exclusions, assumptions,
   and material open questions in language the developer can correct.
@@ -329,8 +371,9 @@ profile choice, approval, and any instruction to continue without prompts.
 - **FS-ALIGN-003:** Open questions can remain when the Stage completes if the
   accepted assumptions or recommended responses and associated risk are
   recorded.
-- **FS-ALIGN-004:** AEGIS may recommend pausing for risk or uncertainty but does
-  not force a blocking pause under shipped policy.
+- **FS-ALIGN-004:** AEGIS may recommend an additional pause for risk or
+  uncertainty. The normal Stage checkpoint remains conversational guidance and
+  does not make direct CLI operations policy blockers.
 - **FS-ALIGN-005:** Alignment does not write implementation code.
 - **FS-ALIGN-006:** A skipped Alignment carries the unconfirmed Intake
   interpretation and skip reason through Delivery.
@@ -405,12 +448,16 @@ handoff.
 - **FS-CHECK-003:** Boundary, edge, negative, and failure-path tests are added
   according to risk rather than a fixed quota.
 - **FS-CHECK-004:** Where red-before-green applies, Check records an actual
-  failing execution before implementation begins.
+  failing execution performed by the agent or developer before implementation
+  begins.
 - **FS-CHECK-005:** The red record includes the command or selector, working
   directory, operational outcome, concise failure, timestamp, and exact-byte
   SHA-256 fingerprints of relevant test files.
-- **FS-CHECK-006:** A test that unexpectedly passes before implementation
-  produces a finding because it does not demonstrate the intended red witness.
+- **FS-CHECK-006:** A test that passes before implementation is recorded as an
+  actual execution outcome and remains visible at the Check checkpoint and in
+  Delivery. AEGIS does not use that outcome to automatically assess whether the
+  test is an adequate red witness; the agent explains the implication and the
+  developer decides how to proceed.
 - **FS-CHECK-007:** When red-before-green genuinely does not apply, the developer
   or instructed agent records an `exception_approved` decision, mandatory
   reason, and alternative confirmation method.
@@ -450,11 +497,11 @@ handoff.
 
 ### 6.7 Validation
 
-**Purpose:** Re-run the complete safely determined impacted regression set and
-record the actual outcome.
+**Purpose:** Guide the agent or developer to run the complete safely determined
+impacted regression set and record the actual outcome.
 
 **Inputs:** Requirements, changed files, direct test links, implementation
-evidence, configured validation commands, and open findings.
+evidence, configured validation command guides, and open findings.
 
 **Outputs:** Impacted selection explanation, automated and manual evidence,
 lint and audit results, test-integrity conclusion, findings, waivers, and
@@ -464,12 +511,14 @@ Delivery handoff.
   directly linked tests, including tests linked through other Requirements.
 - **FS-VALIDATE-002:** Tests created or changed by the Run remain selected even
   when traceability is incomplete.
-- **FS-VALIDATE-003:** AEGIS normally executes the safely determined impacted
-  subset rather than the full suite.
+- **FS-VALIDATE-003:** AEGIS normally selects and presents the safely determined
+  impacted subset rather than the full suite for execution through normal host
+  tooling.
 - **FS-VALIDATE-004:** If selection cannot be established safely and completely,
   AEGIS selects the full configured suite and records why.
-- **FS-VALIDATE-005:** Validation executes applicable named test, lint, and audit
-  commands and records each outcome independently.
+- **FS-VALIDATE-005:** The agent or developer executes applicable named test,
+  lint, and audit commands through normal host tooling and records each outcome
+  independently in Validation.
 - **FS-VALIDATE-006:** Manual verification records actor, procedure, expected
   observation, actual observation, and time.
 - **FS-VALIDATE-007:** Validation preserves failed, timed-out, cancelled, and
@@ -509,6 +558,11 @@ before developer-owned Git actions.
 - **FS-DELIVERY-007:** AEGIS stops before commit, push, tag, merge, pull request,
   or any other outward-facing Git operation and does not inspect or preflight
   those operations.
+- **FS-DELIVERY-008:** In checkpoint interaction, the agent presents the
+  completed Delivery report for approve-and-close, review, revise or
+  reimplement, or park. It shall not add Delivery approval or complete the Run
+  until the developer approves; continuous interaction may do so only under the
+  explicit recorded delegation.
 
 ## 7. Durable Run and Stage behavior
 
@@ -587,6 +641,10 @@ before developer-owned Git actions.
 - **FS-APPROVAL-005:** A decision is not a cryptographic identity guarantee and
   is not described as a security control. `exception_approved` never means
   `passed`.
+- **FS-APPROVAL-006:** An agent shall not create developer-owned Stage or
+  Delivery approval merely because work appears complete. Agent-recorded
+  approval has workflow effect only when the current Run records explicit
+  continuous-interaction delegation.
 
 ### 8.3 Skips and waivers
 
@@ -627,9 +685,9 @@ before developer-owned Git actions.
 |---|---|
 | `passed` | The command completed with its configured successful exit status. |
 | `failed` | The command completed with a configured failing exit status. |
-| `timed_out` | AEGIS ended the command after its configured nonzero timeout. |
-| `cancelled` | The operator or instructed agent cancelled the command. |
-| `launch_error` | The command could not be started. |
+| `timed_out` | The agent or developer reports that the command exceeded its available time limit. |
+| `cancelled` | The agent or developer reports that the command was cancelled. |
+| `launch_error` | The agent or developer reports that the command could not be started. |
 
 - **FS-RESULT-001:** `failed` is used only when a command actually completed with
   a failing status.
@@ -996,19 +1054,22 @@ through these observable scenarios:
 18. Failed evidence can reach an approved `partially_achieved` or
     `not_achieved` Delivery without falsifying the outcome.
 19. A skipped Stage, waived finding, and profile-omitted Stage remain distinct.
-20. An agent instructed to complete the workflow records approvals and continues
-    through Delivery without intermediate prompts.
-21. Normal abandonment is recorded inside readable Run state; exceptional
+20. Without explicit continuous delegation, the agent stops after every
+    included Stage result, presents the four developer choices, and waits;
+    review and park do not mutate state.
+21. An agent explicitly instructed to complete the workflow records approvals
+    and continues through Delivery without intermediate prompts.
+22. Normal abandonment is recorded inside readable Run state; exceptional
     abandonment remains possible without overwriting unreadable Run state.
-22. Interrupted publication retains one complete state and does not manufacture
+23. Interrupted publication retains one complete state and does not manufacture
     completion or success.
-23. Human and machine output communicate the same state and outcomes, including
+24. Human and machine output communicate the same state and outcomes, including
     findings and structured errors.
-24. AEGIS and WAEGIS operate without network access and initiate no data
+25. AEGIS and WAEGIS operate without network access and initiate no data
     transmission.
-25. Removing the payload preserves the target application and project-owned
+26. Removing the payload preserves the target application and project-owned
     configuration, Requirements, Components, tests, Adoptions, and Runs.
-26. Updating a Requirement, Specification, Component, or traceability link
+27. Updating a Requirement, Specification, Component, or traceability link
     replaces its current project content, while deleting one leaves no project
     retirement record or historical copy and remains visible in the owning Run.
 

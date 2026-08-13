@@ -28,7 +28,6 @@ runs = ".agentic/runs"
 [validation.tests.project]
 command = ["python", "-m", "unittest", "discover", "-s", ".agentic/tests"]
 working_directory = "."
-timeout_seconds = 0 # 0 means AEGIS imposes no automatic timeout.
 
 # WAEGIS adds detected lint commands. Project-specific audits can be added in
 # the same form. Their outcomes are advisory findings, never default blockers.
@@ -36,17 +35,14 @@ timeout_seconds = 0 # 0 means AEGIS imposes no automatic timeout.
 # [validation.lints.project]
 # command = ["python", "-m", "ruff", "check", "."]
 # working_directory = "."
-# timeout_seconds = 0
 #
 # [validation.audits.codestyle]
 # command = ["python", "02_Tools/audits/audit_codestyle.py", "--changed-only"]
 # working_directory = "."
-# timeout_seconds = 0
 #
 # [validation.audits.logging_coverage]
 # command = ["python", "02_Tools/audits/audit_logging_coverage.py", "--changed-only"]
 # working_directory = "."
-# timeout_seconds = 0
 
 [policy]
 risk_attention_threshold = "medium"

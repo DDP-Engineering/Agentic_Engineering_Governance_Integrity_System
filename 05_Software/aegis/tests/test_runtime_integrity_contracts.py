@@ -24,7 +24,6 @@ import pytest
 from aegis.infrastructure.workspace import FileWorkspace
 from aegis.ports.workspace import WorkspaceError
 
-from tests.test_execution_integrity import advance_to, configure_commands
 from tests.test_project_knowledge_trace import requirement_data
 from tests.test_run_stage_workflow import create_run, installed_repository, invoke
 
@@ -148,41 +147,6 @@ def test_completed_stage_rejects_mutation_and_preserves_exact_bytes(
     assert run_path.read_bytes() == before_run
 
 
-def test_completed_stage_rejects_execution_before_launch_and_preserves_bytes(
-    tmp_path: Path,
-) -> None:
-    """@brief CP-EXECUTION-002 runs only while the current Stage is active."""
-    repo = installed_repository(tmp_path)
-    configure_commands(repo)
-    created = create_run(repo)
-    advance_to(repo, "check")
-    stage_path, run_path = _current_paths(repo, created["run_id"], "05-check.md")
-    active = invoke(
-        repo,
-        "execution-run",
-        None,
-        "--category",
-        "tests",
-        "--name",
-        "pass",
-    )
-    assert active[0] == 0, active[1]
-    completed = invoke(repo, "stage-complete")
-    assert completed[0] == 0, completed[1]
-
-    _assert_invalid_transition_without_run_mutation(
-        repo,
-        stage_path,
-        run_path,
-        "execution-run",
-        None,
-        "--category",
-        "tests",
-        "--name",
-        "pass",
-    )
-
-
 def test_abandonment_remains_valid_while_active(tmp_path: Path) -> None:
     """@brief AM-ABANDON-001 records stopping context in the current Stage."""
     active_repo = installed_repository(tmp_path / "active")
@@ -299,6 +263,8 @@ def _valid_automated_evidence() -> dict[str, Any]:
     """@brief Return one complete truthful imported automated execution record."""
     return {
         "kind": "automated",
+        "category": "tests",
+        "name": "project",
         "command": ["python", "-m", "pytest", ".agentic/tests/test_retry.py"],
         "working_directory": ".",
         "outcome": "passed",
@@ -317,6 +283,8 @@ def _without(field: str) -> dict[str, Any]:
 @pytest.mark.parametrize(
     "evidence",
     (
+        _without("category"),
+        _without("name"),
         _without("command"),
         {**_valid_automated_evidence(), "command": []},
         {**_valid_automated_evidence(), "command": ["python", ""]},

@@ -59,15 +59,15 @@ compatibility layer, alternate artifact layout, command alias, or state migrator
 ## 3. System context and deployment boundary
 
 ```text
-Human or AI host
+Human or AI host -------- normal host tooling --------> configured project tools
+        |                                                   |
+        | flat CLI or host adapter                          | observed outcome
+        v                                                   v
+  AEGIS application ---------------- evidence record ----> target Git repository
         |
-        | flat CLI or host adapter
+        | repository-local artifacts and Git observation
         v
-  AEGIS application -------------------- configured project tools
-        |                                         |
-        | repository-local artifacts              | subprocess execution
-        v                                         v
-  target Git repository <------------------ test / lint / audit command
+  target Git repository
 
 Operator
    |
@@ -92,9 +92,9 @@ Operator
 |---|---|---|
 | Domain | Identities, values, aggregate state, transitions, trace relationships, findings, decisions, outcomes, and invariants. | Python standard library and other domain modules. |
 | Application | One use case per operation, orchestration, transaction scope, port calls, and operation results. | Domain and port interfaces. |
-| Ports | Required capabilities such as artifact storage, transactions, Git observation, process execution, clock, UUID, hashing, and platform services. | Domain value types and standard-library typing. |
+| Ports | Required capabilities such as artifact storage, transactions, Git observation, clock, UUID, hashing, and platform services. | Domain value types and standard-library typing. |
 | Interface adapters | Flat CLI parsing, JSON input, human/JSON presentation, and host transport. | Application dispatcher and protocol data types. |
-| Infrastructure adapters | Filesystem codecs, transaction recovery, Git subprocesses, configured processes, platform locks, clocks, UUIDs, and hashing. | Ports, domain value types, and operating-system facilities. |
+| Infrastructure adapters | Filesystem codecs, transaction recovery, Git observation subprocesses, platform locks, clocks, UUIDs, and hashing. | Ports, domain value types, and operating-system facilities. |
 | Composition root | Concrete adapter selection and application assembly. | All outer layers; no domain policy. |
 
 - **TA-LAYER-001:** Dependencies point inward. Domain and Application modules
@@ -489,26 +489,26 @@ project context, and contains no authoritative project history.
 - **TA-TRACE-007:** Trace validation and selection are read-only computations;
   findings do not repair links or rewrite project knowledge.
 
-## 15. Configured process execution
+## 15. Configured command guidance and reported evidence
 
-- **TA-PROCESS-001:** Configuration stores commands as argument arrays, never as
-  implicit shell text. The process runner defaults to `shell=False`.
-- **TA-PROCESS-002:** The runner validates the repository-relative working
-  directory and resolves executable selection through the configured/bundled
-  runtime environment.
-- **TA-PROCESS-003:** A timeout of zero maps to no AEGIS-imposed timeout. Positive
-  values use a monotonic clock.
-- **TA-PROCESS-004:** Windows and POSIX adapters start a controllable process
-  group and implement cancellation/timeout escalation without terminating
-  unrelated processes.
-- **TA-PROCESS-005:** Standard output and error are drained concurrently to avoid
-  pipe deadlocks. Bounded tails remain in the response/evidence; large complete
-  output is streamed to an Attachment.
-- **TA-PROCESS-006:** The runner returns exactly `passed`, `failed`, `timed_out`,
-  `cancelled`, or `launch_error`, plus exit status and timing where applicable.
-- **TA-PROCESS-007:** A completed project-command failure is evidence with a
-  successful AEGIS protocol response. Process launch/publication failures remain
-  operational errors only where AEGIS cannot durably record the outcome.
+- **TA-PROCESS-001:** Configuration stores command guides as argument arrays,
+  never as implicit shell text, together with repository-relative working
+  directories.
+- **TA-PROCESS-002:** AEGIS exposes guides through the read-only
+  `execution.list` operation and contains no project-command execution port or
+  process runner.
+- **TA-PROCESS-003:** New configuration contains no command timeout setting;
+  legacy `timeout_seconds` values are ignored when configuration is read.
+- **TA-PROCESS-004:** The agent or developer runs a selected guide with normal
+  host tooling and submits the observed result through `evidence.add`.
+- **TA-PROCESS-005:** Fuller external output may be imported as an Attachment;
+  the evidence record retains a concise observed result and optional Attachment
+  reference.
+- **TA-PROCESS-006:** Reported evidence preserves exactly `passed`, `failed`,
+  `timed_out`, `cancelled`, or `launch_error`, plus a compatible exit status.
+- **TA-PROCESS-007:** A reported failure is durable evidence with a successful
+  AEGIS protocol response. AEGIS does not reinterpret an unfavorable project
+  result as an operational failure of the AEGIS protocol.
 
 ## 16. Stage instructions, context, and host adapters
 

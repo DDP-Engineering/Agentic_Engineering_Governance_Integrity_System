@@ -23,8 +23,34 @@ from aegis.infrastructure.codecs import (
 )
 from aegis.infrastructure.workspace import FileWorkspace
 
-from tests.test_execution_integrity import advance_to
 from tests.test_run_stage_workflow import create_run, installed_repository, invoke
+
+
+def advance_to(repo: Path, target: str) -> None:
+    """@brief Advance through empty synthetic Stages to one target Stage."""
+    order = (
+        "intake",
+        "alignment",
+        "requirement",
+        "design",
+        "check",
+        "implementation",
+        "validation",
+        "delivery",
+    )
+    while True:
+        current = invoke(repo, "stage-show")[1]["stage"]
+        if current == target:
+            return
+        assert invoke(repo, "stage-complete")[0] == 0
+        next_index = order.index(current) + 1
+        while next_index < len(order):
+            following = order[next_index]
+            shown = invoke(repo, "stage-show", None, "--stage", following)[1]
+            if shown["data"]["status"] != "omitted":
+                break
+            next_index += 1
+        assert invoke(repo, "stage-start", None, following)[0] == 0
 
 
 def _select_terminal_run(repo: Path, run_id: str) -> None:
@@ -256,6 +282,7 @@ def test_approved_delivery_atomically_completes_stage_run_and_pointer(
                 "actor": "agent",
                 "target": "delivery",
                 "reason": "The report is accurate.",
+                "approval_source": "developer",
             },
         )[0]
         == 0
@@ -288,17 +315,10 @@ def test_delivery_gate_errors_name_their_required_input(tmp_path: Path) -> None:
     assert approval_error["error"]["code"] == "invalid_transition"
     assert approval_error["error"]["summary"] == (
         'Delivery requires the latest decision.add with target "delivery" to have '
-        "value approved."
+        "value approved and an authorized approval_source."
     )
-    assert approval_error["next_actions"] == [
-        {
-            "operation": "decision.add",
-            "arguments": {"value": "approved", "target": "delivery"},
-            "reason": (
-                "Supply actor and reason to approve the truthful Delivery report."
-            ),
-        }
-    ]
+    assert approval_error["next_actions"] == []
+    assert approval_error["data"]["checkpoint"]["required"] is True
 
     assert (
         invoke(
@@ -309,6 +329,7 @@ def test_delivery_gate_errors_name_their_required_input(tmp_path: Path) -> None:
                 "actor": "agent",
                 "target": "delivery",
                 "reason": "The report is accurate.",
+                "approval_source": "developer",
             },
         )[0]
         == 0
@@ -332,6 +353,143 @@ def test_delivery_gate_errors_name_their_required_input(tmp_path: Path) -> None:
             ),
         }
     ]
+
+
+def test_delivery_checkpoint_requires_developer_approval_or_continuous_delegation(
+    tmp_path: Path,
+) -> None:
+    """@brief AC-STAGE-002 replaces continue with approve-and-close at Delivery."""
+    repo = installed_repository(tmp_path / "checkpoint")
+    create_run(repo, profile="short")
+    advance_to(repo, "validation")
+    assert invoke(repo, "stage-complete")[0] == 0
+    assert invoke(repo, "stage-start", None, "delivery")[0] == 0
+    assert (
+        invoke(
+            repo,
+            "stage-set-section",
+            {"section": "terminal_result", "content": "achieved", "actor": "agent"},
+        )[0]
+        == 0
+    )
+
+    shown = invoke(repo, "stage-show")[1]
+    checkpoint = shown["data"]["checkpoint"]
+    assert checkpoint["required"] is True
+    assert [choice["id"] for choice in checkpoint["choices"]] == [
+        "approve_and_close",
+        "review",
+        "revise",
+        "park",
+    ]
+    assert not any(choice["id"] == "continue" for choice in checkpoint["choices"])
+
+    stage_path = (
+        repo
+        / ".agentic"
+        / "runs"
+        / shown["run_id"]
+        / "08-delivery.md"
+    )
+    before = stage_path.read_bytes()
+    denied_exit, denied = invoke(
+        repo,
+        "decision-add",
+        {
+            "value": "approved",
+            "actor": "agent",
+            "target": "delivery",
+            "reason": "The agent considers the report complete.",
+            "approval_source": "continuous_delegation",
+        },
+    )
+    assert denied_exit == 4, denied
+    assert denied["error"]["code"] == "invalid_transition"
+    assert stage_path.read_bytes() == before
+
+    approved_exit, approved = invoke(
+        repo,
+        "decision-add",
+        {
+            "value": "approved",
+            "actor": "developer",
+            "target": "delivery",
+            "reason": "Approve and close was explicitly selected.",
+            "approval_source": "developer",
+        },
+    )
+    assert approved_exit == 0, approved
+    assert invoke(repo, "stage-complete")[0] == 0
+
+    continuous_repo = installed_repository(tmp_path / "continuous")
+    create_run(continuous_repo, profile="short", interaction_mode="continuous")
+    advance_to(continuous_repo, "delivery")
+    assert (
+        invoke(
+            continuous_repo,
+            "stage-set-section",
+            {"section": "terminal_result", "content": "achieved", "actor": "agent"},
+        )[0]
+        == 0
+    )
+    delegated_exit, delegated = invoke(
+        continuous_repo,
+        "decision-add",
+        {
+            "value": "approved",
+            "actor": "agent",
+            "target": "delivery",
+            "reason": "Explicit continuous delegation authorizes closure.",
+            "approval_source": "continuous_delegation",
+        },
+    )
+    assert delegated_exit == 0, delegated
+    completed_exit, completed = invoke(continuous_repo, "stage-complete")
+    assert completed_exit == 0, completed
+    assert completed["outcome"] == "delivered"
+
+
+def test_legacy_delivery_approval_without_source_cannot_close_checkpoint_run(
+    tmp_path: Path,
+) -> None:
+    """@brief REQ-FUNC-ba164e6e never infers authority from legacy approval."""
+    repo = installed_repository(tmp_path)
+    created = create_run(repo, profile="short")
+    advance_to(repo, "delivery")
+    assert (
+        invoke(
+            repo,
+            "stage-set-section",
+            {"section": "terminal_result", "content": "achieved", "actor": "agent"},
+        )[0]
+        == 0
+    )
+    delivery_path = (
+        repo / ".agentic" / "runs" / created["run_id"] / "08-delivery.md"
+    )
+    metadata, state, _ = parse_markdown_document(
+        delivery_path.read_bytes(), path=delivery_path.relative_to(repo).as_posix()
+    )
+    state["decisions"].append(
+        {
+            "value": "approved",
+            "actor": "agent",
+            "target": "delivery",
+            "reason": "Legacy approval has no structured authority source.",
+            "time": "2026-08-13T00:00:00Z",
+        }
+    )
+    delivery_path.write_bytes(
+        render_markdown_document(metadata, state, kind="stage")
+    )
+
+    exit_code, rejected = invoke(repo, "stage-complete")
+
+    assert exit_code == 4, rejected
+    assert rejected["error"]["code"] == "invalid_transition"
+    assert rejected["data"]["checkpoint"]["required"] is True
+    run = invoke(repo, "run-show")[1]["data"]
+    assert run["metadata"]["status"] == "active"
 
 
 def test_delivered_run_rejects_stage_mutation(tmp_path: Path) -> None:
@@ -358,6 +516,7 @@ def test_delivered_run_rejects_stage_mutation(tmp_path: Path) -> None:
                 "actor": "agent",
                 "target": "delivery",
                 "reason": "The report is accurate.",
+                "approval_source": "developer",
             },
         )[0]
         == 0
@@ -411,6 +570,7 @@ def test_delivery_latest_applicable_decision_must_be_approved(tmp_path: Path) ->
                     "actor": "agent",
                     "target": "delivery",
                     "reason": reason,
+                    "approval_source": "developer",
                 },
             )[0]
             == 0

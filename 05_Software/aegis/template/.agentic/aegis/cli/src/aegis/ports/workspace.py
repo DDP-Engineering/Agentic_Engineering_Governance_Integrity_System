@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from aegis.domain.configuration import ProjectConfig
-from aegis.domain.execution import CancellationToken, ExecutionResult
 
 
 class WorkspaceError(RuntimeError):
@@ -78,14 +77,6 @@ class Workspace(Protocol):
     def load_instruction(self, stage: str) -> dict[str, Any]: ...
     def git_snapshot(self) -> dict[str, Any]: ...
     def payload_findings(self) -> tuple[dict[str, Any], ...]: ...
-    def execute_command(
-        self,
-        category: str,
-        name: str,
-        *,
-        additional_arguments: tuple[str, ...] = (),
-        cancellation: CancellationToken | None = None,
-    ) -> tuple[Any, ExecutionResult]: ...
     def read_external_text(self, path: str) -> str: ...
     def read_external_bytes(self, path: str) -> bytes: ...
 

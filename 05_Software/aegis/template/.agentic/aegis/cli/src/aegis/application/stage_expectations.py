@@ -9,9 +9,9 @@
 # -----------------------------------------------------------------------------
 """
 @file    stage_expectations.py
-@brief   Evaluate Stage-completion expectations from recorded state only.
-@details Defines the explicit full/short Stage matrix and returns advisory
-         finding facts without performing I/O, execution, or publication.
+@brief   Evaluate the common structural Stage-completion contract.
+@details Reports only missing records, unresolved designated references,
+         invalid recorded command outcomes, and applicable approval state.
 """
 
 from __future__ import annotations
@@ -21,72 +21,44 @@ from typing import Any
 
 STAGE_SECTION_EXPECTATIONS: dict[str, tuple[str, ...]] = {
     "intake": (
-        "inputs",
-        "configured_project_paths",
-        "relevant_project_knowledge",
-        "restated_ask",
-        "initially_affected_repository_area",
-        "facts_and_uncertainties",
-        "outputs_and_handoff",
+        "inputs", "configured_project_paths", "relevant_project_knowledge",
+        "restated_ask", "initially_affected_repository_area",
+        "facts_and_uncertainties", "outputs_and_handoff",
     ),
     "alignment": (
-        "inputs_from_intake",
-        "proposed_scope",
-        "developer_corrections",
-        "agreed_scope",
-        "outputs_and_handoff",
+        "inputs_from_intake", "proposed_scope", "developer_corrections",
+        "agreed_scope", "outputs_and_handoff",
     ),
     "requirement": (
-        "inputs_from_alignment",
-        "requirement_artifact_changes",
-        "traceability",
-        "risk_based_test_depth_decision",
-        "gaps_and_uncertainties",
+        "inputs_from_alignment", "requirement_artifact_changes", "traceability",
+        "risk_based_test_depth_decision", "gaps_and_uncertainties",
         "outputs_and_handoff",
     ),
     "design": (
-        "inputs",
-        "proposed_solution",
-        "requirement_coverage",
-        "interfaces_data_and_failure_behavior",
-        "alternatives_and_risks",
+        "inputs", "proposed_solution", "requirement_coverage",
+        "interfaces_data_and_failure_behavior", "alternatives_and_risks",
         "outputs_and_handoff",
     ),
     "check": (
-        "inputs",
-        "test_work",
-        "recorded_red_evidence",
-        "test_fingerprints_at_red",
-        "red_before_green_decision",
+        "inputs", "test_work", "recorded_red_evidence",
+        "test_fingerprints_at_red", "red_before_green_decision",
         "outputs_and_handoff",
     ),
     "implementation": (
-        "inputs",
-        "implementation_changes",
-        "test_integrity_comparison",
-        "implementation_evidence",
-        "component_documentation_review",
+        "inputs", "implementation_changes", "test_integrity_comparison",
+        "implementation_evidence", "component_documentation_review",
         "outputs_and_handoff",
     ),
     "validation": (
-        "inputs",
-        "impacted_test_selection",
-        "automated_validation_evidence",
-        "manual_validation_evidence",
-        "test_integrity_conclusion",
+        "inputs", "impacted_test_selection", "automated_validation_evidence",
+        "manual_validation_evidence", "test_integrity_conclusion",
         "outputs_and_handoff",
     ),
     "delivery": (
-        "requested_and_delivered_outcome",
-        "project_artifact_changes",
-        "implementation_changes",
-        "evidence_summary",
-        "test_integrity",
-        "findings_and_residual_risk",
-        "skips_waivers_and_omitted_stages",
-        "component_drift_review",
-        "delivery_decision",
-        "terminal_result",
+        "requested_and_delivered_outcome", "project_artifact_changes",
+        "implementation_changes", "evidence_summary", "test_integrity",
+        "findings_and_residual_risk", "skips_waivers_and_omitted_stages",
+        "component_drift_review", "delivery_decision", "terminal_result",
     ),
 }
 
@@ -95,13 +67,13 @@ PROFILE_STAGES = {
     "short": tuple(stage for stage in STAGE_SECTION_EXPECTATIONS if stage != "design"),
 }
 
-_UNRECORDED_VALUES = {"", "none", "unknown", "not recorded", "pending"}
-_APPROVAL_STAGES = {"alignment", "requirement", "design", "delivery"}
+_APPROVAL_STAGES = frozenset({"alignment", "requirement", "design", "delivery"})
+_OUTCOMES = frozenset({"passed", "failed", "timed_out", "cancelled", "launch_error"})
 
 
 @dataclass(frozen=True)
 class StageExpectationEvaluation:
-    """@brief Findings and exact evaluated-expectation count for one Stage."""
+    """@brief Findings and exact structural-check count for one Stage."""
 
     findings: tuple[dict[str, str], ...]
     evaluated_expectation_count: int
@@ -113,49 +85,38 @@ def _finding(
     consequence: str,
     *,
     expectation: str,
-    severity: str = "warning",
-    disposition: str = "open",
 ) -> dict[str, str]:
-    """@return One label-free finding fact for application publication."""
+    """@return One label-free structural finding for application publication."""
     return {
         "code": code,
-        "severity": severity,
+        "severity": "warning",
         "observation": observation,
         "consequence": consequence,
-        "disposition": disposition,
+        "disposition": "open",
         "expectation": expectation,
     }
 
 
 def _is_recorded(value: Any) -> bool:
-    """@return Whether one mandatory section contains an actual record."""
-    return isinstance(value, str) and value.strip().lower() not in _UNRECORDED_VALUES
-
-
-def _automated_test_evidence(
-    evidence: list[dict[str, Any]], outcome: str
-) -> list[tuple[int, dict[str, Any]]]:
-    """@return Ordered automated test evidence with one exact outcome."""
-    return [
-        (index, item)
-        for index, item in enumerate(evidence)
-        if item.get("kind") == "automated"
-        and item.get("category") == "tests"
-        and item.get("outcome") == outcome
-    ]
+    """@return Whether a required section contains a non-blank recorded value."""
+    return (
+        isinstance(value, str)
+        and bool(value.strip())
+        and value.strip().lower() != "none"
+    )
 
 
 def _valid_red_witness(item: dict[str, Any], *, implementation_started_at: str) -> bool:
-    """@return Whether evidence is complete red captured before implementation."""
+    """@return Whether durable evidence contains a complete prior red witness."""
     fingerprints = item.get("fingerprints")
-    time = item.get("time")
+    timestamp = item.get("time")
     return (
         item.get("red_witness") is True
         and isinstance(fingerprints, dict)
         and bool(fingerprints)
-        and isinstance(time, str)
-        and bool(time)
-        and (not implementation_started_at or time < implementation_started_at)
+        and isinstance(timestamp, str)
+        and bool(timestamp)
+        and (not implementation_started_at or timestamp < implementation_started_at)
     )
 
 
@@ -182,11 +143,9 @@ def _valid_red_exception(decisions: list[dict[str, Any]]) -> dict[str, Any] | No
 def summarize_red_before_green_state(
     state: dict[str, Any], *, implementation_started_at: str
 ) -> dict[str, bool]:
-    """@return Truthful flags for the two valid red-before-green alternatives."""
+    """@return Factual flags for Delivery reporting without judging adequacy."""
     evidence = [item for item in state.get("evidence", []) if isinstance(item, dict)]
-    decisions = [
-        item for item in state.get("decisions", []) if isinstance(item, dict)
-    ]
+    decisions = [item for item in state.get("decisions", []) if isinstance(item, dict)]
     return {
         "valid_witness": any(
             _valid_red_witness(
@@ -198,125 +157,65 @@ def summarize_red_before_green_state(
     }
 
 
-def _check_expectations(
-    state: dict[str, Any], *, implementation_started_at: str
-) -> list[dict[str, str]]:
-    """@return Findings for the actual-failure-before-implementation contract."""
-    evidence = [item for item in state.get("evidence", []) if isinstance(item, dict)]
-    failed = _automated_test_evidence(evidence, "failed")
-    passed = _automated_test_evidence(evidence, "passed")
-    valid_red = [
-        (index, item)
-        for index, item in failed
-        if _valid_red_witness(item, implementation_started_at=implementation_started_at)
-    ]
-    approved_exception = _valid_red_exception(
-        [item for item in state.get("decisions", []) if isinstance(item, dict)]
-    )
-    if valid_red:
-        first_red_index = valid_red[0][0]
-        if any(index < first_red_index for index, _ in passed):
-            return [
-                _finding(
-                    "check_red_witness_unexpected_pass",
-                    "A relevant Check test passed before any valid red witness.",
-                    "The pass does not demonstrate failure before implementation.",
-                    expectation="check.red_before_green",
-                )
-            ]
-        return []
-    if approved_exception is not None:
-        return [
-            _finding(
-                "check_red_exception_approved",
-                "Red-before-green is recorded as exception_approved with a reason "
-                "and alternative confirmation.",
-                "The expectation is not applicable for this Run and is not passed.",
-                expectation="check.red_before_green",
-                severity="info",
-                disposition="not_applicable",
-            )
-        ]
-    if failed:
-        code = (
-            "check_red_witness_not_prior"
-            if implementation_started_at
-            and any(
-                isinstance(item.get("time"), str)
-                and item.get("time") >= implementation_started_at
-                for _, item in failed
-            )
-            else "check_red_witness_incomplete"
-        )
-        observation = (
-            "The recorded failing test evidence was not captured before Implementation."
-            if code == "check_red_witness_not_prior"
-            else "Failing Check test evidence lacks a complete immutable red witness."
-        )
-        return [
-            _finding(
-                code,
-                observation,
-                "Complete red-before-green evidence is not established.",
-                expectation="check.red_before_green",
-            )
-        ]
-    if passed:
-        return [
-            _finding(
-                "check_red_witness_unexpected_pass",
-                "A relevant Check test passed without a prior valid red witness.",
-                "The pass does not demonstrate failure before implementation.",
-                expectation="check.red_before_green",
-            )
-        ]
-    return [
-        _finding(
-            "check_red_witness_missing",
-            "Check contains no actual failing test witness before implementation. "
-            "Use execution-run to establish one, or use decision-add with target "
-            "red_before_green, value exception_approved, reason, and "
-            "alternative_confirmation when red-before-green genuinely does not apply.",
-            "Red-before-green evidence remains missing.",
-            expectation="check.red_before_green",
-        )
-    ]
-
-
 def evaluate_stage_expectations(
     *,
     stage: str,
     profile: str,
     state: dict[str, Any],
-    check_state: dict[str, Any] | None = None,
-    implementation_started_at: str = "",
-    configured_commands: tuple[str, ...] = (),
+    designated_references: tuple[tuple[str, bool], ...] = (),
+    continuous_delegation: bool = False,
 ) -> StageExpectationEvaluation:
     """
-    @brief Evaluate one included Stage entirely from supplied durable state.
+    @brief Evaluate one included Stage using only the common structural checks.
     @param[in] stage Canonical Stage name.
     @param[in] profile Full or short Run profile.
-    @param[in] state Current Stage state.
-    @param[in] check_state Durable Check state used by Implementation.
-    @param[in] implementation_started_at Durable Implementation start time.
-    @param[in] configured_commands Applicable configured command identities.
-    @return Ordered advisory findings and the exact expectation count.
+    @param[in] state Current durable Stage state.
+    @param[in] designated_references Reference paths and their resolved state.
+    @param[in] continuous_delegation Whether durable Run authority is continuous.
+    @return Ordered structural findings and exact check count.
     """
     if stage not in PROFILE_STAGES.get(profile, ()):
         return StageExpectationEvaluation((), 0)
     findings: list[dict[str, str]] = []
-    evaluated_count = len(STAGE_SECTION_EXPECTATIONS[stage])
-    sections = state.get("sections", {})
+    sections = state.get("sections")
     if not isinstance(sections, dict):
         sections = {}
+    evaluated_count = len(STAGE_SECTION_EXPECTATIONS[stage])
     for section in STAGE_SECTION_EXPECTATIONS[stage]:
         if not _is_recorded(sections.get(section)):
             findings.append(
                 _finding(
                     f"{stage}_{section}_unrecorded",
                     f"{stage.title()} section '{section}' has no recorded result.",
-                    "The mandatory Stage category remains visibly incomplete.",
+                    "The minimum Stage record remains structurally incomplete.",
                     expectation=f"{stage}.section.{section}",
+                )
+            )
+    evaluated_count += len(designated_references)
+    for path, exists in designated_references:
+        if not exists:
+            findings.append(
+                _finding(
+                    "stage_reference_missing",
+                    f"Designated existing reference does not resolve safely: {path}",
+                    "The recorded reference is unavailable or unsafe.",
+                    expectation=f"{stage}.reference.{path}",
+                )
+            )
+    command_evidence = [
+        item
+        for item in state.get("evidence", [])
+        if isinstance(item, dict) and item.get("kind") == "automated"
+    ]
+    evaluated_count += len(command_evidence)
+    for index, evidence in enumerate(command_evidence, start=1):
+        if evidence.get("outcome") not in _OUTCOMES:
+            findings.append(
+                _finding(
+                    "recorded_command_outcome_invalid",
+                    f"Recorded command evidence {index} has no recognized outcome.",
+                    "Its test, lint, or audit conclusion remains unknown.",
+                    expectation=f"{stage}.evidence.{index}.outcome",
                 )
             )
     if stage in _APPROVAL_STAGES:
@@ -325,68 +224,19 @@ def evaluate_stage_expectations(
         for decision in state.get("decisions", []):
             if isinstance(decision, dict) and isinstance(decision.get("target"), str):
                 latest_by_target[decision["target"]] = decision
-        if not any(
-            decision.get("value") == "approved"
-            for decision in latest_by_target.values()
-        ):
+        approved = latest_by_target.get(stage, {}).get("value") == "approved"
+        if not approved and not continuous_delegation:
             findings.append(
                 _finding(
                     f"{stage}_approval_unrecorded",
-                    f"{stage.title()} contains no current approved decision.",
-                    "The Stage output has no recorded approval; closure remains "
-                    "advisory.",
-                    expectation=f"{stage}.approval",
+                    (
+                        f"{stage.title()} has no current approval or "
+                        "continuous delegation."
+                    ),
+                    "The applicable authority is not recorded.",
+                    expectation=f"{stage}.approval_or_delegation",
                 )
             )
-    if stage == "check":
-        evaluated_count += 1
-        findings.extend(
-            _check_expectations(
-                state, implementation_started_at=implementation_started_at
-            )
-        )
-    elif stage == "implementation":
-        evaluated_count += 1
-        check_exception = _valid_red_exception(
-            [
-                item
-                for item in (check_state or {}).get("decisions", [])
-                if isinstance(item, dict)
-            ]
-        )
-        green = _automated_test_evidence(
-            [item for item in state.get("evidence", []) if isinstance(item, dict)],
-            "passed",
-        )
-        if not green and check_exception is None:
-            findings.append(
-                _finding(
-                    "implementation_green_evidence_missing",
-                    "Implementation contains no passing automated test evidence.",
-                    "The red-to-green result remains incomplete.",
-                    expectation="implementation.green_evidence",
-                )
-            )
-    elif stage == "validation":
-        evaluated_count += len(configured_commands)
-        recorded = {
-            f"{item.get('category')}.{item.get('name')}"
-            for item in state.get("evidence", [])
-            if isinstance(item, dict)
-            and item.get("kind") == "automated"
-            and item.get("category") in {"tests", "lints", "audits"}
-            and isinstance(item.get("name"), str)
-        }
-        for command in configured_commands:
-            if command not in recorded:
-                findings.append(
-                    _finding(
-                        "validation_command_evidence_missing",
-                        f"{command} has no recorded Validation execution outcome.",
-                        "The applicable configured command remains unverified.",
-                        expectation=f"validation.command.{command}",
-                    )
-                )
     return StageExpectationEvaluation(tuple(findings), evaluated_count)
 
 

@@ -207,7 +207,6 @@ _MACHINE_REVISION_POLICIES = {
             "decision.add",
             "attachment.add",
             "trace.impacted",
-            "execution.run",
         )
     },
     **{
@@ -368,12 +367,22 @@ _MACHINE_INPUTS = {
             required=False,
         ),
         _field(
+            "interaction_mode",
+            "string",
+            "Run interaction mode; defaults to checkpoint.",
+            required=False,
+            choices=("checkpoint", "continuous"),
+        ),
+        _field(
             "execution_instruction",
             "string",
-            "Optional durable execution instruction.",
+            "Durable developer instruction required for continuous interaction.",
             required=False,
         ),
-        constraints=("Provide exactly one of ticket_text or ticket_path.",),
+        constraints=(
+            "Provide exactly one of ticket_text or ticket_path.",
+            "continuous requires a non-empty execution_instruction.",
+        ),
     ),
     "run.abandon": _machine_input(*_ACTOR_REASON_FIELDS),
     "scope.revise": _machine_input(
@@ -409,6 +418,19 @@ _MACHINE_INPUTS = {
         _field("procedure", "string", "Manual procedure used.", required=False),
         _field("expected", "string", "Manual expected result.", required=False),
         _field("actual", "string", "Manual observed result.", required=False),
+        _field(
+            "category",
+            "string",
+            "Automated command category.",
+            required=False,
+            choices=("tests", "lints", "audits"),
+        ),
+        _field(
+            "name",
+            "string",
+            "Automated command guide name.",
+            required=False,
+        ),
         _field(
             "command",
             "array[string]",
@@ -449,13 +471,20 @@ _MACHINE_INPUTS = {
         _field(
             "tests",
             "array[string]",
-            "Non-empty automated test or check selectors covered.",
+            "Non-empty test selectors covered when category is tests.",
+            required=False,
+        ),
+        _field(
+            "attachment",
+            "string",
+            "Optional existing Attachment path for fuller output.",
             required=False,
         ),
         constraints=(
             "Manual evidence requires actor, procedure, expected, and actual.",
-            "Automated evidence requires command or selector, working_directory, "
-            "outcome, exit_status, observed_result, and tests.",
+            "Automated evidence requires category, name, command or selector, "
+            "working_directory, outcome, exit_status, and observed_result; tests "
+            "are additionally required for the tests category.",
         ),
     ),
     "finding.add": _machine_input(
@@ -489,7 +518,18 @@ _MACHINE_INPUTS = {
             "Required confirmation for an approved exception.",
             required=False,
         ),
-        constraints=("exception_approved requires alternative_confirmation.",),
+        _field(
+            "approval_source",
+            "string",
+            "Delivery approval source; developer or explicit continuous delegation.",
+            required=False,
+            choices=("developer", "continuous_delegation"),
+        ),
+        constraints=(
+            "exception_approved requires alternative_confirmation.",
+            "Approved Delivery requires approval_source.",
+            "continuous_delegation requires a continuous Run.",
+        ),
     ),
     "attachment.add": _machine_input(
         _field("source", "string", "Readable source file path."),
@@ -612,19 +652,6 @@ _COMPONENT = _option(
 )
 _PATH = _option(
     "path", "--path <path>", "Select the repository-relative path.", required=True
-)
-_CATEGORY = _option(
-    "category",
-    "--category <tests|lints|audits>",
-    "Select the tests, lints, or audits category.",
-    required=True,
-    choices=("tests", "lints", "audits"),
-)
-_NAME = _option(
-    "name", "--name <name>", "Select the configured command name.", required=True
-)
-_SELECTION = _option(
-    "selection", "--selection <label>", "Use the impacted-test selection label."
 )
 _CURSOR = _option(
     "cursor", "--cursor <token>", "Continue a bounded list at this item offset."
@@ -976,19 +1003,11 @@ ALL_OPERATIONS = (
     ),
     _operation(
         "execution.list",
-        "List configured and recorded executions.",
-        "Execution summary page.",
+        "List configured command guidance and reported evidence.",
+        "Command guidance and evidence summary.",
         "aegis execution-list --stage implementation",
         _AEGIS,
         (_STAGE,),
-    ),
-    _operation(
-        "execution.run",
-        "Run one named configured command.",
-        "Recorded execution outcome.",
-        "aegis execution-run --category tests --name project",
-        _AEGIS,
-        (_CATEGORY, _NAME, _SELECTION),
     ),
     _operation(
         "adoption.create",
@@ -1112,11 +1131,6 @@ ALL_OPERATIONS = (
 # -----------------------------------------------------------------------------
 # PUBLIC API
 # -----------------------------------------------------------------------------
-
-
-def command_for(operation: str) -> str:
-    """@return The only canonical flat command spelling."""
-    return operation.replace(".", "-").replace("_", "-")
 
 
 def operations_for(product: str) -> tuple[OperationDefinition, ...]:

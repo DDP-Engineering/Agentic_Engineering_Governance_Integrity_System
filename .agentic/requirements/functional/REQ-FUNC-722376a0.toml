@@ -1,0 +1,87 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# One requirement = one independently verifiable behavior.
+# Lives at .agentic/requirements/<category>/<id>.toml
+# Required fields: schema, id, title, status, requirement, verification.
+
+schema = 1
+
+# REQ-<CAT>-<8 hex>. CAT is FUNC, UX, NFR, SEC, DATA, PLAT, REL or TEST,
+# and must match the category folder this file sits in.
+id = "REQ-FUNC-722376a0"
+
+title = "Generate execution-neutral command guidance"
+
+# draft while being written, active once it is built and tested,
+# retired when the behavior is deliberately removed.
+status = "active"
+
+# Self-contained prose: a reader with no other context must be able to
+# understand and check it. No ticket numbers, no run IDs, no references
+# to other requirements.
+#
+# Recommended shape - EARS. Pick the one pattern that fits; a stated
+# trigger or condition is what the test has to arrange, so surfacing it
+# here is what makes the behavior testable:
+#
+#   ubiquitous  The <system> shall <response>.
+#   event       When <trigger>, the <system> shall <response>.
+#   state       While <state>, the <system> shall <response>.
+#   unwanted    If <condition>, then the <system> shall <response>.
+#   optional    Where <feature is included>, the <system> shall <response>.
+#
+# Two "shall" clauses means two behaviors: split it into two requirements.
+# Do not contort prose to fit a pattern - a constraint that reads better
+# plainly is better plainly.
+requirement = """
+When WAEGIS generates project validation configuration, it shall write
+execution-neutral command guidance without a timeout field while AEGIS remains
+able to read and safely ignore that field in legacy installed configuration.
+"""
+
+# The observation that settles whether the behavior holds — not a
+# restatement of the requirement.
+#
+# Some behaviors no test can settle: a look-and-see judgement, an install
+# on clean hardware, a printed page. Start this field with "Manual:" or
+# "Inspection:" and name the method, and `check` records the requirement
+# as verified by hand instead of counting it among the tests still owed.
+# The prefix alone is not enough — it has to say what someone does.
+verification = "Automated codec and WAEGIS lifecycle tests confirm newly rendered and installed configuration contains argument arrays plus working directories with no timeout_seconds field, and legacy configuration containing valid or otherwise irrelevant timeout_seconds values remains readable with the field omitted on render."
+
+# Repo-relative, forward slashes. The source files this behavior lives in.
+affected_paths = [
+    "05_Software/aegis/template/.agentic/config.toml",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/domain/configuration.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/infrastructure/codecs.py",
+    "05_Software/aegis/tests/test_configuration_codecs.py",
+    "05_Software/waegis/src/waegis/infrastructure/target.py",
+    "05_Software/waegis/tests/test_lifecycle.py",
+    "05_Software/waegis/README.md",
+    "00_Planning/templates/config.toml",
+    "00_Planning/AEGIS_ARTIFACT_MODEL.md",
+    "00_Planning/AEGIS_IMPLEMENTATION_PLAN.md",
+    "CHANGELOG.md",
+]
+
+# "tests/path/test_file.py::test_name" entries. Kept current during build;
+# these select the impacted regression set.
+linked_tests = [
+    "05_Software/aegis/tests/test_configuration_codecs.py::test_configuration_round_trip_ignores_legacy_timeout_and_omits_it",
+    "05_Software/waegis/tests/test_lifecycle.py::test_install_detects_existing_pytest_root_and_preserves_dirty_files",
+]
+
+# --- optional below this line ---
+
+# "specs/REQ-FUNC-00000000.md" when the requirement alone is not buildable.
+spec = ""
+
+priority = "high"   # low | normal | high
+rationale = "Configuration describes commands for host execution and upgrades must not break repositories installed under the earlier schema-1 representation."
+
+created = 2026-08-13
+updated = 2026-08-13

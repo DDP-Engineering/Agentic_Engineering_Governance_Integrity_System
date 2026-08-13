@@ -21,7 +21,6 @@ import re
 
 from aegis.application.operation_registry import (
     ALL_OPERATIONS,
-    command_for,
     operations_for,
 )
 
@@ -30,12 +29,12 @@ from aegis.application.operation_registry import (
 # -----------------------------------------------------------------------------
 
 
-def test_registry_declares_all_57_unique_protocol_operations() -> None:
+def test_registry_declares_all_56_unique_protocol_operations() -> None:
     """@brief Verify the complete cross-product catalog is declared once."""
     operation_ids = [entry.operation for entry in ALL_OPERATIONS]
     commands = [entry.command for entry in ALL_OPERATIONS]
 
-    assert len(ALL_OPERATIONS) == 57
+    assert len(ALL_OPERATIONS) == 56
     assert len(operation_ids) == len(set(operation_ids))
     assert len(commands) == len(set(commands))
 
@@ -45,7 +44,6 @@ def test_registry_derives_every_command_mechanically() -> None:
     for entry in ALL_OPERATIONS:
         expected = entry.operation.replace(".", "-").replace("_", "-")
         assert entry.command == expected
-        assert command_for(entry.operation) == expected
 
 
 def test_product_catalogs_keep_aegis_and_waegis_boundaries_explicit() -> None:
@@ -53,7 +51,7 @@ def test_product_catalogs_keep_aegis_and_waegis_boundaries_explicit() -> None:
     aegis = operations_for("AEGIS")
     waegis = operations_for("WAEGIS")
 
-    assert len(aegis) == 49
+    assert len(aegis) == 48
     assert len(waegis) == 10
     assert all(entry.implemented for entry in aegis)
     assert "install.apply" not in {entry.operation for entry in aegis}
@@ -120,13 +118,30 @@ def test_input_operations_document_the_machine_envelope_and_data_fields() -> Non
     assert run_input is not None
     assert run_input.constraints == (
         "Provide exactly one of ticket_text or ticket_path.",
+        "continuous requires a non-empty execution_instruction.",
     )
     assert {field.name for field in run_input.data_fields} >= {
         "ticket_text",
         "ticket_path",
         "profile",
         "work_type",
+        "interaction_mode",
+        "execution_instruction",
     }
+    interaction = next(
+        field for field in run_input.data_fields if field.name == "interaction_mode"
+    )
+    assert interaction.choices == ("checkpoint", "continuous")
+    assert (
+        "continuous requires a non-empty execution_instruction."
+        in run_input.constraints
+    )
+    decision_input = by_operation["decision.add"].machine_input
+    assert decision_input is not None
+    approval_source = next(
+        field for field in decision_input.data_fields if field.name == "approval_source"
+    )
+    assert approval_source.choices == ("developer", "continuous_delegation")
     component_input = by_operation["component.create"].machine_input
     assert component_input is not None
     component_fields = {field.name for field in component_input.data_fields}
@@ -138,6 +153,21 @@ def test_input_operations_document_the_machine_envelope_and_data_fields() -> Non
         "requirement_links.",
         "Unknown drift_review fields are invalid; omitted axes default to uncertain.",
     )
+    evidence_input = by_operation["evidence.add"].machine_input
+    assert evidence_input is not None
+    evidence_fields = {field.name for field in evidence_input.data_fields}
+    assert {
+        "category",
+        "name",
+        "command",
+        "selector",
+        "working_directory",
+        "outcome",
+        "exit_status",
+        "observed_result",
+        "tests",
+        "attachment",
+    } <= evidence_fields
 
 
 def test_registry_declares_representative_final_cli_input_schemas() -> None:
@@ -173,8 +203,8 @@ def test_registry_declares_representative_final_cli_input_schemas() -> None:
         assert by_operation[operation].optional_arguments == ("--cursor <token>",)
 
 
-def test_registry_declares_canonical_execution_and_stage_choices() -> None:
-    """@brief Verify CP execution categories and Stage names are exact."""
+def test_registry_omits_command_execution_and_keeps_stage_choices() -> None:
+    """@brief Verify command guidance is read-only and Stage names are exact."""
     by_operation = {entry.operation: entry for entry in ALL_OPERATIONS}
     stages = (
         "intake",
@@ -187,17 +217,8 @@ def test_registry_declares_canonical_execution_and_stage_choices() -> None:
         "delivery",
     )
 
-    execution = by_operation["execution.run"]
-    category, _, selection = execution.arguments
-    assert category.display_name == "--category <tests|lints|audits>"
-    assert category.description == "Select the tests, lints, or audits category."
-    assert category.choices == ("tests", "lints", "audits")
-    assert execution.example == (
-        "aegis --expected-revision sha256:"
-        + ("a" * 64)
-        + " execution-run --category tests --name project"
-    )
-    assert selection.display_name == "--selection <label>"
+    assert "execution.run" not in by_operation
+    assert by_operation["execution.list"].arguments[0].choices == stages
 
     assert by_operation["stage.start"].arguments[0].choices == stages
     assert by_operation["stage.show"].arguments[1].choices == stages

@@ -50,7 +50,6 @@ _CURRENT_STAGE_MUTATIONS = {
     "decision-add",
     "attachment-add",
     "trace-impacted",
-    "execution-run",
 }
 
 
@@ -261,18 +260,23 @@ def invoke(
     return exit_code, json.loads(stdout.getvalue())
 
 
-def create_run(repo: Path, *, profile: str = "full") -> dict[str, Any]:
+def create_run(
+    repo: Path, *, profile: str = "full", interaction_mode: str | None = None
+) -> dict[str, Any]:
     """@brief Create one selected synthetic Run."""
+    data = {
+        "ticket_text": "Preserve exact retry evidence.",
+        "profile": profile,
+        "work_type": "bug_fix",
+        "actor": "agent",
+        "execution_instruction": "Complete without intermediate prompts.",
+    }
+    if interaction_mode is not None:
+        data["interaction_mode"] = interaction_mode
     exit_code, response = invoke(
         repo,
         "run-create",
-        {
-            "ticket_text": "Preserve exact retry evidence.",
-            "profile": profile,
-            "work_type": "bug_fix",
-            "actor": "agent",
-            "execution_instruction": "Complete without intermediate prompts.",
-        },
+        data,
     )
     assert exit_code == 0, response
     return response
@@ -1023,6 +1027,166 @@ def test_stage_sections_transitions_and_resume_state_are_atomic(tmp_path: Path) 
     assert "| Intake | completed | Recorded |" in run_text
     assert "stage_completed" in run_text
     assert "stage_started" in run_text
+
+
+def test_run_interaction_mode_defaults_legacy_and_continuous_resume(
+    tmp_path: Path,
+) -> None:
+    """@brief REQ-FUNC-ba164e6e resolves and persists Run interaction mode."""
+    checkpoint_repo = installed_repository(tmp_path / "checkpoint")
+    checkpoint = create_run(checkpoint_repo)
+
+    assert checkpoint["data"]["interaction_mode"] == "checkpoint"
+    shown = invoke(checkpoint_repo, "run-show")[1]["data"]
+    assert shown["metadata"]["interaction_mode"] == "checkpoint"
+    assert 'interaction_mode = "checkpoint"' in (
+        checkpoint_repo
+        / ".agentic"
+        / "runs"
+        / checkpoint["run_id"]
+        / "run.md"
+    ).read_text(encoding="utf-8")
+
+    run_path = (
+        checkpoint_repo
+        / ".agentic"
+        / "runs"
+        / checkpoint["run_id"]
+        / "run.md"
+    )
+    run_path.write_text(
+        run_path.read_text(encoding="utf-8").replace(
+            'interaction_mode = "checkpoint"\n', ""
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    legacy = invoke(checkpoint_repo, "run-show")[1]["data"]
+    assert legacy["metadata"]["interaction_mode"] == "checkpoint"
+
+    continuous_repo = installed_repository(tmp_path / "continuous")
+    continuous = create_run(continuous_repo, interaction_mode="continuous")
+    resumed = invoke(continuous_repo, "stage-show")[1]["data"]["run_summary"]
+    assert continuous["data"]["interaction_mode"] == "continuous"
+    assert resumed["interaction_mode"] == "continuous"
+    assert resumed["execution_instruction"] == "Complete without intermediate prompts."
+
+    invalid_repo = installed_repository(tmp_path / "invalid-continuous")
+    invalid_exit, invalid = invoke(
+        invalid_repo,
+        "run-create",
+        {
+            "ticket_text": "Do not infer delegation.",
+            "interaction_mode": "continuous",
+        },
+    )
+    assert invalid_exit == 2, invalid
+    assert invalid["error"]["field"] == "execution_instruction"
+
+
+def test_checkpoint_handoffs_cover_every_included_full_and_short_stage(
+    tmp_path: Path,
+) -> None:
+    """@brief AC-STAGE-002 presents four choices at every included handoff."""
+    stage_order = (
+        "intake",
+        "alignment",
+        "requirement",
+        "design",
+        "check",
+        "implementation",
+        "validation",
+        "delivery",
+    )
+    for profile, expected in (
+        ("full", stage_order[:-1]),
+        ("short", tuple(stage for stage in stage_order[:-1] if stage != "design")),
+    ):
+        repo = installed_repository(tmp_path / profile)
+        created = create_run(repo, profile=profile)
+        observed = []
+        while True:
+            stage = invoke(repo, "stage-show")[1]["stage"]
+            if stage == "delivery":
+                break
+            observed.append(stage)
+            completed = invoke(repo, "stage-complete")[1]
+            checkpoint = completed["data"]["checkpoint"]
+            summary = checkpoint["summary"]
+            choices = {choice["id"]: choice for choice in checkpoint["choices"]}
+
+            assert checkpoint["required"] is True
+            assert set(summary) == {
+                "outcome",
+                "changed_artifacts",
+                "evidence",
+                "findings",
+                "open_questions",
+                "proposed_handoff",
+            }
+            assert summary["changed_artifacts"]
+            assert set(choices) == {"continue", "review", "revise", "park"}
+            assert choices["review"]["mutates_workflow_state"] is False
+            assert choices["park"]["mutates_workflow_state"] is False
+            assert choices["revise"]["operations"] == [
+                "stage.set_section",
+                "stage.revisit",
+            ]
+            assert not any(
+                action["operation"] == "stage.start"
+                for action in completed["next_actions"]
+            )
+
+            run_path = (
+                repo / ".agentic" / "runs" / created["run_id"] / "run.md"
+            )
+            stage_path = (
+                repo
+                / ".agentic"
+                / "runs"
+                / created["run_id"]
+                / f"{stage_order.index(stage) + 1:02d}-{stage}.md"
+            )
+            before = (run_path.read_bytes(), stage_path.read_bytes())
+            reviewed = invoke(repo, "stage-show")[1]
+            assert reviewed["data"]["checkpoint"] == checkpoint
+            assert (run_path.read_bytes(), stage_path.read_bytes()) == before
+
+            next_stage = choices["continue"]["arguments"]["stage_name"]
+            started = invoke(repo, "stage-start", None, next_stage)[1]
+            assert started["stage"] == next_stage
+
+        assert tuple(observed) == expected
+
+
+def test_checkpoint_revision_uses_existing_revisit_and_continuous_recommends_start(
+    tmp_path: Path,
+) -> None:
+    """@brief AC-STAGE-002 keeps revision and continuous flow on existing APIs."""
+    checkpoint_repo = installed_repository(tmp_path / "checkpoint")
+    create_run(checkpoint_repo)
+    checkpoint = invoke(checkpoint_repo, "stage-complete")[1]["data"]["checkpoint"]
+    revise = next(
+        choice for choice in checkpoint["choices"] if choice["id"] == "revise"
+    )
+    assert revise["operations"] == ["stage.set_section", "stage.revisit"]
+
+    revisit_exit, revisited = invoke(
+        checkpoint_repo,
+        "stage-revisit",
+        {"actor": "developer", "reason": "Expand the Intake result."},
+        "intake",
+    )
+    assert revisit_exit == 0, revisited
+    assert revisited["data"]["status"] == "active"
+
+    continuous_repo = installed_repository(tmp_path / "continuous")
+    create_run(continuous_repo, interaction_mode="continuous")
+    completed = invoke(continuous_repo, "stage-complete")[1]
+    assert completed["data"]["checkpoint"]["required"] is False
+    assert completed["data"]["checkpoint"]["choices"] == []
+    assert completed["next_actions"][0]["operation"] == "stage.start"
+    assert completed["next_actions"][0]["arguments"]["stage_name"] == "alignment"
 
 
 def test_implicit_workflow_events_use_run_actor_with_operator_compatibility(

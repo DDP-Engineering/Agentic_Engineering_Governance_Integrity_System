@@ -22,6 +22,12 @@ as the flat CLI. Cancellation before apply leaves the target unchanged, and
 successful installation or upgrade ends with the platform-appropriate AEGIS
 verification commands.
 
+WAEGIS detects project command arrays and working directories and writes them
+as execution guides. It does not add command timeouts or imply that AEGIS will
+run those commands. In the installed project, use `execution-list` to inspect a
+guide, run it with normal host tooling, and submit the observed outcome through
+`evidence-add`.
+
 ```powershell
 bin\waegis.cmd
 ```

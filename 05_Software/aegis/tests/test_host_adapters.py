@@ -56,6 +56,20 @@ def test_host_descriptors_use_one_contract_and_own_no_workflow_policy() -> None:
     assert contract["machine_response_schema"] == "aegis.machine.response"
     assert contract["operations"] == operations
     assert contract["max_next_actions"] == 3
+    assert contract["interaction_modes"] == ["checkpoint", "continuous"]
+    assert contract["checkpoint_data_field"] == "data.checkpoint"
+    assert contract["checkpoint_choice_ids"] == [
+        "continue",
+        "review",
+        "revise",
+        "park",
+    ]
+    assert contract["delivery_checkpoint_choice_ids"] == [
+        "approve_and_close",
+        "review",
+        "revise",
+        "park",
+    ]
     for host in HOSTS:
         descriptor = json.loads(
             (ADAPTERS / host / "adapter.json").read_text(encoding="utf-8")
@@ -72,7 +86,7 @@ def test_host_descriptors_use_one_contract_and_own_no_workflow_policy() -> None:
 
 
 def test_native_host_guidance_routes_resume_through_stage_show() -> None:
-    """@brief Each supported host reads bounded state and input contracts."""
+    """@brief AC-STAGE-002 gives every host equivalent checkpoint guidance."""
     for host, path in NATIVE.items():
         guidance = path.read_text(encoding="utf-8")
         assert "stage-show" in guidance, host
@@ -87,6 +101,15 @@ def test_native_host_guidance_routes_resume_through_stage_show() -> None:
         assert "Do not infer" in guidance, host
         assert "approvals" in guidance and "skips" in guidance, host
         assert "waivers" in guidance, host
+        assert "checkpoint" in guidance, host
+        assert "continuous" in guidance, host
+        assert "Continue" in guidance, host
+        assert "Review" in guidance, host
+        assert "Revise or reimplement" in guidance, host
+        assert "Park" in guidance, host
+        assert "Approve and close" in guidance, host
+        assert "approval_source" in guidance, host
+        assert "Do not infer continuous" in guidance, host
         assert "commit" in guidance and "outside AEGIS" in guidance, host
 
 

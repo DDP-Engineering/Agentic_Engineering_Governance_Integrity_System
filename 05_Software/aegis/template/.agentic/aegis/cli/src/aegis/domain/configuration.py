@@ -15,13 +15,12 @@ from aegis.domain.values import RepositoryPath, WorkingDirectory
 
 @dataclass(frozen=True, slots=True)
 class ValidationCommand:
-    """@brief Define one named test, lint, or audit command."""
+    """@brief Define one named test, lint, or audit command guide."""
 
     category: str
     name: str
     command: tuple[str, ...]
     working_directory: WorkingDirectory
-    timeout_seconds: int
 
 
 @dataclass(frozen=True, slots=True)

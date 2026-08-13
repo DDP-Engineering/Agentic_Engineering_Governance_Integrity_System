@@ -17,14 +17,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
 from aegis.application.operation_registry import ALL_OPERATIONS
 from aegis.composition import create_dispatcher
 from aegis.infrastructure.codecs import parse_markdown_document
-from aegis.infrastructure.workspace import FileWorkspace
 from aegis.interface.cli import run_cli
 
-from tests.test_execution_integrity import configure_commands
 from tests.test_project_knowledge_trace import requirement_data
 from tests.test_run_stage_workflow import installed_repository
 
@@ -177,7 +174,6 @@ def test_registry_declares_the_complete_machine_revision_policy() -> None:
             "component.update": "required:component",
             "component.delete": "required:component",
             "trace.impacted": "required:stage",
-            "execution.run": "required:stage",
             "adoption.set_section": "required:adoption",
             "adoption.complete": "required:adoption",
             "adoption.abandon": "required:adoption",
@@ -483,60 +479,6 @@ def test_missing_attachment_revision_rejects_before_any_publication(
     assert response["error"]["code"] == "invalid_input"
     after = (stage_path.read_bytes(), run_path.read_bytes(), sorted(run_dir.iterdir()))
     assert after == before
-
-
-@pytest.mark.parametrize("stale", [False, True], ids=("missing", "stale"))
-def test_execution_revision_is_rejected_before_process_launch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stale: bool
-) -> None:
-    """@brief Missing/stale Stage authority prevents the configured side effect."""
-    repo = installed_repository(tmp_path)
-    configure_commands(repo)
-    create_run(repo)
-    advance_to_check(repo)
-    observed = show_stage(repo)
-    expected_revision = None
-    if stale:
-        evidence_exit, _ = invoke(
-            repo,
-            "evidence.add",
-            "evidence-add",
-            {
-                "kind": "manual",
-                "actor": "agent",
-                "procedure": "inspect",
-                "expected": "present",
-                "actual": "present",
-            },
-            expected_revision=observed["revision"],
-        )
-        assert evidence_exit == 0
-        expected_revision = observed["revision"]
-    calls = 0
-
-    def fail_if_launched(self: FileWorkspace, *args: Any, **kwargs: Any) -> Any:
-        del self, args, kwargs
-        nonlocal calls
-        calls += 1
-        raise AssertionError("configured command launched before revision rejection")
-
-    monkeypatch.setattr(FileWorkspace, "execute_command", fail_if_launched)
-    exit_code, response = invoke(
-        repo,
-        "execution.run",
-        "execution-run",
-        None,
-        "--category",
-        "tests",
-        "--name",
-        "pass",
-        expected_revision=expected_revision,
-    )
-
-    assert exit_code == (4 if stale else 2)
-    assert isinstance(response, dict)
-    assert response["error"]["code"] == ("state_conflict" if stale else "invalid_input")
-    assert calls == 0
 
 
 def test_read_only_machine_operations_and_human_mutation_need_no_token(

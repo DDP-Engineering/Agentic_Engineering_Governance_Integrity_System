@@ -87,7 +87,7 @@ defines the non-applicability.
 
 A version 1 candidate is accepted only when:
 
-1. all 206 `Must` requirements are mapped to applicable passing evidence;
+1. all 211 `Must` requirements are mapped to applicable passing evidence;
 2. the complete ticket-to-Delivery workflow passes on the required platform and
    test-framework matrix;
 3. all four delivery editions pass their applicable offline package scenarios;
@@ -178,7 +178,7 @@ not rely on system Python or Git for product operation.
 | `REPO-COLLAB` | Two working copies and branches used for independent and overlapping work. |
 | `REPO-SUBMODULE` | Simple parent repository with an independently governed Git submodule. |
 | `REPO-MALFORMED` | Copies containing BOM, CRLF, Windows-1252, invalid encoding, malformed state, and unsafe paths. |
-| `REPO-LARGE-OUTPUT` | Validation commands that produce bounded, large, slow, failing, cancelled, and unlaunchable outcomes. |
+| `REPO-LARGE-OUTPUT` | Agent- or developer-run validation commands with bounded, large, slow, failing, cancelled, and unlaunchable reported outcomes. |
 
 Fixtures contain only synthetic data and no credentials.
 
@@ -230,7 +230,7 @@ release; the lower-priority subset is reported separately.
 |---|---|---|---|---|
 | `AC-CONFIG-001` | Must | Automated | Installation into `REPO-NO-TESTS` produces complete usable configuration, selects `.agentic/tests/`, and requires no policy, mode, glob, or source-root questionnaire before the first Run. | `PR-CONFIG-001-003`; `PR-DEFAULT-001-002` |
 | `AC-CONFIG-002` | Must | Automated | Existing single and multiple test roots and confidently detectable `pytest`/`unittest` commands are configured without moving tests; uncertain detection uses and reports an applicable shipped default. | `PR-CONFIG-004-007`; `PR-SCOPE-003-005, 009` |
-| `AC-CONFIG-003` | Must | Automated | Independently named test, lint, and audit commands honor their working directories and configured timeout values. The shipped timeout is unlimited; pass, fail, timeout, cancellation, and launch error remain distinct. | `PR-CONFIG-006, 008-013` |
+| `AC-CONFIG-003` | Must | Automated | Independently named test, lint, and audit command guides retain their working directories. Agent- or developer-recorded pass, fail, timeout, cancellation, and launch-error outcomes remain distinct, and no AEGIS operation launches the configured command. | `PR-CONFIG-006, 008-013` |
 | `AC-DEFAULT-001` | Must | Automated + manual | With shipped configuration, edits, commands, findings, unfavorable evidence, and Stage closure are not refused. Strict prevention remains off and configuration can only add deliberately selected strictness. | `PR-DEFAULT-003-006`; `PR-POSTURE-001-003` |
 | `AC-OFFLINE-001` | Must | Automated network-denied | Core AEGIS and WAEGIS operations complete with outbound networking denied, initiate no data transmission, contain no telemetry/analytics/update checks, and retain all data locally. | `PR-OFF-001-006, 008-009` |
 | `AC-OFFLINE-002` | Should | Manual + integration | A fully air-gapped workflow completes when the operator separately supplies compatible local models and third-party project tools. Product behavior remains truthful when such a third-party tool is unavailable. | `PR-OFF-007` |
@@ -254,13 +254,15 @@ release; the lower-priority subset is reported separately.
 
 | Scenario | Priority | Method | Exercise and expected result | Requirements |
 |---|---|---|---|---|
-| `AC-RUN-001` | Must | End-to-end matrix | Raw ticket text in each platform/framework combination reaches approved Delivery through Intake, Alignment, Requirement, Design, Check, Implementation, Validation, and Delivery. Each Stage has its instruction and durable state; AEGIS performs no commit or other outward Git action. | `PR-WORKFLOW-001-004, 006-008`; `PR-DELIVERY-001-002`; `PR-BOUND-004` |
+| `AC-RUN-001` | Must | End-to-end matrix | Raw ticket text in each platform/framework combination reaches approved Delivery through Intake, Alignment, Requirement, Design, Check, Implementation, Validation, and Delivery. Each Stage has its instruction and durable state; AEGIS performs no commit or other outward Git action. | `PR-WORKFLOW-001-004, 006-013`; `PR-DELIVERY-001-002`; `PR-BOUND-004` |
 | `AC-RUN-002` | Must | End-to-end matrix | A developer-selected short Run for a small fix records Design as profile-omitted, retains Requirement, red-before-green, implementation, impacted Validation, and truthful Delivery, and costs proportionately less ceremony. | `PR-WORKFLOW-005`; `PR-POSTURE-001, 003`; `PR-RED-003` |
 | `AC-RUN-003` | Must | Automated | Multiple active and terminal Runs coexist. One local unversioned pointer selects at most one Run; selection can switch without changing either Run; routine commands use selected Run/current Stage; ambiguous selection changes nothing. | `PR-RUN-001-004`; `PR-COLLAB-001-004` |
 | `AC-RUN-004` | Must | Automated | Run creation in `REPO-DIRTY` records opening `HEAD`, staged, unstaged, and untracked state. Pre-existing work is not attributed to the Run and uncertain attribution is reported rather than invented. | `PR-RUN-005-007` |
 | `AC-STAGE-001` | Must | Automated + cross-session | A session stops during every Stage position in representative Runs. A new session resumes from `run.md`, current Stage, relevant project artifacts, and saved evidence without chat history or re-deriving completed work. | `PR-WORKFLOW-008`; `PR-SNAPSHOT-001-004`; `PR-SUCCESS-002` |
+| `AC-STAGE-002` | Must | Host end-to-end + inspection | Without explicit continuous delegation, every included Stage handoff presents a concise outcome, artifacts, evidence, findings, open questions, proposed handoff, and continue/review/revise-or-reimplement/park choices, then waits. Continue starts the next Stage, review and park do not mutate state, revision uses recorded Stage history, and Delivery requires approve-and-close. A separately exercised explicitly delegated Run crosses the same handoffs without prompts. | `PR-ROLE-001-004`; `PR-WORKFLOW-009-010` |
+| `AC-STAGE-003` | Must | Automated | Stage completion reports only blank configured required sections, unresolved designated existing references, malformed or absent outcomes for recorded command executions, and applicable approval or continuous-delegation state. It creates no automatic finding about scope precision, design quality, test adequacy, red-witness quality, finding importance, or risk acceptability. Actual execution, Git, fingerprint, and traceability facts remain visible in Stage checkpoints and Delivery. | `PR-WORKFLOW-011-013` |
 | `AC-EVOL-001` | Must | Automated | `scope-revise` preserves original ticket and prior Run interpretation, records actor/reason/time and before/after scope, identifies affected completed work/evidence, and permits fix-forward continuation without restarting. | `PR-EVOL-001-005` |
-| `AC-ROLE-001` | Must | End-to-end + inspection | Developer-operated, instructed-agent, and human-only Runs share the same contract. An agent explicitly instructed to finish may record approvals and continue without prompts; each decision records the represented actor, target, reason/conditions, and time. | `PR-ROLE-001-007`; `PR-ESCAPE-008` |
+| `AC-ROLE-001` | Must | End-to-end + inspection | Developer-operated, instructed-agent, and human-only Runs share the same contract. An agent defaults to Stage checkpoints and does not infer uninterrupted authority; an agent explicitly instructed to finish may record approvals and continue without prompts. Each decision records the represented actor, target, reason/conditions, and time. | `PR-ROLE-001-007`; `PR-ESCAPE-008` |
 | `AC-ESCAPE-001` | Must | Automated | Each skippable Stage can be skipped before work is applied with actor and reason; applied work cannot be retroactively skipped. Skipped, waived, exception-approved, and profile-omitted states remain distinct and never become passed. | `PR-ESCAPE-001-002, 004-009`; `PR-DEFAULT-004` |
 | `AC-ABANDON-001` | Must | Fault-injection + automated | Normal abandonment records a terminal Run outcome while preserving evidence. When Run state is unreadable, exceptional abandonment creates the sibling record without overwriting unreadable bytes. | `PR-ESCAPE-003, 010`; `PR-STATE-002-003` |
 | `AC-DELIVERY-001` | Must | Automated + manual judgement | Delivery concisely states requested/delivered outcome, artifact/code changes, actual evidence, changed tests, findings, escapes, residual risk, and `achieved`, `partially_achieved`, or `not_achieved`. Approval accepts report accuracy, not automatic claim satisfaction. | `PR-REPORT-001-003`; `PR-DELIVERY-001-004`; `PR-SUCCESS-003-004` |
@@ -283,11 +285,11 @@ release; the lower-priority subset is reported separately.
 
 | Scenario | Priority | Method | Exercise and expected result | Requirements |
 |---|---|---|---|---|
-| `AC-RED-001` | Must | Automated end-to-end | Check executes a relevant test and records an actual failing result and test fingerprint before implementation; later execution records green. The original red witness remains immutable in both full and short Runs. | `PR-RED-001-003`; `PR-INT-001, 004` |
+| `AC-RED-001` | Must | Automated end-to-end | The agent or developer executes a relevant test and records an actual failing result and test fingerprint in Check before implementation; later execution records green. The original red witness remains immutable in both full and short Runs. | `PR-RED-001-003`; `PR-INT-001, 004` |
 | `AC-RED-002` | Must | Automated | Genuinely inapplicable red-before-green uses an approved exception with actor and reason. Missing, skipped, or waived red evidence is visible in Delivery and is never rendered as passed. | `PR-RED-004-005`; `PR-ESCAPE-007-009` |
 | `AC-INT-001` | Must | Automated | After red evidence, one test is changed legitimately and another is unchanged. Green comparison names only the changed test, reports a finding without blocking, and works identically regardless of editor or host hooks. | `PR-INT-001-006` |
 | `AC-ZONE-001` | Must | Automated Git-state matrix | Check entry records `HEAD`, index, working tree, untracked paths, and implementation fingerprints. Staged, unstaged, untracked, renamed, deleted, and `HEAD`/index changes during Check are reported without staging, reverting, refusing, or altering them. | `PR-ZONE-001-007` |
-| `AC-EXEC-001` | Must | Automated | Tests may run during Check/Implementation; tests, lints, and audits run independently during Validation. Pass, fail, timeout, cancellation, and launch error are recorded accurately; large output is attached and summarized. | `PR-CONFIG-006, 008-013`; `PR-REPORT-002` |
+| `AC-EXEC-001` | Must | Automated | The agent or developer may run tests during Check/Implementation and tests, lints, and audits during Validation through normal host tooling. Pass, fail, timeout, cancellation, and launch error are recorded accurately; large output is attached and summarized; no AEGIS operation launches a project command. | `PR-CONFIG-006, 008-013`; `PR-REPORT-002` |
 | `AC-HARDEN-001` | Could | Automated/manual | If preventive write zones are implemented, they are opt-in and ship off; enabling them does not change default fingerprint detection or falsify refused/allowed outcomes. Otherwise they are declared deferred. | `PR-INT-007` |
 
 ## 13. Collaboration, hosts, and boundaries
@@ -298,8 +300,8 @@ release; the lower-priority subset is reported separately.
 | `AC-COLLAB-002` | Must | Git integration + inspection | Branches that update the same Requirement or test produce an ordinary visible source-control conflict. AEGIS never silently selects one branch's artifact, evidence, or coverage as the winner. | `PR-COLLAB-008, 011` |
 | `AC-COLLAB-003` | Should | Automated | After integration, `trace-validate` reports duplicate identities, missing targets, broken traceability, conflicting Component membership, and diverged coverage as advisory findings and performs no repair or branch selection. | `PR-COLLAB-009-010` |
 | `AC-HOST-001` | Must | Adapter contract | Every implemented host adapter invokes the same operation identifiers and produces the same workflow states, decisions, evidence, findings, defaults, and Delivery meaning as direct CLI use. | `PR-HOST-003-004`; `PR-SCOPE-005` |
-| `AC-HOST-002` | Should | Host matrix | Claude Code, Codex, Qwen Code, OpenCode, and Pi each complete a representative resume-and-continue flow through the same protocol. Missing adapters are explicitly deferred. | `PR-HOST-001-002` |
-| `AC-BOUND-001` | Must | Automated observation + review | AEGIS performs no commit, push, tag, branch, merge, pull-request, or outward-Git preflight; owns no tickets/sprints/assignment; does not claim CI enforcement or security-control guarantees; security conveniences remain findings. | `PR-WORKFLOW-006-007`; `PR-BOUND-001, 003-006` |
+| `AC-HOST-002` | Should | Host matrix | Claude Code, Codex, Qwen Code, OpenCode, and Pi each stop at a default checkpoint, present the four developer choices, and complete a representative resume-and-continue flow; each also honors explicit continuous delegation through the same protocol. Missing adapters are explicitly deferred. | `PR-HOST-001-002`; `PR-WORKFLOW-009-010` |
+| `AC-BOUND-001` | Must | Automated observation + review | AEGIS performs no project test, lint, audit, or validation command, commit, push, tag, branch, merge, pull-request, or outward-Git preflight; owns no tickets/sprints/assignment; does not claim CI enforcement or security-control guarantees; security conveniences remain findings. | `PR-WORKFLOW-006-007`; `PR-CONFIG-009`; `PR-BOUND-001, 003-006` |
 | `AC-BOUND-002` | Could | Automated/manual | If strict CI integration is provided, it is explicitly selected, remains outside default local behavior, and does not redefine AEGIS as CI. Otherwise it is declared deferred. | `PR-BOUND-002` |
 
 ## 14. Product-success audit
@@ -318,8 +320,8 @@ references the individual Product Requirement identifiers within each area.
 
 | Product Requirement area | Acceptance scenarios |
 |---|---|
-| `PR-ROLE` | `AC-ROLE-001`, `AC-RUN-001`, `AC-HOST-001` |
-| `PR-WORKFLOW` | `AC-RUN-001`, `AC-RUN-002`, `AC-STAGE-001`, `AC-COMP-001`, `AC-BOUND-001` |
+| `PR-ROLE` | `AC-ROLE-001`, `AC-STAGE-002`, `AC-RUN-001`, `AC-HOST-001` |
+| `PR-WORKFLOW` | `AC-RUN-001`, `AC-RUN-002`, `AC-STAGE-001`, `AC-STAGE-002`, `AC-STAGE-003`, `AC-COMP-001`, `AC-HOST-002`, `AC-BOUND-001` |
 | `PR-RUN` | `AC-RUN-003`, `AC-RUN-004`, `AC-PROTO-004`, `AC-COLLAB-001` |
 | `PR-EVOL` | `AC-EVOL-001` |
 | `PR-SNAPSHOT` | `AC-STAGE-001`, `AC-STATE-001`, `AC-ART-001` |

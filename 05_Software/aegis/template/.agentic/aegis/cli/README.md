@@ -27,6 +27,21 @@ structured `invalid_input`; they are not discarded. Exact-operation help is
 also registry-owned and includes purpose, required and optional arguments,
 result, and one minimal example.
 
+The runtime does not launch project tests, lints, audits, or other configured
+commands. `execution-list` returns read-only argument-array and working-directory
+guidance; callers execute through normal host tooling and record the observed
+outcome through `evidence-add`.
+
+`run-create` defaults `interaction_mode` to `checkpoint`. A `continuous` Run
+also requires a non-empty `execution_instruction`, which is stored in `run.md`;
+the runtime never infers delegation from arbitrary prose. After an included
+Stage handoff, machine and human output expose `data.checkpoint` with the Stage
+summary and Continue, Review, Revise, and Park choices. Delivery substitutes
+Approve and close. Review and Park do not mutate workflow state, while Continue
+and Revise route through the existing Stage operations. Agent-recorded Delivery
+approval uses `approval_source = "continuous_delegation"` only for a continuous
+Run; a checkpoint approval records `developer` after the developer chooses it.
+
 AEGIS discovers an installation by walking upward to a Git worktree containing
 `.agentic/config.toml`. It does not consult user-home configuration or cross a
 nested Git worktree boundary. An explicit global `--repo <path>` is always

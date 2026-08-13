@@ -334,17 +334,6 @@ class Dispatcher:
                 path=str(error.path),
             )
 
-    def validate_repository(
-        self,
-        start: str,
-        *,
-        operation: str,
-    ) -> OperationResult | None:
-        """@brief Validate an explicitly supplied repository location."""
-        _, error = self.resolve_repository(start, operation=operation)
-        return error
-
-
 # -----------------------------------------------------------------------------
 # END OF FILE
 # -----------------------------------------------------------------------------

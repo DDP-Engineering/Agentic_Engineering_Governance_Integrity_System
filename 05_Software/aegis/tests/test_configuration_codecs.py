@@ -28,7 +28,6 @@ from aegis.infrastructure.codecs import (
     parse_markdown_document,
     parse_project_config,
     render_markdown_document,
-    render_project_config,
 )
 from aegis.infrastructure.payload import load_payload_manifest, verify_payload
 
@@ -51,8 +50,8 @@ def test_general_text_decodes_supported_windows_forms_without_byte_guessing() ->
         decode_general_text(b"\x81", path="ticket.txt")
 
 
-def test_configuration_round_trip_is_canonical_and_supports_multiple_roots() -> None:
-    """@brief Canonical rendering preserves command arrays and unlimited timeout."""
+def test_configuration_parser_ignores_legacy_timeout() -> None:
+    """@brief Legacy timeout input stays readable without entering the model."""
     source = {
         "schema": 1,
         "artifact_type": "project_config",
@@ -75,7 +74,7 @@ def test_configuration_round_trip_is_canonical_and_supports_multiple_roots() -> 
                 "ruff": {
                     "command": ["ruff", "check", "."],
                     "working_directory": ".",
-                    "timeout_seconds": 12,
+                    "timeout_seconds": "ignored legacy value",
                 }
             },
         },
@@ -84,17 +83,15 @@ def test_configuration_round_trip_is_canonical_and_supports_multiple_roots() -> 
             "protected_scope_patterns": [],
         },
     }
-    rendered = render_project_config(parse_project_config(source, path="config.toml"))
-    reparsed = parse_project_config(rendered, path="config.toml")
+    parsed = parse_project_config(source, path="config.toml")
 
-    assert rendered.endswith(b"\n")
-    assert b"\r" not in rendered
-    assert [str(path) for path in reparsed.test_roots] == [
+    assert [str(path) for path in parsed.test_roots] == [
         "tests/unit",
         "tests/service",
     ]
-    assert reparsed.commands["tests.project"].timeout_seconds == 0
-    assert reparsed.commands["lints.ruff"].command == ("ruff", "check", ".")
+    assert parsed.commands["tests.project"].command == ("python", "-m", "pytest")
+    assert parsed.commands["lints.ruff"].command == ("ruff", "check", ".")
+    assert not hasattr(parsed.commands["tests.project"], "timeout_seconds")
 
 
 def test_toml_temporal_values_are_normalized_recursively() -> None:

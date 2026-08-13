@@ -14,7 +14,6 @@ runs = ".agentic/runs"
 [validation.tests.project]
 command = ["python", "-m", "unittest", "discover", "-s", ".agentic/tests"]
 working_directory = "."
-timeout_seconds = 0
 
 [policy]
 risk_attention_threshold = "medium"

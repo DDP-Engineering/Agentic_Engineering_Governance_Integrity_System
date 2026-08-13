@@ -27,6 +27,8 @@ it does not implement filesystem, Git, process, or presentation adapters.
 - `REQ-REL-2c12ed5d`, `REQ-REL-ce2d823d`, `REQ-REL-862a5141` - truthful opening
   snapshots, dirty-work preservation, and no unsupported authorship.
 - `REQ-FUNC-0ed3f1b4` - approval-controlled truthful Delivery closure.
+- `REQ-FUNC-ba164e6e` - default per-Stage checkpoints, durable continuous
+  delegation, choice-preserving handoffs, and Delivery approval provenance.
 - `REQ-FUNC-294b8bf7`, `REQ-REL-de2680dc` - resumable Adoption with visible gaps.
 - `REQ-TEST-71e4e6b2` - linked impacted tests with explicit full-suite fallback.
 - `REQ-FUNC-574eb6e6`, `REQ-FUNC-29090f7f`, `REQ-FUNC-7761f525` - current

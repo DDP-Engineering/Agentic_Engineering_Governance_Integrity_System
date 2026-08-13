@@ -205,6 +205,10 @@ Example input:
 - **CP-MODEL-011:** A host adapter exposes either one protocol-operation
   dispatcher or a small context-filtered tool set; it does not require a local
   model to choose from the entire command catalog on every turn.
+- **CP-MODEL-012:** In checkpoint interaction, a Stage handoff response exposes
+  one concise summary and the four human choices `continue`, `review`,
+  `revise`, and `park`. These choices are interaction guidance, not a compound
+  `next_actions` program for the agent to execute without user input.
 
 ## 5. AEGIS command catalog
 
@@ -238,7 +242,10 @@ payload operations apply to an installed AEGIS repository.
 - **CP-RUN-001:** `run.create` input contains exactly one of `ticket_text` or
   `ticket_path`. It defaults the profile to `full` and work type to `change` so
   ticket text remains the only required product input; Intake can refine the
-  work type without changing the ticket.
+  work type without changing the ticket. Its optional `interaction_mode` is
+  `checkpoint` or `continuous` and defaults to `checkpoint`; a caller may send
+  `continuous` only to represent an explicit developer instruction, preserved
+  in `execution_instruction`.
 - **CP-RUN-002:** Run creation may publish the Run summary, eight Stage files,
   initial repository baseline, and selected-context pointer as one cohesive
   creation transaction.
@@ -280,7 +287,7 @@ payload operations apply to an installed AEGIS repository.
 - **CP-STAGE-003:** Allowed section names are declared by Stage schema so a
   misspelled or inapplicable section returns `invalid_input`.
 - **CP-STAGE-004:** `stage.complete` can add findings discovered by completion
-  evaluation but does not run validation commands, approve the Stage, or start
+  evaluation but never launches a project command, approves the Stage, or starts
   the next Stage. When the selected Stage is Delivery and its approval is
   already recorded, completion atomically marks the Delivery Stage `completed`
   and the Run `delivered`, then clears the local pointer.
@@ -288,6 +295,17 @@ payload operations apply to an installed AEGIS repository.
   returns `invalid_transition` after the Stage work has been applied.
 - **CP-STAGE-006:** Stage mutation returns the new artifact revision for
   optimistic concurrency.
+- **CP-STAGE-007:** After an included non-Delivery Stage completes in
+  checkpoint interaction, the response data contains its checkpoint summary
+  and four human choices and does not recommend `stage.start` as an unattended
+  next action. After the developer chooses continue, `stage.start` remains the
+  atomic operation that begins the proposed next Stage.
+- **CP-STAGE-008:** Review and park require no workflow mutation. Revise uses
+  `stage.set_section` while the affected Stage is active or `stage.revisit`
+  after it completed or was skipped.
+- **CP-STAGE-009:** Delivery checkpoint data substitutes `approve_and_close`
+  for `continue`. The agent calls `decision.add` and `stage.complete` only after
+  that developer choice, unless the Run records explicit continuous mode.
 
 ### 5.5 Embedded Stage entries
 
@@ -317,8 +335,9 @@ states what was chosen. They do not create standalone entry files.
   visible.
 - **CP-ENTRY-006:** `attachment.add` copies content into the Run through atomic
   publication and never substitutes for a Stage conclusion.
-- **CP-ENTRY-007:** An instructed AI agent can record a decision and continue
-  without a separate confirmation prompt.
+- **CP-ENTRY-007:** An AI agent can record a decision and continue without a
+  separate confirmation prompt only when the selected Run records explicit
+  continuous-interaction delegation.
 
 ### 5.6 Requirements and Specifications
 
@@ -385,26 +404,29 @@ states what was chosen. They do not create standalone entry files.
 |---|---|---|
 | `trace.validate` | `trace-validate` | Report all cross-project and post-integration identity, Requirement, file, test, coverage, and Component findings. |
 | `trace.impacted` | `trace-impacted --input <source>` | Compute and record one impacted-test selection for the selected Run. |
-| `execution.list` | `execution-list [--stage <name>]` | List configured commands and recorded executions for the current or named Stage in the selected Run. |
-| `execution.run` | `execution-run --category <tests\|lints\|audits> --name <name> [--selection <label>]` | Execute one configured command and record one evidence entry in the current Stage. |
+| `execution.list` | `execution-list [--stage <name>]` | List configured command guides and recorded command evidence for the current or named Stage in the selected Run. |
 
 - **CP-EXECUTION-001:** `trace.impacted` records selection reasoning and either
   an impacted subset or a full-suite fallback in Validation Stage state.
-- **CP-EXECUTION-002:** `execution.run` executes exactly one named configured
-  command.
-- **CP-EXECUTION-003:** A test command can consume one previously recorded
-  impacted selection. Lint and audit commands use their configured arguments.
-- **CP-EXECUTION-004:** Check and Implementation may invoke test commands;
-  lints and repository audits are invoked from Validation.
-- **CP-EXECUTION-005:** Test execution during Check records relevant red
-  fingerprints. Later test execution compares current fingerprints and reports
-  changed tests.
+- **CP-EXECUTION-002:** AEGIS has no operation that invokes a configured project
+  command. The agent or developer runs a command using normal host tooling, then
+  records the observed outcome through `evidence.add`.
+- **CP-EXECUTION-003:** A test-command guide can be read with one previously
+  recorded impacted selection. Lint and audit guides retain their configured
+  arguments for the agent or developer.
+- **CP-EXECUTION-004:** The agent or developer may run tests during Check or
+  Implementation and may run tests, lints, and repository audits during
+  Validation; AEGIS records the reported outcomes without invoking them.
+- **CP-EXECUTION-005:** Test evidence reported during Check records relevant red
+  fingerprints. Later reported test evidence compares current fingerprints and
+  reports changed tests.
 - **CP-EXECUTION-006:** Starting Check records the repository comparison point;
   completing Check reports implementation paths changed since that point.
-- **CP-EXECUTION-007:** Standard input, output, error, exit status, timeout,
-  cancellation, and launch failure are handled by the process-runner boundary.
-- **CP-EXECUTION-008:** Large external output is captured in an Attachment and
-  summarized in the response and Stage evidence.
+- **CP-EXECUTION-007:** Evidence input records observed exit status, timeout,
+  cancellation, or launch failure without asking AEGIS to control the process.
+- **CP-EXECUTION-008:** The agent or developer may attach large external output;
+  AEGIS stores the Attachment reference and a concise reported result in Stage
+  evidence.
 
 ### 5.9 Adoption
 
@@ -454,8 +476,8 @@ applying one plan is one authorized lifecycle use case.
 - **CP-WAEGIS-004:** Plan and apply operations do not stage, commit, branch, tag,
   merge, push, or create pull requests.
 - **CP-WAEGIS-005:** Installation configuration contains detected project paths
-  and validation commands or the applicable shipped defaults, and keeps the
-  working-context pointer excluded from version control.
+  and validation command guides or the applicable shipped defaults, and keeps
+  the working-context pointer excluded from version control.
 - **CP-WAEGIS-006:** Upgrade and removal operate only on manifest-owned payload
   paths and preserve repository-owned data.
 
@@ -485,8 +507,8 @@ applying one plan is one authorized lifecycle use case.
 - **CP-RESPONSE-002:** Machine output uses UTF-8 without a byte-order mark.
 - **CP-RESPONSE-003:** Standard error remains empty in machine mode whenever the
   AEGIS process starts sufficiently to produce a protocol response.
-- **CP-RESPONSE-004:** Captured project-command output never interleaves with the
-  JSON response.
+- **CP-RESPONSE-004:** Caller-reported project-command output never interleaves
+  with the JSON response; fuller output is referenced through an Attachment.
 - **CP-RESPONSE-005:** JSON uses strings for UUIDs, timestamps, paths, digests,
   enums, and integer-sized values whose representation must remain stable.
 - **CP-RESPONSE-006:** Repository paths in data use repository-relative `/`
@@ -614,9 +636,9 @@ Configured test, lint, and audit execution returns one outcome:
 |---|---|---|
 | `passed` | Command completed with configured success status. | Passed for the recorded invocation. |
 | `failed` | Command completed with configured failure status. | Failed for the recorded invocation. |
-| `timed_out` | AEGIS ended it after a configured nonzero timeout. | Unknown. |
-| `cancelled` | Operator or instructed agent cancelled it. | Unknown. |
-| `launch_error` | The process could not start. | Unknown. |
+| `timed_out` | The reported command exceeded its available time limit. | Unknown. |
+| `cancelled` | The reported command was cancelled. | Unknown. |
+| `launch_error` | The reported command could not start. | Unknown. |
 
 - **CP-OUTCOME-001:** Every outcome above is a completed AEGIS operation when
   the attempt and result were durably recorded.
@@ -626,8 +648,8 @@ Configured test, lint, and audit execution returns one outcome:
   evidence; it is not encoded through the AEGIS process exit code.
 - **CP-OUTCOME-004:** A retry receives a new operation identity and evidence
   entry and preserves the earlier attempt.
-- **CP-OUTCOME-005:** Timeout and cancellation include the configured limit or
-  cancelling actor and the process-termination observation.
+- **CP-OUTCOME-005:** Reported timeout and cancellation include the observed
+  limit or cancelling actor and the available host observation.
 
 Example of a durably recorded failing validation command:
 
@@ -637,14 +659,14 @@ Example of a durably recorded failing validation command:
   "schema_version": 1,
   "product": "AEGIS",
   "product_version": "1.0.0",
-  "operation": "execution.run",
+  "operation": "evidence.add",
   "operation_id": "OP-d9428888f2d64e6f9c2d70e1965815b7",
   "operation_status": "completed",
   "run_id": "RUN-78aa94df7bbb4d548a83b54c05a2677a",
   "stage": "validation",
   "revision": "sha256:<64-lowercase-hex>",
   "outcome": "failed",
-  "message": "tests.project completed with failing status; evidence recorded.",
+  "message": "Reported tests.project failure recorded as evidence.",
   "data": {
     "category": "tests",
     "name": "project",
@@ -711,7 +733,7 @@ Example of a durably recorded failing validation command:
 | Code | Meaning |
 |---|---|
 | `invalid_input` | Missing, malformed, conflicting, or unsupported caller input. |
-| `not_found` | Requested repository object or configured command does not exist. |
+| `not_found` | Requested repository object or configured command guide does not exist. |
 | `ambiguous_run` | Run selection is required because several candidates exist. |
 | `invalid_transition` | Requested domain transition is not valid from current state. |
 | `state_conflict` | Expected revision, plan digest, or observed state is stale. |
@@ -723,9 +745,8 @@ Example of a durably recorded failing validation command:
 | `publication_failed` | The operation could not publish durable state atomically. |
 | `internal_error` | An unexpected AEGIS defect prevented completion. |
 
-- **CP-ERROR-006:** A configured project command that cannot launch uses the
-  recorded execution outcome `launch_error`, not `missing_prerequisite`, when
-  AEGIS successfully records the attempt.
+- **CP-ERROR-006:** A project command reported as unable to launch uses the
+  recorded evidence outcome `launch_error`, not `missing_prerequisite`.
 - **CP-ERROR-007:** `missing_prerequisite` applies when the requested AEGIS or
   WAEGIS use case cannot begin or be recorded because a required local product
   prerequisite is absent.
@@ -789,7 +810,7 @@ Next: review the Validation Stage
 | Domain | Run, Stage, Requirement, Component, evidence, finding, decision, transition, and outcome rules. | Python standard library and domain types only. |
 | Application use cases | One service per protocol operation; authorization, orchestration, transaction boundary, and result construction. | Domain and declared ports. |
 | Interface adapters | CLI parsing, JSON input/output, human presentation, and host translation. | Application use cases and protocol data types. |
-| Infrastructure adapters | Filesystem publication, TOML/Markdown persistence, Git observation, process execution, hashing, clock, and UUID generation. | Declared ports and external operating-system facilities. |
+| Infrastructure adapters | Filesystem publication, TOML/Markdown persistence, Git observation, hashing, clock, and UUID generation. | Declared ports and external operating-system facilities. |
 
 - **CP-ARCH-001:** Dependencies point inward. Domain and application behavior do
   not import CLI parsers, host adapters, filesystem implementations, Git
@@ -804,9 +825,9 @@ Next: review the Validation Stage
 - **CP-ARCH-005:** Git access is a read-only observation port for AEGIS workflow
   behavior. WAEGIS local initialization is a separate explicitly authorized
   infrastructure use case.
-- **CP-ARCH-006:** Configured command execution uses a process-runner port that
-  returns the five execution outcomes without exposing platform process details
-  to the domain.
+- **CP-ARCH-006:** AEGIS has no project-command process-runner port. Evidence
+  recording preserves caller-observed outcomes without exposing host-process
+  details to the domain.
 - **CP-ARCH-007:** Clock, UUIDv4 generation, hashing, and platform path behavior
   enter through replaceable ports so domain and application tests remain
   deterministic.
@@ -876,15 +897,14 @@ The Acceptance Plan must demonstrate at least:
    history.
 8. Requirement and Component reads work without Run selection; their mutations
    identify one source Run.
-9. One `execution.run` invocation launches exactly one named command.
-10. Passed, failed, timed-out, cancelled, and launch-error executions all return
-    exit zero after their evidence is durably recorded and retain distinct
-    `outcome` values.
+9. AEGIS never launches a project test, lint, audit, or validation command.
+10. Passed, failed, timed-out, cancelled, and launch-error outcomes are recorded
+    through evidence input and retain distinct `outcome` values.
 11. Invalid input, invalid transition, missing prerequisite, publication
     failure, and internal failure return their documented structured error and
     exit code without a traceback response.
-12. Large project-command output is captured as an Attachment and does not
-    expand the machine response unboundedly.
+12. Large project-command output can be attached as evidence and does not expand
+    the machine response unboundedly.
 13. Paginated lists let a limited-context model inspect large Run, Requirement,
     Component, and finding sets without loading the complete register.
 14. WAEGIS apply refuses a stale or altered plan as `state_conflict` and writes
@@ -906,7 +926,7 @@ The Acceptance Plan must demonstrate at least:
 | Atomic commands and limited-model interaction | `PR-MODEL`, `PR-PROTO`, `PR-POSTURE` | `FS-CORE`, `FS-INTERFACE` |
 | Run and Stage operations | `PR-WORKFLOW`, `PR-RUN`, `PR-SNAPSHOT`, `PR-ESCAPE` | `FS-RUN`, `FS-CONTEXT`, `FS-STAGE`, `FS-DURABLE` |
 | Project artifacts and traceability | `PR-REQ`, `PR-COMP`, `PR-TRACE` | `FS-PROJECT`, `FS-TRACE` |
-| Validation commands and outcomes | `PR-CONFIG`, `PR-RED`, `PR-INT` | `FS-CONFIG`, `FS-RESULT`, `FS-INTEGRITY` |
+| Validation command guidance and outcomes | `PR-CONFIG`, `PR-RED`, `PR-INT` | `FS-CONFIG`, `FS-RESULT`, `FS-INTEGRITY` |
 | Machine response and errors | `PR-PROTO`, `PR-ENC`, `PR-STATE` | `FS-INTERFACE`, `FS-EVIDENCE` |
 | WAEGIS lifecycle | `PR-WAEGIS`, `PR-PAYLOAD`, `PR-DEFAULT` | `FS-INSTALL`, `FS-UPGRADE`, `FS-REMOVE` |
 | Hosts and architecture boundaries | `PR-HOST`, `PR-RUNTIME`, `PR-MODEL` | `FS-INTERFACE`, `FS-ENV` |

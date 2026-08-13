@@ -5,6 +5,6 @@ instruction = "Select the complete safe impacted tests with reasons, or record a
 sections = ["inputs", "impacted_test_selection", "automated_validation_evidence", "manual_validation_evidence", "test_integrity_conclusion", "outputs_and_handoff"]
 common_findings = ["Impacted selection omits a linked test without a reason or fallback.", "Test, lint, audit, or manual results are merged into a stronger conclusion than evidence supports."]
 recovery_actions = [
-  { condition = "A configured safe validation command still needs evidence.", operation = "execution.run", guidance = "Run the named command and preserve its independent operational outcome." },
+  { condition = "A configured safe validation command still needs evidence.", operation = "evidence.add", guidance = "Run the named command with normal host tooling, then record its independent observed outcome." },
   { condition = "A completed or skipped implementation step must be corrected.", operation = "stage.revisit", guidance = "Revisit Implementation with the concrete reason, then resume the forward path." },
 ]

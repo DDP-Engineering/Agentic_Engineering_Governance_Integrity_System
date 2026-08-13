@@ -1,0 +1,89 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# One requirement = one independently verifiable behavior.
+# Lives at .agentic/requirements/<category>/<id>.toml
+# Required fields: schema, id, title, status, requirement, verification.
+
+schema = 1
+
+# REQ-<CAT>-<8 hex>. CAT is FUNC, UX, NFR, SEC, DATA, PLAT, REL or TEST,
+# and must match the category folder this file sits in.
+id = "REQ-FUNC-785d5956"
+
+title = "Record complete caller-observed command evidence"
+
+# draft while being written, active once it is built and tested,
+# retired when the behavior is deliberately removed.
+status = "active"
+
+# Self-contained prose: a reader with no other context must be able to
+# understand and check it. No ticket numbers, no run IDs, no references
+# to other requirements.
+#
+# Recommended shape - EARS. Pick the one pattern that fits; a stated
+# trigger or condition is what the test has to arrange, so surfacing it
+# here is what makes the behavior testable:
+#
+#   ubiquitous  The <system> shall <response>.
+#   event       When <trigger>, the <system> shall <response>.
+#   state       While <state>, the <system> shall <response>.
+#   unwanted    If <condition>, then the <system> shall <response>.
+#   optional    Where <feature is included>, the <system> shall <response>.
+#
+# Two "shall" clauses means two behaviors: split it into two requirements.
+# Do not contort prose to fit a pattern - a constraint that reads better
+# plainly is better plainly.
+requirement = """
+When an agent or developer reports an observed project-command result, AEGIS
+shall record the complete outcome and associated factual evidence without
+claiming that AEGIS executed the command.
+"""
+
+# The observation that settles whether the behavior holds — not a
+# restatement of the requirement.
+#
+# Some behaviors no test can settle: a look-and-see judgement, an install
+# on clean hardware, a printed page. Start this field with "Manual:" or
+# "Inspection:" and name the method, and `check` records the requirement
+# as verified by hand instead of counting it among the tests still owed.
+# The prefix alone is not enough — it has to say what someone does.
+verification = "Automated evidence.add tests record passed, failed, timed_out, cancelled, and launch_error outcomes with command or selector, working directory, compatible exit status, concise result, applicable selected tests, optional Attachment reference, reported provenance, red fingerprints, and later changed-test comparison."
+
+# Repo-relative, forward slashes. The source files this behavior lives in.
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/execution_operations.py",
+    "05_Software/aegis/template/.agentic/aegis/workflows/check.toml",
+    "05_Software/aegis/template/.agentic/aegis/workflows/validation.toml",
+    "05_Software/aegis/tests/test_stage_completion_expectations.py",
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py",
+    "05_Software/aegis/README.md",
+    "00_Planning/AEGIS_ARTIFACT_MODEL.md",
+    "00_Planning/AEGIS_CLI_MACHINE_PROTOCOL.md",
+    "00_Planning/templates/05-check.md",
+    "00_Planning/templates/07-validation.md",
+    "CHANGELOG.md",
+]
+
+# "tests/path/test_file.py::test_name" entries. Kept current during build;
+# these select the impacted regression set.
+linked_tests = [
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py::test_reported_evidence_supports_all_outcomes_optional_tests_and_attachment",
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py::test_reported_red_and_green_preserve_fingerprint_comparison",
+    "05_Software/aegis/tests/test_runtime_integrity_contracts.py::test_complete_valid_evidence_kinds_remain_recordable",
+]
+
+# --- optional below this line ---
+
+# "specs/REQ-FUNC-00000000.md" when the requirement alone is not buildable.
+spec = ""
+
+priority = "high"   # low | normal | high
+rationale = "Reported evidence must preserve operational truth, retry history, and integrity comparisons after command execution moves outside AEGIS."
+
+created = 2026-08-13
+updated = 2026-08-13

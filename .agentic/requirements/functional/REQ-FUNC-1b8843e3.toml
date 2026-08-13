@@ -1,0 +1,88 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# One requirement = one independently verifiable behavior.
+# Lives at .agentic/requirements/<category>/<id>.toml
+# Required fields: schema, id, title, status, requirement, verification.
+
+schema = 1
+
+# REQ-<CAT>-<8 hex>. CAT is FUNC, UX, NFR, SEC, DATA, PLAT, REL or TEST,
+# and must match the category folder this file sits in.
+id = "REQ-FUNC-1b8843e3"
+
+title = "Evaluate Stage completion from structural facts only"
+
+# draft while being written, active once it is built and tested,
+# retired when the behavior is deliberately removed.
+status = "active"
+
+# Self-contained prose: a reader with no other context must be able to
+# understand and check it. No ticket numbers, no run IDs, no references
+# to other requirements.
+#
+# Recommended shape - EARS. Pick the one pattern that fits; a stated
+# trigger or condition is what the test has to arrange, so surfacing it
+# here is what makes the behavior testable:
+#
+#   ubiquitous  The <system> shall <response>.
+#   event       When <trigger>, the <system> shall <response>.
+#   state       While <state>, the <system> shall <response>.
+#   unwanted    If <condition>, then the <system> shall <response>.
+#   optional    Where <feature is included>, the <system> shall <response>.
+#
+# Two "shall" clauses means two behaviors: split it into two requirements.
+# Do not contort prose to fit a pattern - a constraint that reads better
+# plainly is better plainly.
+requirement = """
+When an included Stage is completed, AEGIS shall report only common structural
+record defects and observable factual findings without creating an automatic
+engineering-quality judgement.
+"""
+
+# The observation that settles whether the behavior holds — not a
+# restatement of the requirement.
+#
+# Some behaviors no test can settle: a look-and-see judgement, an install
+# on clean hardware, a printed page. Start this field with "Manual:" or
+# "Inspection:" and name the method, and `check` records the requirement
+# as verified by hand instead of counting it among the tests still owed.
+# The prefix alone is not enough — it has to say what someone does.
+verification = "Automated tests complete representative full and short profile Stages with blank and None sections, missing designated references, invalid command outcomes, applicable approval state, passing pre-implementation evidence, changed-test fingerprints, and Git changes, then confirm only structural and factual findings are produced."
+
+# Repo-relative, forward slashes. The source files this behavior lives in.
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/stage_expectations.py",
+    "05_Software/aegis/template/.agentic/aegis/cli/src/aegis/application/workflow_operations.py",
+    "05_Software/aegis/tests/test_stage_completion_expectations.py",
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py",
+    "05_Software/aegis/README.md",
+    "00_Planning/AEGIS_FUNCTIONAL_SPECIFICATION.md",
+    "00_Planning/AEGIS_ACCEPTANCE_PLAN.md",
+    "CHANGELOG.md",
+]
+
+# "tests/path/test_file.py::test_name" entries. Kept current during build;
+# these select the impacted regression set.
+linked_tests = [
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py::test_stage_evaluator_reports_only_common_structural_findings",
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py::test_stage_evaluator_reports_blank_none_reference_and_outcome_facts",
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py::test_applicable_approval_is_structural_and_continuous_delegation_satisfies_it",
+    "05_Software/aegis/tests/test_structural_stage_and_reported_execution.py::test_reported_red_and_green_preserve_fingerprint_comparison",
+    "05_Software/aegis/tests/test_stage_completion_expectations.py::test_completion_evaluates_only_structural_intake_expectations",
+    "05_Software/aegis/tests/test_stage_completion_expectations.py::test_blank_sections_are_reported_and_completion_remains_advisory",
+]
+
+# --- optional below this line ---
+
+# "specs/REQ-FUNC-00000000.md" when the requirement alone is not buildable.
+spec = ""
+
+priority = "high"   # low | normal | high
+rationale = "Stage closure records objective completeness while engineering judgement remains with the developer at the checkpoint."
+
+created = 2026-08-13
+updated = 2026-08-13

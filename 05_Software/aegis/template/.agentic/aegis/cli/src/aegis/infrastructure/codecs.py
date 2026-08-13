@@ -121,14 +121,10 @@ def parse_project_config(source: bytes | dict[str, Any], *, path: str) -> Projec
                 )
             for name, raw in collection.items():
                 command = raw["command"]
-                timeout = raw["timeout_seconds"]
                 if (
                     not isinstance(command, list)
                     or not command
                     or not all(isinstance(item, str) and item for item in command)
-                    or not isinstance(timeout, int)
-                    or isinstance(timeout, bool)
-                    or timeout < 0
                 ):
                     raise ArtifactDecodeError(
                         f"invalid validation command {category}.{name}", path=path
@@ -139,7 +135,6 @@ def parse_project_config(source: bytes | dict[str, Any], *, path: str) -> Projec
                     name=name,
                     command=tuple(command),
                     working_directory=WorkingDirectory(raw["working_directory"]),
-                    timeout_seconds=timeout,
                 )
         policy = data.get("policy", {})
         patterns = policy.get("protected_scope_patterns", [])
@@ -165,46 +160,6 @@ def parse_project_config(source: bytes | dict[str, Any], *, path: str) -> Projec
         raise ArtifactDecodeError(
             "malformed project configuration", path=path
         ) from error
-
-
-def render_project_config(config: ProjectConfig) -> bytes:
-    """@brief Render one deterministic UTF-8/LF project configuration."""
-    lines = [
-        "schema = 1",
-        'artifact_type = "project_config"',
-        "",
-        "[paths]",
-        f"requirements = {_toml_string(str(config.requirements))}",
-        f"components = {_toml_string(str(config.components))}",
-        f"tests = {_toml_array([str(path) for path in config.test_roots])}",
-        f"adoptions = {_toml_string(str(config.adoptions))}",
-        f"runs = {_toml_string(str(config.runs))}",
-    ]
-    for key in sorted(config.commands):
-        command = config.commands[key]
-        lines.extend(
-            (
-                "",
-                f"[validation.{command.category}.{command.name}]",
-                f"command = {_toml_array(list(command.command))}",
-                f"working_directory = {_toml_string(str(command.working_directory))}",
-                f"timeout_seconds = {command.timeout_seconds}",
-            )
-        )
-    lines.extend(
-        (
-            "",
-            "[policy]",
-            (
-                "risk_attention_threshold = "
-                f"{_toml_string(config.risk_attention_threshold)}"
-            ),
-            "protected_scope_patterns = "
-            + _toml_array(list(config.protected_scope_patterns)),
-            "",
-        )
-    )
-    return "\n".join(lines).encode("utf-8")
 
 
 def _render_toml_value(value: Any) -> str:
@@ -551,6 +506,10 @@ def _render_run_body(metadata: dict[str, Any], state: dict[str, Any]) -> list[st
         "## Execution instruction",
         "",
         f"- Actor: {_table_cell(state.get('actor', 'operator'))}",
+        (
+            "- Interaction mode: "
+            f"{_table_cell(metadata.get('interaction_mode', 'checkpoint'))}"
+        ),
         (
             "- Developer instruction affecting interaction: "
             f"{_table_cell(state.get('execution_instruction', 'None'))}"

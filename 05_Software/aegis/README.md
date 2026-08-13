@@ -38,6 +38,22 @@ Implemented behavior includes:
 Default policy is advisory and non-blocking. Findings never manufacture a pass
 and never perform developer-owned outward Git actions.
 
+AI-operated Runs use `interaction_mode = "checkpoint"` by default, including
+legacy Run files without that field. `run.create` accepts `continuous` only as
+a structured mode accompanied by a non-empty durable developer execution
+instruction; broad ticket prose, host permissions, prior autonomy, and silence
+do not select it. Run list/show and Stage resume context return the resolved
+mode.
+
+After each included non-Delivery Stage completes or is skipped,
+`data.checkpoint` carries the concise outcome, changed artifact paths, evidence,
+findings, open questions, proposed handoff, and four human choices. Checkpoint
+mode returns no unattended `stage.start` next action: Continue uses the existing
+`stage.start`, Review and Park perform no operation, and Revise or reimplement
+uses `stage.set_section` or `stage.revisit`. Continuous mode retains the same
+handoff summary with `required = false` and may return the existing atomic next
+action.
+
 `config-validate` inspects pending `.agentic/.runtime/transactions/TXN-*`
 material before any recovery-capable path read. It returns up to ten
 informational findings with recognizable repository-relative transaction paths,
@@ -119,8 +135,12 @@ literal in the structured error's sorted `details.allowed` list. Structural
 test-link and covered-file errors retain their existing fields without
 presenting purpose choices as an unrelated remedy.
 
-Delivery completion uses the latest decision whose target is `delivery`; a
-later rejection supersedes an earlier approval and leaves the Run active.
+Delivery replaces Continue with Approve and close. An approved Delivery decision
+records `approval_source = "developer"` after that explicit checkpoint choice,
+or `approval_source = "continuous_delegation"` only when the Run durably records
+continuous mode. Delivery completion uses the latest decision whose target is
+`delivery`; a later rejection supersedes an earlier approval and leaves the Run
+active.
 When either terminal precondition is missing, the structured error points to
 the exact `decision.add` approval or `stage.set_section` `terminal_result`
 correction and returns one bounded atomic next action.
@@ -134,14 +154,14 @@ execution mode. Check content changes and repository-state changes remain
 visible from their durable findings even when author-written Delivery prose
 denies them. Red-before-green state distinguishes a skipped Check, an underlying
 recorded witness, the valid completed-Check witness or approved-exception
-conclusion, and whether a later executed green exists. It also reports tests
+conclusion, and whether a later reported green exists. It also reports tests
 changed after red evidence, whether fingerprint comparison was performed, the
 total number of open findings, counts by severity, and sorted Stage names
 containing them, including findings produced while Delivery completion is
-evaluated. Evidence recorded by `execution.run` has `provenance = "executed"`;
-evidence submitted through `evidence.add` has `provenance = "reported"`,
-regardless of caller input. When Check records more than one red witness, later
-Implementation and Validation test executions compare current Git-visible test
+evaluated. Evidence submitted through `evidence.add` has
+`provenance = "reported"`, regardless of caller input. When Check records more
+than one red witness, later Implementation and Validation test reports compare
+current Git-visible test
 fingerprints with every usable witness and report the deterministic union of
 changed paths; revisiting Check does not replace or mutate earlier evidence.
 Author-written Delivery sections remain unchanged, and completion remains
@@ -149,37 +169,30 @@ advisory and non-blocking. Callers cannot replace `recorded_state` through
 `stage.set_section`.
 
 `stage.complete` reports `evaluated_expectation_count` as the number of clean
-or failing section, approval, red/green, and configured-command expectations
-actually evaluated; it is independent of the number of findings produced.
+or failing structural expectations actually evaluated. The common evaluator
+checks nonblank required sections, existence of designated references,
+recognized recorded-command outcomes, and applicable approval or continuous
+delegation. It does not judge scope quality, design sufficiency, test quality,
+red-witness adequacy, risk quality, or finding importance. Factual evidence,
+including command reports, test fingerprints, Git observations, traceability,
+and path validity, remains visible without becoming a quality gate.
 Implicit Stage transitions, profile changes, attachments, Requirements,
 Components, and trace-selection events inherit the Run's durable actor. An
 operation that accepts an actor continues to preserve the caller-supplied
 value, and Runs without an explicit actor retain the `operator` default.
 
-Configured tests, lints, and audits may execute during any active Stage. Tests
-remain expected during Check, Implementation, and Validation; lints and audits
-remain expected during Validation. An execution outside its expected Stage
-window records the actual command evidence and outcome unchanged, adds an open
-`execution_outside_expected_stage` warning naming the command, actual Stage,
-and expected window, and does not block continuation or Stage completion.
-Check failures remain the only executions that create red witnesses, and only
-Implementation or Validation test executions compare fingerprints with them.
-When a direct pytest executable or pytest/`unittest discover` module launched
-by a recognized Python executable exits 5 because it collected or executed no
-tests, AEGIS records compatibility outcome `launch_error`,
-`engineering_conclusion = "unknown"`, the retained exit status, and an explicit
-no-tests reason. Merely passing `-m pytest` or `-m unittest` to another tool does
-not trigger this interpretation. Such evidence remains advisory and can never
-become a red witness. Exit 5 from unrelated commands remains a completed
-failure, and genuine failing tests retain normal red-witness behavior.
-
-Impacted selection includes only existing tests below configured test roots
-with safe selectors. An invalid linked test selects the configured full suite
-and records the exact fallback reason. When a configured test command uses
-`unittest discover`, `execution.run` preserves that command unchanged, executes
-the full suite, and records effective `selection_mode = "full"` plus
-`selection_fallback_reasons`; pytest and direct-unittest commands still receive
-their selected test arguments. Native host guidance invokes the flat CLI token
+AEGIS never launches project tests, lints, audits, or other configured project
+commands. `execution.list` is a read-only guide that returns configured argument
+arrays and working directories. The developer or agent runs the selected
+command with normal host tooling and records the observed result with
+`evidence.add`. New configuration contains no command timeout field; legacy
+`timeout_seconds` values remain readable and are ignored. Reported outcomes are
+`passed`, `failed`, `timed_out`, `cancelled`, and `launch_error`; the last three
+retain the engineering conclusion `unknown`. Tests are optional for lint and
+audit evidence, and an existing Attachment may be referenced for fuller logs.
+Reported Check failures capture Git-visible test fingerprints; later reported
+Implementation or Validation test evidence compares current fingerprints with
+every usable Check witness. Native host guidance invokes the flat CLI token
 `stage-show`; adapter and machine responses continue to identify the operation
 as `stage.show`. The loadable project starters are
 `.claude/skills/aegis/SKILL.md`, `.codex/skills/aegis/SKILL.md`,
@@ -281,10 +294,12 @@ the configured test roots, applicable commands, risk threshold, and protected
 path patterns. Explicit `--run` or `--stage` inspection does not change the
 selected-Run pointer. Missing, unreadable, or stale references remain visible
 as findings and unavailable entries rather than disappearing or being
-reconstructed. The response proposes one atomic `next_actions` continuation:
-record the next open section or complete active work, start the next pending
-Stage after completion or skip, return from historical inspection to the
-current Stage, or read the terminal Run.
+reconstructed. For active work, the response proposes one atomic `next_actions`
+continuation: record the next open section or complete active work, start the
+next pending Stage only under explicit continuous mode, return from historical
+inspection to the current Stage, or read the terminal Run. A completed
+checkpoint-mode Stage instead returns its human choices in `data.checkpoint`
+and waits.
 
 Stage sections, evidence, findings, decisions, and escapes occur once as
 top-level bounded collections. `stage_state` carries only the Stage status,
@@ -376,7 +391,7 @@ aegis --repo C:\path\to\installed-project --format json stage-show
 aegis --repo C:\path\to\installed-project --format json --expected-revision sha256:<64-lowercase-hex> stage-set-section --input section.json
 aegis --repo C:\path\to\installed-project run-create --input ticket.json
 aegis --repo C:\path\to\installed-project --expected-revision sha256:<64-lowercase-hex> run-set-profile --profile short --input profile-change.json
-aegis --repo C:\path\to\installed-project execution-run --category tests --name project
+aegis --repo C:\path\to\installed-project execution-list --stage validation
 ```
 
 Structured input files and stdin use `aegis.machine.input` schema version 1.

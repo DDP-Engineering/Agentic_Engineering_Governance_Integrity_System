@@ -20,7 +20,6 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from aegis.domain.execution import CancellationToken, ExecutionRequest, ExecutionResult
 from aegis.domain.values import RepositoryPath, ValueValidationError
 from aegis.infrastructure.codecs import (
     ArtifactDecodeError,
@@ -32,7 +31,6 @@ from aegis.infrastructure.codecs import (
     render_requirement,
 )
 from aegis.infrastructure.payload import load_payload_manifest, verify_payload
-from aegis.infrastructure.process import execute_process
 from aegis.infrastructure.transactions import (
     FileMutation,
     RecoveryError,
@@ -393,42 +391,6 @@ class FileWorkspace:
             raise WorkspaceError(
                 "malformed_state", error.summary, path=error.path
             ) from error
-
-    def execute_command(
-        self,
-        category: str,
-        name: str,
-        *,
-        additional_arguments: tuple[str, ...] = (),
-        cancellation: CancellationToken | None = None,
-    ) -> tuple[Any, ExecutionResult]:
-        """@brief Execute one exact named configuration entry."""
-        key = f"{category}.{name}"
-        command = self.config.commands.get(key)
-        if command is None:
-            raise WorkspaceError(
-                "not_found", "Configured validation command does not exist."
-            )
-        cwd = (
-            self.root
-            if str(command.working_directory) == "."
-            else self._path(str(command.working_directory))
-        )
-        if not cwd.is_dir():
-            raise WorkspaceError(
-                "repository_error",
-                "Configured working directory is unavailable.",
-                path=str(command.working_directory),
-            )
-        result = execute_process(
-            ExecutionRequest(
-                command.command + additional_arguments,
-                cwd,
-                command.timeout_seconds,
-            ),
-            cancellation=cancellation,
-        )
-        return command, result
 
     def _external_path(self, path: str) -> Path:
         candidate = Path(path)

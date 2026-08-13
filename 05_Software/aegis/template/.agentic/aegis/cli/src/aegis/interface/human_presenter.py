@@ -221,6 +221,47 @@ def _render_next_action(action: dict[str, object]) -> str:
         value += f" - {reason}"
     return _line("Next", value)
 
+
+def _entry_count(value: object) -> str:
+    """@return A concise entry count from one checkpoint collection."""
+    count = value.get("count", 0) if isinstance(value, dict) else 0
+    return f"{count} {'entry' if count == 1 else 'entries'}"
+
+
+def _render_checkpoint(lines: list[str], checkpoint: dict[object, object]) -> None:
+    """@brief Render the Stage handoff summary and developer choices."""
+    required = checkpoint.get("required") is True
+    lines.append(
+        _line(
+            "Checkpoint",
+            "developer choice required" if required else "continuous delegation",
+        )
+    )
+    summary = checkpoint.get("summary")
+    if isinstance(summary, dict):
+        lines.append(_line("Stage outcome", summary.get("outcome", "None")))
+        changed = summary.get("changed_artifacts", [])
+        if isinstance(changed, list):
+            for path in changed[:_MAX_SECTION_ITEMS]:
+                lines.append(_line("Changed artifact", path))
+        for label, item_label, value in (
+            ("Evidence", "Evidence", summary.get("evidence")),
+            ("Findings", "Finding", summary.get("findings")),
+        ):
+            lines.append(_line(label, _entry_count(value)))
+            if isinstance(value, dict) and isinstance(value.get("items"), list):
+                for item in value["items"][:5]:
+                    lines.append(_line(f"  {item_label}", item))
+        lines.append(_line("Open questions", summary.get("open_questions", "None")))
+        lines.append(
+            _line("Proposed handoff", summary.get("proposed_handoff", "None"))
+        )
+    choices = checkpoint.get("choices", [])
+    if isinstance(choices, list):
+        for choice in choices[:4]:
+            if isinstance(choice, dict):
+                lines.append(_line("Choice", choice.get("label", "unknown")))
+
 # -----------------------------------------------------------------------------
 # EXPORTED FUNCTIONS / PUBLIC API
 # -----------------------------------------------------------------------------
@@ -270,6 +311,9 @@ def render_human(result: OperationResult) -> str:
             continue
         if key == "machine_input" and isinstance(value, dict):
             _render_machine_input(lines, value, detail_reference)
+            continue
+        if key == "checkpoint" and isinstance(value, dict):
+            _render_checkpoint(lines, value)
             continue
         inline = _inline_value(value)
         rendered = inline if inline is not None else _summary(value, detail_reference)

@@ -52,6 +52,7 @@ _STAGE_FILES = {
 _RUN_ID = re.compile(r"^RUN-[0-9a-f]{32}$")
 _CURSOR = re.compile(r"^(0|[1-9][0-9]*)$")
 _DECISIONS = frozenset({"approved", "rejected", "exception_approved"})
+_INTERACTION_MODES = frozenset({"checkpoint", "continuous"})
 _EVIDENCE_KINDS = frozenset({"manual", "automated", "imported"})
 _DISPOSITIONS = {"open", "resolved", "accepted", "waived", "not_applicable"}
 _AUTOMATED_OUTCOMES = {
@@ -143,6 +144,7 @@ def _error(
     definition: OperationDefinition,
     error: UseCaseError,
     *,
+    data: dict[str, Any] | None = None,
     next_actions: tuple[dict[str, Any], ...] = (),
 ) -> OperationResult:
     return OperationResult(
@@ -152,6 +154,7 @@ def _error(
         operation_id=context.operation_id,
         operation_status="error",
         message=error.summary,
+        data=data or {},
         error=ProtocolError(
             code=error.code,
             summary=error.summary,
@@ -259,6 +262,15 @@ def _require_active_stage(metadata: dict[str, Any]) -> None:
 
 def _validate_automated_evidence(entry: dict[str, Any]) -> None:
     """@brief Validate the complete truthful automated-evidence contract."""
+    category = entry.get("category")
+    if category not in {"tests", "lints", "audits"}:
+        raise UseCaseError(
+            "invalid_input",
+            "Automated evidence category is invalid.",
+            field="category",
+            details={"allowed": ["audits", "lints", "tests"]},
+        )
+    _require_text(entry, "name")
     command = entry.get("command")
     selector = entry.get("selector")
     if command is not None and (
@@ -316,7 +328,7 @@ def _validate_automated_evidence(entry: dict[str, Any]) -> None:
         )
     _require_text(entry, "observed_result")
     tests = entry.get("tests")
-    if (
+    if tests is not None and (
         not isinstance(tests, list)
         or not tests
         or not all(isinstance(test, str) and test.strip() for test in tests)
@@ -326,6 +338,106 @@ def _validate_automated_evidence(entry: dict[str, Any]) -> None:
             "Automated evidence tests must be a list of non-empty selectors.",
             field="tests",
         )
+    if category == "tests" and tests is None:
+        raise UseCaseError(
+            "invalid_input",
+            "Reported test evidence requires selected tests.",
+            field="tests",
+        )
+    attachment = entry.get("attachment")
+    if attachment is not None and (
+        not isinstance(attachment, str) or not attachment.strip()
+    ):
+        raise UseCaseError(
+            "invalid_input",
+            "Automated evidence attachment must be a non-empty reference path.",
+            field="attachment",
+        )
+
+
+def _current_test_fingerprints(
+    context: OperationContext, workspace: Workspace
+) -> dict[str, str]:
+    """@return Exact-byte fingerprints for Git-visible configured tests."""
+    fingerprints: dict[str, str] = {}
+    for root in workspace.config.test_roots:
+        for path in workspace.git_visible_files(str(root)):
+            fingerprints[path] = context.hash_service.digest(workspace.read_bytes(path))
+    return fingerprints
+
+
+def _reported_evidence_facts(
+    context: OperationContext,
+    workspace: Workspace,
+    *,
+    run_id: str,
+    stage: str,
+    entry: dict[str, Any],
+    stage_state: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """@brief Add fingerprints and factual findings to reported evidence."""
+    findings: list[dict[str, Any]] = []
+    now = entry["time"]
+    outcome = entry["outcome"]
+    category = entry["category"]
+    entry["engineering_conclusion"] = (
+        outcome if outcome in {"passed", "failed"} else "unknown"
+    )
+    if category == "tests" and stage == "check" and outcome == "failed":
+        entry["fingerprints"] = _current_test_fingerprints(context, workspace)
+        entry["red_witness"] = bool(entry["fingerprints"])
+    elif category == "tests" and stage in {"implementation", "validation"}:
+        check_path = f"{workspace.config.runs}/{run_id}/{_STAGE_FILES['check']}"
+        _, check_state, _ = workspace.load_document(check_path)
+        red_fingerprints = [
+            item["fingerprints"]
+            for item in check_state.get("evidence", [])
+            if isinstance(item, dict)
+            and item.get("red_witness") is True
+            and isinstance(item.get("fingerprints"), dict)
+            and item["fingerprints"]
+        ]
+        if red_fingerprints:
+            current = _current_test_fingerprints(context, workspace)
+            changed = sorted(
+                {
+                    path
+                    for recorded in red_fingerprints
+                    for path in set(recorded) | set(current)
+                    if current.get(path) != recorded.get(path)
+                }
+            )
+            entry["red_fingerprint_comparison"] = {
+                "changed_tests": changed,
+                "current": current,
+            }
+            for path in changed:
+                findings.append(
+                    {
+                        "code": "test_changed_after_red",
+                        "severity": "warning",
+                        "observation": f"{path} changed after red evidence.",
+                        "consequence": (
+                            "The developer decides whether the change is legitimate."
+                        ),
+                        "disposition": "open",
+                        "time": now,
+                        "artifact": path,
+                    }
+                )
+    if outcome != "passed":
+        conclusion = entry["engineering_conclusion"]
+        findings.append(
+            {
+                "code": f"execution_{outcome}",
+                "severity": "warning",
+                "observation": f"{category}.{entry['name']} was reported as {outcome}.",
+                "consequence": f"The recorded engineering conclusion is {conclusion}.",
+                "disposition": "open",
+                "time": now,
+            }
+        )
+    return findings
 
 
 def _delivery_recorded_state(
@@ -482,7 +594,7 @@ def _delivery_recorded_state(
                 evidence.get("kind") == "automated"
                 and evidence.get("category") == "tests"
                 and evidence.get("outcome") == "passed"
-                and evidence.get("provenance") == "executed"
+                and evidence.get("provenance") in {"executed", "reported"}
                 and isinstance(comparison, dict)
             ):
                 fingerprint_comparison_performed = True
@@ -516,7 +628,7 @@ def _delivery_recorded_state(
     check_skipped = check_meta.get("status") == "skipped"
     later_executed_green = any(
         item["stage"] in {"implementation", "validation"}
-        and item["provenance"] == "executed"
+        and item["provenance"] in {"executed", "reported"}
         for item in green_test_evidence
     )
     valid_witness = raw_red_state["valid_witness"] and not check_skipped
@@ -624,6 +736,15 @@ def _load_run(
         raise UseCaseError(
             "malformed_state", "Run identity and path disagree.", path=path
         )
+    interaction_mode = metadata.get("interaction_mode", "checkpoint")
+    if interaction_mode not in _INTERACTION_MODES:
+        raise UseCaseError(
+            "malformed_state",
+            "Run interaction mode is invalid.",
+            path=path,
+            details={"allowed": sorted(_INTERACTION_MODES)},
+        )
+    metadata["interaction_mode"] = interaction_mode
     return metadata, state, revision, path
 
 
@@ -747,6 +868,51 @@ def _completion_finding_is_current(
         and existing.get("disposition")
         in {"open", "accepted", "waived", "not_applicable"}
     )
+
+
+def _designated_stage_references(
+    workspace: Workspace,
+    *,
+    run_meta: dict[str, Any],
+    stage_meta: dict[str, Any],
+    stage_state: dict[str, Any],
+) -> tuple[tuple[str, bool], ...]:
+    """@return Designated artifact paths and whether each resolves safely."""
+    paths: list[str] = []
+    paths.extend(
+        f"{workspace.config.requirements}/{identity}.toml"
+        for identity in run_meta.get("requirement_ids", [])
+        if isinstance(identity, str)
+    )
+    paths.extend(
+        f"{workspace.config.components}/{identity}.md"
+        for identity in run_meta.get("component_ids", [])
+        if isinstance(identity, str)
+    )
+    paths.extend(
+        path for path in stage_meta.get("attachments", []) if isinstance(path, str)
+    )
+    paths.extend(
+        item["path"]
+        for item in stage_state.get("attachments", [])
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    )
+    for item in stage_state.get("evidence", []):
+        if not isinstance(item, dict):
+            continue
+        attachment = item.get("attachment")
+        if isinstance(attachment, str):
+            paths.append(attachment)
+        elif isinstance(attachment, dict) and isinstance(attachment.get("path"), str):
+            paths.append(attachment["path"])
+    results = []
+    for path in dict.fromkeys(paths):
+        try:
+            exists = workspace.path_exists(path)
+        except (ValueError, WorkspaceError):
+            exists = False
+        results.append((path, exists))
+    return tuple(results)
 
 
 def _artifact(
@@ -980,7 +1146,6 @@ def _config_show(
             key: {
                 "command": list(value.command),
                 "working_directory": str(value.working_directory),
-                "timeout_seconds": value.timeout_seconds,
             }
             for key, value in sorted(config.commands.items())
         },
@@ -1103,6 +1268,26 @@ def _run_create(
         raise UseCaseError(
             "invalid_input", "Run work type is invalid.", field="work_type"
         )
+    interaction_mode = inputs.get("interaction_mode", "checkpoint")
+    if interaction_mode not in _INTERACTION_MODES:
+        raise UseCaseError(
+            "invalid_input",
+            "Run interaction mode is invalid.",
+            field="interaction_mode",
+            details={"allowed": sorted(_INTERACTION_MODES)},
+        )
+    execution_instruction = inputs.get("execution_instruction")
+    if interaction_mode == "continuous" and (
+        not isinstance(execution_instruction, str)
+        or not execution_instruction.strip()
+    ):
+        raise UseCaseError(
+            "invalid_input",
+            "Continuous interaction requires a non-empty execution_instruction.",
+            field="execution_instruction",
+        )
+    if execution_instruction is None:
+        execution_instruction = "None"
     actor = inputs.get("actor", "operator")
     if not isinstance(actor, str) or not actor.strip():
         raise UseCaseError(
@@ -1188,6 +1373,7 @@ def _run_create(
         "current_stage": "intake",
         "work_type": work_type,
         "profile": profile,
+        "interaction_mode": interaction_mode,
         "opened_at": now,
         "updated_at": now,
         "opened_branch": opening["branch"],
@@ -1202,7 +1388,7 @@ def _run_create(
         "excluded_scope": "None",
         "open_questions": "None",
         "actor": actor,
-        "execution_instruction": inputs.get("execution_instruction", "None"),
+        "execution_instruction": execution_instruction,
         "opening_repository_state": opening,
         "changes_first_observed": [],
         "changes_adopted": [],
@@ -1229,7 +1415,11 @@ def _run_create(
         context,
         definition,
         "Run created and selected.",
-        data={"profile": profile, "work_type": work_type},
+        data={
+            "profile": profile,
+            "work_type": work_type,
+            "interaction_mode": interaction_mode,
+        },
         run_id=run_id,
         stage="intake",
         revision=revisions[run_path],
@@ -1282,6 +1472,7 @@ def _run_list(
                 "id": run_id,
                 "status": metadata["status"],
                 "profile": metadata["profile"],
+                "interaction_mode": metadata["interaction_mode"],
                 "current_stage": metadata["current_stage"],
                 "selected": run_id == selected,
                 "revision": revision,
@@ -1416,6 +1607,165 @@ def _run_set_profile(
     )
 
 
+def _next_pending_stage(run_state: dict[str, Any]) -> str | None:
+    """@return The first included pending Stage in canonical Run order."""
+    return next(
+        (
+            str(item.get("name"))
+            for item in run_state.get("stages", [])
+            if item.get("status") == "pending"
+        ),
+        None,
+    )
+
+
+def _checkpoint_entry_summary(entry: dict[str, Any], *, kind: str) -> str:
+    """@return One concise evidence or finding summary for a Stage checkpoint."""
+    label = str(entry.get("label") or entry.get("name") or kind.title())
+    if kind == "evidence":
+        detail = (
+            entry.get("observed_result")
+            or entry.get("actual")
+            or entry.get("outcome")
+            or entry.get("kind")
+            or "recorded"
+        )
+    else:
+        detail = (
+            entry.get("observation")
+            or entry.get("summary")
+            or entry.get("code")
+            or "recorded"
+        )
+    return f"{label}: {detail}"
+
+
+def _checkpoint_data(
+    *,
+    run_meta: dict[str, Any],
+    run_state: dict[str, Any],
+    stage: str,
+    stage_meta: dict[str, Any],
+    stage_state: dict[str, Any],
+    stage_path: str,
+    run_path: str,
+    next_stage_revision: str | None,
+) -> dict[str, Any]:
+    """
+    @brief Project one concise Stage handoff without creating workflow state.
+    @return Structured checkpoint summary and human choices for host presentation.
+    """
+    interaction_mode = run_meta.get("interaction_mode", "checkpoint")
+    next_stage = _next_pending_stage(run_state)
+    sections = stage_state.get("sections", {})
+    outcome = sections.get("outputs_and_handoff")
+    if not isinstance(outcome, str) or not outcome.strip() or outcome == "None":
+        outcome = (
+            sections.get("requested_and_delivered_outcome")
+            if stage == "delivery"
+            else None
+        )
+    if not isinstance(outcome, str) or not outcome.strip() or outcome == "None":
+        outcome = f"{stage.title()} Stage {stage_meta.get('status', 'recorded')}."
+
+    observed_paths = [
+        item.get("path")
+        for item in run_state.get("changes_first_observed", [])
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    ]
+    attachment_paths = [
+        item.get("path")
+        for item in stage_state.get("attachments", [])
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    ]
+    changed_artifacts = list(
+        dict.fromkeys((run_path, stage_path, *observed_paths, *attachment_paths))
+    )
+    evidence = [
+        _checkpoint_entry_summary(item, kind="evidence")
+        for item in stage_state.get("evidence", [])
+        if isinstance(item, dict)
+    ]
+    findings = [
+        _checkpoint_entry_summary(item, kind="finding")
+        for item in stage_state.get("findings", [])
+        if isinstance(item, dict)
+    ]
+    if stage == "delivery":
+        proposed_handoff = "Approve and close the AEGIS Run."
+    elif next_stage is not None:
+        proposed_handoff = f"Start the {next_stage.title()} Stage."
+    else:
+        proposed_handoff = "Review the Run state before another operation."
+    summary = {
+        "outcome": outcome,
+        "changed_artifacts": changed_artifacts,
+        "evidence": {"count": len(evidence), "items": evidence[:5]},
+        "findings": {"count": len(findings), "items": findings[:5]},
+        "open_questions": run_state.get("open_questions", "None"),
+        "proposed_handoff": proposed_handoff,
+    }
+    choices: list[dict[str, Any]] = []
+    if interaction_mode == "checkpoint":
+        if stage == "delivery":
+            choices.append(
+                {
+                    "id": "approve_and_close",
+                    "label": "Approve and close.",
+                    "mutates_workflow_state": True,
+                    "operations": ["decision.add", "stage.complete"],
+                    "arguments": {
+                        "decision.add": {
+                            "value": "approved",
+                            "target": "delivery",
+                            "approval_source": "developer",
+                        }
+                    },
+                }
+            )
+        elif next_stage is not None:
+            arguments: dict[str, Any] = {"stage_name": next_stage}
+            if next_stage_revision is not None:
+                arguments["expected_revision"] = next_stage_revision
+            choices.append(
+                {
+                    "id": "continue",
+                    "label": "Continue to the proposed next Stage.",
+                    "mutates_workflow_state": True,
+                    "operation": "stage.start",
+                    "arguments": arguments,
+                }
+            )
+        choices.extend(
+            (
+                {
+                    "id": "review",
+                    "label": "Review or expand the Stage result.",
+                    "mutates_workflow_state": False,
+                    "operation": None,
+                },
+                {
+                    "id": "revise",
+                    "label": "Revise or reimplement the current or an earlier Stage.",
+                    "mutates_workflow_state": True,
+                    "operations": ["stage.set_section", "stage.revisit"],
+                },
+                {
+                    "id": "park",
+                    "label": "Park the Run.",
+                    "mutates_workflow_state": False,
+                    "operation": None,
+                },
+            )
+        )
+    return {
+        "required": interaction_mode == "checkpoint",
+        "interaction_mode": interaction_mode,
+        "summary": summary,
+        "choices": choices,
+    }
+
+
 def _stage_show_next_actions(
     *,
     run_id: str,
@@ -1459,7 +1809,15 @@ def _stage_show_next_actions(
         )
 
     status = stage_meta.get("status")
+    interaction_mode = run_meta.get("interaction_mode", "checkpoint")
     if status == "active":
+        if (
+            stage == "delivery"
+            and interaction_mode == "checkpoint"
+            and stage_state.get("sections", {}).get("terminal_result")
+            in {"achieved", "partially_achieved", "not_achieved"}
+        ):
+            return ()
         sections = stage_state.get("sections", {})
         allowed_sections = stage_state.get("allowed_sections", [])
         next_section = (
@@ -1504,15 +1862,10 @@ def _stage_show_next_actions(
             },
         )
 
-    next_stage = next(
-        (
-            str(item.get("name"))
-            for item in run_state.get("stages", [])
-            if item.get("status") == "pending"
-        ),
-        None,
-    )
+    next_stage = _next_pending_stage(run_state)
     if next_stage is not None:
+        if interaction_mode == "checkpoint":
+            return ()
         return (
             {
                 "operation": "stage.start",
@@ -1564,14 +1917,7 @@ def _stage_show(
         stage_revision=revision,
         selected_run=selected_run,
     )
-    next_stage = next(
-        (
-            str(item.get("name"))
-            for item in run_state.get("stages", [])
-            if item.get("status") == "pending"
-        ),
-        None,
-    )
+    next_stage = _next_pending_stage(run_state)
     next_stage_revision = (
         workspace.revision(
             f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[next_stage]}"
@@ -1581,6 +1927,29 @@ def _stage_show(
         and next_stage is not None
         else None
     )
+    is_completed_handoff = (
+        stage == run_meta.get("current_stage")
+        and metadata.get("status") in {"completed", "skipped"}
+        and run_meta.get("status") == "active"
+    )
+    is_delivery_checkpoint = (
+        stage == "delivery"
+        and stage == run_meta.get("current_stage")
+        and metadata.get("status") == "active"
+        and state.get("sections", {}).get("terminal_result")
+        in {"achieved", "partially_achieved", "not_achieved"}
+    )
+    if is_completed_handoff or is_delivery_checkpoint:
+        data["checkpoint"] = _checkpoint_data(
+            run_meta=run_meta,
+            run_state=run_state,
+            stage=stage,
+            stage_meta=metadata,
+            stage_state=state,
+            stage_path=path,
+            run_path=run_path,
+            next_stage_revision=next_stage_revision,
+        )
     return _done(
         context,
         definition,
@@ -1818,10 +2187,29 @@ def _stage_complete(
         ),
         None,
     )
-    if stage == "delivery" and (
-        latest_delivery_decision is None
-        or latest_delivery_decision["value"] != "approved"
-    ):
+    interaction_mode = run_meta.get("interaction_mode", "checkpoint")
+    valid_delivery_approval = latest_delivery_decision is not None and (
+        latest_delivery_decision.get("value") == "approved"
+        and (
+            latest_delivery_decision.get("approval_source") == "developer"
+            or (
+                latest_delivery_decision.get("approval_source")
+                == "continuous_delegation"
+                and interaction_mode == "continuous"
+            )
+        )
+    )
+    if stage == "delivery" and not valid_delivery_approval:
+        checkpoint = _checkpoint_data(
+            run_meta=run_meta,
+            run_state=run_state,
+            stage=stage,
+            stage_meta=stage_meta,
+            stage_state=stage_state,
+            stage_path=stage_path,
+            run_path=run_path,
+            next_stage_revision=None,
+        )
         return _error(
             context,
             definition,
@@ -1829,18 +2217,27 @@ def _stage_complete(
                 "invalid_transition",
                 (
                     'Delivery requires the latest decision.add with target "delivery" '
-                    "to have value approved."
+                    "to have value approved and an authorized approval_source."
                 ),
             ),
+            data={"checkpoint": checkpoint},
             next_actions=(
-                {
-                    "operation": "decision.add",
-                    "arguments": {"value": "approved", "target": "delivery"},
-                    "reason": (
-                        "Supply actor and reason to approve the truthful Delivery "
-                        "report."
-                    ),
-                },
+                (
+                    {
+                        "operation": "decision.add",
+                        "arguments": {
+                            "value": "approved",
+                            "target": "delivery",
+                            "approval_source": "continuous_delegation",
+                        },
+                        "reason": (
+                            "Record delegated approval under the Run's explicit "
+                            "continuous instruction."
+                        ),
+                    },
+                )
+                if interaction_mode == "continuous"
+                else ()
             ),
         )
     if stage == "delivery" and stage_state["sections"].get("terminal_result") not in {
@@ -1871,29 +2268,21 @@ def _stage_complete(
                 },
             ),
         )
-    check_state: dict[str, Any] | None = None
-    implementation_started_at = ""
-    if stage == "check":
-        implementation_path = (
-            f"{workspace.config.runs}/{run_id}/{_STAGE_FILES['implementation']}"
-        )
-        implementation_meta, _, _ = workspace.load_document(implementation_path)
-        implementation_started_at = implementation_meta.get("started_at", "")
-    elif stage == "implementation":
-        check_path = f"{workspace.config.runs}/{run_id}/{_STAGE_FILES['check']}"
-        _, check_state, _ = workspace.load_document(check_path)
-    configured_commands = (
-        tuple(sorted(workspace.config.commands)) if stage == "validation" else ()
-    )
     now = _time(context)
     completion_findings: list[dict[str, Any]] = []
     expectation_evaluation = evaluate_stage_expectations(
         stage=stage,
         profile=run_meta["profile"],
         state=stage_state,
-        check_state=check_state,
-        implementation_started_at=implementation_started_at,
-        configured_commands=configured_commands,
+        designated_references=_designated_stage_references(
+            workspace,
+            run_meta=run_meta,
+            stage_meta=stage_meta,
+            stage_state=stage_state,
+        ),
+        continuous_delegation=(
+            run_meta.get("interaction_mode", "checkpoint") == "continuous"
+        ),
     )
     expectation_findings = expectation_evaluation.findings
     for evaluated in expectation_findings:
@@ -2007,7 +2396,11 @@ def _stage_complete(
         run_state["next_action"] = "Developer-owned Git action, if any."
         extra = (RepositoryMutation(_context_path(workspace), _context_bytes(None)),)
     else:
-        run_state["next_action"] = "Start the next included Stage."
+        run_state["next_action"] = (
+            "Wait for the developer's checkpoint choice."
+            if run_meta.get("interaction_mode", "checkpoint") == "checkpoint"
+            else "Start the next included Stage."
+        )
     revisions = _save_stage_run(
         workspace,
         stage_path=stage_path,
@@ -2021,6 +2414,14 @@ def _stage_complete(
         expected_stage=expected_revision,
         extra=extra,
     )
+    next_stage = _next_pending_stage(run_state)
+    next_stage_revision = (
+        workspace.revision(
+            f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[next_stage]}"
+        )
+        if next_stage is not None
+        else None
+    )
     finding_summaries = tuple(
         {
             "label": item["label"],
@@ -2032,22 +2433,53 @@ def _stage_complete(
         }
         for item in completion_findings
     )
+    data = {
+        "status": "completed",
+        "profile": run_meta["profile"],
+        "interaction_mode": run_meta.get("interaction_mode", "checkpoint"),
+        "evaluated_expectation_count": (
+            expectation_evaluation.evaluated_expectation_count
+        ),
+    }
+    if stage != "delivery":
+        data["checkpoint"] = _checkpoint_data(
+            run_meta=run_meta,
+            run_state=run_state,
+            stage=stage,
+            stage_meta=stage_meta,
+            stage_state=stage_state,
+            stage_path=stage_path,
+            run_path=run_path,
+            next_stage_revision=next_stage_revision,
+        )
     return _done(
         context,
         definition,
         f"{stage.title()} Stage completed.",
-        data={
-            "status": "completed",
-            "profile": run_meta["profile"],
-            "evaluated_expectation_count": (
-                expectation_evaluation.evaluated_expectation_count
-            ),
-        },
+        data=data,
         run_id=run_id,
         stage=stage,
         revision=revisions[stage_path],
         outcome="delivered" if stage == "delivery" else None,
         findings=finding_summaries,
+        artifacts=(
+            _artifact(stage_path, "updated", revisions[stage_path], kind="stage"),
+            _artifact(run_path, "updated", revisions[run_path], kind="run"),
+        ),
+        next_actions=(
+            _stage_show_next_actions(
+                run_id=run_id,
+                run_meta=run_meta,
+                run_state=run_state,
+                stage=stage,
+                stage_meta=stage_meta,
+                stage_state=stage_state,
+                stage_revision=revisions[stage_path] or stage_revision,
+                next_stage_revision=next_stage_revision,
+            )
+            if stage != "delivery"
+            else ()
+        ),
     )
 
 
@@ -2102,7 +2534,11 @@ def _stage_skip(
         if summary["name"] == stage:
             summary.update({"status": "skipped", "updated_at": now, "result": reason})
     run_state["events"].append(_event(now, actor, "stage_skipped", reason))
-    run_state["next_action"] = "Start the next included Stage."
+    run_state["next_action"] = (
+        "Wait for the developer's checkpoint choice."
+        if run_meta.get("interaction_mode", "checkpoint") == "checkpoint"
+        else "Start the next included Stage."
+    )
     revisions = _save_stage_run(
         workspace,
         stage_path=stage_path,
@@ -2115,15 +2551,48 @@ def _stage_skip(
         run_revision=run_revision,
         expected_stage=inputs.get("expected_revision"),
     )
+    next_stage = _next_pending_stage(run_state)
+    next_stage_revision = (
+        workspace.revision(
+            f"{workspace.config.runs}/{run_id}/{_STAGE_FILES[next_stage]}"
+        )
+        if next_stage is not None
+        else None
+    )
+    checkpoint = _checkpoint_data(
+        run_meta=run_meta,
+        run_state=run_state,
+        stage=stage,
+        stage_meta=stage_meta,
+        stage_state=stage_state,
+        stage_path=stage_path,
+        run_path=run_path,
+        next_stage_revision=next_stage_revision,
+    )
     return _done(
         context,
         definition,
         f"{stage.title()} Stage skipped with reason.",
-        data={"status": "skipped", "reason": reason},
+        data={
+            "status": "skipped",
+            "reason": reason,
+            "interaction_mode": run_meta.get("interaction_mode", "checkpoint"),
+            "checkpoint": checkpoint,
+        },
         run_id=run_id,
         stage=stage,
         revision=revisions[stage_path],
         outcome="skipped",
+        next_actions=_stage_show_next_actions(
+            run_id=run_id,
+            run_meta=run_meta,
+            run_state=run_state,
+            stage=stage,
+            stage_meta=stage_meta,
+            stage_state=stage_state,
+            stage_revision=revisions[stage_path] or stage_revision,
+            next_stage_revision=next_stage_revision,
+        ),
     )
 
 
@@ -2241,6 +2710,7 @@ def _append_entry(
     _require_active_stage(stage_meta)
     now = _time(context)
     entry = dict(inputs)
+    entry_findings: list[dict[str, Any]] = []
     entry.pop("expected_revision", None)
     if kind == "evidence":
         for reserved in (
@@ -2288,13 +2758,51 @@ def _append_entry(
                 "Approved exceptions require alternative confirmation.",
                 field="alternative_confirmation",
             )
+        if value == "approved" and entry.get("target") == "delivery":
+            approval_source = entry.get("approval_source")
+            if approval_source not in {"developer", "continuous_delegation"}:
+                raise UseCaseError(
+                    "invalid_input",
+                    "Approved Delivery requires a valid approval_source.",
+                    field="approval_source",
+                    details={
+                        "allowed": ["continuous_delegation", "developer"]
+                    },
+                )
+            if (
+                approval_source == "continuous_delegation"
+                and run_meta.get("interaction_mode", "checkpoint") != "continuous"
+            ):
+                raise UseCaseError(
+                    "invalid_transition",
+                    (
+                        "Agent-recorded Delivery approval requires explicit "
+                        "continuous Run delegation."
+                    ),
+                    field="approval_source",
+                )
     entry["time"] = now
+    if kind == "evidence" and entry.get("kind") == "automated":
+        entry_findings = _reported_evidence_facts(
+            context,
+            workspace,
+            run_id=run_id,
+            stage=stage_meta["stage"],
+            entry=entry,
+            stage_state=stage_state,
+        )
+        for index, finding in enumerate(entry_findings):
+            finding["label"] = _next_finding_label(
+                stage_state["findings"] + entry_findings[:index]
+            )
+            finding.setdefault("artifact", stage_path)
     collection = {
         "evidence": "evidence",
         "finding": "findings",
         "decision": "decisions",
     }[kind]
     stage_state[collection].append(entry)
+    stage_state["findings"].extend(entry_findings)
     stage_state["events"].append(
         _event(
             now,
@@ -2317,6 +2825,17 @@ def _append_entry(
         run_revision=run_revision,
         expected_stage=inputs.get("expected_revision"),
     )
+    finding_summaries = tuple(
+        {
+            "label": finding["label"],
+            "code": finding["code"],
+            "severity": finding["severity"],
+            "summary": finding["observation"],
+            "disposition": finding["disposition"],
+            "artifact": finding["artifact"],
+        }
+        for finding in entry_findings
+    )
     return _done(
         context,
         definition,
@@ -2325,6 +2844,8 @@ def _append_entry(
         run_id=run_id,
         stage=stage_meta["stage"],
         revision=revisions[stage_path],
+        outcome=entry.get("outcome") if kind == "evidence" else None,
+        findings=finding_summaries,
     )
 
 

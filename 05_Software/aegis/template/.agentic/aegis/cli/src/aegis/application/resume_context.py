@@ -607,7 +607,6 @@ def _tool_context(
                 budget["command_arguments"],
             ),
             "working_directory": str(command.working_directory),
-            "timeout_seconds": command.timeout_seconds,
         }
         for _, command in sorted(workspace.config.commands.items())
         if command.category in categories
@@ -641,6 +640,7 @@ def _run_summary(
         "status": run_meta.get("status"),
         "profile": run_meta.get("profile"),
         "work_type": run_meta.get("work_type"),
+        "interaction_mode": run_meta.get("interaction_mode", "checkpoint"),
         "current_stage": run_meta.get("current_stage"),
         "ticket_text": _bounded_text(run_state.get("ticket_text", ""), limit),
         "intent": _bounded_text(run_state.get("intent", ""), limit),

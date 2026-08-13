@@ -29,6 +29,8 @@ remain in the application layer.
   supported descriptors.
 - `REQ-FUNC-e5c2b57d`, `REQ-PLAT-7663bb1d`, `REQ-PLAT-5afdbb8a` - identical
   workflow meaning through policy-free common-protocol transports.
+- `REQ-FUNC-ba164e6e` - human and machine checkpoint presentation plus equivalent
+  default-stop and explicit-continuous guidance for all five hosts.
 - `REQ-NFR-4b767a8b` - concrete construction only at composition.
 - `REQ-PLAT-0e917260` - single product-version declarations.
 

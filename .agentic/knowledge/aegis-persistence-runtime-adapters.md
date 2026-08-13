@@ -34,6 +34,8 @@ acceptability or reinterpret findings.
 - `REQ-PLAT-ef45ae63`, `REQ-REL-3c9287e0`, `REQ-REL-5858abac` - shell-free
   process groups, bounded cancellation, and deadlock-free output retention.
 - `REQ-REL-995954b5` - advisory payload ownership findings.
+- `REQ-FUNC-ba164e6e` - Run codecs persist interaction mode and resolve a missing
+  legacy field to checkpoint without rewriting on read.
 
 ## Files
 
