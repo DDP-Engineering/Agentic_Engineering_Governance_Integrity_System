@@ -143,9 +143,14 @@ read a repository-root `AGENTS.md`. When that file is missing, the plan creates
 a minimal project-owned bridge. When it already exists as a UTF-8 regular file,
 the plan prefixes one bounded WAEGIS-managed bridge and retains the complete
 existing document as its continuation. The marker makes later upgrades
-idempotent. Symlinks, non-regular files, unreadable files, non-UTF-8 content,
-and incomplete existing bridge markers are preserved and reported for manual
-review instead of being rewritten.
+idempotent while allowing WAEGIS to refresh its own bounded block. The bridge
+requires checkpoint-default Run creation, distinguishes ordinary requests to
+implement, validate, and report from explicit continuous delegation, and tells
+the host to end its turn without another tool call after presenting a required
+checkpoint. It also requires checkpoint choices to appear as a vertical
+Markdown list with one choice per line. Symlinks, non-regular files, unreadable
+files, non-UTF-8 content, and incomplete existing bridge markers are preserved
+and reported for manual review instead of being rewritten.
 
 Installation also creates or safely extends the project-owned
 `.agentic/.gitignore` with `.runtime/` and the configured Run pointer expressed

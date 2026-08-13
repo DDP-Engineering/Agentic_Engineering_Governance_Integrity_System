@@ -31,14 +31,14 @@ Keep each log line to one sentence.
 stage: deliver
 type: feature
 path: full
-requirements: REQ-FUNC-ba164e6e
+requirements: REQ-FUNC-ba164e6e, REQ-PLAT-c820ce6c
 branch: master
 opened: 2026-08-13
 
 ## Done checklist (current stage)
 
-- [ ] validated candidate confirmed unchanged; otherwise returned to validate
-- [ ] validation evidence, diff, exclusions, and outcome presented
+- [x] validated candidate confirmed unchanged; otherwise returned to validate
+- [x] validation evidence, diff, exclusions, and outcome presented
 - [ ] delivery confirmed by the human
 - [ ] journal and report included in the delivery commit
 - [ ] agreed outcome delivered, normally a PR
@@ -54,6 +54,7 @@ opened: 2026-08-13
 - 2026-08-13 specify: Reused REQ-FUNC-ba164e6e as the single behavior requirement, replaced its planning-only inspection with automated implementation verification, and expanded its affected paths to the runtime, adapters, tests, documentation, and manifest expected to change.
 - 2026-08-13 specify: No separate repository-local specification is needed because the accepted product, functional, artifact, machine-protocol, implementation, acceptance, and release documents already define the buildable contract.
 - 2026-08-13 specify: `python .agentic/aegis.py check --task TASK-86fec283` exited 0 but reported five pre-existing unknown-requirement errors in TASK-44bbb4ad, plus unrelated empty-test and open-Delivery warnings; it reported no format error in REQ-FUNC-ba164e6e or this journal.
+- 2026-08-14 test: test --impacted (20 test ref(s)) exit 4 (0.8s)
 
 ## Design
 
@@ -85,3 +86,51 @@ opened: 2026-08-13
 - 2026-08-13 validate proof: `uv run --group dev ruff check .`, changed-source `python -m py_compile ...`, `uv run --group dev python -B -m aegis --help`, exact payload manifest verification, and `git diff --check` each exited 0; CLI help reported 49 canonical operations.
 - 2026-08-13 validate advisory: `python .agentic/aegis.py check --task TASK-86fec283 --strict` exited 1 with five pre-existing unknown-requirement errors in TASK-44bbb4ad and 49 pre-existing or expected warnings; `--run` was intentionally omitted because the configured command also runs the unchanged WAEGIS full suite, contrary to the developer's explicit validation boundary, while the applicable full AEGIS suite was proven separately.
 - 2026-08-13 validate complete: The candidate is validated and advanced to Delivery for presentation only; no report, commit, push, merge, or other outward Git operation is authorized.
+- 2026-08-13 delivery feedback: Returned to build after read-only inspection of VoiceWeaver Run RUN-f58cc678954f483dbec3ffcd12fff576 confirmed the agent falsely selected continuous mode, fabricated an explicit-delegation instruction from an ordinary implementation request, completed Intake, Alignment, and Requirement, and started Design without checkpoints.
+- 2026-08-13 build red: AEGIS host-guidance selector exited 1 because no host explicitly required verbatim delegation evidence and immediate turn termination, while two WAEGIS root-bridge selectors exited 1 because the bridge lacked checkpoint rules and upgrades did not refresh an older managed block.
+- 2026-08-13 build green: The two AEGIS host-guidance selectors exited 0 with 2 passed in 0.04 seconds, and the two WAEGIS root-bridge lifecycle selectors exited 0 with 2 passed in 0.71 seconds after strengthening host instructions and managed root guidance.
+- 2026-08-13 build regression: The complete AEGIS host-adapter module exited 0 with 3 passed in 0.05 seconds, the complete WAEGIS lifecycle module exited 0 with 27 passed in 12.23 seconds, AEGIS and WAEGIS targeted Ruff and compilation exited 0, the payload manifest regenerated and verified, and `git diff --check` exited 0.
+- 2026-08-13 build impacted: `python .agentic/aegis.py test --impacted` again exited 1 because the pre-existing root-launched configuration cannot import either package namespace or collect mixed AEGIS and WAEGIS selectors; package-root focused commands above supplied the intended coverage without modifying AEGIS Light.
+- 2026-08-13 build traceability: REQ-FUNC-ba164e6e now includes the WAEGIS-managed root bridge, lifecycle implementation, documentation, knowledge, and two root-bridge lifecycle tests while remaining active.
+- 2026-08-14 validate review: The correction diff was reviewed against the observed VoiceWeaver failure, accepted checkpoint contract, managed-marker ownership, project-guidance preservation, idempotency, error paths, portability, security, and exclusions; no manual-only verification applies.
+- 2026-08-14 validate concurrency: During validation, an external actor committed the earlier candidate as 83c9ac0 `AEGIS corrections. WIP.` and created untracked `temp_list.txt`; this task did not create, modify, stage, revert, or remove either, and the post-change suites validate the resulting current HEAD plus this corrective working-tree diff.
+- 2026-08-14 validate proof: The revised complete AEGIS suite exited 0 with 230 passed in 335.43 seconds and collection confirmed 230 current tests; the complete WAEGIS suite exited 0 with 56 passed in 14.41 seconds.
+- 2026-08-14 validate proof: AEGIS and WAEGIS Ruff, changed-source compilation, both CLI help checks, exact payload manifest verification, and `git diff --check` exited 0; AEGIS help reported 48 canonical operations.
+- 2026-08-14 validate advisory: `python .agentic/aegis.py check --task TASK-86fec283 --strict` exited 1 with five pre-existing unknown-requirement errors in TASK-44bbb4ad and catalog warnings from pre-existing stale paths, empty links, open Delivery journals, expected documentation/host paths, and external `temp_list.txt`; the one stale path owned by REQ-FUNC-ba164e6e was removed before presentation.
+- 2026-08-14 validate complete: The corrective candidate is validated and returned to Delivery presentation; no VoiceWeaver file was modified and no report, commit, push, merge, or other outward Git operation was performed by this task.
+- 2026-08-14 delivery approval: The developer requested creation of a delivery while the standing no-branch, no-commit, and no-push constraints remain in effect, so the approved outcome is the local external-runtime archive matrix rather than a commit or pull request.
+- 2026-08-14 delivery build: Four external-runtime archives for AEGIS and WAEGIS on Windows x86-64 and Ubuntu 22.04 x86-64 were rebuilt from the validated candidate; all four build commands and all four archive inspections exited 0 with 70 AEGIS files and 84 WAEGIS files per archive.
+- 2026-08-14 delivery content: Corrected content inspection exited 0 and confirmed both AEGIS archives contain the strengthened checkpoint guidance while both WAEGIS archives contain the bounded nested-test scanner and refreshed checkpoint bridge; an earlier inspection probe named the wrong WAEGIS member prefix and raised KeyError without changing any artifact.
+- 2026-08-14 delivery boundary: Bundled-runtime archives remain unavailable because locked Python and Git archives are unsupplied, and no artifact was committed, signed, uploaded, or published.
+- 2026-08-14 delivery feedback: Returned to specify after VoiceWeaver inspection showed the detected nested pytest root was paired with repository-root execution, and the developer required the correction to remain valid across languages and test suites rather than hard-code the VoiceWeaver layout.
+- 2026-08-14 specify: Expanded existing REQ-PLAT-c820ce6c instead of creating a duplicate, defining owner-aware suite discovery and native commands for nested Python, Node.js, Go, Rust, .NET, Maven, and Gradle projects with deterministic multi-suite output and honest fallbacks.
+- 2026-08-14 specify: Added a requirement spec because the bounded ownership algorithm, supported structured signals, command selection, grouping, and fallback behavior are not buildable from one requirement sentence alone; VoiceWeaver and AEGIS Light remain excluded from writes.
+- 2026-08-14 specify check: `python .agentic/aegis.py check --task TASK-86fec283` exited 0 at the process level and reported the known five errors in unrelated TASK-44bbb4ad plus pre-existing catalog warnings, with no format or traceability error in REQ-PLAT-c820ce6c, its spec, or this task journal; `git diff --check` exited 0.
+
+## Delivery report (2026-08-14)
+
+- stage: deliver; type: feature; path: full; branch: master
+- requirements:
+  - REQ-FUNC-ba164e6e - Pause for developer choice after each stage
+- diff vs merge base: 22 file(s) changed, 253 line(s) added
+- checks: errors=5 warnings=67 notes=0
+- checklist: 4/6 done; open: journal and report included in the delivery commit; close-out committed only after the outcome succeeded
+
+## Design refinement (2026-08-14)
+
+- Interface: every shipped host adapter and the WAEGIS-managed root bridge will instruct agents to end checkpoint summaries with `Choose one:` followed by Continue, Review, Revise or reimplement, and Park as four separate Markdown list lines; Delivery substitutes Approve and close for Continue (`REQ-FUNC-ba164e6e`).
+- Data: machine checkpoint choices and workflow operations remain unchanged because this is a presentation contract only (`REQ-FUNC-ba164e6e`).
+- Rejected alternative: relying on prose that merely names the four choices permits hosts to collapse them into one sentence and does not satisfy the requested scannable layout (`REQ-FUNC-ba164e6e`).
+- Test seams: the existing native-host guidance test will require the exact four-line Markdown block in all five native/starter pairs, and WAEGIS root-bridge lifecycle tests will require the same block in generated guidance (`REQ-FUNC-ba164e6e`).
+- 2026-08-14 build red: command=`uv run --group dev python -m pytest -q tests/test_host_adapters.py::test_native_host_guidance_routes_resume_through_stage_show`; exit=1; expected missing behavior=all shipped host guidance lacked the exact vertical Markdown checkpoint-choice block.
+- 2026-08-14 build red: command=`uv run --group dev python -m pytest -q tests/test_lifecycle.py::test_install_creates_root_agents_bridge_when_missing tests/test_lifecycle.py::test_install_prefixes_existing_root_agents_guidance_once`; exit=1; expected missing behavior=fresh and refreshed WAEGIS-managed root guidance lacked the exact vertical Markdown checkpoint-choice block.
+- 2026-08-14 build green: the complete AEGIS host-adapter module exited 0 with 3 passed in 0.04 seconds, and both WAEGIS root-bridge selectors exited 0 with 2 passed in 0.60 seconds after the exact four-line Markdown block was added.
+- 2026-08-14 build static: targeted AEGIS and WAEGIS Ruff, WAEGIS compilation, exact 62-file payload manifest regeneration and verification, and `git diff --check` exited 0.
+- 2026-08-14 build impacted: `python .agentic/aegis.py test --impacted --task TASK-86fec283` exited 1 because the pre-existing root-launched configuration cannot import package-local AEGIS or WAEGIS test namespaces; package-root focused commands above supplied the intended coverage.
+- 2026-08-14 build check: `python .agentic/aegis.py check --task TASK-86fec283 --full` exited 0 at the process boundary while its advisory result retained five unrelated TASK-44bbb4ad errors and 65 historical or expected warnings, with no defect in this refinement's requirement, tests, or journal.
+- 2026-08-14 validate review: The vertical-choice refinement was reviewed against the requested output, all five host loaders, canonical/native byte parity, fresh and refreshed WAEGIS root bridges, Markdown rendering, Delivery substitution, portability, existing dirty work, and the no-publish boundary; no implementation defect remained.
+- 2026-08-14 validate traceability: REQ-FUNC-ba164e6e remains active with current prose, verification, affected paths, and linked tests, and the AEGIS adapter and WAEGIS lifecycle knowledge pages now record the vertical-list contract; no manual-only verification applies.
+- 2026-08-14 validate proof: The complete AEGIS suite exited 0 with 230 passed in 306.99 seconds and the complete WAEGIS suite exited 0 with 56 passed in 12.24 seconds after the final behavior and test changes.
+- 2026-08-14 validate static: Both CLI help checks, targeted Ruff and compilation, exact 62-file payload manifest verification, five-host literal block inspection, and `git diff --check` exited 0.
+- 2026-08-14 validate advisory: `python .agentic/aegis.py check --task TASK-86fec283 --strict` exited 1 only on the known five unrelated TASK-44bbb4ad errors and retained 65 historical or expected warnings, including external `temp_list.txt`; no task-owned error was reported.
+- 2026-08-14 validate complete: The refinement is validated and returned to Delivery presentation without staging, commit, push, archive rebuild, deployment, VoiceWeaver modification, or any other outward action.

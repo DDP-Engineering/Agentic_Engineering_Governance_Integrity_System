@@ -42,6 +42,12 @@ HOST_STARTERS = {
         b"qwen starter\n",
     ),
 }
+CHECKPOINT_CHOICE_BLOCK = """Choose one:
+
+- **Continue**
+- **Review**
+- **Revise or reimplement**
+- **Park**"""
 
 
 def make_payload(root: Path, marker: str = "one") -> Path:
@@ -1036,6 +1042,11 @@ def test_install_creates_root_agents_bridge_when_missing(tmp_path: Path) -> None
     guidance = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert guidance.count("<!-- AEGIS:BEGIN (managed by WAEGIS) -->") == 1
     assert ".agentic/rules.md" in guidance
+    assert "interaction_mode" in guidance
+    assert "make no further tool call" in guidance
+    assert "implement, validate, and report" in guidance
+    assert CHECKPOINT_CHOICE_BLOCK in guidance
+    assert "one choice per line" in guidance
     assert "commit" in guidance
     assert "push" in guidance
 
@@ -1061,7 +1072,17 @@ def test_install_prefixes_existing_root_agents_guidance_once(tmp_path: Path) -> 
     )
     merged = (target / "AGENTS.md").read_bytes()
     assert merged.count(b"<!-- AEGIS:BEGIN (managed by WAEGIS) -->") == 1
+    assert CHECKPOINT_CHOICE_BLOCK.encode() in merged
     assert merged.endswith(existing)
+    legacy_bridge = (
+        b"<!-- AEGIS:BEGIN (managed by WAEGIS) -->\n"
+        b"## AEGIS development workflow\n\n"
+        b"Use the repository-installed AEGIS workflow.\n\n"
+        b"<!-- AEGIS:END -->\n\n"
+    )
+    marker_end = merged.index(b"<!-- AEGIS:END -->") + len(b"<!-- AEGIS:END -->")
+    continuation = merged[marker_end:].lstrip(b"\r\n")
+    (target / "AGENTS.md").write_bytes(legacy_bridge + continuation)
 
     second = make_payload(tmp_path / "second", "two")
     upgraded = create_application(second)
@@ -1071,7 +1092,32 @@ def test_install_prefixes_existing_root_agents_guidance_once(tmp_path: Path) -> 
     )
     assert upgrade_plan["operation_status"] == "completed"
     upgrade_document = json.loads(upgrade.read_text(encoding="utf-8"))
-    assert all(item["path"] != "AGENTS.md" for item in upgrade_document["actions"])
+    bridge_action = next(
+        item for item in upgrade_document["actions"] if item["path"] == "AGENTS.md"
+    )
+    assert bridge_action["kind"] == "write"
+    execute(
+        upgraded,
+        "upgrade.apply",
+        target=str(target),
+        plan=str(upgrade),
+        confirm_digest=upgrade_plan["data"]["plan_digest"],
+    )
+    upgraded_guidance = (target / "AGENTS.md").read_bytes()
+    assert upgraded_guidance.count(
+        b"<!-- AEGIS:BEGIN (managed by WAEGIS) -->"
+    ) == 1
+    assert b"make no further tool call" in upgraded_guidance
+    assert upgraded_guidance.endswith(existing)
+    repeated = tmp_path / "upgrade-repeated.json"
+    repeated_plan = execute(
+        upgraded, "upgrade.plan", target=str(target), output=str(repeated)
+    )
+    assert repeated_plan["operation_status"] == "completed"
+    repeated_document = json.loads(repeated.read_text(encoding="utf-8"))
+    assert all(
+        item["path"] != "AGENTS.md" for item in repeated_document["actions"]
+    )
 
 
 def test_upgrade_preserves_edited_host_guidance(tmp_path: Path) -> None:

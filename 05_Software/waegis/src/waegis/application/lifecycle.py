@@ -63,10 +63,29 @@ For development tasks in this repository:
 
 - use the repository-installed AEGIS workflow;
 - read and follow `.agentic/rules.md`;
+- leave `interaction_mode` unset so AI-operated Runs default to checkpoint,
+  unless the current developer message explicitly requests continuous execution
+  without intermediate prompts; a request to implement, validate, and report
+  the task is not continuous delegation;
+- when `data.checkpoint.required` is true, present its Stage summary and four
+  choices, make no further tool call, and end the turn for developer direction;
 - treat AEGIS as guidance and a development record, not as a blocker to
   ordinary work; and
 - keep commits, pushes, merges, and other outward Git actions under explicit
   developer direction.
+
+Render every non-Delivery checkpoint choice as one choice per line using this
+exact Markdown block:
+
+Choose one:
+
+- **Continue**
+- **Review**
+- **Revise or reimplement**
+- **Park**
+
+For Delivery, replace **Continue** with **Approve and close** and keep one
+choice per line.
 
 <!-- AEGIS:END -->
 """
@@ -488,7 +507,20 @@ class Application:
                     "Root AGENTS.md contains an incomplete WAEGIS-managed AEGIS "
                     "bridge and was preserved for manual review."
                 ]
-            return [], []
+            start = before.index(ROOT_AGENTS_BEGIN)
+            end = before.index(ROOT_AGENTS_END, start) + len(ROOT_AGENTS_END)
+            suffix = before[end:]
+            if suffix.startswith(b"\r\n"):
+                suffix = suffix[2:]
+            elif suffix.startswith(b"\n"):
+                suffix = suffix[1:]
+            after = before[:start] + ROOT_AGENTS_BRIDGE + suffix
+            if after == before:
+                return [], []
+            return [Action("write", relative, "project", after).to_dict()], [
+                "The WAEGIS-managed root AGENTS.md bridge will be refreshed; "
+                "project guidance outside the managed markers is preserved."
+            ]
         try:
             before.decode("utf-8-sig", errors="strict")
         except UnicodeDecodeError:

@@ -40,7 +40,8 @@ status = "active"
 requirement = """
 Unless a developer explicitly delegates continuous execution for the current
 Run, an AEGIS-guided AI agent shall present a concise result and developer
-choices at every included Stage handoff before advancing.
+choices as a vertical list with one choice per line at every included Stage
+handoff before advancing.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -51,7 +52,7 @@ choices at every included Stage handoff before advancing.
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Automated tests create full and short Runs in default checkpoint and explicitly delegated continuous modes, exercise every included Stage handoff and Delivery approval path, and confirm the machine response, human presentation, persistence, resume behavior, mutation boundaries, and five shipped host instructions preserve the interaction contract."
+verification = "Automated tests create full and short Runs in default checkpoint and explicitly delegated continuous modes, exercise every included Stage handoff and Delivery approval path, and confirm the machine response, human presentation, persistence, resume behavior, mutation boundaries, five shipped host instructions, and the WAEGIS-managed root guidance preserve the interaction contract and render choices as one vertical Markdown list item per line."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -85,17 +86,20 @@ affected_paths = [
     "05_Software/aegis/README.md",
     "05_Software/aegis/tests/test_cli_protocol.py",
     "05_Software/aegis/tests/test_delivery_adoption.py",
-    "05_Software/aegis/tests/test_execution_integrity.py",
     "05_Software/aegis/tests/test_host_adapters.py",
     "05_Software/aegis/tests/test_operation_registry.py",
     "05_Software/aegis/tests/test_run_stage_workflow.py",
     "05_Software/aegis/tests/test_stage_resume_context.py",
     "05_Software/aegis/tests/test_stage_completion_expectations.py",
+    "05_Software/waegis/README.md",
+    "05_Software/waegis/src/waegis/application/lifecycle.py",
+    "05_Software/waegis/tests/test_lifecycle.py",
     "CHANGELOG.md",
     ".agentic/knowledge/aegis-cli-host-adapters.md",
     ".agentic/knowledge/aegis-domain-protocol-kernel.md",
     ".agentic/knowledge/aegis-persistence-runtime-adapters.md",
     ".agentic/knowledge/aegis-workflow-application.md",
+    ".agentic/knowledge/waegis-lifecycle-operator.md",
 ]
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
@@ -108,6 +112,8 @@ linked_tests = [
     "05_Software/aegis/tests/test_delivery_adoption.py::test_legacy_delivery_approval_without_source_cannot_close_checkpoint_run",
     "05_Software/aegis/tests/test_cli_protocol.py::test_human_output_presents_checkpoint_summary_and_four_choices",
     "05_Software/aegis/tests/test_host_adapters.py::test_native_host_guidance_routes_resume_through_stage_show",
+    "05_Software/waegis/tests/test_lifecycle.py::test_install_creates_root_agents_bridge_when_missing",
+    "05_Software/waegis/tests/test_lifecycle.py::test_install_prefixes_existing_root_agents_guidance_once",
     "05_Software/aegis/tests/test_operation_registry.py::test_input_operations_document_the_machine_envelope_and_data_fields",
 ]
 
@@ -120,4 +126,4 @@ priority = "high"   # low | normal | high
 rationale = "The developer retains control of workflow direction while explicit delegation still supports uninterrupted agent work."
 
 created = 2026-08-13
-updated = 2026-08-13
+updated = 2026-08-14

@@ -43,16 +43,21 @@ legacy Run files without that field. `run.create` accepts `continuous` only as
 a structured mode accompanied by a non-empty durable developer execution
 instruction; broad ticket prose, host permissions, prior autonomy, and silence
 do not select it. Run list/show and Stage resume context return the resolved
-mode.
+mode. Shipped host guidance specifically treats an ordinary request to
+implement, validate, and report as checkpoint work, requires explicit
+delegation to be copied verbatim, and ends the host turn without another tool
+call after presenting a required checkpoint.
 
 After each included non-Delivery Stage completes or is skipped,
 `data.checkpoint` carries the concise outcome, changed artifact paths, evidence,
 findings, open questions, proposed handoff, and four human choices. Checkpoint
 mode returns no unattended `stage.start` next action: Continue uses the existing
 `stage.start`, Review and Park perform no operation, and Revise or reimplement
-uses `stage.set_section` or `stage.revisit`. Continuous mode retains the same
-handoff summary with `required = false` and may return the existing atomic next
-action.
+uses `stage.set_section` or `stage.revisit`. Shipped host guidance renders these
+choices as a vertical Markdown list with one choice per line; Delivery replaces
+Continue with Approve and close in the same layout. Continuous mode retains the
+same handoff summary with `required = false` and may return the existing atomic
+next action.
 
 `config-validate` inspects pending `.agentic/.runtime/transactions/TXN-*`
 material before any recovery-capable path read. It returns up to ten

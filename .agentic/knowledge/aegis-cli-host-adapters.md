@@ -30,7 +30,9 @@ remain in the application layer.
 - `REQ-FUNC-e5c2b57d`, `REQ-PLAT-7663bb1d`, `REQ-PLAT-5afdbb8a` - identical
   workflow meaning through policy-free common-protocol transports.
 - `REQ-FUNC-ba164e6e` - human and machine checkpoint presentation plus equivalent
-  default-stop and explicit-continuous guidance for all five hosts.
+  default-stop and explicit-continuous guidance for all five hosts, including
+  immediate turn termination, verbatim delegation recording, and one vertical
+  Markdown list item per checkpoint choice.
 - `REQ-NFR-4b767a8b` - concrete construction only at composition.
 - `REQ-PLAT-0e917260` - single product-version declarations.
 

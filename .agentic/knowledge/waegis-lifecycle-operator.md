@@ -33,6 +33,9 @@ workflow stages or outward Git operations.
 - `REQ-PLAT-d5dd084c` - locally implemented protocol-envelope parity.
 - `REQ-PLAT-bd3ae391` - install and upgrade expose AEGIS through one
   project-owned root instruction bridge while retaining existing guidance.
+- `REQ-FUNC-ba164e6e` - the managed root bridge reinforces checkpoint-default
+  Run creation, requires one vertical Markdown list item per checkpoint choice,
+  and is refreshed on upgrade without changing outside guidance.
 
 ## Files
 

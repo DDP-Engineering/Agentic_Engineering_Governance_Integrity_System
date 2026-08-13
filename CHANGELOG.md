@@ -18,12 +18,17 @@ All notable changes to this project will be documented in this file.
   structured machine and human handoff summaries, Continue/Review/Revise/Park
   choices, explicit Delivery approval provenance, legacy checkpoint fallback,
   and equivalent guidance for Claude Code, Codex, OpenCode, Pi, and Qwen Code.
+  Host instructions and the WAEGIS-managed root bridge now explicitly reject
+  ordinary implement/validate/report requests as continuous delegation and end
+  the host turn immediately after a required checkpoint is presented. They
+  render checkpoint choices as a vertical Markdown list with one choice per
+  line.
 
 - Add a reviewable project-owned root `AGENTS.md` bridge during WAEGIS install
   and upgrade. Missing files receive minimal AEGIS discovery guidance; existing
   UTF-8 guidance continues unchanged after one bounded marker block, subsequent
-  upgrades do not duplicate it, and unsafe destinations are preserved with an
-  explanatory finding.
+  upgrades refresh only that managed block without duplicating it, and unsafe
+  destinations are preserved with an explanatory finding.
 
 - Add a no-argument interactive WAEGIS adoption wizard that guides an
   unfamiliar developer through target selection, prerequisite and repository

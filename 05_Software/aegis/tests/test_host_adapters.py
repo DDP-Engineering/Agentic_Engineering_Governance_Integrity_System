@@ -33,6 +33,12 @@ STARTERS = {
     host: ADAPTERS / "starters" / host / path.name
     for host, path in NATIVE.items()
 }
+CHECKPOINT_CHOICE_BLOCK = """Choose one:
+
+- **Continue**
+- **Review**
+- **Revise or reimplement**
+- **Park**"""
 
 
 def front_matter(path: Path) -> dict[str, str]:
@@ -110,6 +116,11 @@ def test_native_host_guidance_routes_resume_through_stage_show() -> None:
         assert "Approve and close" in guidance, host
         assert "approval_source" in guidance, host
         assert "Do not infer continuous" in guidance, host
+        assert "make no further tool call" in guidance, host
+        assert "implement, validate, and report" in guidance, host
+        assert "verbatim" in guidance, host
+        assert CHECKPOINT_CHOICE_BLOCK in guidance, host
+        assert "one choice per line" in guidance, host
         assert "commit" in guidance and "outside AEGIS" in guidance, host
 
 
