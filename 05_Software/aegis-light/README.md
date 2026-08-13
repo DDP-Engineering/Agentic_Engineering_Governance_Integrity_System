@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light 0.2.0
+# AEGIS Light 0.3.0
 
 A **companion** governance system for agent-driven software development.
 It gives any coding agent — a frontier CLI or a local small model — a
@@ -66,13 +66,17 @@ Tell your agent:
 using aegis workflow, implement feature X
 ```
 
-The agent walks the stages — frame → specify → design → build →
-deliver (small fixes: frame → build → deliver) — driven by one step
+The agent walks the stages - frame → specify → design → build →
+validate → deliver (small fixes: frame → build → validate → deliver) - driven by one step
 file per stage under `.agentic/steps/`. By default it pauses twice: after
 `frame` (scope confirmation) and before the delivery commit/PR; say
 "autopilot to deliver" to skip the first. Every decision, red test,
 check finding and ticked checklist lands in the task journal
-(`.agentic/tasks/TASK-<id>.md`) — the audit trail and the resume point.
+(`.agentic/tasks/TASK-<id>.md`) - the audit trail and the resume point.
+An automated red-test record names the exact selector or command, non-zero
+exit, and expected missing-behavior reason. `validate` performs all final
+candidate edits before repository-wide proof; `deliver` presents and publishes
+that candidate, returning to validation if it changes.
 
 ## CLI
 

@@ -107,7 +107,7 @@ Template sections (`templates/component.md`, recommended not validated):
 **Key behaviors** (with requirement IDs where they exist), **Files** (the
 paths that make up the component).
 
-Wiring is one step, not a stage: `5_deliver.md` instructs "if this task
+Wiring is one step, not a stage: `5_validate.md` instructs "if this task
 materially changed a component's behavior, update or create its page."
 A staleness heuristic (knowledge pages whose listed files no longer
 exist) may join the check catalog as #14 later; 0.1.0 ships without it.
@@ -136,7 +136,7 @@ opened: 2026-08-02
 - 2026-08-02 frame: scope agreed — M3U only, no PLS. Quick path rejected
   (new user-facing behavior → full path).
 - 2026-08-02 specify: created REQ-FUNC-3fa2.
-- 2026-08-02 build: test_roundtrip red as expected (missing module).
+- 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=missing module.
 ```
 
 The journal is append-mostly: header lines change, log lines only get

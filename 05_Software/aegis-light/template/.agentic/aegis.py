@@ -37,7 +37,7 @@ import time
 import tomllib
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 SCHEMA = 1
 
 AGENTIC = Path(__file__).resolve().parent
@@ -89,8 +89,10 @@ tests = ["tests/"]
 [zones]
 # What each stage may write besides `.agentic/`, which every stage may
 # always write. Values name the globs above: "source", "tests". A stage
-# left out entirely may write anywhere - that is why build and deliver
-# are not listed. Advisory like everything else: check reports an edit
+# left out entirely may write anywhere - that is why build, validate, and
+# deliver are not listed. Deliver is publish-only by instruction, but the
+# merge-base diff cannot attribute an edit to one stage without false hits.
+# Advisory like everything else: check reports an edit
 # outside the zone, it never stops one. The defaults are shown; uncomment
 # and change a line to widen or narrow one stage.
 # frame = []
@@ -117,9 +119,10 @@ This digest is enough to act on if you read nothing else.
 Stages, one step file each in `.agentic/steps/`: **frame** (agree scope,
 open the task journal) -> **specify** (write the requirement, and a spec
 when useful) -> **design** (a short note for non-trivial work) -> **build**
-(failing test first, then the implementation, until green) -> **deliver**
-(full suite, check, knowledge pages, report, commit). A small fix or change
-may take the quick path, frame -> build -> deliver.
+(failing test first, then the implementation, until green) -> **validate**
+(review, knowledge, full suite and strict check) -> **deliver** (approval,
+report, commit/PR). A small fix or change may take the quick path,
+frame -> build -> validate -> deliver.
 
 To resume: `python .agentic/aegis.py status` lists the task journals; open
 `.agentic/tasks/TASK-<id>.md`, read its `stage:` line and `## Log`, open
@@ -609,7 +612,7 @@ CHECKS: tuple[tuple[str, str], ...] = (
     ("uncovered-source", "changed source files are covered by affected_paths"),
     ("no-linked-tests", "active requirements have existing linked tests"),
     ("stale-paths", "affected_paths entries still exist on disk"),
-    ("scope-drift", "a build/deliver task's diff touches its requirements"),
+    ("scope-drift", "a build/validate/deliver task's diff touches its requirements"),
     ("secret-in-diff", "no secret patterns in the added diff lines"),
     ("ticket-ref", "no ticket/run-id patterns inside requirement prose"),
     ("unticked-deliver", "a journal in deliver has no unticked items"),
@@ -694,13 +697,13 @@ REQUIRED_FIELDS = ("schema", "id", "title", "status", "requirement", "verificati
 CODE_BY_FOLDER = {folder: code for folder, code in CATEGORIES.values()}
 REQ_STATUSES = ("draft", "active", "retired")
 REQ_ID_RE = re.compile(r"^REQ-[A-Z]{2,6}-[0-9a-f]{4,12}$")
-#: journal stage vocabulary: the five stages, adoption's phases, and done.
-KNOWN_STAGES = ("frame", "specify", "design", "build", "deliver", "done",
+#: journal stage vocabulary: the six stages, adoption's phases, and done.
+KNOWN_STAGES = ("frame", "specify", "design", "build", "validate", "deliver", "done",
                 "survey", "components", "close")
 #: which step file explains each stage - adoption's phases live in adopt.md.
 STAGE_STEP_FILES = {
     "frame": "1_frame.md", "specify": "2_specify.md", "design": "3_design.md",
-    "build": "4_build.md", "deliver": "5_deliver.md",
+    "build": "4_build.md", "validate": "5_validate.md", "deliver": "6_deliver.md",
     "survey": "adopt.md", "components": "adopt.md", "close": "adopt.md",
 }
 
@@ -1160,7 +1163,7 @@ def check_diff(add, skip, cfg, records, journals, scope) -> None:
 
     for relpath, data in drift_journals:  # 8: scope-drift
         stage = data["header"].get("stage", "")
-        if stage not in ("build", "deliver") or not files:
+        if stage not in ("build", "validate", "deliver") or not files:
             continue
         # targets are the linked requirements' affected_paths only - the
         # requirement TOML itself is usually created on this same branch and

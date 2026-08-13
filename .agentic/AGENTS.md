@@ -27,15 +27,19 @@ did. Do the steps honestly and keep the journal true.
 | 2 | specify | `.agentic/steps/2_specify.md` | Write or update the requirement(s), and a spec when useful. |
 | 3 | design | `.agentic/steps/3_design.md` | A short design note for non-trivial work; cite requirement IDs. |
 | 4 | build | `.agentic/steps/4_build.md` | Failing test first, then implementation, until green. |
-| 5 | deliver | `.agentic/steps/5_deliver.md` | Full suite, strict check, knowledge pages, report, commit/PR. |
+| 5 | validate | `.agentic/steps/5_validate.md` | Review and reconcile the candidate, then prove it as the final action. |
+| 6 | deliver | `.agentic/steps/6_deliver.md` | Present the validated candidate, report, commit, and publish. |
 
-**Quick path.** For a small fix or change: `frame → build → deliver`.
+**Quick path.** For a small fix or change: `frame → build → validate → deliver`.
 Decide this in `frame`, record `path: quick` in the journal header, and
 say why in the log. Everything else uses the full path.
 
 **Write zones.** Every stage may write under `.agentic/`. Beyond that,
 `frame`, `specify` and `design` write nothing else — they come before the
-code is agreed — while `build` and `deliver` write anywhere. Advisory
+code is agreed — while `build`, `validate`, and `deliver` have no mechanical
+zone. `deliver` is still publish-only by instruction: if the validated
+candidate changes, return to `validate`. It has no configured zone because
+the merge-base diff cannot tell which stage introduced an edit. Advisory
 like the rest: `check` reports an edit outside the current stage's zone
 as `stage-zone`, it never blocks one, and a hit usually means the
 journal's `stage:` is stale rather than that the edit was wrong. Change
@@ -97,7 +101,8 @@ never crosses machines.
 - **Checkpoint (default).** Stop and ask twice, not once per stage: at
   the end of `frame` (scope, chosen path, proposed requirements — the
   cheap moment to course-correct) and before the `deliver` commit/PR
-  (report plus check and suite results, presented for a yes). The stages
+  (the validated candidate, check, and suite results, presented for a yes).
+  The stages
   in between flow through without asking.
 - **Autopilot.** When the prompt says "autopilot to deliver", suppress
   the frame stop. The pre-PR stop always remains, because publishing is
@@ -129,7 +134,8 @@ For a small local model, give one stage per session:
 | specify | `Read .agentic/AGENTS.md. Continue TASK-<id> (stage specify): follow .agentic/steps/2_specify.md, then update the task journal.` |
 | design | `Read .agentic/AGENTS.md. Continue TASK-<id> (stage design): follow .agentic/steps/3_design.md, then update the task journal.` |
 | build | `Read .agentic/AGENTS.md. Continue TASK-<id> (stage build): follow .agentic/steps/4_build.md, then update the task journal.` |
-| deliver | `Read .agentic/AGENTS.md. Continue TASK-<id> (stage deliver): follow .agentic/steps/5_deliver.md, then update the task journal.` |
+| validate | `Read .agentic/AGENTS.md. Continue TASK-<id> (stage validate): follow .agentic/steps/5_validate.md, then update the task journal.` |
+| deliver | `Read .agentic/AGENTS.md. Continue TASK-<id> (stage deliver): follow .agentic/steps/6_deliver.md, then update the task journal.` |
 | adopt | `Read .agentic/AGENTS.md. Adopt this repo: follow .agentic/steps/adopt.md, one component per session.` |
 
 ## Commands you will use
@@ -141,6 +147,6 @@ python .agentic/aegis.py task new "<title>"     # new task journal
 python .agentic/aegis.py req new <cat> "<t>"    # new requirement file
 python .agentic/aegis.py check                  # advisory report, always exits 0
 python .agentic/aegis.py test --impacted        # fast inner loop during build
-python .agentic/aegis.py test                   # full suite, used at deliver
+python .agentic/aegis.py test                   # full suite, used at validate
 python .agentic/aegis.py report TASK-<id>       # delivery summary into the journal
 ```

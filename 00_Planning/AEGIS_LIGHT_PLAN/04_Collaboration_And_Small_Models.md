@@ -67,7 +67,7 @@ hold:
    models.** Recommended split for weak models: run *one stage per
    session*, end every session by updating the journal. A frontier model
    can do frame/specify/design; the local model does build; either does
-   deliver.
+   validate and deliver.
 5. **Journal growth is bounded**: log lines are one sentence; when a
    journal exceeds ~120 lines the deliver step archives detail into the
    report section rather than growing the log.

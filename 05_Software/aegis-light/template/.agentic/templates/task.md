@@ -14,7 +14,7 @@ The header is the block of "key: value" lines directly under the title.
 Keep it exactly in that form — one key per line, no blank lines inside
 the block, no comments between the lines — so it stays machine-readable.
 
-  stage         frame | specify | design | build | deliver | done
+  stage         frame | specify | design | build | validate | deliver | done
                 (adoption journals: survey | components | close | done)
   type          feature | fix | change | adopt
   path          full | quick

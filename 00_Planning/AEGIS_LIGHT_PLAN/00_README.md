@@ -76,7 +76,8 @@ Concretely:
   one per component — the content survives; the `components.toml`
   manifest and baseline-guard machinery do not).
 - Traceability: diff → requirements → tests, reported heuristically.
-- Test-first as a *recommended practice* in the build stage.
+- Test-first as a *recommended practice* in the build stage, with the exact
+  red selector or command, non-zero exit, and expected failure recorded.
 - A delivery report and a task journal.
 - Windows + Linux, all major agent CLIs.
 
@@ -130,9 +131,10 @@ advisory-by-default (`check` exits 0 without `--strict`).
 - **D0 — Name and location. RATIFIED 2026-08-02:** name **AEGIS Light**,
   payload name `aegis-light`, new tree at `05_Software/aegis-light/`,
   versioning starts at 0.1.0.
-- **D1 — Stage model.** Recommended: 5 stages (frame, specify, design,
-  build, deliver) with a 3-stage quick path. Alternative: keep the eight
-  2.x stage names as thin step files.
+- **D1 - Stage model. REVISITED FOR 0.3.0:** 6 stages (frame, specify,
+  design, build, validate, deliver) with a 4-stage quick path. Validation
+  contains every candidate-changing review/update and proves last; delivery
+  presents and publishes the unchanged candidate.
 - **D2 — Requirement IDs.** Recommended: short random suffix
   (`REQ-FUNC-3fa2`) so parallel branches never collide. Alternative:
   sequential numbers plus a post-merge duplicate check.

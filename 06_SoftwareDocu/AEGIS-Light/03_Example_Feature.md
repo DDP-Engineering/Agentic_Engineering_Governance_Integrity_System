@@ -41,11 +41,11 @@ records each stage transition:
 
 ## Stage 4 — build (test first)
 
-The step file orders it explicitly: failing test **before**
-implementation, and the red run noted in the journal.
+The step file orders it explicitly: failing test **before** implementation,
+with a reproducible red record in the journal.
 
 ```
-- 2026-08-02 build: test_roundtrip red as expected (no module m3u).
+- 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=no module m3u.
 ```
 
 Then implementation until green, with the focused regression as the fast
@@ -62,15 +62,14 @@ test --impacted (1 test ref(s)): exit 0 (0.4s)
 The agent runs `aegis check` before leaving the stage and self-corrects
 anything it flags (a forgotten `affected_paths` entry, a stray file).
 
-## Stage 5 — deliver
+## Stage 5 - validate
 
-Full suite (not just impacted), the advisory report, the knowledge page,
-and the delivery summary. Naming the task scopes the diff checks to it
-and reports a branch mismatch:
+The agent reviews the candidate, refreshes its requirements and knowledge page,
+and only then runs the full suite and strict check. Naming the task scopes the
+diff checks to it and reports a branch mismatch:
 
 ```bash
 python .agentic/aegis.py check --task TASK-8b12 --strict --run
-python .agentic/aegis.py report TASK-8b12
 ```
 
 ```
@@ -79,12 +78,27 @@ run: test ok (3.2s)
 summary: errors=0 warnings=0 notes=0
 result: ok
 strict: ok
-report appended to .agentic/tasks/TASK-8b12.md
 ```
 
-Then the **delivery checkpoint** — the agent shows you the report and
-waits for your yes before committing / opening the PR. This stop always
-happens, even in autopilot: publishing is the outward-facing act.
+Any correction sends the task back to the appropriate stage and makes this
+proof run again. Once it is current, `stage: deliver` means "validated, not yet
+published."
+
+## Stage 6 - deliver
+
+Then the **delivery checkpoint** - the agent shows you the validation evidence
+and final diff and waits for your yes before committing / opening the PR. This
+stop always happens, even in autopilot: publishing is the outward-facing act.
+
+After approval it generates and reads the report:
+
+```bash
+python .agentic/aegis.py report TASK-8b12
+```
+
+If the validated candidate changed or needs correction, delivery stops and
+returns to `validate`; there is no stage-zone heuristic pretending to know
+when a merge-base diff was edited.
 
 ## Two commits, so "done" never lies
 

@@ -8,6 +8,11 @@ is a small, standard-library-only `.agentic/` tree whose instructions, journals,
 requirements, knowledge pages, and advisory checks remain readable without a
 service or external state store.
 
+Version 0.3.0 uses six task stages. Build records a reproducible red command,
+non-zero exit, and expected missing-behavior reason; validate reconciles and
+proves the candidate; deliver presents and publishes it without a misleading
+stage-local write-zone claim.
+
 ## Public interface
 
 - `python .agentic/aegis.py init` safely completes deployment into a repository.
@@ -28,6 +33,8 @@ service or external state store.
 - `REQ-FUNC-5acb044e` - stable heuristic integrity reporting.
 - `REQ-TEST-07679fdc` - focused regression with a safe full-suite fallback.
 - `REQ-FUNC-e4f0da51` - truthful command and delivery reporting.
+- `REQ-TEST-a67ee43e` - reproducible red-test journal evidence.
+- `REQ-FUNC-24ea4f73` - separate validation from publication.
 - `REQ-NFR-6f1a6621` - bounded output suitable for small-model sessions.
 - `REQ-REL-5fc2eb80` - version-consistent transferable release packaging.
 
@@ -35,7 +42,7 @@ service or external state store.
 
 - `05_Software/aegis-light/template/.agentic/aegis.py` - single-file CLI.
 - `05_Software/aegis-light/template/.agentic/AGENTS.md` and `steps/` -
-  lifecycle and adoption instructions.
+  six-stage lifecycle and adoption instructions.
 - `05_Software/aegis-light/template/.agentic/templates/` - artifact starters.
 - `05_Software/aegis-light/tests/` - CLI, check, runner, report, structure, and
   release-builder regressions.

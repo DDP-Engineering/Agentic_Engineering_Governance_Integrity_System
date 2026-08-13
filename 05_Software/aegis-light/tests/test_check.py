@@ -348,18 +348,20 @@ def test_uncovered_source_ignores_deleted_files(tmp_path, capsys):
 
 
 @needs_git
+@pytest.mark.parametrize("stage", ["build", "validate", "deliver"])
 def test_scope_drift_fires_and_is_silent_when_requirement_is_touched(tmp_path,
-                                                                     capsys):
+                                                                     capsys,
+                                                                     stage):
     agentic, aegis = make_git_repo(tmp_path)
     write_req(agentic, "REQ-FUNC-1111", paths='["src/other.py"]',
               tests='["tests/test_app.py"]')
-    write_task(agentic, "TASK-aaaa", stage="build", reqs="REQ-FUNC-1111")
+    write_task(agentic, "TASK-aaaa", stage=stage, reqs="REQ-FUNC-1111")
     git(tmp_path, "add", "-A")           # the artifacts are part of the base,
     git(tmp_path, "commit", "-m", "wip")  # not untracked work-in-progress
     write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
     out = run_check(aegis, capsys)
     assert any("TASK-aaaa" in line
-               and "build diff touches no linked requirement" in line
+               and f"{stage} diff touches no linked requirement" in line
                for line in lines_for(out, "scope-drift"))
 
     # touching a file inside the linked requirement's affected_paths silences

@@ -355,6 +355,30 @@ def test_status_accepts_a_bare_id_and_shows_only_the_last_five_log_lines(tmp_pat
     assert "checklist: 1/2 done" in out
 
 
+def test_status_resolves_validate_and_deliver_step_files(tmp_path, capsys):
+    """REQ-FUNC-24ea4f73: both post-build stages are resumable."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    capsys.readouterr()
+
+    for suffix, stage, step in (
+        ("aaaa", "validate", "5_validate.md"),
+        ("bbbb", "deliver", "6_deliver.md"),
+    ):
+        (agentic / "tasks" / f"TASK-{suffix}.md").write_text(
+            f"# TASK-{suffix} - stage\n\nstage: {stage}\ntype: change\n"
+            "path: full\nrequirements:\nbranch: feature\nopened: 2026-08-12\n\n"
+            "## Done checklist (current stage)\n\n- [ ] continue\n\n## Log\n\n"
+            "- 2026-08-12 frame: opened\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        assert aegis.main(["status", f"TASK-{suffix}"]) == 0
+        out = capsys.readouterr().out
+        assert f"stage: {stage}" in out
+        assert f"open .agentic/steps/{step}" in out
+
+
 def test_status_on_an_empty_repo_and_on_a_missing_task(tmp_path, capsys):
     _, aegis = make_repo(tmp_path)
     aegis.main(["init"])

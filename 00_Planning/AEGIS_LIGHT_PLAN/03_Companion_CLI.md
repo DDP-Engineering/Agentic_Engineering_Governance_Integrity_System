@@ -81,7 +81,7 @@ Traceability heuristics (warn level):
 6. Active requirements with empty `linked_tests`, or linked test files
    that do not exist.
 7. Requirements whose `affected_paths` no longer exist on disk (stale).
-8. A task in `build`/`deliver` whose diff is non-empty but whose linked
+8. A task in `build`/`validate`/`deliver` whose diff is non-empty but whose linked
    requirements are all untouched (possible scope drift).
 
 Hygiene heuristics (warn level):

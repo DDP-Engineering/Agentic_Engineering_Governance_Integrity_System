@@ -14,7 +14,10 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Add the standalone offline acceptance-record catalog and fail-closed release
-  evidence validator. This is an IP-18 inventory slice, not release acceptance.
+  evidence validator. Its catalog totals are authoritative regardless of the
+  catalog name, and its records and reports identify results as operator-attested
+  evidence that the validator did not execute. This is an IP-18 inventory slice,
+  not release acceptance.
 
 - Implement the clean-break AEGIS version 1 product through IP-17: the complete
   repository-local workflow and current project-knowledge runtime, thin host
@@ -70,6 +73,53 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Replace full-AEGIS human-mode nested JSON dumps with deterministic labelled
+  envelope fields, readable bounded help and scalar values, concise nested-data
+  summaries with durable detail references, and actionable finding, artifact,
+  error, and next-action lines while leaving machine JSON unchanged.
+
+- Align standalone WAEGIS machine responses with the shared protocol: preserve
+  equals-form JSON selection through parse and startup failures, emit strict
+  compact UTF-8 JSON with exactly one trailing LF, and map every documented
+  protocol error to its explicit exit class.
+
+- Make the existing `run.list`, `requirement.list`, and `component.list`
+  pagination navigable through a strictly validated optional decimal cursor
+  while preserving stable ordering, the twenty-item page size, and response
+  fields.
+
+- Derive exact-operation revision help from the machine-revision policy so
+  every required mutation documents `--expected-revision`, the read operation
+  that returns it, and a usable example; document the fixed machine input
+  envelope plus operation-specific `data` fields and constraints for every
+  command that accepts `--input`.
+
+- Add compact stage-specific common findings and structured recovery actions
+  to all eight shipped AEGIS workflows, snapshot them per Run, and expose them
+  through `stage.show` as advisory guidance without new gates or automatic
+  transitions.
+
+- Return Stage sections, evidence, findings, decisions, and escapes exactly
+  once in `stage.show`, while preserving bounded omission accounting and the
+  unique status, revision, timestamp, attachment, event, and work-state fields.
+
+- Move external-runtime Git prerequisite checks behind the Python application
+  boundary so missing Git returns the normal structured AEGIS or WAEGIS
+  response with exit code 5, while help and version remain available without
+  Git and interpreter discovery stays in the platform wrappers.
+
+- Normalize TOML date, datetime, and time values in Markdown artifact front
+  matter, reject non-finite JSON values, and contain presentation failures in
+  the structured CLI error protocol.
+
+- Reject Run and Stage mutations against delivered or abandoned Runs even when
+  the disposable current-Run pointer still selects them, while preserving
+  `run.show` and `stage.show` as read-only inspection paths.
+
+- Detect bare pytest-style functions through a bounded WAEGIS source-text scan
+  when no pytest configuration exists, and report the selected test framework
+  with its evidence without executing target-project tests.
+
 - Prevent extracted AEGIS and WAEGIS launchers from writing Python bytecode
   into product-owned package paths, so normal use leaves no removal residue.
 
@@ -85,6 +135,9 @@ All notable changes to this project will be documented in this file.
   explicitly, redact secret-like command values, and preserve historical
   `--run`/`--stage` inspection as a revision-free, nonselecting, strictly
   read-only `stage.show` operation.
+- Make `stage.show` propose one atomic continuation derived from current Run and
+  Stage status, and make missing or stale revision errors propose the matching
+  read operation that returns the current revision.
 - Evaluate every included full/short AEGIS Stage's completion expectations from
   recorded state and publish unmet section, red-before-green, green-evidence,
   and configured-Validation findings atomically without blocking closure,

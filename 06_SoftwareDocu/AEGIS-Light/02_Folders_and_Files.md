@@ -108,7 +108,7 @@ opened: 2026-08-02
 
 ## Done checklist (current stage)
 
-- [x] failing test written and observed red
+- [x] exact red command, non-zero exit, and expected failure recorded
 - [ ] implementation green
 - [ ] links updated
 
@@ -116,7 +116,7 @@ opened: 2026-08-02
 
 - 2026-08-02 frame: scope agreed - M3U only, no PLS; full path.
 - 2026-08-02 specify: created REQ-FUNC-3fa2.
-- 2026-08-02 test: test --impacted (1 test ref(s)) exit 1 (0.4s)
+- 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=no M3U writer exists.
 ```
 
 The header block (`key: value` lines under the title) is machine-read by
@@ -133,7 +133,7 @@ requirement's `spec` field; `check` verifies the reference resolves.
 ## Knowledge — `knowledge/<component>.md`
 
 One plain page per component: Purpose, Public interface, Key behaviors
-(citing requirement IDs), Files. The `deliver` stage asks the agent to
+(citing requirement IDs), Files. The `validate` stage asks the agent to
 update the page of any component it materially changed. There is no
 manifest and no registry — the folder listing is the component list.
 

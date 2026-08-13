@@ -69,7 +69,8 @@ EXPECTED_FILES = (
     "steps/2_specify.md",
     "steps/3_design.md",
     "steps/4_build.md",
-    "steps/5_deliver.md",
+    "steps/5_validate.md",
+    "steps/6_deliver.md",
     "steps/adopt.md",
     "templates/component.md",
     "templates/requirement.toml",
@@ -129,6 +130,39 @@ def test_payload_ships_no_adapter_or_policy_files():
 def test_payload_inventory_is_exactly_the_documented_set():
     found = {path.relative_to(PAYLOAD).as_posix() for path in payload_files()}
     assert found == set(EXPECTED_FILES)
+
+
+def test_build_stage_records_reproducible_red_evidence_without_git_witness():
+    """REQ-TEST-a67ee43e: red evidence is precise prose, not Git ceremony."""
+    text = (PAYLOAD / "steps" / "4_build.md").read_text(encoding="utf-8")
+    assert "exact test selector or command" in text
+    assert "non-zero exit code" in text
+    assert "expected missing-behavior failure reason" in text
+    assert "manual observation" in text
+    assert "test-only commit" not in text
+    assert "red-witness" not in text
+
+
+def test_six_stage_workflow_separates_validation_from_publication():
+    """REQ-FUNC-24ea4f73: proof may mutate; publication may not."""
+    agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")
+    build = (PAYLOAD / "steps" / "4_build.md").read_text(encoding="utf-8")
+    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(encoding="utf-8")
+    deliver = (PAYLOAD / "steps" / "6_deliver.md").read_text(encoding="utf-8")
+
+    assert "| 5 | validate |" in agents
+    assert "| 6 | deliver |" in agents
+    assert "set `stage: validate`" in build
+    assert "Prove the final candidate only after" in validate
+    assert "does not edit the validated candidate" in deliver
+    assert "return to `validate`" in deliver
+
+
+def test_deliver_has_no_default_write_zone(tmp_path):
+    """REQ-FUNC-24ea4f73: merge-base diffs cannot enforce stage-local edits."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert "validate" not in aegis.DEFAULT_ZONES
+    assert "deliver" not in aegis.DEFAULT_ZONES
 
 
 # TESTS - the payload is self-contained prose

@@ -11,6 +11,8 @@ affected_paths = [
     "05_Software/aegis-light/template/.agentic/aegis.py",
 ]
 linked_tests = [
+    "05_Software/aegis-light/tests/test_release_builder.py::test_current_payload_version_and_inventory_are_release_ready",
+    "05_Software/aegis-light/tests/test_release_builder.py::test_dry_run_builds_archives_with_both_delivery_steps",
     "05_Software/aegis-light/tests/test_release_builder.py::test_payload_version_reads_python_string_assignments",
     "05_Software/aegis-light/tests/test_release_builder.py::test_build_rejects_a_label_that_disagrees_with_the_payload",
     "05_Software/aegis-light/tests/test_release_builder.py::test_build_resolves_default_and_matching_versions_before_verification",
@@ -20,4 +22,3 @@ priority = "normal"
 rationale = "Authoritative source: 00_Planning/AEGIS_LIGHT_PLAN/00_README.md, Product goals 2-4; 05_Implementation_Phases.md, P5 structural guards and packaging."
 created = 2026-08-12
 updated = 2026-08-12
-

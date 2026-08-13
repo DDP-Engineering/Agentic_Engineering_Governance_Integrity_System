@@ -14,7 +14,7 @@ and the agent (or human) moves it forward by editing one line.
 
 ## Stage model (recommended, decision D1)
 
-Five stages, condensed from the eight in AEGIS 2.x:
+Six stages, condensed from the eight in AEGIS 2.x:
 
 | # | Stage | Absorbs from 2.x | Purpose (one line) |
 |---|---|---|---|
@@ -22,9 +22,10 @@ Five stages, condensed from the eight in AEGIS 2.x:
 | 2 | `specify` | requirement | Write or update the requirement(s) and, when useful, a spec. |
 | 3 | `design` | design | A short design note for non-trivial work; cite requirement IDs. |
 | 4 | `build` | check + implementation | Tests first (recommended), then implementation, until green. |
-| 5 | `deliver` | validation + delivery | Run `aegis check` + the full test suite (not just the impacted set), update touched component knowledge pages, write the report, commit/PR. |
+| 5 | `validate` | validation | Review the candidate, update requirements and knowledge, then run `aegis check` and the full test suite as the final action. |
+| 6 | `deliver` | delivery | Present the unchanged validated candidate, append the report, commit/PR, and close out truthfully. |
 
-**Quick path** (small fixes/changes): `frame → build → deliver`. The agent
+**Quick path** (small fixes/changes): `frame → build → validate → deliver`. The agent
 decides proportionality in `frame` and records the choice in the task
 journal — no profile flag, no enforcement, just a recorded decision.
 
@@ -69,7 +70,8 @@ area is touched.
     2_specify.md
     3_design.md
     4_build.md
-    5_deliver.md
+    5_validate.md
+    6_deliver.md
     adopt.md
 ```
 
@@ -95,7 +97,8 @@ Example — `4_build.md` steps (illustrative):
 
 1. Re-read the task journal and the linked requirement(s).
 2. For each requirement, write or extend a test that fails for the right
-   reason. Run it; note the failure in the journal (red-before-green is
+   reason. Run it; record the exact selector or command, non-zero exit, and
+   expected missing-behavior reason in the journal (red-before-green is
    recommended, not enforced).
 3. Implement until the new tests pass; use `aegis test --impacted` as the
    fast inner loop (it runs only the tests linked to requirements whose
@@ -142,7 +145,7 @@ state. The resume procedure in `AGENTS.md` is three lines:
 
 Because the journal is a committed file, resume works across sessions,
 across days, across machines, and across *models* — a large model can frame
-and specify, a local 27B model can build, any model can deliver. Each stage
+and specify, a local 27B model can build, and either can validate and deliver. Each stage
 is sized so one stage fits in one small-model session (see doc 04).
 
 ## What "blocking" becomes

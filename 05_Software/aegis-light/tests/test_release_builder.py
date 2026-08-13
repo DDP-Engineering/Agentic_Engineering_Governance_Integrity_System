@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import importlib.util
+import tarfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -54,6 +56,36 @@ class VerificationReached(Exception):
 
 
 # TESTS
+
+
+def test_current_payload_version_and_inventory_are_release_ready(builder):
+    """REQ-REL-5fc2eb80: shipped version and exact payload agree."""
+    assert builder.payload_version() == "0.3.0"
+    builder.verify_payload()
+
+
+def test_dry_run_builds_archives_with_both_delivery_steps(builder, monkeypatch,
+                                                          tmp_path):
+    """REQ-REL-5fc2eb80: a dry run packages the exact 0.3.0 payload."""
+    dist = tmp_path / "dist"
+    monkeypatch.setattr(builder, "DIST", dist)
+    monkeypatch.setattr(builder, "DELIVERY", tmp_path / "delivery")
+    monkeypatch.setattr(builder, "run_tests", lambda: None)
+
+    assert builder.build(None, False) == 0
+    archive_prefix = "aegis-light-0.3.0"
+    zip_path = dist / f"{archive_prefix}.zip"
+    tar_path = dist / f"{archive_prefix}.tar.gz"
+    assert zip_path.is_file() and tar_path.is_file()
+
+    expected = {
+        f"{archive_prefix}/.agentic/steps/5_validate.md",
+        f"{archive_prefix}/.agentic/steps/6_deliver.md",
+    }
+    with zipfile.ZipFile(zip_path) as archive:
+        assert expected <= set(archive.namelist())
+    with tarfile.open(tar_path, "r:gz") as archive:
+        assert expected <= set(archive.getnames())
 
 
 @pytest.mark.parametrize("source", [

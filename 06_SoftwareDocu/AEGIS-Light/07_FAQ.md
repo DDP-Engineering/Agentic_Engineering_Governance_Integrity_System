@@ -10,7 +10,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 ## What if the agent just ignores the workflow?
 Then it can — nothing stops it, and that is a design decision, not a
 gap. What you get instead of prevention is *visibility*: a task with no
-journal, a journal with no red-test line, a diff with no test changes —
+journal, a journal with no reproducible red-test record, a diff with no test changes -
 all of it shows up in one `aegis check` run and in the journal (or its
 absence) at review time. In practice, agents given clear numbered step
 files follow them; the ones that don't leave fingerprints. And if your
@@ -31,7 +31,8 @@ Codex CLI, Qwen Code, OpenCode, or a bare local-model harness. The
 workflow is deliberately sized so one stage of one task fits a
 32k-context local model (Qwen3-27B, gpt-oss-20B class): the docs an
 agent must read for one step total under ~9k tokens. A common split:
-frontier model for frame/specify/design, local model for build.
+frontier model for frame/specify/design, local model for build, and either for
+validate/deliver.
 
 ## Can I stop mid-task and continue later / elsewhere / with another model?
 Yes — that is the core mechanic, not a feature. The journal
@@ -87,11 +88,15 @@ test you have not written yet is not a manual method, and writing
 ## Can it stop the agent writing code before the scope is agreed?
 Stop, no — nothing in Light blocks. Report, yes. Each stage has a write
 zone: `frame`, `specify` and `design` write only under `.agentic/`, while
-`build` and `deliver` write anywhere. Source edited under a documentation
+`build`, `validate`, and `deliver` are mechanically unrestricted. Source edited under a documentation
 stage shows up as a `stage-zone` warning naming the file and the stage.
 Most hits mean the journal's `stage:` line is stale rather than that the
 edit was wrong — which is itself worth knowing, because a stale stage
-breaks resume. Adjust the zones per stage in `[zones]` in `aegis.toml`.
+breaks resume. `deliver` is publish-only by instruction and returns to
+`validate` if the candidate changes, but it deliberately has no default zone:
+the merge-base diff cannot determine which stage introduced an edit. Adjust
+the zones per stage in `[zones]` in `aegis.toml` only when that limitation is
+acceptable for your workflow.
 
 ## Do I have to write requirements for everything?
 No. Adopt incrementally (doc 05), or not at all for areas you never

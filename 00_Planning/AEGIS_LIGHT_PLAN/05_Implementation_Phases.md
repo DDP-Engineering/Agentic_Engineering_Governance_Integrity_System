@@ -23,9 +23,10 @@ Repo layout for the product itself:
 
 ## P1 — Workflow docs (the product's core)
 
-Write `AGENTS.md`, the six step files (`1_frame` … `5_deliver`, `adopt`),
+Write `AGENTS.md`, the seven step files (`1_frame` … `4_build`,
+`5_validate`, `6_deliver`, `adopt`),
 and the four templates (`requirement.toml`, `task.md`, `spec.md`,
-`component.md`), following docs 01/02 of this plan. `5_deliver.md` must
+`component.md`), following docs 01/02 of this plan. `5_validate.md` must
 include the component-knowledge update step; `adopt.md` must describe the
 three-phase flow (survey / per-component / close) from doc 01.
 

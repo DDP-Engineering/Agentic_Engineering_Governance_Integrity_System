@@ -8,7 +8,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Example — a quick fix, autopilot
 
 The other everyday case: a small bug, you want it gone with minimum
-ceremony. The quick path (`frame → build → deliver`) skips the specify
+ceremony. The quick path (`frame → build → validate → deliver`) skips the specify
 and design stages; autopilot skips the frame stop.
 
 ## You say
@@ -33,8 +33,9 @@ A fix that *changes* intended behavior would take the full path instead;
 the step file tells the agent how to choose, and the journal makes the
 choice reviewable.
 
-**build:** reproduces first — a failing test that hits the empty-playlist
-case — then the one-line fix, then:
+**build:** reproduces first - a failing test that hits the empty-playlist
+case - and records the exact command, non-zero exit, and expected
+missing-behavior reason before the one-line fix, then:
 
 ```bash
 python .agentic/aegis.py test --impacted --task TASK-c3d1
@@ -48,10 +49,13 @@ The new test gets appended to the existing requirement's
 `linked_tests` — the fix strengthens the contract instead of floating
 free.
 
-**deliver:** full suite, `check --task TASK-c3d1 --strict --run`,
-`report TASK-c3d1`,
-knowledge page untouched (no material behavior change — the journal says
-so). Then the one stop autopilot always keeps:
+**validate:** reviews the final candidate, leaves the knowledge page untouched
+(no material behavior change - the journal says so), then runs the full suite
+and `check --task TASK-c3d1 --strict --run` as the last proof.
+
+**deliver:** confirms that candidate is unchanged, presents it, and after
+approval runs `report TASK-c3d1` before committing. This is the one stop
+autopilot always keeps:
 
 > Ready to commit: 1 file fixed, 1 test added, checks clean. The report
 > is in the journal. Commit and open the PR?
