@@ -30,6 +30,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 from test_check import make_repo, write
 
 # CONSTANTS
@@ -175,6 +177,34 @@ def test_deliver_has_no_default_write_zone(tmp_path):
     _agentic, aegis = make_repo(tmp_path)
     assert "validate" not in aegis.DEFAULT_ZONES
     assert "deliver" not in aegis.DEFAULT_ZONES
+
+
+def test_deliver_folds_close_out_into_a_local_only_delivery():
+    """REQ-FUNC-dcb42072: a second commit only where publication can fail."""
+    deliver = " ".join(
+        (PAYLOAD / "steps" / "6_deliver.md").read_text(encoding="utf-8").split())
+    assert "nothing can fail after it" in deliver
+    assert "let the same commit carry them" in deliver
+    # the separate close-out survives wherever the outcome can still fail
+    assert "can still fail after the delivery commit" in deliver
+    assert "close-out commit pushed to the same PR" in deliver
+
+
+def test_check_help_makes_no_unconditional_zero_exit_promise(tmp_path, capsys):
+    """REQ-UX-e9952f0f: a usage error has always exited non-zero."""
+    _agentic, aegis = make_repo(tmp_path)
+    source = AEGIS_PY.read_text(encoding="utf-8")
+    assert "always exits 0" not in source
+    assert "exits 0 always" not in source
+
+    aegis.main(["init"])
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        aegis.main(["check", "--help"])
+    assert "always exits 0" not in capsys.readouterr().out
+
+    # the exit the help must not deny
+    assert aegis.main(["check", "--task", "TASK-nope"]) == 1
 
 
 # TESTS - the payload is self-contained prose

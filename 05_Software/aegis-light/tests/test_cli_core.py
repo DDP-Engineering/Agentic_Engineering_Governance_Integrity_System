@@ -117,6 +117,7 @@ def test_header_parser_round_trip_against_the_template(tmp_path):
         "path": "full",
         "requirements": "",
         "branch": "<branch>",
+        "base": "",
         "opened": "2026-01-01",
     }
     assert data["checklist"] == [
@@ -263,6 +264,27 @@ def test_req_covers_all_eight_categories(tmp_path, capsys, category, folder, cod
     assert path.stem.startswith(f"REQ-{code}-")
 
 
+@pytest.mark.parametrize(
+    "abbreviation,folder,code",
+    [
+        ("func", "functional", "FUNC"),
+        ("sec", "security", "SEC"),
+        ("plat", "platform", "PLAT"),
+        ("rel", "reliability", "REL"),
+    ],
+)
+def test_req_accepts_the_identifier_abbreviations(tmp_path, capsys,
+                                                  abbreviation, folder, code):
+    """REQ-PLAT-2e23ac26: the abbreviation the id shows is a valid category."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    capsys.readouterr()
+    assert aegis.main(["req", abbreviation, "A behavior"]) == 0
+    path = tmp_path / capsys.readouterr().out.strip()
+    assert path.parent == agentic / "requirements" / folder
+    assert path.stem.startswith(f"REQ-{code}-")
+
+
 def test_req_rejects_an_unknown_category(tmp_path, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
@@ -402,6 +424,32 @@ def test_status_on_an_empty_repo_and_on_a_missing_task(tmp_path, capsys):
     assert "task new" not in empty
     assert aegis.main(["status", "TASK-dead"]) == 1
     assert capsys.readouterr().err.startswith("error: no such task journal")
+
+
+def test_task_records_the_commit_it_started_from(tmp_path, capsys, monkeypatch):
+    """REQ-DATA-71fcf08e: every later measurement needs an exact start."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "git_head", lambda: "0123456789abcdef0123")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Measurable work"]) == 0
+    path = tmp_path / capsys.readouterr().out.strip()
+    data = aegis.parse_journal(path.read_text(encoding="utf-8"))
+    assert data["header"]["base"] == "0123456789abcdef0123"
+
+
+def test_task_records_no_commit_without_history(tmp_path, capsys, monkeypatch):
+    """REQ-DATA-71fcf08e: no history is recorded as no commit, not a guess."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "git_head", lambda: "")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Unrepeatable work"]) == 0
+    path = tmp_path / capsys.readouterr().out.strip()
+    data = aegis.parse_journal(path.read_text(encoding="utf-8"))
+    assert data["header"]["base"] == ""
 
 
 def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):

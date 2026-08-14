@@ -22,12 +22,30 @@ exception is `check --strict`, which is for CI.
 | Command | What it does |
 |---|---|
 | `aegis init` | Scaffold `.agentic/` into the current repo (docs, templates, `aegis.toml`); idempotent; this *is* the installer (decision D4). |
-| `aegis status` | List open tasks with their stage; with a task ID, show its header, checklist state, and the last log lines. The resume entry point. |
-| `aegis task new "<title>" [--type fix]` | Create `tasks/TASK-<id>.md` from the template with a fresh ID, current branch, today's date. |
-| `aegis req new <category> "<title>"` | Create a requirement file with a fresh collision-safe ID; print the path. |
-| `aegis check [--strict] [--run] [--task ID]` | Run the heuristic catalog (below); print a compact report. `--run` also executes the `[commands]` from `aegis.toml` and includes pass/fail. `--task` scopes diff-based checks to that task's branch. |
-| `aegis test [name] [--impacted]` | Convenience runner for a configured command (`test` by default); appends one result line to the task log if a task is named. `--impacted` runs only the focused regression set (below). |
+| `aegis status [task] [--all] [--json]` | List open tasks with their stage; with a task ID, show its header, checklist state, and the last log lines. The resume entry point. |
+| `aegis task "<title>" [--type fix]` | Create `tasks/TASK-<id>.md` from the template with a fresh ID, current branch, today's date. |
+| `aegis req <category> "<title>"` | Create a requirement file with a fresh collision-safe ID; print the path. The ID abbreviation (`func`) is accepted as well as the folder name (`functional`). |
+| `aegis check [--strict] [--run] [--task ID] [--full] [--json]` | Run the heuristic catalog (below); print a compact report. `--run` also executes the `[commands]` from `aegis.toml` and includes pass/fail. `--task` scopes diff-based checks to that task's branch. `--full` lifts the 40-finding cap. |
+| `aegis test [name] [--impacted] [--base rev] [--task ID]` | Convenience runner for a configured command (`test` by default); appends one result line to the task log if a task is named. `--impacted` runs only the focused regression set (below); `--base` chooses the diff basis. |
 | `aegis report <task>` | Generate the delivery summary (requirements touched, diff stats, check results, checklist state) and append it to the task journal. |
+
+The commands are flat: `task` and `req` take their arguments directly, with
+no `new` sub-verb. Everything runs in the repository root unless
+`[commands] workdir` names a directory below it, in which case configured
+commands run there and substituted test paths are rewritten to match.
+
+Nothing shipped limits how long a command may run — a limit short enough to
+stop a suite the repository considers healthy would report a failure that
+never happened. A repository asks for a limit with `[commands] timeout`, or
+per command with `[timeouts] <name>`. A command stopped by its limit is
+reported as `command-timeout` and described as proving nothing, never as a
+failure: it returned no verdict at all.
+
+`aegis task` records the commit it was created on in the journal's `base:`
+header, and `report` and `check --task` measure their diff from it. Without
+that anchor the only available basis is the branch's fork point, which
+answers a different question and counts every earlier commit on the branch
+as this task's work.
 
 Not included, on purpose: stage transition commands (edit one line in the
 journal), waiver commands, evidence commands, adoption commands, doctor,
@@ -106,10 +124,15 @@ The same mapping the traceability heuristics use (doc 02) is driven in
 reverse to select a regression set, exactly as heavy AEGIS's impact
 selection did — but as a convenience, not a gate:
 
-1. Changed files = git diff against the merge base (or `--task`'s branch).
+1. Changed files = git diff against the merge base (or `--task`'s branch,
+   or the revision `--base` names — `--base HEAD` restricts the basis to
+   uncommitted work, which is what the edit-run loop actually wants; the
+   merge base is cumulative over a branch's whole life and on a long-lived
+   branch selects almost everything).
 2. Requirements whose `affected_paths` match any changed file are the
    impacted requirements.
-3. The union of their `linked_tests` is the focused regression set.
+3. The union of their `linked_tests` is the focused regression set,
+   rewritten relative to `[commands] workdir` when one is configured.
 
 `aegis test --impacted` substitutes that set into a template command from
 `aegis.toml`:
@@ -125,6 +148,13 @@ or the focused set is empty (no requirement covers the changed files —
 which check #5 flags anyway), the full `test` command runs instead, with a
 note saying why. The intended rhythm: `--impacted` during `build` for the
 fast inner loop, the full suite once at `deliver`.
+
+Over-selection needs a fallback of its own, because a set large enough to
+exceed the platform's command-line limit cannot launch at all — the process
+fails before the runner exists, which reads as a broken tool rather than a
+wide selection. So the substitution degrades in steps: exact selectors,
+then one entry per distinct test file, then the full suite, each step
+printing its reason.
 
 ## CI strict mode (the only hard gate, opt-in)
 

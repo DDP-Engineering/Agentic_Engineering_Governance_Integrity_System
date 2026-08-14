@@ -57,6 +57,31 @@ source = ["src/"]                     # where your production code lives
 tests  = ["tests/"]                   # where your tests live
 ```
 
+If your application lives in a subfolder rather than at the repository
+root, add one more line and let AEGIS Light handle the rest:
+
+```toml
+[commands]
+workdir = "app"                       # run commands here, not at the root
+```
+
+Do not put a directory change inside the commands themselves. AEGIS Light
+substitutes repository-relative test paths into `test_impacted`, so a
+command that moves itself would resolve those paths a second time and find
+nothing. With `workdir` set, the paths are rewritten to match.
+
+Nothing limits how long a command may run. If you want a limit — a hung
+linter, a CI budget — ask for one per command:
+
+```toml
+[timeouts]
+test = 5400                           # seconds; this command only
+lint = 120
+```
+
+A command stopped by its limit is reported as having proved nothing, which
+is different from a suite that ran and failed.
+
 Everything else in the file is optional tuning and can wait.
 
 ## First contact

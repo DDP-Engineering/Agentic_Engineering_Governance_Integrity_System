@@ -60,20 +60,20 @@ class VerificationReached(Exception):
 
 def test_current_payload_version_and_inventory_are_release_ready(builder):
     """REQ-REL-5fc2eb80: shipped version and exact payload agree."""
-    assert builder.payload_version() == "0.3.0"
+    assert builder.payload_version() == "0.4.0"
     builder.verify_payload()
 
 
 def test_dry_run_builds_archives_with_workflow_and_cli_docs(builder, monkeypatch,
                                                             tmp_path):
-    """REQ-REL-5fc2eb80: a dry run packages the exact 0.3.0 payload."""
+    """REQ-REL-5fc2eb80: a dry run packages the exact 0.4.0 payload."""
     dist = tmp_path / "dist"
     monkeypatch.setattr(builder, "DIST", dist)
     monkeypatch.setattr(builder, "DELIVERY", tmp_path / "delivery")
     monkeypatch.setattr(builder, "run_tests", lambda: None)
 
     assert builder.build(None, False) == 0
-    archive_prefix = "aegis-light-0.3.0"
+    archive_prefix = "aegis-light-0.4.0"
     zip_path = dist / f"{archive_prefix}.zip"
     tar_path = dist / f"{archive_prefix}.tar.gz"
     assert zip_path.is_file() and tar_path.is_file()

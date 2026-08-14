@@ -150,7 +150,7 @@ python .agentic/aegis.py status                 # open tasks, or one task's stat
 python .agentic/aegis.py task "<title>"         # new task journal
 python .agentic/aegis.py req <cat> "<title>"    # new requirement file
 python .agentic/aegis.py check                  # advisory report, always exits 0
-python .agentic/aegis.py test --impacted        # fast inner loop during build
+python .agentic/aegis.py test --impacted --base HEAD   # fast loop in build
 python .agentic/aegis.py test                   # full suite, used at validate
 python .agentic/aegis.py report TASK-<id>       # delivery summary into the journal
 ```

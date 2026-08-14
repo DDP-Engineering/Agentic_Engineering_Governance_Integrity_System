@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from test_check import (
+    git,
     make_git_repo,
     make_repo,
     needs_git,
@@ -41,12 +42,15 @@ PY = f'"{sys.executable}"'
 # HELPERS
 
 
-def config(agentic: Path, commands: str, check: str = "") -> None:
+def config(agentic: Path, commands: str, check: str = "",
+           source: str = '["src/"]', tests: str = '["tests/"]',
+           extra: str = "") -> None:
     """@brief Write an aegis.toml with the given [commands] and [check] bodies."""
     write(
         agentic / "aegis.toml",
         f"schema = 1\n\n[commands]\n{commands}\n\n"
-        f'[layout]\nsource = ["src/"]\ntests = ["tests/"]\n\n[check]\n{check}\n',
+        f"[layout]\nsource = {source}\ntests = {tests}\n\n[check]\n{check}\n"
+        + (f"\n{extra}\n" if extra else ""),
     )
 
 
@@ -68,7 +72,7 @@ def run(aegis, capsys, *argv: str) -> tuple[int, str]:
 def test_strict_ok_on_a_clean_repo(tmp_path, monkeypatch, capsys):
     _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     code, out = run(aegis, capsys, "check", "--strict")
     assert code == 0
     assert "strict: ok" in out
@@ -77,7 +81,7 @@ def test_strict_ok_on_a_clean_repo(tmp_path, monkeypatch, capsys):
 def test_strict_fails_on_an_error(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     write(agentic / "requirements" / "functional" / "REQ-FUNC-1111.toml",
           "not [ toml\n")
     code, out = run(aegis, capsys, "check", "--strict")
@@ -100,7 +104,7 @@ def test_strict_promote_turns_a_warning_into_a_failure(tmp_path, monkeypatch,
                                                        capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, 'test = "unused"',
            'strict_promote = ["no-linked-tests"]')
     write_req(agentic, "REQ-FUNC-1111")
@@ -118,7 +122,7 @@ def test_strict_promote_turns_a_warning_into_a_failure(tmp_path, monkeypatch,
 def test_run_reports_ok_and_fail_and_feeds_strict(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, f"good = {cmd_exit(0)}\nbad = {cmd_exit(3)}")
 
     code, out = run(aegis, capsys, "check", "--run")
@@ -136,7 +140,7 @@ def test_run_reports_ok_and_fail_and_feeds_strict(tmp_path, monkeypatch, capsys)
 def test_run_prints_the_captured_tail_of_a_failure(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic,
            f"bad = '{PY} -c \"print(chr(66) + chr(79) + chr(79) + chr(77));"
            " import sys; sys.exit(2)\"'")
@@ -147,21 +151,23 @@ def test_run_prints_the_captured_tail_of_a_failure(tmp_path, monkeypatch, capsys
 def test_run_skips_templates_and_timeout_key(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic,
            "test_impacted = \"pytest {tests}\"\ntimeout = 60")
     _code, out = run(aegis, capsys, "check", "--run")
     assert "run: nothing ran" in out  # neither the template nor timeout ran
 
 
-def test_run_times_out_as_exit_124(tmp_path, monkeypatch, capsys):
+def test_run_stops_a_command_at_its_configured_limit(tmp_path, monkeypatch,
+                                                      capsys):
+    """A configured limit still stops a command - it just says so honestly."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic,
            f"slow = '{PY} -c \"import time; time.sleep(30)\"'\ntimeout = 1")
     _code, out = run(aegis, capsys, "check", "--run")
-    assert any(line.startswith("run: slow FAIL exit 124 (")
+    assert any(line.startswith("run: slow stopped at its 1s limit (")
                for line in out.splitlines())
 
 
@@ -367,7 +373,7 @@ def test_run_skips_side_effect_names_and_honors_check_run_list(tmp_path,
                                                                capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, f"test = {cmd_exit(0)}\ndeploy_prod = {cmd_exit(0)}")
     _code, out = run(aegis, capsys, "check", "--run")
     assert any(line.startswith("run: test ok") for line in out.splitlines())
@@ -413,7 +419,7 @@ def test_run_with_nothing_to_run_is_visible_not_silent(tmp_path, monkeypatch,
                                                        capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, "test_impacted = \"pytest {tests}\"")  # nothing runnable
     code, out = run(aegis, capsys, "check", "--run")
     assert code == 0                       # advisory: still exits 0
@@ -432,7 +438,7 @@ def test_strict_fails_when_run_verified_nothing(tmp_path, monkeypatch, capsys):
     own, without needing a strict_promote entry."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, "test_impacted = \"pytest {tests}\"")  # nothing runnable
 
     code, out = run(aegis, capsys, "check", "--run")       # advisory
@@ -451,7 +457,7 @@ def test_run_announces_each_command_before_it_starts(tmp_path, monkeypatch,
                                                      capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, f"test = {cmd_exit(0)}")
     _code, out = run(aegis, capsys, "check", "--run")
     lines = [line for line in out.splitlines() if line.startswith("run: test")]
@@ -463,7 +469,7 @@ def test_findings_are_capped_unless_full_or_strict(tmp_path, monkeypatch,
                                                    capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     for index in range(60):  # 60 active requirements, each missing tests
         write_req(agentic, f"REQ-FUNC-{index:08x}")
 
@@ -491,7 +497,7 @@ def test_captured_output_is_bounded_by_a_temp_file(tmp_path, monkeypatch,
                                                    capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     # ~2 MB of output: only the tail may reach the report
     config(agentic,
            f"""noisy = '{PY} -c "print(chr(88) * 2000000); import sys;"""
@@ -536,7 +542,7 @@ def test_check_json_is_a_parseable_document_with_a_schema(tmp_path,
 def test_check_json_is_never_capped(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     for index in range(60):  # more than FINDING_CAP
         write_req(agentic, f"REQ-FUNC-{index:08x}")
     _code, doc, _err = json_out(aegis, capsys, "check", "--json")
@@ -549,7 +555,7 @@ def test_check_json_keeps_stdout_pure_while_running_commands(tmp_path,
                                                              capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     config(agentic, f"test = {cmd_exit(0)}\nbad = {cmd_exit(3)}")
 
     code, doc, err = json_out(aegis, capsys, "check", "--json", "--run")
@@ -566,7 +572,7 @@ def test_check_json_reports_strict_and_keeps_the_exit_code(tmp_path,
                                                            monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     write(agentic / "requirements" / "functional" / "REQ-FUNC-11111111.toml",
           "not [ toml\n")
     code, doc, _err = json_out(aegis, capsys, "check", "--json", "--strict")
@@ -659,7 +665,7 @@ def test_corrupt_journal_is_reported_not_a_traceback(tmp_path, monkeypatch,
 def test_config_shape_warnings(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     write(agentic / "aegis.toml",
           'schema = 2\n\n[commands]\ntest = 7\ntimeout = "soon"\n\n'
           '[layout]\nsource = "src/"\n\n[check]\nignore = "nope"\n')
@@ -707,11 +713,13 @@ def test_symlinked_journal_cannot_escape_on_posix(tmp_path, capsys):
     assert code == 1
 
 
-def test_command_timeout_is_clamped_to_at_least_one_second(tmp_path):
+def test_an_unusable_timeout_value_means_no_limit(tmp_path):
+    """Zero, negative and unreadable all mean no limit: the only way to get
+    one is to ask for it, so nothing shipped can cut a healthy command off."""
     _agentic, aegis = make_repo(tmp_path)
-    assert aegis.command_timeout({"commands": {"timeout": 0}}) == 1
-    assert aegis.command_timeout({"commands": {"timeout": -5}}) == 1
-    assert aegis.command_timeout({"commands": {"timeout": "x"}}) == 1800
+    assert aegis.command_timeout({"commands": {"timeout": 0}}) is None
+    assert aegis.command_timeout({"commands": {"timeout": -5}}) is None
+    assert aegis.command_timeout({"commands": {"timeout": "x"}}) is None
 
 
 def test_invalid_utf8_config_is_a_one_line_error(tmp_path, capsys):
@@ -755,3 +763,242 @@ def test_check_task_notes_a_branch_mismatch(tmp_path, capsys):
           text.replace("branch: feature", "branch: task/somewhere-else"))
     _code, out = run(aegis, capsys, "check", "--task", "TASK-ab12")
     assert "journal branch 'task/somewhere-else' != current 'feature'" in out
+
+
+# TESTS - [commands] workdir
+
+
+def argdump(path: Path) -> None:
+    """@brief A script recording its argv and its working directory."""
+    write(path,
+          "import pathlib, sys\n"
+          "pathlib.Path('args.txt').write_text(' '.join(sys.argv[1:]))\n")
+
+
+def test_configured_workdir_runs_the_command_there(tmp_path, capsys):
+    """REQ-PLAT-83b50d11: commands run in [commands] workdir, not the root."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    argdump(tmp_path / "app" / "argdump.py")
+    config(agentic, f'workdir = "app"\ntest = \'{PY} argdump.py ran\'')
+    code, _out = run(aegis, capsys, "test")
+    assert code == 0
+    assert (tmp_path / "app" / "args.txt").read_text() == "ran"
+    assert not (tmp_path / "args.txt").exists()
+
+
+def test_workdir_is_not_executed_as_a_command(tmp_path, capsys):
+    """REQ-PLAT-83b50d11: workdir names configuration, never a command."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    config(agentic, f'workdir = "."\ntest = {cmd_exit(0)}')
+    _code, out = run(aegis, capsys, "check", "--run")
+    assert "run: test ok" in out
+    assert "workdir" not in out
+
+
+# TESTS - impacted references are rebased onto the workdir
+
+
+@needs_git
+def test_impacted_rebases_references_to_the_workdir(tmp_path, capsys):
+    """REQ-TEST-2bfb7a86: stored refs are repo-relative, run refs are not."""
+    agentic, aegis = make_git_repo(tmp_path)
+    argdump(tmp_path / "app" / "argdump.py")
+    config(agentic,
+           f'workdir = "app"\ntest = {cmd_exit(0)}\n'
+           f"test_impacted = '{PY} argdump.py {{tests}}'",
+           source='["app/src/"]', tests='["app/tests/"]')
+    write_req(agentic, "REQ-FUNC-1111", paths='["app/src/thing.py"]',
+              tests='["app/tests/test_thing.py::test_x"]')
+    write(tmp_path / "app" / "src" / "thing.py", "def thing():\n    return 2\n")
+
+    code, out = run(aegis, capsys, "test", "--impacted")
+    assert code == 0
+    assert "test --impacted (1 test ref(s)): exit 0" in out
+    assert (tmp_path / "app" / "args.txt").read_text() == \
+        "tests/test_thing.py::test_x"
+
+
+@needs_git
+def test_impacted_falls_back_when_a_reference_is_outside_the_workdir(tmp_path,
+                                                                    capsys):
+    """REQ-TEST-2bfb7a86: a ref the command could not reach is unusable."""
+    agentic, aegis = make_git_repo(tmp_path)
+    config(agentic,
+           f'workdir = "app"\ntest = {cmd_exit(0)}\n'
+           'test_impacted = "never run {tests}"',
+           source='["app/src/"]', tests='["tests/"]')
+    write_req(agentic, "REQ-FUNC-1111", paths='["app/src/thing.py"]',
+              tests='["tests/test_app.py::test_app"]')
+    write(tmp_path / "app" / "src" / "thing.py", "def thing():\n    return 2\n")
+    _code, out = run(aegis, capsys, "test", "--impacted")
+    assert "impacted: test reference is outside the command working directory" \
+        in out
+
+
+# TESTS - an oversized impacted set degrades instead of failing to launch
+
+
+@needs_git
+def test_impacted_collapses_to_test_files_when_the_command_is_too_long(
+        tmp_path, monkeypatch, capsys):
+    """REQ-TEST-5d8f424b: too long to launch becomes one entry per file."""
+    agentic, aegis = make_git_repo(tmp_path)
+    argdump(tmp_path / "argdump.py")
+    template = f"{PY} argdump.py {{tests}}"
+    config(agentic, f"test = {cmd_exit(0)}\ntest_impacted = '{template}'")
+    write_req(agentic, "REQ-FUNC-1111", paths='["src/app.py"]',
+              tests='["tests/test_app.py::test_one",'
+                    ' "tests/test_app.py::test_two",'
+                    ' "tests/test_more.py::test_three"]')
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    # exactly wide enough for the two files, too narrow for the three
+    # selectors, whatever this interpreter's path length happens to be
+    files_command = template.replace("{tests}",
+                                     "tests/test_app.py tests/test_more.py")
+    monkeypatch.setattr(aegis, "COMMAND_LENGTH_LIMIT", len(files_command))
+
+    code, out = run(aegis, capsys, "test", "--impacted")
+    assert code == 0
+    assert "impacted: too long to launch - reduced to 2 test file(s)" in out
+    assert (tmp_path / "args.txt").read_text() == \
+        "tests/test_app.py tests/test_more.py"
+
+
+@needs_git
+def test_impacted_falls_back_when_even_the_files_are_too_long(tmp_path,
+                                                              monkeypatch,
+                                                              capsys):
+    """REQ-TEST-07679fdc: unlaunchable is a visible full-suite fallback."""
+    agentic, aegis = make_git_repo(tmp_path)
+    config(agentic,
+           f"test = {cmd_exit(0)}\n"
+           'test_impacted = "never run {tests}"')
+    write_req(agentic, "REQ-FUNC-1111", paths='["src/app.py"]',
+              tests='["tests/test_app.py::test_one",'
+                    ' "tests/test_more.py::test_two"]')
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    monkeypatch.setattr(aegis, "COMMAND_LENGTH_LIMIT", 20)
+
+    code, out = run(aegis, capsys, "test", "--impacted")
+    assert code == 0
+    assert "impacted: still too long to launch after reduction" in out
+
+
+# TESTS - the impacted diff basis is selectable
+
+
+@needs_git
+def test_impacted_base_option_narrows_the_diff_basis(tmp_path, capsys):
+    """REQ-TEST-db8d4d31: --base selects against a revision, not the fork."""
+    agentic, aegis = make_git_repo(tmp_path)
+    argdump(tmp_path / "argdump.py")
+    config(agentic,
+           f"test = {cmd_exit(0)}\n"
+           f"test_impacted = '{PY} argdump.py {{tests}}'")
+    write_req(agentic, "REQ-FUNC-1111", paths='["src/app.py"]',
+              tests='["tests/test_app.py::test_app"]')
+    write_req(agentic, "REQ-FUNC-2222", paths='["src/other.py"]',
+              tests='["tests/test_other.py::test_other"]')
+    # committed on the branch: inside the merge-base diff, outside HEAD's
+    write(tmp_path / "src" / "other.py", "def other():\n    return 1\n")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-m", "committed work")
+    # uncommitted: inside both
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+
+    code, out = run(aegis, capsys, "test", "--impacted")
+    assert code == 0
+    assert "test --impacted (2 test ref(s)): exit 0" in out
+
+    code, out = run(aegis, capsys, "test", "--impacted", "--base", "HEAD")
+    assert code == 0
+    assert "test --impacted (1 test ref(s)): exit 0" in out
+    assert (tmp_path / "args.txt").read_text() == \
+        "tests/test_app.py::test_app"
+
+
+# TESTS - command time limits
+
+
+def test_no_time_limit_is_imposed_by_default(tmp_path):
+    """REQ-PLAT-7365bed5: the shipped configuration limits nothing."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.command_timeout({}) is None
+    assert aegis.command_timeout({"commands": {"timeout": 0}}) is None
+    assert aegis.command_timeout({"commands": {"timeout": "x"}}) is None
+    # a repository that wants a limit still gets exactly the one it asked for
+    assert aegis.command_timeout({"commands": {"timeout": 90}}) == 90
+
+
+def test_a_per_command_limit_overrides_the_shared_one(tmp_path, monkeypatch,
+                                                       capsys):
+    """REQ-PLAT-19a2faa6: one number cannot fit a suite and a linter."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
+    config(agentic,
+           f"quick = {cmd_exit(0)}\n"
+           f"slow = '{PY} -c \"import time; time.sleep(30)\"'\ntimeout = 600",
+           extra="[timeouts]\nslow = 1")
+    assert aegis.command_timeout({"commands": {"timeout": 600}}) == 600
+
+    _code, out = run(aegis, capsys, "check", "--run")
+    assert "run: quick ok" in out
+    assert any("run: slow stopped at its 1s limit" in line
+               for line in out.splitlines())
+
+
+def test_a_stopped_command_is_reported_as_unproven(tmp_path, monkeypatch,
+                                                    capsys):
+    """REQ-REL-bcd7400b: a command that was cut off produced no verdict."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
+    config(agentic,
+           f"slow = '{PY} -c \"import time; time.sleep(30)\"'\ntimeout = 1")
+    _code, out = run(aegis, capsys, "check", "--run")
+
+    stopped = [line for line in out.splitlines()
+               if line.startswith("ERROR") and "command-timeout" in line]
+    assert stopped, out
+    assert "nothing proven" in stopped[0]
+    # never conflated with a command that ran to completion and failed
+    assert not any("command-failed" in line for line in out.splitlines())
+
+
+# TESTS - the recorded task base
+
+
+@needs_git
+def test_report_diffs_against_the_recorded_task_base(tmp_path, capsys):
+    """REQ-FUNC-791ebe07: a report must describe this task, not the branch."""
+    agentic, aegis = make_git_repo(tmp_path)
+    config(agentic, f"test = {cmd_exit(0)}")
+    # earlier, unrelated work already on the branch
+    write(tmp_path / "src" / "earlier.py", "def earlier():\n    return 1\n")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-m", "earlier work")
+    head = git(tmp_path, "rev-parse", "HEAD").strip()
+    # this task's own work, after that point
+    write(tmp_path / "src" / "mine.py", "def mine():\n    return 1\n")
+
+    def reported_basis_and_count(tid: str) -> tuple[str, int]:
+        text = (agentic / "tasks" / f"{tid}.md").read_text(encoding="utf-8")
+        line = next(ln for ln in text.splitlines() if ln.startswith("- diff vs "))
+        basis, _, counts = line[len("- diff vs "):].partition(": ")
+        return basis, int(counts.split(" ")[0])
+
+    write_task(agentic, "TASK-ab12", base=head)
+    assert aegis.main(["report", "TASK-ab12"]) == 0
+    scoped_basis, scoped = reported_basis_and_count("TASK-ab12")
+    assert scoped_basis == f"task base {head[:7]}"
+
+    # without the header line the merge-base measurement returns, and counts
+    # the earlier commit as this task's work too
+    write_task(agentic, "TASK-cd34")
+    assert aegis.main(["report", "TASK-cd34"]) == 0
+    whole_basis, whole = reported_basis_and_count("TASK-cd34")
+    assert whole_basis == "merge base"
+    assert scoped < whole, (scoped, whole)

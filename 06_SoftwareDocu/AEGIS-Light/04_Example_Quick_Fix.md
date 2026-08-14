@@ -38,7 +38,7 @@ case - and records the exact command, non-zero exit, and expected
 missing-behavior reason before the one-line fix, then:
 
 ```bash
-python .agentic/aegis.py test --impacted --task TASK-c3d1
+python .agentic/aegis.py test --impacted --base HEAD --task TASK-c3d1
 ```
 
 ```

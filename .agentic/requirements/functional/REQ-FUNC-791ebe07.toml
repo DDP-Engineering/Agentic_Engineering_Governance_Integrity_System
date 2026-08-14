@@ -1,0 +1,29 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+schema = 1
+id = "REQ-FUNC-791ebe07"
+title = "Diff task reporting against the recorded task base"
+status = "active"
+requirement = """
+Where a task journal records the commit it started from, the delivery report
+and the task-scoped checks shall measure the diff against that commit rather
+than against the merge base with the default branch.
+"""
+verification = "Report on a task whose journal records a starting commit, on a branch carrying earlier unrelated commits, and confirm the reported file and line counts describe only the work after that commit; remove the header line and confirm the merge-base measurement returns."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_run_report.py::test_report_diffs_against_the_recorded_task_base",
+]
+spec = ""
+priority = "normal"
+rationale = """
+A report that counts the whole branch as the task's own work is read by a human deciding whether to approve that work, so an inflated number is worse than no number.
+"""
+created = 2026-08-14
+updated = 2026-08-14

@@ -52,7 +52,7 @@ Then implementation until green, with the focused regression as the fast
 inner loop:
 
 ```bash
-python .agentic/aegis.py test --impacted --task TASK-8b12
+python .agentic/aegis.py test --impacted --base HEAD --task TASK-8b12
 ```
 
 ```

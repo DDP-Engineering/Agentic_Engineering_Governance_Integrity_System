@@ -1,0 +1,28 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+schema = 1
+id = "REQ-PLAT-19a2faa6"
+title = "Override the time limit per configured command"
+status = "active"
+requirement = """
+Where a time limit is configured for an individual command name, AEGIS Light
+shall apply that limit to that command in place of the shared default.
+"""
+verification = "Configure a per-command limit that differs from the shared default, run both that command and another, and confirm each is stopped at its own limit."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_run_report.py::test_a_per_command_limit_overrides_the_shared_one",
+]
+spec = ""
+priority = "normal"
+rationale = """
+A suite measured in tens of minutes and a linter measured in seconds cannot share one number without either killing the suite or letting a hung linter run for an hour.
+"""
+created = 2026-08-14
+updated = 2026-08-14

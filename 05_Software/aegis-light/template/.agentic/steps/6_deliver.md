@@ -44,17 +44,29 @@ changing what was proved.
    - With no remote, stop after the commit and report that no PR was opened.
      With no Git, stop after presentation and report that delivery is
      unavailable in this environment.
-6. Close out only after the approved outcome succeeds. Set `stage: done`, tick
-   close-out, append one truthful log line, make a small close-out commit, and
-   push it to the same PR. If delivery fails, record the failure and leave
-   `stage: deliver` so `status` continues to show open work.
+6. Close out only after the approved outcome succeeds — but let the outcome
+   decide how many commits that takes:
+   - **The outcome can still fail after the delivery commit** (a push, a PR, a
+     release, a deployment): commit the delivery, wait for the outcome, then
+     set `stage: done`, tick close-out, append one truthful log line, and make
+     a small close-out commit pushed to the same PR. Only a later commit can
+     report truthfully on something that had not happened yet.
+   - **The outcome is the delivery commit itself** — a repository-local commit
+     with no push, PR, release, or deployment — then nothing can fail after it,
+     so close out *before* committing: set `stage: done`, tick close-out,
+     append the log line, and let the same commit carry them. A second commit
+     here records nothing that the first did not already prove.
+   If delivery fails, record the failure and leave `stage: deliver` so `status`
+   continues to show open work.
 
 **Outputs:**
 
 - Human-approved delivery decision in the journal.
 - Report-time advisory snapshot appended to the journal.
 - Delivery commit and the agreed outcome, normally a PR.
-- Close-out commit only after that outcome succeeds.
+- A close-out commit once that outcome succeeds, or a single commit carrying
+  the close-out where the commit is itself the whole outcome and so cannot
+  fail after it.
 
 **Done when:**
 
@@ -63,7 +75,8 @@ changing what was proved.
 - [ ] delivery confirmed by the human
 - [ ] journal and report included in the delivery commit
 - [ ] agreed outcome delivered, normally a PR
-- [ ] close-out committed only after the outcome succeeded
+- [ ] close-out committed after the outcome succeeded, or carried by the
+      delivery commit where nothing could fail after it
 
 **Skip when:** Never. Validation proves the candidate; delivery records and
 publishes the approved result.

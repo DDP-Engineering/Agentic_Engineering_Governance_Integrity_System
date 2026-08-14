@@ -1,0 +1,28 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+schema = 1
+id = "REQ-UX-e9952f0f"
+title = "State check exit behavior truthfully in help"
+status = "active"
+requirement = """
+The check command's help shall state that findings alone never make it exit
+non-zero, rather than stating that it always exits zero.
+"""
+verification = "Read the check command's help and confirm it claims no unconditional zero exit; then run it against an unknown task identifier and confirm the non-zero exit that the help now allows for."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_structure.py::test_check_help_makes_no_unconditional_zero_exit_promise",
+]
+spec = ""
+priority = "normal"
+rationale = """
+A usage error - an unknown task identifier, an unreadable configuration - has always exited non-zero, so the unconditional promise was false and taught users to distrust the exit code.
+"""
+created = 2026-08-14
+updated = 2026-08-14

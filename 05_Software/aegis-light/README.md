@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light 0.3.0
+# AEGIS Light 0.4.0
 
 A **companion** governance system for agent-driven software development.
 It gives any coding agent — a frontier CLI or a local small model — a

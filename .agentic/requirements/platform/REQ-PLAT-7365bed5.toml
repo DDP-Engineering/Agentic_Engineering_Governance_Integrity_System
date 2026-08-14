@@ -1,0 +1,30 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+schema = 1
+id = "REQ-PLAT-7365bed5"
+title = "Impose no automatic command time limit"
+status = "active"
+requirement = """
+The shipped configuration shall impose no automatic time limit on a
+configured command, and a repository shall be able to set one.
+"""
+verification = "Run a configured command that outlives any previous default with no timeout configured and confirm it completes; then set a small timeout and confirm the same command is stopped."
+affected_paths = [
+    "05_Software/aegis-light/template/.agentic/aegis.py",
+]
+linked_tests = [
+    "05_Software/aegis-light/tests/test_run_report.py::test_no_time_limit_is_imposed_by_default",
+    "05_Software/aegis-light/tests/test_run_report.py::test_an_unusable_timeout_value_means_no_limit",
+    "05_Software/aegis-light/tests/test_run_report.py::test_run_stops_a_command_at_its_configured_limit",
+]
+spec = ""
+priority = "normal"
+rationale = """
+A limit low enough to stop a healthy suite manufactures a failure that never happened, and the repository running the suite is the only party that knows how long it legitimately takes.
+"""
+created = 2026-08-14
+updated = 2026-08-14

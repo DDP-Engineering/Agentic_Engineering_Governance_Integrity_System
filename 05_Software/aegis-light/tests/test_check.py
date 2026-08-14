@@ -91,12 +91,13 @@ def write_req(agentic: Path, rid: str, folder: str = "functional", **kw) -> Path
 
 
 def write_task(agentic: Path, tid: str, stage: str = "build", reqs: str = "",
-               checklist: str = "- [x] done") -> Path:
+               checklist: str = "- [x] done", base: str = "") -> Path:
     """@brief Write a parseable task journal."""
     return write(
         agentic / "tasks" / f"{tid}.md",
         f"# {tid} — a task\n\nstage: {stage}\ntype: feature\npath: full\n"
-        f"requirements: {reqs}\nbranch: feature\nopened: 2026-08-02\n\n"
+        f"requirements: {reqs}\nbranch: feature\nbase: {base}\n"
+        "opened: 2026-08-02\n\n"
         f"## Done checklist (current stage)\n\n{checklist}\n\n"
         "## Log\n\n- 2026-08-02 frame: opened\n",
     )
@@ -114,13 +115,15 @@ def lines_for(out: str, slug: str) -> list[str]:
     return [line for line in out.splitlines() if f"  {slug}  " in line]
 
 
-def git(repo: Path, *args: str) -> None:
-    """@brief Run git with a fixed identity and signing off; fail loudly."""
-    subprocess.run(
+def git(repo: Path, *args: str) -> str:
+    """@brief Run git with a fixed identity and signing off; fail loudly.
+    Returns stdout, so a test can ask for a commit id."""
+    done = subprocess.run(
         ["git", "-c", "user.email=t@example.com", "-c", "user.name=T",
          "-c", "commit.gpgsign=false", *args],
         cwd=str(repo), check=True, capture_output=True, timeout=60,
     )
+    return done.stdout.decode("utf-8", errors="replace")
 
 
 def make_git_repo(tmp_path: Path) -> tuple[Path, object]:
@@ -520,7 +523,7 @@ def test_unscanned_files_surface_as_warnings(tmp_path, monkeypatch, capsys):
     write(agentic / "aegis.toml",
           'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n')
     monkeypatch.setattr(aegis, "collect_diff",
-                        lambda _cfg: (["src/a.py"], [], ["src/a.py"], ""))
+                        lambda _cfg, _rev="": (["src/a.py"], [], ["src/a.py"], ""))
     out = run_check(aegis, capsys)
     gap = [line for line in lines_for(out, "secret-in-diff")
            if "added lines not scanned" in line]
@@ -539,7 +542,7 @@ def test_promoted_secret_in_diff_fails_strict_on_an_unscanned_file(tmp_path,
           'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n\n'
           '[check]\nstrict_promote = ["secret-in-diff"]\n')
     monkeypatch.setattr(aegis, "collect_diff",
-                        lambda _cfg: (["src/a.py"], [], ["src/a.py"], ""))
+                        lambda _cfg, _rev="": (["src/a.py"], [], ["src/a.py"], ""))
 
     capsys.readouterr()
     assert aegis.main(["check", "--strict"]) == 1
@@ -922,12 +925,12 @@ def test_clean_repo_reports_ok(tmp_path, monkeypatch, capsys):
     """A repo with no artifacts and a working diff has zero findings."""
     _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg: ([], [], [], ""))
+    monkeypatch.setattr(aegis, "collect_diff", lambda _cfg, _rev="": ([], [], [], ""))
     out = run_check(aegis, capsys)
     assert out == "summary: errors=0 warnings=0 notes=0\nresult: ok\n"
 
 
-def test_help_lists_all_seventeen_slugs_and_the_diff_basis(nogit_repo, capsys):
+def test_help_lists_every_slug_and_the_diff_basis(nogit_repo, capsys):
     _agentic, aegis = nogit_repo
     capsys.readouterr()
     with pytest.raises(SystemExit) as exc:
@@ -936,5 +939,7 @@ def test_help_lists_all_seventeen_slugs_and_the_diff_basis(nogit_repo, capsys):
     out = capsys.readouterr().out
     for slug, _desc in aegis.CHECKS:
         assert slug in out
-    assert len(aegis.CHECKS) == 17
+    assert len(aegis.CHECKS) == 19
+    # the count the help announces must be the count it lists
+    assert f"the {len(aegis.CHECKS)} checks" in out
     assert "merge-base" in out and "origin/HEAD" in out
