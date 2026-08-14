@@ -13,6 +13,33 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- AEGIS Light 0.4.0: `aegis test --impacted` now works in repositories whose
+  application lives below the repository root. A new `[commands] workdir` key
+  runs every configured command in that directory, and the repository-relative
+  paths from `linked_tests` are rewritten to match before they are substituted
+  — previously a repository had to embed a directory change in the command
+  itself, which made the tool resolve those paths a second time against the
+  directory it had just entered, so the focused run never started. A focused
+  set too long for the platform to launch is no longer a failed command
+  either: it is reduced to one entry per distinct test file, and only if that
+  is still too long does the full suite run, each step saying why. The new
+  `test --impacted --base <revision>` chooses the diff basis, so `--base HEAD`
+  limits the inner loop to uncommitted work instead of everything a long-lived
+  branch has changed since it forked.
+
+- AEGIS Light 0.4.0: `aegis req` accepts the abbreviation printed inside a
+  requirement ID as its own category name, so `req func` works alongside
+  `req functional`, and likewise for `sec`, `plat`, and `rel`.
+
+- AEGIS Light 0.4.0: a new `[timeouts]` table sets a time limit for one named
+  command, overriding the shared `[commands] timeout`, so a suite measured in
+  tens of minutes and a linter measured in seconds no longer share one number.
+
+- AEGIS Light 0.4.0: `aegis task` records the commit it was created on in the
+  journal's new `base:` header, and both the delivery report and `check
+  --task` measure their diff from it, naming the basis they used. A journal
+  without that header keeps the previous merge-base behavior.
+
 - Add default per-Stage developer checkpoints for AI-operated AEGIS Runs, with
   durable `checkpoint` or explicitly delegated `continuous` interaction mode,
   structured machine and human handoff summaries, Continue/Review/Revise/Park
@@ -73,8 +100,70 @@ All notable changes to this project will be documented in this file.
   real-payload upgrade interruption coverage, and final Windows/Linux native
   retirement replays with no host Python available.
 
+- Add an `[output] format` project configuration setting selecting the default
+  AEGIS CLI output format. It ships as `human`, so a person still gets readable
+  output, and a repository driven by an agent sets `json` once instead of
+  repeating a format option on every call. An unusable value is reported as the
+  same structured configuration error as any other setting, and the format
+  falls back to `human` whenever no repository or configuration resolves.
+
+- Give the two AEGIS escape hatches ordinary flags for their whole input:
+  `stage-skip --actor <name> --reason <text>` and `finding-waive --finding
+  <label> --actor <name> --reason <text>` now need no JSON document, so
+  escaping is no more laborious than complying. Both still accept the same
+  fields through `--input`, and supplying a field twice remains one structured
+  conflict error.
+
 ### Changed
 
+- Replace the AEGIS `--format human|json` global option with the mutually
+  exclusive boolean global options `--json` and `--human`. Either overrides the
+  configured default for one invocation; neither leaves the configured default
+  in force. `--json` still selects machine mode with its unchanged
+  `--expected-revision` contract. This is a breaking CLI change with no
+  compatibility spelling: host adapter descriptors, payload launchers, and all
+  host guidance now dispatch `--json`. WAEGIS keeps `--format`.
+
+- AEGIS Light 0.4.0: the delivery step no longer demands a separate close-out
+  commit when the agreed outcome is a repository-local commit with nothing
+  that can fail after it — the same commit carries the closed task state. The
+  separate close-out commit is still required wherever the outcome is a push,
+  pull request, release, or deployment, because only a later commit can report
+  truthfully on something that had not yet happened.
+
+- AEGIS Light 0.4.0: `check --help` no longer claims the command always exits
+  zero. Findings never make it exit non-zero, but a usage error — an unknown
+  task ID, an unreadable `aegis.toml` — always has.
+
+- AEGIS Light 0.4.0: no configured command carries a time limit any more
+  unless the repository asks for one. The shipped 1800-second default was
+  shorter than a real suite, so it stopped healthy runs and reported them as
+  failures; zero, negative and unreadable values now all mean no limit. A
+  command that is stopped by a limit is reported under a new `command-timeout`
+  finding whose message says nothing was proven, instead of being counted as a
+  command that ran and failed. The check catalog is nineteen: `command-failed`
+  was always emitted but never listed, and `command-timeout` joins it.
+
+- Make the short Run profile proportional in recording effort, not only in
+  Stage count. A short Run is now expected to record 16 sections instead of 52,
+  the required subset being Intake restated ask and facts, Alignment agreed
+  scope, Requirement artifact changes and traceability, Check red evidence and
+  red-before-green decision, Implementation changes and test-integrity
+  comparison, Validation impacted-test selection and automated evidence, and
+  the five Delivery outcome, test-integrity, residual-risk, decision, and
+  terminal sections. Every Stage document still offers every section under both
+  profiles, `stage.set_section` still accepts them all, and the unrecorded
+  findings stay advisory warnings.
+- Give `work_type` one real effect: `run.create` selects the short profile when
+  `work_type` is `quick_fix` and no `profile` is supplied, records that choice
+  as a `profile_selected` Run event, and keeps an explicitly supplied profile
+  unchanged. `feature`, `change`, and `bug_fix` remain descriptive labels.
+- Document `stage-skip` as the proportionality valve for a Stage whose work is
+  genuinely disproportionate, and document global-option placement, the 23 of
+  48 operations that require `--expected-revision` in `--format json`, where
+  that token comes from, and that `next_actions[].arguments` keys are operation
+  input names rather than CLI flags, in the Claude Code, Codex, OpenCode, Pi,
+  and Qwen Code host guidance.
 - Limit `stage.complete` evaluation to common structural records, designated
   reference resolution, recognized reported-command outcomes, and applicable
   approval or explicit continuous delegation while retaining factual Git,
@@ -112,6 +201,41 @@ All notable changes to this project will be documented in this file.
   RepoWise boundaries.
 
 ### Fixed
+
+- Close the gap that left a genuinely approved Run carrying open approval
+  findings. Host guidance now tells the agent that choosing Continue at
+  Alignment, Requirement, or Design means recording the approval the developer
+  actually gave with `decision-add` before starting the next Stage, and the
+  unrecorded-approval finding now names that remedy in its consequence. No
+  approval is auto-recorded, inferred, or defaulted, and the finding remains an
+  advisory warning.
+
+- Exclude AEGIS-owned locations from project change attribution, so the payload
+  directory, the configured requirement, component, adoption, and Run
+  directories, and the AEGIS-owned `.agentic/` root files no longer appear as
+  work of uncertain authorship or as changed pre-existing worktree paths. The
+  excluded locations are derived from the resolved project configuration rather
+  than assumed defaults, and configured test roots stay fully visible to
+  attribution. Ordinary project source observed after the opening baseline is
+  still reported with unknown authorship, unchanged.
+
+- Discard the two full repository snapshots the Check Stage took to detect
+  out-of-zone change once their comparison has produced its findings. The
+  snapshots had no consumer after the comparison yet dominated the stored
+  Check Stage document. The resulting findings are unchanged.
+
+- Stop the Check Stage instruction from asking the agent for exact-byte test
+  fingerprints that `evidence.add` deliberately discards. The instruction now
+  states that the agent records only the outcome it actually observed and that
+  AEGIS itself captures the fingerprints when that outcome is `failed`.
+
+- Prefill the Delivery `test_integrity` section with plain prose stating
+  whether a valid red witness was recorded at Check, whether an approved
+  red-before-green exception exists, and whether Check was skipped. A missing
+  witness previously appeared only as booleans inside the machine
+  `recorded_state` block, so a human reader could not see that test changes
+  between Check and Implementation went unmonitored. The prefill remains a
+  starting point the author may replace through `stage.set_section`.
 
 - Label every interactive plan-review page with its exact action range and
   total, confirm completion only after all consecutive numbered actions were
