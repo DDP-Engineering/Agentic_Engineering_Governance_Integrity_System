@@ -27,7 +27,9 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import fnmatch
+import hashlib
 import json
+import os
 import re
 import secrets
 import subprocess
@@ -37,7 +39,7 @@ import time
 import tomllib
 from pathlib import Path
 
-VERSION = "0.3.0"
+VERSION = "0.5.0"
 SCHEMA = 1
 
 AGENTIC = Path(__file__).resolve().parent
@@ -55,14 +57,18 @@ TASK_TYPES = ("feature", "fix", "change", "adopt")
 #: accepted as aliases so both vocabularies work on the command line.
 CATEGORIES: dict[str, tuple[str, str]] = {
     "functional": ("functional", "FUNC"),
+    "func": ("functional", "FUNC"),
     "ux": ("ux", "UX"),
     "nfr": ("nfr", "NFR"),
     "non_functional": ("nfr", "NFR"),
     "security": ("security", "SEC"),
+    "sec": ("security", "SEC"),
     "data": ("data", "DATA"),
     "data_privacy": ("data", "DATA"),
     "platform": ("platform", "PLAT"),
+    "plat": ("platform", "PLAT"),
     "reliability": ("reliability", "REL"),
+    "rel": ("reliability", "REL"),
     "release": ("reliability", "REL"),
     "test": ("test", "TEST"),
     "testing": ("test", "TEST"),
@@ -79,7 +85,24 @@ schema = 1
 test = "pytest -q"
 # test_impacted = "pytest -q {tests}"   # {tests} = the focused regression set
 # lint = "ruff check ."
-# timeout = 1800                        # seconds allowed per command
+# timeout = 0                           # seconds allowed per command; 0 or
+#                                       # absent means no limit at all
+# workdir = "app"                       # run commands here, not at the root
+#
+# Set `workdir` when your application lives below the repository root, and
+# never put a directory change inside a command: paths substituted into
+# `{tests}` are repository-relative, so a command that moves itself would
+# resolve them a second time and find nothing. With `workdir` set, those
+# paths are rewritten to match before the command runs.
+
+[timeouts]
+# Seconds allowed for one named command, overriding [commands] timeout.
+# Nothing here by default: a command is stopped only when you ask for it,
+# because a limit short enough to cut off a healthy suite would report a
+# failure that never happened. A stopped command is reported as proving
+# nothing - never as a failure.
+# test = 5400
+# lint = 120
 
 [layout]
 # Globs used by the traceability heuristics of `aegis check`.
@@ -148,12 +171,24 @@ def today() -> str:
     return _dt.date.today().isoformat()
 
 
+def utc_now() -> str:
+    """@brief Current UTC time as a stable ISO 8601 string."""
+    return (_dt.datetime.now(_dt.timezone.utc).isoformat(timespec="microseconds")
+            .replace("+00:00", "Z"))
+
+
 def rel(path: Path) -> str:
     """@brief Repo-relative path with forward slashes, for output and storage."""
     try:
         return path.resolve().relative_to(ROOT).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def generated_python_cache(path: str) -> bool:
+    """@brief Whether a repository path is generated Python bytecode."""
+    parts = path.split("/")
+    return "__pycache__" in parts or path.lower().endswith((".pyc", ".pyo"))
 
 
 def read_text(path: Path) -> str:
@@ -223,6 +258,19 @@ def run_git(*args: str) -> tuple[int, str] | None:
     except (OSError, subprocess.SubprocessError):
         return None
     return out.returncode, out.stdout
+
+
+def git_head() -> str:
+    """
+    @brief The checked-out commit, or "" when there is no history yet.
+    @details Recorded in a task journal at creation so every later
+             measurement of what the task changed has an exact starting
+             point instead of guessing at the branch's fork point.
+    """
+    out = run_git("rev-parse", "HEAD")
+    if out is None or out[0] != 0 or not out[1].strip():
+        return ""
+    return out[1].strip()
 
 
 def git_branch() -> str:
@@ -363,6 +411,367 @@ def read_journal(task_id: str) -> tuple[Path, dict]:
     return path, parse_journal(read_text(path))
 
 
+# repository anchor / evolution
+
+
+def state_path(journal: Path, kind: str) -> Path:
+    """@brief The task-owned anchor or evolution sidecar path."""
+    return journal.with_suffix(f".{kind}.json")
+
+
+def read_json_file(path: Path, label: str) -> dict:
+    """@brief Read one UTF-8 JSON object or raise a concise user error."""
+    try:
+        value = json.loads(read_text(path))
+    except json.JSONDecodeError as exc:
+        raise UserError(f"{rel(path)} is not valid JSON: {exc}") from None
+    if not isinstance(value, dict):
+        raise UserError(f"{rel(path)} {label} must be a JSON object")
+    return value
+
+
+def write_json_file(path: Path, value: dict) -> None:
+    """@brief Atomically write deterministic UTF-8/LF JSON."""
+    text = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    fd, temporary = -1, ""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp",
+                                         dir=path.parent)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+        fd = -1
+        os.replace(temporary, path)
+    except OSError as exc:
+        if fd >= 0:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if temporary:
+            try:
+                Path(temporary).unlink()
+            except OSError:
+                pass
+        raise UserError(f"cannot write {rel(path)}: {exc}") from None
+
+
+def visible_repo_paths() -> list[str]:
+    """
+    @brief Git-visible paths, excluding AEGIS state and Python bytecode caches.
+    @details `--exclude-standard` honors every normal ignore source. NUL
+             separation preserves whitespace and newlines in filenames.
+    """
+    probe = run_git("rev-parse", "--git-dir")
+    if probe is None:
+        raise UserError("git executable not found; repository state not recorded")
+    if probe[0] != 0:
+        raise UserError("not a git repository; repository state not recorded")
+    out = run_git("ls-files", "--cached", "--others", "--exclude-standard", "-z")
+    if out is None or out[0] != 0:
+        raise UserError("git could not list visible repository files")
+    paths: list[str] = []
+    for name in out[1].split("\0"):
+        if not name or name == ".agentic" or name.startswith(".agentic/") \
+                or generated_python_cache(name):
+            continue
+        if not repo_relative_ok(name):
+            raise UserError(f"git returned an unsafe repository path: {name!r}")
+        paths.append(name)
+    return sorted(set(paths))
+
+
+def fingerprint(path: Path, name: str) -> dict | None:
+    """
+    @brief A stable content identity for a regular file, symlink, or submodule.
+    @details Regular files stream through SHA-256. Symlinks hash their link
+             text rather than following it. A missing tracked path is omitted,
+             which represents its current worktree deletion.
+    """
+    try:
+        if path.is_symlink():
+            target = os.readlink(path)
+            raw = os.fsencode(target)
+            return {"kind": "symlink", "sha256": hashlib.sha256(raw).hexdigest()}
+        if path.is_file():
+            before = path.stat()
+            digest = hashlib.sha256()
+            with path.open("rb") as handle:
+                while chunk := handle.read(1024 * 1024):
+                    digest.update(chunk)
+            after = path.stat()
+            if (before.st_size, before.st_mtime_ns) != \
+                    (after.st_size, after.st_mtime_ns):
+                raise UserError(f"{name} changed while it was being fingerprinted")
+            return {"kind": "file", "sha256": digest.hexdigest()}
+        if path.is_dir():
+            head = run_git("-C", name, "rev-parse", "HEAD")
+            if head and head[0] == 0 and head[1].strip():
+                return {"kind": "submodule", "commit": head[1].strip()}
+            raise UserError(f"cannot fingerprint repository directory entry: {name}")
+        if not path.exists():
+            return None
+        raise UserError(f"cannot fingerprint non-file repository entry: {name}")
+    except UserError:
+        raise
+    except OSError as exc:
+        raise UserError(f"cannot fingerprint {name}: {exc}") from None
+
+
+def repository_manifest() -> dict[str, dict]:
+    """@brief Current Git-visible repository content map."""
+    files: dict[str, dict] = {}
+    for name in visible_repo_paths():
+        value = fingerprint(ROOT / name, name)
+        if value is not None:
+            files[name] = value
+    return files
+
+
+def file_area(path: str, source_globs: list[str], test_globs: list[str]) -> str:
+    """@brief Categorize one repository path from the anchor's layout."""
+    if match_any(path, test_globs):
+        return "tests"
+    if match_any(path, source_globs):
+        return "source"
+    return "other"
+
+
+def valid_utc(value: object) -> bool:
+    """@brief Whether a value is the UTC timestamp form emitted by AEGIS."""
+    return isinstance(value, str) and bool(re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z", value
+    ))
+
+
+def valid_fingerprint(value: object) -> bool:
+    """@brief Whether a value is a closed schema-1 repository identity."""
+    if not isinstance(value, dict):
+        return False
+    kind = value.get("kind")
+    if kind in ("file", "symlink"):
+        return set(value) == {"kind", "sha256"} and bool(re.fullmatch(
+            r"[0-9a-f]{64}", str(value.get("sha256", ""))
+        ))
+    if kind == "submodule":
+        return set(value) == {"kind", "commit"} and bool(re.fullmatch(
+            r"(?:[0-9a-f]{40}|[0-9a-f]{64})", str(value.get("commit", ""))
+        ))
+    return False
+
+
+def validate_anchor(value: dict, task: str, path: Path) -> dict:
+    """@brief Validate the closed anchor schema used by evolution and check."""
+    if value.get("schema") != 1:
+        raise UserError(f"{rel(path)} anchor schema must be 1")
+    if value.get("task") != task:
+        raise UserError(f"{rel(path)} belongs to task {value.get('task')!r}, not {task}")
+    if not re.fullmatch(r"[0-9a-f]{16}", str(value.get("anchor_id", ""))):
+        raise UserError(f"{rel(path)} has an invalid anchor_id")
+    if not valid_utc(value.get("created_at")):
+        raise UserError(f"{rel(path)} has an invalid created_at timestamp")
+    if not isinstance(value.get("stage"), str):
+        raise UserError(f"{rel(path)} anchor stage must be a string")
+    head = value.get("head")
+    if not isinstance(head, str) or (head and not re.fullmatch(
+            r"(?:[0-9a-f]{40}|[0-9a-f]{64})", head)):
+        raise UserError(f"{rel(path)} has an invalid anchor HEAD")
+    if not isinstance(value.get("files"), dict):
+        raise UserError(f"{rel(path)} anchor files must be an object")
+    source_globs, test_globs = value.get("source_globs"), value.get("test_globs")
+    if not isinstance(source_globs, list) or not all(
+            isinstance(item, str) for item in source_globs):
+        raise UserError(f"{rel(path)} source_globs must be an array of strings")
+    if not isinstance(test_globs, list) or not all(
+            isinstance(item, str) for item in test_globs):
+        raise UserError(f"{rel(path)} test_globs must be an array of strings")
+    categories = value.get("categories")
+    if not isinstance(categories, dict) or set(categories) != set(value["files"]):
+        raise UserError(f"{rel(path)} categories must cover every anchored file")
+    for name, identity in value["files"].items():
+        if not isinstance(name, str) or not repo_relative_ok(name) or \
+                name == ".agentic" or name.startswith(".agentic/"):
+            raise UserError(f"{rel(path)} contains an invalid repository path")
+        if not valid_fingerprint(identity):
+            raise UserError(f"{rel(path)} has an invalid fingerprint for {name!r}")
+        if categories.get(name) != file_area(name, source_globs, test_globs):
+            raise UserError(f"{rel(path)} has an invalid category for {name!r}")
+    return value
+
+
+def validate_history(value: dict, task: str, path: Path) -> dict:
+    """@brief Validate the compact evolution-history envelope."""
+    if value.get("schema") != 1:
+        raise UserError(f"{rel(path)} evolution schema must be 1")
+    if value.get("task") != task:
+        raise UserError(f"{rel(path)} belongs to task {value.get('task')!r}, not {task}")
+    if not isinstance(value.get("reports"), list):
+        raise UserError(f"{rel(path)} evolution reports must be an array")
+    for report in value["reports"]:
+        if not isinstance(report, dict) or not re.fullmatch(
+                r"[0-9a-f]{16}", str(report.get("anchor_id", ""))):
+            raise UserError(f"{rel(path)} has an invalid evolution report")
+        if not valid_utc(report.get("anchor_created_at")) or not valid_utc(
+                report.get("evolved_at")):
+            raise UserError(f"{rel(path)} has an invalid report timestamp")
+        if not isinstance(report.get("counts"), dict) or not isinstance(
+                report.get("changes"), list):
+            raise UserError(f"{rel(path)} has an invalid report body")
+    return value
+
+
+def evolution_history(path: Path, task: str) -> dict:
+    """@brief Existing compact history, or a new empty envelope."""
+    if not path.is_file():
+        return {"schema": 1, "task": task, "reports": []}
+    return validate_history(read_json_file(path, "evolution"), task, path)
+
+
+def cmd_anchor(args: argparse.Namespace) -> int:
+    """@brief Record the current Git-visible repository content for one task."""
+    journal, data = read_journal(args.task)
+    task = journal.stem
+    anchor_file = state_path(journal, "anchor")
+    history_file = state_path(journal, "evolution")
+    previous = None
+    previous_matched = False
+    if anchor_file.is_file():
+        previous = validate_anchor(read_json_file(anchor_file, "anchor"),
+                                   task, anchor_file)
+        history = evolution_history(history_file, task)
+        previous_matched = any(
+            isinstance(report, dict)
+            and report.get("anchor_id") == previous["anchor_id"]
+            for report in history["reports"]
+        )
+
+    cfg = load_config()
+    source_globs = str_list(cfg_table(cfg, "layout").get("source"))
+    test_globs = str_list(cfg_table(cfg, "layout").get("tests"))
+    created = utc_now()
+    files = repository_manifest()
+    record = {
+        "schema": 1,
+        "task": task,
+        "anchor_id": secrets.token_hex(8),
+        "created_at": created,
+        "stage": data["header"].get("stage", ""),
+        "head": git_head(),
+        "source_globs": source_globs,
+        "test_globs": test_globs,
+        "categories": {
+            name: file_area(name, source_globs, test_globs) for name in files
+        },
+        "files": files,
+    }
+    write_json_file(anchor_file, record)
+    replaced = previous is not None
+    unmatched = replaced and not previous_matched
+    if args.json:
+        emit_json({
+            "command": "anchor", "task": task, "file": rel(anchor_file),
+            "anchor_id": record["anchor_id"], "created_at": created,
+            "stage": record["stage"], "head": record["head"],
+            "file_count": len(files), "replaced": replaced,
+            "replaced_unmatched": unmatched,
+        })
+        return 0
+    print(f"anchored {len(files)} file(s) for {task} at "
+          f"{record['head'][:7] or 'no HEAD'} ({created})")
+    print(f"saved {rel(anchor_file)}")
+    if unmatched:
+        print(f"warning: replaced unmatched anchor {previous['anchor_id']}")
+    elif replaced:
+        print(f"replaced completed anchor {previous['anchor_id']}")
+    return 0
+
+
+def compare_manifests(anchor: dict, current: dict[str, dict]) -> tuple[list[dict], dict]:
+    """@brief Changed entries and aggregate counts for one anchor comparison."""
+    source_globs = list(anchor.get("source_globs", []))
+    test_globs = list(anchor.get("test_globs", []))
+    before_files = anchor["files"]
+    changes: list[dict] = []
+    status_counts = {name: 0 for name in ("added", "modified", "removed",
+                                          "unchanged")}
+    area_counts = {
+        area: {name: 0 for name in ("added", "modified", "removed", "unchanged")}
+        for area in ("source", "tests", "other")
+    }
+    for path in sorted(set(before_files) | set(current)):
+        before, after = before_files.get(path), current.get(path)
+        if before is None:
+            status = "added"
+        elif after is None:
+            status = "removed"
+        elif before != after:
+            status = "modified"
+        else:
+            status = "unchanged"
+        area = file_area(path, source_globs, test_globs)
+        status_counts[status] += 1
+        area_counts[area][status] += 1
+        if status != "unchanged":
+            changes.append({"path": path, "area": area, "status": status,
+                            "before": before, "after": after})
+    return changes, {"status": status_counts, "area": area_counts}
+
+
+def cmd_evolution(args: argparse.Namespace) -> int:
+    """@brief Compare the repository with its active task anchor and save it."""
+    journal, data = read_journal(args.task)
+    task = journal.stem
+    anchor_file = state_path(journal, "anchor")
+    history_file = state_path(journal, "evolution")
+    if not anchor_file.is_file():
+        raise UserError(f"no anchor for {task}; run 'aegis anchor --task {task}'")
+    anchor = validate_anchor(read_json_file(anchor_file, "anchor"),
+                             task, anchor_file)
+    history = evolution_history(history_file, task)
+    current = repository_manifest()
+    changes, counts = compare_manifests(anchor, current)
+    evolved = utc_now()
+    report = {
+        "anchor_id": anchor["anchor_id"],
+        "anchor_created_at": anchor.get("created_at", ""),
+        "evolved_at": evolved,
+        "anchor_stage": anchor.get("stage", ""),
+        "evolution_stage": data["header"].get("stage", ""),
+        "anchor_head": anchor.get("head", ""),
+        "current_head": git_head(),
+        "counts": counts,
+        "changes": changes,
+    }
+    replaced = False
+    reports = history["reports"]
+    for index, old in enumerate(reports):
+        if isinstance(old, dict) and old.get("anchor_id") == anchor["anchor_id"]:
+            reports[index] = report
+            replaced = True
+            break
+    if not replaced:
+        reports.append(report)
+    write_json_file(history_file, history)
+    if args.json:
+        emit_json({
+            "command": "evolution", "task": task,
+            "file": rel(history_file), "anchor_id": anchor["anchor_id"],
+            "evolved_at": evolved, "counts": counts, "changes": changes,
+            "replaced": replaced,
+        })
+        return 0
+    changed = len(changes)
+    print(f"evolution for {task}: {changed} changed file(s) "
+          f"({counts['status']['added']} added, "
+          f"{counts['status']['modified']} modified, "
+          f"{counts['status']['removed']} removed) at {evolved}")
+    for item in changes:
+        print(f"{item['status'].upper()} [{item['area']}] {item['path']}")
+    print(f"saved {rel(history_file)}"
+          + (" (refreshed)" if replaced else ""))
+    return 0
+
+
 # init
 
 
@@ -404,10 +813,17 @@ def write_pointer(name: str) -> str:
     return outcome
 
 
-def cmd_init(_args: argparse.Namespace) -> int:
+def cmd_init(args: argparse.Namespace) -> int:
     """@brief Finishing step after the payload was copied into a repo."""
     if not (AGENTIC / "AGENTS.md").is_file():
         raise UserError(f"payload looks incomplete: no {rel(AGENTIC / 'AGENTS.md')}")
+
+    git_version = run_git("--version")
+    git_available = bool(git_version and git_version[0] == 0)
+    if args.git and not git_available:
+        raise UserError(
+            "cannot initialize a Git repository: git is not installed or unavailable"
+        )
 
     print(f"aegis init - {rel(AGENTIC)}")
     for name in DATA_DIRS:
@@ -426,6 +842,25 @@ def cmd_init(_args: argparse.Namespace) -> int:
 
     for name in POINTER_FILES:
         print(f"  {name:<16} {write_pointer(name)}")
+
+    if not git_available:
+        print("  git              unavailable; diff, impacted, anchor, and evolution "
+              "evidence disabled")
+        print("Next: install Git, then rerun python .agentic/aegis.py init")
+        return 0
+
+    probe = run_git("rev-parse", "--git-dir")
+    if probe and probe[0] == 0:
+        print(f"  {'git':<16} repository ready ({git_version[1].strip()})")
+    elif args.git:
+        created = run_git("init")
+        if not created or created[0] != 0:
+            raise UserError("git init failed; repository was not initialized")
+        print(f"  {'git':<16} repository initialized ({git_version[1].strip()})")
+    else:
+        print(f"  {'git':<16} installed, but this is not a Git repository")
+        print("Next: python .agentic/aegis.py init --git")
+        return 0
 
     print("Next: python .agentic/aegis.py task \"<title>\"")
     return 0
@@ -452,6 +887,11 @@ def cmd_task(args: argparse.Namespace) -> int:
     text = re.sub(r"^type: .*$", f"type: {args.type}", text, count=1, flags=re.M)
     text = re.sub(r"^branch: .*$", lambda _m: f"branch: {branch}", text, count=1,
                   flags=re.M)
+    # no space after the colon in the template: the value starts out empty,
+    # and stays that way - with no trailing space - when there is no history
+    head = git_head()
+    text = re.sub(r"^base:.*$", lambda _m: f"base: {head}".rstrip(), text,
+                  count=1, flags=re.M)
     text = re.sub(r"^opened: .*$", f"opened: {stamp}", text, count=1, flags=re.M)
     text = re.sub(r"^- \d{4}-\d{2}-\d{2} frame:", f"- {stamp} frame:", text, count=1,
                   flags=re.M)
@@ -535,10 +975,12 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"{len(parsed)} open task journal(s) in {rel(AGENTIC / 'tasks')}"
           + (f" ({hidden} done hidden - use --all)" if hidden and not args.all else "")
           + ":")
-    for _path, data in parsed[:STATUS_CAP]:
+    for path, data in parsed[:STATUS_CAP]:
         header = data["header"]
-        print(f"  {data['id'] or '?':<15} {header.get('stage', '?'):<10} "
-              f"{header.get('type', '?'):<8} {data['title']}")
+        identity = data["id"] or path.stem
+        title = data["title"] or "(missing heading)"
+        print(f"  {identity:<15} {header.get('stage', '?'):<10} "
+              f"{header.get('type', '?'):<8} {title}")
     if len(parsed) > STATUS_CAP:
         print(f"  ... {len(parsed) - STATUS_CAP} more (see .agentic/tasks/)")
     print("Resume one with: python .agentic/aegis.py status TASK-<id>")
@@ -600,7 +1042,7 @@ def status_one(task_id: str, as_json: bool = False) -> int:
     return 0
 
 
-# check - the 17-check heuristic catalog
+# check - the heuristic catalog
 
 #: (slug, one-line description). The slugs are the stable vocabulary the
 #: later `--strict` promotion list will use - never rename one.
@@ -618,7 +1060,10 @@ CHECKS: tuple[tuple[str, str], ...] = (
     ("unticked-deliver", "a journal in deliver has no unticked items"),
     ("outside-layout", "the diff stays inside source/tests globs and .agentic/"),
     ("source-no-test-changes", "source changes come with test changes"),
+    ("repo-evolution", "a scoped task has a completed anchor/evolution pair"),
     ("config", "aegis.toml keys have the documented shapes"),
+    ("command-failed", "a --run command ran to completion and succeeded"),
+    ("command-timeout", "no --run command was stopped by its time limit"),
     ("nothing-ran", "--run actually executed at least one command"),
     ("manual-verification", "a requirement is verified by hand, not by test"),
     ("stage-zone", "the diff stays inside the current stage's write zone"),
@@ -642,12 +1087,16 @@ DEFAULT_ZONES: dict[str, tuple[str, ...]] = {
     "survey": (), "components": ("tests",), "close": (),
 }
 
+#: `[commands]` keys that configure how commands run rather than naming one.
+RESERVED_COMMAND_KEYS = ("timeout", "workdir")
+
 #: [table][key] -> expected python type, for the advisory config check.
 CONFIG_SHAPE: dict[str, dict[str, type]] = {
-    "commands": {"timeout": int},
+    "commands": {"timeout": int, "workdir": str},
     "layout": {"source": list, "tests": list, "default_branch": str},
     "check": {"ignore": list, "secret_patterns_extra": list,
               "strict_promote": list, "run": list},
+    "timeouts": {},   # keys are command names; values checked below
     "zones": {stage: list for stage in DEFAULT_ZONES},
 }
 
@@ -672,6 +1121,22 @@ def check_config(add, cfg: dict) -> None:
     for key, value in cfg_table(cfg, "commands").items():
         if key != "timeout" and not isinstance(value, str):
             add("WARN", "config", name, f"[commands] {key} should be a string")
+    for key, value in cfg_table(cfg, "timeouts").items():
+        if isinstance(value, bool) or not isinstance(value, int):
+            add("WARN", "config", name, f"[timeouts] {key} should be int")
+        elif key not in cfg_table(cfg, "commands"):
+            add("WARN", "config", name,
+                f"[timeouts] {key} names no [commands] entry")
+    # a workdir that does not resolve silently sends every command back to the
+    # repository root, where substituted paths still work but the application's
+    # own configuration does not - worth one line rather than a silent surprise
+    workdir = str(cfg_table(cfg, "commands").get("workdir", "")).strip()
+    if workdir and not repo_relative_ok(workdir):
+        add("WARN", "config", name,
+            "[commands] workdir must stay inside the repository")
+    elif workdir and not (ROOT / workdir).is_dir():
+        add("WARN", "config", name,
+            f"[commands] workdir '{workdir}' is not a directory")
     # an unrecognised zone name expands to no globs, which would silently
     # narrow the stage to `.agentic/` - the opposite of what a typo intends
     for stage, names in cfg_table(cfg, "zones").items():
@@ -750,7 +1215,7 @@ def is_ticket_reference(hit: str) -> bool:
 DIFF_HEADER_RE = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 CHECK_EPILOG = (
-    "the 17 checks (slug - what silent means):\n"
+    f"the {len(CHECKS)} checks (slug - what silent means):\n"
     + "\n".join(f"  {slug:<24}{desc}" for slug, desc in CHECKS)
     + """
 
@@ -761,11 +1226,12 @@ else a local `master`, then `main`. Without git or a merge base, each diff-based
 reports one NOTE line and everything else still runs. Lines longer
 than 100 columns are truncated with `...`.
 
-exits 0 always - except with --strict, which exits 1 when there are
+findings never make it exit non-zero - only --strict does, when there are
 errors, failed --run commands, or warnings whose slug is listed in
 [check] strict_promote. --run executes every plain [commands] entry
-(template entries containing `{` and the `timeout` key are skipped, as
-are side-effect-looking names unless [check] run lists them); a failing
+(template entries containing `{` are skipped, as are the reserved
+`timeout` and `workdir` keys and side-effect-looking names unless
+[check] run lists them); a failing
 command is an ERROR (`command-failed`), and running nothing at all is
 also an ERROR (`nothing-ran`), so --strict fails on it without needing a
 promotion entry - silence never counts as proof. Note that --run proves
@@ -775,6 +1241,10 @@ printed as `run: <name> skipped`.
 
 output is capped at the first 40 findings; --full (implied by --strict)
 prints them all.
+
+a usage error - an unknown task id, an unreadable aegis.toml - exits 1
+whatever the findings say: that is the command failing to run, not a
+judgement on the repository.
 """
 )
 
@@ -856,11 +1326,12 @@ STATUS_CAP = 20
 
 
 def untracked_files() -> list[str]:
-    """@brief Untracked, non-ignored files - NUL-delimited so any name works."""
+    """@brief Relevant untracked, non-ignored files, decoded NUL-safely."""
     out = run_git("ls-files", "--others", "--exclude-standard", "-z")
     if not out or out[0] != 0:
         return []
-    return [name for name in out[1].split("\0") if name]
+    return [name for name in out[1].split("\0")
+            if name and not generated_python_cache(name)]
 
 
 def added_lines_of(file: str) -> list[tuple[str, str]]:
@@ -882,31 +1353,54 @@ def added_lines_of(file: str) -> list[tuple[str, str]]:
             data.decode("utf-8", errors="replace").splitlines()]
 
 
-def collect_diff(cfg: dict) -> tuple[list[str], list[tuple[str, str]], list[str], str]:
+def diff_base(cfg: dict, revision: str = "") -> tuple[str, str]:
     """
-    @brief Changed files and added lines versus the merge base.
+    @brief The revision every diff is taken against, and why it failed.
+    @details Without an explicit revision this is the merge base with the
+             default branch - right for reviewing a whole branch. An explicit
+             revision (`--base HEAD` during the edit-run loop) is used as
+             given, so only work after that point counts as changed.
+    """
+    probe = run_git("rev-parse", "--git-dir")
+    if probe is None:
+        return "", "git executable not found"
+    if probe[0] != 0:
+        return "", "not a git repository"
+    if revision:
+        resolved = run_git("rev-parse", "--verify", f"{revision}^{{commit}}")
+        if not resolved or resolved[0] != 0 or not resolved[1].strip():
+            return "", f"unknown base revision '{revision}'"
+        return resolved[1].strip(), ""
+    branch = default_branch(cfg)
+    if not branch:
+        return "", "no default branch (origin/HEAD, master, main)"
+    base = run_git("merge-base", "HEAD", branch)
+    if not base or base[0] != 0 or not base[1].strip():
+        return "", f"no merge base between HEAD and {branch}"
+    return base[1].strip(), ""
+
+
+def collect_diff(cfg: dict,
+                 revision: str = "") -> tuple[list[str], list[tuple[str, str]],
+                                              list[str], str]:
+    """
+    @brief Changed files and added lines versus the diff base.
     @details File names come from `git diff --name-only -z` (robust against
              quoted/non-ASCII paths); added text from the patch for tracked
              files plus bounded reads of untracked files, so work in progress
              is visible before it is ever staged. Returns (files, added
-             (file, text) pairs, reason); a non-empty reason means the
+             (file, text) pairs, gaps, reason); gaps name files whose added
+             content could not be scanned, and a non-empty reason means the
              diff-based checks must degrade to NOTE lines.
     """
-    probe = run_git("rev-parse", "--git-dir")
-    if probe is None:
-        return [], [], [], "git executable not found"
-    if probe[0] != 0:
-        return [], [], [], "not a git repository"
-    branch = default_branch(cfg)
-    if not branch:
-        return [], [], [], "no default branch (origin/HEAD, master, main)"
-    base = run_git("merge-base", "HEAD", branch)
-    if not base or base[0] != 0 or not base[1].strip():
-        return [], [], [], f"no merge base between HEAD and {branch}"
-    names = run_git("diff", "--name-only", "-z", base[1].strip(), "--")
+    resolved, reason = diff_base(cfg, revision)
+    if reason:
+        return [], [], [], reason
+    names = run_git("diff", "--name-only", "-z", resolved, "--")
     if not names or names[0] != 0:
         return [], [], [], "git diff failed"
-    files = [name for name in names[1].split("\0") if name]
+    files = [name for name in names[1].split("\0")
+             if name and not generated_python_cache(name)]
 
     added: list[tuple[str, str]] = []
     gaps: list[str] = []
@@ -914,7 +1408,7 @@ def collect_diff(cfg: dict) -> tuple[list[str], list[tuple[str, str]], list[str]
     # quotepath=false keeps non-ASCII names unquoted so header attribution
     # works for them; names with quotes or backslashes stay quoted and are
     # picked up by the per-file fallback below.
-    patch = run_git("-c", "core.quotepath=false", "diff", base[1].strip(), "--")
+    patch = run_git("-c", "core.quotepath=false", "diff", resolved, "--")
     if patch and patch[0] == 0:
         current = ""
         for line in patch[1].split("\n"):
@@ -923,19 +1417,21 @@ def collect_diff(cfg: dict) -> tuple[list[str], list[tuple[str, str]], list[str]
                 # attribution, never leave it pointing at the previous file
                 match = DIFF_HEADER_RE.match(line)
                 current = match.group(2) if match else ""
+                if current and generated_python_cache(current):
+                    current = ""
                 if current:
                     seen_in_patch.add(current)
-            elif line.startswith("+") and not line.startswith("+++") and current:
+            elif line.startswith("+") and not line.startswith("+++ ") and current:
                 added.append((current, line[1:]))
 
     # tracked files the header parse could not attribute (git-quoted names):
     # diff them one at a time, where the name is known from the file list.
     unattributed = [f for f in files if f not in seen_in_patch]
     for name in unattributed[:MAX_REDIFF_FILES]:
-        one = run_git("diff", base[1].strip(), "--", name)
+        one = run_git("diff", resolved, "--", name)
         if one and one[0] == 0:
             added.extend((name, line[1:]) for line in one[1].split("\n")
-                         if line.startswith("+") and not line.startswith("+++"))
+                         if line.startswith("+") and not line.startswith("+++ "))
         else:
             gaps.append(name)
     gaps.extend(unattributed[MAX_REDIFF_FILES:])  # never silently skipped
@@ -1015,7 +1511,7 @@ def manual_method(verification: str) -> str:
     @details Some behaviors no test can settle - a look-and-see judgement, an
              install on clean hardware, a printed page. Naming the method
              after `Manual:` or `Inspection:` records it as a deliberate
-             choice, and check reports check 16 instead of check 6: still
+             choice, and check reports check 19 instead of check 6: still
              printed, still counted, but a NOTE, so it never fails --strict
              and never joins the standing list of tests still owed. The
              prefix alone does not count - it has to name a method.
@@ -1028,7 +1524,7 @@ def manual_method(verification: str) -> str:
 
 
 def check_requirement_links(add, records) -> None:
-    """@brief Per-requirement checks 4, 6, 7, 10 and 16 over the parsed records."""
+    """@brief Per-requirement checks 4, 6, 7, 10 and 19 over the parsed records."""
     for relpath, _path, data in records:
         spec_ref = str(data.get("spec", "") or "").strip()
         if spec_ref and not repo_relative_ok(spec_ref):
@@ -1039,7 +1535,7 @@ def check_requirement_links(add, records) -> None:
         if status == "active":
             linked = str_list(data.get("linked_tests"))
             method = manual_method(str(data.get("verification", "") or ""))
-            if not linked and method:  # 16: manual-verification
+            if not linked and method:  # 19: manual-verification
                 add("NOTE", "manual-verification", relpath,
                     "by hand: " + method[:60])
             elif not linked:
@@ -1116,13 +1612,16 @@ def scan_journals(add, skip, req_ids: set[str]) -> list[tuple[str, dict]]:
 
 def check_diff(add, skip, cfg, records, journals, scope) -> None:
     """
-    @brief Diff-based checks 5, 8, 9, 12, 13 and 17.
+    @brief Diff-based checks 5, 8, 9, 12, 13 and 20.
     @details `scope` is the parsed journal of `--task` or None; it narrows
-             check 5's coverage set and checks 8 and 17 to that one task.
-             Without a usable diff every check here emits one NOTE and
-             returns.
+             check 5's coverage set and checks 8 and 20 to that one task, and
+             its `base:` header - the commit the task started from - becomes
+             the diff basis, so the findings describe that task rather than
+             everything its branch has done. Without a usable diff every check
+             here emits one NOTE and returns.
     """
-    files, added, gaps, reason = collect_diff(cfg)
+    base = str(scope["header"].get("base", "")).strip() if scope else ""
+    files, added, gaps, reason = collect_diff(cfg, base)
     if reason:
         for slug in DIFF_CHECKS:
             add("NOTE", slug, "(diff)", f"skipped: {reason}")
@@ -1130,6 +1629,7 @@ def check_diff(add, skip, cfg, records, journals, scope) -> None:
     # WARN, not NOTE: a team that promotes `secret-in-diff` in CI is asking
     # for the secret scan to be trusted, and an unscanned file is precisely
     # when it cannot be - so the gap must be promotable too.
+    gaps = [name for name in gaps if not skip(name)]
     for name in gaps[:5]:  # a partial scan must say so, never read as clean
         add("WARN", "secret-in-diff", name, "added lines not scanned")
     if len(gaps) > 5:
@@ -1217,14 +1717,14 @@ def check_diff(add, skip, cfg, records, journals, scope) -> None:
         add("NOTE", "stage-zone", "(diff)",
             "skipped: current branch unavailable; use --task on detached HEAD")
         zone_journals = []
-    for relpath, data in zone_journals:  # 17: stage-zone
+    for relpath, data in zone_journals:  # 20: stage-zone
         stage = data["header"].get("stage", "")
         recorded = data["header"].get("branch", "")
         if recorded and current not in ("unknown", recorded):
             continue  # this journal describes some other branch's diff
         allowed: list[str] = []
         for zone in zones[stage]:
-            # an unrecognised name contributes nothing; check 14 reports it
+            # an unrecognised name contributes nothing; check 15 reports it
             if zone == "source":
                 allowed.extend(source_globs)
             elif zone == "tests":
@@ -1240,7 +1740,7 @@ def check_diff(add, skip, cfg, records, journals, scope) -> None:
 
 def run_checks(cfg: dict, task: str | None) -> list[tuple[str, str, str, str]]:
     """
-    @brief Collect the full findings list of the 17-check catalog.
+    @brief Collect the full findings list of the check catalog.
     @details Shared by `check` and `report`. `task` scopes the diff-based
              checks to that journal exactly as `check --task` does.
     """
@@ -1254,7 +1754,7 @@ def run_checks(cfg: dict, task: str | None) -> list[tuple[str, str, str, str]]:
         return match_any(path, ignore)
 
     check_config(add, cfg)
-    scope = read_journal(task)[1] if task else None
+    scope_path, scope = read_journal(task) if task else (None, None)
     if scope:
         recorded, current = scope["header"].get("branch", ""), git_branch()
         if recorded and current not in ("unknown", recorded):
@@ -1266,29 +1766,95 @@ def run_checks(cfg: dict, task: str | None) -> list[tuple[str, str, str, str]]:
     req_ids = {str(d.get("id", "")) for _r, _p, d in records} - {""}
     journals = scan_journals(add, skip, req_ids)
     check_diff(add, skip, cfg, records, journals, scope)
+    if scope_path is not None and scope is not None:
+        check_repo_evolution(add, scope_path, scope)
     return findings
 
 
-def command_timeout(cfg: dict) -> int:
-    """@brief `[commands] timeout` in seconds; 1800 when absent or invalid,
-    and never below 1 - a zero or negative timeout would kill everything."""
+def check_repo_evolution(add, journal: Path, scope: dict) -> None:
+    """@brief Report missing or unreadable state records for one scoped task."""
+    task = journal.stem
+    anchor_file = state_path(journal, "anchor")
+    history_file = state_path(journal, "evolution")
+    if not anchor_file.is_file():
+        add("NOTE", "repo-evolution", rel(journal),
+            "no anchor recorded for task")
+        return
     try:
-        value = int(cfg_table(cfg, "commands").get("timeout", 1800))
+        anchor = validate_anchor(read_json_file(anchor_file, "anchor"),
+                                 task, anchor_file)
+    except UserError as exc:
+        add("WARN", "repo-evolution", rel(anchor_file), str(exc))
+        return
+    if not history_file.is_file():
+        add("NOTE", "repo-evolution", rel(journal),
+            "active anchor has no completed evolution")
+        return
+    try:
+        history = validate_history(read_json_file(history_file, "evolution"),
+                                   task, history_file)
+    except UserError as exc:
+        add("WARN", "repo-evolution", rel(history_file), str(exc))
+        return
+    if not any(isinstance(report, dict)
+               and report.get("anchor_id") == anchor["anchor_id"]
+               for report in history["reports"]):
+        stage = scope.get("header", {}).get("stage", "")
+        add("NOTE", "repo-evolution", rel(journal),
+            f"active anchor has no completed evolution (stage {stage or '?'})")
+
+
+def command_timeout(cfg: dict, name: str = "") -> int | None:
+    """
+    @brief The limit for one command in seconds, or None for no limit.
+    @details `[timeouts] <name>` wins, then the shared `[commands] timeout`,
+             and absent means None: nothing shipped may stop a command the
+             repository believes is healthy. A suite that legitimately runs
+             for an hour is the repository's business, and a limit low enough
+             to cut it short would report a failure that never happened. Zero,
+             negative and unreadable values all mean no limit too, so the only
+             way to get one is to ask for it.
+    """
+    table = cfg_table(cfg, "timeouts")
+    raw = table.get(name) if name and name in table else \
+        cfg_table(cfg, "commands").get("timeout")
+    if isinstance(raw, bool):
+        return None
+    try:
+        value = int(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
-        return 1800
-    return max(1, value)
+        return None
+    return value if value > 0 else None
+
+
+def command_workdir(cfg: dict) -> Path:
+    """
+    @brief Where configured commands run: `[commands] workdir`, else the root.
+    @details A repository whose application sits below the root would
+             otherwise have to embed a directory change in the command
+             string, which silently invalidates every path substituted into
+             that command. An absent, escaping, or missing directory falls
+             back to the root - the `config` check reports it; nothing here
+             blocks.
+    """
+    raw = str(cfg_table(cfg, "commands").get("workdir", "")).strip()
+    if not raw or not repo_relative_ok(raw):
+        return ROOT
+    target = ROOT / raw
+    return target if target.is_dir() else ROOT
 
 
 def runnable_commands(cfg: dict) -> list[tuple[str, str]]:
     """
     @brief The `[commands]` entries that can run as-is, in file order.
-    @details The `timeout` key and template entries containing `{` (such as
-             `test_impacted`) are not directly runnable and are skipped.
+    @details The reserved keys - which name configuration, not commands -
+             and template entries containing `{` (such as `test_impacted`)
+             are not directly runnable and are skipped.
     """
     return [
         (name, value)
         for name, value in cfg_table(cfg, "commands").items()
-        if name != "timeout" and isinstance(value, str)
+        if name not in RESERVED_COMMAND_KEYS and isinstance(value, str)
         and value.strip() and "{" not in value
     ]
 
@@ -1320,12 +1886,15 @@ def kill_tree(proc: subprocess.Popen) -> bool:
         return False
 
 
-def run_command(command: str, timeout: int,
-                capture: bool = True) -> tuple[int, float, list[str]]:
+def run_command(command: str, timeout: int | None, capture: bool = True,
+                cwd: Path | None = None) -> tuple[int, float, list[str], bool]:
     """
-    @brief Run one configured shell command in the repo root.
-    @details Returns (exit code, seconds, captured output tail). Exit 124 on
-             timeout: the command's process tree is killed where the platform
+    @brief Run one configured shell command, by default in the repo root.
+    @details Returns (exit code, seconds, captured output tail, stopped). The
+             `stopped` flag says the limit ended the command, which the exit
+             code alone cannot: a command is free to exit 124 by itself, and a
+             caller reporting whether anything was proven must not guess. Exit
+             124 on timeout: the command's process tree is killed where the platform
              allows it (`taskkill /F /T` on Windows, the session group on
              POSIX), and when that kill is refused - restricted sandboxes do
              refuse it - the shell is still killed and the returned tail says
@@ -1341,7 +1910,7 @@ def run_command(command: str, timeout: int,
              when it would not have filled anything there.
     """
     start = time.monotonic()
-    kwargs: dict = {"cwd": str(ROOT), "shell": True}
+    kwargs: dict = {"cwd": str(cwd or ROOT), "shell": True}
     sink = None
     if capture:
         # a temp file, not a pipe: output of any size costs disk, not memory,
@@ -1356,12 +1925,13 @@ def run_command(command: str, timeout: int,
     except OSError as exc:
         if sink is not None:
             sink.close()
-        return 127, time.monotonic() - start, [str(exc)]
+        return 127, time.monotonic() - start, [str(exc)], False
 
-    note = ""
+    note, stopped = "", False
     try:
         code = proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
+        stopped = True
         killed = kill_tree(proc)
         try:
             proc.wait(timeout=5)
@@ -1384,7 +1954,7 @@ def run_command(command: str, timeout: int,
     if note:
         output = f"{output}\n{note}"
     tail = [line for line in output.strip().split("\n") if line.strip()][-8:]
-    return code, time.monotonic() - start, tail
+    return code, time.monotonic() - start, tail, stopped
 
 
 #: command names that suggest side effects beyond verification - skipped by
@@ -1416,7 +1986,7 @@ def run_configured_commands(cfg: dict, findings: list,
     allowed = str_list(cfg_table(cfg, "check").get("run"))
     out = stream if stream is not None else sys.stdout
     results: list[dict] = []
-    timeout = command_timeout(cfg)
+    workdir = command_workdir(cfg)
     ran = 0
 
     def say(text: str) -> None:
@@ -1435,9 +2005,22 @@ def run_configured_commands(cfg: dict, findings: list,
                             "reason": "name suggests side effects"})
             continue
         say(f"run: {name} started")  # a 20-minute suite must not look hung
-        code, seconds, tail = run_command(command, timeout)
+        limit = command_timeout(cfg, name)
+        code, seconds, tail, stopped = run_command(command, limit, cwd=workdir)
         ran += 1
-        if code == 0:
+        if stopped:
+            # a command that was cut off returned no verdict at all: calling
+            # that a failure invents evidence, calling it a pass hides that
+            # nothing was checked. It stays an ERROR because an unfinished
+            # proof is not a proof.
+            say(f"run: {name} stopped at its {limit}s limit ({seconds:.1f}s)"
+                " - nothing proven")
+            for text in tail:
+                say(f"  | {text}")
+            findings.append(("ERROR", "command-timeout", "(run)",
+                             f"{name} reached its {limit}s limit - nothing "
+                             "proven; raise [timeouts] if it needs longer"))
+        elif code == 0:
             say(f"run: {name} ok ({seconds:.1f}s)")
         else:
             say(f"run: {name} FAIL exit {code} ({seconds:.1f}s)")
@@ -1445,7 +2028,8 @@ def run_configured_commands(cfg: dict, findings: list,
                 say(f"  | {text}")
             findings.append(("ERROR", "command-failed", "(run)",
                              f"{name} exit {code}"))
-        results.append({"name": name, "status": "ok" if code == 0 else "failed",
+        status = "stopped" if stopped else ("ok" if code == 0 else "failed")
+        results.append({"name": name, "status": status,
                         "exit": code, "seconds": round(seconds, 1),
                         "tail": tail})
     if not ran:
@@ -1460,7 +2044,7 @@ def run_configured_commands(cfg: dict, findings: list,
 
 def cmd_check(args: argparse.Namespace) -> int:
     """
-    @brief Run the 15-check catalog and print the findings report.
+    @brief Run the check catalog and print the findings report.
     @details Advisory by design: exits 0 - except with --strict (the CI
              mode), which exits 1 on errors, failed --run commands, and
              warnings promoted via `[check] strict_promote`. One finding per
@@ -1535,8 +2119,36 @@ def cmd_check(args: argparse.Namespace) -> int:
 #: Anything else falls back to the full suite instead of reaching the shell.
 SAFE_TEST_REF_RE = re.compile(r"^[A-Za-z0-9_./][A-Za-z0-9_.:\[\]/=-]*$")
 
+#: How long a substituted command may get before the platform refuses to
+#: launch it. Windows caps a process command line at 32767 characters and the
+#: shell that actually receives it at rather less, so this stays conservative:
+#: a focused set is worth nothing if the command cannot start. Exceeding it is
+#: not an error - it selects a coarser set (whole test files), then the full
+#: suite.
+COMMAND_LENGTH_LIMIT = 8000
 
-def impacted_tests(cfg: dict) -> tuple[list[str], str]:
+
+def rebase_ref(entry: str, workdir: Path) -> str:
+    """
+    @brief One repository-relative test reference, seen from `workdir`.
+    @details References are stored repository-relative so they stay
+             comparable whatever a repository configures; only substitution
+             knows where the command will run. Returns "" when the reference
+             lies outside the working directory, where the command could not
+             reach it.
+    """
+    if workdir == ROOT:
+        return entry
+    path, _, selector = entry.partition("::")
+    try:
+        relative = (ROOT / path).resolve().relative_to(workdir.resolve())
+    except (ValueError, OSError):
+        return ""
+    rebased = relative.as_posix()
+    return f"{rebased}::{selector}" if selector else rebased
+
+
+def impacted_tests(cfg: dict, revision: str = "") -> tuple[list[str], str]:
     """
     @brief The focused regression set: diff -> requirements -> linked_tests.
     @details The traceability mapping driven in reverse, with two safety
@@ -1548,7 +2160,7 @@ def impacted_tests(cfg: dict) -> tuple[list[str], str]:
              the fallback - references are substituted into a shell command
              and must never be able to alter it.
     """
-    files, _added, _gaps, reason = collect_diff(cfg)
+    files, _added, _gaps, reason = collect_diff(cfg, revision)
     if reason:
         return [], reason
     source_globs = str_list(cfg_table(cfg, "layout").get("source"))
@@ -1581,7 +2193,47 @@ def impacted_tests(cfg: dict) -> tuple[list[str], str]:
             return [], f"unsafe test reference '{entry}'"
         if not repo_relative_ok(entry.split("::", 1)[0]):
             return [], f"test reference escapes the repository ('{entry}')"
-    return tests, ""
+
+    workdir = command_workdir(cfg)
+    rebased = []
+    for entry in tests:
+        seen_from = rebase_ref(entry, workdir)
+        if not seen_from:
+            return [], ("test reference is outside the command working "
+                        f"directory ('{entry}')")
+        rebased.append(seen_from)
+    return rebased, ""
+
+
+def fit_impacted(template_cmd: str, tests: list[str],
+                 reason: str) -> tuple[str, list[str], str]:
+    """
+    @brief Substitute the focused set, coarsening it until it can launch.
+    @details A selector list long enough to exceed the platform's command
+             line cannot start at all, which is a worse outcome than running
+             a slightly wider set. So the ladder is: exact selectors, then
+             each distinct test file once, then the caller's full-suite
+             fallback. Returns (command, references used, reason); an empty
+             command means the caller must fall back and say why.
+    """
+    if not tests:
+        return "", tests, reason
+    command = template_cmd.replace("{tests}", " ".join(tests))
+    if len(command) <= COMMAND_LENGTH_LIMIT:
+        return command, tests, ""
+
+    files: list[str] = []
+    for entry in tests:
+        path = entry.partition("::")[0]
+        if path not in files:
+            files.append(path)
+    command = template_cmd.replace("{tests}", " ".join(files))
+    if len(command) <= COMMAND_LENGTH_LIMIT:
+        print(f"impacted: too long to launch - reduced to {len(files)} "
+              f"test file(s) from {len(tests)} selector(s)")
+        return command, files, ""
+    return "", files, ("still too long to launch after reduction to "
+                       f"{len(files)} test file(s)")
 
 
 def append_log(task_id: str, message: str) -> None:
@@ -1619,7 +2271,8 @@ def cmd_test(args: argparse.Namespace) -> int:
     if args.impacted and args.name != "test":
         raise UserError("--impacted only applies to the 'test' command")
     command = commands.get(args.name)
-    if not isinstance(command, str) or not command.strip() or "{" in command:
+    if (args.name in RESERVED_COMMAND_KEYS or not isinstance(command, str)
+            or not command.strip() or "{" in command):
         raise UserError(
             f"no runnable [commands] entry named '{args.name}' in aegis.toml")
 
@@ -1630,9 +2283,10 @@ def cmd_test(args: argparse.Namespace) -> int:
             print("impacted: no test_impacted template in aegis.toml"
                   " - running the full test command")
         else:
-            tests, reason = impacted_tests(cfg)
-            if tests:
-                command = template_cmd.replace("{tests}", " ".join(tests))
+            tests, reason = impacted_tests(cfg, getattr(args, "base", "") or "")
+            substituted, tests, reason = fit_impacted(template_cmd, tests, reason)
+            if substituted:
+                command = substituted
                 label = f"test --impacted ({len(tests)} test ref(s))"
             else:
                 print(f"impacted: {reason} - running the full test command")
@@ -1640,8 +2294,12 @@ def cmd_test(args: argparse.Namespace) -> int:
     if args.task:  # validate before running: a typo must not cost a suite run
         read_journal(args.task)
 
-    print(f"$ {command}")
-    code, seconds, _tail = run_command(command, command_timeout(cfg), capture=False)
+    print(f"$ {command}", flush=True)
+    code, seconds, _tail, stopped = run_command(
+        command, command_timeout(cfg, args.name), capture=False,
+        cwd=command_workdir(cfg))
+    if stopped:
+        label = f"{label} stopped at its limit - nothing proven"
     print(f"{label}: exit {code} ({seconds:.1f}s)")
     if args.task:
         append_log(args.task, f"test: {label} exit {code} ({seconds:.1f}s)")
@@ -1670,7 +2328,12 @@ def cmd_report(args: argparse.Namespace) -> int:
         for rid in split_ids(header.get("requirements", ""))
     ]
 
-    files, added, gaps, reason = collect_diff(cfg)
+    # the task's own starting commit when it recorded one: a report measured
+    # from the branch's fork point counts every earlier commit as this task's
+    # work, and a human approving the task reads that number
+    base = str(header.get("base", "")).strip()
+    basis = f"task base {base[:7]}" if base else "merge base"
+    files, added, gaps, reason = collect_diff(cfg, base)
     diff_line = (f"unavailable ({reason})" if reason else
                  f"{len(files)} file(s) changed, {len(added)} line(s) added"
                  + (f"; {len(gaps)} file(s) not content-scanned" if gaps else ""))
@@ -1688,7 +2351,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         f" path: {header.get('path', '?')}; branch: {header.get('branch', '?')}",
         "- requirements:" if req_lines else "- requirements: none linked",
         *req_lines,
-        f"- diff vs merge base: {diff_line}",
+        f"- diff vs {basis}: {diff_line}",
         f"- checks: errors={counts['ERROR']} warnings={counts['WARN']}"
         f" notes={counts['NOTE']}",
         f"- checklist: {done}/{len(data['checklist'])} done"
@@ -1720,6 +2383,8 @@ def build_parser() -> argparse.ArgumentParser:
     subs = parser.add_subparsers(dest="command", required=True)
 
     init = subs.add_parser("init", help="finish installing the payload in this repo")
+    init.add_argument("--git", action="store_true",
+                      help="run git init when Git is installed but no repository exists")
     init.set_defaults(func=cmd_init)
 
     task = subs.add_parser("task", help="create a task journal")
@@ -1732,9 +2397,23 @@ def build_parser() -> argparse.ArgumentParser:
     req.add_argument("title")
     req.set_defaults(func=cmd_req)
 
+    anchor = subs.add_parser(
+        "anchor", help="record Git-visible repository state for one task")
+    anchor.add_argument("--task", required=True, help="TASK-<id> or <id>")
+    anchor.add_argument("--json", action="store_true",
+                        help="emit one JSON document on stdout")
+    anchor.set_defaults(func=cmd_anchor)
+
+    evolution = subs.add_parser(
+        "evolution", help="compare repository state with a task anchor")
+    evolution.add_argument("--task", required=True, help="TASK-<id> or <id>")
+    evolution.add_argument("--json", action="store_true",
+                           help="emit one JSON document on stdout")
+    evolution.set_defaults(func=cmd_evolution)
+
     check = subs.add_parser(
         "check",
-        help="run the heuristic check catalog (advisory, always exits 0)",
+        help="run the heuristic check catalog (advisory: findings never fail it)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=CHECK_EPILOG,
     )
@@ -1757,6 +2436,9 @@ def build_parser() -> argparse.ArgumentParser:
                       help="a [commands] entry name (default: test)")
     test.add_argument("--impacted", action="store_true",
                       help="run only the tests linked to requirements the diff touches")
+    test.add_argument("--base", default="",
+                      help="diff against this revision instead of the merge base"
+                           " (--base HEAD selects only uncommitted work)")
     test.add_argument("--task", help="append the result to this task journal's log")
     test.set_defaults(func=cmd_test)
 

@@ -35,7 +35,14 @@ choice reviewable.
 
 **build:** reproduces first - a failing test that hits the empty-playlist
 case - and records the exact command, non-zero exit, and expected
-missing-behavior reason before the one-line fix, then:
+missing-behavior reason. It then anchors that red-test repository state before
+the one-line fix:
+
+```bash
+python .agentic/aegis.py anchor --task TASK-c3d1
+```
+
+After the fix it runs the focused set and records the evolution:
 
 ```bash
 python .agentic/aegis.py test --impacted --base HEAD --task TASK-c3d1
@@ -45,13 +52,18 @@ python .agentic/aegis.py test --impacted --base HEAD --task TASK-c3d1
 test --impacted (2 test ref(s)): exit 0 (0.5s)
 ```
 
+```bash
+python .agentic/aegis.py evolution --task TASK-c3d1
+```
+
 The new test gets appended to the existing requirement's
 `linked_tests` — the fix strengthens the contract instead of floating
 free.
 
 **validate:** reviews the final candidate, leaves the knowledge page untouched
-(no material behavior change - the journal says so), then runs the full suite
-and `check --task TASK-c3d1 --strict --run` as the last proof.
+(no material behavior change - the journal says so), refreshes `evolution` if
+validation changed the candidate, then runs the full suite and
+`check --task TASK-c3d1 --strict --run` as the last proof.
 
 **deliver:** confirms that candidate is unchanged, presents it, and after
 approval runs `report TASK-c3d1` before committing. This is the one stop
@@ -63,9 +75,9 @@ autopilot always keeps:
 ## Total cost
 
 One prompt, one confirmation, and a paper trail: even for a ten-minute
-fix you keep a journal with the red-test evidence and the delivery
-report. That's the point of the quick path — proportional ceremony,
-never zero ceremony.
+fix you keep a journal with the red-test evidence, a compact repository-change
+report, and the delivery report. That's the point of the quick path —
+proportional ceremony, never zero ceremony.
 
 ## When *not* to use it
 

@@ -9,7 +9,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # AEGIS 0.3.0 implementation plan
 
 This completed plan records the workflow improvements delivered before the
-current 0.4.0 release. Its scope was the AEGIS product at
+current 0.5.0 release. Its scope was the AEGIS product at
 `05_Software/aegis/`, its payload, release record, and user documentation.
 
 The delivered work strengthened validation guidance, task reporting, and

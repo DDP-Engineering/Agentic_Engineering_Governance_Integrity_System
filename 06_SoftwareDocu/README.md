@@ -10,3 +10,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 This directory contains AEGIS installation, operation, collaboration, and CLI
 guidance. The product implementation and its reusable workflow payload are at
 `05_Software/aegis/`.
+
+The build and validation guides include the advisory repository-state flow:
+record an `anchor` after the expected red test, then run `evolution` after
+implementation and again after any later candidate edit.

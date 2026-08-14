@@ -7,7 +7,17 @@ See LICENSE.txt for full terms.
 SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 
-# 03_Hardware
+# Tools
 
-This folder is reserved for project hardware design files, specifications,
-bills of materials, drawings, interface definitions, and prototype assets.
+Repository setup, maintenance, and delivery-package scripts live here.
+
+Build the current AEGIS release archives and tracked publication record with:
+
+```text
+py -3.12 02_Tools/build_aegis_release.py --version 0.5.0
+```
+
+The builder validates the payload inventory, runs the complete product test
+suite, and writes reproducible `.zip` and `.tar.gz` archives under
+`07_Delivery/dist/`. Checksums and release metadata are written under
+`07_Delivery/aegis-<version>/`.

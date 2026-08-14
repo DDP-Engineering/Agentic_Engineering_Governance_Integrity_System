@@ -15,6 +15,7 @@ This folder holds local AEGIS build outputs and tracked publication records.
 07_Delivery/
   dist/                 ignored local build output
   aegis-<version>/      tracked publication record
+    RELEASE.md
     SHA256SUMS
     release-manifest.json
 ```

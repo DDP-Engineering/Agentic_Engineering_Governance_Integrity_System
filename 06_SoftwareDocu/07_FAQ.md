@@ -111,12 +111,19 @@ remains. The pauses are conversational instructions, not mechanisms —
 your agent CLI's own permission system is unaffected and unchanged.
 
 ## Can another tool consume this?
-Yes: `check --json` and `status --json` print one JSON document on
+Yes: `check --json`, `status --json`, `anchor --json`, and
+`evolution --json` print one JSON document on
 stdout — always complete (the human-facing finding cap never applies),
 with a `schema` integer so your integration fails loudly on a contract
 change instead of misparsing. Exit codes are identical to text mode, and
 `--run` progress goes to stderr so stdout stays parseable. Parse that
 rather than scraping the human output.
+
+## Does repository evolution prove the tests were honest?
+No. `anchor` and `evolution` make the changed file set visible and durable,
+but both records live in the repository and can be replaced. They help a human
+or agent notice that tests, source, tools, or documentation changed; they are
+not signatures, attestations, or tamper-proof evidence.
 
 ## Is my data locked in?
 It's markdown and TOML in your repo. Deleting `.agentic/` is a complete

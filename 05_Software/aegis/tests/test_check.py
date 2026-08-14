@@ -517,6 +517,22 @@ def test_the_per_file_fallback_recovers_a_quoted_name(tmp_path, monkeypatch):
     assert gaps == []
 
 
+def test_added_content_starting_with_two_pluses_is_scanned(tmp_path, monkeypatch):
+    """A content line beginning ``++`` is not Git's ``+++ path`` header."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    patch = (
+        "diff --git a/src/app.py b/src/app.py\n"
+        "--- a/src/app.py\n+++ b/src/app.py\n@@ -0,0 +1 @@\n"
+        "+++literal-added-content\n"
+    )
+    monkeypatch.setattr(aegis, "run_git", stub_git(patch, ["src/app.py"]))
+
+    _files, added, gaps, reason = aegis.collect_diff({})
+    assert reason == "" and gaps == []
+    assert added == [("src/app.py", "++literal-added-content")]
+
+
 def test_unscanned_files_surface_as_warnings(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
@@ -553,6 +569,25 @@ def test_promoted_secret_in_diff_fails_strict_on_an_unscanned_file(tmp_path,
     write(agentic / "aegis.toml",
           'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n')
     assert aegis.main(["check", "--strict"]) == 0
+
+
+def test_ignored_unscanned_file_does_not_fail_promoted_secret_check(
+        tmp_path, monkeypatch, capsys):
+    """Ignored paths are excluded from secret matches and scan-gap warnings."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write(agentic / "aegis.toml",
+          'schema = 1\n\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n\n'
+          '[check]\nignore = ["vendor/"]\n'
+          'strict_promote = ["secret-in-diff"]\n')
+    monkeypatch.setattr(
+        aegis, "collect_diff",
+        lambda _cfg, _rev="": (["vendor/blob.bin"], [], ["vendor/blob.bin"], ""),
+    )
+
+    capsys.readouterr()
+    assert aegis.main(["check", "--strict"]) == 0
+    assert "added lines not scanned" not in capsys.readouterr().out
 
 
 # TESTS - stricter artifact validation
@@ -630,7 +665,7 @@ def test_wrongly_typed_config_tables_do_not_crash(nogit_repo, capsys):
     assert "summary:" in out
 
 
-# TESTS - check 16: manual-verification
+# TESTS - check 19: manual-verification
 
 
 #: requirement id code -> the folder that id must live in.
@@ -705,7 +740,7 @@ def test_manual_method_is_ignored_once_tests_are_linked(nogit_repo, capsys):
     assert not lines_for(out, "no-linked-tests")
 
 
-# TESTS - check 17: stage-zone
+# TESTS - check 20: stage-zone
 
 
 @needs_git
@@ -939,7 +974,8 @@ def test_help_lists_every_slug_and_the_diff_basis(nogit_repo, capsys):
     out = capsys.readouterr().out
     for slug, _desc in aegis.CHECKS:
         assert slug in out
-    assert len(aegis.CHECKS) == 19
+    assert len(aegis.CHECKS) == 20
     # the count the help announces must be the count it lists
     assert f"the {len(aegis.CHECKS)} checks" in out
     assert "merge-base" in out and "origin/HEAD" in out
+    assert "`timeout`" in out and "`workdir`" in out

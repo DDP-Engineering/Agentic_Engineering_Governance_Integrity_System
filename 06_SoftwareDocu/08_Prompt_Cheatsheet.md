@@ -83,9 +83,9 @@ Trust the scope already? Suppress the first stop:
 using aegis workflow, autopilot to deliver: implement <what>
 ```
 
-*Check afterwards:* the journal (`.agentic/tasks/TASK-<id>.md`) tells the
-whole story - scope, exact red command and exit, expected failure, findings,
-validation evidence, and report.
+*Check afterwards:* the journal and its task sidecars tell the whole story -
+scope, exact red command and exit, pre-implementation `anchor`, final
+`evolution`, findings, validation evidence, and report.
 
 ## Work on a quick fix
 
@@ -96,9 +96,9 @@ how to reproduce>
 
 *What happens:* `frame` decides quick vs full path (a "fix" that changes
 intended behavior gets promoted to the full path — the journal says
-which and why), then reproduce-first build, validate the final candidate, then
-deliver it. One
-confirmation, at the PR.
+which and why), then reproduce-first build, anchor after the expected failure,
+record evolution after the fix, validate the final candidate, then deliver it.
+One confirmation, at the PR.
 
 ## Review the AEGIS artifacts for drift (maintenance sweep)
 

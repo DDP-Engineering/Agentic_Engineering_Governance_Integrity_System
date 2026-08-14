@@ -216,6 +216,46 @@ def test_init_reports_an_incomplete_payload(tmp_path, capsys):
     assert capsys.readouterr().err.startswith("error: payload looks incomplete")
 
 
+def test_init_reports_when_git_is_unavailable(tmp_path, monkeypatch, capsys):
+    _agentic, aegis = make_repo(tmp_path)
+    monkeypatch.setattr(aegis, "run_git", lambda *_args: None)
+
+    assert aegis.main(["init"]) == 0
+    out = capsys.readouterr().out
+    assert "git              unavailable" in out
+    assert "diff, impacted, anchor, and evolution evidence disabled" in out
+
+
+def test_init_offers_opt_in_git_initialization(tmp_path, monkeypatch, capsys):
+    _agentic, aegis = make_repo(tmp_path)
+    calls = []
+
+    def fake_git(*args):
+        calls.append(args)
+        if args == ("--version",):
+            return 0, "git version 2.50.0"
+        if args == ("init",):
+            return 0, "Initialized empty Git repository"
+        return 128, ""
+
+    monkeypatch.setattr(aegis, "run_git", fake_git)
+    assert aegis.main(["init"]) == 0
+    assert "init --git" in capsys.readouterr().out
+    assert ("init",) not in calls
+
+    assert aegis.main(["init", "--git"]) == 0
+    assert ("init",) in calls
+    assert "repository initialized" in capsys.readouterr().out
+
+
+def test_init_git_option_fails_cleanly_without_git(tmp_path, monkeypatch, capsys):
+    _agentic, aegis = make_repo(tmp_path)
+    monkeypatch.setattr(aegis, "run_git", lambda *_args: None)
+
+    assert aegis.main(["init", "--git"]) == 1
+    assert "git is not installed or unavailable" in capsys.readouterr().err
+
+
 # TESTS - req
 
 

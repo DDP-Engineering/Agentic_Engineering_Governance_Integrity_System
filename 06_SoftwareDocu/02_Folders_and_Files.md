@@ -22,7 +22,7 @@ repo. This page tours `.agentic/` with a filled-in example per format.
   aegis.toml       your configuration                 (yours)
   requirements/    the durable contracts              (yours)
   specs/           optional per-requirement specs     (yours)
-  tasks/           task journals - the run state      (yours)
+  tasks/           journals + anchor/evolution state  (yours)
   knowledge/       one page per component             (yours)
 ```
 
@@ -125,6 +125,20 @@ The header block (`key: value` lines under the title) is machine-read by
 lines inside. Header lines are edited in place; log lines are only ever
 appended, one sentence each.
 
+Each task can also own two schema-1 JSON sidecars:
+
+- `TASK-<id>.anchor.json` is the active pre-implementation baseline. It stores
+  the observed stage and HEAD, configured layout globs, file categories, kinds,
+  paths, and SHA-256 identities.
+- `TASK-<id>.evolution.json` retains compact reports for completed pairs. Each
+  report stores timestamps, stages, HEAD values, aggregate counts, and only the
+  added, modified, or removed paths with before/after identities.
+
+The inventory comes from Git: tracked and untracked non-ignored files are
+included, while `.agentic/**`, ignored caches/build outputs, `__pycache__/`,
+`.pyc`, and `.pyo` files are excluded. The records describe change; they are
+editable repository files, not tamper-proof evidence.
+
 ## Specs — `specs/REQ-<...>.md`
 
 Free markdown, only when the requirement alone is not enough to build
@@ -153,7 +167,8 @@ manifest and no registry — the folder listing is the component list.
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
 
-**Integrating another tool?** `check --json` and `status --json` print one
+**Integrating another tool?** `check --json`, `status --json`, `anchor --json`,
+and `evolution --json` print one
 JSON document on stdout — complete (never capped), with a `schema`
 integer to version the contract, unchanged exit codes, and `--run`
 progress on stderr. Parse that instead of scraping the human output.

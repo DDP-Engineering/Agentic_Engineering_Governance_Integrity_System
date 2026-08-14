@@ -48,8 +48,15 @@ with a reproducible red record in the journal.
 - 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=no module m3u.
 ```
 
-Then implementation until green, with the focused regression as the fast
-inner loop:
+With the expected failure confirmed, the agent records the repository before
+touching implementation:
+
+```bash
+python .agentic/aegis.py anchor --task TASK-8b12
+```
+
+Then implementation continues until green, with the focused regression as the
+fast inner loop:
 
 ```bash
 python .agentic/aegis.py test --impacted --base HEAD --task TASK-8b12
@@ -58,6 +65,15 @@ python .agentic/aegis.py test --impacted --base HEAD --task TASK-8b12
 ```
 test --impacted (1 test ref(s)): exit 0 (0.4s)
 ```
+
+After implementation, the agent compares the candidate with that anchor:
+
+```bash
+python .agentic/aegis.py evolution --task TASK-8b12
+```
+
+The output names every added, modified, and removed path as `source`, `tests`,
+or `other`. Changes are expected and never make the command fail.
 
 The agent runs `aegis check` before leaving the stage and self-corrects
 anything it flags (a forgotten `affected_paths` entry, a stray file).
@@ -81,7 +97,9 @@ strict: ok
 ```
 
 Any correction sends the task back to the appropriate stage and makes this
-proof run again. Once it is current, `stage: deliver` means "validated, not yet
+proof run again. If validation changes a repository file outside `.agentic/`,
+the agent reruns `evolution` first so the saved report matches the final
+candidate. Once it is current, `stage: deliver` means "validated, not yet
 published."
 
 ## Stage 6 - deliver
@@ -116,9 +134,10 @@ delivery that really happened.
 
 ## What you can rely on afterwards
 
-The journal tells the whole story — scope decision, red test, findings,
-ticked checklists, delivery report. Review is reading one markdown file
-plus the diff. And if you stop mid-task (any stage, any reason):
+The journal and its state sidecars tell the whole story — scope decision, red
+test, repository evolution, findings, ticked checklists, and delivery report.
+Review is reading those task-owned files plus the diff. And if you stop
+mid-task (any stage, any reason):
 
 ```bash
 python .agentic/aegis.py status

@@ -26,6 +26,10 @@ A deeper `AGENTS.md` overrides this file for its subtree.
 - Keep folder boundaries clear across planning, documentation, tools,
   hardware, hardware documentation, software, software documentation, delivery,
   and support material.
+- Put delivery packages and their tracked publication records under
+  `07_Delivery/`.
+- Put scripts that set up this workspace, support repository maintenance, or
+  build delivery packages under `02_Tools/`.
 - Do not add subtree-level `AGENTS.md` files unless explicitly requested.
 - Keep the project offline-first unless an online dependency is explicitly
   required and approved.

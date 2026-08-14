@@ -39,7 +39,20 @@ This finishes the installation, idempotently:
   existing one is never touched,
 - creates or appends the root pointer files `AGENTS.md`, `CLAUDE.md`,
   `QWEN.md` (a short digest under markers; your existing content in
-  those files is preserved).
+  those files is preserved),
+- reports whether Git is installed and whether this directory is already a
+  Git repository.
+
+If Git is installed but the project has no repository yet, initialize it
+explicitly through AEGIS:
+
+```bash
+python .agentic/aegis.py init --git
+```
+
+Plain `init` never creates a Git repository silently. If Git itself is missing,
+AEGIS finishes installing but explains that diff checks, impacted tests,
+anchors, and evolution reports remain unavailable until Git is installed.
 
 Commit the result. Running `init` again changes nothing.
 
@@ -107,6 +120,10 @@ and get the advisory findings report with:
 ```bash
 python .agentic/aegis.py check
 ```
+
+Git is also used by the optional repository-state commands. `anchor` and
+`evolution` report a concise error when Git is unavailable; this does not stop
+the rest of the advisory workflow from being used.
 
 `check` always exits 0 — it informs, it never blocks.
 

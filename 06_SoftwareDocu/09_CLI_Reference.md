@@ -31,6 +31,8 @@ network.
 | `init` | Complete installation after copying the payload. | Once during installation, and safely after a payload upgrade. |
 | `task` | Create a task journal with a unique ID. | At the start of governed feature, fix, change, or adoption work. |
 | `req` | Create a requirement TOML file with a unique ID. | When work needs a new durable requirement. |
+| `anchor` | Fingerprint Git-visible repository files for a task. | After the expected red failure and before implementation. |
+| `evolution` | Compare the repository with its active task anchor. | After implementation and after any later validation edit. |
 | `status` | List open tasks or inspect one journal. | Before starting or resuming work, and whenever the next step is unclear. |
 | `check` | Run the heuristic governance catalog. | During work for feedback; with `--strict --run` at the validation or CI boundary. |
 | `test` | Run a command configured in `.agentic/aegis.toml`. | During build and validation, optionally recording the result in a journal. |
@@ -69,7 +71,7 @@ python .agentic/aegis.py --version
 ## `init`
 
 ```text
-python .agentic/aegis.py init
+python .agentic/aegis.py init [--git]
 ```
 
 **Description:** Finish installing a copied AEGIS payload. It:
@@ -79,10 +81,16 @@ python .agentic/aegis.py init
 - creates a default `.agentic/aegis.toml` only when absent;
 - adds or refreshes the managed AEGIS digest in root
   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
+- reports whether Git is installed and whether the directory is a repository;
 - preserves project-owned data and an existing `aegis.toml`.
 
 The command is idempotent: running it again does not replace the repository's
 configuration or governance records.
+
+When Git is installed but the directory is not a repository, plain `init`
+prints the next command without changing Git state. `init --git` explicitly
+runs `git init`. If Git is unavailable, AEGIS still installs but reports that
+diff checks, impacted selection, anchor, and evolution evidence are disabled.
 
 **When to use:** Immediately after copying `.agentic/` into a repository.
 Run it again after copying a newer payload so the root digests match the
@@ -92,6 +100,7 @@ installed workflow.
 
 ```text
 python .agentic/aegis.py init
+python .agentic/aegis.py init --git
 ```
 
 Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, and
@@ -130,6 +139,43 @@ python .agentic/aegis.py task "Adopt inventory service" --type adopt
 
 The CLI creates the journal but does not advance its stage. Follow the
 relevant step file and edit the journal as instructed.
+
+## `anchor`
+
+```text
+python .agentic/aegis.py anchor --task TASK-<id> [--json]
+```
+
+Record a UTC-timestamped fingerprint of every tracked or untracked,
+non-ignored repository file except `.agentic/**`. The anchor includes the task
+stage, HEAD, layout globs, `source`/`tests`/`other` categories, file kinds,
+paths, and SHA-256 hashes. Regular files are streamed in chunks; symlinks use
+their link identity and submodules use their checked-out commit. Generated
+Python bytecode under `__pycache__/`, plus `.pyc` and `.pyo` files, is always
+excluded. Run it after the expected red test and before implementation, or
+immediately before the first implementation edit when no automated red test
+applies. Replacing an anchor without a completed evolution is allowed but
+reported visibly.
+
+## `evolution`
+
+```text
+python .agentic/aegis.py evolution --task TASK-<id> [--json]
+```
+
+Compare the current repository with its active task anchor and report added,
+modified, and removed paths as `source`, `tests`, or `other`. Successful
+comparisons always exit zero regardless of changes. Compact completed-pair
+reports are retained; rerunning evolution refreshes the active pair. Renames
+appear as one removal and one addition. A previously visible untracked file
+that becomes ignored after anchoring appears removed from the monitored state.
+
+These records describe repository evolution. They are not tamper-proof and do
+not prove that the red test or implementation was honest.
+
+`check --task` adds a `repo-evolution` NOTE when the active pair is missing or
+incomplete. Missing records never become warnings. Malformed or task-mismatched
+state files are warnings, but an ordinary non-strict check still exits zero.
 
 ## `req`
 
@@ -387,17 +433,17 @@ python .agentic/aegis.py report 8b12
 
 | Situation | Exit behavior |
 |---|---|
-| `init`, `task`, `req`, `status`, or `report` succeeds | Exit 0. |
+| `init`, `task`, `req`, `anchor`, `evolution`, `status`, or `report` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
 | Usage, missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
 | Plain `check` finds errors or warnings | Exit 0; it remains advisory. |
 | `check --strict` finds a strict failure | Exit 1. |
 | `test` runs a configured command | Return that command's exit code. |
 | A configured command is stopped by its time limit | Exit 124, reported as proving nothing. |
 
-For `check --json` and `status --json`, successful stdout contains exactly
-one JSON document with a `schema` integer. On a usage or configuration error,
-stdout is empty and the error is written to stderr; consumers must treat empty
-stdout as failure, not as an empty result.
+For `check --json`, `status --json`, `anchor --json`, and `evolution --json`,
+successful stdout contains exactly one JSON document with a `schema` integer.
+On a usage or configuration error, stdout is empty and the error is written to
+stderr; consumers must treat empty stdout as failure, not as an empty result.
 
 ## Commands intentionally not provided
 
