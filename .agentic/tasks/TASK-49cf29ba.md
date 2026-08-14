@@ -32,7 +32,7 @@ Keep each log line to one sentence.
 
 # TASK-49cf29ba — Adopt AEGIS development repository
 
-stage: close
+stage: done
 type: adopt
 path: full
 requirements: REQ-FUNC-87aea7e9, REQ-FUNC-938600f4, REQ-FUNC-5cc0baf7, REQ-FUNC-ac60f1cc, REQ-FUNC-871f7c12, REQ-FUNC-c2a3f774, REQ-FUNC-d37ad85a, REQ-DATA-4304dec0, REQ-DATA-7faf94ff, REQ-FUNC-d60b322b, REQ-FUNC-32fe33a0, REQ-FUNC-b8f0efc5, REQ-PLAT-e675406e, REQ-TEST-2b78f69d, REQ-TEST-2651b9cf, REQ-TEST-e38913a7, REQ-REL-59983fe5, REQ-REL-d875f7a3, REQ-REL-858e8cac, REQ-UX-62a24243, REQ-PLAT-8e0b2623
@@ -44,9 +44,9 @@ opened: 2026-08-14
 
 - [x] whole-tree check run and findings reconciled
 - [x] delivery report generated
-- [ ] agreed outcome presented for approval
-- [ ] adoption journal and records committed
-- [ ] close-out completed after the approved outcome
+- [x] agreed outcome presented for approval
+- [x] adoption journal and records committed
+- [x] close-out completed after the approved outcome
 
 ## Components
 
@@ -78,6 +78,8 @@ The root `.agentic/` directory is this repository's installed working copy of th
 - 2026-08-14 close: All six agreed components are adopted; advanced to close for whole-tree review and delivery preparation without commit or push authority.
 - 2026-08-14 close: Whole-tree check found no errors; accepted stage-zone warnings reflect current changed source and tests while close has no write zone, and accepted layout warnings identify release records and changelog outside the current configured globs.
 - 2026-08-14 close: Generated the local delivery report and presented the uncommitted adoption candidate; no commit or push was attempted per owner instruction.
+- 2026-08-14 close: Owner approved completion after commit 10fba94 delivered the adoption records on master without a push.
+- 2026-08-14 done: Closed the adoption journal after the committed local delivery outcome succeeded.
 - 2026-08-14 components: Adopted Product verification suite with three active requirements and one knowledge page; no untested or suspected behaviors were identified from the reviewed tests.
 - 2026-08-14 components: Per owner instruction, left the completed component and adoption records uncommitted on master.
 - 2026-08-14 test: test exit 0 (109.6s)
