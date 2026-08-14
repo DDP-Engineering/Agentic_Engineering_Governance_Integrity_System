@@ -49,6 +49,10 @@ DATA_DIRS = ("requirements", "specs", "tasks", "knowledge")
 POINTER_FILES = ("AGENTS.md", "CLAUDE.md", "QWEN.md")
 MARK_BEGIN = "<!-- AEGIS:BEGIN (managed by .agentic/aegis.py init) -->"
 MARK_END = "<!-- AEGIS:END -->"
+LEGACY_MARK_PAIRS = ((
+    "<!-- AEGIS-LIGHT:BEGIN (managed by .agentic/aegis.py init) -->",
+    "<!-- AEGIS-LIGHT:END -->",
+),)
 
 TASK_TYPES = ("feature", "fix", "change", "adopt")
 
@@ -794,14 +798,29 @@ def write_pointer(name: str) -> str:
     crlf = "\r\n" in raw
     text = raw.replace("\r\n", "\n")
 
-    begin, end = text.find(MARK_BEGIN), text.find(MARK_END)
-    if begin >= 0 and end > begin:
-        stop = end + len(MARK_END)
-        if text[stop : stop + 1] == "\n":  # take the marker's own newline only
-            stop += 1
-        if text[begin:stop].strip() == block.strip():
+    spans: list[tuple[int, int]] = []
+    for begin_mark, end_mark in ((MARK_BEGIN, MARK_END), *LEGACY_MARK_PAIRS):
+        cursor = 0
+        while (begin := text.find(begin_mark, cursor)) >= 0:
+            end = text.find(end_mark, begin + len(begin_mark))
+            if end < 0:
+                break
+            stop = end + len(end_mark)
+            if text[stop : stop + 1] == "\n":
+                stop += 1
+            spans.append((begin, stop))
+            cursor = stop
+    spans.sort()
+    if spans:
+        begin, stop = spans[0]
+        if len(spans) == 1 and text[begin:stop].strip() == block.strip():
             return "unchanged"
-        out, outcome = text[:begin] + block + text[stop:], "refreshed"
+        parts, cursor = [text[:begin], block], stop
+        for duplicate_begin, duplicate_stop in spans[1:]:
+            parts.append(text[cursor:duplicate_begin])
+            cursor = duplicate_stop
+        parts.append(text[cursor:])
+        out, outcome = "".join(parts), "refreshed"
     else:
         separator = ("" if text.endswith("\n\n")
                      else "\n" if text.endswith("\n") else "\n\n")

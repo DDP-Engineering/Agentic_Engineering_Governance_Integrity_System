@@ -195,6 +195,37 @@ def test_init_appends_to_pointer_files_without_clobbering(tmp_path):
     assert (tmp_path / "AGENTS.md").read_text(encoding="utf-8") == text
 
 
+def test_init_migrates_legacy_pointer_markers_without_duplication(tmp_path):
+    _agentic, aegis = make_repo(tmp_path)
+    legacy_begin, legacy_end = aegis.LEGACY_MARK_PAIRS[0]
+    prior = ("# AGENTS.md\n\nRepository rules before.\n\n"
+             f"{legacy_begin}\n\nold digest\n{legacy_end}\n\n"
+             "Repository rules after.\n")
+    (tmp_path / "AGENTS.md").write_text(prior, encoding="utf-8", newline="\n")
+
+    assert aegis.main(["init"]) == 0
+    text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert text.count(aegis.MARK_BEGIN) == 1
+    assert legacy_begin not in text and legacy_end not in text
+    assert "Repository rules before." in text
+    assert "Repository rules after." in text
+
+
+def test_init_collapses_legacy_and_current_duplicate_blocks(tmp_path):
+    _agentic, aegis = make_repo(tmp_path)
+    legacy_begin, legacy_end = aegis.LEGACY_MARK_PAIRS[0]
+    current = f"{aegis.MARK_BEGIN}\n\nnew digest\n{aegis.MARK_END}\n"
+    text = (f"# AGENTS.md\n\n{legacy_begin}\nold digest\n{legacy_end}\n\n"
+            f"Repository-owned middle.\n\n{current}")
+    (tmp_path / "AGENTS.md").write_text(text, encoding="utf-8", newline="\n")
+
+    assert aegis.main(["init"]) == 0
+    migrated = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert migrated.count(aegis.MARK_BEGIN) == 1
+    assert legacy_begin not in migrated and legacy_end not in migrated
+    assert "Repository-owned middle." in migrated
+
+
 def test_init_leaves_user_data_folders_untouched(tmp_path):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])

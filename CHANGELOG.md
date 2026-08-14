@@ -38,6 +38,8 @@ All notable changes to AEGIS are documented in this file.
 - Flush the `test` command announcement before child output, identify malformed
   journals by filename in human status output, and correct small workflow and
   CLI reference inconsistencies.
+- Migrate legacy `AEGIS-LIGHT` managed guidance markers during `init` and
+  collapse duplicate old/new blocks left by an interrupted upgrade.
 
 ## [0.4.0] - 2026-08-14
 
