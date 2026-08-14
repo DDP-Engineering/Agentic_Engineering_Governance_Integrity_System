@@ -5,9 +5,9 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — team setup
+# AEGIS — team setup
 
-AEGIS Light has no server and no shared database: **the branch is the
+AEGIS has no server and no shared database: **the branch is the
 workspace, git is the sync layer**. A team gets multi-user governance
 from the workflow it already has.
 
@@ -15,7 +15,7 @@ from the workflow it already has.
 
 - Each developer works on their own branch, on their own machine, with
   their own agent (different people can even use different models).
-- Everything AEGIS Light knows is committed files, so any machine
+- Everything AEGIS knows is committed files, so any machine
   resumes any task with: `git fetch`, check out the task branch recorded
   in the journal, then `python .agentic/aegis.py status`. (Push the
   branch from the old machine first — uncommitted work never travels.)
@@ -95,7 +95,7 @@ Any CI system works — the command is plain Python with exit codes. A
 minimal Gitea/GitHub-style step:
 
 ```yaml
-- name: AEGIS Light gate
+- name: AEGIS gate
   run: python .agentic/aegis.py check --strict --run
 ```
 

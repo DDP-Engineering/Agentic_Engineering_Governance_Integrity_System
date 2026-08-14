@@ -5,9 +5,9 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — folders and files
+# AEGIS — folders and files
 
-Everything AEGIS Light knows is a plain file committed to your branch.
+Everything AEGIS knows is a plain file committed to your branch.
 One artifact = one file. No database, no run store, no state outside the
 repo. This page tours `.agentic/` with a filled-in example per format.
 

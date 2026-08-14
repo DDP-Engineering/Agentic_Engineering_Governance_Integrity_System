@@ -45,9 +45,8 @@ Required file prologue:
 Docstrings carry no authorship or version tags (no `@author`, `@date`, or
 `@version`) at module, function, method, class, or nested-helper level. The
 file-top copyright/license banner is the sole in-file attribution. Versioning
-is project-level only, tracked in `aegis`'s `__init__.__version__` / payload
-version, `waegis`'s `version.py` `WIZARD_VERSION`, and the existing
-changelogs.
+is project-level only, tracked in the AEGIS payload version and the existing
+changelog.
 
 Required section markers where meaningful:
 

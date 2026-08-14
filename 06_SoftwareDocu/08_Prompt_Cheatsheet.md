@@ -5,7 +5,7 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — operator prompt cheatsheet
+# AEGIS — operator prompt cheatsheet
 
 Copy-paste prompts for the operations you actually perform, one box each.
 These are *operator* prompts — what a human types to start an operation.
@@ -18,7 +18,7 @@ without a `python` alias, say `python3` in the prompts.
 ## Install on an existing project — via an agent
 
 ```
-The AEGIS Light payload is at <path-to-release>/template/.agentic.
+The AEGIS payload is at <path-to-release>/template/.agentic.
 Copy it into this repository as .agentic/, run
 python .agentic/aegis.py init, then edit .agentic/aegis.toml so that
 [commands] test runs our real test suite and [layout] source/tests match
@@ -36,7 +36,7 @@ yourself — governance should not self-install silently.
 ```
 Create a new <language> project in this empty repository: git init, a
 minimal skeleton with src/ and tests/ and one passing placeholder test.
-Then install AEGIS Light from <path-to-release>/template/.agentic
+Then install AEGIS from <path-to-release>/template/.agentic
 (copy + python .agentic/aegis.py init), point .agentic/aegis.toml at the
 skeleton's test command and folders, and stop before committing.
 ```
@@ -103,7 +103,7 @@ confirmation, at the PR.
 ## Review the AEGIS artifacts for drift (maintenance sweep)
 
 ```
-Review this repository's AEGIS Light artifacts for drift. First run
+Review this repository's AEGIS artifacts for drift. First run
 python .agentic/aegis.py check and read every finding. Then go beyond it
 semantically: for each active requirement, does the prose still describe
 what the code actually does, and does verification still match how the

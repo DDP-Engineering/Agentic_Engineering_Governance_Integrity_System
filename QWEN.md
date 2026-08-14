@@ -1,8 +1,8 @@
 # QWEN.md
 
-<!-- AEGIS-LIGHT:BEGIN (managed by .agentic/aegis.py init) -->
+<!-- AEGIS:BEGIN (managed by .agentic/aegis.py init) -->
 
-## AEGIS Light workflow
+## AEGIS workflow
 
 The full contract is `.agentic/AGENTS.md` - read it before starting work.
 This digest is enough to act on if you read nothing else.
@@ -25,4 +25,4 @@ Artifacts: requirements in `.agentic/requirements/<category>/`, specs in
 `.agentic/knowledge/`. `python .agentic/aegis.py check` is advisory - read
 its findings and self-correct; nothing here blocks you mid-flight.
 
-<!-- AEGIS-LIGHT:END -->
+<!-- AEGIS:END -->

@@ -5,7 +5,7 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — FAQ
+# AEGIS — FAQ
 
 ## What if the agent just ignores the workflow?
 Then it can — nothing stops it, and that is a design decision, not a
@@ -17,7 +17,7 @@ files follow them; the ones that don't leave fingerprints. And if your
 team wants a real stop, that's what `check --strict` in CI is for — at
 the merge, visible to everyone, not in the agent's inner loop.
 
-## How is this different from AEGIS 2.x?
+## What is AEGIS's operating model?
 Same ideas — staged lifecycle, durable requirements, linked tests,
 focused regression, delivery reports. None of the machinery: no hooks,
 no gate modes, no waivers, no evidence forms, no run store, no

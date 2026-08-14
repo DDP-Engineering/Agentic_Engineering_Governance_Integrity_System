@@ -1,20 +1,4 @@
-# Delivery binaries are build outputs and are never tracked.
-#
-# A fixed filename does NOT make tracking them cheap: Git stores blobs, not
-# names, so every rebuild adds a full new object to history regardless of what
-# the file is called. Measured on two consecutive releases: the `.pyz` and the
-# Windows `.zip` deltify well, but `waegis-linux-x64.tar.gz` does not compress
-# against its predecessor at all (stream gzip - one early change shifts every
-# following byte), so each release would add ~66 MB permanently. Committing a
-# binary is also a one-way door: removing it later requires rewriting history.
-#
-# What IS tracked is the publication record under `waegis-<version>/`:
-# RELEASE.md, SHA256SUMS, and release-manifest.json. The binaries are
-# reproducible from a source checkout at that version:
-#   uv run python 05_Software/waegis/packaging/build_release.py
-#
-# Builds land in `dist/` (already ignored by the repository root .gitignore);
-# these patterns are the safety net for a build aimed somewhere else in here.
-*.pyz
+# Delivery archives are reproducible build outputs. Publication records are
+# tracked separately under aegis-<version>/.
 *.zip
 *.tar.gz

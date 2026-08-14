@@ -6,9 +6,9 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light CLI reference
+# AEGIS CLI reference
 
-AEGIS Light uses one standard-library Python script. Run it from the
+AEGIS uses one standard-library Python script. Run it from the
 repository root:
 
 ```text
@@ -56,7 +56,7 @@ python .agentic/aegis.py task --help
 
 ### `--version`
 
-**Description:** Print the installed AEGIS Light version.
+**Description:** Print the installed AEGIS version.
 
 **When to use:** After installation or upgrade, or when reporting an issue.
 
@@ -72,12 +72,12 @@ python .agentic/aegis.py --version
 python .agentic/aegis.py init
 ```
 
-**Description:** Finish installing a copied AEGIS Light payload. It:
+**Description:** Finish installing a copied AEGIS payload. It:
 
 - creates `.agentic/requirements/`, `specs/`, `tasks/`, and `knowledge/`
   when absent;
 - creates a default `.agentic/aegis.toml` only when absent;
-- adds or refreshes the managed AEGIS Light digest in root
+- adds or refreshes the managed AEGIS digest in root
   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
 - preserves project-owned data and an existing `aegis.toml`.
 
@@ -115,7 +115,7 @@ The default type is `feature`. Accepted types are:
 | `feature` | New user-visible or system capability. |
 | `fix` | Correction of confirmed faulty behavior. |
 | `change` | Maintenance or behavior change that is not best described as a feature or fix. |
-| `adopt` | Bringing an existing repository under AEGIS Light. |
+| `adopt` | Bringing an existing repository under AEGIS. |
 
 **When to use:** At the beginning of a new governed unit of work, after first
 using `status` to ensure an existing open journal does not already cover it.
@@ -256,7 +256,7 @@ python .agentic/aegis.py test [name] [--impacted] [--base <rev>] [--task TASK-<i
 
 **Description:** Run a command from the `[commands]` table in
 `.agentic/aegis.toml`. The default command name is `test`. Output streams
-live, and the AEGIS Light process returns the executed command's exit code.
+live, and the AEGIS process returns the executed command's exit code.
 
 Options:
 
@@ -267,7 +267,7 @@ Options:
 | `--base <rev>` | Take the diff against that revision instead of the merge base. `--base HEAD` selects only uncommitted work. |
 | `--task TASK-<id>` | Validate the task ID before running and append the result and duration to its journal. |
 
-If impact selection cannot produce a focused set, AEGIS Light explains why
+If impact selection cannot produce a focused set, AEGIS explains why
 and falls back to the full `test` command. `--impacted` cannot be combined
 with a command name other than `test`.
 
@@ -278,7 +278,7 @@ a long-lived branch, where it can select most of the suite. Use `--base HEAD`
 during build to select only what you have not committed yet.
 
 A focused set that would make the command longer than the platform can launch
-is not an error: AEGIS Light reduces it to one entry per distinct test file,
+is not an error: AEGIS reduces it to one entry per distinct test file,
 says so, and only falls back to the full suite if even that is too long.
 
 **When to use:**
@@ -401,7 +401,7 @@ stdout as failure, not as an empty result.
 
 ## Commands intentionally not provided
 
-AEGIS Light has no command for stage transitions, approvals, waivers, evidence
+AEGIS has no command for stage transitions, approvals, waivers, evidence
 forms, commits, pushes, upgrades, or uninstalling. Those actions remain visible
 plain-file or Git operations:
 

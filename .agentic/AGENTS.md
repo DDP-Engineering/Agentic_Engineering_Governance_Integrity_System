@@ -6,7 +6,7 @@ See the LICENSE.txt in the .agentic folder for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — agent workflow
+# AEGIS — agent workflow
 
 ## Philosophy
 

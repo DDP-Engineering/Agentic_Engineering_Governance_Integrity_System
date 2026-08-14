@@ -5,10 +5,10 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — user documentation
+# AEGIS — user documentation
 
-Light, user-oriented guides for AEGIS Light 0.4.0 (the companion
-governance system at `05_Software/aegis-light/`). Reading order for a
+User-oriented guides for AEGIS 0.4.0 (the advisory governance system at
+`05_Software/aegis/`). Reading order for a
 new user: 01, 02, then the example matching your situation.
 
 | Doc | Read when |

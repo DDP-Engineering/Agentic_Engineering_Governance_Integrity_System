@@ -5,9 +5,9 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS Light — install and setup
+# AEGIS — install and setup
 
-Five minutes, three steps, no wizard, no hooks. AEGIS Light never blocks
+Five minutes, three steps, no wizard, no hooks. AEGIS never blocks
 your agent: it gives it a workflow to read and a small CLI that scaffolds
 files and reports findings.
 
@@ -22,7 +22,7 @@ files and reports findings.
 
 ## Step 1 — copy one folder
 
-Copy the payload folder `template/.agentic/` from the AEGIS Light
+Copy the payload folder `template/.agentic/` from AEGIS
 release into the root of your repository, so you have `<repo>/.agentic/`.
 
 ## Step 2 — run init
@@ -58,14 +58,14 @@ tests  = ["tests/"]                   # where your tests live
 ```
 
 If your application lives in a subfolder rather than at the repository
-root, add one more line and let AEGIS Light handle the rest:
+root, add one more line and let AEGIS handle the rest:
 
 ```toml
 [commands]
 workdir = "app"                       # run commands here, not at the root
 ```
 
-Do not put a directory change inside the commands themselves. AEGIS Light
+Do not put a directory change inside the commands themselves. AEGIS
 substitutes repository-relative test paths into `test_impacted`, so a
 command that moves itself would resolve those paths a second time and find
 nothing. With `workdir` set, the paths are rewritten to match.
@@ -117,6 +117,6 @@ python .agentic/aegis.py check
   commit. Your data folders and `aegis.toml` are never part of the
   payload, so they are never overwritten.
 - **Undo anything:** `git restore` / revert the commit. Git is the
-  safety net; AEGIS Light has no state outside the repo.
+  safety net; AEGIS has no state outside the repo.
 - **Uninstall:** delete `.agentic/` and the marked blocks in the root
   pointer files. Nothing else was touched.

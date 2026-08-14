@@ -9,7 +9,7 @@
 # -----------------------------------------------------------------------------
 """
 @file aegis.py
-@brief The AEGIS Light companion CLI: a scaffolder and a reporter.
+@brief The AEGIS companion CLI: a scaffolder and a reporter.
 @details Single file, stdlib only, Python >= 3.11. Invoked as
          `python .agentic/aegis.py <cmd>` from the repo root on Windows and
          Linux alike; it locates its own `.agentic` directory from
@@ -45,8 +45,8 @@ ROOT = AGENTIC.parent
 
 DATA_DIRS = ("requirements", "specs", "tasks", "knowledge")
 POINTER_FILES = ("AGENTS.md", "CLAUDE.md", "QWEN.md")
-MARK_BEGIN = "<!-- AEGIS-LIGHT:BEGIN (managed by .agentic/aegis.py init) -->"
-MARK_END = "<!-- AEGIS-LIGHT:END -->"
+MARK_BEGIN = "<!-- AEGIS:BEGIN (managed by .agentic/aegis.py init) -->"
+MARK_END = "<!-- AEGIS:END -->"
 
 TASK_TYPES = ("feature", "fix", "change", "adopt")
 
@@ -69,7 +69,7 @@ CATEGORIES: dict[str, tuple[str, str]] = {
 }
 
 DEFAULT_CONFIG = """\
-# AEGIS Light configuration. Written once by `aegis init` and yours from
+# AEGIS configuration. Written once by `aegis init` and yours from
 # then on - upgrades never overwrite this file.
 
 schema = 1
@@ -111,7 +111,7 @@ strict_promote = []
 """
 
 POINTER_DIGEST = """\
-## AEGIS Light workflow
+## AEGIS workflow
 
 The full contract is `.agentic/AGENTS.md` - read it before starting work.
 This digest is enough to act on if you read nothing else.
@@ -1714,9 +1714,9 @@ def build_parser() -> argparse.ArgumentParser:
     """@brief The argparse tree for every implemented command."""
     parser = argparse.ArgumentParser(
         prog="aegis",
-        description="AEGIS Light companion CLI - a scaffolder and a reporter.",
+        description="AEGIS companion CLI - a scaffolder and a reporter.",
     )
-    parser.add_argument("--version", action="version", version=f"aegis-light {VERSION}")
+    parser.add_argument("--version", action="version", version=f"aegis {VERSION}")
     subs = parser.add_subparsers(dest="command", required=True)
 
     init = subs.add_parser("init", help="finish installing the payload in this repo")

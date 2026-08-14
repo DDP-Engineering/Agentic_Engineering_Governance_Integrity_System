@@ -17,10 +17,7 @@ A deeper `AGENTS.md` overrides this file for its subtree.
 ## Repository Rules
 
 - Treat this repository as independent.
-- Keep the runnable AEGIS implementation under `05_Software/aegis/` and the
-  runnable WAEGIS guided wizard under `05_Software/waegis/`. WAEGIS is a
-  separate, stdlib-only package that configures and deploys the AEGIS payload;
-  it is never copied into `05_Software/aegis/template/`.
+- Keep the runnable AEGIS implementation under `05_Software/aegis/`.
 - Treat everything under `05_Software/aegis/template/` as
   template material copied verbatim into downstream projects. Keep it generic
   and free of this repository's own development history, version records, or
@@ -64,8 +61,7 @@ where the traceability rules below call for them.
 
 Docstrings carry no authorship or version tags. The file-top copyright/license
 comment block is the sole in-file attribution. Versioning is project-level
-only, tracked in `aegis`'s `__init__.__version__` / payload version, `waegis`'s
-`version.py` `WIZARD_VERSION`, and the existing changelogs.
+only, tracked in the AEGIS payload version and the existing changelog.
 
 ## Requirements Traceability Rules
 
@@ -87,19 +83,7 @@ python -m py_compile <changed_file.py>
 uv run --group dev python -m pytest -q tests
 ```
 
-For CLI changes, also verify:
-
-```powershell
-uv run --group dev python -B -m aegis --help
-```
-
-For Python changes inside `05_Software/waegis/`, run at minimum:
-
-```powershell
-python -m py_compile <changed_file.py>
-uv run --group dev python -m pytest -q tests
-uv run --group dev python -B -m waegis --help
-```
+For CLI changes, also verify `python template/.agentic/aegis.py --help`.
 
 When behavior changes:
 
@@ -155,9 +139,9 @@ Do not consider work complete until all applicable items below are satisfied:
 - the final summary states what changed, what was validated, and what remains
   unverified
 
-<!-- AEGIS-LIGHT:BEGIN (managed by .agentic/aegis.py init) -->
+<!-- AEGIS:BEGIN (managed by .agentic/aegis.py init) -->
 
-## AEGIS Light workflow
+## AEGIS workflow
 
 The full contract is `.agentic/AGENTS.md` - read it before starting work.
 This digest is enough to act on if you read nothing else.
@@ -180,4 +164,4 @@ Artifacts: requirements in `.agentic/requirements/<category>/`, specs in
 `.agentic/knowledge/`. `python .agentic/aegis.py check` is advisory - read
 its findings and self-correct; nothing here blocks you mid-flight.
 
-<!-- AEGIS-LIGHT:END -->
+<!-- AEGIS:END -->

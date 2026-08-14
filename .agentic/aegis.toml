@@ -1,13 +1,13 @@
-# AEGIS Light configuration. Written once by `aegis init` and yours from
+# AEGIS configuration. Written once by `aegis init` and yours from
 # then on - upgrades never overwrite this file.
 
 schema = 1
 
 [commands]
 # `aegis test` runs `test`; `aegis check --run` runs every entry here.
-test = "uv run --directory 05_Software/aegis --group dev python -m pytest -q tests && uv run --directory 05_Software/waegis --group dev python -m pytest -q tests && uv run --project 05_Software/aegis --group dev python -m pytest -q 05_Software/aegis-light/tests"
+test = "python -m pytest -q 05_Software/aegis/tests"
 test_impacted = "uv run --project 05_Software/aegis --group dev python -m pytest -q {tests}"
-lint = "uv run --directory 05_Software/aegis --group dev ruff check . && uv run --directory 05_Software/waegis --group dev ruff check ."
+lint = "python -m ruff check 05_Software/aegis"
 # timeout = 1800                        # seconds allowed per command
 
 [layout]
@@ -15,13 +15,11 @@ lint = "uv run --directory 05_Software/aegis --group dev ruff check . && uv run 
 source = [
     "02_Tools/",
     "05_Software/aegis/template/.agentic/aegis/",
-    "05_Software/aegis-light/template/.agentic/",
-    "05_Software/waegis/src/",
+    "05_Software/aegis/template/.agentic/",
 ]
 tests = [
     "05_Software/aegis/tests/",
-    "05_Software/aegis-light/tests/",
-    "05_Software/waegis/tests/",
+    "05_Software/aegis/tests/",
 ]
 
 [zones]
