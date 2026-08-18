@@ -9,7 +9,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 The everyday case: a new user-facing behavior, checkpoint mode (the
 default — the agent stops twice: after `frame`, and before the delivery
-commit).
+commit). Between those two stops it does not go quiet: whenever it
+records a deviation it also says so, as a single `DEVIATION` line that
+never pauses the work and never waits for an answer.
 
 ## You say
 
@@ -73,10 +75,13 @@ python .agentic/aegis.py evolution --task TASK-8b12
 ```
 
 The output names every added, modified, and removed path as `source`, `tests`,
-or `other`. Changes are expected and never make the command fail.
+or `other`. Changes are expected and never make the command fail — but if the
+report names something the agent did not expect, that gets a `DEVIATION build:`
+line in the conversation as well as in the journal.
 
 The agent runs `aegis check` before leaving the stage and self-corrects
-anything it flags (a forgotten `affected_paths` entry, a stray file).
+anything it flags (a forgotten `affected_paths` entry, a stray file). A
+finding it accepts rather than corrects is spoken, not just logged.
 
 ## Stage 5 - validate
 
@@ -96,6 +101,17 @@ result: ok
 strict: ok
 ```
 
+A clean run like that says nothing extra. A run that is not clean does —
+say the suite is green but one requirement ends up verified by hand:
+
+```
+DEVIATION validate: REQ-UX-91c4 verified by inspection, not by test — the
+splash text could be asserted; deferred, so a regression there is silent.
+```
+
+One line, mid-run, then it carries on. It is the agent's judgement, not a
+`check` finding, which is why it says `DEVIATION` and not `WARN`.
+
 Any correction sends the task back to the appropriate stage and makes this
 proof run again. If validation changes a repository file outside `.agentic/`,
 the agent reruns `evolution` first so the saved report matches the final
@@ -107,6 +123,8 @@ published."
 Then the **delivery checkpoint** - the agent shows you the validation evidence
 and final diff and waits for your yes before committing / opening the PR. This
 stop always happens, even in autopilot: publishing is the outward-facing act.
+Every deviation you heard along the way is presented again here, in full — the
+notices were notifications, not approvals, so they never shorten this stop.
 
 After approval it generates and reads the report:
 

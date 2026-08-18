@@ -108,5 +108,9 @@ minimal Gitea/GitHub-style step:
   readable.
 - **The frame checkpoint is where scope arguments belong** — cheaper
   than review-time arguments, and recorded in the journal either way.
+- **`DEVIATION` lines arrive mid-run and are not a question** — the agent
+  states one and carries on; nobody is being asked to decide. Read them
+  as they land, raise what bothers you, and expect all of them again at
+  the delivery stop.
 - **Upgrades are one person's PR**: copy the new payload over, everyone
   reviews the diff like any other change.

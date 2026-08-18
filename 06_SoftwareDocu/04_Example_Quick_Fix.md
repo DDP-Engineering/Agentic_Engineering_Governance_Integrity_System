@@ -9,7 +9,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 The other everyday case: a small bug, you want it gone with minimum
 ceremony. The quick path (`frame → build → validate → deliver`) skips the specify
-and design stages; autopilot skips the frame stop.
+and design stages; autopilot suppresses the frame stop. It suppresses the
+*stop*, not the agent's voice — deviation notices still arrive as they
+happen, and the pre-PR stop always remains.
 
 ## You say
 
@@ -18,7 +20,7 @@ using aegis workflow, autopilot to deliver: fix the crash when the
 playlist is empty (IndexError in src/export/m3u.py)
 ```
 
-## What the agent does, without stopping
+## What the agent does, without stopping (but not silently)
 
 **frame (seconds, not a session):** opens the journal with `--type fix`,
 records the proportionality decision — and this is a real decision, not
@@ -63,11 +65,22 @@ free.
 **validate:** reviews the final candidate, leaves the knowledge page untouched
 (no material behavior change - the journal says so), refreshes `evolution` if
 validation changed the candidate, then runs the full suite and
-`check --task TASK-c3d1 --strict --run` as the last proof.
+`check --task TASK-c3d1 --strict --run` as the last proof. If it accepts
+a finding instead of fixing it, you hear about it there and then, in one
+line, without the run pausing:
 
-**deliver:** confirms that candidate is unchanged, presents it, and after
-approval runs `report TASK-c3d1` before committing. This is the one stop
-autopilot always keeps:
+```
+DEVIATION validate: accepted uncovered-source on src/export/m3u.py — the
+fix is covered by the new test; the module still has no requirement.
+```
+
+Autopilot does not suppress those. The mode that removes the frame stop
+is exactly the one where silence costs most.
+
+**deliver:** confirms that candidate is unchanged, presents it — every
+deviation included, in full — and after approval runs `report TASK-c3d1`
+before committing. The notices were notifications, not approvals, so they
+shorten nothing here. This is the one stop autopilot always keeps:
 
 > Ready to commit: 1 file fixed, 1 test added, checks clean. The report
 > is in the journal. Commit and open the PR?

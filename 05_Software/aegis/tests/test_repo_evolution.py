@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright (c) 2026 DDP Engineering
 # This software is licensed under the PolyForm Noncommercial License 1.0.0.
@@ -133,7 +132,7 @@ def test_anchor_records_visible_files_metadata_and_hashes(tmp_path, capsys):
 @needs_git
 def test_generated_python_bytecode_does_not_change_evolution(tmp_path, capsys):
     """Creating a Python cache after anchoring produces no evolution change."""
-    agentic, aegis = make_repo(tmp_path)
+    _agentic, aegis = make_repo(tmp_path)
     assert aegis.main(["anchor", "--task", "TASK-abcd"]) == 0
     capsys.readouterr()
     write(tmp_path / "src" / "__pycache__" / "app.cpython-312.pyc",

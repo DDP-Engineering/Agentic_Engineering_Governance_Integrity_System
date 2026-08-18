@@ -71,7 +71,10 @@ linked_tests = []
 counting it among the tests still owed. The prefix alone buys nothing —
 it has to say what someone actually does. Use it because the behavior
 cannot be automated, never to quiet a warning about a test you could
-write; the NOTE stays printed and counted on every run either way.
+write; the NOTE stays printed and counted on every run either way. And
+when an agent reaches for the prefix in place of a test it could have
+written, it says so in the conversation as a `DEVIATION` line, at the
+moment it happens rather than at review time.
 
 **Recommended shape: EARS.** Pick the one pattern that fits — ubiquitous
 (`The <system> shall <response>.`), event (`When <trigger>, …`), state
@@ -89,7 +92,10 @@ pays off immediately.
 the file: set `status = "retired"`, add `Retired <date>: <why>` to the
 prose, and keep the id on the retiring task's own journal — that is the
 record of what was retired and why. `check` stops applying active-only
-rules to it, and the history stays readable.
+rules to it, and the history stays readable. Retiring one is also spoken:
+an agent that retires a requirement states it as a `DEVIATION` line as it
+does so, because a contract being withdrawn is not something to discover
+in a diff afterwards.
 
 ## Task journals — `tasks/TASK-<id>.md`
 
@@ -124,6 +130,13 @@ The header block (`key: value` lines under the title) is machine-read by
 `status`, `check` and `report` — keep it one key per line with no blank
 lines inside. Header lines are edited in place; log lines are only ever
 appended, one sentence each.
+
+A log line that records a *deviation* — an accepted warning, a skipped
+verification, a retired requirement, unrequested work in the diff — has a
+twin in the conversation: the agent states it at the same moment as one
+`DEVIATION <stage>: <what> — <why>` line. The journal line is still
+written; the notice does not replace it. It exists because a journal is
+read afterwards, and by then the human has already paid for not knowing.
 
 Each task can also own two schema-1 JSON sidecars:
 

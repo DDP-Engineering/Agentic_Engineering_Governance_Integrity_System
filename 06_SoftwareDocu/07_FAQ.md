@@ -75,6 +75,12 @@ model's context). When it caps, it says so — `... N more finding(s) -
 use --full`. `--full` prints everything, and `--strict` implies it, so
 CI always sees the complete list.
 
+`WARN` and `NOTE` are the tool's own findings. A `DEVIATION` line in the
+conversation is something else entirely — the agent's judgement, spoken
+by the agent, deliberately not called `WARNING` so the two can never be
+confused. Accepting a `check` warning rather than fixing it is itself one
+of the things that earns a `DEVIATION` line.
+
 ## What about a requirement no test can verify?
 Say so in the requirement. Start its `verification` with `Manual:` or
 `Inspection:` and name the method ("Manual: install on a clean laptop and
@@ -83,7 +89,10 @@ instead of listing it among the tests you still owe. It stays a NOTE —
 printed and counted on every run, but never promotable to a `--strict`
 failure, so it cannot become a quiet bypass. The honesty is on you: a
 test you have not written yet is not a manual method, and writing
-`Manual:` with nothing after it buys nothing.
+`Manual:` with nothing after it buys nothing. And it is no longer only on
+you: when a manual method stands in for a test that could have been
+automated, the agent says so out loud as a `DEVIATION` line at the moment
+it happens.
 
 ## Can it stop the agent writing code before the scope is agreed?
 Stop, no — nothing in Light blocks. Report, yes. Each stage has a write
@@ -109,6 +118,22 @@ Two by default: after `frame` (scope confirmation) and before the
 delivery commit/PR. Say "autopilot to deliver" and only the pre-PR stop
 remains. The pauses are conversational instructions, not mechanisms —
 your agent CLI's own permission system is unaffected and unchanged.
+Autopilot suppresses the frame *stop*, not the agent's voice: deviation
+notices still arrive mid-run, and delivery still presents every one of
+them in full.
+
+## What is a `DEVIATION` line?
+A one-line notification the agent speaks the moment it records a
+deviation, in the shape `DEVIATION <stage>: <what> — <why accepted, or
+what it costs>`. It is not a stop: the agent says it and carries on,
+never waiting for a reply. You get one when it accepts a `check`
+warning, when a command exits non-zero or a verification is skipped or
+cannot be run, when `anchor` or `evolution` reports something other than
+expected, when a `Manual:`/`Inspection:` method stands in for a test that
+could have been automated, when a requirement is retired, and when diff
+review turns up work nobody asked for. The journal line is still written
+— the notice is its twin, not its replacement, because a journal is read
+afterwards and by then you have already paid for not knowing.
 
 ## Can another tool consume this?
 Yes: `check --json`, `status --json`, `anchor --json`, and

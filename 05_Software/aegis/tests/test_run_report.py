@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright (c) 2026 DDP Engineering
 # This software is licensed under the PolyForm Noncommercial License 1.0.0.
@@ -399,7 +398,7 @@ def test_report_rejects_an_unknown_task(tmp_path, capsys):
 
 
 def test_crafted_task_ids_cannot_escape_the_tasks_folder(tmp_path, capsys):
-    agentic, aegis = make_repo(tmp_path)
+    _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     (tmp_path / "outside.md").write_text("# TASK-aaaa — victim\n\nstage: build\n")
     for evil in ("TASK-../../outside", "../outside", "TASK-..%2f..%2foutside"):

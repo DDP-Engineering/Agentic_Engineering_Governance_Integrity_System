@@ -33,6 +33,6 @@ to `07_Delivery/aegis-<version>/`.
 - `02_Tools/build_aegis_release.py` - Deterministic archive and record builder.
 - `02_Tools/README.md` - Builder invocation and output contract.
 - `07_Delivery/README.md` - Delivery-record layout.
-- `07_Delivery/aegis-0.5.0/` - Current tracked publication record.
+- `07_Delivery/aegis-0.6.0/` - Current tracked publication record.
 - `05_Software/aegis/tests/test_release_builder.py` - Isolated builder
   characterization tests.

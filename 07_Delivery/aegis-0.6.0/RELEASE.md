@@ -1,6 +1,6 @@
-# AEGIS 0.5.0 delivery package
+# AEGIS 0.6.0 delivery package
 
-- Released: 2026-08-14
+- Released: 2026-08-18
 - Runtime: Python 3.11 or newer; none embedded
 - Dependencies: Python standard library only
 - Platforms: portable ZIP and tar.gz payloads
@@ -11,8 +11,8 @@ the repository changelog.
 
 | Artifact | Bytes | SHA-256 |
 |---|---:|---|
-| `aegis-0.5.0.tar.gz` | 78,989 | `95b7d3ca06d82a907097be20949b66bac70c83dfd66ddad90c4a4d3fb78523f7` |
-| `aegis-0.5.0.zip` | 99,718 | `199caaa4967ed0cf4655b82e6b10016a5e47ce925c3abfb571509abcb3f9cadf` |
+| `aegis-0.6.0.tar.gz` | 82,253 | `814cb76460273380ae4cf5d8f46d5fd42d81252a5042e75acb870ee9edfad803` |
+| `aegis-0.6.0.zip` | 103,722 | `fe65987793c06c45c32134782d624ce571d929967d4cfe9324d01af713ab89ee` |
 
 The archives under `../dist/` are ignored build outputs. This folder is the
 tracked publication record used to verify those local artifacts.

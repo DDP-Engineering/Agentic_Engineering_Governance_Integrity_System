@@ -83,7 +83,13 @@ Trust the scope already? Suppress the first stop:
 using aegis workflow, autopilot to deliver: implement <what>
 ```
 
-*Check afterwards:* the journal and its task sidecars tell the whole story -
+Autopilot suppresses the frame *stop*, not the agent's voice: anything it
+deviates on still arrives mid-run as a one-line `DEVIATION <stage>: ...`
+notice you do not have to answer.
+
+*Watch during:* those notices — they are the first place you hear about an
+anomaly, while it is still cheap to say something.
+*Check afterwards:* the journal and its task sidecars have the whole story -
 scope, exact red command and exit, pre-implementation `anchor`, final
 `evolution`, findings, validation evidence, and report.
 
@@ -98,7 +104,10 @@ how to reproduce>
 intended behavior gets promoted to the full path — the journal says
 which and why), then reproduce-first build, anchor after the expected failure,
 record evolution after the fix, validate the final candidate, then deliver it.
-One confirmation, at the PR.
+One confirmation, at the PR — plus a `DEVIATION` line whenever the agent
+accepts a warning, skips a verification, or does anything else it judged
+worth saying. Those are notifications, not questions: read them, keep
+working, and they are all repeated at the delivery stop anyway.
 
 ## Review the AEGIS artifacts for drift (maintenance sweep)
 

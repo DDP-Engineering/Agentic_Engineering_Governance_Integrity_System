@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright (c) 2026 DDP Engineering
 # This software is licensed under the PolyForm Noncommercial License 1.0.0.
@@ -31,7 +30,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from test_check import make_repo, write
 
 # CONSTANTS
@@ -155,6 +153,32 @@ def test_build_stage_records_reproducible_red_evidence_without_git_witness():
     assert "manual observation" in text
     assert "test-only commit" not in text
     assert "red-witness" not in text
+
+
+def test_deviation_notices_are_stated_when_recorded_not_only_at_delivery():
+    """REQ-UX-ccb4ca06: an anomaly is spoken when it happens, never stopping."""
+    # normalized: these are wrapped prose, and a rewrap must not fail the guard
+    def flat(*parts: str) -> str:
+        return " ".join((PAYLOAD.joinpath(*parts)
+                         .read_text(encoding="utf-8")).split())
+
+    agents = flat("AGENTS.md")
+    build = flat("steps", "4_build.md")
+    validate = flat("steps", "5_validate.md")
+    deliver = flat("steps", "6_deliver.md")
+
+    # the notice sits beside the two interaction modes, being neither of them
+    assert "Deviation notices" in agents
+    assert "DEVIATION <stage>:" in agents
+    assert "never pauses the work" in agents
+    assert "Autopilot does not suppress" in agents
+
+    # every stage that records an anomaly states it at the same moment
+    assert "state it as a deviation notice" in build
+    assert "state it as a deviation notice" in validate
+
+    # delivery still presents the aggregate; notices never stand in for it
+    assert "notices supplement this presentation" in deliver
 
 
 def test_six_stage_workflow_separates_validation_from_publication():

@@ -29,6 +29,8 @@ define durable artifact formats.
 - `REQ-FUNC-b8f0efc5` - Provide durable workflow artifact templates.
 - `REQ-PLAT-e675406e` - Ship a complete self-contained offline workflow
   payload.
+- `REQ-UX-ccb4ca06` - State each recorded deviation in the conversation when
+  it happens, in both interaction modes, without pausing the work.
 
 ## Files
 

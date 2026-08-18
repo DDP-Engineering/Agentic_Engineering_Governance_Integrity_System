@@ -11,6 +11,40 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-18
+
+### Added
+
+- Add deviation notices to the interaction modes: the agent now states an
+  anomaly in the conversation at the moment it records one, as a single
+  `DEVIATION <stage>:` line, instead of leaving the journal to reveal it at
+  the delivery checkpoint. A notice never pauses the work, waits for no
+  reply, and is not suppressed by autopilot. The build, validate and deliver
+  steps name the points that raise one - an accepted `check` warning, a
+  non-zero exit or a skipped verification, an unexpected `anchor` or
+  `evolution` report, a manual method standing in for an automatable test, a
+  retired requirement, and unrequested work found in diff review - and
+  delivery still presents every deviation in full, because a notice informs
+  but never approves.
+
+### Changed
+
+- Update the user guides for deviation notices: the FAQ gains a "What is a
+  `DEVIATION` line?" entry and separates the agent's spoken judgement from
+  `check`'s own `WARN`/`NOTE` findings, the checkpoint and autopilot
+  walkthroughs now show a notice arriving mid-run, and the autopilot guidance
+  states that it suppresses the frame stop but never the notices.
+
+### Fixed
+
+- Clear the repository lint failure so `check --strict --run` exits 0. The
+  payload gains explicit `check=False` on the two `subprocess.run` calls that
+  already read `returncode`, a single `startswith` tuple, parenthesized
+  implicit string concatenations, `re.MULTILINE` in place of `re.M`, and
+  sorted imports; no behavior changes. Two findings are suppressed with a
+  stated reason rather than "fixed": the journal date stays on the local
+  calendar, and the capture sink is a deliberately long-lived handle.
+
 ## [0.5.0] - 2026-08-14
 
 ### Added

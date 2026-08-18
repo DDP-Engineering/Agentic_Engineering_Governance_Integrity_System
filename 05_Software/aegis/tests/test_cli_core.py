@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright (c) 2026 DDP Engineering
 # This software is licensed under the PolyForm Noncommercial License 1.0.0.
@@ -499,7 +498,7 @@ def test_status_on_an_empty_repo_and_on_a_missing_task(tmp_path, capsys):
 
 def test_task_records_the_commit_it_started_from(tmp_path, capsys, monkeypatch):
     """REQ-DATA-71fcf08e: every later measurement needs an exact start."""
-    agentic, aegis = make_repo(tmp_path)
+    _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_head", lambda: "0123456789abcdef0123")
     capsys.readouterr()
@@ -512,7 +511,7 @@ def test_task_records_the_commit_it_started_from(tmp_path, capsys, monkeypatch):
 
 def test_task_records_no_commit_without_history(tmp_path, capsys, monkeypatch):
     """REQ-DATA-71fcf08e: no history is recorded as no commit, not a guess."""
-    agentic, aegis = make_repo(tmp_path)
+    _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_head", lambda: "")
     capsys.readouterr()
