@@ -11,8 +11,8 @@ the repository changelog.
 
 | Artifact | Bytes | SHA-256 |
 |---|---:|---|
-| `aegis-0.6.0.tar.gz` | 82,253 | `814cb76460273380ae4cf5d8f46d5fd42d81252a5042e75acb870ee9edfad803` |
-| `aegis-0.6.0.zip` | 103,722 | `fe65987793c06c45c32134782d624ce571d929967d4cfe9324d01af713ab89ee` |
+| `aegis-0.6.0.tar.gz` | 82,544 | `f7c8f85e7b2acbb7786c53ccf0b133c40bbaccf163b668823ce68926c57bece0` |
+| `aegis-0.6.0.zip` | 104,075 | `ebeef44a138f839f00543f088f57b44021b8cdf18c9f0d9482a3eb4a907b26e4` |
 
 The archives under `../dist/` are ignored build outputs. This folder is the
 tracked publication record used to verify those local artifacts.

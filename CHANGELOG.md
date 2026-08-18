@@ -29,6 +29,10 @@ All notable changes to AEGIS are documented in this file.
 
 ### Changed
 
+- Carry the deviation notice into the digest `init` writes into `CLAUDE.md`,
+  `AGENTS.md` and `QWEN.md`. The digest is what an agent acts on when it reads
+  nothing else, so omitting the rule there would have left every downstream
+  repository silent by default.
 - Update the user guides for deviation notices: the FAQ gains a "What is a
   `DEVIATION` line?" entry and separates the agent's spoken judgement from
   `check`'s own `WARN`/`NOTE` findings, the checkpoint and autopilot
