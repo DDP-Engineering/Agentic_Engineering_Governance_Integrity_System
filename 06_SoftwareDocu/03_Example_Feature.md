@@ -39,6 +39,24 @@ records each stage transition:
 - 2026-08-02 frame: scope agreed - M3U only; full path.
 - 2026-08-02 specify: created REQ-FUNC-3fa2 + spec.
 - 2026-08-02 design: writer joins tracks; forward slashes everywhere.
+- 2026-08-02 design: export architecture redrawn with the m3u writer added.
+```
+
+That last line is design's other output. Because this feature changes the
+shape of the `export` component, the agent opens
+`knowledge/export.md` and redraws its `## Architecture` diagram with the
+new writer in it — the shape the component will have **after** the change,
+marked in one line as the intended shape so nobody mistakes it for code
+that already exists. At `validate` the agent checks the built code against
+that drawing and removes the mark. You get the before-and-after of a
+component for free, in the same file a reader already opens to understand
+it, and the picture is never left describing a plan that was abandoned.
+
+Before touching an unfamiliar file, the agent — or you — can ask what
+already governs it:
+
+```bash
+python .agentic/aegis.py explain src/export/m3u.py
 ```
 
 ## Stage 4 — build (test first)

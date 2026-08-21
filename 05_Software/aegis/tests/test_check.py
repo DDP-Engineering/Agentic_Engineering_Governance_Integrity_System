@@ -68,15 +68,17 @@ def write(path: Path, text: str) -> Path:
 
 
 def req_toml(rid: str, status: str = "active", prose: str = "One behavior.",
-             paths: str = "[]", tests: str = "[]", spec: str = "") -> str:
+             paths: str = "[]", tests: str = "[]", spec: str = "",
+             title: str = "A behavior",
+             verification: str = "Run the linked test.") -> str:
     """@brief A minimal valid requirement body with the six required fields."""
     return (
         "schema = 1\n"
         f'id = "{rid}"\n'
-        'title = "A behavior"\n'
+        f'title = "{title}"\n'
         f'status = "{status}"\n'
         f'requirement = """\n{prose}\n"""\n'
-        'verification = "Run the linked test."\n'
+        f'verification = "{verification}"\n'
         f"affected_paths = {paths}\n"
         f"linked_tests = {tests}\n"
         + (f'spec = "{spec}"\n' if spec else "")

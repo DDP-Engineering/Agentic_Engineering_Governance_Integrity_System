@@ -11,6 +11,49 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-21
+
+### Added
+
+- Add the `explain` command: given a repository path it reports every
+  requirement whose `affected_paths` cover it, grouped under the component
+  whose knowledge page claims each one, with status, coverage and spec, then
+  the task journals that list them. A directory entry covers the files
+  beneath it, absolute and native-separator paths are accepted, and a path no
+  requirement covers is stated plainly - and called a finding when it sits
+  inside the configured source or test globs. The register was written once
+  per behavior and read almost never because nothing led from code back to
+  it; this is that direction.
+
+- Carry each component's architecture in its knowledge page. The component
+  template gains an `## Architecture` section holding a Mermaid diagram of
+  that component's own logic; adoption draws one per component while its
+  source is still open, `design` revises it to the shape the change will
+  produce and labels it as intended, and `validate` reconciles it with the
+  built code and drops that label. Authored rather than derived, so it works
+  in any language and can show a shape that does not exist yet.
+
+- Add the `diagram` command: it draws the requirement register as a Mermaid
+  flowchart, grouping each requirement under the component whose knowledge
+  page claims it and coloring it by whether a linked test, a declared
+  `Manual:`/`Inspection:` method, or nothing yet verifies the behavior.
+  Requirements no page claims are grouped apart instead of dropped, so an
+  unclaimed behavior is visible rather than absent. `--component` and
+  `--task` narrow the picture, which a register past a few dozen entries
+  needs; `--out` writes UTF-8 explicitly, because a console under a legacy
+  code page mangles the characters on the way out. Everything drawn is read
+  from files already in the repository: no model, no network, no renderer.
+
+### Changed
+
+- Lead the delivery report with the deviations the task recorded, above the
+  diff size and check totals, and say plainly when none were recorded. A
+  warning count tells an approver how much happened, never which judgement
+  calls were made on their behalf, and the delivery checkpoint is the one
+  moment the workflow guarantees a human is reading.
+- Rejoin wrapped log lines when parsing a journal, so a deviation survives the
+  margin and `status` stops printing half-sentences.
+
 ## [0.6.0] - 2026-08-18
 
 ### Added

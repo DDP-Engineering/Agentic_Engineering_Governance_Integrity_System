@@ -132,6 +132,44 @@ quietly stopped being true. Run it monthly, or before a release.
 *Follow-up:* pick findings from the list and say "fix 1, 3 and 4" — each
 non-trivial fix becomes a normal task with a journal.
 
+## See where verification is thin (before a release, or at handover)
+
+```
+Draw this repository's coverage map with
+python .agentic/aegis.py diagram --out docs/coverage.mmd and read it.
+Tell me which components carry behaviors with no linked test, which rely
+on a declared "Manual:" or "Inspection:" method, and whether any
+requirement is sitting outside every knowledge page. Then, for each
+component you flagged, open its knowledge page and tell me whether its
+"## Architecture" diagram still matches the code. Change nothing yet.
+```
+
+*Why this exists:* `check` reports coverage one requirement at a time, in
+a list nobody reads to the end. The map puts the same facts in a shape you
+can scan, and asking about the architecture diagrams in the same pass
+catches the one kind of drift `check` cannot see — a hand-drawn picture
+that quietly stopped being true.
+*Follow-up:* "write the missing tests for &lt;component&gt;" or "redraw the
+architecture for &lt;component&gt;" — each becomes a normal task.
+
+## Ask what already governs a file (before changing unfamiliar code)
+
+```
+Before you change <path>, run python .agentic/aegis.py explain <path> and
+tell me what already governs it: which requirements cover it, how each one
+is verified, and which task journals delivered them. Then say whether what
+I am about to ask for contradicts any of them. Change nothing yet.
+```
+
+*Why this exists:* the register is written once per behavior and read
+almost never, because nothing led from a file back to it. This is that
+direction. A path no requirement covers is said so plainly — and called a
+finding when it sits inside your configured source globs, which is how
+ungoverned code becomes visible instead of merely absent.
+*Follow-up:* "write the requirement for &lt;path&gt;" when it turns out
+nothing covers it, or proceed with the change now that you know the
+constraints it has to keep.
+
 ## Resume an interrupted task
 
 ```

@@ -100,15 +100,23 @@ When behavior changes:
 - The repository-root `CHANGELOG.md` is the canonical record of all template
   project updates. Accrue changes under `## [Unreleased]` using Keep a Changelog
   sections (Added, Changed, Fixed, Removed).
+- Keep changelog entries short. One or two lines each: what changed, and why
+  only when the why is not obvious from the what. No rationale essays, no
+  design discussion, no restating the implementation - those belong in the
+  task journal and the knowledge page. A reader scans a changelog; they do not
+  study it.
 - When the user gives a command such as "assign a version to the changelog", in
   the same change:
   1. roll `## [Unreleased]` into a new dated `## [x.y.z] - YYYY-MM-DD` section in
      the root `CHANGELOG.md`;
-  2. bump the project/template version to that same `x.y.z` in every version
-     declaration under `template/` (currently
-     `template/.agentic/cli/pyproject.toml` and `template/.pi/package.json`;
-     if a future versioned `template/.opencode/package.json` is added, keep it
-     in sync too), keeping them in sync;
+  2. bump the version to that same `x.y.z` at its single declaration, the
+     `VERSION` literal in `template/.agentic/aegis.py`, and mirror the file
+     into the installed `.agentic/` payload. That literal is what
+     `02_Tools/build_aegis_release.py` parses, so it is the version, and a
+     release refuses to build unless `CHANGELOG.md` carries a matching dated
+     section. Update every document that states the version in prose -
+     currently `05_Software/aegis/README.md`, `06_SoftwareDocu/00_Index.md`
+     and the example in `02_Tools/README.md`;
   3. leave the downstream starter `template/CHANGELOG.md` empty.
 - Use Semantic Versioning: MAJOR for breaking workflow-contract, CLI, hook
   protocol, or `.agentic/` layout changes; MINOR for backward-compatible

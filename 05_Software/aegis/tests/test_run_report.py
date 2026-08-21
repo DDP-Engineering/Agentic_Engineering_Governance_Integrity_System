@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from test_check import (
     git,
     make_git_repo,
@@ -1056,3 +1057,227 @@ def test_report_diffs_against_the_recorded_task_base(tmp_path, capsys):
     whole_basis, whole = reported_basis_and_count("TASK-cd34")
     assert whole_basis == "merge base"
     assert scoped < whole, (scoped, whole)
+
+
+# TESTS - diagram
+
+
+def knowledge(agentic: Path, stem: str, name: str, *rids: str) -> Path:
+    """@brief A component page claiming `rids` under its Key behaviors."""
+    behaviors = "".join(f"- `{rid}` - one line.\n" for rid in rids)
+    return write(agentic / "knowledge" / f"{stem}.md",
+                 f"# {name}\n\n## Purpose\n\nA component.\n\n"
+                 f"## Key behaviors\n\n{behaviors}")
+
+
+def register(agentic: Path, tmp_path: Path) -> None:
+    """@brief One requirement of every coverage class, three of them claimed."""
+    write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
+    write_req(agentic, "REQ-FUNC-1111", title="Covered behavior",
+              tests='["tests/test_app.py::test_app"]')
+    write_req(agentic, "REQ-FUNC-2222", title="By-hand behavior",
+              verification="Inspection: read the printed page.")
+    write_req(agentic, "REQ-FUNC-3333", title="Uncovered behavior")
+    write_req(agentic, "REQ-DATA-4444", folder="data", title="Unclaimed behavior")
+    knowledge(agentic, "parser", "Parser",
+              "REQ-FUNC-1111", "REQ-FUNC-2222", "REQ-FUNC-3333")
+
+
+def test_diagram_groups_requirements_by_component_and_coverage(tmp_path, capsys):
+    """REQ-FUNC-6b4ff1ad: every mark is read off a requirement field."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+
+    code, out = run(aegis, capsys, "diagram")
+    assert code == 0
+    assert out.startswith("flowchart LR\n")
+    assert 'subgraph parser["Parser"]' in out
+    assert 'REQ_FUNC_1111["REQ-FUNC-1111<br/>Covered behavior"]:::tested' in out
+    assert 'REQ_FUNC_2222["REQ-FUNC-2222<br/>By-hand behavior"]:::manual' in out
+    assert 'REQ_FUNC_3333["REQ-FUNC-3333<br/>Uncovered behavior"]:::uncovered' in out
+    # a requirement no page claims is shown apart, never dropped
+    assert 'subgraph unclaimed["(no knowledge page)"]' in out
+    assert 'REQ_DATA_4444["REQ-DATA-4444<br/>Unclaimed behavior"]:::uncovered' in out
+    assert "classDef tested" in out
+
+
+def test_diagram_writes_utf8_independent_of_the_console_encoding(tmp_path,
+                                                                 capsys):
+    """REQ-FUNC-6b4ff1ad: --out is a file artifact, not console output."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write_req(agentic, "REQ-FUNC-1111", title="Grüße — a rendered dash")
+    target = tmp_path / "docs" / "coverage.mmd"
+
+    code, out = run(aegis, capsys, "diagram", "--out", str(target))
+    assert code == 0
+    assert "flowchart LR" not in out
+    assert "diagram written to docs/coverage.mmd" in out
+    assert target.read_bytes().decode("utf-8").count("Grüße — a rendered dash") == 1
+
+
+def test_diagram_narrows_to_one_component(tmp_path, capsys):
+    """REQ-FUNC-e46f1d0c: a named component carries only its own behaviors."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+    knowledge(agentic, "writer", "Writer", "REQ-DATA-4444")
+
+    code, out = run(aegis, capsys, "diagram", "--component", "writer")
+    assert code == 0
+    assert "REQ-DATA-4444" in out
+    assert "REQ-FUNC-1111" not in out
+    assert 'subgraph parser[' not in out
+
+
+def test_diagram_narrows_to_one_task(tmp_path, capsys):
+    """REQ-FUNC-e46f1d0c: a named task carries only the header's requirements."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+    write_task(agentic, "TASK-ab12", reqs="REQ-FUNC-2222, REQ-DATA-4444")
+
+    code, out = run(aegis, capsys, "diagram", "--task", "TASK-ab12")
+    assert code == 0
+    assert "REQ-FUNC-2222" in out
+    assert "REQ-DATA-4444" in out
+    assert "REQ-FUNC-1111" not in out
+
+
+def test_diagram_rejects_a_scope_that_does_not_exist(tmp_path, capsys):
+    """REQ-FUNC-e46f1d0c: an empty picture would read as an empty register."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+
+    assert aegis.main(["diagram", "--component", "nope"]) == 1
+    assert "nope" in capsys.readouterr().err
+    assert aegis.main(["diagram", "--task", "TASK-9999"]) == 1
+    assert "TASK-9999" in capsys.readouterr().err
+
+    # two scopes at once would answer a question nobody asked
+    with pytest.raises(SystemExit):
+        aegis.main(["diagram", "--component", "parser", "--task", "TASK-ab12"])
+
+
+# TESTS - report leads with judgement
+
+
+def journal_with_log(agentic: Path, tid: str, log: str) -> Path:
+    """@brief A journal whose Log section is exactly `log`."""
+    return write(
+        agentic / "tasks" / f"{tid}.md",
+        f"# {tid} — a task\n\nstage: deliver\ntype: feature\npath: full\n"
+        f"requirements: \nbranch: feature\nbase: \nopened: 2026-08-02\n\n"
+        "## Done checklist (current stage)\n\n- [x] done\n\n"
+        f"## Log\n\n{log}\n",
+    )
+
+
+def test_report_leads_with_the_recorded_deviations(tmp_path, monkeypatch, capsys):
+    """REQ-UX-48bb759b: judgement above totals, in the order it was recorded."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    journal_with_log(agentic, "TASK-ab12",
+                     "- 2026-08-02 frame: opened\n"
+                     "- 2026-08-02 frame: DEVIATION frame - no task branch,\n"
+                     "  at the owner's instruction.\n"
+                     "- 2026-08-02 build: implemented\n"
+                     "- 2026-08-02 validate: DEVIATION validate - accepted a warning.\n")
+
+    assert aegis.main(["report", "TASK-ab12"]) == 0
+    text = (agentic / "tasks" / "TASK-ab12.md").read_text(encoding="utf-8")
+    body = text.split("## Delivery report (")[1]
+
+    assert "- deviations: 2 recorded" in body
+    # recorded wording, and a wrapped line is carried whole
+    assert "frame - no task branch, at the owner's instruction." in body
+    assert "validate - accepted a warning." in body
+    # order preserved, and both stand above the totals
+    assert body.index("no task branch") < body.index("accepted a warning")
+    assert body.index("accepted a warning") < body.index("- diff vs ")
+    assert body.index("- deviations:") < body.index("- checks:")
+
+
+def test_report_says_plainly_when_no_deviation_was_recorded(tmp_path, monkeypatch,
+                                                            capsys):
+    """REQ-UX-48bb759b: silence must be stated, not inferred from absence."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    journal_with_log(agentic, "TASK-cd34", "- 2026-08-02 frame: opened\n")
+
+    assert aegis.main(["report", "TASK-cd34"]) == 0
+    text = (agentic / "tasks" / "TASK-cd34.md").read_text(encoding="utf-8")
+    assert "- deviations: none recorded" in text
+
+
+# TESTS - explain
+
+
+def governed_repo(agentic: Path, tmp_path: Path) -> None:
+    """@brief Two components, one shared file, and one file nobody claims."""
+    write(tmp_path / "src" / "export" / "m3u.py", "def write():\n    pass\n")
+    write(tmp_path / "src" / "orphan.py", "def nobody():\n    pass\n")
+    write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
+    write_req(agentic, "REQ-FUNC-1111", title="Export playlist as M3U",
+              paths='["src/export/"]',
+              tests='["tests/test_app.py::test_app"]')
+    write_req(agentic, "REQ-FUNC-2222", title="Preserve relative paths",
+              paths='["src/export/m3u.py"]',
+              verification="Inspection: open the written file.")
+    write_req(agentic, "REQ-DATA-3333", folder="data", title="Unclaimed behavior",
+              paths='["src/export/m3u.py"]')
+    knowledge(agentic, "export", "Export writers", "REQ-FUNC-1111")
+    knowledge(agentic, "paths", "Path handling", "REQ-FUNC-2222")
+    write_task(agentic, "TASK-ab12", stage="done", reqs="REQ-FUNC-1111")
+
+
+def test_explain_traces_a_path_to_its_requirements_and_tasks(tmp_path, capsys):
+    """REQ-FUNC-0f4eb4c5: file -> requirements -> components -> journals."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    governed_repo(agentic, tmp_path)
+
+    code, out = run(aegis, capsys, "explain", "src/export/m3u.py")
+    assert code == 0
+    # a directory entry in affected_paths still covers the file beneath it
+    assert "REQ-FUNC-1111" in out and "Export playlist as M3U" in out
+    assert "REQ-FUNC-2222" in out and "REQ-DATA-3333" in out
+    # grouped by the component whose page claims each requirement
+    assert "Export writers" in out and "Path handling" in out
+    assert "no knowledge page" in out
+    # how each one is verified, read off the same fields check judges by
+    assert "tested" in out and "manual" in out and "uncovered" in out
+    # the journals that list them
+    assert "TASK-ab12" in out
+
+
+def test_explain_reports_an_ungoverned_path_plainly(tmp_path, capsys):
+    """REQ-FUNC-0f4eb4c5: ungoverned code is a finding, not an empty page."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    governed_repo(agentic, tmp_path)
+
+    code, out = run(aegis, capsys, "explain", "src/orphan.py")
+    assert code == 0
+    assert "no requirement" in out.lower()
+    assert "REQ-FUNC-1111" not in out
+
+
+def test_explain_accepts_native_and_absolute_paths(tmp_path, capsys):
+    """REQ-FUNC-0f4eb4c5: an operator pastes whatever their shell gave them."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    governed_repo(agentic, tmp_path)
+
+    _code, native = run(aegis, capsys, "explain", r"src\export\m3u.py")
+    _code, absolute = run(aegis, capsys, "explain", str(tmp_path / "src" / "export" / "m3u.py"))
+    for out in (native, absolute):
+        assert "src/export/m3u.py" in out
+        assert "REQ-FUNC-1111" in out
+
+    assert aegis.main(["explain", str(tmp_path.parent / "elsewhere.py")]) == 1
+    assert "outside this repository" in capsys.readouterr().err

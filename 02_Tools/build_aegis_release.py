@@ -231,9 +231,7 @@ def release_text(version: str, date: str, metadata: dict[str, dict]) -> str:
 - Dependencies: Python standard library only
 - Platforms: portable ZIP and tar.gz payloads
 
-This release adds advisory repository anchors and evolution reports, retains
-the lightweight non-blocking workflow, and includes the fixes documented in
-the repository changelog.
+The `{version}` section of `CHANGELOG.md` records what this release changed.
 
 | Artifact | Bytes | SHA-256 |
 |---|---:|---|

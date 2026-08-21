@@ -137,7 +137,7 @@ def test_payload_ships_a_complete_cli_reference():
     """The installed payload explains every accepted top-level command."""
     text = (PAYLOAD / "CLI.md").read_text(encoding="utf-8")
     for command in ("init", "task", "req", "check", "test",
-                    "report", "status"):
+                    "report", "status", "diagram", "explain"):
         assert f"`{command}" in text
     assert "When to use" in text
     assert "Examples" in text
@@ -335,3 +335,23 @@ def test_every_test_file_carries_the_license_header():
     for path in sorted(TREE.glob("tests/test_*.py")):
         head = path.read_text(encoding="utf-8")[:600]
         assert LICENSE_MARK in head, f"missing license header: {path.name}"
+
+
+def test_component_pages_carry_an_architecture_diagram():
+    """REQ-FUNC-500cfb8b: the page template defines where the drawing lives."""
+    text = (PAYLOAD / "templates" / "component.md").read_text(encoding="utf-8")
+    assert "## Architecture" in text
+    assert "```mermaid" in text
+    # the drawing is of this component's own logic, not of the whole system
+    assert "flowchart" in text
+
+
+def test_adopt_and_design_both_own_the_architecture_diagram():
+    """REQ-FUNC-500cfb8b: drawn once at adopt, kept true by the task that changes it."""
+    adopt = (PAYLOAD / "steps" / "adopt.md").read_text(encoding="utf-8")
+    design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
+    for text in (adopt, design):
+        assert "## Architecture" in text
+    # adoption draws what is there; design says what it will become
+    assert "architecture" in adopt.lower()
+    assert "after the change" in design.lower()

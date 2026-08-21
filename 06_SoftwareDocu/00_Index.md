@@ -7,7 +7,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS — user documentation
 
-User-oriented guides for AEGIS 0.6.0 (the advisory governance system at
+User-oriented guides for AEGIS 0.7.0 (the advisory governance system at
 `05_Software/aegis/`). Reading order for a
 new user: 01, 02, then the example matching your situation.
 
@@ -20,7 +20,7 @@ new user: 01, 02, then the example matching your situation.
 | [05_Example_Adoption.md](05_Example_Adoption.md) | Bringing an existing repository under governance. |
 | [06_Team_Setup.md](06_Team_Setup.md) | Working as a team: branches, merges, the CI strict gate. |
 | [07_FAQ.md](07_FAQ.md) | The questions everyone asks, answered honestly. |
-| [08_Prompt_Cheatsheet.md](08_Prompt_Cheatsheet.md) | Copy-paste operator prompts: install, new project, adopt, feature, quick fix, drift review, resume, post-merge. |
+| [08_Prompt_Cheatsheet.md](08_Prompt_Cheatsheet.md) | Copy-paste operator prompts: install, new project, adopt, feature, quick fix, drift review, coverage map, what governs a file, resume, post-merge. |
 | [09_CLI_Reference.md](09_CLI_Reference.md) | Complete syntax, descriptions, options, examples, exit behavior, and guidance on when to use each command. |
 
 If a doc ever disagrees with the payload (`AGENTS.md`, the step files,

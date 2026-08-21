@@ -161,9 +161,38 @@ requirement's `spec` field; `check` verifies the reference resolves.
 ## Knowledge — `knowledge/<component>.md`
 
 One plain page per component: Purpose, Public interface, Key behaviors
-(citing requirement IDs), Files. The `validate` stage asks the agent to
-update the page of any component it materially changed. There is no
+(citing requirement IDs), Architecture, Files. The `validate` stage asks the
+agent to update the page of any component it materially changed. There is no
 manifest and no registry — the folder listing is the component list.
+
+**Architecture** holds a Mermaid diagram of that component's own logic —
+what a reader has to hold in their head to change it safely, at ten to
+fifteen nodes rather than every function. It is written by hand, not derived
+from the code: a parser would need writing per language and could only ever
+draw what already exists. Adoption draws it once per component while the
+source is open; `design` revises it to the shape a change will produce and
+marks it as intended; `validate` reconciles it with what was actually built
+and removes that mark.
+
+## Reading the register back
+
+Everything above is written once per behavior. Two commands read it in the
+other direction, and both derive what they show from the files already in
+the repository — no model, no network, no renderer.
+
+`diagram` draws the whole register as one Mermaid flowchart, grouping each
+requirement under the component whose knowledge page claims it and colouring
+it by how the behavior is verified: a linked test, a declared `Manual:` or
+`Inspection:` method, or nothing yet. Requirements no page claims are grouped
+apart rather than dropped, so an unclaimed behavior is visible instead of
+absent. `--component` and `--task` narrow the picture; `--out` writes the
+file as UTF-8.
+
+`explain <path>` goes the other way still — point it at a file and it reports
+every requirement whose `affected_paths` cover it, grouped by component, with
+status, coverage, spec, and the journals that delivered them. A directory
+covers the files beneath it. A path no requirement covers is said so plainly,
+and called a finding when it sits inside your configured source or test globs.
 
 ## Configuration — `aegis.toml`
 

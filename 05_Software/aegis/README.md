@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.6.0
+# AEGIS 0.7.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -47,6 +47,18 @@ python .agentic/aegis.py evolution --task TASK-<id>
 These commands are advisory. They record added, modified, and removed
 Git-visible files without blocking development or claiming tamper-proof
 evidence. Git-ignored files and generated Python bytecode caches are excluded.
+
+Two commands read the register back rather than adding to it:
+
+```text
+python .agentic/aegis.py diagram --out docs/coverage.mmd
+python .agentic/aegis.py explain src/some/file.py
+```
+
+`diagram` draws every requirement as a Mermaid flowchart coloured by how the
+behavior is verified; `explain` names the requirements and journals that
+already govern a path. Both read only files already in the repository.
+
 See `template/.agentic/CLI.md` for the complete command contract.
 
 ## Development

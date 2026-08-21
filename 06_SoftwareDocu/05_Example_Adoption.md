@@ -43,9 +43,18 @@ continue adoption TASK-a1b2, next component
 
 Per component, the agent: reads the code **and its existing tests**
 (tests are the best evidence of intended behavior), writes
-`knowledge/<component>.md`, derives requirements — `active`, with
+`knowledge/<component>.md`, draws that page's `## Architecture` diagram
+while the source is still open, and derives requirements — `active`, with
 `affected_paths` set to the component's files and `linked_tests`
 pointing at the **existing** tests that already verify each behavior.
+
+The diagram is the cheapest it will ever be in this session, and it is a
+drawing of what the code **does**, not what it should do: a shape nobody
+can explain is a finding for the journal, not something to tidy away in
+the picture. Where the agent cannot tell which way a dependency points, it
+leaves the arrow out and says so underneath rather than guessing. For a
+legacy component this often ends up being the only architecture document
+that has ever existed for it.
 Adoption mostly *links* tests; it writes new ones only where a
 load-bearing behavior has none (or records the requirement with empty
 `linked_tests` — see below). Suspicious behavior is adopted as-is and

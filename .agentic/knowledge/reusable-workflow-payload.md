@@ -32,6 +32,9 @@ define durable artifact formats.
 - `REQ-UX-ccb4ca06` - State each recorded deviation in the conversation when
   it happens, in both interaction modes, without pausing the work.
 
+- `REQ-FUNC-500cfb8b` - Carry each component's architecture diagram in
+  its knowledge page, drawn at adoption and revised at design.
+
 ## Files
 
 - `05_Software/aegis/template/.agentic/AGENTS.md` - Workflow contract and

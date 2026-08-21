@@ -94,6 +94,48 @@ you: when a manual method stands in for a test that could have been
 automated, the agent says so out loud as a `DEVIATION` line at the moment
 it happens.
 
+## Where do I see coverage at a glance instead of one requirement at a time?
+`python .agentic/aegis.py diagram`. It draws the register as a Mermaid
+flowchart — every requirement grouped under the component whose knowledge
+page claims it, green where a test is linked, blue where a `Manual:` or
+`Inspection:` method is declared, red where there is neither, grey when
+retired. Requirements no page claims are grouped apart rather than
+dropped, so a behavior nobody has filed under a component is visible
+instead of absent. Narrow it with `--component` or `--task` before the
+register outgrows one screen, and use `--out` to write a file, because a
+console under a legacy code page will mangle the characters on the way
+out. Everything drawn is read from files already in the repository — no
+model, no network, no renderer. The colour reports that a linked test
+*exists*, not that it is any good: this is a coverage map, not a quality
+judgement.
+
+## I'm reading a file I didn't write. What is it for?
+`python .agentic/aegis.py explain <path>`. It lists every requirement whose
+`affected_paths` cover that file, grouped under the component that claims
+each one, with how it is verified — then the task journals that delivered
+them, so you can read the reasoning as well as the rule. A directory in
+`affected_paths` covers the files beneath it, and you can paste an absolute
+path straight from your shell.
+
+If nothing covers the path, it says so — and calls that a finding when the
+file sits inside your configured `source` or `tests` globs. Ungoverned code
+in a governed area is worth knowing about, and it is exactly the kind of gap
+that is invisible until you ask.
+
+## Why isn't the architecture diagram generated from my code?
+Because generating it would break two promises. A parser that reads code
+has to be written per language — free for Python, absent for C, Java, C#
+and everything else — so a derived diagram would work in some of your
+repositories and not others. And derivation can only ever draw what
+already exists, which makes the interesting half impossible: the shape a
+change is *going to* produce. So the `## Architecture` diagram in each
+knowledge page is written by hand, by whoever is already reading the
+component — at adoption, and again at `design` when a change alters the
+shape. The cost is honest and worth stating: a hand-drawn diagram can go
+stale, and `check` cannot tell you that it has. Its defence is that it
+lives in the file a reader already opens and that `validate` asks for it
+to be reconciled in the same task that changed the code.
+
 ## Can it stop the agent writing code before the scope is agreed?
 Stop, no — nothing in Light blocks. Report, yes. Each stage has a write
 zone: `frame`, `specify` and `design` write only under `.agentic/`, while

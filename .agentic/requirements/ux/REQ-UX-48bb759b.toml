@@ -1,0 +1,80 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# One requirement = one independently verifiable behavior.
+# Lives at .agentic/requirements/<category>/<id>.toml
+# Required fields: schema, id, title, status, requirement, verification.
+
+schema = 1
+
+# REQ-<CAT>-<8 hex>. CAT is FUNC, UX, NFR, SEC, DATA, PLAT, REL or TEST,
+# and must match the category folder this file sits in.
+id = "REQ-UX-48bb759b"
+
+title = "Lead the delivery report with the deviations recorded during the task"
+
+# draft while being written, active once it is built and tested,
+# retired when the behavior is deliberately removed.
+status = "active"
+
+# Self-contained prose: a reader with no other context must be able to
+# understand and check it. No ticket numbers, no run IDs, no references
+# to other requirements.
+#
+# Recommended shape - EARS. Pick the one pattern that fits; a stated
+# trigger or condition is what the test has to arrange, so surfacing it
+# here is what makes the behavior testable:
+#
+#   ubiquitous  The <system> shall <response>.
+#   event       When <trigger>, the <system> shall <response>.
+#   state       While <state>, the <system> shall <response>.
+#   unwanted    If <condition>, then the <system> shall <response>.
+#   optional    Where <feature is included>, the <system> shall <response>.
+#
+# Two "shall" clauses means two behaviors: split it into two requirements.
+# Do not contort prose to fit a pattern - a constraint that reads better
+# plainly is better plainly.
+requirement = """
+When a delivery report is written, it shall list every deviation recorded in the task journal, in the order they were recorded and with their recorded wording, above the diff and check totals, and shall say plainly when none were recorded.
+"""
+
+# The observation that settles whether the behavior holds — not a
+# restatement of the requirement.
+#
+# Some behaviors no test can settle: a look-and-see judgement, an install
+# on clean hardware, a printed page. Start this field with "Manual:" or
+# "Inspection:" and name the method, and `check` records the requirement
+# as verified by hand instead of counting it among the tests still owed.
+# The prefix alone is not enough — it has to say what someone does.
+verification = "Append a report to a journal holding several deviations and to one holding none: the first lists each of them in order above the diff line, the second states that none were recorded."
+
+# Repo-relative, forward slashes. The source files this behavior lives in.
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+# "tests/path/test_file.py::test_name" entries. Kept current during build;
+# these select the impacted regression set.
+linked_tests = [
+    "05_Software/aegis/tests/test_run_report.py::test_report_leads_with_the_recorded_deviations",
+    "05_Software/aegis/tests/test_run_report.py::test_report_says_plainly_when_no_deviation_was_recorded",
+]
+
+# --- optional below this line ---
+
+# "specs/REQ-FUNC-00000000.md" when the requirement alone is not buildable.
+spec = ""
+
+priority = "normal"   # low | normal | high
+rationale = """
+A count of warnings tells an approver how much happened, not what was
+decided on their behalf. Deviations are the only part of a journal that
+records judgement, and the delivery checkpoint is the one moment the
+workflow guarantees a human is reading.
+"""
+
+created = 2026-08-21
+updated = 2026-08-21
