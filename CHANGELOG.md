@@ -11,6 +11,13 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Clarify that AEGIS governs software development only; repository and
+  package or delivery operations follow the repository's own procedures.
+
+- Produce separately named Windows ZIP and Linux tar.gz delivery archives.
+
 ## [0.7.1] - 2026-08-22
 
 ### Fixed

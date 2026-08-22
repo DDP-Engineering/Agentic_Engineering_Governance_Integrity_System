@@ -71,12 +71,18 @@ def test_build_writes_deterministic_archives_and_publication_records(
 
     assert builder.build(version) == 0
     prefix = f"{builder.NAME}-{version}"
-    artifacts = [builder.DIST / f"{prefix}.zip", builder.DIST / f"{prefix}.tar.gz"]
+    artifacts = [
+        builder.DIST / f"{prefix}-windows.zip",
+        builder.DIST / f"{prefix}-linux.tar.gz",
+    ]
     first_digests = {path.name: digest(path) for path in artifacts}
     record = builder.DELIVERY / prefix
     manifest = json.loads((record / "release-manifest.json").read_text("utf-8"))
 
     assert manifest["version"] == version
+    assert {item["platform"] for item in manifest["artifacts"].values()} == {
+        "windows", "linux"
+    }
     assert {item["sha256"] for item in manifest["artifacts"].values()} == set(
         first_digests.values()
     )
@@ -88,6 +94,25 @@ def test_build_writes_deterministic_archives_and_publication_records(
 
     assert builder.build(version) == 0
     assert {path.name: digest(path) for path in artifacts} == first_digests
+
+
+def test_build_replaces_obsolete_unqualified_archives(tmp_path, monkeypatch):
+    """REQ-REL-59983fe5: platform-labelled archives replace old generic names."""
+    builder = load_builder()
+    configure_output(builder, tmp_path)
+    monkeypatch.setattr(builder, "run_tests", lambda: None)
+    version = builder.payload_version()
+    prefix = f"{builder.NAME}-{version}"
+    builder.DIST.mkdir(parents=True)
+    for suffix in (".zip", ".tar.gz"):
+        (builder.DIST / f"{prefix}{suffix}").write_text("obsolete")
+
+    assert builder.build(version) == 0
+
+    assert not (builder.DIST / f"{prefix}.zip").exists()
+    assert not (builder.DIST / f"{prefix}.tar.gz").exists()
+    assert (builder.DIST / f"{prefix}-windows.zip").is_file()
+    assert (builder.DIST / f"{prefix}-linux.tar.gz").is_file()
 
 
 def test_build_rejects_a_mismatched_version_before_writing_output(

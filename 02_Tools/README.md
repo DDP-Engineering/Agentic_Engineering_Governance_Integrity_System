@@ -18,6 +18,6 @@ py -3.12 02_Tools/build_aegis_release.py --version 0.7.1
 ```
 
 The builder validates the payload inventory, runs the complete product test
-suite, and writes reproducible `.zip` and `.tar.gz` archives under
-`07_Delivery/dist/`. Checksums and release metadata are written under
+suite, and writes reproducible Windows `.zip` and Linux `.tar.gz` archives
+under `07_Delivery/dist/`. Checksums and release metadata are written under
 `07_Delivery/aegis-<version>/`.

@@ -162,6 +162,10 @@ Do not consider work complete until all applicable items below are satisfied:
 The full contract is `.agentic/AGENTS.md` - read it before starting work.
 This digest is enough to act on if you read nothing else.
 
+AEGIS applies only to software development operations. Do not use it for
+repository operations or package and delivery operations; follow the
+repository's own procedures for those instead.
+
 Stages, one step file each in `.agentic/steps/`: **frame** (agree scope,
 open the task journal) -> **specify** (write the requirement, and a spec
 when useful) -> **design** (a short note for non-trivial work) -> **build**
@@ -179,5 +183,13 @@ Artifacts: requirements in `.agentic/requirements/<category>/`, specs in
 `.agentic/specs/`, journals in `.agentic/tasks/`, component pages in
 `.agentic/knowledge/`. `python .agentic/aegis.py check` is advisory - read
 its findings and self-correct; nothing here blocks you mid-flight.
+
+Say a deviation out loud when you record one, as one line -
+`DEVIATION <stage>: <what> - <why accepted, or what it costs>` - then carry
+on. It never pauses the work and autopilot never suppresses it. You owe one
+for an accepted `check` warning, a non-zero exit or a verification you
+skipped, an unexpected `anchor`/`evolution` report, a manual method standing
+in for an automatable test, a retired requirement, and unrequested work found
+in review.
 
 <!-- AEGIS:END -->

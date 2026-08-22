@@ -220,7 +220,8 @@ def archive_members(path: Path) -> set[str]:
 def release_text(version: str, date: str, metadata: dict[str, dict]) -> str:
     """Create the tracked human-readable publication record."""
     rows = "\n".join(
-        f"| `{name}` | {item['size']:,} | `{item['sha256']}` |"
+        f"| {item['platform'].title()} | `{name}` | {item['size']:,} | "
+        f"`{item['sha256']}` |"
         for name, item in sorted(metadata.items())
     )
     return f"""\
@@ -229,12 +230,12 @@ def release_text(version: str, date: str, metadata: dict[str, dict]) -> str:
 - Released: {date}
 - Runtime: Python 3.11 or newer; none embedded
 - Dependencies: Python standard library only
-- Platforms: portable ZIP and tar.gz payloads
+- Platforms: Windows ZIP and Linux tar.gz payloads
 
 The `{version}` section of `CHANGELOG.md` records what this release changed.
 
-| Artifact | Bytes | SHA-256 |
-|---|---:|---|
+| Platform | Artifact | Bytes | SHA-256 |
+|---|---|---:|---|
 {rows}
 
 The archives under `../dist/` are ignored build outputs. This folder is the
@@ -257,19 +258,28 @@ def build(requested: str | None) -> int:
     with tempfile.TemporaryDirectory(prefix=f".{prefix}-", dir=DIST) as temporary:
         stage = Path(temporary)
         payload_count, docs_count = stage_tree(stage, version)
-        artifacts = [DIST / f"{prefix}.zip", DIST / f"{prefix}.tar.gz"]
-        write_zip(artifacts[0], stage, prefix)
-        write_tar(artifacts[1], stage, prefix)
+        artifacts = {
+            "windows": DIST / f"{prefix}-windows.zip",
+            "linux": DIST / f"{prefix}-linux.tar.gz",
+        }
+        write_zip(artifacts["windows"], stage, prefix)
+        write_tar(artifacts["linux"], stage, prefix)
         expected = {
             f"{prefix}/{path.relative_to(stage).as_posix()}" for path in collect(stage)
         }
-    for artifact in artifacts:
+    for artifact in artifacts.values():
         if archive_members(artifact) != expected:
             raise SystemExit(f"archive inventory verification failed: {artifact.name}")
     metadata = {
-        path.name: {"sha256": sha256_of(path), "size": path.stat().st_size}
-        for path in artifacts
+        path.name: {
+            "platform": platform,
+            "sha256": sha256_of(path),
+            "size": path.stat().st_size,
+        }
+        for platform, path in artifacts.items()
     }
+    for obsolete in (DIST / f"{prefix}.zip", DIST / f"{prefix}.tar.gz"):
+        obsolete.unlink(missing_ok=True)
     manifest = {
         "schema": SCHEMA,
         "product": NAME,
@@ -296,7 +306,7 @@ def build(requested: str | None) -> int:
         release_text(version, date, metadata), encoding="utf-8", newline="\n"
     )
     print(f"built AEGIS {version}:")
-    for path in artifacts:
+    for path in artifacts.values():
         print(f"  {path.relative_to(REPO_ROOT)} ({path.stat().st_size:,} bytes)")
     print(f"  publication record: {record.relative_to(REPO_ROOT)}")
     return 0

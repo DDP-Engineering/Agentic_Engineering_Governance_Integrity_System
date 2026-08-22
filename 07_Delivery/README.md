@@ -20,6 +20,7 @@ This folder holds local AEGIS build outputs and tracked publication records.
     release-manifest.json
 ```
 
-AEGIS releases are portable workflow payload archives. They contain the
-`.agentic/` workflow, documentation, and license material; no runtime is
-embedded and no separate deployment product is required.
+AEGIS releases are platform-labelled workflow payload archives: a Windows
+`.zip` and a Linux `.tar.gz`. They contain the `.agentic/` workflow,
+documentation, and license material; no runtime is embedded and no separate
+deployment product is required.
