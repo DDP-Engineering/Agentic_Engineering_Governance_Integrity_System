@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.7.0
+# AEGIS 0.7.1
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge

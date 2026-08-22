@@ -1156,9 +1156,13 @@ def test_diagram_rejects_a_scope_that_does_not_exist(tmp_path, capsys):
     assert aegis.main(["diagram", "--task", "TASK-9999"]) == 1
     assert "TASK-9999" in capsys.readouterr().err
 
-    # two scopes at once would answer a question nobody asked
-    with pytest.raises(SystemExit):
-        aegis.main(["diagram", "--component", "parser", "--task", "TASK-ab12"])
+    # two scopes at once would answer a question nobody asked; like every
+    # expected CLI error it is one stderr line and exit 1, not an argparse dump
+    assert aegis.main(
+        ["diagram", "--component", "parser", "--task", "TASK-ab12"]) == 1
+    err = capsys.readouterr().err
+    assert "--component and --task" in err
+    assert len([line for line in err.splitlines() if line]) == 1
 
 
 # TESTS - report leads with judgement

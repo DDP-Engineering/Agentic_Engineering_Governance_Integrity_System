@@ -11,6 +11,33 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-08-22
+
+### Fixed
+
+- `explain` now matches a directory against its own trailing-slash
+  `affected_paths` entry, instead of calling the governed directory ungoverned.
+
+- `explain` normalizes `.` and `..` segments in a relative path, so equivalent
+  spellings of one file give one answer, and rejects a path that escapes the
+  repository or carries a drive letter the platform did not read as absolute.
+
+- The delivery report harvests only marker-shaped deviations
+  (`DEVIATION <stage> - ...`), not sentences that mention the word, and no
+  longer re-counts its own earlier reports on a second run.
+
+- Wrapped `## Done checklist` items are rejoined when a journal is parsed, so
+  `report` and `status` no longer cut an item at the line break.
+
+- `diagram` calls a requirement tested only when its linked test file exists,
+  the same judgement `check` makes, and gives colliding component names
+  distinct Mermaid subgraph ids.
+
+- `diagram --component` with `--task` now exits 1 with one error line, matching
+  the documented exit behavior for an expected CLI error.
+
+- Repaired a corrupted Windows path example in the `explain` CLI reference.
+
 ## [0.7.0] - 2026-08-21
 
 ### Added

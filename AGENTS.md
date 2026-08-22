@@ -97,6 +97,10 @@ When behavior changes:
 
 ## Versioning and Changelog Rules
 
+- Assigning a version and building a release are repository operations, not
+  AEGIS work: do not open a task journal for them and do not run the stages
+  over them. Only software implementation goes through the AEGIS workflow.
+  The implementation a release carries is journaled; the release itself is not.
 - The repository-root `CHANGELOG.md` is the canonical record of all template
   project updates. Accrue changes under `## [Unreleased]` using Keep a Changelog
   sections (Added, Changed, Fixed, Removed).

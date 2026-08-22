@@ -44,10 +44,10 @@ opened: 2026-08-21
 
 - [x] validated candidate confirmed unchanged; otherwise returned to validate
 - [x] validation evidence, diff, exclusions, and outcome presented
-- [ ] delivery confirmed by the human
-- [ ] journal and report included in the delivery commit
-- [ ] agreed outcome delivered, normally a PR
-- [ ] close-out committed after the outcome succeeded, or carried by the
+- [x] delivery confirmed by the human
+- [x] journal and report included in the delivery commit
+- [x] agreed outcome delivered, normally a PR
+- [x] close-out committed after the outcome succeeded, or carried by the
       delivery commit where nothing could fail after it
 
 ## Log
@@ -108,6 +108,9 @@ opened: 2026-08-21
   `09_CLI_Reference.md`, and one `unticked-deliver` for the previous task, which
   is uncommitted by instruction. Same standing cost as before: repository
   documentation sits outside the configured globs.
+- 2026-08-22 deliver: DEVIATION deliver - reconciled after the fact:
+  delivery was carried by release commit 1926871 with these items still
+  unticked, so they are ticked retroactively at the owner's instruction.
 
 ## Delivery report (2026-08-21)
 
