@@ -24,12 +24,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 from test_check import (
     git,
+    lines_for,
     make_git_repo,
     make_repo,
     needs_git,
+    run_check,
     write,
     write_req,
     write_task,
@@ -1071,16 +1072,21 @@ def knowledge(agentic: Path, stem: str, name: str, *rids: str) -> Path:
 
 
 def register(agentic: Path, tmp_path: Path) -> None:
-    """@brief One requirement of every coverage class, three of them claimed."""
+    """@brief One requirement of every coverage class, most of them claimed."""
     write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
     write_req(agentic, "REQ-FUNC-1111", title="Covered behavior",
               tests='["tests/test_app.py::test_app"]')
     write_req(agentic, "REQ-FUNC-2222", title="By-hand behavior",
               verification="Inspection: read the printed page.")
     write_req(agentic, "REQ-FUNC-3333", title="Uncovered behavior")
+    write_req(agentic, "REQ-FUNC-5555", title="Broken-link behavior",
+              tests='["tests/test_gone.py::test_gone"]')
+    write_req(agentic, "REQ-FUNC-6666", title="Drafted behavior", status="draft")
+    write_req(agentic, "REQ-FUNC-7777", title="Withdrawn behavior", status="retired")
     write_req(agentic, "REQ-DATA-4444", folder="data", title="Unclaimed behavior")
     knowledge(agentic, "parser", "Parser",
-              "REQ-FUNC-1111", "REQ-FUNC-2222", "REQ-FUNC-3333")
+              "REQ-FUNC-1111", "REQ-FUNC-2222", "REQ-FUNC-3333",
+              "REQ-FUNC-5555", "REQ-FUNC-6666", "REQ-FUNC-7777")
 
 
 def test_diagram_groups_requirements_by_component_and_coverage(tmp_path, capsys):
@@ -1096,10 +1102,62 @@ def test_diagram_groups_requirements_by_component_and_coverage(tmp_path, capsys)
     assert 'REQ_FUNC_1111["REQ-FUNC-1111<br/>Covered behavior"]:::tested' in out
     assert 'REQ_FUNC_2222["REQ-FUNC-2222<br/>By-hand behavior"]:::manual' in out
     assert 'REQ_FUNC_3333["REQ-FUNC-3333<br/>Uncovered behavior"]:::uncovered' in out
+    # a link that no longer resolves is its own class: it is the check's
+    # warning drawn, not a behavior nobody ever verified
+    assert 'REQ_FUNC_5555["REQ-FUNC-5555<br/>Broken-link behavior"]:::broken' in out
+    assert 'REQ_FUNC_6666["REQ-FUNC-6666<br/>Drafted behavior"]:::draft' in out
+    assert 'REQ_FUNC_7777["REQ-FUNC-7777<br/>Withdrawn behavior"]:::retired' in out
     # a requirement no page claims is shown apart, never dropped
     assert 'subgraph unclaimed["(no knowledge page)"]' in out
     assert 'REQ_DATA_4444["REQ-DATA-4444<br/>Unclaimed behavior"]:::uncovered' in out
-    assert "classDef tested" in out
+    for name in ("tested", "manual", "broken", "uncovered", "draft", "retired"):
+        assert f"classDef {name}" in out
+
+
+def test_every_coverage_class_matches_what_check_reports(tmp_path, capsys):
+    """REQ-FUNC-6b4ff1ad: the picture renders the findings, never rivals them."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+
+    records = {str(data["id"]): data
+               for _relpath, _path, data in aegis.scan_requirements(
+                   lambda *_a: None, lambda _p: False)}
+    assert aegis.coverage_class(records["REQ-FUNC-1111"]) == "tested"
+    assert aegis.coverage_class(records["REQ-FUNC-2222"]) == "manual"
+    assert aegis.coverage_class(records["REQ-FUNC-3333"]) == "uncovered"
+    assert aegis.coverage_class(records["REQ-FUNC-5555"]) == "broken"
+    assert aegis.coverage_class(records["REQ-FUNC-6666"]) == "draft"
+    assert aegis.coverage_class(records["REQ-FUNC-7777"]) == "retired"
+
+    # the classes that stand for a finding are exactly the ones check reports,
+    # and the two silent ones are exactly the ones it says nothing about
+    findings = run_check(aegis, capsys)
+    warned = {Path(line.split()[2]).stem
+              for line in lines_for(findings, "no-linked-tests")}
+    noted = {Path(line.split()[2]).stem
+             for line in lines_for(findings, "manual-verification")}
+    assert warned == {"REQ-FUNC-3333", "REQ-DATA-4444", "REQ-FUNC-5555"}
+    assert noted == {"REQ-FUNC-2222"}
+    # the draft and the retired one are in neither: check is silent about both,
+    # so neither may be drawn in a color that says otherwise
+    assert "REQ-FUNC-6666" not in findings
+    assert "REQ-FUNC-7777" not in findings
+
+
+def test_a_declared_method_does_not_excuse_a_link_that_no_longer_resolves(
+        tmp_path, capsys):
+    """REQ-FUNC-6b4ff1ad: a broken link outranks the by-hand method beside it."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    record = {"status": "active",
+              "linked_tests": ["tests/gone.py::test_gone"],
+              "verification": "Manual: inspect the printed page."}
+    assert aegis.coverage_class(record) == "broken"
+    # and a second, resolving link does not hide the broken one either
+    write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
+    record["linked_tests"].append("tests/test_app.py::test_app")
+    assert aegis.coverage_class(record) == "broken"
 
 
 def test_diagram_writes_utf8_independent_of_the_console_encoding(tmp_path,
@@ -1216,6 +1274,58 @@ def test_report_says_plainly_when_no_deviation_was_recorded(tmp_path, monkeypatc
     assert aegis.main(["report", "TASK-cd34"]) == 0
     text = (agentic / "tasks" / "TASK-cd34.md").read_text(encoding="utf-8")
     assert "- deviations: none recorded" in text
+
+
+def test_report_harvests_the_marker_shape_and_not_a_mention_of_it(tmp_path,
+                                                                  monkeypatch,
+                                                                  capsys):
+    """REQ-UX-48bb759b: the marker is `DEVIATION <stage>`, never the word."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+
+    # every line here talks about deviations; none of them records one
+    for text in ("- Discussed DEVIATION format - we agreed on one line.\n",
+                 "- Reviewed the DEVIATION policy: it says one line per call.\n",
+                 "- See AGENTS.md for DEVIATION lines - they are mandatory.\n",
+                 "- no-DEVIATION: a hyphenated prefix is a different word.\n",
+                 "- The contract prints `DEVIATION <stage>: <what> - <why>`.\n",
+                 "- Two DEVIATIONS: both were about the same warning.\n",
+                 # a journal explaining the rule quotes the marker, and the
+                 # stage is the only thing that tells the two apart
+                 "- The stage-less `DEVIATION:` form is not a record.\n",
+                 "- DEVIATION framework: a stage prefix is not a stage.\n"):
+        assert aegis.recorded_deviations(text) == [], text
+
+    # and the recorded shape, bulleted or bare, in both its spellings
+    assert aegis.recorded_deviations(
+        "## Log\n\nDEVIATION build: skipped perf test - flaky\n"
+    ) == ["build: skipped perf test - flaky"]
+    assert aegis.recorded_deviations(
+        "- DEVIATION build: skipped perf test - flaky\n"
+    ) == ["build: skipped perf test - flaky"]
+    assert aegis.recorded_deviations(
+        "DEVIATION validate - accepted a warning\n  about a stale path.\n"
+    ) == ["validate - accepted a warning about a stale path."]
+
+
+def test_report_does_not_re_list_the_deviations_an_earlier_report_carried(
+        tmp_path, monkeypatch, capsys):
+    """REQ-UX-48bb759b: the token is stripped, so the count cannot grow."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    journal_with_log(agentic, "TASK-ef56",
+                     "- 2026-08-02 build: DEVIATION build - skipped the slow suite.\n"
+                     "DEVIATION validate: accepted one warning.\n"
+                     "- 2026-08-02 deliver: two DEVIATION lines - see above.\n")
+
+    assert aegis.main(["report", "TASK-ef56"]) == 0
+    assert aegis.main(["report", "TASK-ef56"]) == 0
+    text = (agentic / "tasks" / "TASK-ef56.md").read_text(encoding="utf-8")
+    assert text.count("- deviations: 2 recorded") == 2
+    assert "- deviations: 3 recorded" not in text
+    assert "- deviations: 4 recorded" not in text
 
 
 # TESTS - explain

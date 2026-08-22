@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When an operator asks for a diagram of the requirement register, the CLI shall emit a Mermaid flowchart — to standard output, or to a named file written as UTF-8 — that places every requirement under the component whose knowledge page claims it, marks each one as covered by a linked test, covered by a declared by-hand method, or not yet covered, and places requirements no knowledge page claims in a separate unclaimed group.
+When an operator asks for a diagram of the requirement register, the CLI shall emit a Mermaid flowchart — to standard output, or to a named file written as UTF-8 — that places every requirement under the component whose knowledge page claims it, marks each one with the coverage class matching the outcome the governance check reaches for that same record, so that a linked test which does not resolve, a behavior still in draft and a withdrawn behavior are each distinguishable from one nothing verifies, and places requirements no knowledge page claims in a separate unclaimed group.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When an operator asks for a diagram of the requirement register, the CLI shall e
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Run the command over a repository whose requirements are split between covered, by-hand and uncovered verification, and whose knowledge pages claim only some of them: the emitted flowchart groups each requirement under its claiming component, assigns the class matching its coverage, and groups the unclaimed ones apart."
+verification = "Run the command over a repository holding one requirement of every coverage class - a resolving linked test, a linked test whose file was deleted, a declared by-hand method, nothing at all, a draft and a retired behavior - and whose knowledge pages claim only some of them: the emitted flowchart groups each requirement under its claiming component, assigns each the class matching what `check` reports for that record, and groups the unclaimed ones apart."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -63,6 +63,8 @@ affected_paths = [
 linked_tests = [
     "05_Software/aegis/tests/test_run_report.py::test_diagram_groups_requirements_by_component_and_coverage",
     "05_Software/aegis/tests/test_run_report.py::test_diagram_writes_utf8_independent_of_the_console_encoding",
+    "05_Software/aegis/tests/test_run_report.py::test_every_coverage_class_matches_what_check_reports",
+    "05_Software/aegis/tests/test_run_report.py::test_a_declared_method_does_not_excuse_a_link_that_no_longer_resolves",
 ]
 
 # --- optional below this line ---
@@ -74,9 +76,10 @@ priority = "normal"   # low | normal | high
 rationale = """
 The register already answers where verification is thin, but only one
 requirement at a time. A reviewer reads a grouped, colored picture faster
-than a list, and every mark in it is read straight off a requirement field,
-so the picture cannot drift from the records it is drawn from.
+than a list. Every mark comes from the one classifier `check` also judges by,
+because a picture that reached its own verdict would be a second opinion
+competing with the findings rather than a rendering of them.
 """
 
 created = 2026-08-21
-updated = 2026-08-21
+updated = 2026-08-22

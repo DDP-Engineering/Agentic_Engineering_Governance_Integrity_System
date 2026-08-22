@@ -1,0 +1,97 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-08-22T15:15:22.448811Z",
+      "anchor_head": "2c5a23e6005387ebe198a27baa87e3bfd493bd7a",
+      "anchor_id": "5e894214769d2de8",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "a137728fc3bac2dce1a92f651774306b1e021c3149056f6206d42b6672444e49"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "1941054f2ee4b2cedeab317f45c1680127cebc7673e418eb5c6a04dc37933f68"
+          },
+          "path": "05_Software/aegis/template/.agentic/CLI.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "88375c012b08ddf2ced0fa828c7ab8882e9ee8c422d52ad5ec5dc08db09e07d6"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "f9bcf95a5a81bde15a369d7c1b2be02dd90a5ae8852ab1c9ebc8b8dd40533bba"
+          },
+          "path": "05_Software/aegis/template/.agentic/aegis.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "a961000d1619ade201fe9a2b821ef8349425f29e8c47669e7b10057b389e8474"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "5657fb99519edcd67a090151c6a5ee1e639e1c838e4f56b84f603f791a6ee3ef"
+          },
+          "path": "05_Software/aegis/tests/test_run_report.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "5c0a488ac675467b80b702ff945a29c92c9cf3f5245bc1ef0159555ba55a1a43"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5652de3b8c35b7af46abbb597d4ba66b437269c534d59cc4a330094c35cbb0a9"
+          },
+          "path": "06_SoftwareDocu/09_CLI_Reference.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 0,
+            "modified": 1,
+            "removed": 0,
+            "unchanged": 48
+          },
+          "source": {
+            "added": 0,
+            "modified": 2,
+            "removed": 0,
+            "unchanged": 15
+          },
+          "tests": {
+            "added": 0,
+            "modified": 1,
+            "removed": 0,
+            "unchanged": 5
+          }
+        },
+        "status": {
+          "added": 0,
+          "modified": 4,
+          "removed": 0,
+          "unchanged": 68
+        }
+      },
+      "current_head": "2c5a23e6005387ebe198a27baa87e3bfd493bd7a",
+      "evolution_stage": "deliver",
+      "evolved_at": "2026-08-22T15:32:49.977379Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-9490941a"
+}

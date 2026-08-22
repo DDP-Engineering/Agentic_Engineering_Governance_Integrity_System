@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When a delivery report is written, it shall list every deviation recorded in the task journal, in the order they were recorded and with their recorded wording, above the diff and check totals, and shall say plainly when none were recorded.
+When a delivery report is written, it shall list every deviation recorded in the task journal - each line, bulleted or bare, whose text opens with the deviation marker followed by a workflow stage name - in the order they were recorded and with their recorded wording, above the diff and check totals, listing neither a sentence that merely mentions the marker nor a deviation an earlier report already carried, and saying plainly when none were recorded.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When a delivery report is written, it shall list every deviation recorded in the
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Append a report to a journal holding several deviations and to one holding none: the first lists each of them in order above the diff line, the second states that none were recorded."
+verification = "Append a report to a journal holding several deviations - bulleted, wrapped and bare-line - and to one whose log only mentions the marker in passing, including quoting it: the first lists each recorded deviation in order above the diff line and nothing else, the second states that none were recorded. Append a second report to the first journal: the count does not grow."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -61,6 +61,8 @@ affected_paths = [
 linked_tests = [
     "05_Software/aegis/tests/test_run_report.py::test_report_leads_with_the_recorded_deviations",
     "05_Software/aegis/tests/test_run_report.py::test_report_says_plainly_when_no_deviation_was_recorded",
+    "05_Software/aegis/tests/test_run_report.py::test_report_harvests_the_marker_shape_and_not_a_mention_of_it",
+    "05_Software/aegis/tests/test_run_report.py::test_report_does_not_re_list_the_deviations_an_earlier_report_carried",
 ]
 
 # --- optional below this line ---
@@ -77,4 +79,4 @@ workflow guarantees a human is reading.
 """
 
 created = 2026-08-21
-updated = 2026-08-21
+updated = 2026-08-22

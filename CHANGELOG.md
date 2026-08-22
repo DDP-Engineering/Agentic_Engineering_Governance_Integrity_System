@@ -11,6 +11,35 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-08-22
+
+### Fixed
+
+- The delivery report harvests a deviation only where the marker carries a
+  real workflow stage (`DEVIATION <stage>: ...` or its ` - ` spelling). 0.7.1
+  accepted any word after the marker, so ordinary prose about deviations - and
+  a journal quoting the marker itself - was listed in the report as recorded
+  judgement.
+
+- The delivery report no longer drops a deviation written on a line of its
+  own. 0.7.1 harvested only `- ` bullets, so the exact unbulleted shape
+  `AGENTS.md` prints in its own contract block was invisible to `report`.
+
+- `diagram` and `explain` now classify coverage by the outcome `check` reaches
+  for the same record, through one shared classifier rather than a second
+  reading. 0.7.1 pivoted on whether a linked file existed while `check`
+  pivoted on whether `linked_tests` was non-empty, so a requirement whose only
+  linked test had been deleted was drawn as deliberate hand-verification, and
+  a draft was drawn as an uncovered behavior.
+
+### Added
+
+- Two coverage classes, so each one maps onto a single `check` outcome:
+  `broken` for a requirement whose linked test does not resolve, matching the
+  `no-linked-tests` warning, and `draft` for a record `check` is deliberately
+  silent about. The `diagram` CLI reference now tabulates every class against
+  the finding it stands for.
+
 ### Changed
 
 - Clarify that AEGIS governs software development only; repository and

@@ -46,7 +46,11 @@ repository path and which journals delivered it.
 
 Seven commands over one register. Each entry point composes shared readers
 rather than owning its own parsing, which is why a finding, a report and a
-diagram can never disagree about what the records say.
+diagram can never disagree about what the records say. `coverage_class` is
+the same rule applied to judgement rather than to parsing: `check` turns its
+verdict into findings while `diagram` and `explain` turn the same verdict
+into a label, so the precedence between a broken link, a by-hand method and
+an empty one exists in exactly one place.
 
 ```mermaid
 flowchart TD
@@ -66,6 +70,7 @@ flowchart TD
     render["render_diagram - Mermaid text"]
     trace["match_any - affected_paths cover this path"]
     devs["recorded_deviations - judgement out of the log"]
+    cover["coverage_class - one verdict per record"]
 
     register[("requirements/ tasks/ knowledge/")]
     evidence[("TASK-id.anchor.json / .evolution.json")]
@@ -74,6 +79,9 @@ flowchart TD
     check --> scan
     check --> diffs
     check --> runner
+    check --> cover
+    diagram --> cover
+    explain --> cover
     test --> cfg
     test --> runner
     report --> scan
