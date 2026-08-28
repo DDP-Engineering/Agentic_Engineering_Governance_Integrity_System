@@ -35,6 +35,16 @@ define durable artifact formats.
 - `REQ-FUNC-500cfb8b` - Carry each component's architecture diagram in
   its knowledge page, drawn at adoption and revised at design.
 
+- `REQ-UX-84868466` - Present a consistent report on completion or pause
+  without adding approval gates or deferring deviation notices.
+- `REQ-UX-94a33d75` - Resume from compact reporting and relevant durable
+  records while preserving required full reads and unresolved issues.
+
+Every stage file includes reporting and resume reminders. The task template
+provides blank plain fields for the latest report alongside the append-only
+log. Explicit one-stage prompts end the session after recording the outcome;
+normal checkpoint/autopilot flows retain their existing approval rules.
+
 ## Files
 
 - `05_Software/aegis/template/.agentic/AGENTS.md` - Workflow contract and

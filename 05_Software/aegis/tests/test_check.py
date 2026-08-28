@@ -423,6 +423,38 @@ def test_outside_layout_fires_for_a_stray_file_only(tmp_path, capsys):
 
 
 @needs_git
+def test_documentation_layout_keeps_security_and_source_checks(tmp_path, capsys):
+    """@brief Declared documentation is in layout, still scanned, not source."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write(agentic / "aegis.toml",
+          'schema = 1\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n'
+          'docs = ["docs/", "CHANGELOG.md"]\n[check]\n'
+          'secret_patterns_extra = ["EXAMPLE_SECRET_[0-9]{6}"]\n')
+    write(tmp_path / "docs" / "guide.md", "EXAMPLE_SECRET_123456\n")
+    write(tmp_path / "CHANGELOG.md", "Documented behavior.\n")
+    write(tmp_path / "stray.md", "Undeclared documentation.\n")
+    out = run_check(aegis, capsys)
+    hits = lines_for(out, "outside-layout")
+    assert len(hits) == 1 and "stray.md" in hits[0]
+    assert any("docs/guide.md" in line
+               for line in lines_for(out, "secret-in-diff"))
+    assert not lines_for(out, "uncovered-source")
+    assert not lines_for(out, "source-no-test-changes")
+    write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
+    out = run_check(aegis, capsys)
+    assert lines_for(out, "uncovered-source")
+    assert lines_for(out, "source-no-test-changes")
+
+
+def test_documentation_layout_reports_invalid_type(nogit_repo, capsys):
+    """@brief Malformed documentation globs produce an actionable finding."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml", 'schema = 1\n[layout]\ndocs = "docs/"\n')
+    assert any("[layout] docs should be list" in line for line in
+               lines_for(run_check(aegis, capsys), "config"))
+
+
+@needs_git
 def test_source_no_test_changes_fires_then_a_test_change_silences_it(tmp_path,
                                                                      capsys):
     _agentic, aegis = make_git_repo(tmp_path)

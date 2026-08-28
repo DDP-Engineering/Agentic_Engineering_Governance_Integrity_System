@@ -22,7 +22,9 @@ access the network.
 `python .agentic/aegis.py init` completes installation of a copied payload.
 `task` creates a feature, fix, change, or adoption journal. `req` creates a
 categorized requirement scaffold. `status` lists open journals or displays one
-journal by its full or short identifier.
+journal by its full or short identifier. `summary` prints a compact recorded
+stage view using the same journal lookup plus a strict optional-section
+parser; it does not call Git, load configuration, or execute commands.
 
 ## Key behaviors
 
@@ -34,6 +36,16 @@ journal by its full or short identifier.
   requirement record.
 - `REQ-FUNC-ac60f1cc` - Show open task state or a selected journal's concise
   resume information.
+
+- `REQ-FUNC-1844e18d` - Render bounded stage snapshots from explicit records,
+  preserving missing/stale state and exposing any omitted detail.
+
+The optional Stage report is agent-authored, not fresh proof. Stage and result
+refer to the reported work, Current comes from the header, and a mismatched
+binding suppresses stale claims. Missing values remain not recorded. Invalid
+records fail without partial output; shortened output directs full-journal
+review before proceeding. Existing status JSON and delivery reports are
+unchanged.
 
 ## Files
 
@@ -47,3 +59,18 @@ journal by its full or short identifier.
   for lifecycle behavior.
 - `05_Software/aegis/tests/test_run_report.py` - Status component-display
   coverage.
+
+## Architecture
+
+The summary composes the shared journal lookup with a dedicated optional-record
+parser; the renderer reads no repository configuration or command output.
+
+```mermaid
+flowchart LR
+    status[status] --> read[read_journal]
+    summary[summary] --> read
+    summary --> record[parse_stage_report]
+    record --> journal[(task journal)]
+    read --> journal
+    summary --> output[bounded recorded summary]
+```

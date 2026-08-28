@@ -21,6 +21,11 @@ tests = [
     "05_Software/aegis/tests/",
     "05_Software/aegis/tests/",
 ]
+docs = [
+    "05_Software/aegis/README.md",
+    "06_SoftwareDocu/",
+    "CHANGELOG.md",
+]
 
 [zones]
 # What each stage may write besides `.agentic/`, which every stage may

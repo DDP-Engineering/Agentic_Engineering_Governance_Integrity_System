@@ -11,6 +11,20 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-28
+
+### Added
+
+- Read-only `summary` command for compact recorded stage reports, with explicit
+  missing/stale state and visible output limits.
+- Optional documentation layout globs avoid stray-file warnings while keeping
+  documentation in secret scanning.
+
+### Changed
+
+- Standardize stage reports and summary-first resume instructions for limited
+  context, preserving existing approvals and full validation requirements.
+
 ## [0.7.2] - 2026-08-22
 
 ### Fixed

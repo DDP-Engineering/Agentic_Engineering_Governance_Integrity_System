@@ -68,7 +68,12 @@ test_impacted = "pytest -q {tests}"   # optional: focused regression
 [layout]
 source = ["src/"]                     # where your production code lives
 tests  = ["tests/"]                   # where your tests live
+docs   = ["docs/", "README.md"]       # optional: documentation paths
 ```
+
+`docs` is optional. It stops declared documentation from being reported as
+outside the layout, while keeping it in the diff and secret scan. It is not
+counted as source, tests, or a stage write zone.
 
 If your application lives in a subfolder rather than at the repository
 root, add one more line and let AEGIS handle the rest:

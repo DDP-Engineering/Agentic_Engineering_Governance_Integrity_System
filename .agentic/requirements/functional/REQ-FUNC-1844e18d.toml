@@ -1,0 +1,88 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# One requirement = one independently verifiable behavior.
+# Lives at .agentic/requirements/<category>/<id>.toml
+# Required fields: schema, id, title, status, requirement, verification.
+
+schema = 1
+
+# REQ-<CAT>-<8 hex>. CAT is FUNC, UX, NFR, SEC, DATA, PLAT, REL or TEST,
+# and must match the category folder this file sits in.
+id = "REQ-FUNC-1844e18d"
+
+title = "Render compact recorded stage summaries without side effects"
+
+# draft while being written, active once it is built and tested,
+# retired when the behavior is deliberately removed.
+status = "active"
+
+# Self-contained prose: a reader with no other context must be able to
+# understand and check it. No ticket numbers, no run IDs, no references
+# to other requirements.
+#
+# Recommended shape - EARS. Pick the one pattern that fits; a stated
+# trigger or condition is what the test has to arrange, so surfacing it
+# here is what makes the behavior testable:
+#
+#   ubiquitous  The <system> shall <response>.
+#   event       When <trigger>, the <system> shall <response>.
+#   state       While <state>, the <system> shall <response>.
+#   unwanted    If <condition>, then the <system> shall <response>.
+#   optional    Where <feature is included>, the <system> shall <response>.
+#
+# Two "shall" clauses means two behaviors: split it into two requirements.
+# Do not contort prose to fit a pattern - a constraint that reads better
+# plainly is better plainly.
+requirement = """
+When an operator requests a task summary, the CLI shall render a bounded, read-only view of explicit recorded stage facts with missing, stale, malformed, or shortened information distinguished from verified success.
+"""
+
+# The observation that settles whether the behavior holds — not a
+# restatement of the requirement.
+#
+# Some behaviors no test can settle: a look-and-see judgement, an install
+# on clean hardware, a printed page. Start this field with "Manual:" or
+# "Inspection:" and name the method, and `check` records the requirement
+# as verified by hand instead of counting it among the tests still owed.
+# The prefix alone is not enough — it has to say what someone does.
+verification = "Run copied-payload CLI tests covering completed and paused records, missing fields, stale current-stage bindings, invalid and duplicate records, bounded output with visible omission, full journal preservation, and unchanged existing status output."
+
+# Repo-relative, forward slashes. The source files this behavior lives in.
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+    "05_Software/aegis/template/.agentic/CLI.md",
+    "05_Software/aegis/template/.agentic/templates/task.md"
+]
+
+# "tests/path/test_file.py::test_name" entries. Kept current during build;
+# these select the impacted regression set.
+linked_tests = [
+    "05_Software/aegis/tests/test_run_report.py::test_summary_reads_recorded_facts_without_side_effects",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_handles_transitions_and_pauses",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_missing_record_does_not_infer_success",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_partial_record_keeps_missing_values_explicit",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_suppresses_stale_or_unbound_claims",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_rejects_ambiguous_or_invalid_records",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_bounds_output_and_requires_review_of_omissions",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_does_not_emit_terminal_control_characters",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_rejects_unknown_task",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_errors_do_not_echo_unbounded_record_content",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_scaffold_and_test_log_remain_independent",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_ignores_commented_and_fenced_examples",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_literal_comment_markers_do_not_hide_live_report"
+]
+
+# --- optional below this line ---
+
+# "specs/REQ-FUNC-00000000.md" when the requirement alone is not buildable.
+spec = "specs/REQ-FUNC-1844e18d.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-08-28
+updated = 2026-08-28

@@ -14,7 +14,7 @@ Repository setup, maintenance, and delivery-package scripts live here.
 Build the current AEGIS release archives and tracked publication record with:
 
 ```text
-py -3.12 02_Tools/build_aegis_release.py --version 0.7.1
+py -3.12 02_Tools/build_aegis_release.py --version 0.8.0
 ```
 
 The builder validates the payload inventory, runs the complete product test

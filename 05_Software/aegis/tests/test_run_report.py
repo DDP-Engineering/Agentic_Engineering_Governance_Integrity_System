@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from test_check import (
     git,
     lines_for,
@@ -35,6 +36,7 @@ from test_check import (
     write_req,
     write_task,
 )
+from test_cli_core import snapshot
 
 # CONSTANTS
 
@@ -358,6 +360,249 @@ def test_pointer_update_preserves_crlf_and_following_bytes(tmp_path):
     assert tail in refreshed
     assert b"advis0ry" not in refreshed
     assert mine.encode() in refreshed
+
+
+# TESTS - compact recorded stage summaries
+
+
+def stage_record(path: Path, **overrides: str) -> None:
+    """@brief Append a complete reporting record to an existing fixture journal."""
+    fields = {"stage": "specify", "result": "completed", "current": "design",
+              "changed": "REQ-FUNC-1111 created", "evidence": "check exit 0; tests not run",
+              "issues": "none recorded", "next": "follow 3_design.md", "needs_user": "no"}
+    fields.update(overrides)
+    write(path, path.read_text(encoding="utf-8") + "\n## Stage report\n\n"
+          + "\n".join(f"{key}: {value}" for key, value in fields.items()) + "\n")
+
+
+def summary_fields(out: str) -> dict[str, str]:
+    """@brief Decode the human-readable summary without depending on padding."""
+    return {key: value.strip() for key, value in
+            (line.split(":", 1) for line in out.splitlines())}
+
+
+def test_summary_reads_recorded_facts_without_side_effects(tmp_path, monkeypatch, capsys):
+    """REQ-FUNC-1844e18d: summary reads the journal only and preserves status JSON."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="design", reqs="REQ-FUNC-1111")
+    stage_record(path)
+    before = snapshot(tmp_path)
+    _code, status_before = run(aegis, capsys, "status", "ab12", "--json")
+
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("summary must not run commands or inspect repository/config state")
+
+    monkeypatch.setattr(aegis, "run_git", unexpected)
+    monkeypatch.setattr(aegis, "load_config", unexpected)
+    monkeypatch.setattr(aegis.subprocess, "run", unexpected)
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert list(fields) == ["Stage", "Task", "Current", "Requirements", "Changed",
+                            "Evidence", "Issues", "Next", "Needs user", "Details"]
+    assert fields["Stage"] == "specify - completed"
+    assert fields["Current"] == "design"
+    assert fields["Task"] == "TASK-ab12"
+    assert fields["Requirements"] == "REQ-FUNC-1111"
+    assert fields["Changed"] == "REQ-FUNC-1111 created"
+    assert fields["Evidence"] == "check exit 0; tests not run"
+    assert fields["Needs user"] == "no"
+    assert ".agentic/tasks/TASK-ab12.md" in fields["Details"]
+    assert snapshot(tmp_path) == before
+    _code, status_after = run(aegis, capsys, "status", "ab12", "--json")
+    assert status_after == status_before
+
+
+@pytest.mark.parametrize("reported,current,result", [
+    ("frame", "build", "completed"), ("components", "components", "paused"),
+    ("validate", "build", "blocked"), ("design", "build", "skipped"),
+    ("close", "done", "completed"), ("build", "build", "in_progress"),
+])
+def test_summary_handles_transitions_and_pauses(tmp_path, capsys, reported, current, result):
+    """REQ-FUNC-1844e18d: recorded outcomes do not relabel the current stage."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage=current)
+    stage_record(path, stage=reported, current=current, result=result,
+                 needs_user="confirm scope" if reported == "frame" else "no")
+    code, out = run(aegis, capsys, "summary", "TASK-ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert fields["Stage"] == f"{reported} - {result}"
+    assert fields["Current"] == current
+
+
+@pytest.mark.parametrize("record", ["", "\n## Stage report\n\nstage:\ncurrent:\n"])
+def test_summary_missing_record_does_not_infer_success(tmp_path, capsys, record):
+    """REQ-FUNC-1844e18d: a ticked checklist and green log are not a stage report."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="deliver", checklist="- [x] green")
+    write(path, path.read_text(encoding="utf-8") + "- 2026-08-28 validate: all passed\n"
+          + record)
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert fields["Stage"] == "not recorded"
+    assert fields["Evidence"] == "not recorded"
+    assert fields["Current"] == "deliver"
+    assert fields["Needs user"] != "no"
+    assert "completed" not in out and "all passed" not in out
+
+
+def test_summary_partial_record_keeps_missing_values_explicit(tmp_path, capsys):
+    """REQ-FUNC-1844e18d: missing evidence or decisions must not become success."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="build")
+    write(path, path.read_text(encoding="utf-8")
+          + "\n## Stage report\n\nstage: build\ncurrent: build\n")
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert fields["Stage"] == "build - not recorded"
+    for key in ("Changed", "Evidence", "Issues", "Next", "Needs user"):
+        assert fields[key] == "not recorded"
+
+
+@pytest.mark.parametrize("binding", ["specify", ""])
+def test_summary_suppresses_stale_or_unbound_claims(tmp_path, capsys, binding):
+    """REQ-FUNC-1844e18d: a mismatched record cannot authorize continuation."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="build")
+    stage_record(path, current=binding, evidence="all passed", next="publish now")
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert fields["Current"] == "build"
+    assert fields["Evidence"] == "not recorded"
+    assert fields["Next"] != "publish now"
+    assert fields["Needs user"] != "no"
+    assert "stale" in out if binding else "incomplete" in out
+
+
+@pytest.mark.parametrize("extra", [
+    "stage: build\nstage: design\n", "stage: requirement\n",
+    "result: passed\n", "surprise: value\n", "not a field\n",
+    "current: unknown\n", "stage: build\n\n## Stage report\nstage: design\n",
+])
+def test_summary_rejects_ambiguous_or_invalid_records(tmp_path, capsys, extra):
+    """REQ-FUNC-1844e18d: malformed records fail without printing a partial report."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12")
+    write(path, path.read_text(encoding="utf-8") + "\n## Stage report\n" + extra)
+    capsys.readouterr()
+    assert aegis.main(["summary", "ab12"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == "" and "error:" in captured.err
+
+
+def test_summary_bounds_output_and_requires_review_of_omissions(tmp_path, capsys):
+    """REQ-FUNC-1844e18d: long records cannot silently hide unresolved issues."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="design", reqs="REQ-FUNC-1111 " * 100)
+    write(path, path.read_text(encoding="utf-8") + "- old log entry\n" * 10000)
+    stage_record(path, changed="x" * 2000, issues="warning " * 1000 + "BLOCKER")
+    before = path.read_bytes()
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert len(fields) == 10 and all(len(value) <= 240 for value in fields.values())
+    assert "[truncated; read journal]" in fields["Issues"]
+    assert "review" in fields["Needs user"] and "truncated" in fields["Needs user"]
+    assert "old log entry" not in out
+    assert path.read_bytes() == before
+
+
+def test_summary_does_not_emit_terminal_control_characters(tmp_path, capsys):
+    """REQ-FUNC-1844e18d: recorded text cannot forge additional output lines."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="design")
+    stage_record(path, changed="hello\tworld\x1b[2J")
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    assert "\x1b" not in out and "\t" not in out and len(out.splitlines()) == 10
+
+
+def test_summary_rejects_unknown_task(tmp_path, capsys):
+    """REQ-FUNC-1844e18d: missing task errors remain concise and read-only."""
+    _agentic, aegis = make_repo(tmp_path)
+    capsys.readouterr()
+    assert aegis.main(["summary", "dead"]) == 1
+    captured = capsys.readouterr()
+    assert not captured.out and "no such task" in captured.err
+
+
+@pytest.mark.parametrize("field", ["stage: " + "x" * 10000, "x" * 10000 + ": value"],
+                         ids=["long-value", "long-key"])
+def test_summary_errors_do_not_echo_unbounded_record_content(tmp_path, capsys, field):
+    """REQ-FUNC-1844e18d: malformed-record diagnostics also stay compact."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12")
+    write(path, path.read_text(encoding="utf-8") + "\n## Stage report\n" + field + "\n")
+    capsys.readouterr()
+    assert aegis.main(["summary", "ab12"]) == 1
+    captured = capsys.readouterr()
+    assert not captured.out and len(captured.err) < 300
+
+
+def test_summary_scaffold_and_test_log_remain_independent(tmp_path, monkeypatch, capsys):
+    """REQ-FUNC-1844e18d: fresh sessions never confuse log results with report state."""
+    agentic, aegis = make_repo(tmp_path)
+    monkeypatch.setattr(aegis, "git_branch", lambda: "feature")
+    monkeypatch.setattr(aegis, "git_head", lambda: "")
+    code, out = run(aegis, capsys, "task", "fresh session")
+    assert code == 0
+    path = tmp_path / out.strip()
+    assert "## Stage report" in path.read_text(encoding="utf-8")
+    code, out = run(aegis, capsys, "summary", path.stem)
+    assert code == 0 and summary_fields(out)["Stage"] == "not recorded"
+    config(agentic, f"test = {cmd_exit(0)}")
+    assert aegis.main(["test", "--task", path.stem]) == 0
+    code, out = run(aegis, capsys, "summary", path.stem)
+    assert code == 0 and summary_fields(out)["Evidence"] == "not recorded"
+    data = aegis.parse_journal(path.read_text(encoding="utf-8"))
+    assert any("test exit 0" in line for line in data["log"])
+
+
+@pytest.mark.parametrize("prefix,suffix", [
+    ("<!--\n", "\n## End example\n-->\n"),
+    ("Example: <!--\n", "\n## End example\n-->\n"),
+    ("```text\n", "\n```\n"),
+    ("~~~text\n", "\n~~~\n"),
+    ("````text\n```\n<!--\n", "\n```\n````\n"),
+], ids=["comment", "inline-comment", "backticks", "tildes", "long-fence"])
+@pytest.mark.parametrize("live_record", [False, True], ids=["example-only", "with-live"])
+def test_summary_ignores_commented_and_fenced_examples(
+        tmp_path, capsys, prefix, suffix, live_record):
+    """REQ-FUNC-1844e18d: quoted examples cannot supply or conflict with live facts."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="build")
+    example = ("## Stage report\nstage: deliver\nresult: completed\ncurrent: build\n"
+               "evidence: fake passed\nnext: publish now\nneeds_user: no\n")
+    write(path, path.read_text(encoding="utf-8") + prefix + example + suffix)
+    if live_record:
+        stage_record(path, stage="build", current="build", result="in_progress",
+                     evidence="actual check not run")
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    fields = summary_fields(out)
+    assert "fake passed" not in out and "publish now" not in out
+    assert fields["Stage"] == ("build - in_progress" if live_record else "not recorded")
+    assert fields["Evidence"] == ("actual check not run" if live_record else "not recorded")
+
+
+@pytest.mark.parametrize("example", [
+    "- Parser accepts the literal `<!--` token.\n",
+    "- Parser accepts the literal ``<!--`` token.\n",
+    "```text <!--\nexample\n```\n",
+])
+def test_summary_literal_comment_markers_do_not_hide_live_report(tmp_path, capsys, example):
+    """REQ-FUNC-1844e18d: code-span literals and fence info are not comments."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="design")
+    write(path, path.read_text(encoding="utf-8") + example)
+    stage_record(path)
+    code, out = run(aegis, capsys, "summary", "ab12")
+    assert code == 0
+    assert summary_fields(out)["Stage"] == "specify - completed"
 
 
 # TESTS - aegis report

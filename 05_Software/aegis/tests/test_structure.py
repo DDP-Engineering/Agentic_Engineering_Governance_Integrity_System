@@ -181,6 +181,43 @@ def test_deviation_notices_are_stated_when_recorded_not_only_at_delivery():
     assert "notices supplement this presentation" in deliver
 
 
+def test_stage_report_instructions_keep_boundaries_and_approval_rules():
+    """REQ-UX-84868466: stage reports are consistent notifications, not new gates."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    scaffold = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
+    assert "## Stage reporting" in agents
+    assert "before any detailed explanation" in agents
+    assert "does not introduce approval stops" in agents
+    assert "Stop and ask twice, not once per stage" in agents
+    assert "DEVIATION <stage>:" in agents
+    assert "## Stage report" in scaffold
+    for key in ("stage", "result", "current", "changed", "evidence", "issues",
+                "next", "needs_user"):
+        assert re.search(rf"^{key}:\s*$", scaffold, re.MULTILINE)
+    for step in (PAYLOAD / "steps").glob("*.md"):
+        text = " ".join(step.read_text(encoding="utf-8").split())
+        assert "**Stage report" in text, step.name
+        assert "summary TASK-<id>" in text, step.name
+        assert "completed stage" in text and "current" in text, step.name
+        assert "pause" in text and "before any detailed explanation" in text, step.name
+
+
+def test_resume_guidance_is_local_and_preserves_required_evidence():
+    """REQ-UX-94a33d75: small-context resume is explicit without skipping proof."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    assert "summary TASK-<id>" in agents
+    assert "relevant log entries" in agents
+    assert "unresolved issues" in agents
+    assert "Full journal reads required by validate and deliver still apply" in agents
+    prompts = agents.split("For a small local model", 1)[1]
+    assert prompts.count("Stop after this stage.") == 6
+    for step in (PAYLOAD / "steps").glob("*.md"):
+        text = " ".join(step.read_text(encoding="utf-8").split())
+        assert "**Resume context:**" in text, step.name
+        assert "relevant log entries" in text, step.name
+        assert "required full reads still apply" in text, step.name
+
+
 def test_six_stage_workflow_separates_validation_from_publication():
     """REQ-FUNC-24ea4f73: proof may mutate; publication may not."""
     agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")

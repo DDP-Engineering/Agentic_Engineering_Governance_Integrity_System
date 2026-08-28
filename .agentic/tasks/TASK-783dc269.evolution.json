@@ -1,0 +1,318 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-08-28T10:09:18.578602Z",
+      "anchor_head": "17cc3effc765d6b85c1bf55fbcd23be8f9ef513e",
+      "anchor_id": "bf581db0e6ecd2da",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "8273380d723280a0cf499bd8732bf942bb2e9f8b75d261169fb0679058c30182"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "aef89dbbf0c8af1de9ec63569d1e04839364944f1455bc11c70fedc2e42f24b3"
+          },
+          "path": "05_Software/aegis/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "6b61b7b2f9b227b1e5e1b02d28aedbe1b6d844f09a117c7f7ba1715bb3449b3b"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "00497acdc592fef55abf4a70baacdfb6c296ff5938a8371e2adb34d65f04d803"
+          },
+          "path": "05_Software/aegis/template/.agentic/AGENTS.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "bef74578f92408a38680662334938edfb44b8412d69b95549db7827b679026ef"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "a137728fc3bac2dce1a92f651774306b1e021c3149056f6206d42b6672444e49"
+          },
+          "path": "05_Software/aegis/template/.agentic/CLI.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "4cf0a76c051b967efecad9961cd0d829c462cef63245e05001c1103c06bcd432"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "42f8fd0116ab3c93b97112df5c5e9337c5ec1de356c04c541f91324565658f9b"
+          },
+          "path": "05_Software/aegis/template/.agentic/aegis.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "f91620bbe4531f455db498ff8857d296ba91a8dbf7d035c01c26e6b08bd92b29"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "bd2ac8b5354c3fde4b3a8e66a98f862bfebe0cd7419b7e10ab30bf062fd528d5"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/1_frame.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "f6cc5c7b6d439217be6ecfe6b04e0d4087cb6d327f1adde47c349a836bfee689"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "e3baf071997b68f1bdcd1322533cd3fd499501b1770e60e8b0b6450aedc05fd9"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/2_specify.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "724e3e77259a655faced3ef47e0e3685515472c5afa521e19f4b75fc7f36cfa9"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "ce06d8b288884c7fe1da5ec89d62f76387b59769b708c73ba1eec5c1bb074f51"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/3_design.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "09ddb15caf809cb3bd662ca9e38b879279a773739e2b867dcd790f1c823079fc"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "73f5fbb89eb0aa57bfbcca66d9ffc42b6d90fc4cc16d71cd0eb7859fa060fd51"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/4_build.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "506fb3196def1026db8e5056bc9a4ef1d19a34d3065690fc59bd9509a935044b"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "d8ca9b79f4435c2075a037ff3aec04b845c0d76f7aaaccd340ed3e0a392a650f"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/5_validate.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "db5f7b939376860d7238d6ef88fa96f161c5d38aa8f41ed1589f087cda082317"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "b4efe01ecea95660c6d9b6fe31ccb3b42826ed423f7eeb6b4ce61d4953dbafff"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/6_deliver.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "92c979e10f9ea6ed6142e844286c32d8b278f519981b9c3d2a1ed854ca204579"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "97799199f936a1a7ec49420f257e97b401439d8cf1b95ba501fcededad5c0c13"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/adopt.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "6c165f5733fad4e1ee2d60247b8a4106c5ee68916bedc6b4e3aa49a1233297ef"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "2e7cf8a280fe626e8e3b20954a00509b486ae649e7366c7a30a193d27a3fb12b"
+          },
+          "path": "05_Software/aegis/template/.agentic/templates/task.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "fea4cf3467b2a1cd8f40c71ae8586d59c773c2cf4c8a7cbeaf987111989b04a5"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "68ada815c089a61f75cd40452a70e446a67bb9d87ce477fcf7083abd8080c55b"
+          },
+          "path": "05_Software/aegis/tests/test_run_report.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "389769ea7c7a7dd2e6321ec5ce767c0eb21f5ed9b0bc90b930cf8ab3ab58b460"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "f138d6f33b61fde178cbba7f32f01490f4cb18a56ee9f34b7b3a7993894587bf"
+          },
+          "path": "05_Software/aegis/tests/test_structure.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "e54f1efb2c72eca42cc80f4b9ca006e98614215ef8f063830e7083f118a46097"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a454196e82b246cee5ccf78daa622940c7d3b8ca79f3ebab96bd0066f491d986"
+          },
+          "path": "06_SoftwareDocu/02_Folders_and_Files.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "743f4ee6f69e949655bec68a4f5538a955c10f5c4f784bb83860ec86c3f280a6"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "05da526f74a4133543fdb755553a63dc6e3d4d893465df29c58aac5025bbd0cc"
+          },
+          "path": "06_SoftwareDocu/08_Prompt_Cheatsheet.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "16ddd75eb4d3b9fd40fa7a53e4a57d41df59a5a58ec8e8e888024b531194b5a8"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5c0a488ac675467b80b702ff945a29c92c9cf3f5245bc1ef0159555ba55a1a43"
+          },
+          "path": "06_SoftwareDocu/09_CLI_Reference.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "762e5eec80f30a5fb473ce32078624d281b000f83ed7fbac6ebf5c4f3990aa3c"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "70d77c919e90d419d1f01e82b973385340471b8910e4b0c41fb134db851d7a89"
+          },
+          "path": "AGENTS.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "bb9822a5a7b432fc0de68114800c637100ba7c79e3d209fbcd1ed59f9b2f3c6e"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "571fc217b1535013132cf24bb8f5131b0247cd942ca3144383553585acce2d2c"
+          },
+          "path": "CHANGELOG.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "09ea95c802c322629462dde170a08ee4d97110430c0d414ec7beb719e4f31ea9"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8451d4b825828b83938ae90c4abcc67d629327fed0e5f3f74c52198a4f231eea"
+          },
+          "path": "CLAUDE.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "f8205b6221d7e2003bcf4de609dd38b7dd8072957df4ab4553c2f995ac4d75bf"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "089e848437c968d6e9ffb217b023ee05aae7799ff9d8e788f81f8bbad42d3851"
+          },
+          "path": "QWEN.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 0,
+            "modified": 8,
+            "removed": 0,
+            "unchanged": 41
+          },
+          "source": {
+            "added": 0,
+            "modified": 11,
+            "removed": 0,
+            "unchanged": 6
+          },
+          "tests": {
+            "added": 0,
+            "modified": 2,
+            "removed": 0,
+            "unchanged": 4
+          }
+        },
+        "status": {
+          "added": 0,
+          "modified": 21,
+          "removed": 0,
+          "unchanged": 51
+        }
+      },
+      "current_head": "17cc3effc765d6b85c1bf55fbcd23be8f9ef513e",
+      "evolution_stage": "build",
+      "evolved_at": "2026-08-28T10:25:08.543040Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-783dc269"
+}

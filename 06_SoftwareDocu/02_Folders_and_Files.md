@@ -138,6 +138,15 @@ twin in the conversation: the agent states it at the same moment as one
 written; the notice does not replace it. It exists because a journal is
 read afterwards, and by then the human has already paid for not knowing.
 
+A journal can also contain one replaceable `## Stage report` section with
+plain one-line `stage`, `result`, `current`, `changed`, `evidence`, `issues`,
+`next`, and `needs_user` fields. `summary TASK-<id>` reads it without writing.
+The report's stage can be completed while the header already names the next
+stage; `current` binds the report to that header. Blank, stale, or shortened
+information is explicit, never treated as success. The full log remains the
+append-only history; the latest report is not independent or fresh proof.
+See the CLI reference for allowed values and output limits.
+
 Each task can also own two schema-1 JSON sidecars:
 
 - `TASK-<id>.anchor.json` is the active pre-implementation baseline. It stores
@@ -203,6 +212,7 @@ and called a finding when it sits inside your configured source or test globs.
 | `[commands] <anything>` | More named commands (lint, build...); `check --run` executes them all. |
 | `[commands] timeout` | Seconds allowed per command (default 1800). |
 | `[layout] source / tests` | Globs that tell the heuristics what is code and what is test. |
+| `[layout] docs` | Optional documentation globs accepted by the layout check; still secret-scanned, not counted as code, tests, or stage write zones. |
 | `[zones] <stage>` | What that stage may write besides `.agentic/` — `"source"`, `"tests"`, or nothing. Omit a stage to leave it unconstrained. |
 | `[check] ignore` | Globs excluded from every check. |
 | `[check] secret_patterns_extra` | Extra regexes for the secret scan. |

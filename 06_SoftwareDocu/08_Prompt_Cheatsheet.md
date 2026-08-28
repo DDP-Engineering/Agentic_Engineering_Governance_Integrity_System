@@ -93,6 +93,24 @@ anomaly, while it is still cheap to say something.
 scope, exact red command and exit, pre-implementation `anchor`, final
 `evolution`, findings, validation evidence, and report.
 
+## Resume with limited context
+
+```text
+Read .agentic/AGENTS.md. Continue TASK-<id> using the current stage file.
+Start with python .agentic/aegis.py summary TASK-<id>, then read the header,
+checklist, relevant decisions, unresolved issues, and required evidence.
+Record and show the stage report. Stop after this stage.
+Do not commit or push.
+```
+
+This explicitly bounds the session to one stage; it does not change ordinary
+checkpoint or autopilot behavior. Load source and linked requirements as
+needed. A missing/stale snapshot or shortened output requires the full journal
+information before acting, and required full validation/delivery reads are
+never skipped. `summary` does not run checks or prove the recorded claims.
+These prompts reduce unnecessary context but require evaluation on the actual
+local model to establish reliable compliance at a chosen context limit.
+
 ## Work on a quick fix
 
 ```

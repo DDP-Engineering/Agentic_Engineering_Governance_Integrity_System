@@ -29,7 +29,7 @@ separate products; Light is not an upgrade path.
 Anything that can read a file and run a shell command: Claude Code,
 Codex CLI, Qwen Code, OpenCode, or a bare local-model harness. The
 workflow is deliberately sized so one stage of one task fits a
-32k-context local model (Qwen3-27B, gpt-oss-20B class): the docs an
+64K-context local model (Qwen3.8-27B, gpt-oss-20B class): the docs an
 agent must read for one step total under ~9k tokens. A common split:
 frontier model for frame/specify/design, local model for build, and either for
 validate/deliver.
@@ -39,8 +39,10 @@ Yes — that is the core mechanic, not a feature. The journal
 (`.agentic/tasks/TASK-<id>.md`) is the only run state and it is
 committed. On another machine: push the branch from the old machine,
 then `git fetch`, check out the task branch the journal records, run
-`python .agentic/aegis.py status`, open the stage's step file, and
-continue at the first unticked checklist item.
+`python .agentic/aegis.py summary TASK-<id>`, then `status`, open the
+stage's step file, and continue at the first unticked checklist item. The
+summary is a bounded handoff view; read the journal whenever it points to
+missing, stale, shortened, or unresolved information.
 
 ## Does it work without git?
 Yes, degraded: the six diff-based checks report one NOTE line each and

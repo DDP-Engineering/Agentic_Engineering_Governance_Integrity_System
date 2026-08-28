@@ -69,7 +69,7 @@ Useful properties:
 - **Parallelize.** Colleagues on other branches/PCs each take a
   component; one file per requirement keeps the merges clean.
 - **Small models welcome.** One component per session is sized for a
-  32k-context local model.
+  64K-context local model.
 - **Batch if you like:** "autopilot: adopt the next 3 components, then
   stop and summarize."
 

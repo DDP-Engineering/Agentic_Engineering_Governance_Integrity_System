@@ -136,6 +136,17 @@ the agent reruns `evolution` first so the saved report matches the final
 candidate. Once it is current, `stage: deliver` means "validated, not yet
 published."
 
+Before pausing or handing the task to another agent, record the latest stage
+report in the journal and show the compact view:
+
+```bash
+python .agentic/aegis.py summary TASK-8b12
+```
+
+For this transition, the report records `stage: validate`, `result: completed`,
+and `current: deliver`. The command reads those recorded facts only; it does
+not repeat validation, grant delivery approval, or update the journal.
+
 ## Stage 6 - deliver
 
 Then the **delivery checkpoint** - the agent shows you the validation evidence
