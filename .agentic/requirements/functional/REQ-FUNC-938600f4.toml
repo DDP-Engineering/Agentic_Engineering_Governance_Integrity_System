@@ -49,7 +49,7 @@ When an operator creates a task, the CLI shall write a uniquely identified journ
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Run the linked task tests and inspect the generated journal header, template shape, unique identifier, branch, date, and base commit fields."
+verification = "Run the linked task tests and inspect ordinary top-level journal creation for template shape, unique identifier, task type, branch, date, base commit, and a blank optional parent field."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -64,6 +64,7 @@ linked_tests = [
     "05_Software/aegis/tests/test_cli_core.py::test_task_then_status_round_trip",
     "05_Software/aegis/tests/test_cli_core.py::test_task_records_the_commit_it_started_from",
     "05_Software/aegis/tests/test_cli_core.py::test_task_keeps_the_template_structure",
+    "05_Software/aegis/tests/test_cli_core.py::test_task_without_parent_remains_a_top_level_task",
 ]
 
 # --- optional below this line ---
@@ -75,4 +76,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-08-31

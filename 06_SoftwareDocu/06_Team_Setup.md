@@ -114,3 +114,11 @@ minimal Gitea/GitHub-style step:
   the delivery stop.
 - **Upgrades are one person's PR**: copy the new payload over, everyone
   reviews the diff like any other change.
+- **Child visibility is local**: the parent lists only child journals in its
+  checkout. Push or merge a child only with explicit Git authority, then
+  validate the combined candidate in the parent.
+- **Commit journals with approved work**: code without its child journal,
+  Rulings, and refreshed Handoff is not a transferable governed task.
+- **Resume from durable state**: run `brief TASK-<id>`, read the current step
+  and Handoff `must_read` paths, then inspect the full journal where required.
+  A Handoff coordinates work; it never authorizes a push, merge, or release.

@@ -190,5 +190,26 @@ mid-task (any stage, any reason):
 python .agentic/aegis.py status
 ```
 
-names the open task and its stage; the next session — tomorrow, another
-PC, another model — continues from the first unticked checklist item.
+names the open task and its stage; the next session - tomorrow, another
+PC, another model - continues from the first unticked checklist item.
+
+## Larger feature with two children and one review fix
+
+Suppose a parent owns an export workflow while two non-overlapping branches
+implement the encoder and UI. Each branch creates an ordinary child task:
+
+```text
+python .agentic/aegis.py task "Build export encoder" --parent TASK-a100
+python .agentic/aegis.py task "Add export controls" --parent TASK-a100
+```
+
+Each child completes its own requirements, red/green loop, validation, and
+checkpoint. Once both branches are visible in the parent checkout, the parent
+validates the integrated candidate; child suites are not integration proof.
+
+With review enabled, round 1 may record specification compliance approved and
+implementation quality changes required. Append the finding, clear both
+verdicts while fixing only that defect, rerun focused proof, and ask both review
+questions again in round 2. Only two approvals for the unchanged integrated
+candidate allow the existing delivery checkpoint. The default two-fix policy
+still has a finite third and final round.

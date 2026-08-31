@@ -39,11 +39,18 @@ define durable artifact formats.
   without adding approval gates or deferring deviation notices.
 - `REQ-UX-94a33d75` - Resume from compact reporting and relevant durable
   records while preserving required full reads and unresolved issues.
+- `REQ-FUNC-3bc8597c` - Keep optional child work one level deep, independently
+  governed, and integrated by its visible parent candidate.
+- `REQ-FUNC-e55c43d1` - Start re-entry with a deterministic bounded brief.
+- `REQ-FUNC-9514e017` - Record two optional independent review verdicts.
+- `REQ-FUNC-cbff6478` - Bound fix and re-review cycles before human escalation.
+- `REQ-FUNC-7ea14fe4` - Preserve append-only rulings and a replaceable handoff.
 
-Every stage file includes reporting and resume reminders. The task template
-provides blank plain fields for the latest report alongside the append-only
-log. Explicit one-stage prompts end the session after recording the outcome;
-normal checkpoint/autopilot flows retain their existing approval rules.
+Every stage file includes brief-first resume, report, ruling, and handoff
+reminders. The task template provides compatible parent and review fields,
+append-only rulings, one replaceable handoff, and a replaceable latest report
+beside the append-only log. Explicit one-stage prompts end after recording the
+outcome; normal checkpoint/autopilot flows retain their approval rules.
 
 ## Files
 
@@ -57,3 +64,23 @@ normal checkpoint/autopilot flows retain their existing approval rules.
 - `05_Software/aegis/template/.agentic/LICENSE.txt` - Payload license.
 - `05_Software/aegis/tests/test_structure.py` - Payload invariants and
   structural regression tests.
+
+## Architecture
+
+The payload keeps one six-stage workflow. Optional children are ordinary
+one-level tasks, while durable rulings, a current handoff, and optional bounded
+review state enrich the existing journal without adding a stage or service.
+
+```mermaid
+flowchart TD
+    parent[parent task] --> childA[optional child task]
+    parent --> childB[optional child task]
+    childA --> integrated[parent integrated validation]
+    childB --> integrated
+    journal[(journal)] --> rulings[append-only rulings]
+    journal --> handoff[replaceable handoff]
+    journal --> report[stage report]
+    policy[review policy] --> review[two verdicts + bounded fix loop]
+    integrated --> review
+    review --> checkpoint[existing delivery checkpoint]
+```

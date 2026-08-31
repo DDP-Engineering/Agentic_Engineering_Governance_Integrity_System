@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When an agent resumes a stage with limited context, the workflow instructions shall direct it to retrieve the compact task summary and relevant durable records without relying on earlier conversation or silently omitting unresolved issues.
+When an agent resumes a stage with limited context, the workflow instructions shall direct it to retrieve the bounded task brief and relevant durable records without relying on earlier conversation or silently omitting unresolved issues.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When an agent resumes a stage with limited context, the workflow instructions sh
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspect and structurally test the payload stage-local reporting reminders, summary-first resume guidance, explicit instructions to read omitted details and required evidence, and one-stage-per-session prompts."
+verification = "Inspect and structurally test brief-first resume guidance, stage-local handoff and reporting reminders, explicit instructions to read omitted details and required evidence, and full-journal reads where the current stage requires them."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -66,7 +66,11 @@ affected_paths = [
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
 # these select the impacted regression set.
-linked_tests = ["05_Software/aegis/tests/test_structure.py::test_resume_guidance_is_local_and_preserves_required_evidence"]
+linked_tests = [
+    "05_Software/aegis/tests/test_structure.py::test_resume_guidance_is_local_and_preserves_required_evidence",
+    "05_Software/aegis/tests/test_structure.py::test_small_model_prompts_start_with_brief_then_required_files",
+    "05_Software/aegis/tests/test_structure.py::test_resume_starts_with_brief_but_requires_current_stage_sources",
+]
 
 # --- optional below this line ---
 
@@ -77,4 +81,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-28
-updated = 2026-08-28
+updated = 2026-08-31

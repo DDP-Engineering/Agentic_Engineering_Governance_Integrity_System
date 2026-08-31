@@ -20,11 +20,14 @@ access the network.
 ## Public interface
 
 `python .agentic/aegis.py init` completes installation of a copied payload.
-`task` creates a feature, fix, change, or adoption journal. `req` creates a
+`task` creates a feature, fix, change, or adoption journal and can attach one
+level of optional child task. `req` creates a
 categorized requirement scaffold. `status` lists open journals or displays one
 journal by its full or short identifier. `summary` prints a compact recorded
 stage view using the same journal lookup plus a strict optional-section
 parser; it does not call Git, load configuration, or execute commands.
+`brief` adds a deterministic bounded durable re-entry view from the journal,
+review policy, rulings, handoff, and child journals visible in the checkout.
 
 ## Key behaviors
 
@@ -39,6 +42,12 @@ parser; it does not call Git, load configuration, or execute commands.
 
 - `REQ-FUNC-1844e18d` - Render bounded stage snapshots from explicit records,
   preserving missing/stale state and exposing any omitted detail.
+- `REQ-FUNC-3bc8597c` - Relate an optional one-level child without mutating its
+  parent or claiming visibility beyond the checkout.
+- `REQ-FUNC-e55c43d1` - Render a deterministic bounded resume brief without
+  commands, Git reads, writes, or inferred approval.
+- `REQ-FUNC-7ea14fe4` - Parse durable rulings and stage-bound handoff state for
+  compatible journal re-entry.
 
 The optional Stage report is agent-authored, not fresh proof. Stage and result
 refer to the reported work, Current comes from the header, and a mismatched
@@ -62,15 +71,27 @@ unchanged.
 
 ## Architecture
 
-The summary composes the shared journal lookup with a dedicated optional-record
-parser; the renderer reads no repository configuration or command output.
+Summary and brief compose the shared journal lookup with focused durable-record
+parsers. Brief additionally reads workspace review policy and visible journals,
+but neither renderer executes configured commands or reads live Git state.
 
 ```mermaid
 flowchart LR
     status[status] --> read[read_journal]
+    task[task --parent] --> read
     summary[summary] --> read
+    brief[brief] --> read
     summary --> record[parse_stage_report]
+    brief --> record
+    brief --> rulings[parse_rulings]
+    brief --> handoff[parse_handoff]
+    brief --> children[visible_children]
+    brief --> cfg[review_settings]
     record --> journal[(task journal)]
+    rulings --> journal
+    handoff --> journal
+    children --> journals[(visible journals)]
     read --> journal
     summary --> output[bounded recorded summary]
+    brief --> resume[bounded durable brief]
 ```

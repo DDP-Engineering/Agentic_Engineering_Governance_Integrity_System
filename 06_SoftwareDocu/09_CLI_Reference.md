@@ -34,6 +34,7 @@ network.
 | `anchor` | Fingerprint Git-visible repository files for a task. | After the expected red failure and before implementation. |
 | `evolution` | Compare the repository with its active task anchor. | After implementation and after any later validation edit. |
 | `status` | List open tasks or inspect one journal. | Before starting or resuming work, and whenever the next step is unclear. |
+| `brief` | Print a deterministic bounded resume view from durable files. | First when resuming, especially with a small-context model. |
 | `check` | Run the heuristic governance catalog. | During work for feedback; with `--strict --run` at the validation or CI boundary. |
 | `test` | Run a command configured in `.agentic/aegis.toml`. | During build and validation, optionally recording the result in a journal. |
 | `summary` | Print a compact recorded stage snapshot without writes. | Before resuming and after recording a stage completion or pause. |
@@ -112,7 +113,7 @@ optional `[check]` settings describe the repository.
 ## `task`
 
 ```text
-python .agentic/aegis.py task "<title>" [--type {feature,fix,change,adopt}]
+python .agentic/aegis.py task "<title>" [--type {feature,fix,change,adopt}] [--parent TASK-<id>]
 ```
 
 **Description:** Create `.agentic/tasks/TASK-<id>.md` from the task
@@ -142,6 +143,12 @@ python .agentic/aegis.py task "Adopt inventory service" --type adopt
 
 The CLI creates the journal but does not advance its stage. Follow the
 relevant step file and edit the journal as instructed.
+
+`--parent` creates only a child-side link to an existing top-level task.
+Nested children are rejected, the parent journal is unchanged, and every child
+keeps independent branch/base, requirements, validation, and delivery state.
+Reverse lookup reports children visible in the current checkout only. Parent
+validation owns the integrated candidate.
 
 ## `anchor`
 
@@ -261,7 +268,8 @@ python .agentic/aegis.py summary <TASK-id|id>
 **Description:** Print a compact recorded stage snapshot without writing files,
 running checks/tests, consulting Git, or changing workflow state. Existing
 `status` output and JSON are unchanged; `report` remains the journal-writing
-delivery command. Use `summary` before resuming or after updating a stage report.
+delivery command. Use `summary` after updating a stage report; use `brief` first
+when resuming.
 
 The journal may contain one optional `## Stage report` section with plain
 one-line fields (no bullets or code fences inside the actual section):
@@ -285,7 +293,8 @@ blank values print `not recorded`. Keep evidence and decisions in the
 append-only log as well; replace only this latest-view section.
 
 Output fields, in order: **Stage, Task, Current, Requirements, Changed,
-Evidence, Issues, Next, Needs user, Details**. Stage combines the reported
+Evidence, Issues, Next, Needs user, Spec compliance, Implementation quality,
+Review round, Details**. Stage combines the reported
 stage and result; Current and Requirements come from the journal header.
 Details points to the full journal. Each value is at most 240 characters,
 including a visible `[truncated; read journal]` marker for omitted detail.
@@ -305,6 +314,51 @@ A matching stage cannot detect subsequent source edits: refresh the record
 after new work, evidence, deviations, or decisions even within one stage.
 Read omitted details and unresolved issues before acting. Normal checkpoints,
 full validation/delivery reads, and immediate deviation notices still apply.
+
+## `brief`
+
+```text
+python .agentic/aegis.py brief <TASK-id|id>
+```
+
+`brief` is a read-only deterministic resume view built only from durable
+workspace files. It never calls Git, runs commands, writes state, advances a
+stage, or infers approval. Its fixed order is Task, Stage, Branch/base, Parent,
+Requirements, Checklist, Stage report, Review, Active rulings, Handoff,
+Visible children, and Details. Scalars are limited to 240 characters, active
+rulings to eight, and visible children to twenty, with explicit omission and
+stale-data markers. Two calls against unchanged files are byte-identical.
+
+Resume with `brief`, then read the current step and handoff `must_read` paths.
+Use `summary` for the latest bound stage-report projection and the full journal
+for complete history and evidence.
+
+## Coordinated workflow records
+
+Optional child links, Rulings, Handoff, and review fields are backward
+compatible. Rulings use this append-only form:
+
+```text
+- RULING-001 | date=2026-08-31 | decision=<decision> | reason=<reason> | source=user | supersedes=none
+```
+
+`source` is `user`, `repository`, `requirement`, or `technical`. Supersession appends a new ruling;
+it never rewrites history or expands authority. Handoff is one replaceable
+stage-bound block with `current`, `next`, `must_read`, `blockers`, and a
+`ready`, `waiting`, or `blocked` status.
+
+```toml
+[review]
+enabled = false
+max_fix_cycles = 2
+```
+
+Review is optional; validation and delivery approval are not. When enabled,
+`spec_compliance` and `implementation_quality` are independent current-
+candidate verdicts (`approved` or `changes_required`) and `review_round` is
+bounded by `1 + max_fix_cycles`. Any candidate change invalidates both
+verdicts. Exhaustion blocks with `needs_user: yes`. `max_fix_cycles` accepts
+integers 0 through 5; invalid types or values warn and fail safe.
 
 ## `check`
 
@@ -471,7 +525,8 @@ python .agentic/aegis.py report <TASK-id|id>
 
 **Description:** Append a dated delivery report to a task journal. The report
 records the journal state, linked requirement titles, diff size, check counts,
-and checklist completion. Repeated runs append new reports; they do not replace
+checklist completion, review policy, and bound current verdicts. Missing,
+malformed, or stale verdict evidence is never approval. Repeated runs do not replace
 history.
 
 **When to use:** In the delivery stage after validation evidence is final and
@@ -592,7 +647,7 @@ python .agentic/aegis.py explain C:\repo\src\export\m3u.py
 
 | Situation | Exit behavior |
 |---|---|
-| `init`, `task`, `req`, `anchor`, `evolution`, `status`, `summary`, `report`, `diagram`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
+| `init`, `task`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `report`, `diagram`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
 | Usage, missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
 | Plain `check` finds errors or warnings | Exit 0; it remains advisory. |
 | `check --strict` finds a strict failure | Exit 1. |

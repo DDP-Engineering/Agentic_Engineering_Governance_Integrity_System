@@ -29,6 +29,9 @@ evidence: format check exit 0; tests not run at this stage
 issues: none recorded
 next: follow 3_design.md
 needs_user: no
+spec_compliance: approved
+implementation_quality: approved
+review_round: 2
 ```
 
 `stage` identifies what is being reported; `current` binds the snapshot to
@@ -38,12 +41,17 @@ Other fields are explicit agent-authored observations, not independent proof.
 Blank fields print `not recorded`. The section is a replaceable latest view;
 decisions, evidence, and transitions remain append-only in `## Log`.
 Blank scaffold fields are valid and never claim the frame is complete.
+The three review fields are optional compatibility additions. Verdicts accept
+only `approved`, `changes_required`, or `disabled`; a nonblank round is a
+decimal integer from 1 through 6. Enabled-review approval remains valid only
+while the stage binding and candidate are current.
 
 ## Safety and output
 
 Output order is Stage, Task, Current, Requirements, Changed, Evidence, Issues,
-Next, Needs user, Details. Stage combines recorded stage and result. Current
-always comes from the journal header; Requirements comes from that header.
+Next, Needs user, Specification compliance, Implementation quality, Review
+round, Details. Stage combines recorded stage and result. Current always comes
+from the journal header; Requirements comes from that header.
 Details points to the full journal and identifies the view as recorded state.
 Missing records, missing stage/current bindings, or a current-stage mismatch
 produce explicit missing/incomplete/stale notices, suppress the record's
@@ -66,7 +74,8 @@ bounded in characters, not a guarantee about any model's tokenizer.
 
 Extend existing copied-payload CLI tests for complete, partial, missing,
 stale, malformed and duplicate records, adoption and quick-path transitions,
-single-stage pauses, bounded output, unknown task rejection, and read-only
-operation without Git/configuration/subprocess dependencies.
+single-stage pauses, independent review values, bounded output, unknown task
+rejection, and read-only operation without Git/configuration/subprocess
+dependencies.
 Model obedience and actual 64K-context performance require separate runs
 with the user's model; deterministic CLI tests do not establish either.

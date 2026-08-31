@@ -67,6 +67,7 @@ linked_tests = [
     "05_Software/aegis/tests/test_structure.py::test_no_nested_quote_fstrings_python_311_promise",
     "05_Software/aegis/tests/test_structure.py::test_aegis_py_imports_only_the_standard_library",
     "05_Software/aegis/tests/test_structure.py::test_every_payload_file_carries_the_license_header",
+    "05_Software/aegis/tests/test_structure.py::test_six_stage_workflow_and_two_checkpoints_are_unchanged",
 ]
 
 # --- optional below this line ---
@@ -78,4 +79,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-08-31

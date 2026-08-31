@@ -92,6 +92,16 @@ fix you keep a journal with the red-test evidence, a compact repository-change
 report, and the delivery report. That's the point of the quick path —
 proportional ceremony, never zero ceremony.
 
+## Review policy for a small fix
+
+A quick fix normally has no child tasks. With the default
+`[review] enabled = false`, it still performs semantic review, focused and full
+validation, the strict check, and the delivery checkpoint; only the two
+explicit verdicts and their fix loop are skipped. A team that wants one
+explicit review with no autonomous retry can set `enabled = true` and
+`max_fix_cycles = 0`: any `changes_required` verdict immediately blocks for a
+human instead of turning the quick path into an unbounded repair loop.
+
 ## When *not* to use it
 
 New behavior, changed behavior, anything touching security or data

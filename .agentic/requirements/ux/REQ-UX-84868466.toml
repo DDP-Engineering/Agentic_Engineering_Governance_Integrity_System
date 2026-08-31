@@ -49,7 +49,7 @@ When a workflow stage completes or work pauses, the workflow instructions shall 
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspect the payload instructions and run structural tests for the common report fields, boundary timing, canonical stage names, unchanged checkpoint behavior, and immediate deviation notices."
+verification = "Inspect the payload instructions and run structural tests for common and optional review fields, boundary timing, current-stage binding, canonical stage names, unchanged checkpoint behavior, and immediate deviation notices."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -67,7 +67,11 @@ affected_paths = [
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
 # these select the impacted regression set.
-linked_tests = ["05_Software/aegis/tests/test_structure.py::test_stage_report_instructions_keep_boundaries_and_approval_rules"]
+linked_tests = [
+    "05_Software/aegis/tests/test_structure.py::test_stage_report_instructions_keep_boundaries_and_approval_rules",
+    "05_Software/aegis/tests/test_structure.py::test_every_pause_refreshes_stage_report_and_handoff",
+    "05_Software/aegis/tests/test_run_report.py::test_stage_report_accepts_independent_review_fields",
+]
 
 # --- optional below this line ---
 
@@ -78,4 +82,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-28
-updated = 2026-08-28
+updated = 2026-08-31

@@ -369,7 +369,8 @@ def stage_record(path: Path, **overrides: str) -> None:
     """@brief Append a complete reporting record to an existing fixture journal."""
     fields = {"stage": "specify", "result": "completed", "current": "design",
               "changed": "REQ-FUNC-1111 created", "evidence": "check exit 0; tests not run",
-              "issues": "none recorded", "next": "follow 3_design.md", "needs_user": "no"}
+              "issues": "none recorded", "next": "follow 3_design.md", "needs_user": "no",
+              "spec_compliance": "", "implementation_quality": "", "review_round": ""}
     fields.update(overrides)
     write(path, path.read_text(encoding="utf-8") + "\n## Stage report\n\n"
           + "\n".join(f"{key}: {value}" for key, value in fields.items()) + "\n")
@@ -379,6 +380,50 @@ def summary_fields(out: str) -> dict[str, str]:
     """@brief Decode the human-readable summary without depending on padding."""
     return {key: value.strip() for key, value in
             (line.split(":", 1) for line in out.splitlines())}
+
+
+def test_stage_report_accepts_independent_review_fields(tmp_path):
+    """REQ-FUNC-9514e017: the two verdicts and round parse independently."""
+    _, aegis = make_repo(tmp_path)
+    text = """## Stage report
+
+stage: validate
+result: completed
+current: deliver
+spec_compliance: approved
+implementation_quality: changes_required
+review_round: 3
+"""
+    record = aegis.parse_stage_report(text)
+    assert record["spec_compliance"] == "approved"
+    assert record["implementation_quality"] == "changes_required"
+    assert record["review_round"] == "3"
+
+
+@pytest.mark.parametrize("field", [
+    "spec_compliance: maybe", "implementation_quality: passed",
+    "review_round: 0", "review_round: 7", "review_round: two",
+])
+def test_stage_report_rejects_invalid_verdicts_and_review_rounds(tmp_path, field):
+    """REQ-FUNC-9514e017: malformed enabled-review evidence is never approval."""
+    _, aegis = make_repo(tmp_path)
+    with pytest.raises(aegis.UserError):
+        aegis.parse_stage_report("## Stage report\n\n" + field + "\n")
+
+
+def test_bound_stage_report_rejects_stale_current_binding(tmp_path):
+    """REQ-FUNC-1844e18d: one helper owns current-stage freshness."""
+    _, aegis = make_repo(tmp_path)
+    text = """## Stage report
+
+stage: specify
+result: completed
+current: design
+evidence: check exit 0
+"""
+    record, notice = aegis.bound_stage_report(text, "build")
+    assert record == {}
+    assert notice == "stale stage report: current stage changed; refresh from journal"
 
 
 def test_summary_reads_recorded_facts_without_side_effects(tmp_path, monkeypatch, capsys):
@@ -399,7 +444,9 @@ def test_summary_reads_recorded_facts_without_side_effects(tmp_path, monkeypatch
     assert code == 0
     fields = summary_fields(out)
     assert list(fields) == ["Stage", "Task", "Current", "Requirements", "Changed",
-                            "Evidence", "Issues", "Next", "Needs user", "Details"]
+                            "Evidence", "Issues", "Next", "Needs user",
+                            "Specification compliance", "Implementation quality",
+                            "Review round", "Details"]
     assert fields["Stage"] == "specify - completed"
     assert fields["Current"] == "design"
     assert fields["Task"] == "TASK-ab12"
@@ -411,6 +458,41 @@ def test_summary_reads_recorded_facts_without_side_effects(tmp_path, monkeypatch
     assert snapshot(tmp_path) == before
     _code, status_after = run(aegis, capsys, "status", "ab12", "--json")
     assert status_after == status_before
+
+
+def test_summary_displays_independent_verdicts_and_review_round(tmp_path, capsys):
+    """REQ-FUNC-9514e017: summary projects each recorded review fact separately."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="deliver")
+    stage_record(path, stage="validate", current="deliver", result="completed",
+                 spec_compliance="approved", implementation_quality="changes_required",
+                 review_round="2")
+    code, out = run(aegis, capsys, "summary", path.stem)
+    assert code == 0
+    fields = summary_fields(out)
+    assert fields["Specification compliance"] == "approved"
+    assert fields["Implementation quality"] == "changes_required"
+    assert fields["Review round"] == "2"
+
+
+def test_summary_legacy_record_displays_not_recorded(tmp_path, capsys):
+    """REQ-FUNC-9514e017: omitted review fields never imply approval."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="build")
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Stage report
+
+stage: build
+result: in_progress
+current: build
+""")
+    code, out = run(aegis, capsys, "summary", path.stem)
+    fields = summary_fields(out)
+    assert code == 0
+    assert fields["Specification compliance"] == "not recorded"
+    assert fields["Implementation quality"] == "not recorded"
+    assert fields["Review round"] == "not recorded"
 
 
 @pytest.mark.parametrize("reported,current,result", [
@@ -504,7 +586,7 @@ def test_summary_bounds_output_and_requires_review_of_omissions(tmp_path, capsys
     code, out = run(aegis, capsys, "summary", "ab12")
     assert code == 0
     fields = summary_fields(out)
-    assert len(fields) == 10 and all(len(value) <= 240 for value in fields.values())
+    assert len(fields) == 13 and all(len(value) <= 240 for value in fields.values())
     assert "[truncated; read journal]" in fields["Issues"]
     assert "review" in fields["Needs user"] and "truncated" in fields["Needs user"]
     assert "old log entry" not in out
@@ -518,7 +600,7 @@ def test_summary_does_not_emit_terminal_control_characters(tmp_path, capsys):
     stage_record(path, changed="hello\tworld\x1b[2J")
     code, out = run(aegis, capsys, "summary", "ab12")
     assert code == 0
-    assert "\x1b" not in out and "\t" not in out and len(out.splitlines()) == 10
+    assert "\x1b" not in out and "\t" not in out and len(out.splitlines()) == 13
 
 
 def test_summary_rejects_unknown_task(tmp_path, capsys):
@@ -605,6 +687,185 @@ def test_summary_literal_comment_markers_do_not_hide_live_report(tmp_path, capsy
     assert summary_fields(out)["Stage"] == "specify - completed"
 
 
+# TESTS - deterministic bounded task brief
+
+
+def write_brief_fixture(agentic: Path) -> Path:
+    """@brief Write one representative current journal plus a visible child."""
+    path = write_task(
+        agentic, "TASK-ab12", stage="validate", reqs="REQ-FUNC-1111",
+        checklist="- [x] build candidate\n- [ ] review candidate",
+    )
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=Old | reason=Replaced | source=user | supersedes=none
+- RULING-002 | date=2026-08-31 | decision=Use brief | reason=bounded | source=technical | supersedes=RULING-001
+
+## Handoff
+
+current: validate
+status: ready
+next: review candidate
+must_read: .agentic/steps/5_validate.md
+blockers:
+
+## Stage report
+
+stage: validate
+result: in_progress
+current: validate
+changed: candidate
+evidence: tests passed
+issues: none
+next: review
+needs_user: no
+spec_compliance:
+implementation_quality:
+review_round:
+""")
+    write_task(agentic, "TASK-bb22", stage="done", parent="TASK-ab12")
+    return path
+
+
+def test_brief_has_fixed_section_order_and_no_side_effects(tmp_path, monkeypatch, capsys):
+    """REQ-FUNC-e55c43d1: one exact durable snapshot defines the public format."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    path = write_brief_fixture(agentic)
+    before = snapshot(tmp_path)
+
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("brief must not run Git, configured commands, or subprocesses")
+
+    monkeypatch.setattr(aegis, "run_git", unexpected)
+    monkeypatch.setattr(aegis.subprocess, "run", unexpected)
+    code, out = run(aegis, capsys, "brief", "ab12")
+    assert code == 0
+    assert out == """AEGIS brief
+Task: TASK-ab12 - a task
+Stage: validate
+Branch/base: feature @ not recorded
+Parent: none
+Requirements: REQ-FUNC-1111
+Checklist: 1/2 done; next=review candidate
+Stage report: validate - in_progress; changed=candidate; evidence=tests passed; issues=none; next=review; needs_user=no
+Review: policy=disabled; max_fix_cycles=2; spec=not recorded; quality=not recorded; round=not recorded
+Active rulings:
+- RULING-002 | decision=Use brief | reason=bounded | source=technical | supersedes=RULING-001
+Handoff: ready; current=validate; next=review candidate; must_read=.agentic/steps/5_validate.md; blockers=not recorded
+Visible children:
+- TASK-bb22 | stage=done | title=a task
+Details: .agentic/tasks/TASK-ab12.md (durable snapshot; read journal for full history)
+"""
+    assert path.read_bytes() == (agentic / "tasks" / "TASK-ab12.md").read_bytes()
+    assert snapshot(tmp_path) == before
+
+
+def test_brief_reads_only_durable_workspace_files(tmp_path, monkeypatch, capsys):
+    """REQ-FUNC-e55c43d1: the resume view has no live-state dependency."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write_brief_fixture(agentic)
+    for name in ("git_branch", "git_head", "collect_diff", "run_configured_commands"):
+        monkeypatch.setattr(aegis, name, lambda *_a, _name=name, **_k: pytest.fail(_name))
+    code, out = run(aegis, capsys, "brief", "TASK-ab12")
+    assert code == 0 and out.startswith("AEGIS brief\n")
+
+
+def test_brief_renders_legacy_journal_without_guessing(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: missing additive records stay explicit."""
+    agentic, aegis = make_repo(tmp_path)
+    write(agentic / "tasks" / "TASK-ab12.md", """# TASK-ab12 - legacy
+
+stage: build
+type: feature
+requirements:
+branch: feature
+base:
+opened: 2026-08-31
+
+## Done checklist (current stage)
+
+- [ ] continue
+
+## Log
+
+- legacy
+""")
+    code, out = run(aegis, capsys, "brief", "ab12")
+    assert code == 0
+    assert "Parent: none" in out
+    assert "Stage report: not recorded" in out
+    assert "Active rulings:\n- none recorded" in out
+    assert "Handoff: not recorded" in out
+    assert "Visible children:\n- none visible" in out
+    assert "approved" not in out
+
+
+def test_brief_lists_active_rulings_and_sorted_visible_children(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: durable collections use contract-defined order."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_brief_fixture(agentic)
+    write_task(agentic, "TASK-aa11", stage="build", parent="TASK-ab12")
+    code, out = run(aegis, capsys, "brief", path.stem)
+    assert code == 0 and "- RULING-001 | decision=" not in out and "RULING-002" in out
+    assert out.index("TASK-aa11 |") < out.index("TASK-bb22 |")
+
+
+def test_brief_marks_stale_stage_report_and_handoff(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: stale bindings cannot be resume authority."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_brief_fixture(agentic)
+    text = path.read_text(encoding="utf-8").replace("current: validate", "current: build")
+    write(path, text)
+    code, out = run(aegis, capsys, "brief", path.stem)
+    assert code == 0
+    assert "Stage report: stale stage report" in out
+    assert "Handoff: stale handoff: current stage changed" in out
+    assert "tests passed" not in out
+
+
+def test_brief_bounds_scalars_rulings_children_and_control_characters(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: every unshown value is visibly accounted for."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_task(agentic, "TASK-ab12", stage="build", reqs="REQ-FUNC-1111 " * 100)
+    rulings = "\n".join(
+        f"- RULING-{n:03d} | date=2026-08-31 | decision={'x' * 400}\x1b | "
+        f"reason=reason | source=technical | supersedes=none"
+        for n in range(1, 11)
+    )
+    write(path, path.read_text(encoding="utf-8") + f"\n## Rulings\n\n{rulings}\n")
+    for n in range(25):
+        write_task(agentic, f"TASK-{n + 256:04x}", parent="TASK-ab12")
+    code, out = run(aegis, capsys, "brief", path.stem)
+    assert code == 0
+    assert "\x1b" not in out and "...[2 omitted; read journal]" in out
+    assert "...[5 omitted; read journal]" in out
+    assert "[truncated; read journal]" in out
+    assert all(len(line) <= 260 for line in out.splitlines())
+
+
+def test_brief_output_is_byte_identical_across_two_runs(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: unchanged durable state yields identical UTF-8 text."""
+    agentic, aegis = make_repo(tmp_path)
+    write_brief_fixture(agentic)
+    first = run(aegis, capsys, "brief", "ab12")
+    second = run(aegis, capsys, "brief", "ab12")
+    assert first == second
+
+
+def test_brief_rejects_unknown_task_with_one_line_error(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: unknown tasks fail concisely without partial output."""
+    _agentic, aegis = make_repo(tmp_path)
+    capsys.readouterr()
+    assert aegis.main(["brief", "dead"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == "" and len(captured.err.splitlines()) == 1
+    assert captured.err.startswith("error: no such task journal")
+
+
 # TESTS - aegis report
 
 
@@ -639,6 +900,96 @@ def test_report_rejects_an_unknown_task(tmp_path, capsys):
     _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     assert run(aegis, capsys, "report", "TASK-dead")[0] == 1
+
+
+def test_report_labels_review_disabled_without_skipping_validation(tmp_path,
+                                                                    monkeypatch,
+                                                                    capsys):
+    """REQ-FUNC-9514e017: disabled explicit verdicts do not weaken validation."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    path = write_task(agentic, "TASK-ab12", stage="deliver")
+    stage_record(path, stage="validate", current="deliver", result="completed",
+                 spec_compliance="disabled", implementation_quality="disabled")
+    assert run(aegis, capsys, "report", path.stem)[0] == 0
+    text = path.read_text(encoding="utf-8")
+    assert "- explicit review: disabled; existing validation remains required" in text
+
+
+def test_report_records_enabled_approved_verdicts_from_bound_record(tmp_path,
+                                                                    monkeypatch,
+                                                                    capsys):
+    """REQ-FUNC-9514e017: report uses both current recorded approvals."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    config(agentic, 'test = "unused"', extra="[review]\nenabled = true\nmax_fix_cycles = 2")
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    path = write_task(agentic, "TASK-ab12", stage="deliver")
+    stage_record(path, stage="validate", current="deliver", result="completed",
+                 spec_compliance="approved", implementation_quality="approved",
+                 review_round="1")
+    assert run(aegis, capsys, "report", path.stem)[0] == 0
+    assert ("- explicit review: enabled; spec_compliance=approved; "
+            "implementation_quality=approved; review_round=1" in
+            path.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("mode", ["missing", "malformed", "stale"])
+def test_report_exposes_missing_malformed_or_stale_verdict_evidence(tmp_path,
+                                                                    monkeypatch,
+                                                                    capsys,
+                                                                    mode):
+    """REQ-FUNC-9514e017: unsafe review evidence is reported, never promoted."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    config(agentic, 'test = "unused"', extra="[review]\nenabled = true\nmax_fix_cycles = 2")
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    path = write_task(agentic, "TASK-ab12", stage="deliver")
+    if mode == "missing":
+        stage_record(path, stage="validate", current="deliver", result="completed")
+    elif mode == "malformed":
+        stage_record(path, stage="validate", current="deliver", result="completed",
+                     spec_compliance="maybe")
+    else:
+        stage_record(path, stage="validate", current="build", result="completed",
+                     spec_compliance="approved", implementation_quality="approved",
+                     review_round="1")
+    assert run(aegis, capsys, "report", path.stem)[0] == 0
+    report = path.read_text(encoding="utf-8").rsplit("## Delivery report", 1)[1]
+    assert "explicit review: enabled" in report
+    assert "approved; implementation_quality=approved" not in report
+    assert any(word in report for word in ("not recorded", "malformed", "stale"))
+
+
+def test_report_never_converts_missing_verdict_to_approval(tmp_path, monkeypatch, capsys):
+    """REQ-FUNC-9514e017: incomplete verdict pairs cannot read as approved."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    config(agentic, 'test = "unused"', extra="[review]\nenabled = true\nmax_fix_cycles = 2")
+    monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
+    path = write_task(agentic, "TASK-ab12", stage="deliver")
+    stage_record(path, stage="validate", current="deliver", result="completed",
+                 spec_compliance="approved", implementation_quality="", review_round="1")
+    assert run(aegis, capsys, "report", path.stem)[0] == 0
+    report = path.read_text(encoding="utf-8").rsplit("## Delivery report", 1)[1]
+    assert "implementation_quality=not recorded" in report
+
+
+def test_brief_combines_workspace_review_policy_with_recorded_verdicts(tmp_path, capsys):
+    """REQ-FUNC-9514e017: brief distinguishes policy from recorded evidence."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    config(agentic, 'test = "unused"', extra="[review]\nenabled = true\nmax_fix_cycles = 2")
+    path = write_brief_fixture(agentic)
+    text = path.read_text(encoding="utf-8").replace(
+        "spec_compliance:\nimplementation_quality:\nreview_round:",
+        "spec_compliance: approved\nimplementation_quality: changes_required\nreview_round: 2")
+    write(path, text)
+    code, out = run(aegis, capsys, "brief", path.stem)
+    assert code == 0
+    assert ("Review: policy=enabled; max_fix_cycles=2; spec=approved; "
+            "quality=changes_required; round=2" in out)
 
 
 # TESTS - review-hardening regressions

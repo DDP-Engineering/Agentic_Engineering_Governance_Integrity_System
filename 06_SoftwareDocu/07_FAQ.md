@@ -199,6 +199,33 @@ It's markdown and TOML in your repo. Deleting `.agentic/` is a complete
 uninstall; keeping just `requirements/` as documentation is also fine.
 There is nothing proprietary to migrate out of.
 
+## When should I create a child task?
+
+Use one only when a large parent contains a non-overlapping scope that can own
+its requirements, branch/base, tests, validation, and delivery independently.
+Do not split small or tightly coupled work. Children are opt-in and limited to
+one level. Parent integration sees only children visible in its checkout.
+
+## What is the difference between `brief` and `summary`?
+
+`brief` is the first bounded re-entry view: task identity, checklist, bound
+report, review policy, active rulings, handoff, and visible children. `summary`
+projects only the latest bound Stage report. Neither is approval or a substitute
+for the full journal and current step sources.
+
+## What happens when the review fix limit is reached?
+
+Total rounds are `1 + max_fix_cycles`. If either verdict still requires changes
+on the final round, delivery is blocked with `needs_user: yes`. Only an explicit
+human ruling that changes scope or policy can reset the counter.
+
+## How does a new agent resume safely?
+
+Run `brief TASK-<id>`, read the current step and Handoff `must_read` paths,
+confirm the branch matches the journal, then read the full journal wherever the
+stage requires it. Missing, stale, or omitted state means read more; it never
+means approval.
+
 ## Where do I report a gap between these docs and the behavior?
 The behavior is defined by the payload (`AGENTS.md`, the step files,
 `aegis.py --help`); these docs are the guided tour. If they disagree,

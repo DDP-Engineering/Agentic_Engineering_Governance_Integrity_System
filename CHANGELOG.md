@@ -11,6 +11,13 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-31
+
+### Added
+
+- Added optional one-level child tasks, deterministic bounded briefs, and durable rulings and handoffs for coordinated offline work.
+- Added optional independent review verdicts with configurable bounded fix and re-review cycles.
+
 ## [0.8.0] - 2026-08-28
 
 ### Added

@@ -2,165 +2,143 @@
 Copyright (c) 2026 DDP Engineering
 This software is licensed under the PolyForm Noncommercial License 1.0.0.
 Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+See the LICENSE.txt file for full license details.
+SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# 02 — Artifacts and formats
+# 02 - Artifacts and formats
 
-Everything is a plain file, committed on the branch. One artifact = one
-file. No run store, no evidence store, no schema versions beyond a single
-integer per format.
+AEGIS stores its durable state as ordinary UTF-8 Markdown, TOML, and JSON
+files in the repository. There is no database, service, or hidden evidence
+store.
 
-## Directory layout (in the adopting repo)
+## Installed layout and ownership
 
-```
+```text
 .agentic/
-  AGENTS.md                  # entry point (doc 01)
-  steps/                     # stage step files (doc 01)
-  aegis.py                   # companion CLI, single file (doc 03)
-  aegis.toml                 # small config (below)
-  requirements/
-    functional/REQ-FUNC-3fa2.toml
-    security/REQ-SEC-91c0.toml
-    ...                      # eight category folders, created on demand
-  specs/
-    REQ-FUNC-3fa2.md         # optional, referenced by the requirement
-  tasks/
-    TASK-8b12.md             # one journal per task; kept after delivery
-  knowledge/
-    export.md                # one plain page per component, no manifest
-  templates/
-    requirement.toml  spec.md  task.md  component.md
+  AGENTS.md, CLI.md, LICENSE.txt, aegis.py    managed payload
+  steps/                                      managed workflow instructions
+  templates/                                  managed artifact scaffolds
+  aegis.toml                                  repository-owned configuration
+  requirements/                               repository-owned durable contracts
+  specs/                                      repository-owned optional detail
+  tasks/                                      repository-owned journals and JSON evidence
+  knowledge/                                  repository-owned component pages
 ```
 
-## `aegis.toml` — the whole configuration
+Exactly 15 files are managed by the payload: `AGENTS.md`, `CLI.md`,
+`LICENSE.txt`, `aegis.py`, seven step files, and four templates. A payload
+upgrade replaces only those managed files. It preserves `aegis.toml`,
+requirements, specs, tasks, anchors, evolution reports, and knowledge pages.
+Run `python .agentic/aegis.py init` after a payload update to refresh the
+managed root digests in `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`.
 
-Deliberately tiny. No modes, no policy classes, no per-gate enforcement.
+## Configuration
+
+`aegis.toml` is written once by `init` and belongs to the repository
+thereafter. The implemented configuration surface is:
+
+| Section | Keys and behavior |
+|---|---|
+| `[commands]` | `test` is the full suite; `test_impacted` may use `{tests}`; any other plain name is available to `check --run`. `timeout` is the default per-command limit and `workdir` selects an application subdirectory. |
+| `[timeouts]` | Optional per-command limits overriding `[commands] timeout`. A timeout means the command proved nothing; it is not reported as a test failure. |
+| `[layout]` | `source`, `tests`, and optional `docs` globs drive traceability/layout checks. `default_branch` can select the diff base. |
+| `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 5 (default 2). |
+| `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
+| `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
+
+Example:
 
 ```toml
 schema = 1
 
-[commands]                # used by `aegis test` and `aegis check --run`
-test = "pytest -q"
-lint = "ruff check ."     # optional; any key here is just a named command
+[commands]
+test = "python -m pytest -q"
+test_impacted = "python -m pytest -q {tests}"
+lint = "python -m ruff check src"
+timeout = 1800
+
+[timeouts]
+test = 5400
 
 [layout]
-source = ["src/"]         # globs; used by traceability heuristics
-tests  = ["tests/"]
+source = ["src/"]
+tests = ["tests/"]
+docs = ["docs/", "README.md"]
 
-[check]                   # optional tuning of heuristics, all advisory
+[review]
+enabled = true
+max_fix_cycles = 2
+
+[check]
+ignore = []
 secret_patterns_extra = []
-ignore = ["**/fixtures/**"]
+strict_promote = ["no-linked-tests"]
 ```
 
-## Requirement format
+## Requirements and specifications
 
-TOML (stdlib-readable via `tomllib`), one file per requirement. Random
-hex-suffix IDs (decision D2) so parallel branches never collide:
-`REQ-<CAT>-<8 hex>` as implemented (examples below use short ids for
-readability). Categories keep the 2.x eight:
-FUNC, UX, NFR, SEC, DATA, PLAT, REL, TEST.
+One TOML requirement expresses one independently verifiable behavior:
 
 ```toml
 schema = 1
-id = "REQ-FUNC-3fa2"
+id = "REQ-FUNC-3fa2c1d4"
 title = "Export playlist as M3U"
-status = "active"            # draft | active | retired
-requirement = """
-One requirement = one independently verifiable behavior, written
-self-contained (no ticket numbers, no run IDs, no cross-references
-that need external context to understand).
-"""
-verification = "How a human or agent confirms this behavior holds."
+status = "active"
+requirement = "When an export is requested, the system shall write one M3U file."
+verification = "tests/export/test_m3u.py::test_export"
 affected_paths = ["src/export/m3u.py"]
-linked_tests   = ["tests/export/test_m3u.py::test_roundtrip"]
-spec = "specs/REQ-FUNC-3fa2.md"   # optional
-priority = "normal"               # optional: low | normal | high
-rationale = ""                    # optional
-created = 2026-08-02
-updated = 2026-08-02
+linked_tests = ["tests/export/test_m3u.py::test_export"]
+spec = "specs/REQ-FUNC-3fa2c1d4.md"
 ```
 
-Required: `schema, id, title, status, requirement, verification`.
-Everything else optional — `aegis check` warns on empty `linked_tests` for
-`active` requirements but nothing blocks. The self-contained-prose rule
-from 2.x is kept as a documented rule (and a heuristic: `check` flags
-ticket-pattern strings like `#123`, `JIRA-`, `TASK-` inside requirement
-prose).
+The required fields are `schema`, `id`, `title`, `status`,
+`requirement`, and `verification`. `affected_paths` and
+`linked_tests` power coverage and impacted-test selection. A verification
+starting with `Manual:` or `Inspection:` explicitly records a non-test
+method. `spec`, `priority`, `rationale`, `created`, and `updated`
+are optional.
 
-## Spec format
+Requirements live in their category folder and use the matching prefix:
+`FUNC`, `UX`, `NFR`, `SEC`, `DATA`, `PLAT`, `REL`, or `TEST`.
+Specs are optional Markdown detail used only when a requirement is not enough
+to implement safely.
 
-Free markdown, one file, recommended sections (template-provided, not
-validated): Behavior, Data/Interface, Examples, Acceptance. A spec exists
-only when the requirement alone is not enough to build from.
+## Journals, evidence, and knowledge
 
-## Component knowledge
+A task journal has a machine-readable header followed by a current checklist
+and append-only log. Its header records `stage`, `type`, `path`,
+`requirements`, optional `parent`, `branch`, `base`, and `opened`.
 
-One plain markdown page per component under `knowledge/`, named after the
-component (`knowledge/export.md`). No `components.toml`, no manifest, no
-baseline guard — the 2.x machinery is gone; the *content* stays, because a
-one-page "how this works" is exactly what a small-context model should
-load instead of re-reading a component's source.
+The journal may additionally hold:
 
-Template sections (`templates/component.md`, recommended not validated):
-**Purpose** (2–3 sentences), **Public interface** (entry points, formats),
-**Key behaviors** (with requirement IDs where they exist), **Files** (the
-paths that make up the component).
+- `## Rulings`: append-only `RULING-001` records with date, decision,
+  reason, source, and optional `supersedes`.
+- `## Handoff`: replaceable resume fields `current`, `status`, `next`,
+  `must_read`, and `blockers`.
+- `## Stage report`: replaceable latest result with changes, evidence,
+  issues, next action, user need, and review fields.
 
-Wiring is one step, not a stage: `5_validate.md` instructs "if this task
-materially changed a component's behavior, update or create its page."
-A staleness heuristic (knowledge pages whose listed files no longer
-exist) may join the check catalog as #14 later; 0.1.0 ships without it.
+`anchor --task` writes `TASK-<id>.anchor.json`, a SHA-256 starting-point
+fingerprint. `evolution --task` writes the corresponding
+`TASK-<id>.evolution.json` comparison. These are durable inspection
+evidence, not a replacement for review.
 
-## Task journal format
+Each component page under `knowledge/` documents purpose, public interface,
+key behaviors, architecture, and files. Validate updates a materially changed
+component page. It is intentionally a navigable folder, not a separate
+component manifest.
 
-Markdown with a small key-value header the CLI can parse with a regex —
-no YAML library needed, trivially editable by hand or by a 20B model.
+## Derived traceability
 
-```markdown
-# TASK-8b12 — Export playlist as M3U
+AEGIS derives relationships from durable references instead of maintaining a
+link database:
 
-stage: build
-type: feature            # feature | fix | change | adopt
-path: full               # full | quick
-requirements: REQ-FUNC-3fa2
-branch: feature/m3u-export
-opened: 2026-08-02
-
-## Done checklist (current stage)
-- [x] failing test written and observed red
-- [ ] implementation green
-- [ ] links updated
-
-## Log
-- 2026-08-02 frame: scope agreed — M3U only, no PLS. Quick path rejected
-  (new user-facing behavior → full path).
-- 2026-08-02 specify: created REQ-FUNC-3fa2.
-- 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=missing module.
+```text
+changed path -> affected_paths -> requirement -> linked_tests
+task journal -> requirements -> requirements/specs/knowledge
 ```
 
-The journal is append-mostly: header lines change, log lines only get
-added. It stays after delivery as the run's historical record (the 2.x
-report/evidence trail collapses into this one file).
-
-## Traceability model
-
-Links live only on the requirement (`affected_paths`, `linked_tests`) and
-on the task (`requirements:`). From these, `aegis check` derives
-everything heuristically at read time — there is no link database:
-
-- diff → requirements: changed files (git diff against the merge base)
-  matched against every requirement's `affected_paths`.
-- requirements → tests: `linked_tests` entries must resolve to existing
-  files (test-ID suffixes after `::` are not verified — heuristic).
-- task → requirements: IDs in the journal header must exist.
-
-Unmatched changed source files produce a warning ("no requirement covers
-src/x.py"), not a block. That is the heuristic heart of AEGIS:
-the signal is always produced, the human/agent decides.
-
-The same mapping, driven in reverse, powers focused regression: changed
-files → impacted requirements → the union of their `linked_tests` is the
-test set `aegis test --impacted` runs (doc 03). Keeping `affected_paths`
-and `linked_tests` current is therefore not just bookkeeping — it is what
-makes the fast inner loop possible.
+The mapping supports `check`, `diagram`, `explain`, and
+`test --impacted`. Missing coverage is reported as a finding; it does not
+silently create a replacement requirement or test.

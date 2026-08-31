@@ -49,7 +49,7 @@ When an agent begins ordinary governed work, the workflow payload shall guide it
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspection: read AGENTS.md and steps 1 through 6, confirming stage order, durable journal instructions, checkpoint behavior, and separation of validation from delivery; run the linked structural test."
+verification = "Inspection: read AGENTS.md and steps 1 through 6, confirming the unchanged stage order and checkpoints, optional child integration, durable resume state, bounded review behavior, and separation of validation from delivery; run the linked structural tests."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -68,6 +68,8 @@ linked_tests = [
     "05_Software/aegis/tests/test_structure.py::test_six_stage_workflow_separates_validation_from_publication",
     "05_Software/aegis/tests/test_structure.py::test_build_stage_records_reproducible_red_evidence_without_git_witness",
     "05_Software/aegis/tests/test_structure.py::test_deliver_folds_close_out_into_a_local_only_delivery",
+    "05_Software/aegis/tests/test_structure.py::test_six_stage_workflow_and_two_checkpoints_are_unchanged",
+    "05_Software/aegis/tests/test_structure.py::test_parent_validates_integrated_visible_child_work",
 ]
 
 # --- optional below this line ---
@@ -79,4 +81,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-08-31

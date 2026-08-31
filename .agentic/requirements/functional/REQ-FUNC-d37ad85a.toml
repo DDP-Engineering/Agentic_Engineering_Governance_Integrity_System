@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When an operator requests a delivery report for an existing task, the CLI shall append a dated snapshot of that task's requirements, checklist, governance findings, and diff measured from its recorded base.
+When an operator requests a delivery report for an existing task, the CLI shall append a dated snapshot of that task's requirements, checklist, governance findings, recorded review state, and diff measured from its recorded base.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When an operator requests a delivery report for an existing task, the CLI shall 
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Run the linked report tests and inspect appended report content, unknown-task rejection, and recorded-base diff measurement."
+verification = "Run the linked report tests and inspect appended report content, disabled and enabled review projections, stale or incomplete verdict evidence, unknown-task rejection, and recorded-base diff measurement."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -62,6 +62,9 @@ linked_tests = [
     "05_Software/aegis/tests/test_run_report.py::test_report_appends_the_delivery_section",
     "05_Software/aegis/tests/test_run_report.py::test_report_rejects_an_unknown_task",
     "05_Software/aegis/tests/test_run_report.py::test_report_diffs_against_the_recorded_task_base",
+    "05_Software/aegis/tests/test_run_report.py::test_report_labels_review_disabled_without_skipping_validation",
+    "05_Software/aegis/tests/test_run_report.py::test_report_records_enabled_approved_verdicts_from_bound_record",
+    "05_Software/aegis/tests/test_run_report.py::test_report_exposes_missing_malformed_or_stale_verdict_evidence",
 ]
 
 # --- optional below this line ---
@@ -73,4 +76,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-08-31

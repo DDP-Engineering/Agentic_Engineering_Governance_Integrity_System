@@ -2,80 +2,106 @@
 Copyright (c) 2026 DDP Engineering
 This software is licensed under the PolyForm Noncommercial License 1.0.0.
 Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+See the LICENSE.txt file for full license details.
+SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# 04 — Collaboration and small-model support
+# 04 - Collaboration and small-model support
 
-## Multiple users, branches, machines
+AEGIS uses ordinary Git collaboration rather than a separate coordination
+service. Branches carry source changes and the durable governance files needed
+to understand them.
 
-There is no shared server and no shared database: the branch *is* the
-workspace. Everything AEGIS knows lives in committed files, so the
-normal git workflow already gives us multi-user, multi-machine governance:
+## Branches, machines, and child tasks
 
-- **Parallel work never collides by construction.** One task = one journal
-  file; one requirement = one file with a random-suffix ID. Two people on
-  two branches create disjoint files. The only shared-file merges are
-  edits to the *same* requirement, which is a real conflict a human should
-  see anyway.
-- **Post-merge reconciliation is a check, not a ceremony.** After merging,
-  `aegis check` on the target branch flags duplicate IDs, dangling links,
-  and requirements whose `affected_paths` diverged. Fix-forward.
-- **Cross-machine continuation** is just `git pull` + `aegis status` +
-  the three-line resume procedure from `AGENTS.md`. Nothing is stored in
-  worktree-local state, user home directories, or platform-specific paths.
-- **Windows/Linux parity**: pure-stdlib Python, `pathlib` throughout,
-  forward slashes in all stored paths, LF line endings in all generated
-  files, no Node launcher, no shell-specific hook transports.
+- One task has one journal; one requirement has one TOML file with a
+  collision-resistant ID. Independent work normally produces independent
+  files, reducing merge collisions.
+- A task journal records its branch and base commit. A task can be resumed on
+  another machine only after its branch and journal are available there; an
+  uncommitted worktree never transfers by itself.
+- `anchor` and `evolution` make the task's observed change boundary
+  reviewable. They are evidence files, not locks.
+- `check` after merge is the reconciliation tool: it can expose duplicate
+  IDs, dangling references, uncovered paths, stale links, and scope drift.
+- Child tasks are opt-in and only one level deep. Their `parent:` links are
+  child-side, each child keeps independent evidence, and the parent validates
+  the integrated candidate. Only children visible in the current checkout are
+  reported.
 
-Team hardening, strictly opt-in and outside the agent's inner loop:
-CI `check --strict` on PRs (doc 03), and ordinary branch protection.
-AEGIS adds no protection mechanisms of its own.
+AEGIS does not create branches, worktrees, merges, or remote pushes. Those are
+explicit repository operations with separate authority.
 
-## Small local models (Qwen3-27B, gpt-oss-20B, 32k–256k context)
+## Durable re-entry for constrained models
 
-The heavy stack assumes a frontier model that can hold policy, forms, and
-long tool transcripts. AEGIS is designed so that **one stage of one
-task is a complete unit of work for a 32k-context session**:
+The bounded resume sequence is designed for interrupted work and small-context
+models:
 
-Context budget for a `build`-stage session (worst case, ~tokens):
+1. Run `status` if the task identifier is unknown.
+2. Run `brief TASK-<id>`.
+3. Read the current step file and the Handoff `must_read` paths.
+4. Load only linked requirements, specifications, knowledge, source, and tests
+   that the current step needs.
+5. Read the full journal whenever the brief is shortened, stale, incomplete,
+   or the stage requires full history/evidence.
 
-| Item | Budget | How it is held |
-|---|---|---|
-| `AGENTS.md` | ≤ 2.5k | fixed size, reviewed when edited |
-| Current step file | ≤ 1.5k | one file per stage, fixed size |
-| Task journal | ≤ 1.5k | grows append-only; `status` prints the header, the checklist and the **last 5 log lines**, so what a session loads stays flat even when the file is long |
-| Linked requirements (2–3 × ~0.4k) | ≤ 1.5k | one file each, read on demand |
-| One spec | ≤ 1.5k | optional |
-| `aegis check` / `status` output | ≤ 0.5k in the steady state | `check` prints at most 40 findings (`--full`, implied by `--strict`, shows all); `status` lists at most 20 open tasks. A freshly adopted or neglected repo can exceed the budget on its **first** runs — that backlog is the point — but the capped output keeps even that readable |
-| **Workflow overhead total** | **≤ 9k** | |
+`brief` limits scalar values to 240 characters, active rulings to eight, and
+visible children to twenty. `summary` limits each projected field to 240
+characters and makes truncation explicit. `status` lists up to twenty open
+journals by default; `check` prints up to forty findings unless `--full`
+or `--strict` requests all findings.
 
-That leaves ~20k+ of a 32k window for actual code and test content —
-workable; with 128k–256k configured, comfortable. Rules that make this
-hold:
+These bounds reduce avoidable context use; they are not a tokenizer-specific
+context guarantee and never allow an agent to skip required source, evidence,
+or full-journal reads.
 
-1. **Never require the whole register in context.** Cross-file consistency
-   (links, duplicates, coverage) is computed deterministically by
-   `aegis check`; the model only reads the report.
-2. **Stage docs are self-contained.** A session that loads only
-   `AGENTS.md` + one step file + one journal has everything it needs — no
-   chained references into policy documents.
-3. **CLI output is model-food.** Short, plain, stable line format, no
-   tables wider than 100 chars, no ANSI. A 20B model can quote a finding
-   line verbatim into the journal.
-4. **The journal is the handoff protocol between sessions and between
-   models.** Recommended split for weak models: run *one stage per
-   session*, end every session by updating the journal. A frontier model
-   can do frame/specify/design; the local model does build; either does
-   validate and deliver.
-5. **Journal growth is bounded**: log lines are one sentence; when a
-   journal exceeds ~120 lines the deliver step archives detail into the
-   report section rather than growing the log.
+## Recommended session shape
 
-The prompt cheatsheet in `AGENTS.md` gives per-stage one-liners sized for
-small models, e.g.:
+For a constrained model, one stage per session is a practical operating
+pattern:
 
+```text
+brief -> current step -> handoff must_read -> first unticked action
+-> update Log, Handoff, and Stage report -> summary -> stop
 ```
-Read .agentic/AGENTS.md. Continue TASK-8b12 (stage build): follow
-.agentic/steps/4_build.md, then update the task journal.
+
+The prompt cheatsheet in `.agentic/AGENTS.md` and
+`06_SoftwareDocu/08_Prompt_Cheatsheet.md` provides stage-scoped prompts.
+A larger model may continue through several stages, but the same durable
+records must be updated at each pause or transition.
+
+## Decisions, authority, and review
+
+Rulings capture durable decisions already made; they cannot create permission
+to commit, push, merge, publish, or broaden scope. Handoff is operational
+state, not approval. A Stage report is a current communication snapshot, not
+fresh validation.
+
+The current repository enables explicit review:
+
+```toml
+[review]
+enabled = true
+max_fix_cycles = 2
 ```
+
+This permits one initial pair of independent review verdicts and up to two
+fix-and-re-review rounds. It does not create a review stage or replace
+`validate`; ordinary semantic review, focused/full proof, strict checking,
+and the delivery checkpoint still apply.
+
+Checkpoint mode retains the end-of-frame and pre-delivery approval boundaries.
+Autopilot can suppress the frame stop only when the user requests it. Immediate
+`DEVIATION` notices remain visible in conversation in either mode.
+
+## Team CI
+
+Teams that need enforcement use the existing CI boundary:
+
+```text
+python .agentic/aegis.py check --strict --run
+```
+
+This makes objectively broken records, failed configured commands, and selected
+promoted warnings fail CI. It does not turn local agent writes into hard
+blocks, and it proves only the configured commands that actually ran.

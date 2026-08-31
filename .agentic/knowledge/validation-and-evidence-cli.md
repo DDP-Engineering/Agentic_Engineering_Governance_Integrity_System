@@ -17,7 +17,8 @@ commit, publish, or access the network.
 
 ## Public interface
 
-`check` reports governance findings and optionally runs configured commands.
+`check` reports governance, relationship, durable-record, and bounded-review
+findings and optionally runs configured commands.
 `test` executes a named configured command, optionally recording task evidence.
 `report` appends a delivery snapshot. `anchor` fingerprints repository state
 for an active task, while `evolution` classifies later changes against it.
@@ -41,6 +42,11 @@ repository path and which journals delivered it.
   tasks that govern it.
 - `REQ-UX-48bb759b` - Lead the delivery report with the deviations the task
   recorded.
+- `REQ-FUNC-9514e017` - Project optional independent current-candidate review
+  verdicts without treating missing or stale evidence as approval.
+- `REQ-FUNC-cbff6478` - Check configured review bounds and block unapproved
+  final-round delivery state.
+- `REQ-FUNC-7ea14fe4` - Report malformed rulings and stale or invalid handoffs.
 
 ## Architecture
 
@@ -70,6 +76,8 @@ flowchart TD
     render["render_diagram - Mermaid text"]
     trace["match_any - affected_paths cover this path"]
     devs["recorded_deviations - judgement out of the log"]
+    bound["bound_stage_report - current recorded review state"]
+    review["review_settings - optional bounded review policy"]
     cover["coverage_class - one verdict per record"]
 
     register[("requirements/ tasks/ knowledge/")]
@@ -86,6 +94,8 @@ flowchart TD
     test --> runner
     report --> scan
     report --> diffs
+    report --> bound
+    report --> review
     diagram --> scan
     diagram --> render
     explain --> scan
@@ -97,6 +107,7 @@ flowchart TD
     manifest --> evidence
     evolution --> evidence
 ```
+
 
 `explain` runs the register the other way round - a path in, the
 requirements covering it out - which is why it needs no reader of its own.

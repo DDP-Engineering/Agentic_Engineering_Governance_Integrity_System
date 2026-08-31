@@ -218,6 +218,168 @@ def test_resume_guidance_is_local_and_preserves_required_evidence():
         assert "required full reads still apply" in text, step.name
 
 
+def test_workflow_defines_append_only_rulings_and_supersession():
+    """REQ-FUNC-7ea14fe4: durable decisions retain history and provenance."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    assert "## Rulings and handoffs" in agents
+    assert "Rulings are append-only" in agents
+    assert "Never edit or delete" in agents
+    assert "supersedes" in agents and "RULING-" in agents
+
+
+def test_workflow_defines_replaceable_handoff_and_freshness():
+    """REQ-FUNC-7ea14fe4: one current resume snapshot is stage-bound."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    assert "Handoff is one replaceable" in agents
+    assert "current must match" in agents
+    for trigger in ("stage transition", "pause", "blocker", "session end"):
+        assert trigger in agents
+
+
+def test_every_stage_refreshes_handoff_on_pause_or_transition():
+    """REQ-FUNC-7ea14fe4: every stage boundary leaves a usable handoff."""
+    for step in (PAYLOAD / "steps").glob("*.md"):
+        text = " ".join(step.read_text(encoding="utf-8").split())
+        assert "refresh the Handoff" in text, step.name
+        assert "transition" in text and "pause" in text, step.name
+
+
+def test_rulings_cannot_expand_user_or_git_authority():
+    """REQ-FUNC-7ea14fe4: recorded decisions cannot grant new authority."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    assert "cannot grant authority" in agents
+    assert "newer user instructions" in agents
+    assert "repository rules" in agents and "Git authority" in agents
+
+
+def test_small_model_prompts_start_with_brief_then_required_files():
+    """REQ-UX-94a33d75: limited-context workers start from durable resume state."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    prompts = agents.split("For a small local model", 1)[1]
+    assert "brief TASK-<id>" in prompts
+    assert "current step file" in prompts and "must_read" in prompts
+    assert prompts.index("brief TASK-<id>") < prompts.index("current step file")
+
+
+def test_validate_defines_two_independent_review_questions():
+    """REQ-FUNC-9514e017: validation asks both explicit questions separately."""
+    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "Specification compliance" in text
+    assert "Implementation quality" in text
+    assert "independent verdicts" in text
+
+
+def test_validate_repeats_both_verdicts_after_any_candidate_change():
+    """REQ-FUNC-9514e017: approvals never survive a changed candidate."""
+    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "Any candidate change invalidates both verdicts" in text
+    assert "perform both reviews again" in text
+
+
+def test_fix_loop_uses_one_plus_max_fix_cycles_total_rounds():
+    """REQ-FUNC-cbff6478: the initial review plus fixes has a finite bound."""
+    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "1 + max_fix_cycles" in text
+    assert "two fix cycles means three total review rounds" in text
+
+
+def test_fix_loop_routes_findings_without_expanding_scope():
+    """REQ-FUNC-cbff6478: autonomous fixes consume only recorded findings."""
+    build = " ".join((PAYLOAD / "steps" / "4_build.md").read_text("utf-8").split())
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "Fix only recorded review findings" in build
+    assert "Do not expand scope" in build
+    assert "route to the appropriate existing stage" in validate
+
+
+def test_fix_loop_exhaustion_blocks_and_needs_user():
+    """REQ-FUNC-cbff6478: a failed last round cannot enter delivery."""
+    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "result: blocked" in text and "needs_user: yes" in text
+    assert "do not advance to deliver" in text
+
+
+def test_scope_ambiguity_uses_existing_human_checkpoint():
+    """REQ-FUNC-cbff6478: the loop cannot guess a changed contract."""
+    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "specification ambiguity or scope change" in text
+    assert "existing human checkpoint" in text
+
+
+def test_disabled_review_keeps_existing_validation_and_has_no_fix_loop():
+    """REQ-FUNC-9514e017: the opt-in switch controls no mandatory proof."""
+    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "When review is disabled" in text
+    assert "skip only explicit verdicts and their fix loop" in text
+    for proof in ("semantic review", "full suite", "strict check", "evidence"):
+        assert proof in text
+
+
+def test_deliver_requires_current_approved_verdicts_only_when_enabled():
+    """REQ-FUNC-9514e017: delivery respects policy and current bound evidence."""
+    text = " ".join((PAYLOAD / "steps" / "6_deliver.md").read_text("utf-8").split())
+    assert "When explicit review is enabled" in text
+    assert "both current bound verdicts are `approved`" in text
+    assert "When explicit review is disabled" in text
+    assert "existing validation evidence" in text
+
+
+def test_large_work_may_split_only_into_optional_one_level_children():
+    """REQ-FUNC-3bc8597c: decomposition is explicit, optional, and shallow."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
+    frame = " ".join((PAYLOAD / "steps" / "1_frame.md").read_text("utf-8").split())
+    design = " ".join((PAYLOAD / "steps" / "3_design.md").read_text("utf-8").split())
+    assert "## Optional child tasks" in agents
+    assert "opt-in" in agents and "one level" in agents
+    assert "large enough for optional children" in frame
+    assert "non-overlapping child scopes" in design and "requirement links" in design
+
+
+def test_parent_validates_integrated_visible_child_work():
+    """REQ-FUNC-3bc8597c: the parent owns proof of the combined candidate."""
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "Parent validation" in validate
+    assert "integrated candidate" in validate
+    assert "children visible in this checkout" in validate
+    assert "independently validated" in validate
+
+
+def test_resume_starts_with_brief_but_requires_current_stage_sources():
+    """REQ-UX-94a33d75: compact re-entry preserves authoritative source reads."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
+    resume = agents.split("## Resume a task", 1)[1].split("## Interaction modes", 1)[0]
+    assert resume.index("brief TASK-<id>") < resume.index("current step file")
+    assert "must_read" in resume
+    assert "Full journal reads required by validate and deliver still apply" in resume
+
+
+def test_every_pause_refreshes_stage_report_and_handoff():
+    """REQ-FUNC-7ea14fe4: user reporting and worker resume state move together."""
+    for step in (PAYLOAD / "steps").glob("*.md"):
+        text = " ".join(step.read_text("utf-8").split())
+        assert "Stage report (completion or pause)" in text, step.name
+        assert "refresh the Handoff" in text, step.name
+
+
+def test_six_stage_workflow_and_two_checkpoints_are_unchanged():
+    """REQ-FUNC-d60b322b: enhancements add no stage or approval stop."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
+    assert all(f"| {number} | {stage} |" in agents for number, stage in enumerate(
+        ("frame", "specify", "design", "build", "validate", "deliver"), 1))
+    assert "Stop and ask twice, not once per stage" in agents
+    assert "No new approval checkpoint" in agents
+
+
+def test_pointer_digest_is_sufficient_for_offline_resume():
+    """REQ-PLAT-e675406e: generated pointers carry the survival contract."""
+    source = AEGIS_PY.read_text(encoding="utf-8")
+    digest = source.split('POINTER_DIGEST = """\\\n', 1)[1].split('"""', 1)[0]
+    for phrase in ("brief TASK-<id>", "one-level child", "Rulings are append-only",
+                   "Handoff is replaceable", "optional explicit review",
+                   "bounded fix", "cannot grant authority"):
+        assert phrase in digest
+
+
 def test_six_stage_workflow_separates_validation_from_publication():
     """REQ-FUNC-24ea4f73: proof may mutate; publication may not."""
     agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")

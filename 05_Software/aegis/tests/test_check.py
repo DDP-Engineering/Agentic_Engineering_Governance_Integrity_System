@@ -92,12 +92,12 @@ def write_req(agentic: Path, rid: str, folder: str = "functional", **kw) -> Path
 
 
 def write_task(agentic: Path, tid: str, stage: str = "build", reqs: str = "",
-               checklist: str = "- [x] done", base: str = "") -> Path:
+               checklist: str = "- [x] done", base: str = "", parent: str = "") -> Path:
     """@brief Write a parseable task journal."""
     return write(
         agentic / "tasks" / f"{tid}.md",
         f"# {tid} — a task\n\nstage: {stage}\ntype: feature\npath: full\n"
-        f"requirements: {reqs}\nbranch: feature\nbase: {base}\n"
+        f"requirements: {reqs}\nparent: {parent}\nbranch: feature\nbase: {base}\n"
         "opened: 2026-08-02\n\n"
         f"## Done checklist (current stage)\n\n{checklist}\n\n"
         "## Log\n\n- 2026-08-02 frame: opened\n",
@@ -208,6 +208,109 @@ def test_journal_header_silent_when_requirements_exist(nogit_repo, capsys):
     write_req(agentic, "REQ-FUNC-1111", status="draft")
     write_task(agentic, "TASK-bbbb", reqs="REQ-FUNC-1111")
     assert not lines_for(run_check(aegis, capsys), "journal-header")
+
+
+def test_check_warns_for_missing_or_malformed_parent_relationship(nogit_repo, capsys):
+    """REQ-FUNC-3bc8597c: invalid reverse links are visible advisory findings."""
+    agentic, aegis = nogit_repo
+    write_task(agentic, "TASK-bb22", parent="TASK-dead")
+    write_task(agentic, "TASK-cc33", parent="not-a-task")
+    hits = lines_for(run_check(aegis, capsys), "journal-header")
+    assert any("unknown parent TASK-dead visible in this" in line for line in hits)
+    assert any("malformed parent visible in this checkout" in line for line in hits)
+
+
+def test_check_warns_when_done_parent_has_visible_unfinished_children(nogit_repo, capsys):
+    """REQ-FUNC-3bc8597c: integrated delivery reports visible incomplete work."""
+    agentic, aegis = nogit_repo
+    write_task(agentic, "TASK-aa11", stage="done")
+    write_task(agentic, "TASK-bb22", stage="build", parent="TASK-aa11")
+    hits = lines_for(run_check(aegis, capsys), "journal-header")
+    assert any("done parent has 1 unfinished child visible" in line
+               for line in hits)
+
+
+def test_check_accepts_done_parent_with_done_visible_children(nogit_repo, capsys):
+    """REQ-FUNC-3bc8597c: completed visible integration has no relationship warning."""
+    agentic, aegis = nogit_repo
+    write_task(agentic, "TASK-aa11", stage="done")
+    write_task(agentic, "TASK-bb22", stage="done", parent="TASK-aa11")
+    assert not any("parent" in line or "child" in line
+                   for line in lines_for(run_check(aegis, capsys), "journal-header"))
+
+
+def test_check_does_not_claim_children_hidden_on_other_branches(nogit_repo, capsys):
+    """REQ-FUNC-3bc8597c: check reports only journals present in the checkout."""
+    agentic, aegis = nogit_repo
+    write_task(agentic, "TASK-aa11", stage="done")
+    assert not any("child" in line
+                   for line in lines_for(run_check(aegis, capsys), "journal-header"))
+
+
+def test_check_warns_for_duplicate_or_invalid_ruling_ids(nogit_repo, capsys):
+    """REQ-FUNC-7ea14fe4: malformed append-only records stay visible."""
+    agentic, aegis = nogit_repo
+    path = write_task(agentic, "TASK-aa11")
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=One | reason=First | source=user | supersedes=none
+- RULING-001 | date=2026-08-31 | decision=Two | reason=Duplicate | source=user | supersedes=none
+- RULING-XYZ | broken
+""")
+    hits = lines_for(run_check(aegis, capsys), "journal-header")
+    assert sum("invalid ruling record" in line for line in hits) == 2
+
+
+def test_check_warns_for_unknown_superseded_ruling(nogit_repo, capsys):
+    """REQ-FUNC-7ea14fe4: supersession references an earlier valid ruling."""
+    agentic, aegis = nogit_repo
+    path = write_task(agentic, "TASK-aa11")
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=One | reason=First | source=user | supersedes=RULING-099
+""")
+    hits = lines_for(run_check(aegis, capsys), "journal-header")
+    assert any("supersedes unknown earlier" in line for line in hits)
+
+
+def test_check_warns_for_stale_handoff_current_stage(nogit_repo, capsys):
+    """REQ-FUNC-7ea14fe4: a handoff cannot silently survive a stage change."""
+    agentic, aegis = nogit_repo
+    path = write_task(agentic, "TASK-aa11", stage="validate")
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Handoff
+
+current: build
+status: ready
+next: run review
+must_read: .agentic/steps/5_validate.md
+blockers:
+""")
+    hits = lines_for(run_check(aegis, capsys), "journal-header")
+    assert any("stale Handoff current build != validate" in line for line in hits)
+
+
+def test_check_warns_for_invalid_handoff_status(nogit_repo, capsys):
+    """REQ-FUNC-7ea14fe4: unknown readiness state is an advisory finding."""
+    agentic, aegis = nogit_repo
+    path = write_task(agentic, "TASK-aa11")
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Handoff
+
+current: build
+status: finished
+next: continue
+must_read:
+blockers:
+""")
+    hits = lines_for(run_check(aegis, capsys), "journal-header")
+    assert any("invalid Handoff status" in line for line in hits)
 
 
 # TESTS - check 4: spec-missing
@@ -698,6 +801,113 @@ def test_wrongly_typed_config_tables_do_not_crash(nogit_repo, capsys):
     assert "summary:" in out
 
 
+@pytest.mark.parametrize("body,expected,settings", [
+    ('enabled = "yes"\nmax_fix_cycles = 2', "enabled should be bool", (False, 2)),
+    ('enabled = true\nmax_fix_cycles = true', "max_fix_cycles should be int", (True, 0)),
+    ('enabled = true\nmax_fix_cycles = 6', "max_fix_cycles should be 0 through 5", (True, 0)),
+    ('enabled = true\nmax_fix_cycles = -1', "max_fix_cycles should be 0 through 5", (True, 0)),
+])
+def test_invalid_review_values_warn_and_fail_safe(nogit_repo, capsys, body, expected,
+                                                   settings):
+    """REQ-FUNC-9514e017: invalid policy is visible and grants no fix cycles."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml", f"schema = 1\n\n[review]\n{body}\n")
+    cfg = aegis.load_config()
+    assert aegis.review_settings(cfg) == settings
+    assert any(expected in line for line in lines_for(run_check(aegis, capsys), "config"))
+
+
+def review_config(agentic: Path, enabled: bool = True, cycles: int = 2) -> None:
+    """@brief Write one valid explicit-review policy for advisory-check tests."""
+    write(agentic / "aegis.toml",
+          f"schema = 1\n\n[review]\nenabled = {'true' if enabled else 'false'}\n"
+          f"max_fix_cycles = {cycles}\n")
+
+
+def append_review_record(path: Path, *, current: str, spec: str, quality: str,
+                         round_: str) -> None:
+    """@brief Append one bound Stage report with review fields."""
+    write(path, path.read_text(encoding="utf-8") + f"""
+
+## Stage report
+
+stage: validate
+result: completed
+current: {current}
+changed: candidate
+evidence: tests passed
+issues:
+next: deliver
+needs_user: no
+spec_compliance: {spec}
+implementation_quality: {quality}
+review_round: {round_}
+""")
+
+
+def test_check_warns_when_review_round_exceeds_configured_bound(nogit_repo, capsys):
+    """REQ-FUNC-cbff6478: durable round state respects workspace policy."""
+    agentic, aegis = nogit_repo
+    review_config(agentic, cycles=1)
+    path = write_task(agentic, "TASK-aa11", stage="validate")
+    append_review_record(path, current="validate", spec="changes_required",
+                         quality="approved", round_="3")
+    assert any("review_round 3 exceeds configured total 2" in line
+               for line in lines_for(run_check(aegis, capsys), "review-state"))
+
+
+def test_check_warns_when_enabled_review_has_partial_verdicts(nogit_repo, capsys):
+    """REQ-FUNC-9514e017: incomplete review evidence stays visible."""
+    agentic, aegis = nogit_repo
+    review_config(agentic)
+    path = write_task(agentic, "TASK-aa11", stage="validate")
+    append_review_record(path, current="validate", spec="approved", quality="", round_="1")
+    assert any("enabled review has incomplete verdict evidence" in line
+               for line in lines_for(run_check(aegis, capsys), "review-state"))
+
+
+def test_check_warns_when_enabled_review_uses_disabled_verdicts(nogit_repo, capsys):
+    """REQ-FUNC-9514e017: disabled markers are valid only when review is off."""
+    agentic, aegis = nogit_repo
+    review_config(agentic)
+    path = write_task(agentic, "TASK-aa11", stage="validate")
+    append_review_record(path, current="validate", spec="disabled",
+                         quality="disabled", round_="1")
+    assert any("enabled review has incomplete verdict evidence" in line
+               for line in lines_for(run_check(aegis, capsys), "review-state"))
+
+
+def test_check_warns_when_deliver_has_unapproved_current_verdicts(nogit_repo, capsys):
+    """REQ-FUNC-9514e017: known failed review cannot read as deliverable."""
+    agentic, aegis = nogit_repo
+    review_config(agentic)
+    path = write_task(agentic, "TASK-aa11", stage="deliver")
+    append_review_record(path, current="deliver", spec="approved",
+                         quality="changes_required", round_="2")
+    assert any("deliver requires two current approved verdicts" in line
+               for line in lines_for(run_check(aegis, capsys), "review-state"))
+
+
+def test_check_accepts_disabled_verdict_pair_when_review_is_off(nogit_repo, capsys):
+    """REQ-FUNC-9514e017: disabled explicit review adds no review-state warning."""
+    agentic, aegis = nogit_repo
+    review_config(agentic, enabled=False)
+    path = write_task(agentic, "TASK-aa11", stage="deliver")
+    append_review_record(path, current="deliver", spec="disabled",
+                         quality="disabled", round_="")
+    assert not lines_for(run_check(aegis, capsys), "review-state")
+
+
+@pytest.mark.parametrize("stage", ["frame", "build", "done"])
+def test_enabled_review_does_not_require_verdicts_outside_validation(
+        nogit_repo, capsys, stage):
+    """REQ-FUNC-9514e017: review policy is not retroactive or premature."""
+    agentic, aegis = nogit_repo
+    review_config(agentic)
+    write_task(agentic, "TASK-aa11", stage=stage)
+    assert not lines_for(run_check(aegis, capsys), "review-state")
+
+
 # TESTS - check 19: manual-verification
 
 
@@ -1007,7 +1217,7 @@ def test_help_lists_every_slug_and_the_diff_basis(nogit_repo, capsys):
     out = capsys.readouterr().out
     for slug, _desc in aegis.CHECKS:
         assert slug in out
-    assert len(aegis.CHECKS) == 20
+    assert len(aegis.CHECKS) == 21
     # the count the help announces must be the count it lists
     assert f"the {len(aegis.CHECKS)} checks" in out
     assert "merge-base" in out and "origin/HEAD" in out

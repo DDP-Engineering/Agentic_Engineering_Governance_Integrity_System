@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.8.0
+# AEGIS 0.9.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -61,6 +61,16 @@ already govern a path. Both read only files already in the repository.
 
 See `template/.agentic/CLI.md` for the complete command contract.
 
+Large work may opt in to one level of independently governed child tasks:
+
+```text
+python .agentic/aegis.py task "Implement decoder" --type feature --parent TASK-<id>
+```
+
+The link exists only in the child. Reverse lookup sees only journals in the
+current checkout; each child retains its own branch/base and validation, while
+the parent proves the integrated candidate.
+
 ## Documentation layout
 
 In `.agentic/aegis.toml`, set optional `[layout] docs` globs for project
@@ -70,24 +80,47 @@ remaining in secret scanning. It does not count as source or test coverage
 and does not change stage write zones. Overlapping source/tests globs retain
 their existing checks; an omitted or empty docs list preserves prior behavior.
 
-## Compact stage reporting
+## Compact resume and stage reporting
 
 ```text
+python .agentic/aegis.py brief TASK-<id>
 python .agentic/aegis.py summary TASK-<id>
 ```
 
+`brief` is the first re-entry view: deterministic, read-only, and bounded to
+240-character values, eight active rulings, and twenty visible children. It
+includes the parent, checklist, bound report, configured review state, active
+rulings, stage-bound handoff, and visible children. Read its current step and
+handoff `must_read` files next, then the full journal wherever required.
+
 The agent records one fixed report at stage completion or pause, then copies
-this read-only command's output into chat before detailed explanation.
+the read-only `summary` output into chat before detailed explanation.
 Reported stage/result and current journal stage are separate. Missing evidence
 stays `not recorded`; stale or shortened records require journal review.
 No new approval stops, dependencies, or model calls are introduced.
 
-For local models with limited context, start with the summary, current stage
-instructions, checklist, and relevant log/evidence rather than loading the
-whole register. Required full validation and delivery reads still apply.
+For local models with limited context, start with `brief`, current-stage
+instructions, and handoff sources. Required full validation and delivery reads
+still apply.
 The payload's prompt cheatsheet includes explicit one-stage sessions; actual
 model compliance and 64K-context performance require separate model runs.
 See `template/.agentic/CLI.md` for the optional journal record and output limits.
+
+New journals also carry append-only supersedable Rulings, one replaceable
+Handoff (`current`, `next`, `must_read`, `blockers`, `status`), and compatible
+review fields. Optional explicit review defaults off:
+
+```toml
+[review]
+enabled = false
+max_fix_cycles = 2
+```
+
+When enabled, specification compliance and implementation quality are judged
+independently for the same candidate. A candidate edit invalidates both. The
+workflow allows `1 + max_fix_cycles` total rounds, then blocks for a human.
+Review disabled does not skip semantic review, full validation, strict checks,
+or the delivery checkpoint.
 
 ## Development
 

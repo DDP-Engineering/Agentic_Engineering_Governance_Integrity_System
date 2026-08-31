@@ -218,6 +218,18 @@ and called a finding when it sits inside your configured source or test globs.
 | `[check] secret_patterns_extra` | Extra regexes for the secret scan. |
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
+| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0–5 and defaults to 2. |
+
+When enabled, review allows one initial verdict plus up to `max_fix_cycles`
+fix-and-re-review rounds. Review off never disables ordinary validation.
+
+Task headers may include a blank `parent:` or one visible top-level task ID.
+Child journals stay independently governed; the parent file is not rewritten.
+`## Rulings` contains append-only `RULING-001` records with date, source,
+decision, reason, and optional supersession. `## Handoff` is one replaceable
+stage-bound block with `current`, `next`, `must_read`, `blockers`, and `status`.
+The Stage report carries optional independent review verdicts and a bounded
+round. Legacy journals may omit all of these fields.
 
 **Integrating another tool?** `check --json`, `status --json`, `anchor --json`,
 and `evolution --json` print one

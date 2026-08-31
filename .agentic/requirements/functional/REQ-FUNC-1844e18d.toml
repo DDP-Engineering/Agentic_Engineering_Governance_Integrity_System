@@ -49,7 +49,7 @@ When an operator requests a task summary, the CLI shall render a bounded, read-o
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Run copied-payload CLI tests covering completed and paused records, missing fields, stale current-stage bindings, invalid and duplicate records, bounded output with visible omission, full journal preservation, and unchanged existing status output."
+verification = "Run copied-payload CLI tests covering completed and paused records, independent review fields, missing values, stale current-stage bindings, invalid and duplicate records, bounded output with visible omission, full journal preservation, and unchanged existing status output."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -73,7 +73,9 @@ linked_tests = [
     "05_Software/aegis/tests/test_run_report.py::test_summary_errors_do_not_echo_unbounded_record_content",
     "05_Software/aegis/tests/test_run_report.py::test_summary_scaffold_and_test_log_remain_independent",
     "05_Software/aegis/tests/test_run_report.py::test_summary_ignores_commented_and_fenced_examples",
-    "05_Software/aegis/tests/test_run_report.py::test_summary_literal_comment_markers_do_not_hide_live_report"
+    "05_Software/aegis/tests/test_run_report.py::test_summary_literal_comment_markers_do_not_hide_live_report",
+    "05_Software/aegis/tests/test_run_report.py::test_stage_report_accepts_independent_review_fields",
+    "05_Software/aegis/tests/test_run_report.py::test_summary_displays_independent_verdicts_and_review_round"
 ]
 
 # --- optional below this line ---
@@ -85,4 +87,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-28
-updated = 2026-08-28
+updated = 2026-08-31

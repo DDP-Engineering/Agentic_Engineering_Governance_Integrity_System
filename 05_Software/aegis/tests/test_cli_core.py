@@ -115,6 +115,7 @@ def test_header_parser_round_trip_against_the_template(tmp_path):
         "type": "feature",
         "path": "full",
         "requirements": "",
+        "parent": "",
         "branch": "<branch>",
         "base": "",
         "opened": "2026-01-01",
@@ -131,6 +132,122 @@ def test_header_parser_tolerates_a_journal_without_a_header(tmp_path):
     assert aegis.parse_journal("no title here\n")["id"] == ""
     data = aegis.parse_journal("# TASK-1234 — t\n\n## Log\n- a\n- b\n")
     assert data["header"] == {} and data["log"] == ["a", "b"]
+
+
+def test_legacy_journal_without_new_sections_still_parses(tmp_path):
+    """REQ-FUNC-7ea14fe4: old journals have empty additive durable state."""
+    _, aegis = make_repo(tmp_path)
+    text = "# TASK-1234 - legacy\n\nstage: build\ntype: feature\n\n## Log\n\n- old\n"
+    data = aegis.parse_journal(text)
+
+    assert data["header"].get("parent", "") == ""
+    assert aegis.parse_rulings(text) == ([], [])
+    assert aegis.parse_handoff(text) == {}
+
+
+def test_new_task_template_has_parent_rulings_handoff_and_review_fields(tmp_path):
+    """REQ-FUNC-b8f0efc5: the canonical task scaffold carries additive fields."""
+    agentic, aegis = make_repo(tmp_path)
+    text = (agentic / "templates" / "task.md").read_text(encoding="utf-8")
+    data = aegis.parse_journal(text)
+
+    assert data["header"]["parent"] == ""
+    assert text.index("## Rulings") < text.index("## Handoff") < text.index("## Stage report")
+    assert aegis.parse_rulings(text) == ([], [])
+    assert aegis.parse_handoff(text) == {
+        "current": "", "status": "", "next": "", "must_read": "", "blockers": ""
+    }
+    report = aegis.parse_stage_report(text)
+    assert list(report)[-3:] == [
+        "spec_compliance", "implementation_quality", "review_round"
+    ]
+
+
+def test_rulings_parse_in_order_and_supersede_without_mutating_history(tmp_path):
+    """REQ-FUNC-7ea14fe4: later rulings supersede but never rewrite history."""
+    _, aegis = make_repo(tmp_path)
+    text = """# TASK-1234 - rulings
+
+stage: build
+
+## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=First | reason=Initial | source=user | supersedes=none
+- RULING-002 | date=2026-08-31 | decision=Second | reason=Refined | source=technical | supersedes=RULING-001
+- RULING-003 | date=2026-08-31 | decision=Third | reason=Independent | source=requirement | supersedes=none
+"""
+    records, errors = aegis.parse_rulings(text)
+
+    assert errors == []
+    assert [record["id"] for record in records] == [
+        "RULING-001", "RULING-002", "RULING-003"
+    ]
+    assert [record["id"] for record in aegis.active_rulings(records)] == [
+        "RULING-002", "RULING-003"
+    ]
+    assert records[0]["decision"] == "First"
+
+
+def test_malformed_ruling_is_reported_without_hiding_valid_records(tmp_path):
+    """REQ-FUNC-7ea14fe4: bounded diagnostics preserve valid ruling records."""
+    _, aegis = make_repo(tmp_path)
+    text = """# TASK-1234 - rulings
+
+stage: build
+
+## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=Keep | reason=Works | source=user | supersedes=none
+- RULING-XYZ | decision={long_value}
+""".format(long_value="x" * 10000)
+    records, errors = aegis.parse_rulings(text)
+
+    assert [record["id"] for record in records] == ["RULING-001"]
+    assert len(errors) == 1 and len(errors[0]) < 240
+
+
+def test_forward_supersession_does_not_hide_a_later_valid_ruling(tmp_path):
+    """REQ-FUNC-7ea14fe4: only a valid earlier ID can be superseded."""
+    _agentic, aegis = make_repo(tmp_path)
+    text = """## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=wait | reason=future | source=technical | supersedes=RULING-002
+- RULING-002 | date=2026-08-31 | decision=ship | reason=current | source=user | supersedes=none
+"""
+    records, _errors = aegis.parse_rulings(text)
+    assert [record["id"] for record in aegis.active_rulings(records)] == [
+        "RULING-001", "RULING-002"]
+
+
+def test_ruling_parser_bounds_malformed_record_diagnostics(tmp_path):
+    """REQ-FUNC-7ea14fe4: malformed ruling output stays bounded."""
+    _agentic, aegis = make_repo(tmp_path)
+    text = "## Rulings\n\n" + "\n".join(f"invalid {n}" for n in range(100))
+    _records, errors = aegis.parse_rulings(text)
+    assert len(errors) == aegis.RULING_DIAGNOSTIC_LIMIT
+    assert errors[-1] == "...[81 ruling diagnostics omitted; read journal]"
+
+
+def test_handoff_requires_known_fields_and_accepts_blank_scaffold(tmp_path):
+    """REQ-FUNC-7ea14fe4: handoff is one strict replaceable field record."""
+    _, aegis = make_repo(tmp_path)
+    blank = """# TASK-1234 - handoff
+
+stage: frame
+
+## Handoff
+
+current:
+status:
+next:
+must_read:
+blockers:
+"""
+    assert aegis.parse_handoff(blank) == {
+        "current": "", "status": "", "next": "", "must_read": "", "blockers": ""
+    }
+    with pytest.raises(aegis.UserError, match="unknown Handoff field"):
+        aegis.parse_handoff(blank + "surprise: value\n")
 
 
 # TESTS - init
@@ -178,6 +295,45 @@ def test_init_never_overwrites_an_existing_aegis_toml(tmp_path):
 
     assert aegis.main(["init"]) == 0
     assert config.read_text(encoding="utf-8") == mine
+
+
+def test_init_writes_review_disabled_with_two_fix_cycles(tmp_path):
+    """REQ-FUNC-9514e017: fresh workspaces preserve behavior with review off."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    assert aegis.load_config()["review"] == {"enabled": False, "max_fix_cycles": 2}
+
+
+def test_missing_review_table_is_backward_compatible(tmp_path):
+    """REQ-FUNC-9514e017: legacy config means disabled with the default bound."""
+    _, aegis = make_repo(tmp_path)
+    assert aegis.review_settings({"schema": 1}) == (False, 2)
+
+
+def test_review_settings_accept_exact_boolean_and_bounded_integer(tmp_path):
+    """REQ-FUNC-9514e017: valid policy values retain their exact meaning."""
+    _, aegis = make_repo(tmp_path)
+    assert aegis.review_settings({"review": {"enabled": True, "max_fix_cycles": 0}}) == \
+        (True, 0)
+    assert aegis.review_settings({"review": {"enabled": False, "max_fix_cycles": 5}}) == \
+        (False, 5)
+
+
+def test_review_settings_reject_boolean_as_integer(tmp_path):
+    """REQ-FUNC-9514e017: TOML Boolean never masquerades as an integer bound."""
+    _, aegis = make_repo(tmp_path)
+    assert aegis.review_settings({"review": {"enabled": True, "max_fix_cycles": True}}) == \
+        (True, 0)
+
+
+def test_init_preserves_existing_workspace_config(tmp_path):
+    """REQ-FUNC-9514e017: init never injects review policy into owned config."""
+    agentic, aegis = make_repo(tmp_path)
+    path = agentic / "aegis.toml"
+    original = "schema = 1\n\n[review]\nenabled = true\nmax_fix_cycles = 4\n"
+    path.write_text(original, encoding="utf-8")
+    assert aegis.main(["init"]) == 0
+    assert path.read_text(encoding="utf-8") == original
 
 
 def test_init_appends_to_pointer_files_without_clobbering(tmp_path):
@@ -542,6 +698,109 @@ def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
     assert len(original.split("\n")) == len(generated.split("\n"))
     assert len(changed) == 4  # title, type (unchanged text), branch, opened, log
     assert {b.split(":")[0] for _a, b in changed} >= {"branch", "opened"}
+
+
+def test_task_without_parent_remains_a_top_level_task(tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-3bc8597c: ordinary task creation keeps a blank parent."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "git_branch", lambda: "feature/top")
+    monkeypatch.setattr(aegis.secrets, "token_hex", lambda _n: "aa11")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Top level"]) == 0
+    path = tmp_path / capsys.readouterr().out.strip()
+    assert aegis.parse_journal(path.read_text(encoding="utf-8"))["header"]["parent"] == ""
+
+
+def test_task_with_parent_records_only_the_child_side_link(tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-3bc8597c: child creation never mutates its parent journal."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    draws = iter(["aa11", "bb22"])
+    monkeypatch.setattr(aegis.secrets, "token_hex", lambda _n: next(draws))
+    monkeypatch.setattr(aegis, "git_branch", lambda: "feature/children")
+    capsys.readouterr()
+    assert aegis.main(["task", "Parent"]) == 0
+    capsys.readouterr()
+    parent = agentic / "tasks" / "TASK-aa11.md"
+    before = parent.read_bytes()
+
+    assert aegis.main(["task", "Child", "--parent", "aa11"]) == 0
+    child = agentic / "tasks" / "TASK-bb22.md"
+    assert aegis.parse_journal(child.read_text(encoding="utf-8"))["header"]["parent"] == \
+        "TASK-aa11"
+    assert parent.read_bytes() == before
+
+
+def test_task_rejects_unknown_parent(tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-3bc8597c: a missing visible parent cannot create a child."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis.secrets, "token_hex", lambda _n: "bb22")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Child", "--parent", "dead"]) == 1
+    assert "no such task journal" in capsys.readouterr().err
+    assert not (agentic / "tasks" / "TASK-bb22.md").exists()
+
+
+def test_task_rejects_a_parent_that_is_itself_a_child(tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-3bc8597c: task relationships cannot nest beyond one level."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    parent = (agentic / "templates" / "task.md").read_text(encoding="utf-8")
+    parent = parent.replace("TASK-0000", "TASK-aa11").replace(
+        "# TASK-aa11 - <one-line title>", "# TASK-aa11 - Parent")
+    (agentic / "tasks").mkdir(exist_ok=True)
+    (agentic / "tasks" / "TASK-aa11.md").write_text(parent, encoding="utf-8")
+    nested = parent.replace("TASK-aa11", "TASK-bb22").replace(
+        "# TASK-bb22 - Parent", "# TASK-bb22 - Existing child").replace(
+        "parent:", "parent: TASK-aa11", 1)
+    (agentic / "tasks" / "TASK-bb22.md").write_text(nested, encoding="utf-8")
+    monkeypatch.setattr(aegis.secrets, "token_hex", lambda _n: "cc33")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Nested", "--parent", "TASK-bb22"]) == 1
+    assert "already a child" in capsys.readouterr().err
+    assert not (agentic / "tasks" / "TASK-cc33.md").exists()
+
+
+def test_child_keeps_its_own_current_branch_and_base(tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-3bc8597c: a child records its own repository context."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    parent = (agentic / "templates" / "task.md").read_text(encoding="utf-8")
+    parent = parent.replace("TASK-0000", "TASK-aa11").replace(
+        "# TASK-aa11 - <one-line title>", "# TASK-aa11 - Parent")
+    (agentic / "tasks").mkdir(exist_ok=True)
+    (agentic / "tasks" / "TASK-aa11.md").write_text(parent, encoding="utf-8")
+    monkeypatch.setattr(aegis.secrets, "token_hex", lambda _n: "bb22")
+    monkeypatch.setattr(aegis, "git_branch", lambda: "feature/child")
+    monkeypatch.setattr(aegis, "git_head", lambda: "0123456789abcdef")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Child", "--parent", "TASK-aa11"]) == 0
+    child = aegis.parse_journal(
+        (agentic / "tasks" / "TASK-bb22.md").read_text(encoding="utf-8"))
+    assert child["header"]["branch"] == "feature/child"
+    assert child["header"]["base"] == "0123456789abcdef"
+
+
+def test_visible_children_are_sorted_and_ignore_unrelated_tasks(tmp_path):
+    """REQ-FUNC-3bc8597c: reverse links expose only sorted visible children."""
+    agentic, aegis = make_repo(tmp_path)
+    (agentic / "tasks").mkdir(exist_ok=True)
+    template = (agentic / "templates" / "task.md").read_text(encoding="utf-8")
+    for task_id, parent in (("TASK-cc33", "TASK-aa11"), ("TASK-bb22", "TASK-aa11"),
+                            ("TASK-dd44", "TASK-ffff"), ("TASK-aa11", "")):
+        text = template.replace("TASK-0000", task_id).replace(
+            f"# {task_id} - <one-line title>", f"# {task_id} - Task")
+        text = text.replace("parent:", f"parent: {parent}".rstrip(), 1)
+        (agentic / "tasks" / f"{task_id}.md").write_text(text, encoding="utf-8")
+
+    children = aegis.visible_children("TASK-aa11")
+    assert [data["id"] for _path, data in children] == ["TASK-bb22", "TASK-cc33"]
 
 
 # TESTS - git branch lookup

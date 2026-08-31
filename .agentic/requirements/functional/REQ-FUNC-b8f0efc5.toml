@@ -49,7 +49,7 @@ When AEGIS creates or records governed work artifacts, the payload shall provide
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspection: compare the four canonical templates with their documented artifact locations and confirm each provides fields or sections needed to resume and verify governed work."
+verification = "Inspection: compare the four canonical templates with their documented artifact locations and confirm the task template carries compatible parent, ruling, handoff, stage-report, and review scaffolds needed to resume and verify governed work."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -63,6 +63,7 @@ affected_paths = [
 # these select the impacted regression set.
 linked_tests = [
     "05_Software/aegis/tests/test_cli_core.py::test_header_parser_round_trip_against_the_template",
+    "05_Software/aegis/tests/test_cli_core.py::test_new_task_template_has_parent_rulings_handoff_and_review_fields",
 ]
 
 # --- optional below this line ---
@@ -74,4 +75,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-08-31

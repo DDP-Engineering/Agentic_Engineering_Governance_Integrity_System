@@ -2,164 +2,131 @@
 Copyright (c) 2026 DDP Engineering
 This software is licensed under the PolyForm Noncommercial License 1.0.0.
 Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+See the LICENSE.txt file for full license details.
+SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# 01 — Workflow and stages
+# 01 - Workflow and stages
 
-The lifecycle is defined entirely in markdown the agent reads: one entry
-document (`AGENTS.md`) and one short step file per stage. There is no stage
-state machine in code — the *task journal* records which stage a task is in,
-and the agent (or human) moves it forward by editing one line.
+The workflow contract is the installed `.agentic/AGENTS.md` plus one step
+file per stage. A task journal records the current stage and evidence; the
+CLI does not advance stages on anyone's behalf.
 
-## Stage model (recommended, decision D1)
+## Scope and operating rule
 
-AEGIS uses six stages:
+Use AEGIS for software work that changes the product, tests, or its
+implementation-facing documentation. Do not use it for repository-only work,
+version assignment, delivery/package construction, publication, or deployment.
+Those operations may carry an AEGIS-governed implementation, but are not
+themselves a workflow task.
 
-| # | Stage | Absorbs from 2.x | Purpose (one line) |
-|---|---|---|---|
-| 1 | `frame` | intake + alignment | Understand the ask, agree scope, open the task journal. |
-| 2 | `specify` | requirement | Write or update the requirement(s) and, when useful, a spec. |
-| 3 | `design` | design | A short design note for non-trivial work; cite requirement IDs. |
-| 4 | `build` | check + implementation | Tests first (recommended), then implementation, until green. |
-| 5 | `validate` | validation | Review the candidate, update requirements and knowledge, then run `aegis check` and the full test suite as the final action. |
-| 6 | `deliver` | delivery | Present the unchanged validated candidate, append the report, commit/PR, and close out truthfully. |
+The workflow is advisory. A step can be skipped only by recording the reason
+truthfully; `check` reports evidence gaps and configuration issues, while
+`check --strict` is the optional CI enforcement boundary.
 
-**Quick path** (small fixes/changes): `frame → build → validate → deliver`. The agent
-decides proportionality in `frame` and records the choice in the task
-journal — no profile flag, no enforcement, just a recorded decision.
+## Ordinary lifecycle
 
-**Adoption** of an existing repo is not a separate seven-stage flow; it is
-one step file (`steps/adopt.md`) describing three phases:
+| Stage | Step file | Implemented responsibility |
+|---|---|---|
+| `frame` | `steps/1_frame.md` | Agree scope, exclusions, authority limits, path, and open the journal. |
+| `specify` | `steps/2_specify.md` | Create or update durable requirements and a spec when the requirement alone is not buildable. |
+| `design` | `steps/3_design.md` | Record a short, requirement-linked design for non-trivial work. |
+| `build` | `steps/4_build.md` | Establish the expected red result where practical, implement, and keep traceability links current. |
+| `validate` | `steps/5_validate.md` | Reconcile the candidate, update knowledge, run focused and full proof, strict checks, and review evidence. |
+| `deliver` | `steps/6_deliver.md` | Present the unchanged validated candidate, append the delivery report, and act only within granted Git/PR authority. |
 
-- **Survey (one session).** After `aegis init`, the agent proposes a
-  component breakdown heuristically (directory structure, entry points,
-  import clusters, existing docs) and writes it into an adoption task
-  journal (`type: adopt`): one checklist item per component with a
-  one-line scope and file globs. **The owner reviews and edits this list
-  before anything else happens** — that is the alignment moment, replacing
-  the four discovery/alignment stages of 2.x adoption.
-- **Per component (one session each — sized for a 32k local model).**
-  Read the component's code and its *existing tests* (tests are the
-  primary evidence of intended behavior); write the knowledge page;
-  derive requirements (`active`, `affected_paths` = the component's
-  files, `linked_tests` = the existing tests that already verify each
-  behavior — adoption mostly links tests, it does not write them); add
-  specs only where a requirement alone is not buildable. Real behavior
-  with no test gets either a characterization test now (recommended for
-  load-bearing behavior) or an empty `linked_tests`, which check #6 then
-  flags on every run — those warnings are the post-adoption backlog.
-  Behavior that looks *wrong* is adopted as-is and noted in the journal
-  as a future task, never silently canonized. Tick the component off.
-- **Close.** `aegis check` over the whole tree, fix-forward, `aegis
-  report`, PR.
+A small fix or change may take the quick path:
 
-The survey checklist makes adoption interruptible, parallelizable
-(different people, branches, or models each take a component; one file
-per requirement keeps their merges clean), and incremental — adopt only
-the components you actively change; check #5 warns when an unadopted
-area is touched.
-
-## The step files
-
-```
-.agentic/
-  AGENTS.md            # entry point, ≤ 150 lines
-  steps/
-    1_frame.md         # each ≤ 120 lines
-    2_specify.md
-    3_design.md
-    4_build.md
-    5_validate.md
-    6_deliver.md
-    adopt.md
+```text
+frame -> build -> validate -> deliver
 ```
 
-`AGENTS.md` contains: the philosophy paragraph, the stage table, where
-artifacts live, the resume procedure, and a prompt cheatsheet (one line per
-stage). Agent CLIs that read `AGENTS.md` natively (Codex, Qwen Code) pick it
-up directly; for Claude Code, `CLAUDE.md` contains one line pointing at it.
+`frame` records `path: quick` and why the omitted specification/design work
+is proportionate. The quick path does not remove validation, delivery proof,
+or approval limits.
 
-Every step file has the same fixed skeleton, so a small model always knows
-what it is looking at:
+If the candidate changes after validation, return to `validate`. Deliver is
+not a place to make unvalidated implementation changes.
 
-```markdown
-# Stage N — <name>
-**Purpose:** one or two sentences.
-**Read first:** the task journal; <specific other files>.
-**Steps:** numbered, concrete, imperative. 5–10 items.
-**Outputs:** the files this stage creates or updates.
-**Done when:** a checklist the agent copies into the task journal and ticks.
-**Skip when:** the proportionality rule for this stage.
+## Interaction boundaries
+
+Checkpoint mode is the default. It asks at two meaningful boundaries:
+
+1. End of `frame`: confirm scope, selected path, and requirements.
+2. Before a delivery commit or pull request: present the validated candidate
+   and proof for explicit authority.
+
+An explicit autopilot request suppresses the first stop, not external
+authority or the delivery boundary. Neither child tasks, stage reporting,
+rulings, handoffs, nor review add a new ordinary approval checkpoint.
+
+Record accepted deviations immediately and say them in the conversation:
+
+```text
+DEVIATION <stage>: <what> - <why accepted, or what it costs>
 ```
 
-Example — `4_build.md` steps (illustrative):
+Examples include accepting a `check` warning, a failed/skipped verification,
+unexpected anchor/evolution evidence, or a manual verification method standing
+in for an automatable test.
 
-1. Re-read the task journal and the linked requirement(s).
-2. For each requirement, write or extend a test that fails for the right
-   reason. Run it; record the exact selector or command, non-zero exit, and
-   expected missing-behavior reason in the journal (red-before-green is
-   recommended, not enforced).
-3. Implement until the new tests pass; use `aegis test --impacted` as the
-   fast inner loop (it runs only the tests linked to requirements whose
-   `affected_paths` you touched — the focused regression from 2.x, kept).
-4. Add each touched source path to the requirement's `affected_paths` and
-   each new test to `linked_tests` (this is what keeps `--impacted`
-   selecting the right regression set).
-5. Run `aegis check`; fix what the report flags or note in the journal why
-   a warning is accepted.
-6. Update the journal: tick the done-checklist, set `stage = deliver`.
+## Explicit review is policy, not a stage
 
-## Interaction modes (defined in `AGENTS.md`)
+The optional `[review]` configuration controls explicit review evidence:
 
-The entry prompt is simply: `using aegis workflow, implement feature X`
-(AGENTS.md-native CLIs need nothing more; the cheatsheet gives the
-explicit `Read .agentic/AGENTS.md …` form for small models). How often
-the agent stops for confirmation is a prompt-level choice between two
-modes the instructions define — not a mechanism:
+```toml
+[review]
+enabled = false
+max_fix_cycles = 2
+```
 
-- **Checkpoint mode (default):** two conversational stops, not one per
-  stage — at the end of `frame` (scope, chosen path, proposed
-  requirements; the cheap moment to course-correct) and before the
-  `deliver` commit/PR (report + `aegis check` results presented for a
-  yes). The middle stages flow through; the journal records every
-  transition regardless.
-- **Autopilot:** "… autopilot to deliver" suppresses the frame stop too;
-  the pre-PR stop remains, because publishing is the outward-facing act.
+When enabled, review records independent `spec_compliance` and
+`implementation_quality` verdicts for the same candidate. An edit invalidates
+both verdicts. The policy permits one initial review plus up to
+`max_fix_cycles` fix-and-re-review rounds, then requires human direction.
 
-These pauses are conversational and orthogonal to the harness's own
-permission model (Claude Code permission modes, Codex sandbox approvals
-still apply underneath). Autopilot loses no auditability: the journal
-still shows the scope decision, the red-test line, check findings, and
-ticked checklists after the fact.
+The current repository enables this policy with `max_fix_cycles = 2`.
+Disabling it skips only the explicit verdict contract and bounded loop; it
+never skips semantic review, knowledge updates, full validation, strict checks,
+or the delivery checkpoint.
 
-## Session resume and stage handoff
+## Durable resume state
 
-The task journal (`.agentic/tasks/TASK-<id>.md`, see doc 02) is the only
-state. The resume procedure in `AGENTS.md` is three lines:
+The task journal is the durable history. Its append-only `## Log` records
+observations and decisions. New journals also support:
 
-1. Open the task journal named in the prompt (or `aegis status` to list
-   open tasks).
-2. Read `stage:` and the log; open `steps/<stage>.md`.
-3. Continue at the first unticked item.
+- **Rulings:** append-only durable decisions; a later ruling supersedes an
+  earlier ruling by ID instead of rewriting history.
+- **Handoff:** one replaceable, stage-bound resume snapshot with `current`,
+  `status`, `next`, `must_read`, and `blockers`.
+- **Stage report:** one replaceable current snapshot of result, changes,
+  evidence, issues, next action, and optional review fields.
 
-Because the journal is a committed file, resume works across sessions,
-across days, across machines, and across *models* — a large model can frame
-and specify, a local 27B model can build, and either can validate and deliver. Each stage
-is sized so one stage fits in one small-model session (see doc 04).
+Resume safely:
 
-## What "blocking" becomes
+1. Run `python .agentic/aegis.py status` when the task ID is unknown.
+2. Run `python .agentic/aegis.py brief TASK-<id>`.
+3. Read the current step file and the Handoff `must_read` paths.
+4. Read the full journal wherever detail is omitted, stale, unresolved, or
+   required by the current stage; then continue at the first unticked item.
 
-| Earlier approach | AEGIS approach |
-|---|---|
-| Hook denies a write | Step file says where things go; `aegis check` flags strays |
-| Gate must pass to advance | "Done when" checklist in the step file, ticked in the journal |
-| Waiver record | A one-line note in the journal: "accepted warning X because Y" |
-| Evidence form | The journal log line (free text, timestamped) |
-| Enforced red-before-green | Recommended practice in `4_build.md`, noted in the journal |
-| Delivery preflight hook | `deliver` step runs `aegis check --strict` before the PR |
+`brief` never proves the recorded state is still true. `summary` is useful
+after a stage report is written, but it is narrower still and never replaces
+required journal, source, or evidence reads.
 
-The honest trade: a careless agent *can* skip steps. The mitigations are
-(a) the journal makes skipping visible in review, (b) `aegis check` makes
-it visible in one command, and (c) CI `--strict` makes it a merge blocker
-if — and only if — the team opts in.
+## Adoption and child tasks
+
+Existing-repository adoption follows `steps/adopt.md`:
+
+```text
+survey -> components -> close -> done
+```
+
+It produces requirements and knowledge from observed code and tests, then
+checks the resulting register. It is not an ordinary-stage shortcut.
+
+Large work may use optional one-level child tasks. A child keeps its own
+journal, branch/base, requirements, evidence, validation, and delivery
+checkpoint. The child has the only `parent:` link; creating it never rewrites
+the parent. The parent validates the integrated candidate, and visibility is
+limited to child journals present in the current checkout.

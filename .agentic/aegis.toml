@@ -41,6 +41,12 @@ docs = [
 # components = ["tests"]
 # close = []
 
+[review]
+# Optional explicit verdicts and bounded fix-and-re-review rounds. Normal
+# validation remains required when explicit review is disabled.
+enabled = true
+max_fix_cycles = 2
+
 [check]
 secret_patterns_extra = []
 ignore = []

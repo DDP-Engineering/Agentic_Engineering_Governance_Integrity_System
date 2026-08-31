@@ -199,6 +199,30 @@ On another machine: push the branch from the old machine first — the
 journal travels with its branch, and the agent verifies the branch
 matches the journal before touching anything.
 
+For a small-context local model:
+
+```
+Using AEGIS, run brief TASK-<id>. Read the current step and Handoff must_read
+paths first. Continue the first unticked action. Read the full journal wherever
+the stage requires it. Do not infer approval or Git authority.
+```
+
+For a deliberately split feature:
+
+```
+Using AEGIS, create one child under TASK-<parent-id> for this exact
+non-overlapping scope: <scope>. Keep its requirements, validation, and delivery
+independent. Do not edit the parent or claim children outside this checkout.
+```
+
+For an enabled-review return:
+
+```
+Fix only the recorded review findings for TASK-<id>. Clear both old verdicts,
+rerun focused proof, increment the bounded round, and re-review specification
+compliance and implementation quality against the same candidate.
+```
+
 ## Reconcile after a merge
 
 ```
