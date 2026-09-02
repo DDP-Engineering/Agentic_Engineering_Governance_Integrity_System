@@ -23,8 +23,16 @@ findings and optionally runs configured commands.
 `report` appends a delivery snapshot. `anchor` fingerprints repository state
 for an active task, while `evolution` classifies later changes against it.
 `diagram` renders the requirement register as a Mermaid coverage map, to
-standard output or to a UTF-8 file. `explain` reports what governs one
-repository path and which journals delivered it.
+standard output or to a UTF-8 file. `trace` exports the same register as a
+flat traceability matrix in Markdown or comma-separated values. `explain`
+reports what governs one repository path and which journals delivered it.
+
+`trace` distinguishes unreadable requirement files from listed records with
+validation errors and retains rows when optional knowledge prose is unreadable.
+It labels uncertain ownership explicitly, derives categories from the first
+folder below `requirements/`, and escapes literal Markdown cell content before
+joining list entries. `--format` selects the format independently of the file
+suffix; `--out` supplies portable encoding.
 
 ## Key behaviors
 
@@ -40,6 +48,10 @@ repository path and which journals delivered it.
 - `REQ-FUNC-e46f1d0c` - Narrow that diagram to one component or one task.
 - `REQ-FUNC-0f4eb4c5` - Trace a repository path back to the requirements and
   tasks that govern it.
+- `REQ-FUNC-7ec58ca7` - Emit the requirement register as a complete, ordered
+  traceability record.
+- `REQ-FUNC-d3905502` - Serialize that record as Markdown or comma-separated
+  values without losing its delimiters or its encoding.
 - `REQ-UX-48bb759b` - Lead the delivery report with the deviations the task
   recorded.
 - `REQ-FUNC-9514e017` - Project optional independent current-candidate review
@@ -50,13 +62,19 @@ repository path and which journals delivered it.
 
 ## Architecture
 
-Seven commands over one register. Each entry point composes shared readers
+Eight commands over one register. Each entry point composes shared readers
 rather than owning its own parsing, which is why a finding, a report and a
 diagram can never disagree about what the records say. `coverage_class` is
 the same rule applied to judgement rather than to parsing: `check` turns its
-verdict into findings while `diagram` and `explain` turn the same verdict
-into a label, so the precedence between a broken link, a by-hand method and
-an empty one exists in exactly one place.
+verdict into findings while `diagram`, `explain` and `trace` turn the same
+verdict into a label, so the precedence between a broken link, a by-hand
+method and an empty one exists in exactly one place.
+
+The three readers of the whole register differ only in what they narrow.
+`diagram` groups it into a picture that stops being legible past a few dozen
+nodes; `explain` answers about one path; `trace` narrows nothing and is the
+one form that leaves the repository, which is why it is the only one that
+owes an escaping and encoding contract.
 
 ```mermaid
 flowchart TD
@@ -67,6 +85,7 @@ flowchart TD
     evolution(["evolution"])
     diagram(["diagram"])
     explain(["explain"])
+    trace(["trace"])
 
     cfg["load_config - aegis.toml"]
     scan["scan_requirements / scan_journals - parse the register"]
@@ -74,7 +93,8 @@ flowchart TD
     runner["run_configured_commands - subprocess, timeouts"]
     manifest["repository_manifest - SHA-256 fingerprints"]
     render["render_diagram - Mermaid text"]
-    trace["match_any - affected_paths cover this path"]
+    rows["render_trace_md / render_trace_csv - one row per requirement"]
+    covers["match_any - affected_paths cover this path"]
     devs["recorded_deviations - judgement out of the log"]
     bound["bound_stage_report - current recorded review state"]
     review["review_settings - optional bounded review policy"]
@@ -90,6 +110,9 @@ flowchart TD
     check --> cover
     diagram --> cover
     explain --> cover
+    trace --> cover
+    trace --> scan
+    trace --> rows
     test --> cfg
     test --> runner
     report --> scan
@@ -99,7 +122,7 @@ flowchart TD
     diagram --> scan
     diagram --> render
     explain --> scan
-    explain --> trace
+    explain --> covers
     report --> devs
     anchor --> manifest
     evolution --> manifest
@@ -118,7 +141,7 @@ advisory - none of them blocks, and none of them commits.
 ## Files
 
 - `05_Software/aegis/template/.agentic/aegis.py` - Canonical check, command,
-  report, anchor, evolution, and diagram implementation.
+  report, anchor, evolution, diagram, and trace implementation.
 - `05_Software/aegis/tests/test_check.py` - Governance-check catalog tests.
 - `05_Software/aegis/tests/test_run_report.py` - Strict-mode, configured-run,
   test, and reporting tests.

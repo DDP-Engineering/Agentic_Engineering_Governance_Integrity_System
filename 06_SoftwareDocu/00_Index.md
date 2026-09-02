@@ -7,7 +7,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS — user documentation
 
-User-oriented guides for AEGIS 0.9.0 (the advisory governance system at
+User-oriented guides for AEGIS 0.9.1 (the advisory governance system at
 `05_Software/aegis/`). Reading order for a
 new user: 01, 02, then the example matching your situation.
 

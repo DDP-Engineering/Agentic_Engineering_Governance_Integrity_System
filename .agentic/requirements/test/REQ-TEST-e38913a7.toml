@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-The product test suite shall guard the canonical payload's complete inventory, self-contained offline design, compatibility, licensing, advisory behavior, and absence of prohibited heavy workflow machinery.
+The product test suite shall guard the canonical payload's complete inventory, self-contained offline design, compatibility, licensing, advisory behavior, agreement with the repository's installed CLI and reference, and absence of prohibited heavy workflow machinery.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ The product test suite shall guard the canonical payload's complete inventory, s
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Run test_structure.py and inspect its inventory, self-contained, compatibility, licensing, advisory, and forbidden-identifier checks."
+verification = "Run test_structure.py and inspect its inventory, self-contained, compatibility, licensing, advisory, installed-copy agreement, and forbidden-identifier checks."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -63,6 +63,7 @@ linked_tests = [
     "05_Software/aegis/tests/test_structure.py::test_payload_never_references_external_documents",
     "05_Software/aegis/tests/test_structure.py::test_aegis_py_contains_no_forbidden_identifier",
     "05_Software/aegis/tests/test_structure.py::test_aegis_py_imports_only_the_standard_library",
+    "05_Software/aegis/tests/test_structure.py::test_installed_cli_matches_template",
 ]
 
 # --- optional below this line ---
@@ -74,4 +75,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-09-02

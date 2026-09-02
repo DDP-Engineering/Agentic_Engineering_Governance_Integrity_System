@@ -1,0 +1,22 @@
+{
+  "artifacts": {
+    "aegis-0.9.1-linux.tar.gz": {
+      "platform": "linux",
+      "sha256": "337f953e919a1610468f5b0db462a50f4ceaf6fd9e480dc5fb17ea9b9f175f26",
+      "size": 122933
+    },
+    "aegis-0.9.1-windows.zip": {
+      "platform": "windows",
+      "sha256": "aab9824732d804392d5edf9086034db33176e6f63f60b4842a3dbefd5d53f14e",
+      "size": 150552
+    }
+  },
+  "dependencies": "standard-library-only",
+  "documentation_file_count": 11,
+  "payload_file_count": 15,
+  "product": "aegis",
+  "python": ">=3.11",
+  "release_date": "2026-09-02",
+  "schema": 1,
+  "version": "0.9.1"
+}

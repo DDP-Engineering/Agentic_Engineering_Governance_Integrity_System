@@ -1,0 +1,95 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# One requirement = one independently verifiable behavior.
+# Lives at .agentic/requirements/<category>/<id>.toml
+# Required fields: schema, id, title, status, requirement, verification.
+
+schema = 1
+
+# REQ-<CAT>-<8 hex>. CAT is FUNC, UX, NFR, SEC, DATA, PLAT, REL or TEST,
+# and must match the category folder this file sits in.
+id = "REQ-FUNC-7ec58ca7"
+
+title = "Emit the requirement register as a traceability record"
+
+# draft while being written, active once it is built and tested,
+# retired when the behavior is deliberately removed.
+status = "active"
+
+# Self-contained prose: a reader with no other context must be able to
+# understand and check it. No ticket numbers, no run IDs, no references
+# to other requirements.
+#
+# Recommended shape - EARS. Pick the one pattern that fits; a stated
+# trigger or condition is what the test has to arrange, so surfacing it
+# here is what makes the behavior testable:
+#
+#   ubiquitous  The <system> shall <response>.
+#   event       When <trigger>, the <system> shall <response>.
+#   state       While <state>, the <system> shall <response>.
+#   unwanted    If <condition>, then the <system> shall <response>.
+#   optional    Where <feature is included>, the <system> shall <response>.
+#
+# Two "shall" clauses means two behaviors: split it into two requirements.
+# Do not contort prose to fit a pattern - a constraint that reads better
+# plainly is better plainly.
+requirement = """
+When an operator asks for a traceability record of the requirement register, the CLI shall emit one row for every requirement — to standard output, or to a named file — carrying its identifier, category, status, claiming component, title, statement, verification method, spec reference, and its complete linked-test and affected-path lists with their counts, marked with the coverage class matching the outcome the governance check reaches for that same record, ordered so that two runs over unchanged files produce identical output.
+"""
+
+# The observation that settles whether the behavior holds — not a
+# restatement of the requirement.
+#
+# Some behaviors no test can settle: a look-and-see judgement, an install
+# on clean hardware, a printed page. Start this field with "Manual:" or
+# "Inspection:" and name the method, and `check` records the requirement
+# as verified by hand instead of counting it among the tests still owed.
+# The prefix alone is not enough — it has to say what someone does.
+verification = "Run the command over a repository holding one requirement of every coverage class - a resolving linked test, a linked test whose file was deleted, a declared by-hand method, nothing at all, a draft and a retired behavior - across several categories and knowledge pages: the emitted record carries every requirement exactly once, each row's coverage class matches what `check` reports for that record, every linked test and affected path appears in full with a count that equals the number listed, a requirement no page claims is still carried, and a second run byte-matches the first."
+
+# Repo-relative, forward slashes. The source files this behavior lives in.
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+    "05_Software/aegis/template/.agentic/CLI.md",
+]
+
+# "tests/path/test_file.py::test_name" entries. Kept current during build;
+# these select the impacted regression set.
+linked_tests = [
+    "05_Software/aegis/tests/test_run_report.py::test_trace_carries_every_requirement_once_in_deterministic_order",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_marks_each_row_with_the_class_check_reaches",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_counts_match_the_lists_beside_them",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_carries_long_lists_and_prose_without_truncating",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_names_an_unreadable_requirement_instead_of_dropping_it",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_empty_register_states_zero_rather_than_failing",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_summary_counts_add_up_to_the_rows_it_lists",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_counts_only_omitted_files_as_unreadable",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_uses_the_category_below_the_requirement_root",
+    "05_Software/aegis/tests/test_run_report.py::test_trace_keeps_rows_when_a_knowledge_page_is_unreadable",
+]
+
+# --- optional below this line ---
+
+# "specs/REQ-FUNC-00000000.md" when the requirement alone is not buildable.
+spec = "specs/REQ-FUNC-7ec58ca7.md"
+
+priority = "normal"   # low | normal | high
+rationale = """
+The register is written one requirement at a time and read one path at a
+time, so nothing in the repository answers "show me everything, and what
+verifies it" in the shape an auditor, an assessor or a spreadsheet expects.
+Both other readers of the register are narrowing views: the coverage diagram
+groups a few dozen requirements into a picture, and the path lookup answers
+about one file. The flat record is the whole register at once, and the one
+form that leaves the repository intact - a reviewer filters it, sorts it, and
+hands it on. Its coverage marks come from the one classifier `check` also
+judges by, because an export that reached its own verdict would be a second
+opinion competing with the findings rather than a rendering of them.
+"""
+
+created = 2026-09-02
+updated = 2026-09-02

@@ -9,7 +9,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # 05 - Implementation phases
 
 The original implementation plan is complete. This document records the
-implemented product shape at AEGIS 0.9.0 and the maintenance boundary for
+implemented product shape at AEGIS 0.9.1 and the maintenance boundary for
 future changes.
 
 ## Completed implementation
@@ -42,9 +42,15 @@ repository. It is not the product source of truth. Update the template first,
 then copy the exact managed payload into root or downstream repositories and
 run `init`.
 
-## 0.9.0 implementation state
+## 0.9.1 implementation state
 
-Version 0.9.0 adds the current coordinated-workflow capabilities:
+Version 0.9.1 adds the `trace` requirement-register export in Markdown and CSV,
+with corrected literal text rendering, omission reporting, and category labels.
+The repository's impacted-test command now uses its configured Python runtime.
+
+## 0.9.0 coordination baseline
+
+Version 0.9.0 introduced the coordinated-workflow capabilities:
 
 - deterministic `brief` resume output distinct from `summary`;
 - optional explicit review with `enabled` and `max_fix_cycles`;
