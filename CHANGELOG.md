@@ -11,6 +11,17 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-02
+
+### Added
+
+- Read-only `trace` command exports the complete requirement register as Markdown
+  or CSV, with coverage, ownership, verification, tests and affected paths.
+
+### Fixed
+
+- Use the configured Python runtime for this repository's impacted tests.
+
 ## [0.9.0] - 2026-08-31
 
 ### Added

@@ -84,7 +84,7 @@ For Python changes inside
 
 ```powershell
 python -m py_compile <changed_file.py>
-uv run --group dev python -m pytest -q tests
+python -m pytest -q 05_Software/aegis/tests
 ```
 
 For CLI changes, also verify `python template/.agentic/aegis.py --help`.

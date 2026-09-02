@@ -19,6 +19,9 @@
 
 from __future__ import annotations
 
+import csv
+import html
+import io
 import json
 import subprocess
 import sys
@@ -1817,6 +1820,366 @@ def test_diagram_rejects_a_scope_that_does_not_exist(tmp_path, capsys):
     err = capsys.readouterr().err
     assert "--component and --task" in err
     assert len([line for line in err.splitlines() if line]) == 1
+
+
+# TESTS - trace
+
+
+def csv_rows(text: str) -> list[list[str]]:
+    """@brief The emitted comma-separated record, parsed back."""
+    return list(csv.reader(io.StringIO(text)))
+
+
+def md_rows(text: str) -> list[list[str]]:
+    """@brief The emitted Markdown table's body rows, split on unescaped bars."""
+    rows = []
+    for line in text.splitlines():
+        if not line.startswith("| REQ-"):
+            continue
+        # A bar after an even run of backslashes is a delimiter in GFM.
+        cells, start, backslashes = [], 0, 0
+        for index, char in enumerate(line):
+            if char == "|" and backslashes % 2 == 0:
+                cells.append(line[start:index])
+                start = index + 1
+            backslashes = backslashes + 1 if char == "\\" else 0
+        cells = cells[1:]
+        rows.append([cell.strip() for cell in cells])
+    return rows
+
+
+def test_trace_carries_every_requirement_once_in_deterministic_order(tmp_path,
+                                                                     capsys):
+    """REQ-FUNC-7ec58ca7: the record is the whole register, ordered."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+
+    code, out = run(aegis, capsys, "trace", "--format", "csv")
+    assert code == 0
+    rows = csv_rows(out)
+    assert rows[0][:4] == ["id", "category", "status", "coverage"]
+    ids = [row[0] for row in rows[1:]]
+    # every file exactly once - a draft and a retired behavior are part of the
+    # register's history, and omitting either would misreport what it holds.
+    # category order is the one `req` documents, not the alphabet, so the
+    # functional block precedes data however the ids happen to sort
+    assert ids == ["REQ-FUNC-1111", "REQ-FUNC-2222", "REQ-FUNC-3333",
+                   "REQ-FUNC-5555", "REQ-FUNC-6666", "REQ-FUNC-7777",
+                   "REQ-DATA-4444"]
+    assert len(set(ids)) == len(ids)
+    categories = [row[1] for row in rows[1:]]
+    assert categories == ["functional"] * 6 + ["data"]
+
+    # two runs over unchanged files are the same bytes: the order can never
+    # come from whatever the filesystem happened to enumerate
+    _code, again = run(aegis, capsys, "trace", "--format", "csv")
+    assert again == out
+
+
+def test_trace_marks_each_row_with_the_class_check_reaches(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: the export renders the verdict, never rivals it."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+
+    _code, out = run(aegis, capsys, "trace", "--format", "csv")
+    rows = csv_rows(out)
+    header = rows[0]
+    coverage = {row[0]: row[header.index("coverage")] for row in rows[1:]}
+    records = {str(data["id"]): data
+               for _relpath, _path, data in aegis.scan_requirements(
+                   lambda *_a: None, lambda _p: False)}
+    for rid, klass in coverage.items():
+        assert klass == aegis.coverage_class(records[rid]), rid
+    assert coverage["REQ-FUNC-1111"] == "tested"
+    assert coverage["REQ-FUNC-2222"] == "manual"
+    assert coverage["REQ-FUNC-5555"] == "broken"
+
+    # a requirement no knowledge page claims is carried, not dropped
+    component = {row[0]: row[header.index("component")] for row in rows[1:]}
+    assert component["REQ-DATA-4444"] == "(no knowledge page)"
+    assert component["REQ-FUNC-1111"] == "Parser"
+
+
+def test_trace_counts_match_the_lists_beside_them(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: a count and its list cannot be allowed to disagree."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
+    write_req(agentic, "REQ-FUNC-1111", title="Two of each",
+              tests='["tests/test_app.py::test_one", '
+                    '"tests/test_app.py::test_two"]',
+              paths='["src/a.py", "src/b.py", "src/c.py"]')
+
+    _code, out = run(aegis, capsys, "trace", "--format", "csv")
+    header, row = csv_rows(out)[0], csv_rows(out)[1]
+    field = dict(zip(header, row))
+    assert field["test_count"] == "2"
+    assert field["path_count"] == "3"
+    assert field["linked_tests"].count("::") == 2
+    assert field["affected_paths"].split("; ") == ["src/a.py", "src/b.py",
+                                                   "src/c.py"]
+
+
+def test_trace_carries_long_lists_and_prose_without_truncating(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: a clipped list reads as the whole list."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    paths = [f"src/module_{n:02d}.py" for n in range(30)]
+    prose = "The system shall carry every word of this statement. " * 20
+    write_req(agentic, "REQ-FUNC-1111", title="Long behavior", prose=prose,
+              paths="[" + ", ".join(f'"{p}"' for p in paths) + "]")
+
+    _code, out = run(aegis, capsys, "trace", "--format", "csv")
+    field = dict(zip(*csv_rows(out)[:2]))
+    assert field["path_count"] == "30"
+    for path in paths:
+        assert path in field["affected_paths"]
+    assert field["requirement"] == " ".join(prose.split())
+    # the bounded views say so when they shorten; this one must never need to
+    assert "truncated" not in out
+
+
+def test_trace_names_an_unreadable_requirement_instead_of_dropping_it(tmp_path,
+                                                                      capsys):
+    """REQ-FUNC-7ec58ca7: an export that under-reports in silence is worse."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write_req(agentic, "REQ-FUNC-1111", title="Readable behavior")
+    write(agentic / "requirements" / "functional" / "REQ-FUNC-9999.toml",
+          "schema = 1\nid = \"REQ-FUNC-9999\"\nthis is not = = valid toml\n")
+
+    capsys.readouterr()
+    code = aegis.main(["trace", "--format", "csv"])
+    captured = capsys.readouterr()
+    # check is the authority on findings and already errors on this file, so
+    # trace stays advisory - but the gap is stated, never silent
+    assert code == 0
+    assert "REQ-FUNC-9999" in captured.err
+    assert [row[0] for row in csv_rows(captured.out)[1:]] == ["REQ-FUNC-1111"]
+
+
+def test_trace_empty_register_states_zero_rather_than_failing(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: nothing to report is an answer, not a crash."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+
+    code, out = run(aegis, capsys, "trace", "--format", "csv")
+    assert code == 0
+    assert csv_rows(out)[0][0] == "id"
+    assert len(csv_rows(out)) == 1
+
+    code, out = run(aegis, capsys, "trace")
+    assert code == 0
+    assert "0 requirements" in out
+
+
+def test_trace_summary_counts_add_up_to_the_rows_it_lists(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: a breakdown that omits a row misreports the total."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    register(agentic, tmp_path)
+    # a folder outside the documented set still reaches the table, so it has
+    # to reach the breakdown too or the line will not sum to its own total
+    write_req(agentic, "REQ-FUNC-8888", folder="misc", title="Odd-folder behavior")
+
+    _code, out = run(aegis, capsys, "trace")
+    summary = next(line for line in out.splitlines()
+                   if line.startswith("by category"))
+    counted = sum(int(part.rsplit(" ", 1)[1]) for part in
+                  summary.removeprefix("by category — ").split(", "))
+    assert "8 requirements" in out
+    assert counted == 8
+    assert "misc 1" in summary
+    # the documented categories keep their place, including the empty ones
+    assert summary.index("functional") < summary.index("data")
+    assert "security 0" in summary
+
+
+def test_trace_csv_round_trips_prose_holding_its_own_delimiters(tmp_path,
+                                                                capsys):
+    """REQ-FUNC-d3905502: a comma in a statement must not become a column."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    prose = 'The tool shall accept a, b or c — never "d" | "e".'
+    write_req(agentic, "REQ-FUNC-1111", title="Delimiter behavior", prose=prose)
+
+    _code, out = run(aegis, capsys, "trace", "--format", "csv")
+    rows = csv_rows(out)
+    assert len(rows) == 2
+    field = dict(zip(rows[0], rows[1]))
+    # the whole statement, with its comma, quotes, bar and dash intact
+    assert field["requirement"] == prose
+    assert len(rows[1]) == len(rows[0])
+
+
+def test_trace_markdown_keeps_its_columns_when_prose_holds_a_bar(tmp_path,
+                                                                 capsys):
+    """REQ-FUNC-d3905502: one unescaped bar silently rewrites a whole row."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    prose = 'The tool shall accept a, b or c — never "d" | "e".'
+    write_req(agentic, "REQ-FUNC-1111", title="Delimiter behavior", prose=prose)
+    write_req(agentic, "REQ-FUNC-2222", title="Plain behavior")
+
+    _code, out = run(aegis, capsys, "trace")
+    rows = md_rows(out)
+    assert len(rows) == 2
+    assert len(rows[0]) == len(rows[1])
+    # the bar survives as content rather than splitting the row
+    assert "&#124;" in out
+    assert prose in html.unescape(out)
+
+
+def test_trace_writes_an_encoding_a_spreadsheet_opens(tmp_path, capsys):
+    """REQ-FUNC-d3905502: --out is a delivered artifact, not console output."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write_req(agentic, "REQ-FUNC-1111", title="Grüße — a dash")
+    target = tmp_path / "docs" / "traceability-matrix.csv"
+
+    code, out = run(aegis, capsys, "trace", "--format", "csv", "--out",
+                    str(target))
+    assert code == 0
+    assert "REQ-FUNC-1111" not in out
+    assert "docs/traceability-matrix.csv" in out
+    raw = target.read_bytes()
+    # the byte-order mark is what stops a spreadsheet guessing the system code
+    # page; the register already holds characters that guess wrongly
+    assert raw.startswith(b"\xef\xbb\xbf")
+    assert raw.decode("utf-8-sig").count("Grüße — a dash") == 1
+
+    md_target = tmp_path / "docs" / "traceability-matrix.md"
+    code, _out = run(aegis, capsys, "trace", "--out", str(md_target))
+    assert code == 0
+    assert not md_target.read_bytes().startswith(b"\xef\xbb\xbf")
+    assert "Grüße — a dash" in md_target.read_text(encoding="utf-8")
+
+
+def test_trace_rejects_an_unknown_format(tmp_path, capsys):
+    """REQ-FUNC-d3905502: an unnamed format must not fall back to a guess."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        aegis.main(["trace", "--format", "xlsx"])
+    # the rejected format has to be what argparse names; catching the exit
+    # alone would pass just as happily while the command did not exist at all
+    assert "xlsx" in capsys.readouterr().err
+
+
+def test_trace_counts_only_omitted_files_as_unreadable(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: validation findings do not imply missing rows."""
+    agentic, aegis = make_repo(tmp_path)
+    # Each readable file can raise several findings and still owns one row.
+    write_req(agentic, "REQ-FUNC-1111", title="", status="bogus")
+    write_req(agentic, "REQ-FUNC-1111", folder="misc", title="Duplicate")
+    write(agentic / "requirements/functional/REQ-FUNC-2222.toml", "invalid = [")
+    broken = agentic / "requirements/functional/REQ-FUNC-3333.toml"
+    broken.write_bytes(b"\xff")
+
+    assert aegis.main(["trace"]) == 0
+    captured = capsys.readouterr()
+    assert len(md_rows(captured.out)) == 2
+    assert "2 requirements" in captured.out
+    assert "2 file(s) unreadable and not listed" in captured.out
+    omitted = [line for line in captured.err.splitlines() if "not listed" in line]
+    assert len(omitted) == 2
+    assert all("REQ-FUNC-1111" not in line for line in omitted)
+    assert "listed with validation errors" in captured.err
+
+
+def test_trace_uses_the_category_below_the_requirement_root(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: nested paths retain their declared category folder."""
+    agentic, aegis = make_repo(tmp_path)
+    write_req(agentic, "REQ-FUNC-1111", folder="functional/sub")
+    write_req(agentic, "REQ-FUNC-2222", folder="")
+
+    _code, out = run(aegis, capsys, "trace", "--format", "csv")
+    rows = list(csv.DictReader(io.StringIO(out)))
+    assert [row["category"] for row in rows] == ["functional", "(no category)"]
+    _code, out = run(aegis, capsys, "trace")
+    assert "functional 1" in out
+    assert "(no category) 1" in out
+    assert "sub 1" not in out
+
+
+def test_trace_keeps_rows_when_a_knowledge_page_is_unreadable(tmp_path, capsys):
+    """REQ-FUNC-7ec58ca7: missing component prose cannot erase the register."""
+    agentic, aegis = make_repo(tmp_path)
+    write_req(agentic, "REQ-FUNC-1111")
+    write_req(agentic, "REQ-FUNC-2222")
+    write(agentic / "knowledge/good.md", "# Owner\n\n## Key behaviors\nREQ-FUNC-1111\n")
+    (agentic / "knowledge/bad.md").write_bytes(b"\xff")
+    write(agentic / "requirements/functional/REQ-FUNC-9999.toml", "invalid = [")
+
+    assert aegis.main(["trace", "--format", "csv"]) == 0
+    captured = capsys.readouterr()
+    rows = list(csv.DictReader(io.StringIO(captured.out)))
+    assert [row["id"] for row in rows] == ["REQ-FUNC-1111", "REQ-FUNC-2222"]
+    assert [row["component"] for row in rows] == ["Owner", "(knowledge incomplete)"]
+    assert "knowledge/bad.md" in captured.err
+    assert "component claims may be incomplete" in captured.err
+    assert "REQ-FUNC-9999" in captured.err
+
+
+def test_trace_markdown_list_items_stay_within_their_cells(tmp_path, capsys):
+    """REQ-FUNC-d3905502: each multiline entry stays inside one table cell."""
+    agentic, aegis = make_repo(tmp_path)
+    paths = ["src/a.py\nsrc/b.py", "src/other\rfile.py"]
+    tests = ["tests/test_a.py::test_a\nextra", "tests/test_b.py::test_b"]
+    write_req(agentic, "REQ-FUNC-1111", paths=json.dumps(paths), tests=json.dumps(tests))
+
+    _code, out = run(aegis, capsys, "trace")
+    rows = md_rows(out)
+    assert len(rows) == 1 and len(rows[0]) == 13
+    assert html.unescape(rows[0][10]) == (
+        "tests/test_a.py::test_a extra<br>tests/test_b.py::test_b")
+    assert rows[0][12] == "src/a.py src/b.py<br>src/other file.py"
+    assert rows[0][9] == rows[0][11] == "2"
+
+
+@pytest.mark.parametrize("prose", [
+    r"Escape a bar as \| here, or \\| here.",
+    "Accept <path> then <name> and &lt;literal&gt;.",
+    "Keep **stars**, _underscores_, `code`, [links](url), and ~~tilde~~.",
+])
+def test_trace_markdown_keeps_literal_prose(tmp_path, capsys, prose):
+    """REQ-FUNC-d3905502: prose stays text, without active markup or new cells."""
+    agentic, aegis = make_repo(tmp_path)
+    write_req(agentic, "REQ-FUNC-1111", prose=prose.replace("\\", "\\\\"))
+
+    _code, out = run(aegis, capsys, "trace")
+    rows = md_rows(out)
+    assert len(rows) == 1 and len(rows[0]) == 13
+    cell = rows[0][6]
+    assert html.unescape(cell) == prose
+    assert not any(char in cell for char in "<>\\`*_[]|~")
+
+
+def test_trace_summary_uses_separate_paragraphs_and_singular(tmp_path, capsys):
+    """REQ-FUNC-d3905502: summary totals are readable after Markdown rendering."""
+    agentic, aegis = make_repo(tmp_path)
+    write_req(agentic, "REQ-FUNC-1111")
+    _code, out = run(aegis, capsys, "trace")
+    assert "1 requirement " in out
+    assert "1 requirements" not in out
+    assert "\n\nby category" in out
+
+
+def test_trace_csv_preserves_line_breaks_inside_list_entries(tmp_path, capsys):
+    """REQ-FUNC-d3905502: CR and LF inside values cannot become CSV records."""
+    agentic, aegis = make_repo(tmp_path)
+    paths = ["src/a\rb.py", "src/second.py"]
+    tests = ["tests/test_a.py::test_a\nextra"]
+    write_req(agentic, "REQ-FUNC-1111", paths=json.dumps(paths), tests=json.dumps(tests))
+    _code, out = run(aegis, capsys, "trace", "--format", "csv")
+    rows = list(csv.DictReader(io.StringIO(out, newline="")))
+    assert len(rows) == 1
+    assert rows[0]["affected_paths"] == "; ".join(paths)
+    assert rows[0]["linked_tests"] == tests[0]
 
 
 # TESTS - report leads with judgement

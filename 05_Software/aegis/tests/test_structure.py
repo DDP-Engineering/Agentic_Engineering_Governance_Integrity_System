@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import argparse
 import ast
 import re
 import sys
@@ -133,15 +134,39 @@ def test_payload_inventory_is_exactly_the_documented_set():
     assert found == set(EXPECTED_FILES)
 
 
-def test_payload_ships_a_complete_cli_reference():
-    """The installed payload explains every accepted top-level command."""
+def test_payload_ships_a_complete_cli_reference(tmp_path):
+    """REQ-UX-62a24243: every parser command has its own CLI reference section."""
+    _agentic, aegis = make_repo(tmp_path)
     text = (PAYLOAD / "CLI.md").read_text(encoding="utf-8")
-    for command in ("init", "task", "req", "check", "test",
-                    "report", "status", "diagram", "explain"):
-        assert f"`{command}" in text
+    commands = next(action.choices for action in aegis.build_parser()._actions
+                    if isinstance(action, argparse._SubParsersAction))
+    sections = set(re.findall(r"^## `([^`]+)`", text, re.MULTILINE))
+    assert set(commands) <= sections
     assert "When to use" in text
     assert "Examples" in text
     assert "--version" in text
+
+
+@pytest.mark.parametrize("name", ["aegis.py", "CLI.md"])
+def test_installed_cli_matches_template(name):
+    """REQ-TEST-e38913a7: the installed CLI matches the managed payload."""
+    installed = TREE.parents[1] / ".agentic" / name
+    assert installed.read_bytes() == (PAYLOAD / name).read_bytes()
+
+
+@pytest.mark.parametrize("command", ["anchor", "evolution", "summary", "brief", "trace"])
+def test_cli_reference_guard_detects_a_missing_command_section(tmp_path, monkeypatch,
+                                                             command):
+    """REQ-UX-62a24243: a summary mention cannot replace a command's own guide."""
+    text = (PAYLOAD / "CLI.md").read_text(encoding="utf-8")
+    incomplete = re.sub(rf"^## `{command}`\n.*?(?=^## |\Z)", "", text,
+                        flags=re.MULTILINE | re.DOTALL)
+    assert incomplete != text
+    reference = tmp_path / "reference"
+    write(reference / "CLI.md", incomplete)
+    monkeypatch.setitem(globals(), "PAYLOAD", reference)
+    with pytest.raises(AssertionError):
+        test_payload_ships_a_complete_cli_reference(tmp_path / "repo")
 
 
 def test_build_stage_records_reproducible_red_evidence_without_git_witness():

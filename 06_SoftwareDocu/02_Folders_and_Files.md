@@ -185,8 +185,8 @@ and removes that mark.
 
 ## Reading the register back
 
-Everything above is written once per behavior. Two commands read it in the
-other direction, and both derive what they show from the files already in
+Everything above is written once per behavior. Three commands read it in the
+other direction, and all derive what they show from the files already in
 the repository — no model, no network, no renderer.
 
 `diagram` draws the whole register as one Mermaid flowchart, grouping each
@@ -196,6 +196,13 @@ it by how the behavior is verified: a linked test, a declared `Manual:` or
 apart rather than dropped, so an unclaimed behavior is visible instead of
 absent. `--component` and `--task` narrow the picture; `--out` writes the
 file as UTF-8.
+
+`trace` writes the whole register as a flat Markdown table or CSV, with one
+row per requirement and complete linked-test and affected-path lists. It
+reports unreadable requirement files separately from rows with validation
+errors. Use `trace --format csv --out docs/traceability-matrix.csv` for a
+spreadsheet file with UTF-8 encoding; a `.csv` suffix alone does not select
+CSV, and shell redirection retains the console encoding.
 
 `explain <path>` goes the other way still — point it at a file and it reports
 every requirement whose `affected_paths` cover it, grouped by component, with

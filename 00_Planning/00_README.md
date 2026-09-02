@@ -8,7 +8,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS implementation overview
 
-Status: implemented and released as **AEGIS 0.9.0**. The runnable product is
+Status: implemented and released as **AEGIS 0.9.1**. The runnable product is
 at `05_Software/aegis/`; the installable payload is
 `05_Software/aegis/template/.agentic/`; the current user guides are under
 `06_SoftwareDocu/`.

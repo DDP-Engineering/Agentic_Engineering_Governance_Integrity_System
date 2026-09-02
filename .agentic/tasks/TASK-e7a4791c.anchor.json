@@ -1,0 +1,371 @@
+{
+  "anchor_id": "219ffc4560036a60",
+  "categories": {
+    ".codex/config.toml": "other",
+    ".gitattributes": "other",
+    ".gitignore": "other",
+    "00_Planning/00_README.md": "other",
+    "00_Planning/01_Workflow_And_Stages.md": "other",
+    "00_Planning/02_Artifacts_And_Formats.md": "other",
+    "00_Planning/03_Companion_CLI.md": "other",
+    "00_Planning/04_Collaboration_And_Small_Models.md": "other",
+    "00_Planning/05_Implementation_Phases.md": "other",
+    "00_Planning/README.md": "other",
+    "01_Documentation/Code_Style.md": "other",
+    "01_Documentation/README.md": "other",
+    "02_Tools/README.md": "source",
+    "02_Tools/build_aegis_release.py": "source",
+    "03_Hardware/README.md": "other",
+    "04_HardwareDocu/README.md": "other",
+    "05_Software/aegis/.gitignore": "other",
+    "05_Software/aegis/README.md": "other",
+    "05_Software/aegis/template/.agentic/AGENTS.md": "source",
+    "05_Software/aegis/template/.agentic/CLI.md": "source",
+    "05_Software/aegis/template/.agentic/LICENSE.txt": "source",
+    "05_Software/aegis/template/.agentic/aegis.py": "source",
+    "05_Software/aegis/template/.agentic/steps/1_frame.md": "source",
+    "05_Software/aegis/template/.agentic/steps/2_specify.md": "source",
+    "05_Software/aegis/template/.agentic/steps/3_design.md": "source",
+    "05_Software/aegis/template/.agentic/steps/4_build.md": "source",
+    "05_Software/aegis/template/.agentic/steps/5_validate.md": "source",
+    "05_Software/aegis/template/.agentic/steps/6_deliver.md": "source",
+    "05_Software/aegis/template/.agentic/steps/adopt.md": "source",
+    "05_Software/aegis/template/.agentic/templates/component.md": "source",
+    "05_Software/aegis/template/.agentic/templates/requirement.toml": "source",
+    "05_Software/aegis/template/.agentic/templates/spec.md": "source",
+    "05_Software/aegis/template/.agentic/templates/task.md": "source",
+    "05_Software/aegis/tests/test_check.py": "tests",
+    "05_Software/aegis/tests/test_cli_core.py": "tests",
+    "05_Software/aegis/tests/test_release_builder.py": "tests",
+    "05_Software/aegis/tests/test_repo_evolution.py": "tests",
+    "05_Software/aegis/tests/test_run_report.py": "tests",
+    "05_Software/aegis/tests/test_structure.py": "tests",
+    "06_SoftwareDocu/00_Index.md": "other",
+    "06_SoftwareDocu/01_Install_and_Setup.md": "other",
+    "06_SoftwareDocu/01_Install_and_Setup.pptx": "other",
+    "06_SoftwareDocu/02_Folders_and_Files.md": "other",
+    "06_SoftwareDocu/02_Folders_and_Files.pptx": "other",
+    "06_SoftwareDocu/03_Example_Feature.md": "other",
+    "06_SoftwareDocu/03_Example_Feature.pptx": "other",
+    "06_SoftwareDocu/04_Example_Quick_Fix.md": "other",
+    "06_SoftwareDocu/04_Example_Quick_Fix.pptx": "other",
+    "06_SoftwareDocu/05_Example_Adoption.md": "other",
+    "06_SoftwareDocu/05_Example_Adoption.pptx": "other",
+    "06_SoftwareDocu/06_Team_Setup.md": "other",
+    "06_SoftwareDocu/06_Team_Setup.pptx": "other",
+    "06_SoftwareDocu/07_FAQ.md": "other",
+    "06_SoftwareDocu/07_FAQ.pptx": "other",
+    "06_SoftwareDocu/08_Prompt_Cheatsheet.md": "other",
+    "06_SoftwareDocu/08_Prompt_Cheatsheet.pptx": "other",
+    "06_SoftwareDocu/09_CLI_Reference.md": "other",
+    "06_SoftwareDocu/README.md": "other",
+    "07_Delivery/.gitignore": "other",
+    "07_Delivery/README.md": "other",
+    "07_Delivery/aegis-0.9.0/RELEASE.md": "other",
+    "07_Delivery/aegis-0.9.0/SHA256SUMS": "other",
+    "07_Delivery/aegis-0.9.0/release-manifest.json": "other",
+    "09_Others/README.md": "other",
+    "AGENTS.md": "other",
+    "CHANGELOG.md": "other",
+    "CLAUDE.md": "other",
+    "LICENSE.txt": "other",
+    "QWEN.md": "other",
+    "README.md": "other"
+  },
+  "created_at": "2026-09-02T16:11:55.347652Z",
+  "files": {
+    ".codex/config.toml": {
+      "kind": "file",
+      "sha256": "5a0a947d41a6d4e46de4600d8c851b41d9928f9d0724e967e24e52b3f340a8cf"
+    },
+    ".gitattributes": {
+      "kind": "file",
+      "sha256": "8b9278ea0f0cc4a78b62ab0f73def116f5337fc33cc2fd6ca4694320e5efb7b3"
+    },
+    ".gitignore": {
+      "kind": "file",
+      "sha256": "3c38f8e3d52bc78a14d3189cd765749ae1e5dd4737dc1be9f129825e1371b3f3"
+    },
+    "00_Planning/00_README.md": {
+      "kind": "file",
+      "sha256": "129fe5a3b5453db7f684c765a81a554520b936608f9aaa33e16cee8218d4499d"
+    },
+    "00_Planning/01_Workflow_And_Stages.md": {
+      "kind": "file",
+      "sha256": "92ca3262c782dafe24969910afe770f82606f2ab13b4581ac2d394b77e62d8ae"
+    },
+    "00_Planning/02_Artifacts_And_Formats.md": {
+      "kind": "file",
+      "sha256": "d2c5cb9b1f1e304c5b2eedbb27bf7450d1db08b55ce0fa977274d2fadfd9cffe"
+    },
+    "00_Planning/03_Companion_CLI.md": {
+      "kind": "file",
+      "sha256": "9ea4d18a235fb1307c71a62cbffc1c6f8a81a3f63402486add9e7a32a4f73937"
+    },
+    "00_Planning/04_Collaboration_And_Small_Models.md": {
+      "kind": "file",
+      "sha256": "91bcd91202ab11d73c4aa530e7431d68cffec0a9bb7c9f2ed3ccd96c34b4cce8"
+    },
+    "00_Planning/05_Implementation_Phases.md": {
+      "kind": "file",
+      "sha256": "bd44703ec6eead0ccacb360ca0da54b2d4aa631c2d0bdff39604b9e197f1ff45"
+    },
+    "00_Planning/README.md": {
+      "kind": "file",
+      "sha256": "442ad4ba3db99398d4af1188be78582fa6d44dc46c4187d09a1c8be4341e9dac"
+    },
+    "01_Documentation/Code_Style.md": {
+      "kind": "file",
+      "sha256": "5c357ba10de7abbec8fb44ce1818865df28a6bdc84de922369dda80a471ed362"
+    },
+    "01_Documentation/README.md": {
+      "kind": "file",
+      "sha256": "eee863bc6d02c5eb2c252c2b3537becff8b6284c0caa14f78118141c21154539"
+    },
+    "02_Tools/README.md": {
+      "kind": "file",
+      "sha256": "6c2dbb8162be1e8983711077fd77795bb605377431b052145edcd6b97f151c96"
+    },
+    "02_Tools/build_aegis_release.py": {
+      "kind": "file",
+      "sha256": "060ea3de37b673a49129677a424fef17c3e57eec7f7d7f82abcbe04faf2ba411"
+    },
+    "03_Hardware/README.md": {
+      "kind": "file",
+      "sha256": "0beef3535280cf26425f5c42cf05b6f5aef8828f9b5383abacf6fc0e4c9d0680"
+    },
+    "04_HardwareDocu/README.md": {
+      "kind": "file",
+      "sha256": "2fcebf33240bf54c629dd2719f362b23b95f0e7da42450ca025d15783dc9453b"
+    },
+    "05_Software/aegis/.gitignore": {
+      "kind": "file",
+      "sha256": "c30f9bc45238a2e6624722bb4ef666e23f8823fcc9f3bc4fc5277723185fa701"
+    },
+    "05_Software/aegis/README.md": {
+      "kind": "file",
+      "sha256": "c7fff4f688ddd660b00a8675cb42529b6b8bc518d39cf11bbcee41a8803deb2c"
+    },
+    "05_Software/aegis/template/.agentic/AGENTS.md": {
+      "kind": "file",
+      "sha256": "4db68e2f3481ad73921564989d972e2e1a537d13af7d1c0a1bf964cd6c383ca0"
+    },
+    "05_Software/aegis/template/.agentic/CLI.md": {
+      "kind": "file",
+      "sha256": "e802706b109fcd9f43ecba1b40efd9aa5e05fe9449b265293c9f190adf62471d"
+    },
+    "05_Software/aegis/template/.agentic/LICENSE.txt": {
+      "kind": "file",
+      "sha256": "2494616d0c43cfda4aa0fd8c53f429d615a2e38b50d45c3d9e6db264149e65a6"
+    },
+    "05_Software/aegis/template/.agentic/aegis.py": {
+      "kind": "file",
+      "sha256": "aa885f871a50270d900bfee1c01e8580ac8e0d7c5b99667ee9a7b67f1b8409a3"
+    },
+    "05_Software/aegis/template/.agentic/steps/1_frame.md": {
+      "kind": "file",
+      "sha256": "460ea3eb992387738fe9f2fb679da3e7a54dce97c1fcf035b85ee9945f6c8300"
+    },
+    "05_Software/aegis/template/.agentic/steps/2_specify.md": {
+      "kind": "file",
+      "sha256": "6b1fcbf5abed7a8f8c4644840b9ea3a3c14af142fc4a422519add1e56bfe5980"
+    },
+    "05_Software/aegis/template/.agentic/steps/3_design.md": {
+      "kind": "file",
+      "sha256": "791155aaa5ea7c7b47c9e91abe8646d218de32ee124ce6bed2d3314efde1d872"
+    },
+    "05_Software/aegis/template/.agentic/steps/4_build.md": {
+      "kind": "file",
+      "sha256": "902272a77dbb09c246da3bd34b2a1c4743fb51c30d561b8e6a6544db05a72aaa"
+    },
+    "05_Software/aegis/template/.agentic/steps/5_validate.md": {
+      "kind": "file",
+      "sha256": "67aa9bb9bc641a78a3f5fcdb081ab50b4ed50435d7545b6d75ee02936994717c"
+    },
+    "05_Software/aegis/template/.agentic/steps/6_deliver.md": {
+      "kind": "file",
+      "sha256": "fb29f3cfb0b3f4c72ee33326144ef472564ffa0c6f184eadf6096c34232162bb"
+    },
+    "05_Software/aegis/template/.agentic/steps/adopt.md": {
+      "kind": "file",
+      "sha256": "1e1f9b23d1b1d74b38c8a3ced41ac590f253febc3dc44a99f01fb4f05090659b"
+    },
+    "05_Software/aegis/template/.agentic/templates/component.md": {
+      "kind": "file",
+      "sha256": "8141078fca748467e12488fd7293e7c2a20d8f4143662316c8630de8fc46ed0b"
+    },
+    "05_Software/aegis/template/.agentic/templates/requirement.toml": {
+      "kind": "file",
+      "sha256": "ef8cb58f329838ba2e74c030cfd8a2452bf680124859a633361cd2410537f1f8"
+    },
+    "05_Software/aegis/template/.agentic/templates/spec.md": {
+      "kind": "file",
+      "sha256": "190a629ed1150714072d1c69f58b7383168db53c5eac20c0ee7d129cbd1caffc"
+    },
+    "05_Software/aegis/template/.agentic/templates/task.md": {
+      "kind": "file",
+      "sha256": "27aa28549472bc50c398ea2da0f38130de4424aaa8cfbb2d718b542c101cd77a"
+    },
+    "05_Software/aegis/tests/test_check.py": {
+      "kind": "file",
+      "sha256": "183cd4416fb4dd65489068e2de9ab07d3a1a7196b1198ad13bfd5bde7c56d5f5"
+    },
+    "05_Software/aegis/tests/test_cli_core.py": {
+      "kind": "file",
+      "sha256": "ad4d212b47095612c5a876f53ec6302483f8d61e54a9024e06cd698feebbebf3"
+    },
+    "05_Software/aegis/tests/test_release_builder.py": {
+      "kind": "file",
+      "sha256": "bf0bda1e613da81346d5b02e1492a70112333771d3a5aabec28667830a3006a3"
+    },
+    "05_Software/aegis/tests/test_repo_evolution.py": {
+      "kind": "file",
+      "sha256": "1e47cbfe1855df9f5a2f2ce5be4be644a81b34a4938bb320f61fa84ec55737b4"
+    },
+    "05_Software/aegis/tests/test_run_report.py": {
+      "kind": "file",
+      "sha256": "60001009d4c0c951eb322fed7e0a38d4589fcd331a8b5294076a13a569196e51"
+    },
+    "05_Software/aegis/tests/test_structure.py": {
+      "kind": "file",
+      "sha256": "406fe1000bbcde93c485d4d1e39753d457be0514b8ecb6f42894011d46959066"
+    },
+    "06_SoftwareDocu/00_Index.md": {
+      "kind": "file",
+      "sha256": "1cf0ef67121675a0b91e9fba6c6f30c25bbc948f49cca94bbf6a1923320ca405"
+    },
+    "06_SoftwareDocu/01_Install_and_Setup.md": {
+      "kind": "file",
+      "sha256": "d425825bab4be135a89ac538d33f2be8bd34fd262234d535324347ce429fbc87"
+    },
+    "06_SoftwareDocu/01_Install_and_Setup.pptx": {
+      "kind": "file",
+      "sha256": "e140155f8252ddec38121bf881d18a54db836a3bfc1317c9a765acc5dfb427df"
+    },
+    "06_SoftwareDocu/02_Folders_and_Files.md": {
+      "kind": "file",
+      "sha256": "012721d02ec35ec4ff7d3b1cd4480e3a5807709731ecba93e3988d539db61744"
+    },
+    "06_SoftwareDocu/02_Folders_and_Files.pptx": {
+      "kind": "file",
+      "sha256": "1f6456d07a073d2483f874262be48d24d2f7043a0fb8c34e009277fd09609583"
+    },
+    "06_SoftwareDocu/03_Example_Feature.md": {
+      "kind": "file",
+      "sha256": "8eb330de75ff275b5d8571c214379b857effab0f854407d37f94733e25e85534"
+    },
+    "06_SoftwareDocu/03_Example_Feature.pptx": {
+      "kind": "file",
+      "sha256": "e090e1f9d19182d5dfb38c25a3ff6005dfddee019ff42a3d297501d31bd60f6f"
+    },
+    "06_SoftwareDocu/04_Example_Quick_Fix.md": {
+      "kind": "file",
+      "sha256": "533927bc18260e9217288c139604422f7efcc8f5281940d407318e22bf33b15b"
+    },
+    "06_SoftwareDocu/04_Example_Quick_Fix.pptx": {
+      "kind": "file",
+      "sha256": "16536b544b49307519c82dcd90718b641bb2deccd07f7a77026025fb367f3edf"
+    },
+    "06_SoftwareDocu/05_Example_Adoption.md": {
+      "kind": "file",
+      "sha256": "ec36923fbce41e63568826a30e7cd083f75c611a8459db749704bf51b91beff6"
+    },
+    "06_SoftwareDocu/05_Example_Adoption.pptx": {
+      "kind": "file",
+      "sha256": "094e979479fed62c2dc9ae87659175f7bd40465833e4340ed108ac2dbba24545"
+    },
+    "06_SoftwareDocu/06_Team_Setup.md": {
+      "kind": "file",
+      "sha256": "412c5c93fbe7376efedc24ed083301671205a1d2f8d4ccfa2de6445f12d11a06"
+    },
+    "06_SoftwareDocu/06_Team_Setup.pptx": {
+      "kind": "file",
+      "sha256": "25b0917651fdd0fb513de7ca7fc3fa09703ffcddfa28f44dca667891a1f0187a"
+    },
+    "06_SoftwareDocu/07_FAQ.md": {
+      "kind": "file",
+      "sha256": "483876ba2a9f4087292d3f3d99d5b74e8b3c3c0b632e0fc6032f0989573ac822"
+    },
+    "06_SoftwareDocu/07_FAQ.pptx": {
+      "kind": "file",
+      "sha256": "aa7c5a92476ee58e006348861dd50e3f7aa4965ba374eedc4268aed31bfca6f8"
+    },
+    "06_SoftwareDocu/08_Prompt_Cheatsheet.md": {
+      "kind": "file",
+      "sha256": "8eaedba766a79e68df98bd5553180a8d25af9665819ca70fce911210ae4111e8"
+    },
+    "06_SoftwareDocu/08_Prompt_Cheatsheet.pptx": {
+      "kind": "file",
+      "sha256": "b4fd58cf37e59a372f34a7c92ff7e9a2ce31f5eab315fa9665451566593d2d71"
+    },
+    "06_SoftwareDocu/09_CLI_Reference.md": {
+      "kind": "file",
+      "sha256": "65f45a9a32d2c0775e7f7f002be668212e9bd300dbfec80ab0e3ef40fc9c66df"
+    },
+    "06_SoftwareDocu/README.md": {
+      "kind": "file",
+      "sha256": "4f81f07b9687ac5b3cc116f1a106c021ef52190c290a0e758e28cd7859571cfc"
+    },
+    "07_Delivery/.gitignore": {
+      "kind": "file",
+      "sha256": "4a016597882558226d57c6894d696d10cd9d93c77ce99662976f6ee27ac76973"
+    },
+    "07_Delivery/README.md": {
+      "kind": "file",
+      "sha256": "9aba861d6ac74aa2ccbe722be44181d1c457181dc0966f695782bee80d433bbf"
+    },
+    "07_Delivery/aegis-0.9.0/RELEASE.md": {
+      "kind": "file",
+      "sha256": "bb36ae18d50e20aefcc9514870df610a4bf693022c7beeae35df91a6d4f1c317"
+    },
+    "07_Delivery/aegis-0.9.0/SHA256SUMS": {
+      "kind": "file",
+      "sha256": "c26a8d899e13c8c599a35ee20016ca034abe234cbc853e377e72be7c17734fa0"
+    },
+    "07_Delivery/aegis-0.9.0/release-manifest.json": {
+      "kind": "file",
+      "sha256": "939ec57d657b3c5a1591b33bc46919ac1ef0715ddcc484f4f0ee88f3eac4d78c"
+    },
+    "09_Others/README.md": {
+      "kind": "file",
+      "sha256": "bb0bf9ee9828ec28d573c7394b2fb41fce5fbfd70b13550c080f5a216a482fe5"
+    },
+    "AGENTS.md": {
+      "kind": "file",
+      "sha256": "909f9832389b56913628948bcf74a1b4b4b85f29dc9845019dc9719d4994fe1d"
+    },
+    "CHANGELOG.md": {
+      "kind": "file",
+      "sha256": "c411822ff3aaae16ddb82d19aaa2040c009b8496bf1ae8f329f3a5d5f7076dc4"
+    },
+    "CLAUDE.md": {
+      "kind": "file",
+      "sha256": "7e48ef48119bbe288920d72dca6bd7e45757fafa42cf570b7413d542aa2969e5"
+    },
+    "LICENSE.txt": {
+      "kind": "file",
+      "sha256": "2494616d0c43cfda4aa0fd8c53f429d615a2e38b50d45c3d9e6db264149e65a6"
+    },
+    "QWEN.md": {
+      "kind": "file",
+      "sha256": "60bbcc405f4386ea0f58ddd7c489d5c53bd4829d5cca704d4348d6f453a29c4c"
+    },
+    "README.md": {
+      "kind": "file",
+      "sha256": "8bbb8d1d8a76237784754cb43ca2a2c8f228c0cb007968f2741923d8e6ccc250"
+    }
+  },
+  "head": "ba859befbcd90b2e549ce426007f582af411bf31",
+  "schema": 1,
+  "source_globs": [
+    "02_Tools/",
+    "05_Software/aegis/template/.agentic/aegis/",
+    "05_Software/aegis/template/.agentic/"
+  ],
+  "stage": "build",
+  "task": "TASK-e7a4791c",
+  "test_globs": [
+    "05_Software/aegis/tests/",
+    "05_Software/aegis/tests/"
+  ]
+}

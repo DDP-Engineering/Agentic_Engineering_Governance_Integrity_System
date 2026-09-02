@@ -36,7 +36,7 @@ wants one.
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop. Review never replaces ordinary validation.
 
-Current release: **0.9.0**. See the [changelog](CHANGELOG.md) for changes.
+Current release: **0.9.1**. See the [changelog](CHANGELOG.md) for changes.
 
 ## Install AEGIS in a repository
 
