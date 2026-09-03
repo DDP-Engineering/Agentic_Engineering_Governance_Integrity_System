@@ -5,10 +5,10 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# Example — a feature, full workflow
+# Example - a feature, full workflow
 
 The everyday case: a new user-facing behavior, checkpoint mode (the
-default — the agent stops twice: after `frame`, and before the delivery
+default - the agent stops twice: after `frame`, and before the delivery
 commit). Between those two stops it does not go quiet: whenever it
 records a deviation it also says so, as a single `DEVIATION` line that
 never pauses the work and never waits for an answer.
@@ -19,20 +19,21 @@ never pauses the work and never waits for an answer.
 using aegis workflow, implement: export a playlist as an M3U file
 ```
 
-## Stage 1-3 — frame, specify, design
+## Stage 1-3 - frame, specify, design
 
-The agent creates a branch and a journal (`aegis task`), explores
+The agent establishes a suitable task branch, preserving an existing task
+branch when appropriate, creates a journal (`aegis task`), explores
 the code, and comes back with the **frame checkpoint**:
 
 > Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
 > path (new user-facing behavior). One requirement proposed:
 > "Export playlist as M3U". Proceed?
 
-You answer — trim it, extend it, or just "yes". This is the cheap moment
-to course-correct; everything after is mechanical. The agent then writes
+You answer - trim it, extend it, or just "yes". This is the cheap moment
+to course-correct. Implementation and review still require judgment. The agent then writes
 the requirement file (`aegis req functional "Export playlist as
 M3U"`, then fills prose, verification, paths, tests), a short spec for
-the M3U format, and a design note in the journal. No pause — the journal
+the M3U format, and a design note in the journal. No pause - the journal
 records each stage transition:
 
 ```
@@ -45,21 +46,21 @@ records each stage transition:
 That last line is design's other output. Because this feature changes the
 shape of the `export` component, the agent opens
 `knowledge/export.md` and redraws its `## Architecture` diagram with the
-new writer in it — the shape the component will have **after** the change,
+new writer in it - the shape the component will have **after** the change,
 marked in one line as the intended shape so nobody mistakes it for code
 that already exists. At `validate` the agent checks the built code against
 that drawing and removes the mark. You get the before-and-after of a
 component for free, in the same file a reader already opens to understand
 it, and the picture is never left describing a plan that was abandoned.
 
-Before touching an unfamiliar file, the agent — or you — can ask what
+Before touching an unfamiliar file, the agent - or you - can ask what
 already governs it:
 
 ```bash
 python .agentic/aegis.py explain src/export/m3u.py
 ```
 
-## Stage 4 — build (test first)
+## Stage 4 - build (test first)
 
 The step file orders it explicitly: failing test **before** implementation,
 with a reproducible red record in the journal.
@@ -75,8 +76,9 @@ touching implementation:
 python .agentic/aegis.py anchor --task TASK-8b12
 ```
 
-Then implementation continues until green, with the focused regression as the
-fast inner loop:
+Keep the requirement's `affected_paths` and `linked_tests` current before
+selecting focused tests. Then implement until green, using focused regression
+as the inner loop:
 
 ```bash
 python .agentic/aegis.py test --impacted --base HEAD --task TASK-8b12
@@ -93,7 +95,7 @@ python .agentic/aegis.py evolution --task TASK-8b12
 ```
 
 The output names every added, modified, and removed path as `source`, `tests`,
-or `other`. Changes are expected and never make the command fail — but if the
+or `other`. Changes are expected and never make the command fail - but if the
 report names something the agent did not expect, that gets a `DEVIATION build:`
 line in the conversation as well as in the journal.
 
@@ -103,8 +105,10 @@ finding it accepts rather than corrects is spoken, not just logged.
 
 ## Stage 5 - validate
 
-The agent reviews the candidate, refreshes its requirements and knowledge page,
-and only then runs the full suite and strict check. Naming the task scopes the
+The agent reviews the candidate and refreshes its requirements and knowledge
+page. If `[review] enabled = true`, obtain both independent verdicts for the
+same candidate within the configured round limit. Then run final proof once
+through the strict check with its eligible configured commands. Naming the task scopes the
 diff checks to it and reports a branch mismatch:
 
 ```bash
@@ -119,11 +123,11 @@ result: ok
 strict: ok
 ```
 
-A clean run like that says nothing extra. A run that is not clean does —
+A clean run like that says nothing extra. A run that is not clean does -
 say the suite is green but one requirement ends up verified by hand:
 
 ```
-DEVIATION validate: REQ-UX-91c4 verified by inspection, not by test — the
+DEVIATION validate: REQ-UX-91c4 verified by inspection, not by test - the
 splash text could be asserted; deferred, so a regression there is silent.
 ```
 
@@ -152,7 +156,7 @@ not repeat validation, grant delivery approval, or update the journal.
 Then the **delivery checkpoint** - the agent shows you the validation evidence
 and final diff and waits for your yes before committing / opening the PR. This
 stop always happens, even in autopilot: publishing is the outward-facing act.
-Every deviation you heard along the way is presented again here, in full — the
+Every deviation you heard along the way is presented again here, in full - the
 notices were notifications, not approvals, so they never shorten this stop.
 
 After approval it generates and reads the report:
@@ -165,23 +169,23 @@ If the validated candidate changed or needs correction, delivery stops and
 returns to `validate`; there is no stage-zone heuristic pretending to know
 when a merge-base diff was edited.
 
-## Two commits, so "done" never lies
+## Close out according to the approved outcome
 
-Delivery lands in two commits, and the order matters:
+For an outcome that can fail after the work commit, such as a push or PR:
 
-1. the **delivery commit** — the work, the report, and the journal while
-   it still says `stage: deliver`;
-2. the PR (or whatever outcome you agreed);
-3. the **close-out commit** — `stage: done`, pushed once the outcome
-   actually succeeded.
+1. Commit the approved work and report with the journal still at `deliver`.
+2. Perform the explicitly approved push/PR or other outcome.
+3. Only after success, record `stage: done` and commit the close-out with the
+   required Git authority. A failed outcome stays at `deliver`.
 
-If anything fails in between, the journal stays at `deliver` and the
-task stays visible in `status`. A journal marked `done` always means a
-delivery that really happened.
+For a **local commit-only outcome**, the current deliver step allows closing
+the journal before that same commit. A second commit is unnecessary. Never
+treat a frame approval, review verdict or request to continue as authority to
+commit, push, merge or publish.
 
 ## What you can rely on afterwards
 
-The journal and its state sidecars tell the whole story — scope decision, red
+The journal and its state sidecars tell the whole story - scope decision, red
 test, repository evolution, findings, ticked checklists, and delivery report.
 Review is reading those task-owned files plus the diff. And if you stop
 mid-task (any stage, any reason):
@@ -190,8 +194,10 @@ mid-task (any stage, any reason):
 python .agentic/aegis.py status
 ```
 
-names the open task and its stage; the next session - tomorrow, another
-PC, another model - continues from the first unticked checklist item.
+finds the open task ID. Then run `brief TASK-8b12`, confirm the branch, read the
+current stage, Handoff paths and required full journal, and continue the first
+unticked action. Transfer committed records with separately authorized Git
+operations; uncommitted changes do not travel with a branch.
 
 ## Larger feature with two children and one review fix
 
@@ -213,3 +219,15 @@ verdicts while fixing only that defect, rerun focused proof, and ask both review
 questions again in round 2. Only two approvals for the unchanged integrated
 candidate allow the existing delivery checkpoint. The default two-fix policy
 still has a finite third and final round.
+
+## Using a host integration
+
+Use the host's AEGIS entry point from [Agent_Plugins.md](Agent_Plugins.md).
+It reads this same checkout's workflow; it does not create a separate process
+for governance. Long verification runs use the shared `run`/`job` operations.
+After a restart, inspect the existing job and its logs before launching another
+suite. An exit-zero result is not final proof if its candidate fingerprint
+changed during the run. Local cache records do not travel in a Git handoff.
+
+All IDs and test outputs above are illustrative. They are not verification
+results for a shipped M3U implementation.

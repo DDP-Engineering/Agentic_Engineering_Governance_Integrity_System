@@ -5,11 +5,12 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS — folders and files
+# AEGIS - folders and files
 
-Everything AEGIS knows is a plain file committed to your branch.
-One artifact = one file. No database, no run store, no state outside the
-repo. This page tours `.agentic/` with a filled-in example per format.
+The core stores workflow records as plain files on your branch. One artifact
+is one file. Optional host integrations add local installation records and
+verification-job caches outside the repository; those do not replace the
+durable journal. This page tours both kinds of state.
 
 ```
 .agentic/
@@ -29,13 +30,13 @@ repo. This page tours `.agentic/` with a filled-in example per format.
 The split matters: **payload** files are replaced on upgrade; **yours**
 are never shipped in a payload and never overwritten.
 
-## Requirements — `requirements/<category>/REQ-<CODE>-<id>.toml`
+## Requirements - `requirements/<category>/REQ-<CODE>-<id>.toml`
 
 One file per independently verifiable behavior. Eight category folders:
 `functional/ ux/ nfr/ security/ data/ platform/ reliability/ test/`
 (codes FUNC, UX, NFR, SEC, DATA, PLAT, REL, TEST). The random 8-hex id
-suffix makes collisions between branches statistically irrelevant, and
-creation is exclusive — two racing processes cannot silently produce the
+suffix reduces accidental ID collisions between branches, and
+creation is exclusive - two racing processes cannot silently produce the
 same file. (Examples in these docs use short ids for readability.)
 
 ```toml
@@ -55,11 +56,11 @@ created = 2026-08-02
 updated = 2026-08-02
 ```
 
-Write the prose self-contained — no ticket numbers, no "see TASK-1234"
+Write the prose self-contained - no ticket numbers, no "see TASK-1234"
 (`aegis check` flags those patterns).
 
 **When no test can settle it.** Some behaviors are real but unautomatable
-— a look-and-see judgement, an install on clean hardware, a printed page.
+- a look-and-see judgement, an install on clean hardware, a printed page.
 Start `verification` with `Manual:` or `Inspection:` and name the method:
 
 ```toml
@@ -68,7 +69,7 @@ linked_tests = []
 ```
 
 `check` then records it as `manual-verification` (a NOTE) instead of
-counting it among the tests still owed. The prefix alone buys nothing —
+counting it among the tests still owed. The prefix alone buys nothing -
 it has to say what someone actually does. Use it because the behavior
 cannot be automated, never to quiet a warning about a test you could
 write; the NOTE stays printed and counted on every run either way. And
@@ -76,39 +77,39 @@ when an agent reaches for the prefix in place of a test it could have
 written, it says so in the conversation as a `DEVIATION` line, at the
 moment it happens rather than at review time.
 
-**Recommended shape: EARS.** Pick the one pattern that fits — ubiquitous
+**Recommended shape: EARS.** Pick the one pattern that fits - ubiquitous
 (`The <system> shall <response>.`), event (`When <trigger>, …`), state
 (`While <state>, …`), unwanted (`If <condition>, then …`) or optional
 (`Where <feature is included>, …`). The point is not the syntax: a
 stated trigger or condition is exactly what a test has to *arrange*, so
 naming it is what makes the behavior testable. Two "shall" clauses means
-two behaviors — split them. It is guidance, not a validated rule; a
+two behaviors - split them. It is guidance, not a validated rule; a
 constraint that reads better plainly is better plainly. `affected_paths` and
 `linked_tests` are what make focused regression (`aegis test
---impacted`) and the traceability findings work — keeping them current
+--impacted`) and the traceability findings work - keeping them current
 pays off immediately.
 
 **Retiring one.** When a behavior is deliberately removed, never delete
 the file: set `status = "retired"`, add `Retired <date>: <why>` to the
-prose, and keep the id on the retiring task's own journal — that is the
+prose, and keep the id on the retiring task's own journal - that is the
 record of what was retired and why. `check` stops applying active-only
 rules to it, and the history stays readable. Retiring one is also spoken:
 an agent that retires a requirement states it as a `DEVIATION` line as it
 does so, because a contract being withdrawn is not something to discover
 in a diff afterwards.
 
-## Task journals — `tasks/TASK-<id>.md`
+## Task journals - `tasks/TASK-<id>.md`
 
-One journal per task. It is the **only** run state: the resume point for
-any later session, on any machine, with any model — and it stays after
+One journal per task. It is the durable **workflow resume point** for
+any later session, on any machine, with any model - and it stays after
 delivery as the task's historical record.
 
 ```markdown
-# TASK-8b12 — Export playlist as M3U
+# TASK-8b12 - Export playlist as M3U
 
 stage: build
-type: feature            # feature | fix | change | adopt
-path: full               # full | quick
+type: feature
+path: full
 requirements: REQ-FUNC-3fa2
 branch: feature/m3u-export
 opened: 2026-08-02
@@ -126,15 +127,18 @@ opened: 2026-08-02
 - 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=no M3U writer exists.
 ```
 
+The abbreviated example uses short IDs for readability. Real IDs have eight
+hex digits; header values are plain values, without inline comments.
+
 The header block (`key: value` lines under the title) is machine-read by
-`status`, `check` and `report` — keep it one key per line with no blank
+`status`, `check` and `report` - keep it one key per line with no blank
 lines inside. Header lines are edited in place; log lines are only ever
 appended, one sentence each.
 
-A log line that records a *deviation* — an accepted warning, a skipped
-verification, a retired requirement, unrequested work in the diff — has a
+A log line that records a *deviation* - an accepted warning, a skipped
+verification, a retired requirement, unrequested work in the diff - has a
 twin in the conversation: the agent states it at the same moment as one
-`DEVIATION <stage>: <what> — <why>` line. The journal line is still
+`DEVIATION <stage>: <what> - <why>` line. The journal line is still
 written; the notice does not replace it. It exists because a journal is
 read afterwards, and by then the human has already paid for not knowing.
 
@@ -161,20 +165,20 @@ included, while `.agentic/**`, ignored caches/build outputs, `__pycache__/`,
 `.pyc`, and `.pyo` files are excluded. The records describe change; they are
 editable repository files, not tamper-proof evidence.
 
-## Specs — `specs/REQ-<...>.md`
+## Specs - `specs/REQ-<...>.md`
 
 Free markdown, only when the requirement alone is not enough to build
 from (file formats, protocols, dialog text). Referenced by the
 requirement's `spec` field; `check` verifies the reference resolves.
 
-## Knowledge — `knowledge/<component>.md`
+## Knowledge - `knowledge/<component>.md`
 
 One plain page per component: Purpose, Public interface, Key behaviors
 (citing requirement IDs), Architecture, Files. The `validate` stage asks the
 agent to update the page of any component it materially changed. There is no
-manifest and no registry — the folder listing is the component list.
+manifest and no registry - the folder listing is the component list.
 
-**Architecture** holds a Mermaid diagram of that component's own logic —
+**Architecture** holds a Mermaid diagram of that component's own logic -
 what a reader has to hold in their head to change it safely, at ten to
 fifteen nodes rather than every function. It is written by hand, not derived
 from the code: a parser would need writing per language and could only ever
@@ -187,7 +191,7 @@ and removes that mark.
 
 Everything above is written once per behavior. Three commands read it in the
 other direction, and all derive what they show from the files already in
-the repository — no model, no network, no renderer.
+the repository - no model, no network, no renderer.
 
 `diagram` draws the whole register as one Mermaid flowchart, grouping each
 requirement under the component whose knowledge page claims it and colouring
@@ -204,31 +208,36 @@ errors. Use `trace --format csv --out docs/traceability-matrix.csv` for a
 spreadsheet file with UTF-8 encoding; a `.csv` suffix alone does not select
 CSV, and shell redirection retains the console encoding.
 
-`explain <path>` goes the other way still — point it at a file and it reports
+`explain <path>` goes the other way still - point it at a file and it reports
 every requirement whose `affected_paths` cover it, grouped by component, with
 status, coverage, spec, and the journals that delivered them. A directory
 covers the files beneath it. A path no requirement covers is said so plainly,
 and called a finding when it sits inside your configured source or test globs.
 
-## Configuration — `aegis.toml`
+## Configuration - `aegis.toml`
 
 | Key | Meaning |
 |---|---|
 | `[commands] test` | Your full test suite; used by `aegis test` and `check --run`. |
 | `[commands] test_impacted` | Template for focused regression; `{tests}` is replaced by the impacted test refs. |
-| `[commands] <anything>` | More named commands (lint, build...); `check --run` executes them all. |
-| `[commands] timeout` | Seconds allowed per command (default 1800). |
+| `[commands] <name>` | More named commands, such as lint or build; `check --run` executes eligible entries. |
+| `[commands] timeout` | Optional fallback limit in seconds. No limit is applied by default. |
+| `[timeouts] <name>` | Per-command limit; takes precedence over `[commands] timeout`. Only a positive integer sets a limit. |
+| `[commands] workdir` | Repository-relative directory in which commands run. |
 | `[layout] source / tests` | Globs that tell the heuristics what is code and what is test. |
 | `[layout] docs` | Optional documentation globs accepted by the layout check; still secret-scanned, not counted as code, tests, or stage write zones. |
-| `[zones] <stage>` | What that stage may write besides `.agentic/` — `"source"`, `"tests"`, or nothing. Omit a stage to leave it unconstrained. |
+| `[zones] <stage>` | What that stage may write besides `.agentic/` - `"source"`, `"tests"`, or nothing. Omit a stage to leave it unconstrained. |
 | `[check] ignore` | Globs excluded from every check. |
 | `[check] secret_patterns_extra` | Extra regexes for the secret scan. |
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
-| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0–5 and defaults to 2. |
+| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-5 and defaults to 2. |
 
-When enabled, review allows one initial verdict plus up to `max_fix_cycles`
-fix-and-re-review rounds. Review off never disables ordinary validation.
+When enabled, each review round needs two independent verdicts: specification
+compliance and implementation quality. One initial round plus at most
+`max_fix_cycles` fix-and-re-review rounds is allowed. Clear both verdicts after
+a candidate change and obtain both approvals for the same candidate. Review
+off never disables ordinary semantic review or validation.
 
 Task headers may include a blank `parent:` or one visible top-level task ID.
 Child journals stay independently governed; the parent file is not rewritten.
@@ -240,8 +249,45 @@ round. Legacy journals may omit all of these fields.
 
 **Integrating another tool?** `check --json`, `status --json`, `anchor --json`,
 and `evolution --json` print one
-JSON document on stdout — complete (never capped), with a `schema`
+JSON document on stdout - complete (never capped), with a `schema`
 integer to version the contract, unchanged exit codes, and `--run`
 progress on stderr. Parse that instead of scraping the human output.
 
-That is the whole configuration surface.
+This is a configuration overview. The [CLI reference](09_CLI_Reference.md)
+describes command selection, base resolution, timeouts and output contracts.
+Reserved command settings and the `test_impacted` template are not separate
+commands for `check --run` to execute.
+
+## Optional host installation and job state
+
+| Host | Default profile root (override shown first) |
+|---|---|
+| OpenCode | `OPENCODE_CONFIG_DIR`, otherwise `XDG_CONFIG_HOME/opencode` or `~/.config/opencode` |
+| Codex | `CODEX_HOME` or `~/.codex` |
+| Pi | `PI_CODING_AGENT_DIR` or `~/.pi/agent` |
+| Qwen Code | `QWEN_HOME` or `~/.qwen` |
+| Claude Code | `CLAUDE_CONFIG_DIR` or `~/.claude` |
+
+Complete built packages contain host resources and shared runtime libraries.
+An installed `runtime.json` records local executable/cache paths; ownership
+records identify files the installer may update or remove. Codex and Claude
+also register a native plugin cache. Distribute the built package, not an
+installed profile or its machine-specific settings. Authentication stays with
+each user's host.
+
+Verification-job metadata and logs default to
+`XDG_CACHE_HOME/aegis/integrations` or `~/.cache/aegis/integrations`. Jobs can
+survive a host restart. Resume the existing job before starting another suite;
+duplicate detection applies only to adapters using the same cache and checkout.
+Externally launched tests are outside that reservation mechanism.
+
+The integration candidate fingerprint includes Git-visible files but excludes
+task journals/evidence and Python bytecode. The core `anchor` inventory excludes
+all of `.agentic/`; these are different inventories. Neither includes ignored
+files or proves test quality. Integration fingerprints also exclude external
+inputs and submodule contents.
+
+Update/removal checks owned files and job reservations, and retains cached job
+logs. Use installer `update --cache PATH` to change an installed cache after
+jobs finish; conflicting `AEGIS_CACHE` overrides are rejected. See
+[Agent_Plugins.md](Agent_Plugins.md) for lifecycle and recovery details.

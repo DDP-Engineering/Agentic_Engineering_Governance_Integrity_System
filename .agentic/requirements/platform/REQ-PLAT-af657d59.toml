@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-PLAT-af657d59"
+title = "Discover runtimes without model requests"
+status = "active"
+requirement = "The integration doctor shall verify the local Node, Python and Git prerequisites without invoking any model."
+verification = "Run test_agent_integrations.py::test_runtime_behavior and the documented isolated host registration checks; inspect native Desktop separately before claiming UI validation."
+affected_paths = ["05_Software/aegis/integrations/shared/", "02_Tools/build_agent_plugins.mjs"]
+linked_tests = ["05_Software/aegis/tests/test_agent_integrations.py::test_runtime_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

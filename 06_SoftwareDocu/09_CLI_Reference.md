@@ -21,8 +21,8 @@ repository root.
 
 The CLI scaffolds artifacts, runs configured project commands, and reports
 advisory findings. It does not replace the workflow in
-`.agentic/AGENTS.md`, edit task stages for you, commit, push, or access the
-network.
+`.agentic/AGENTS.md`, edit task stages for you, commit or push. The core
+itself makes no network requests; configured project commands may do so.
 
 ## Command summary
 
@@ -37,8 +37,8 @@ network.
 | `brief` | Print a deterministic bounded resume view from durable files. | First when resuming, especially with a small-context model. |
 | `check` | Run the heuristic governance catalog. | During work for feedback; with `--strict --run` at the validation or CI boundary. |
 | `test` | Run a command configured in `.agentic/aegis.toml`. | During build and validation, optionally recording the result in a journal. |
-| `summary` | Print a compact recorded stage snapshot without writes. | Before resuming and after recording a stage completion or pause. |
-| `report` | Append a delivery summary to a task journal. | After validation and before the delivery commit or pull request. |
+| `summary` | Print a compact recorded stage snapshot without writes. | After recording a stage completion or pause; use `brief` first to resume. |
+| `report` | Append a delivery summary to a task journal. | After validation and explicit delivery approval, before the delivery commit or PR. |
 | `diagram` | Draw the requirement register as a Mermaid coverage map. | In review or handover, when the question is where verification is thin. |
 | `trace` | Export the requirement register as a traceability matrix. | In audit, review or handover, when the whole register has to leave the repository. |
 | `explain` | Show which requirements and tasks govern one path. | Reading unfamiliar code, or before changing a file you did not write. |
@@ -512,7 +512,7 @@ number. Zero, negative, and unreadable values all mean no limit.
 
 A command stopped by its limit is reported as `command-timeout`, separately
 from `command-failed`, and its message says that nothing was proven. Both are
-errors, because an unfinished proof is not a proof — but a report must never
+errors, because an unfinished proof is not a proof - but a report must never
 suggest that a suite ran and was judged when it was cut off instead.
 
 Command strings are executed by the platform shell. Keep them repository-owned
@@ -531,11 +531,12 @@ malformed, or stale verdict evidence is never approval. Repeated runs do not rep
 history.
 
 **When to use:** In the delivery stage after validation evidence is final and
-before committing or opening the pull request. Read the appended report before
+the concrete delivery action is explicitly authorized, before committing or
+opening the pull request. Read the appended report before
 delivery; it is a snapshot, so rerun it if the candidate or checklist changes.
 
-The diff is measured from the commit the journal's `base:` header records —
-the commit that was checked out when the task was created — and the report
+The diff is measured from the commit the journal's `base:` header records -
+the commit that was checked out when the task was created - and the report
 names that basis, for example `diff vs task base 41e9f55`. A journal without
 that header falls back to the merge base with the default branch and says
 `diff vs merge base`, which on a branch carrying earlier work counts that work
@@ -567,8 +568,8 @@ that same record:
 | `manual` | nothing is linked and `verification` names a `Manual:` or `Inspection:` method | NOTE `manual-verification` |
 | `broken` | something is linked but at least one entry does not resolve | WARN `no-linked-tests` |
 | `uncovered` | nothing is linked and no method is named | WARN `no-linked-tests` |
-| `draft` | — the requirement is still `status = "draft"` | nothing |
-| `retired` | — the behavior was withdrawn | nothing |
+| `draft` | - the requirement is still `status = "draft"` | nothing |
+| `retired` | - the behavior was withdrawn | nothing |
 
 `broken` outranks `manual`: a record that claims a test which is not there is
 making a claim, and the claim is the finding. `draft` and `retired` are the
@@ -578,7 +579,7 @@ verifies. Requirements no page claims are grouped last under
 `(no knowledge page)` rather than dropped.
 
 Everything in the drawing is read from files already in the repository, so
-the command needs no model, no network, and no renderer — the output is text
+the command needs no model, no network, and no renderer - the output is text
 that Git diffs and that Markdown viewers draw for themselves. It writes no
 repository state.
 
@@ -621,7 +622,7 @@ python .agentic/aegis.py trace [--format {md,csv}] [--out PATH]
 ```
 
 **Description:** Export the whole requirement register as a flat traceability
-matrix — one row per requirement, whatever its status. Each row carries the
+matrix - one row per requirement, whatever its status. Each row carries the
 identifier, category, status, coverage class, claiming component, title,
 statement, verification method, spec reference, and the complete linked-test
 and affected-path lists with their counts.
@@ -629,7 +630,7 @@ and affected-path lists with their counts.
 The coverage class is the same verdict `check` and `diagram` reach for that
 record, read from the one shared classifier rather than derived again.
 
-Rows are ordered by category — in the order the `req` table above lists them —
+Rows are ordered by category - in the order the `req` table above lists them -
 and then by identifier, so two runs over unchanged files produce identical
 bytes. Nothing is truncated in either format: `summary` and `brief` bound
 their output because they are resume views for a context-limited reader, while
@@ -667,12 +668,12 @@ that separator. Counts describe the source entries, not a split on `; `.
 `--format csv --out` writes a byte-order mark because that is what stops a
 spreadsheet application guessing the system code page; the register already
 holds characters that guess wrongly. As with `diagram`, `--out` exists because
-printing is not portable — a console under a legacy code page mangles the
+printing is not portable - a console under a legacy code page mangles the
 characters on the way out, and redirecting stdout to a file inherits the same
 problem.
 
 **When to use:** In an audit, a review, or a handover, when someone needs the
-whole register outside the repository — the third reader of the same data.
+whole register outside the repository - the third reader of the same data.
 `diagram` groups it into a picture that stops being legible past a few dozen
 requirements, `explain` answers about one path, and this narrows nothing.
 
@@ -692,15 +693,15 @@ python .agentic/aegis.py explain <path>
 ```
 
 **Description:** Report what governs one repository path. Lists every
-requirement whose `affected_paths` cover it — a directory entry covers the
+requirement whose `affected_paths` cover it - a directory entry covers the
 files beneath it, and a glob is matched case-sensitively so Windows and Linux
-agree — grouped under the component whose knowledge page claims each
+agree - grouped under the component whose knowledge page claims each
 requirement, with its status, how it is verified, and its spec where it has
 one. Then the task journals whose `requirements:` header lists any of them.
 
 The path may be repo-relative or absolute, with native or forward separators.
 A path no requirement covers is reported plainly, and said to be a finding
-when it sits inside the configured `source` or `tests` globs — ungoverned
+when it sits inside the configured `source` or `tests` globs - ungoverned
 code in a governed area is worth knowing about.
 
 **When to use:** Reading unfamiliar code and asking "why is this here, and
@@ -742,3 +743,33 @@ plain-file or Git operations:
   diff;
 - uninstall by removing the payload and its managed root pointer blocks;
 - commit and publish only through the repository's normal Git workflow.
+
+## Optional integration operations are a separate interface
+
+The OpenCode, Codex, Pi, Qwen Code and Claude Code packages call the installed
+core and provide the following shared operations. These are **not additional
+`aegis.py` subcommands**; host wrappers expose them as native tools, MCP tools
+or the Codex command bridge.
+
+| Operation | Purpose |
+|---|---|
+| `status` | Inspect the checkout's workflow state. |
+| `resume` | Resolve a task and read its bounded re-entry context. |
+| `read` | Read allowed workflow artifacts. |
+| `summary` | Read the recorded stage report. |
+| `check` | Run advisory/static governance inspection. |
+| `scaffold` | Create supported task/requirement artifacts as coordinator. |
+| `evidence` | Work with core anchor/evolution records. |
+| `candidate` | Fingerprint the review candidate. |
+| `diff` | Inspect candidate changes. |
+| `run` | Start or recover a tracked verification job. |
+| `job` | Inspect job output/state or request permitted cancellation. |
+
+The bridge does not grant stronger permissions than its host. Codex bridge
+calls are stateless: provide the task ID on every task-scoped call. Follow the
+package's documented argument schema rather than guessing `aegis.py` syntax.
+Host `setup.mjs install/update/doctor/uninstall` handles package lifecycle;
+the core `init` only installs/refreshes repository workflow files.
+
+See [Agent_Plugins.md](Agent_Plugins.md) for host entry points, runtime paths,
+ownership checks, shared job caches and verification limitations.

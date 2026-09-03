@@ -5,12 +5,31 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# Software Documentation
+# Software documentation
 
-This directory contains AEGIS installation, operation, collaboration, and CLI
-guidance. The product implementation and its reusable workflow payload are at
-`05_Software/aegis/`.
+Start at [00_Index.md](00_Index.md) for the installation guide, worked examples,
+team guidance, FAQ and prompt cheatsheet. Guides 01-08 each have a matching
+PowerPoint deck; decks summarize the detailed Markdown rather than replace it.
 
-The build and validation guides include the advisory repository-state flow:
-record an `anchor` after the expected red test, then run `evolution` after
-implementation and again after any later candidate edit.
+These documents describe the current **AEGIS 0.9.1** core at
+`05_Software/aegis/` and its five **Unreleased** host integrations:
+OpenCode, Codex, Pi, Qwen Code and Claude Code. See
+[Agent_Plugins.md](Agent_Plugins.md) for distribution and installation and
+[Plugin_Installation/README.md](Plugin_Installation/README.md) for illustrated,
+host-by-host installation manuals in Markdown and PDF. See
+[09_CLI_Reference.md](09_CLI_Reference.md) for the core command surface.
+
+The core keeps durable workflow records in the repository. Optional packages
+add native host resources, local runtime/ownership records and tracked jobs in
+a separate cache. Each user retains their own authentication and model settings.
+Backend verification is distinct from Desktop GUI or model-led acceptance.
+
+The installed contract, stage files and CLI define core behavior; integration
+source and package READMEs define host behavior. Examples are illustrative.
+Documentation-only updates here are reviewed directly, without AEGIS task
+journals or development test runs. Update Markdown and slide companions
+together when their shared content changes.
+
+The plugin installation PDFs are generated from their Markdown sources. Their
+figures distinguish isolated command evidence from unavailable Desktop UI
+acceptance; they do not turn a backend or package check into a GUI claim.

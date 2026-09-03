@@ -5,23 +5,37 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS — user documentation
+# AEGIS - user documentation
 
-User-oriented guides for AEGIS 0.9.1 (the advisory governance system at
-`05_Software/aegis/`). Reading order for a
-new user: 01, 02, then the example matching your situation.
+Guides for the current **AEGIS 0.9.1** core and the **Unreleased** OpenCode,
+Codex, Pi, Qwen Code and Claude Code integrations. The integration packages use
+the existing version; their presence does not announce a new product release.
 
-| Doc | Read when |
-|---|---|
-| [01_Install_and_Setup.md](01_Install_and_Setup.md) | Setting it up in a repo — five minutes, three steps. |
-| [02_Folders_and_Files.md](02_Folders_and_Files.md) | Understanding what lives in `.agentic/` and every file format. |
-| [03_Example_Feature.md](03_Example_Feature.md) | Everyday use: a feature through the full workflow. |
-| [04_Example_Quick_Fix.md](04_Example_Quick_Fix.md) | Everyday use: a small fix on the quick path, autopilot. |
-| [05_Example_Adoption.md](05_Example_Adoption.md) | Bringing an existing repository under governance. |
-| [06_Team_Setup.md](06_Team_Setup.md) | Working as a team: branches, merges, the CI strict gate. |
-| [07_FAQ.md](07_FAQ.md) | The questions everyone asks, answered honestly. |
-| [08_Prompt_Cheatsheet.md](08_Prompt_Cheatsheet.md) | Copy-paste operator prompts: install, new project, adopt, feature, quick fix, drift review, coverage map, what governs a file, resume, post-merge. |
-| [09_CLI_Reference.md](09_CLI_Reference.md) | Complete syntax, descriptions, options, examples, exit behavior, and guidance on when to use each command. |
+Start with installation and folders, then choose the relevant worked example.
+Examples illustrate the workflow; sample output is not evidence of a test run.
 
-If a doc ever disagrees with the payload (`AGENTS.md`, the step files,
-`aegis.py --help`), the payload wins — and the doc gets fixed.
+| Guide | Read when | Slides |
+|---|---|---|
+| [01 - Install and setup](01_Install_and_Setup.md) | Installing the repository core and an optional host package. | [PPTX](01_Install_and_Setup.pptx) |
+| [02 - Folders and files](02_Folders_and_Files.md) | Understanding durable records, configuration and local integration state. | [PPTX](02_Folders_and_Files.pptx) |
+| [03 - Feature](03_Example_Feature.md) | Taking new behavior through the full workflow. | [PPTX](03_Example_Feature.pptx) |
+| [04 - Quick fix](04_Example_Quick_Fix.md) | Restoring an existing requirement with a small, eligible fix. | [PPTX](04_Example_Quick_Fix.pptx) |
+| [05 - Adoption](05_Example_Adoption.md) | Bringing existing behavior under governance, component by component. | [PPTX](05_Example_Adoption.pptx) |
+| [06 - Team setup](06_Team_Setup.md) | Sharing records, configuring CI and reviewing combined work. | [PPTX](06_Team_Setup.pptx) |
+| [07 - FAQ](07_FAQ.md) | Understanding capabilities and limits. | [PPTX](07_FAQ.pptx) |
+| [08 - Prompt cheatsheet](08_Prompt_Cheatsheet.md) | Starting, resuming and handing over work. | [PPTX](08_Prompt_Cheatsheet.pptx) |
+| [09 - CLI reference](09_CLI_Reference.md) | Looking up core command syntax, options and exit behavior. | - |
+| [Agent plugins](Agent_Plugins.md) | Building, distributing, installing and operating all five integrations. | - |
+| [Plugin installation manual](Plugin_Installation/README.md) | Step-by-step, illustrated installation for OpenCode, Codex, Pi, Qwen Code and Claude Code. | [Combined PDF](Plugin_Installation/pdf/00_AEGIS_Plugin_Installation_Manual.pdf) |
+
+The decks are condensed companions. The Markdown guides contain the detailed
+commands and limitations. The plugin installation folder also provides five
+standalone PDFs, a combined manual and recorded verification illustrations.
+The installed `.agentic/AGENTS.md`, stage files and CLI define the repository
+workflow; integration source and package READMEs define host-specific behavior.
+A host plugin does not replace the core payload.
+
+This repository excludes documentation-only updates from AEGIS task governance.
+Edit and review documentation directly; use AEGIS for software-development work.
+Backend registration checks do not establish Desktop GUI or model-led workflow
+acceptance; see the plugin guide for the recorded verification boundary.

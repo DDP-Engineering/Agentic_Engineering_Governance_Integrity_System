@@ -1,0 +1,17 @@
+{
+  "name": "aegis",
+  "version": "0.9.1",
+  "contextFileName": "AEGIS.md",
+  "commands": "commands",
+  "skills": "skills",
+  "agents": "agents",
+  "mcpServers": {
+    "aegis": {
+      "command": "node",
+      "args": [
+        "${extensionPath}/server.mjs"
+      ],
+      "cwd": "${workspacePath}"
+    }
+  }
+}

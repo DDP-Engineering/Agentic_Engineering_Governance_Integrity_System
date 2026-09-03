@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-REL-2de0ed39"
+title = "Protect Pi and Qwen installation ownership"
+status = "active"
+requirement = "The Pi and Qwen package lifecycle shall refuse replacement or removal when owned files changed or recorded verification is active or uncertain."
+verification = "Run test_additional_integrations.py::test_install_behavior; verify native host registration in isolated configurations without model requests."
+affected_paths = ["05_Software/aegis/integrations/", "02_Tools/build_agent_plugins.mjs", "02_Tools/README.md", "05_Software/aegis/integrations/shared/operations.mjs", "05_Software/aegis/integrations/shared/host-setup.mjs", "05_Software/aegis/tests/test_additional_integrations.py"]
+linked_tests = ["05_Software/aegis/tests/test_additional_integrations.py::test_install_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

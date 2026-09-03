@@ -8,9 +8,10 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # 04 - Collaboration and small-model support
 
-AEGIS uses ordinary Git collaboration rather than a separate coordination
-service. Branches carry source changes and the durable governance files needed
-to understand them.
+AEGIS uses ordinary Git collaboration for durable workflow records. Branches
+carry source changes and the governance files needed to understand them.
+Optional host integrations add review entry points and shared local job
+tracking; they do not synchronize uncommitted work between machines.
 
 ## Branches, machines, and child tasks
 
@@ -29,8 +30,10 @@ to understand them.
   the integrated candidate. Only children visible in the current checkout are
   reported.
 
-AEGIS does not create branches, worktrees, merges, or remote pushes. Those are
-explicit repository operations with separate authority.
+The AEGIS CLI does not create branches, worktrees, merges, or remote pushes.
+A coding agent may perform Git operations when the applicable workflow and
+user authority allow them; a journal, plugin or review verdict grants no
+additional authority.
 
 ## Durable re-entry for constrained models
 
@@ -93,6 +96,53 @@ and the delivery checkpoint still apply.
 Checkpoint mode retains the end-of-frame and pre-delivery approval boundaries.
 Autopilot can suppress the frame stop only when the user requests it. Immediate
 `DEVIATION` notices remain visible in conversation in either mode.
+
+## Independent reviewers in each host
+
+The coordinator supplies the same task, scope, candidate digest, changed-file
+evidence and requirement links to two independent reviewers. Reviewers inspect
+actual files and return `approved` or `changes_required`; the coordinator
+records the verdicts and checks that the candidate stayed unchanged. Any edit
+invalidates both verdicts and requires the next permitted review round.
+
+| Host | Implemented review mechanism | Access boundary |
+|---|---|---|
+| OpenCode | Two native review subagents. | Read-oriented tool policies; mutations remain coordinator operations. |
+| Codex | Two custom review-role TOMLs; bundled prompts support fresh delegated reviewers if custom roles are unavailable. | Roles request read-only sandbox settings; bridge `--role reviewer` is a cooperative guard, not authenticated identity. |
+| Pi | `review.mjs` launches a separate nonpersistent process for each role. | Read/grep/find/list tools, with extensions, skills, context files and prompt templates disabled. |
+| Qwen Code | Two native agents with plan approval mode. | Read/search/list tools; no shell or mutating MCP tools in their declared tool list. |
+| Claude Code | `aegis:spec-review` and `aegis:quality-review`. | Read/Grep/Glob tools; the plugin does not rely on unsupported agent-local permission, hook or MCP fields. |
+
+Host settings, effective permissions and live overrides still determine actual
+access. Prompt instructions and declared tool lists are not an OS sandbox or
+a guarantee of model compliance. Pi has no built-in subagents: its fresh
+review process uses the supplied `--model` or the host's saved default, which
+may differ from an interactive session's current selection.
+
+## Accounts, machines and verification
+
+Each user installs the built package into their own host profile and uses that
+host's existing authentication and model configuration. The package contains
+no author's API key, subscription session or model selection. Authentication
+and provider eligibility remain the host/provider's responsibility.
+
+Windows and Linux packages use the same workflow and shared runtime. CLI and
+Desktop share resources only when they use the same supported backend and
+configuration. Remote backends and WSL CLI sessions need installation in their
+own environment. Claude Desktop WSL plugin sessions are currently unsupported.
+
+Verification reservations are local to the configured shared cache and
+checkout. They survive host restarts but do not lock other machines or detect
+manually launched test suites. Inspect uncertain processes before restarting
+verification; record relevant outcomes in the journal so another machine has
+durable evidence rather than relying on local cache access.
+
+The core works offline. Model-driven host sessions use the user's selected
+provider and may require network access. No models are bundled. Package
+verification has exercised backend/native resources without model requests;
+complete model-led workflows and reviewer behavior, including small-model
+compliance, remain unverified. See
+[implementation status](05_Implementation_Phases.md) for the tested versions.
 
 ## Team CI
 

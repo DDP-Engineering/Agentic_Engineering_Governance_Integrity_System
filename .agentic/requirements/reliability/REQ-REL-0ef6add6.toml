@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-REL-0ef6add6"
+title = "Track verification across client sessions"
+status = "active"
+requirement = "The workflow runner shall preserve verification state and output under a single adapter-managed checkout reservation across client sessions."
+verification = "Run test_agent_integrations.py::test_adapter_behavior and the documented isolated host registration checks; inspect native Desktop separately before claiming UI validation."
+affected_paths = ["05_Software/aegis/integrations/shared/", "02_Tools/build_agent_plugins.mjs"]
+linked_tests = ["05_Software/aegis/tests/test_agent_integrations.py::test_adapter_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

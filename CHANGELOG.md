@@ -11,6 +11,21 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added portable Claude Code AEGIS plugin resources, bounded context hooks, local MCP tools and Windows/Linux owned lifecycle; existing project version retained.
+
+- Portable Pi and Qwen Code AEGIS extensions with native tools/commands,
+  independent review support and configuration-preserving Windows/Linux setup.
+
+- Portable OpenCode and Codex integrations with AEGIS agents/skills, independent
+  review roles, safe local installation and shared tracked verification.
+
+### Changed
+
+- Align the root overview and planning documents with the core workflow, five
+  host integrations, package ownership and verified implementation limits.
+
 ## [0.9.1] - 2026-09-02
 
 ### Added
@@ -223,3 +238,4 @@ All notable changes to AEGIS are documented in this file.
 
 - Advisory task workflow with requirements, specifications, knowledge pages,
   structured checks, focused test selection, and machine-readable reporting.
+

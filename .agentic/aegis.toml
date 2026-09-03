@@ -13,15 +13,24 @@ lint = "python -m ruff check 05_Software/aegis"
 [layout]
 # Globs used by the traceability heuristics of `aegis check`.
 source = [
+    "05_Software/aegis/integrations/opencode/",
+    "05_Software/aegis/integrations/codex/",
+    "05_Software/aegis/integrations/pi/",
+    "05_Software/aegis/integrations/qwen/",
+    "05_Software/aegis/integrations/claude/",
+    "05_Software/aegis/integrations/shared/",
     "02_Tools/",
     "05_Software/aegis/template/.agentic/aegis/",
     "05_Software/aegis/template/.agentic/",
 ]
 tests = [
+    "05_Software/aegis/integrations/tests/",
     "05_Software/aegis/tests/",
     "05_Software/aegis/tests/",
 ]
 docs = [
+    "README.md",
+    "05_Software/aegis/integrations/README.md",
     "05_Software/aegis/README.md",
     "06_SoftwareDocu/",
     "CHANGELOG.md",

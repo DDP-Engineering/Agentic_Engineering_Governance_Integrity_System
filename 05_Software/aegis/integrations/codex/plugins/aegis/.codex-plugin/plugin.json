@@ -1,0 +1,21 @@
+{
+  "name": "aegis",
+  "version": "0.9.1",
+  "description": "AEGIS software governance, durable tasks, independent review and tracked verification.",
+  "author": {
+    "name": "DDP Engineering"
+  },
+  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AEGIS",
+    "shortDescription": "Follow installed AEGIS software workflows.",
+    "longDescription": "Resume project journals, coordinate independent reviews and track local verification using the installed AEGIS CLI.",
+    "developerName": "DDP Engineering",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Use AEGIS to inspect this project and show its current task status."
+    ]
+  }
+}

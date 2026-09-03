@@ -5,27 +5,30 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS — install and setup
+# AEGIS - install and setup
 
-Five minutes, three steps, no wizard, no hooks. AEGIS never blocks
-your agent: it gives it a workflow to read and a small CLI that scaffolds
-files and reports findings.
+Install the repository core in three steps, then add a host integration if
+you want native agents, skills, commands or tools. The core is advisory: it
+scaffolds files and reports findings. Optional integrations also use host
+permissions and, for Claude Code, bounded advisory hooks.
 
 ## What you need
 
 - Python 3.11 or newer on PATH (`python` on Windows, usually `python3`
-  on Linux — the examples below use `python`).
+  on Linux - the examples below use `python`).
 - git (recommended; without it the diff-based checks politely skip
   themselves and everything else still works).
 - Any coding agent: Claude Code, Codex CLI, Qwen Code, OpenCode, or a
-  local model harness. Online or offline — both are first-class.
+  local model harness. Online or offline - both are first-class.
 
-## Step 1 — copy one folder
+## Step 1 - copy one folder
 
-Copy the payload folder `template/.agentic/` from AEGIS
-release into the root of your repository, so you have `<repo>/.agentic/`.
+Copy `<extracted-release>/.agentic/` into your repository root as
+`<repo>/.agentic/`. When installing from this source repository, the payload is
+at `05_Software/aegis/template/.agentic/`. These are two locations for the same
+core payload; the release archive does not contain a `template/` parent.
 
-## Step 2 — run init
+## Step 2 - run init
 
 ```bash
 python .agentic/aegis.py init
@@ -35,7 +38,7 @@ This finishes the installation, idempotently:
 
 - creates the data folders (`requirements/`, `specs/`, `tasks/`,
   `knowledge/`),
-- writes a default `.agentic/aegis.toml` — **only if absent**; an
+- writes a default `.agentic/aegis.toml` - **only if absent**; an
   existing one is never touched,
 - creates or appends the root pointer files `AGENTS.md`, `CLAUDE.md`,
   `QWEN.md` (a short digest under markers; your existing content in
@@ -54,11 +57,13 @@ Plain `init` never creates a Git repository silently. If Git itself is missing,
 AEGIS finishes installing but explains that diff checks, impacted tests,
 anchors, and evolution reports remain unavailable until Git is installed.
 
-Commit the result. Running `init` again changes nothing.
+Review the diff and commit only with explicit authorization. Re-running `init`
+preserves project data and configuration and refreshes the managed pointer
+blocks when needed; text outside those blocks is preserved.
 
-## Step 3 — tell the config about your project
+## Step 3 - tell the config about your project
 
-Open `.agentic/aegis.toml` and set the three keys that matter:
+Open `.agentic/aegis.toml` and configure the project command and layout:
 
 ```toml
 [commands]
@@ -88,8 +93,8 @@ substitutes repository-relative test paths into `test_impacted`, so a
 command that moves itself would resolve those paths a second time and find
 nothing. With `workdir` set, the paths are rewritten to match.
 
-Nothing limits how long a command may run. If you want a limit — a hung
-linter, a CI budget — ask for one per command:
+Nothing limits how long a command may run. If you want a limit - a hung
+linter, a CI budget - ask for one per command:
 
 ```toml
 [timeouts]
@@ -118,7 +123,7 @@ python .agentic/aegis.py status
 ```
 
 `status` lists **open** tasks; delivered ones (`stage: done`) are hidden
-with a count — add `--all` to see them too.
+with a count - add `--all` to see them too.
 
 and get the advisory findings report with:
 
@@ -130,15 +135,60 @@ Git is also used by the optional repository-state commands. `anchor` and
 `evolution` report a concise error when Git is unavailable; this does not stop
 the rest of the advisory workflow from being used.
 
-`check` always exits 0 — it informs, it never blocks.
+Ordinary `check` findings do not produce a failing exit. `--strict` fails on
+errors and promoted warnings. Invalid invocation or an operational error is a
+different case; inspect the exit code and output. The core itself makes no
+network calls, but configured commands and the chosen host/provider may do so.
+
+## Optional: install a host integration
+
+The core works through file and shell access. A host package adds convenient
+entry points and tracked verification jobs; it still requires the target
+checkout's installed `.agentic/aegis.py` and its workflow files.
+
+| Host | Entry point after installation |
+|---|---|
+| OpenCode CLI / Desktop backend | Select **Aegis**; `/aegis-status` or `/aegis-start <request>`. |
+| Codex CLI / Desktop backend | Open a new task and invoke the `aegis:aegis` skill. |
+| Pi | `/aegis-status` or `/aegis-start <request>`. |
+| Qwen Code | `/aegis-status` or `/aegis-start <request>`. |
+| Claude Code CLI / local Desktop Code | `/aegis:status` or `/aegis:start <request>`. |
+
+Build complete packages from this repository root with Node.js 22+:
+
+```sh
+node 02_Tools/build_agent_plugins.mjs --output <fresh-output-directory>
+```
+
+Distribute the appropriate complete `aegis-<host>` directory, or a ZIP of it.
+On the recipient's computer, extract it and run `Install-AEGIS.cmd` on Windows
+or `sh install.sh` on Linux. The cross-platform alternative is
+`node setup.mjs install`, followed by `node setup.mjs doctor` in that package.
+The recipient needs Node.js 22+, Python 3.11+, Git and a compatible host.
+Each user keeps their own host sign-in, provider and model configuration.
+
+CLI and Desktop share an installation only when using the same backend and
+profile. Remote backends and WSL CLI environments need their own installation.
+Claude Desktop WSL plugin sessions are currently unsupported; native local
+Desktop Code and native CLI use the supported installation path. See
+[Agent_Plugins.md](Agent_Plugins.md) for host versions, profile options, all
+eleven operations and the limits of the recorded verification.
 
 ## Upgrade, undo, uninstall
 
-- **Upgrade:** copy the newer payload-owned files over (`AGENTS.md`,
-  `steps/`, `templates/`, `aegis.py`, `LICENSE.txt`), review `git diff`,
-  commit. Your data folders and `aegis.toml` are never part of the
-  payload, so they are never overwritten.
-- **Undo anything:** `git restore` / revert the commit. Git is the
-  safety net; AEGIS has no state outside the repo.
-- **Uninstall:** delete `.agentic/` and the marked blocks in the root
-  pointer files. Nothing else was touched.
+- **Core upgrade:** replace only the payload-owned files (`AGENTS.md`, `CLI.md`,
+  `steps/`, `templates/`, `aegis.py`, `LICENSE.txt`), then run `init` to refresh
+  root pointer blocks. Preserve `aegis.toml`, requirements, specs, knowledge,
+  journals and task sidecars. Review the diff before any authorized commit.
+- **Core undo:** restore only the intended changes or revert an approved commit.
+  A Git checkout does not include uncommitted work from another machine.
+- **Core removal:** preserve any records you need, remove `.agentic/` and remove
+  only its marked blocks from root `AGENTS.md`, `CLAUDE.md` and `QWEN.md`.
+- **Host lifecycle:** use the package's `setup.mjs update`, `doctor` and
+  `uninstall`. Host registration, ownership records and runtime paths live in
+  the user's profile; verification jobs/logs live in a separate cache and are
+  retained on removal. Core removal does not uninstall these packages.
+
+Host updates/removal refuse changed owned files and active or uncertain jobs.
+Inspect and preserve those files or jobs before resolving a conflict; do not
+delete a reservation merely to start another verification run.

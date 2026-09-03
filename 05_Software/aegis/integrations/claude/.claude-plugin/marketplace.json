@@ -1,0 +1,13 @@
+{
+  "name": "aegis-claude",
+  "owner": {
+    "name": "DDP Engineering"
+  },
+  "plugins": [
+    {
+      "name": "aegis",
+      "source": "./plugins/aegis",
+      "description": "Repository-installed AEGIS software workflow."
+    }
+  ]
+}
