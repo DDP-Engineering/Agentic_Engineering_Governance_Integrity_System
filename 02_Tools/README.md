@@ -24,7 +24,7 @@ agent plugin assembly are separate operations:
 Build the current AEGIS release archives and tracked publication record with:
 
 ```text
-py -3.12 02_Tools/build_aegis_release.py --version 0.9.1
+py -3.12 02_Tools/build_aegis_release.py --version 0.10.0
 ```
 
 On Linux, use `python3` in place of `py -3.12`. The build environment needs
@@ -80,7 +80,7 @@ This script produces directories, not ZIP or tar archives. Share the complete
 host directory or an archive made from it. The builder reads the existing core
 version, uses vendored dependencies without fetching packages, and does not run
 tests, invoke models, install into host profiles or publish to a registry.
-The integrations remain Unreleased until a release is explicitly assigned.
+The integration manifests take the assigned version from the core payload.
 
 Recipients install the built package in their own environment, retaining their
 own account, model and permissions. See the

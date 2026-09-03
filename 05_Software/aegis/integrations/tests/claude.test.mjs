@@ -81,7 +81,7 @@ test('ownership: native cache edits and unknown files prevent removal', async ()
   assert.ok(await present(entry), 'Claude native cache ownership is missing');
   const { snapshotCache, verifyCache, removeCache } = await import(pathToFileURL(entry));
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aegis-claude-cache-'));
-  const location = path.join(root, 'plugins/cache/aegis-claude/aegis/0.9.1');
+  const location = path.join(root, 'plugins/cache/aegis-claude/aegis/0.10.0');
   await fs.mkdir(location, { recursive: true });
   const file = path.join(location, 'runtime.json');
   await fs.writeFile(file, '{}');

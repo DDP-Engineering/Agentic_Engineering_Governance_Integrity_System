@@ -8,9 +8,11 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS implementation overview
 
-Status as of **2026-09-03**: the core is released as **AEGIS 0.9.1**.
-Five optional host integrations are implemented under **Unreleased**, using
-the existing version. No integration package has been published to a registry.
+Status as of **2026-09-03**: the assigned project version is **AEGIS 0.10.0**.
+It includes the core, five optional host integrations, and the workflow-prompt
+improvements for evidence-led idea capture and bounded offline models. The
+last generated delivery set remains `0.9.1`; no integration package has been
+published to a registry.
 The runnable product is at `05_Software/aegis/`; the reusable core payload is
 `05_Software/aegis/template/.agentic/`; host adapters are under
 `05_Software/aegis/integrations/`; user guides are under `06_SoftwareDocu/`.
@@ -64,6 +66,10 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 
 ## Current model
 
+- One shared semantic cycle governs durable stage output: **Analyze** evidence,
+  **Challenge** gaps and contradictions, **Write** the artifact, then **Audit**
+  it. Material claims are labeled `STATED`, `OBSERVED`, `INFERRED`, or
+  `UNKNOWN`; the protocol asks for reviewable artifacts, not hidden reasoning.
 - Six fixed ordinary stages: `frame -> specify -> design -> build -> validate
   -> deliver`.
 - An eligible fix or change may use the recorded quick path:
@@ -71,8 +77,9 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   eligibility. The full criteria are in [workflow](01_Workflow_And_Stages.md).
 - Existing-repository adoption is a separate `survey -> components -> close
   -> done` flow, not a seventh ordinary stage.
-- Requirements, specifications, journals, knowledge pages, anchors, and
-  evolution reports are plain files below `.agentic/`.
+- Frame cards, requirement-coverage tables, designs, requirements,
+  specifications, journals, knowledge pages, anchors, and evolution reports
+  are plain files below `.agentic/`.
 - `check` is advisory by default. `check --strict` is the optional CI
   boundary that fails on errors and configured promoted warnings.
 - Explicit review is optional policy, not a stage. When enabled it records

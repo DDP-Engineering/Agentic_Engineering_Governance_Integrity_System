@@ -33,7 +33,7 @@ test('install: cache changes cannot bypass active or uncertain reservations', as
 test('install: protect native Codex cache edits, unowned additions and missing files', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aegis-native-cache-'));
   await verifyNativeCache(root);
-  const installedPath = path.join(root, 'plugins/cache/personal/aegis/0.9.1');
+  const installedPath = path.join(root, 'plugins/cache/personal/aegis/0.10.0');
   await fs.mkdir(installedPath, { recursive: true });
   const skill = path.join(installedPath, 'SKILL.md');
   await fs.writeFile(skill, 'original skill');

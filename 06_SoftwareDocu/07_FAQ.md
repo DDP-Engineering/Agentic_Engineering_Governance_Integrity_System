@@ -17,11 +17,11 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.9.1 core combines staged instructions, requirements, linked tests,
-journals, repository evolution, review policy and a Python CLI. The five
-Unreleased host integrations add native entry points and shared verification
-jobs. Core records live in Git; installed host resources and job caches also
-have local state outside the repository.
+The 0.10.0 project combines staged instructions, evidence-led idea capture,
+requirements, linked tests, journals, repository evolution, review policy and
+a Python CLI. Its five host integrations add native entry points and shared
+verification jobs. Core records live in Git; installed host resources and job
+caches also have local state outside the repository.
 
 ## Which agents and models work?
 
@@ -128,12 +128,11 @@ and everything else - so a derived diagram would work in some of your
 repositories and not others. And derivation can only ever draw what
 already exists, which makes the interesting half impossible: the shape a
 change is *going to* produce. So the `## Architecture` diagram in each
-knowledge page is written by hand, by whoever is already reading the
-component - at adoption, and again at `design` when a change alters the
-shape. The cost is honest and worth stating: a hand-drawn diagram can go
-stale, and `check` cannot tell you that it has. Its defence is that it
-lives in the file a reader already opens and that `validate` asks for it
-to be reconciled in the same task that changed the code.
+knowledge page is written by hand at adoption and kept as current-state
+knowledge. When a design changes structure, its proposed diagram lives in the
+task journal. At `validate`, after the implementation exists, the agent
+reconciles the canonical knowledge page with built code. The cost is honest:
+a hand-drawn diagram can go stale, and `check` cannot detect semantic drift.
 
 ## Can it stop the agent writing code before the scope is agreed?
 The core has no write interceptor. It can report stage-zone findings. Each stage has a write

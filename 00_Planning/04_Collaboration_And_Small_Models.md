@@ -58,6 +58,25 @@ These bounds reduce avoidable context use; they are not a tokenizer-specific
 context guarantee and never allow an agent to skip required source, evidence,
 or full-journal reads.
 
+The current prompt contract is designed to remain practical with a minimum
+64K context budget. It does this through compact durable records rather than a
+promise that every relevant file will fit at once:
+
+- **Analyze -> Challenge -> Write -> Audit** gives each stage a stable order.
+- `STATED`, `OBSERVED`, `INFERRED`, and `UNKNOWN` keep evidence separate from
+  assumptions and prevent silent invention.
+- The Frame card preserves the original idea, scope, success signals and
+  decision-blocking questions across sessions.
+- The behavior inventory and Requirement coverage table expose omissions and
+  overlap before implementation.
+- Design uses 30 lines as a default, not a hard cap, and expands only for
+  material interface, state, trust, concurrency, compatibility, migration or
+  operational risk.
+
+These structures improve consistency for capable offline models, including
+Qwen-family deployments, but do not prove a particular model will comply. No
+model is bundled, and model-led workflow conformance remains a separate test.
+
 ## Recommended session shape
 
 For a constrained model, one stage per session is a practical operating

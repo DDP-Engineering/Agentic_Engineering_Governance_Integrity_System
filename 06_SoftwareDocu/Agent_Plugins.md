@@ -110,7 +110,7 @@ they do not mutate task journals or implement a general enforcement sandbox.
 Each user's chosen host/provider remains responsible for authentication and
 model access. No recipient needs the package author's sign-in.
 
-This guide describes current source and recorded implementation checks. The
-documentation refresh did not rerun model workflows, install into real user
-profiles, or rebuild delivery packages. Current package status is **Unreleased**
-at the existing **0.9.1** version.
+This guide describes the assigned **0.10.0** source and recorded implementation
+checks. The version assignment did not rerun model workflows, install into real
+user profiles, rebuild delivery packages, or publish to a registry. The last
+delivery archives are generated separately under `07_Delivery/`.

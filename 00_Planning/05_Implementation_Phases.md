@@ -9,17 +9,16 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # 05 - Implementation phases
 
 The original core implementation plan is complete. This document records the
-released **AEGIS 0.9.1** core and the five implemented **Unreleased** host
-integrations as of **2026-09-03**. Integration packages retain the existing
-version; assembly and local verification do not constitute registry publication
-or a new release.
+assigned **AEGIS 0.10.0** project and its five host integrations as of
+**2026-09-03**. The existing `0.9.1` archives remain the last built delivery
+set; assigning a source version does not publish packages to a registry.
 
 ## Completed implementation
 
 | Area | Implemented outcome |
 |---|---|
-| Workflow payload | A managed `.agentic/` payload with the full contract, six ordinary stage files, adoption instructions, and reusable artifact templates. |
-| Durable artifacts | TOML requirements, Markdown specs/knowledge/journals, append-only rulings, replaceable handoffs/stage reports, and anchor/evolution JSON evidence. |
+| Workflow payload | A managed `.agentic/` payload with the full contract, six ordinary stage files, adoption instructions, a shared evidence-led semantic analysis cycle, and reusable artifact templates. |
+| Durable artifacts | Structured Frame cards, atomic Requirement coverage, proportionate task designs, TOML requirements, Markdown specs/knowledge/journals, append-only rulings, replaceable handoffs/stage reports, and anchor/evolution JSON evidence. |
 | Companion CLI | Offline-first standard-library `aegis.py` with installation, scaffolding, traceability, configured test execution, reporting, and machine-readable output. |
 | Validation | A 21-check advisory catalog, optional strict CI enforcement, impacted-test selection, configured command timeouts, anchors, evolution, and delivery reporting. |
 | Coordination | One-level child tasks, bounded `brief`/ `summary` views, explicit review policy, and durable handoff state for cross-session/model work. |
@@ -63,6 +62,34 @@ omits those libraries and can cause the missing `lib/bridge.mjs` failure.
 Version 0.9.1 adds the `trace` requirement-register export in Markdown and CSV,
 with corrected literal text rendering, omission reporting, and category labels.
 The repository's impacted-test command now uses its configured Python runtime.
+
+## 0.10.0 workflow improvements
+
+The working tree strengthens early-stage idea analysis without changing the
+six stages, Python CLI syntax, adapter operations, host authentication, or
+stage sequence or adapter interface:
+
+- the managed contract defines **Analyze -> Challenge -> Write -> Audit** and
+  `STATED`/`OBSERVED`/`INFERRED`/`UNKNOWN` evidence labels;
+- Frame writes a durable idea card before branch and journal mechanics and
+  treats its checkpoint as scope acceptance rather than implementation;
+- Specify builds a behavior inventory and atomic coverage table, uses semantic
+  split/reuse rules, derives concrete verification, and escalates exact
+  contracts to specs;
+- Design uses 30 lines as a default rather than a cap, expands with risk,
+  traces decisions and test seams, and keeps proposed architecture in the
+  task;
+- Validate reconciles that proposal with built code, updates canonical
+  current-state component knowledge, and retains the proposal as historical
+  evidence;
+- Markdown guides and the four affected PowerPoint companions are synchronized.
+
+The final working-tree proof for this change completed **390 tests with two
+platform-dependent skips**, Ruff passed, both independent review roles
+approved the unchanged candidate, all 43 affected-deck slides were inspected,
+and all four template-fidelity checks passed. Local-model execution was
+excluded by instruction, so the 64K/offline-model design remains a prompt
+contract rather than measured model compliance.
 
 ## 0.9.0 coordination baseline
 

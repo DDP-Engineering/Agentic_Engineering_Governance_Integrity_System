@@ -467,6 +467,71 @@ def test_payload_never_references_external_documents():
             assert hit is None, f"{path.name} references '{hit.group(0)}'"
 
 
+def test_frame_captures_evidence_intent_and_ambiguity_before_mechanics():
+    """REQ-UX-81840102: framing preserves understanding before administration."""
+    agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")
+    frame = (PAYLOAD / "steps" / "1_frame.md").read_text(encoding="utf-8")
+    task = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
+
+    for phrase in ("## Semantic analysis protocol", "STATED", "OBSERVED",
+                   "INFERRED", "UNKNOWN", "decision-blocking"):
+        assert phrase in agents
+    for phrase in ("## Frame card", "Problem:", "Desired outcome:",
+                   "Primary scenario:", "Success signals:", "Counterexamples:",
+                   "Assumptions:", "Unknowns:", "yes | no | evidence"):
+        assert phrase in frame
+    assert frame.index("semantic analysis protocol") < frame.index("Establish the branch")
+    assert "scope acceptance, not implementation" in frame
+    assert "## Frame" in task
+    assert "Evidence:" in task
+
+
+def test_specify_proves_behavior_coverage_and_verification_quality():
+    """REQ-FUNC-aa60c372: specification demonstrates semantic completeness."""
+    specify = (PAYLOAD / "steps" / "2_specify.md").read_text(encoding="utf-8")
+    requirement = (PAYLOAD / "templates" / "requirement.toml").read_text(
+        encoding="utf-8")
+    spec = (PAYLOAD / "templates" / "spec.md").read_text(encoding="utf-8")
+    task = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
+    specify = " ".join(specify.split())
+
+    for phrase in ("Behavior inventory", "Frame outcome", "Atomic behavior",
+                   "broad Frame outcome", "Boundary or failure",
+                   "vary, fail, change, or be verified independently",
+                   "Setup", "Observable oracle", "semantic conflict",
+                   "state machine", "migration"):
+        assert phrase in specify
+    assert "every atomic behavior maps to exactly one requirement" in specify
+    assert "independently verifiable responses" in requirement
+    assert "## Assumptions and open decisions" in spec
+    assert "## Requirement coverage" in task
+
+
+def test_design_scales_depth_and_keeps_proposals_distinct_from_current_architecture():
+    """REQ-FUNC-3e0263e7: design depth follows risk and proposals stay explicit."""
+    design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
+    component = (PAYLOAD / "templates" / "component.md").read_text(
+        encoding="utf-8")
+    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(encoding="utf-8")
+    design = " ".join(design.split())
+    component = " ".join(component.split())
+
+    for phrase in ("30 lines is the default", "Requirements coverage",
+                   "sufficiently constrained implementation path",
+                   "Component responsibilities", "Interfaces and contracts",
+                   "Data ownership and state transitions", "Failure recovery",
+                   "Security and trust boundaries", "Compatibility and migration",
+                   "Observability", "Open decisions"):
+        assert phrase in design
+    assert "Proposed architecture" in design
+    assert "decision-free" not in design
+    assert "do not replace the current diagram" in design
+    assert "Keep this drawn as the code is now" in component
+    for phrase in ("task's Design", "built code", "current-state",
+                   "historical design evidence", "never delete it"):
+        assert phrase in validate
+
+
 # TESTS - Python 3.11 compatibility
 
 
@@ -570,12 +635,17 @@ def test_component_pages_carry_an_architecture_diagram():
     assert "flowchart" in text
 
 
-def test_adopt_and_design_both_own_the_architecture_diagram():
-    """REQ-FUNC-500cfb8b: drawn once at adopt, kept true by the task that changes it."""
+def test_adopt_and_validate_keep_the_architecture_diagram_current():
+    """REQ-FUNC-500cfb8b: adoption creates the diagram; validation reconciles it."""
     adopt = (PAYLOAD / "steps" / "adopt.md").read_text(encoding="utf-8")
     design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
-    for text in (adopt, design):
-        assert "## Architecture" in text
-    # adoption draws what is there; design says what it will become
+    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(encoding="utf-8")
+    assert "## Architecture" in adopt
+    # adoption draws what is there; design records a proposal; validation
+    # reconciles the canonical knowledge page only after implementation.
     assert "architecture" in adopt.lower()
-    assert "after the change" in design.lower()
+    assert "Proposed architecture" in design
+    assert "do not replace the current diagram" in design
+    assert "built code" in validate
+    assert "current-state" in validate
+    assert "historical design evidence" in validate

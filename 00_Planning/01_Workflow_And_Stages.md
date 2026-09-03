@@ -26,15 +26,29 @@ The workflow is advisory. A step can be skipped only by recording the reason
 truthfully; `check` reports evidence gaps and configuration issues, while
 `check --strict` is the optional CI enforcement boundary.
 
+## Semantic analysis protocol
+
+Frame, Specify, and Design use the shared **Analyze -> Challenge -> Write ->
+Audit** cycle. The agent selects relevant evidence, challenges ambiguity and
+contradictions, writes the durable stage artifact, and audits the result for
+unsupported invention and missing coverage. Material claims are classified as
+`STATED`, `OBSERVED`, `INFERRED`, or `UNKNOWN`; observed repository facts cite
+paths. This records evidence and decisions without requesting hidden reasoning.
+
+An unknown becomes a decision-blocking question only when implementation
+cannot proceed safely without an answer. Other unknowns remain explicit in the
+Frame, requirement, spec, or design rather than being silently converted into
+product behavior.
+
 ## Ordinary lifecycle
 
 | Stage | Step file | Implemented responsibility |
 |---|---|---|
-| `frame` | `steps/1_frame.md` | Agree scope, exclusions, authority limits, path, and open the journal. |
-| `specify` | `steps/2_specify.md` | Create or update durable requirements and a spec when the requirement alone is not buildable. |
-| `design` | `steps/3_design.md` | Record a short, requirement-linked design for non-trivial work. |
+| `frame` | `steps/1_frame.md` | Analyze the idea and evidence; record problem, outcome, actors, scenario, examples, scope, constraints, success, assumptions, unknowns, proposed behavior, authority limits and path in a durable Frame card. |
+| `specify` | `steps/2_specify.md` | Build a behavior inventory and coverage table; map every atomic behavior to exactly one requirement; derive concrete positive, boundary and failure verification; add a spec for exact contracts that do not fit safely in requirement prose. |
+| `design` | `steps/3_design.md` | Record the shortest sufficiently constrained, requirement-linked implementation path; scale depth with interface, state, trust, concurrency, migration and operational risk; preserve material open decisions and proposed architecture in the task. |
 | `build` | `steps/4_build.md` | Write and observe the expected failing test before implementation for automated requirements; carry out declared manual/inspection methods after the change; keep traceability links current. |
-| `validate` | `steps/5_validate.md` | Reconcile the candidate, update knowledge, run focused and full proof, strict checks, and review evidence. |
+| `validate` | `steps/5_validate.md` | Reconcile the candidate and any task-level architecture proposal with built code, update current-state knowledge, retain the proposal as historical evidence, run focused and full proof, strict checks, and review evidence. |
 | `deliver` | `steps/6_deliver.md` | Present the unchanged validated candidate, append the delivery report, and act only within granted Git/PR authority. |
 
 A fix or change may take the quick path only when all frame criteria hold:
@@ -64,7 +78,9 @@ not a place to make unvalidated implementation changes.
 
 Checkpoint mode is the default. It asks at two meaningful boundaries:
 
-1. End of `frame`: confirm scope, selected path, and requirements.
+1. End of `frame`: confirm the Frame card, scope, assumptions,
+   decision-blocking questions, selected path, and proposed behaviors. This is
+   scope acceptance, not implementation or delivery authority.
 2. Before a delivery commit or pull request: present the validated candidate
    and proof for explicit authority.
 

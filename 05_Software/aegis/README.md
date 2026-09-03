@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.9.1
+# AEGIS 0.10.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,9 +16,8 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The core release is **0.9.1**. Optional OpenCode, Codex, Pi, Qwen Code and
-Claude Code integrations are implemented under **Unreleased**, retaining the
-existing version. They invoke the target checkout's installed AEGIS workflow;
+The project version is **0.10.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 
 ## Requirements and source layout
@@ -141,6 +140,13 @@ No new approval stops, dependencies, or model calls are introduced.
 For models with limited context, start with `brief`, current-stage
 instructions, and handoff sources. Required full validation and delivery reads
 still apply.
+Frame, Specify, and Design also share a compact semantic-analysis cycle:
+analyze selected evidence, challenge gaps and contradictions, write the durable
+artifact, then audit it. Material claims are labelled stated, observed,
+inferred, or unknown. The journal retains a structured Frame and requirement
+coverage table; design depth grows when interfaces, state, trust, concurrency,
+migration, or operational risk require it. Proposed architecture stays in the
+task until validation reconciles the current component knowledge page.
 The payload's prompt cheatsheet includes explicit one-stage sessions; actual
 model compliance and 64K-context performance require separate model runs.
 See `template/.agentic/CLI.md` for the optional journal record and output limits.

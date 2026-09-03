@@ -21,37 +21,36 @@ using aegis workflow, implement: export a playlist as an M3U file
 
 ## Stage 1-3 - frame, specify, design
 
-The agent establishes a suitable task branch, preserving an existing task
-branch when appropriate, creates a journal (`aegis task`), explores
-the code, and comes back with the **frame checkpoint**:
+The agent first analyzes the request and selected repository evidence. It
+records a Frame card that separates what you stated, what it observed in files,
+what it inferred, and what remains unknown. It then establishes a suitable task
+branch unless current instructions require the existing branch, creates a
+journal (`aegis task`), and comes back with the **frame checkpoint**:
 
 > Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
 > path (new user-facing behavior). One requirement proposed:
 > "Export playlist as M3U". Proceed?
 
-You answer - trim it, extend it, or just "yes". This is the cheap moment
-to course-correct. Implementation and review still require judgment. The agent then writes
-the requirement file (`aegis req functional "Export playlist as
-M3U"`, then fills prose, verification, paths, tests), a short spec for
-the M3U format, and a design note in the journal. No pause - the journal
-records each stage transition:
+You answer - trim it, extend it, or just "yes". This accepts scope; it does
+not claim implementation. The agent then builds a behavior inventory and
+Frame-to-requirement coverage table, writes the requirement file (`aegis req
+functional "Export playlist as M3U"`), adds a short exact-format spec, and
+records a proportionate design with requirement links and test seams. No pause
+- the journal records each stage transition:
 
 ```
 - 2026-08-02 frame: scope agreed - M3U only; full path.
 - 2026-08-02 specify: created REQ-FUNC-3fa2 + spec.
 - 2026-08-02 design: writer joins tracks; forward slashes everywhere.
-- 2026-08-02 design: export architecture redrawn with the m3u writer added.
+- 2026-08-02 design: proposed export architecture records the m3u writer in the task.
 ```
 
-That last line is design's other output. Because this feature changes the
-shape of the `export` component, the agent opens
-`knowledge/export.md` and redraws its `## Architecture` diagram with the
-new writer in it - the shape the component will have **after** the change,
-marked in one line as the intended shape so nobody mistakes it for code
-that already exists. At `validate` the agent checks the built code against
-that drawing and removes the mark. You get the before-and-after of a
-component for free, in the same file a reader already opens to understand
-it, and the picture is never left describing a plan that was abandoned.
+That last line is design's other output. Because the feature changes the
+`export` component's shape, the task Design carries a compact proposed
+architecture with the new writer. The canonical `knowledge/export.md`
+diagram continues to describe current code during implementation. At
+`validate`, the agent reconciles that page with what was actually built, so a
+reader never has to distinguish a proposed diagram from current knowledge.
 
 Before touching an unfamiliar file, the agent - or you - can ask what
 already governs it:

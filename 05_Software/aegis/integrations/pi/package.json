@@ -1,6 +1,6 @@
 {
   "name": "@aegis/pi-package",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "keywords": ["pi-package"],

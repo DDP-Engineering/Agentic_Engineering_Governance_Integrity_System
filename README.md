@@ -37,9 +37,10 @@ wants one.
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop. Review never replaces ordinary validation.
 
-Current core release: **0.9.1**. The five host integrations are implemented
-under **Unreleased** and retain the existing version; they have not been
-published to a package registry. See the [changelog](CHANGELOG.md) for changes.
+Current project version: **0.10.0**. It includes the core workflow, the five
+host integrations, and the strengthened Frame, Specify, Design, and Validate
+prompt contracts. No host package has been published to a package registry.
+See the [changelog](CHANGELOG.md) for changes.
 
 ## Install AEGIS in a repository
 

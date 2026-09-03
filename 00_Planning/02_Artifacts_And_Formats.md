@@ -152,14 +152,42 @@ are optional.
 
 Requirements live in their category folder and use the matching prefix:
 `FUNC`, `UX`, `NFR`, `SEC`, `DATA`, `PLAT`, `REL`, or `TEST`.
-Specs are optional Markdown detail used only when a requirement is not enough
-to implement safely.
+
+Split responses only when they can vary, fail, change, or be verified
+independently. Keep clauses together when they form one inseparable atomic
+observable outcome. A broad Frame outcome may therefore produce several
+atomic behavior rows, while each atomic behavior maps to exactly one
+requirement. Reuse an existing requirement only when actor/system, trigger or
+state, response, constraints, and observable result match semantically.
+
+Verification is derived from setup, trigger or input, action, observable
+oracle, a relevant boundary or failure, and the honest automation method. The
+final TOML field may be concise, but it must name the observation that settles
+the behavior rather than restating requirement prose.
+
+Specs are optional Markdown detail used when exact build behavior needs a
+schema, wire or file format, protocol, state machine, non-obvious algorithm,
+multi-step interaction, compatibility rule, migration, or detailed error
+semantics. Specs retain material assumptions and open decisions instead of
+silently resolving them.
 
 ## Journals, evidence, and knowledge
 
 A task journal has a machine-readable header followed by a current checklist
 and append-only log. Its header records `stage`, `type`, `path`,
 `requirements`, optional `parent`, `branch`, `base`, and `opened`.
+
+Current journals also provide durable semantic sections:
+
+- `## Frame`: problem, desired outcome, actors, scenario, examples and
+  counterexamples, scope, constraints, success signals, evidence,
+  assumptions, unknowns, decision-blocking questions, proposed behaviors,
+  and path reason.
+- `## Requirement coverage`: one row per atomic behavior, linking the broad
+  Frame outcome to its requirement, positive case, boundary or failure,
+  verification, and design decision or `no design impact`.
+- `## Design`: proportionate implementation decisions, traceability, test
+  seams, risks, open decisions, expected files, and any proposed architecture.
 
 The journal may additionally hold:
 
@@ -176,9 +204,13 @@ fingerprint. `evolution --task` writes the corresponding
 evidence, not a replacement for review.
 
 Each component page under `knowledge/` documents purpose, public interface,
-key behaviors, architecture, and files. Validate updates a materially changed
-component page. It is intentionally a navigable folder, not a separate
-component manifest.
+key behaviors, current architecture, and files. When component structure will
+change, Design records `### Proposed architecture - TASK-<id>` in the task
+without replacing the current-state knowledge diagram. Validate compares the
+proposal with built code, updates the component page to the resulting current
+state, records justified differences, and retains the task proposal as
+historical design evidence. The knowledge directory is intentionally
+navigable without a separate component manifest.
 
 ## Derived traceability
 

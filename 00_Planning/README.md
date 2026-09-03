@@ -8,19 +8,23 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Planning
 
 These documents describe the current implementation, not an unbuilt roadmap.
-As of **2026-09-03**, the core is released as **AEGIS 0.9.1**; the OpenCode,
-Codex, Pi, Qwen Code and Claude Code integrations are implemented under
-**Unreleased**, retaining the existing version.
+As of **2026-09-03**, the project version is **AEGIS 0.10.0**. It includes the
+core, the OpenCode, Codex, Pi, Qwen Code and Claude Code integrations, and the
+workflow-prompt improvements for evidence-led framing, atomic behavior
+coverage, proportionate design, and validation-time architecture
+reconciliation. The existing `0.9.1` delivery artifacts remain the last built
+package set until the `0.10.0` packages are generated.
 
 - [Overview](00_README.md) — core workflow, host integrations and source boundaries.
-- [Workflow and stages](01_Workflow_And_Stages.md) — lifecycle, quick-path criteria,
-  review policy, resume state and host execution.
+- [Workflow and stages](01_Workflow_And_Stages.md) - semantic analysis protocol,
+  lifecycle, quick-path criteria, review policy, resume state and host execution.
 - [Artifacts and formats](02_Artifacts_And_Formats.md) — repository records,
   managed payload, host installations, job cache and derived exports.
 - [Companion CLI](03_Companion_CLI.md) — Python commands, separate adapter
   operations and their read/write boundaries.
-- [Collaboration and small models](04_Collaboration_And_Small_Models.md) —
-  durable re-entry, independent review, user profiles and verification limits.
+- [Collaboration and small models](04_Collaboration_And_Small_Models.md) -
+  bounded semantic records, durable re-entry, independent review, user
+  profiles and verification limits.
 - [Implementation status](05_Implementation_Phases.md) — completed capabilities,
   tested environments, remaining checks, builders and maintenance rules.
 

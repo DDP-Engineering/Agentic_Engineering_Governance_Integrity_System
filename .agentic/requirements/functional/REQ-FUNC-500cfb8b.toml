@@ -14,7 +14,7 @@ schema = 1
 # and must match the category folder this file sits in.
 id = "REQ-FUNC-500cfb8b"
 
-title = "Carry a component architecture diagram in its knowledge page"
+title = "Keep a current component architecture diagram in its knowledge page"
 
 # draft while being written, active once it is built and tested,
 # retired when the behavior is deliberately removed.
@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-The workflow payload shall require each component knowledge page to carry a Mermaid architecture diagram of that component's own logic, drawn when the component is adopted and revised in the same task that changes the component's structure, showing the intended shape after the change rather than only the shape before it.
+The workflow payload shall require each component knowledge page to carry a Mermaid architecture diagram of that component's current logic, drawn when the component is adopted and reconciled during validation after a task changes the implemented structure.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,20 +49,21 @@ The workflow payload shall require each component knowledge page to carry a Merm
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Read the shipped payload: the component template defines an architecture section holding a Mermaid flowchart, the adoption step draws one per component, and the design step revises it to the shape the change will produce."
+verification = "Read the shipped payload and run the linked structural tests: the component template defines a current-state Mermaid flowchart, adoption creates it, design records proposed structure in the task without replacing the current diagram, and validation reconciles the page with built code."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
     "05_Software/aegis/template/.agentic/templates/component.md",
     "05_Software/aegis/template/.agentic/steps/adopt.md",
     "05_Software/aegis/template/.agentic/steps/3_design.md",
+    "05_Software/aegis/template/.agentic/steps/5_validate.md",
 ]
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
 # these select the impacted regression set.
 linked_tests = [
     "05_Software/aegis/tests/test_structure.py::test_component_pages_carry_an_architecture_diagram",
-    "05_Software/aegis/tests/test_structure.py::test_adopt_and_design_both_own_the_architecture_diagram",
+    "05_Software/aegis/tests/test_structure.py::test_adopt_and_validate_keep_the_architecture_diagram_current",
 ]
 
 # --- optional below this line ---
@@ -80,4 +81,4 @@ exist yet.
 """
 
 created = 2026-08-21
-updated = 2026-08-21
+updated = 2026-09-03

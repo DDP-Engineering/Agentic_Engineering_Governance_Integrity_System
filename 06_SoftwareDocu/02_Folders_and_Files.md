@@ -82,10 +82,11 @@ moment it happens rather than at review time.
 (`While <state>, …`), unwanted (`If <condition>, then …`) or optional
 (`Where <feature is included>, …`). The point is not the syntax: a
 stated trigger or condition is exactly what a test has to *arrange*, so
-naming it is what makes the behavior testable. Two "shall" clauses means
-two behaviors - split them. It is guidance, not a validated rule; a
-constraint that reads better plainly is better plainly. `affected_paths` and
-`linked_tests` are what make focused regression (`aegis test
+naming it is what makes the behavior testable. Split responses only when
+they can vary, fail, change, or be verified independently; keep clauses
+together when they form one inseparable atomic outcome. It is guidance, not
+a validated rule; a constraint that reads better plainly is better plainly.
+`affected_paths` and `linked_tests` are what make focused regression (`aegis test
 --impacted`) and the traceability findings work - keeping them current
 pays off immediately.
 
@@ -183,9 +184,9 @@ what a reader has to hold in their head to change it safely, at ten to
 fifteen nodes rather than every function. It is written by hand, not derived
 from the code: a parser would need writing per language and could only ever
 draw what already exists. Adoption draws it once per component while the
-source is open; `design` revises it to the shape a change will produce and
-marks it as intended; `validate` reconciles it with what was actually built
-and removes that mark.
+source is open. When structure will change, `design` records a proposed
+diagram in the task journal without replacing this current-state page;
+`validate` reconciles the canonical diagram with what was actually built.
 
 ## Reading the register back
 

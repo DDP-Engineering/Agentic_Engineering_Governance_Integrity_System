@@ -94,6 +94,15 @@ anomaly, while it is still cheap to say something.
 scope, exact red command and exit, pre-implementation `anchor`, final
 `evolution`, findings, validation evidence, and report.
 
+Frame now records a compact idea card: problem, desired outcome, actors,
+scenario, examples and counterexamples, boundaries, constraints, success
+signals, evidence, assumptions and unknowns. Material claims are labelled as
+stated, observed, inferred or unknown. Specify builds a behavior inventory and
+coverage table before writing atomic requirements. Design maps every
+requirement to a proportionate decision and test seam. These structures help a
+bounded-context model retain the idea; they do not prove compliance by any
+particular model.
+
 ## Resume with limited context
 
 ```text
