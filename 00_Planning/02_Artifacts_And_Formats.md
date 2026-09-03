@@ -8,9 +8,10 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # 02 - Artifacts and formats
 
-AEGIS stores its durable state as ordinary UTF-8 Markdown, TOML, and JSON
-files in the repository. There is no database, service, or hidden evidence
-store.
+AEGIS stores its durable workflow state as ordinary UTF-8 Markdown, TOML,
+and JSON files in the repository. The core needs no database or service.
+Optional host integrations keep separate, explicit local installation and job
+records; those records do not replace the authoritative task journal.
 
 ## Installed layout and ownership
 
@@ -32,6 +33,56 @@ upgrade replaces only those managed files. It preserves `aegis.toml`,
 requirements, specs, tasks, anchors, evolution reports, and knowledge pages.
 Run `python .agentic/aegis.py init` after a payload update to refresh the
 managed root digests in `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`.
+
+## Integration packages and installed files
+
+Integration source lives under `05_Software/aegis/integrations/`. Each host
+has native resources such as manifests, agents, skills, commands or extension
+code. Qwen and Claude also have MCP registration; Claude has hook definitions.
+The shared JavaScript runtime is maintained once under `shared/`.
+
+`02_Tools/build_agent_plugins.mjs` assembles complete package directories and
+copies shared code into `lib/`. Codex and Claude place it within
+`plugins/aegis/lib/`; OpenCode, Pi and Qwen place it at package root. Raw source
+folders are not complete installable packages: registering one as a marketplace
+can leave `lib/bridge.mjs` missing.
+
+Installers add an owned-file manifest, `.aegis-<host>-installation.json`, plus
+installation locks/backups in the selected host configuration directory. They
+record discovered local executable paths and the chosen job cache in
+`runtime.json`. These are machine-specific records, not credentials or portable
+team configuration; distribute the original built package instead of copying
+someone's installed profile.
+
+| Host | Default configuration root | Main owned resources |
+|---|---|---|
+| OpenCode | `OPENCODE_CONFIG_DIR`, otherwise `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode` | Package and plugin loader; agents/commands registered through its config hook. |
+| Codex | `CODEX_HOME` or `~/.codex` | Local `aegis-marketplace`, review TOMLs under `agents/`, and native plugin cache. |
+| Pi | `PI_CODING_AGENT_DIR` or `~/.pi/agent` | `extensions/aegis`. |
+| Qwen Code | `QWEN_HOME` or `~/.qwen` | `extensions/aegis`. |
+| Claude Code | `CLAUDE_CONFIG_DIR` or `~/.claude` | Local `aegis-marketplace` and native plugin cache. |
+
+Package setup supports explicit profile/runtime paths. Update and removal
+validate owned content and refuse unsafe collisions or active/uncertain jobs;
+they preserve unrelated settings. Codex and Claude also validate their native
+AEGIS caches, refusing added, edited or missing content. The 15-file core
+payload and each host package have separate update procedures.
+
+## Verification job cache
+
+All integrations default to `$XDG_CACHE_HOME/aegis/integrations` or
+`~/.cache/aegis/integrations`. Job JSON records and output logs hold checkout
+identity, process IDs, timestamps, exit status and candidate fingerprints.
+Reservations prevent adapters sharing that cache from launching duplicate
+checkout verification. Uncertain worker state retains the reservation for
+inspection; manually launched suites are outside this protection.
+
+Installed runtime settings bind the cache location. Change it with installer
+`update --cache PATH`; lifecycle checks inspect the stored and requested caches.
+A conflicting `AEGIS_CACHE` environment override is refused for an installed
+package. Job logs remain after uninstall. This cache supports operational
+recovery; durable findings, decisions and validation evidence still belong in
+the repository journal.
 
 ## Configuration
 
@@ -139,6 +190,18 @@ changed path -> affected_paths -> requirement -> linked_tests
 task journal -> requirements -> requirements/specs/knowledge
 ```
 
-The mapping supports `check`, `diagram`, `explain`, and
+The mapping supports `check`, `diagram`, `explain`, `trace`, and
 `test --impacted`. Missing coverage is reported as a finding; it does not
 silently create a replacement requirement or test.
+
+`trace --format md` and `trace --format csv` export the requirement register,
+including coverage, verification, tests, affected paths and ownership.
+Output goes to stdout unless `--out PATH` is supplied. Exported Markdown/CSV is
+a derived snapshot; edit requirements and regenerate it instead of treating
+the export as a second register. `trace` has no JSON mode.
+
+Integration candidate fingerprints cover Git-visible tracked and untracked
+non-ignored files, excluding task journals/evidence and Python bytecode. They
+do not cover ignored files, external inputs or submodule contents. Reviewers
+must read journals separately; fingerprints are change-detection aids, not
+tamper-proof attestations.

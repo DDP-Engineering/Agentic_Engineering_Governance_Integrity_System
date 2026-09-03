@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-SEC-16e8890a"
+title = "Constrain independent review roles"
+status = "active"
+requirement = "The integrations shall supply independent specification and implementation review roles that request read-only operation within the host permission model."
+verification = "Run test_agent_integrations.py::test_review_behavior and the documented isolated host registration checks; inspect native Desktop separately before claiming UI validation."
+affected_paths = ["05_Software/aegis/integrations/", "02_Tools/build_agent_plugins.mjs"]
+linked_tests = ["05_Software/aegis/tests/test_agent_integrations.py::test_review_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

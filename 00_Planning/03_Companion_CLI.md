@@ -18,7 +18,9 @@ python .agentic/aegis.py <command>
 
 It scaffolds files, reads durable records, runs configured project commands,
 and reports findings. It does not advance a journal stage, infer approval,
-commit, push, create a pull request, or access the network.
+commit, push, create a pull request, or itself access the network. Configured
+project commands may have side effects or require services; their execution
+semantics remain those of the target repository.
 
 ## Implemented commands
 
@@ -36,6 +38,7 @@ commit, push, create a pull request, or access the network.
 | `test [name] [--impacted] [--base] [--task]` | Runs one configured command; may append a task-log line. | Focused build loop or full configured suite. |
 | `report <task>` | Appends a delivery report to the journal. | After validation, before a granted delivery action. |
 | `diagram [--component] [--task] [--out]` | Read-only unless `--out` writes the Mermaid text. | Inspect requirement coverage. |
+| `trace [--format {md,csv}] [--out PATH]` | Read-only unless `--out` writes the export. | Export the requirement register with coverage and ownership. |
 | `explain <path>` | Read-only. | Find requirements and journals governing a file or folder. |
 
 `python .agentic/aegis.py --help` and each command's `--help` are the
@@ -108,3 +111,58 @@ preserves repository-owned records and `aegis.toml`, and then reruns
 Machine-readable JSON is available for `anchor`, `evolution`, `status`,
 and `check`. Each emits one schema-versioned document on stdout; `check
 --run` sends command progress to stderr so stdout remains parseable.
+`trace` exports Markdown (default) or CSV, not JSON.
+
+## Separate host operations
+
+The integrations expose eleven shared operations. These are adapter interfaces,
+not additional Python CLI subcommands. OpenCode and Pi register native
+`aegis_*` tools; Qwen and Claude expose them through local stdio MCP; Codex uses
+a command bridge.
+
+| Operation | Behavior and boundary |
+|---|---|
+| `status` | Read task state and tracked verification state. |
+| `resume` | Read `brief`, check branch alignment and remember a session-local task pointer. |
+| `read` | Read the installed contract, CLI reference, configuration, step or journal. |
+| `summary` | Read the recorded stage report; no fresh proof. |
+| `check` | Run static checks, optionally strict, without configured tests. |
+| `scaffold` | Coordinator creates a task or requirement scaffold. |
+| `evidence` | Coordinator invokes `anchor`, `evolution` or `report`. |
+| `candidate` | Fingerprint the Git-visible candidate for comparison. |
+| `diff` | Read Git status/diff and untracked paths; inspect untracked contents separately. |
+| `run` | Coordinator starts tracked final validation or a named configured test command. |
+| `job` | Read progress/results or, with coordinator authority and exact ID, cancel a job. |
+
+`run` returns promptly with a job ID. For `kind: validate`, the detached worker
+runs `check --task ID --strict --run --json`; `kind: test` selects a configured
+command name, never arbitrary shell text supplied to the adapter. Poll `job`
+until completion and inspect the full result and candidate comparison. A
+static check, successful job submission or exit zero with a changed candidate
+does not establish final proof.
+
+For example, from a complete installed Codex plugin:
+
+```text
+node <absolute-plugin-root>/scripts/aegis.mjs status --root <absolute-repository-root>
+```
+
+Each Codex invocation is stateless. Supply task IDs explicitly for task-scoped
+operations. Its `--role reviewer` guard refuses mutations and cancellation but
+does not authenticate the caller or replace host permissions.
+
+## Host entry points and setup
+
+OpenCode, Pi and Qwen provide `/aegis-start`, `/aegis-resume`, `/aegis-status`,
+`/aegis-check` and `/aegis-validate`. Claude uses the namespaced equivalents
+`/aegis:start`, `/aegis:resume`, `/aegis:status`, `/aegis:check` and
+`/aegis:validate`. Codex uses the `aegis:aegis` skill and bridge rather than
+these five slash commands. Native command dispatch differs by host; prompt
+commands may invoke the host's configured model.
+
+From an extracted complete package, use `node setup.mjs install`,
+`node setup.mjs doctor`, `node setup.mjs update` or `node setup.mjs uninstall`.
+The Windows/POSIX launchers call the same setup code. These commands manage the
+host installation separately from the repository's core payload; consult the
+[package guide](../06_SoftwareDocu/Agent_Plugins.md) for host-specific options.
+No installer supplies credentials or chooses a model for another user.

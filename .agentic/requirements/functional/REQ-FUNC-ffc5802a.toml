@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-FUNC-ffc5802a"
+title = "Register the OpenCode Aegis coordinator"
+status = "active"
+requirement = "When loaded by an OpenCode backend, the plugin shall register a primary Aegis agent available to its CLI and Desktop clients."
+verification = "Run test_agent_integrations.py::test_opencode_behavior and the documented isolated host registration checks; inspect native Desktop separately before claiming UI validation."
+affected_paths = ["05_Software/aegis/integrations/opencode/", "02_Tools/build_agent_plugins.mjs"]
+linked_tests = ["05_Software/aegis/tests/test_agent_integrations.py::test_opencode_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

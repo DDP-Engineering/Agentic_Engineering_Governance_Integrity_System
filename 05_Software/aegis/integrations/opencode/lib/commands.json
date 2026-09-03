@@ -1,0 +1,22 @@
+{
+  "aegis-start": [
+    "Frame a software task with the installed AEGIS workflow",
+    "Read the installed AEGIS contract and inspect open tasks. Frame the following request or identify the matching existing task. Follow the installed interaction mode and preserve user Git limits. Do not run verification merely to show status. Request: $ARGUMENTS"
+  ],
+  "aegis-resume": [
+    "Resume an AEGIS task from its durable journal",
+    "Resume the named task using aegis_resume, then read its current step, required journal content and Handoff must_read paths. Reconcile branch mismatch before writes. Continue its next incomplete item under existing authority; this command grants no Git authority. Task and instructions: $ARGUMENTS"
+  ],
+  "aegis-status": [
+    "Show recorded AEGIS task state without starting work",
+    "Read-only request: call aegis_status, for the named task if supplied, otherwise list open tasks. Show current stage, next recorded action, unresolved issues and active verification where available. Do not create records, edit files, advance stages, or launch tests. Arguments: $ARGUMENTS"
+  ],
+  "aegis-check": [
+    "Run AEGIS advisory checks without launching tests",
+    "Call aegis_check for the named task or the explicitly resumed task. If neither is known, run repository-wide static checks and identify that scope. Report findings truthfully; advisory exit 0 does not mean tests passed. Do not fix, change stages or run tests for this command. Arguments: $ARGUMENTS"
+  ],
+  "aegis-validate": [
+    "Review and prove an AEGIS candidate with tracked verification",
+    "Resume the named task and read the complete validation step, journal, requirements and knowledge. Confirm it is ready for validation; do not skip unfinished earlier stages. Reconcile the candidate, run independent reviews when configured, then start final proof with aegis_run kind=validate. Track the job to completion without duplicate suites; record actual results and show the stage report. Preserve delivery approval and Git limits. Task and instructions: $ARGUMENTS"
+  ]
+}

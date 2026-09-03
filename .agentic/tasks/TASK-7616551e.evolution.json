@@ -1,0 +1,375 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-09-03T13:01:35.635433Z",
+      "anchor_head": "5ff5b0af6abdf64e207f217d023adb501d41fe5c",
+      "anchor_id": "2c69809491b39d41",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "77a9ff6bfa1e8519ba767161fd6b7e0356ce33fd5d8e24f821fb4621ea19be8c"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "ccfa77743b8592ad26e76813112c330ad39e8677f36f668ee3ffa65eb8b788d6"
+          },
+          "path": "02_Tools/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "dfc95d2a52fcccdf106b43a682aa6bd92d3b9e00768fd013353a646469fe83e8"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "9bc85831de25ea780f9dd6ba822dfb3d11331f3d86755d0161c07c4bb54374c8"
+          },
+          "path": "02_Tools/build_agent_plugins.mjs",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "50ddd6eeca0b97eebf68535a4bf5e37311021845e60d18824098b8e76a8582e8"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e9ac272d0fd92e861f39abfb651d721e000cc310a74b4e52d383cf921644ba1b"
+          },
+          "path": "05_Software/aegis/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "256660ced943f973e84110757414e444ae352d7503a4bce58072431bb49829ce"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5f65649207276850ed79c1b369903439c5eda9fc304f2883dfa1085a23ae63e1"
+          },
+          "path": "05_Software/aegis/integrations/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "0c3cebfc531e01583ba260d05b41154b8192784582fcc510bd4f07eaba9a3237"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/.claude-plugin/marketplace.json",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b6e30ad51f32b27e55c093d19bcbb5dda283c899efb8d40877c2774f3702f9c4"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/README.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "418e27f31e762689cbfc1b4eb0aa36dcc70bfde0fd8bb02372c7201a5803308c"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/cache.mjs",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b691f847a6ff343c78d2dbc4da977d0ac0aed195e2e603f7460bb36b1007005e"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/.claude-plugin/plugin.json",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "321a6155fee96c2c2d80776baac728bbf250ab90cb962420771a889a38d212e0"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/.mcp.json",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "44a61facfd881c088ff50401a5572dd66c824ba5c882b99f18ef0a740614969a"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/agents/quality-review.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b76bed4f5f2e96060403b226331029215dae0b7899d72f790764253831c6d871"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/agents/spec-review.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "58ff2b78e85d0be3aae8694ba82612cb057cdf97ec4906135f5e5d81be8bc4f1"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/commands/check.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b7697f2617f37e2fb215f9409dd241efdc6699491a34fcab20597129c36e549c"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/commands/resume.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "ed114bdd1d6eaba8b0d5ca715593078b2856f061618bea7cf8b160fa50597cd3"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/commands/start.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "dcfe849ae83c9e429b3791fd9486135d86a508d61a33bcae8f9dedb8810ad095"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/commands/status.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "30188ef2850d990ce2e93e7ea8947819a61500a67d6525d1bddfe8f092a0cddb"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/commands/validate.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "ae41f5ac806c7d9963eeefe28fb213b9a2c434a352bedac3a7b56bf3e58bc9e2"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/hooks.mjs",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "5a77c0f360b0e0f46d7ecbf0c4dbed97e2531af792ddac61f18baea1bb2fd01d"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/hooks/hooks.json",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "66c8b19258ba14a885e1949cebd6dd69ecb5750af4dc61586b02c101d0db59e2"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/server.mjs",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "8d594e44ba3290967cdca15cacf9e3c177f8b998ffc9a92539e45d881fcb4f6f"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/plugins/aegis/skills/workflow/SKILL.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "fb6c74f5b93378d55321ba8c29e7153c39b96734d3e184451a12cd20fc15622c"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/integrations/claude/setup.mjs",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "c3912c57626ffa9886cba98feac5353260edf26757c3982d7366079a82a235ac"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "0501a6b83cc7d19fb7ddf377fd8ceddd1287092b7db9ddb10b0d59a14b158ff8"
+          },
+          "path": "05_Software/aegis/integrations/qwen/server.mjs",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "aea6befac12158078b610a765a674961084b993cc387713eb6405d5b4c479e6f"
+          },
+          "area": "source",
+          "before": null,
+          "path": "05_Software/aegis/integrations/shared/mcp.mjs",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "800703d65c111e5032ce20b70308ea13842d659d58e5a05e8791eadbd98f79af"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "c994a95fd676a362c6ddbbfb4055408f0bcc1b6cdff58c1ef38f2f967b875d13"
+          },
+          "path": "05_Software/aegis/integrations/tests/additional.test.mjs",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d3f276506ad88ef6d9d124ebf80506854ad0c3231194a69ed0f0b40db8373f97"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "120eed8d261dc98b9c2a859d8fe0685798afee2f997e94790918b6e976abf443"
+          },
+          "path": "05_Software/aegis/integrations/tests/claude.test.mjs",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "f102770f99581fbee29572dc9a549c8736a086098cb1641bde6d88ff82f150c4"
+          },
+          "area": "tests",
+          "before": null,
+          "path": "05_Software/aegis/integrations/tests/fixtures/claude-cli.mjs",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b4d3375822f0975ab6f22c619904e056b56c72fb090637a01d5525b5a8f9f45b"
+          },
+          "area": "tests",
+          "before": null,
+          "path": "05_Software/aegis/tests/test_claude_integrations.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "e1badf003d542d11de58ec242fdeeb1ea07c5ef27a69c88d0b1e2f380e21bf24"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "71557aeaad399f73263cefe2d3bfbf3bb371413e0682ab999ec348c15200f2cf"
+          },
+          "path": "06_SoftwareDocu/Agent_Plugins.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "74fedad0a80a43041b4746d779154ef177e78e305f77e20c3c4f5f2899891365"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a421d557092475756ab78f1d0cd23dee42417a4d1b3bbefbdc89bb267d07e4b8"
+          },
+          "path": "CHANGELOG.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "712645901ed00089f05a60d6f442ba5c8835c7b4489e069e248e093fd9fc6e8a"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "920db6ddd127ac2122f9504192ea1c841214e03d285c82d5211b932b9e19d6a2"
+          },
+          "path": "README.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 17,
+            "modified": 5,
+            "removed": 0,
+            "unchanged": 44
+          },
+          "source": {
+            "added": 1,
+            "modified": 3,
+            "removed": 0,
+            "unchanged": 68
+          },
+          "tests": {
+            "added": 2,
+            "modified": 2,
+            "removed": 0,
+            "unchanged": 11
+          }
+        },
+        "status": {
+          "added": 20,
+          "modified": 10,
+          "removed": 0,
+          "unchanged": 123
+        }
+      },
+      "current_head": "5ff5b0af6abdf64e207f217d023adb501d41fe5c",
+      "evolution_stage": "build",
+      "evolved_at": "2026-09-03T13:21:04.980102Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-7616551e"
+}

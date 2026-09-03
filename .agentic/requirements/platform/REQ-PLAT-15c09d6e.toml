@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-PLAT-15c09d6e"
+title = "Assemble all supported AEGIS host packages"
+status = "active"
+requirement = "The package builder shall assemble self-contained integrations for OpenCode, Codex, Pi, Qwen Code and Claude Code from the existing project version."
+verification = "Run test_additional_integrations.py::test_build_behavior; verify native host registration in isolated configurations without model requests."
+affected_paths = ["05_Software/aegis/integrations/", "02_Tools/build_agent_plugins.mjs", "02_Tools/README.md", "05_Software/aegis/integrations/shared/operations.mjs", "05_Software/aegis/integrations/shared/host-setup.mjs", "05_Software/aegis/tests/test_additional_integrations.py"]
+linked_tests = ["05_Software/aegis/tests/test_claude_integrations.py::test_build_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

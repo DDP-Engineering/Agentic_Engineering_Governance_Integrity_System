@@ -12,8 +12,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 AEGIS is a repository-local, offline-first workflow for agent-driven software
 development. It gives an agent and its human collaborator a durable way to
 record requirements, implementation decisions, validation evidence, and
-delivery boundaries—without a hosted service, database, hooks, model API, or
-automatic Git actions.
+delivery boundaries. The core needs no hosted service, database, hooks, or
+model API and performs no automatic Git actions. Optional integrations connect
+this workflow to coding-agent hosts, including host tools and advisory hooks.
 
 The workflow is advisory by default: it helps people and agents notice gaps;
 it does not silently block work or grant authority to commit, push, publish,
@@ -36,7 +37,9 @@ wants one.
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop. Review never replaces ordinary validation.
 
-Current release: **0.9.1**. See the [changelog](CHANGELOG.md) for changes.
+Current core release: **0.9.1**. The five host integrations are implemented
+under **Unreleased** and retain the existing version; they have not been
+published to a package registry. See the [changelog](CHANGELOG.md) for changes.
 
 ## Install AEGIS in a repository
 
@@ -64,6 +67,26 @@ python .agentic/aegis.py init --git
 For the complete setup, configuration, and upgrade guidance, see
 [Install and setup](06_SoftwareDocu/01_Install_and_Setup.md).
 
+## Optional agent plugins
+
+OpenCode, Codex, Pi, Qwen Code and Claude Code integrations are developed under
+`05_Software/aegis/integrations/`. They invoke the selected Git checkout's
+installed `.agentic/aegis.py`; the repository contract and journal continue to
+govern the work.
+
+OpenCode adds an Aegis agent; Codex adds the `aegis:aegis` skill and review
+roles; Pi and Qwen add native extensions; Claude Code adds a plugin with
+commands, review agents, MCP tools and advisory hooks. These are different host
+entry points, so an agent dropdown is not expected in every application.
+All five share tracked verification with persistent job logs and duplicate-run
+detection. Each user keeps their own host account, model and permissions.
+
+Build and share a **complete package**, not a raw integration source folder:
+the builder supplies shared libraries such as `lib/bridge.mjs`. See
+[Agent plugins](06_SoftwareDocu/Agent_Plugins.md) for installation and
+[implementation status](00_Planning/05_Implementation_Phases.md) for the tested
+Windows/Linux environments and remaining Desktop/model-workflow checks.
+
 ## First use
 
 Tell your coding agent to use the workflow, for example:
@@ -78,6 +101,7 @@ Useful commands from the governed repository root:
 python .agentic/aegis.py status
 python .agentic/aegis.py brief TASK-<id>
 python .agentic/aegis.py check
+python .agentic/aegis.py trace --format md
 python .agentic/aegis.py test --impacted --task TASK-<id>
 ```
 
@@ -107,19 +131,27 @@ an upgrade.
 
 ## Environment and development setup
 
-AEGIS runs on **Python 3.11 or newer** and uses only the Python standard
+The AEGIS core runs on **Python 3.11 or newer** and uses only the Python standard
 library at runtime. Git is strongly recommended: without it, AEGIS still
 works, but diff-based checks, impacted-test selection, anchors, and evolution
 reports cannot run.
 
-For product development, create an isolated environment and install `pytest`
-from your approved package source or local cache:
+The optional integrations additionally require **Node.js 22 or newer**, Git,
+and a compatible host installation. Their installers record runtime paths;
+they do not install a model or configure a provider. CLI and Desktop can share
+an integration when they use the same supported local backend/configuration.
+Remote or WSL CLI environments need their own installation; Claude Desktop WSL
+plugin sessions are currently unsupported.
+
+For product development, make Node.js 22+ and Git available, create an isolated
+Python environment, and install `pytest` and `ruff` from your approved package
+source or local cache. The product suite includes the JavaScript integrations:
 
 ```powershell
 Set-Location 05_Software/aegis
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install pytest
+python -m pip install pytest ruff
 python -m pytest -q tests
 python template/.agentic/aegis.py --help
 ```
@@ -149,6 +181,16 @@ py -3.12 02_Tools/build_aegis_release.py --version <x.y.z>
 The builder validates the 15-file managed payload, runs the product suite,
 checks both archive inventories, and writes checksums and release metadata
 under `07_Delivery/`.
+
+Assemble the optional agent packages separately, without assigning a version:
+
+```bash
+node 02_Tools/build_agent_plugins.mjs --output <fresh-output-directory>
+```
+
+This builder copies the native host resources and shared runtime into five
+complete package directories. It refuses to overwrite an existing host package
+directory and does not publish packages or replace runtime verification.
 
 ## Documentation
 

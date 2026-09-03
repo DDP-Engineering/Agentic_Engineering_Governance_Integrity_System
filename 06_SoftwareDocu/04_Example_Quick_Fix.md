@@ -5,106 +5,97 @@ Commercial use requires a separate commercial license.
 See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# Example — a quick fix, autopilot
+# Example - a quick fix, autopilot
 
-The other everyday case: a small bug, you want it gone with minimum
-ceremony. The quick path (`frame → build → validate → deliver`) skips the specify
-and design stages; autopilot suppresses the frame stop. It suppresses the
-*stop*, not the agent's voice — deviation notices still arrive as they
-happen, and the pre-PR stop always remains.
+The quick path is `frame -> build -> validate -> deliver`. It omits specify
+and design only when the fix meets the installed frame step's eligibility
+rules. Autopilot skips the frame checkpoint; it preserves deviation notices,
+review policy and the delivery checkpoint.
 
 ## You say
 
-```
-using aegis workflow, autopilot to deliver: fix the crash when the
-playlist is empty (IndexError in src/export/m3u.py)
-```
-
-## What the agent does, without stopping (but not silently)
-
-**frame (seconds, not a session):** opens the journal with `--type fix`,
-records the proportionality decision — and this is a real decision, not
-a rubber stamp:
-
-```
-- 2026-08-02 frame: quick path - crash fix, no behavior change,
-  covered by existing REQ-FUNC-3fa2.
+```text
+Using AEGIS, autopilot to deliver: fix "Usgae" in the existing CLI help
+heading in src/cli/help.py. Restore the "Usage" heading required by
+REQ-UX-3fa2c1d4. Do not change options, interfaces or help behavior.
 ```
 
-A fix that *changes* intended behavior would take the full path instead;
-the step file tells the agent how to choose, and the journal makes the
-choice reviewable.
+This example restores an existing requirement. It changes no public interface,
+data format, dependency, security behavior or data handling. A crash involving
+playlist parsing or export data is not an automatic quick-path candidate.
 
-**build:** reproduces first - a failing test that hits the empty-playlist
-case - and records the exact command, non-zero exit, and expected
-missing-behavior reason. It then anchors that red-test repository state before
-the one-line fix:
+## Frame: establish eligibility
 
-```bash
-python .agentic/aegis.py anchor --task TASK-c3d1
+Open a journal with `--type fix`, record the existing requirement and explain
+why the bounded correction qualifies. If investigation finds a broader behavior
+change, take the full path instead and record the scope change. A task's title
+or expected line count does not decide its path.
+
+## Build: reproduce, link, anchor, fix
+
+Write a regression that asserts the actual help heading. Record the exact red
+command, nonzero exit and expected failure ("Usgae" instead of "Usage"). An
+environment or fixture failure is not evidence that the behavior is missing.
+Update the requirement's paths and linked tests before impacted selection:
+
+```toml
+affected_paths = ["src/cli/help.py"]
+linked_tests = ["tests/cli/test_help.py::test_heading"]
 ```
 
-After the fix it runs the focused set and records the evolution:
+Then capture the red-test state before changing implementation:
 
-```bash
-python .agentic/aegis.py test --impacted --base HEAD --task TASK-c3d1
+```sh
+python .agentic/aegis.py anchor --task TASK-c3d1a2b4
 ```
 
-```
-test --impacted (2 test ref(s)): exit 0 (0.5s)
-```
+Correct the heading, run focused proof and inspect the repository changes:
 
-```bash
-python .agentic/aegis.py evolution --task TASK-c3d1
-```
-
-The new test gets appended to the existing requirement's
-`linked_tests` — the fix strengthens the contract instead of floating
-free.
-
-**validate:** reviews the final candidate, leaves the knowledge page untouched
-(no material behavior change - the journal says so), refreshes `evolution` if
-validation changed the candidate, then runs the full suite and
-`check --task TASK-c3d1 --strict --run` as the last proof. If it accepts
-a finding instead of fixing it, you hear about it there and then, in one
-line, without the run pausing:
-
-```
-DEVIATION validate: accepted uncovered-source on src/export/m3u.py — the
-fix is covered by the new test; the module still has no requirement.
+```sh
+python .agentic/aegis.py test --impacted --base HEAD --task TASK-c3d1a2b4
+python .agentic/aegis.py evolution --task TASK-c3d1a2b4
 ```
 
-Autopilot does not suppress those. The mode that removes the frame stop
-is exactly the one where silence costs most.
+The requirement remains the durable contract; the journal explains this repair.
+The IDs, paths and commands are a worked example, not recorded test results.
 
-**deliver:** confirms that candidate is unchanged, presents it — every
-deviation included, in full — and after approval runs `report TASK-c3d1`
-before committing. The notices were notifications, not approvals, so they
-shorten nothing here. This is the one stop autopilot always keeps:
+## Validate: review the final candidate
 
-> Ready to commit: 1 file fixed, 1 test added, checks clean. The report
-> is in the journal. Commit and open the PR?
+Review the change and its tests. If the component description is still accurate,
+record why its knowledge page needs no change. Refresh evolution after any
+later candidate edit. Run final configured proof once:
 
-## Total cost
+```sh
+python .agentic/aegis.py check --task TASK-c3d1a2b4 --strict --run
+```
 
-One prompt, one confirmation, and a paper trail: even for a ten-minute
-fix you keep a journal with the red-test evidence, a compact repository-change
-report, and the delivery report. That's the point of the quick path —
-proportional ceremony, never zero ceremony.
+This executes the eligible configured commands, including the full suite when
+configured for it. Do not start an identical suite separately just before this
+command. With a host integration, use tracked verification and inspect the
+existing job after an interruption before retrying.
 
-## Review policy for a small fix
+An accepted finding or omitted verification is both logged and spoken as a
+`DEVIATION validate: <what> - <reason and limitation>` notice. Do not describe
+checks as clean while accepting an unresolved finding.
 
-A quick fix normally has no child tasks. With the default
-`[review] enabled = false`, it still performs semantic review, focused and full
-validation, the strict check, and the delivery checkpoint; only the two
-explicit verdicts and their fix loop are skipped. A team that wants one
-explicit review with no autonomous retry can set `enabled = true` and
-`max_fix_cycles = 0`: any `changes_required` verdict immediately blocks for a
-human instead of turning the quick path into an unbounded repair loop.
+## Review policy
 
-## When *not* to use it
+With `[review] enabled = false` (the default), semantic review, focused/full
+verification and the delivery checkpoint still apply. When enabled, each round
+requires independent specification-compliance and implementation-quality
+verdicts for the same candidate. `max_fix_cycles = 0` allows one round and no
+autonomous fix/re-review cycle. The default of 2 permits at most three rounds.
+An unresolved final verdict blocks delivery for a human decision.
 
-New behavior, changed behavior, anything touching security or data
-handling → full path. If you ask for autopilot on something that turns
-out bigger than described, a well-behaved agent notes it in frame and
-asks anyway — and the journal shows whether it did.
+## Deliver: show the evidence and request the concrete action
+
+Present the unchanged candidate, validation evidence and every deviation.
+Ask for the precise commit/PR action unless it is already explicitly authorized.
+After approval, generate `report TASK-c3d1a2b4` before committing. For a local
+commit-only outcome, close the journal in that commit; for an outcome that can
+fail afterwards, leave it at `deliver` until success, then record close-out.
+
+The result is a proportionate record of the repair: the requirement, red/green
+proof, anchor/evolution and delivery outcome. The quick path promises no fixed
+completion time. Documentation-only maintenance is outside this repository's
+AEGIS workflow and does not need a quick-fix journal.

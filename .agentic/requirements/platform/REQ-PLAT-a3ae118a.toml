@@ -1,0 +1,10 @@
+schema = 1
+id = "REQ-PLAT-a3ae118a"
+title = "Install integrations without replacing user configuration"
+status = "active"
+requirement = "The integration installers shall register the requested host package on Windows and Linux while preserving unrelated user configuration and credentials."
+verification = "Run test_agent_integrations.py::test_install_behavior and the documented isolated host registration checks; inspect native Desktop separately before claiming UI validation."
+affected_paths = ["05_Software/aegis/integrations/", "02_Tools/build_agent_plugins.mjs", "02_Tools/README.md"]
+linked_tests = ["05_Software/aegis/tests/test_agent_integrations.py::test_install_behavior"]
+created = "2026-09-03"
+updated = "2026-09-03"

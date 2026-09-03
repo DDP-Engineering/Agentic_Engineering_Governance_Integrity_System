@@ -1,0 +1,10 @@
+{
+  "name": "@aegis/pi-package",
+  "version": "0.9.1",
+  "private": true,
+  "type": "module",
+  "keywords": ["pi-package"],
+  "pi": {"extensions": ["./index.js"]},
+  "engines": {"node": ">=22"},
+  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0"
+}
