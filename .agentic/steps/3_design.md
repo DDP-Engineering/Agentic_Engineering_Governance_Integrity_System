@@ -19,8 +19,9 @@ the shape was chosen.
 - The knowledge page for each component you will touch:
   `.agentic/knowledge/<component>.md`.
 
-**Stage report (completion or pause):** After updating the log, header and
-checklist, refresh the single `## Stage report` section in this task journal:
+**Stage report (completion or pause):** At this boundary, record only durable
+events allowed by the journal contract, update the header and checklist, and
+refresh the single `## Stage report` section in this task journal:
 At every stage transition or pause, append any new Ruling and refresh the Handoff;
 also refresh the Handoff for a blocker or session end.
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
@@ -35,8 +36,9 @@ stale records and read omitted details before continuing. Preserve existing
 approval stops and immediate deviation notices; this report adds no new stop.
 
 **Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist and relevant log entries (scope, user limits,
-unresolved issues, decisions and evidence); follow links to needed records.
+the journal header/checklist, dedicated durable sections, and relevant log
+entries (stage outcomes, blockers, material changes and consolidated evidence);
+follow links to needed records.
 This stage's required full reads still apply. Use linked requirements and
 source as needed, not the whole register. Do not act on missing, stale, or
 shortened reporting without reviewing the full journal information.
@@ -44,7 +46,7 @@ shortened reporting without reviewing the full journal information.
 **Steps:**
 
 1. Decide whether a note is needed at all — see "Skip when". If it is
-   not, log that judgement in one line and move on.
+   not, record that judgement under `## Design` and move on.
 2. Write the note in the journal under a `## Design` heading. Keep it
    under 30 lines; it is a decision record, not a document.
 3. Cover, in this order: components touched, the interface change (public
@@ -65,15 +67,17 @@ shortened reporting without reviewing the full journal information.
    the diagram that it is the intended shape and name this task, so a
    reader between design and delivery is not misled by a picture of code
    that does not exist yet; drop that line at `validate`, once the code
-   matches. A component with no page yet, or a task that only changes
-   behavior inside an existing shape, owes nothing here — say which in
-   the log and move on.
+    matches. A component with no page yet, or a task that only changes
+    behavior inside an existing shape, owes nothing here — say which in
+    `## Design` and move on.
 8. Keep requirement-specific detail in the spec instead of the journal
    when it belongs to the behavior rather than to this task.
 9. Run `python .agentic/aegis.py check`; fix errors.
-10. Tick the checklist, set `stage: build`, and **replace
-    `## Done checklist`** with the build stage's "Done when" list from
-    `4_build.md` — the checklist always shows the current stage's items.
+10. Append one concise `design` outcome line pointing to `## Design` and any
+    linked spec; do not copy decisions into the Log. Tick the checklist, set
+    `stage: build`, and **replace `## Done checklist`** with the build stage's
+    "Done when" list from `4_build.md` — the checklist always shows the current
+    stage's items.
 
 **Outputs:**
 

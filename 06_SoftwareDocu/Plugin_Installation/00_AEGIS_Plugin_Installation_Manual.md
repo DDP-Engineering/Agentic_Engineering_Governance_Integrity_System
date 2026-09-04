@@ -6,7 +6,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS plugin installation manual
 
-**Build:** AEGIS 0.10.0 release packages
+**Build:** AEGIS 0.11.0 release packages
 **Documentation date:** 2026-09-03
 **Hosts:** OpenCode, Codex, Pi, Qwen Code and Claude Code
 
@@ -24,13 +24,13 @@ This manual combines the five standalone installation guides. Choose the chapter
 
 ## Shared package rule
 
-Use the platform-labelled archive from `07_Delivery/dist/agent-plugins-0.10.0/`, extract it completely, and run its own installer. Every recipient authenticates their host independently. Project core installation and host plugin installation are separate operations.
+Use the platform-labelled archive from `07_Delivery/dist/agent-plugins-0.11.0/`, extract it completely, and run its own installer. Every recipient authenticates their host independently. Project core installation and host plugin installation are separate operations.
 
 <!-- PAGE BREAK -->
 
 # Install AEGIS for OpenCode
 
-**Applies to:** AEGIS 0.10.0 release package
+**Applies to:** AEGIS 0.11.0 release package
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
@@ -47,7 +47,7 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.10.0-windows.zip` or `aegis-0.10.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
 
 ```text
 python .agentic/aegis.py init
@@ -60,7 +60,7 @@ Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a ra
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-OpenCode-0.10.0-windows.zip` on Windows or `AEGIS-OpenCode-0.10.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-opencode` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Use `AEGIS-OpenCode-0.11.0-windows.zip` on Windows or `AEGIS-OpenCode-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-opencode` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -109,7 +109,7 @@ node setup.mjs doctor
 
 ![Recorded package installation evidence for OpenCode](assets/01_OpenCode_evidence.png)
 
-*Figure 3. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.10.0 delivery. Paths are replaced with placeholders; results are not simulated.*
+*Figure 3. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
 
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
@@ -144,14 +144,14 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [OpenCode plugins](https://opencode.ai/v2/docs/plugins)
 - [OpenCode agents](https://opencode.ai/v2/docs/agents)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.10.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.
 
 
 <!-- PAGE BREAK -->
 
 # Install AEGIS for Codex
 
-**Applies to:** AEGIS 0.10.0 release package
+**Applies to:** AEGIS 0.11.0 release package
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
@@ -168,7 +168,7 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.10.0-windows.zip` or `aegis-0.10.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
 
 ```text
 python .agentic/aegis.py init
@@ -181,7 +181,7 @@ Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a ra
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-Codex-0.10.0-windows.zip` on Windows or `AEGIS-Codex-0.10.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-codex` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Use `AEGIS-Codex-0.11.0-windows.zip` on Windows or `AEGIS-Codex-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-codex` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -226,7 +226,7 @@ node setup.mjs doctor
 
 ![Recorded package installation evidence for Codex](assets/02_Codex_evidence.png)
 
-*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.10.0 delivery. Paths are replaced with placeholders; results are not simulated.*
+*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
 
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
@@ -261,14 +261,14 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [OpenAI plugins](https://learn.chatgpt.com/docs/plugins)
 - [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.10.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.
 
 
 <!-- PAGE BREAK -->
 
 # Install AEGIS for Pi
 
-**Applies to:** AEGIS 0.10.0 release package
+**Applies to:** AEGIS 0.11.0 release package
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
@@ -285,7 +285,7 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.10.0-windows.zip` or `aegis-0.10.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
 
 ```text
 python .agentic/aegis.py init
@@ -298,7 +298,7 @@ Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a ra
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-Pi-0.10.0-windows.zip` on Windows or `AEGIS-Pi-0.10.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-pi` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Use `AEGIS-Pi-0.11.0-windows.zip` on Windows or `AEGIS-Pi-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-pi` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -343,7 +343,7 @@ node setup.mjs doctor
 
 ![Recorded package installation evidence for Pi](assets/03_Pi_evidence.png)
 
-*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.10.0 delivery. Paths are replaced with placeholders; results are not simulated.*
+*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
 
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
@@ -378,14 +378,14 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [Pi documentation](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/index.md)
 - [Pi packages and extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.10.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.
 
 
 <!-- PAGE BREAK -->
 
 # Install AEGIS for Qwen Code
 
-**Applies to:** AEGIS 0.10.0 release package
+**Applies to:** AEGIS 0.11.0 release package
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
@@ -402,7 +402,7 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.10.0-windows.zip` or `aegis-0.10.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
 
 ```text
 python .agentic/aegis.py init
@@ -415,7 +415,7 @@ Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a ra
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-Qwen-Code-0.10.0-windows.zip` on Windows or `AEGIS-Qwen-Code-0.10.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-qwen` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Use `AEGIS-Qwen-Code-0.11.0-windows.zip` on Windows or `AEGIS-Qwen-Code-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-qwen` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -460,7 +460,7 @@ node setup.mjs doctor
 
 ![Recorded package installation evidence for Qwen Code](assets/04_Qwen_Code_evidence.png)
 
-*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.10.0 delivery. Paths are replaced with placeholders; results are not simulated.*
+*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
 
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
@@ -495,14 +495,14 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [Qwen Code extensions](https://github.com/QwenLM/qwen-code/blob/main/docs/users/extension/introduction.md)
 - [Qwen Code overview](https://github.com/QwenLM/qwen-code/blob/main/docs/users/overview.md)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.10.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.
 
 
 <!-- PAGE BREAK -->
 
 # Install AEGIS for Claude Code
 
-**Applies to:** AEGIS 0.10.0 release package
+**Applies to:** AEGIS 0.11.0 release package
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
@@ -519,7 +519,7 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.10.0-windows.zip` or `aegis-0.10.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
 
 ```text
 python .agentic/aegis.py init
@@ -532,7 +532,7 @@ Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a ra
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-Claude-Code-0.10.0-windows.zip` on Windows or `AEGIS-Claude-Code-0.10.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-claude` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Use `AEGIS-Claude-Code-0.11.0-windows.zip` on Windows or `AEGIS-Claude-Code-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-claude` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -577,7 +577,7 @@ node setup.mjs doctor
 
 ![Recorded package installation evidence for Claude Code](assets/05_Claude_Code_evidence.png)
 
-*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.10.0 delivery. Paths are replaced with placeholders; results are not simulated.*
+*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
 
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
@@ -612,7 +612,7 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [Claude Code plugins](https://code.claude.com/docs/en/plugins-reference)
 - [Claude Code Desktop](https://code.claude.com/docs/en/desktop)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.10.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.
 
 
 <!-- PAGE BREAK -->

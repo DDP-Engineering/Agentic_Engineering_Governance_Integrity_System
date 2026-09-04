@@ -11,13 +11,15 @@ Start at [00_Index.md](00_Index.md) for the installation guide, worked examples,
 team guidance, FAQ and prompt cheatsheet. Guides 01-08 each have a matching
 PowerPoint deck; decks summarize the detailed Markdown rather than replace it.
 
-These documents describe the assigned **AEGIS 0.10.0** project at
+These documents describe the assigned **AEGIS 0.11.0** source at
 `05_Software/aegis/` and its five host integrations:
 OpenCode, Codex, Pi, Qwen Code and Claude Code. See
 [Agent_Plugins.md](Agent_Plugins.md) for distribution and installation and
 [Plugin_Installation/README.md](Plugin_Installation/README.md) for illustrated,
 host-by-host installation manuals in Markdown and PDF. See
 [09_CLI_Reference.md](09_CLI_Reference.md) for the core command surface.
+The current built delivery packages are 0.11.0. Building them creates local
+archives and publication records; it does not publish them remotely.
 
 The core keeps durable workflow records in the repository. Optional packages
 add native host resources, local runtime/ownership records and tracked jobs in

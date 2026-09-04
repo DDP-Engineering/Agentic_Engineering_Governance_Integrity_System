@@ -81,7 +81,8 @@ Installed runtime settings bind the cache location. Change it with installer
 `update --cache PATH`; lifecycle checks inspect the stored and requested caches.
 A conflicting `AEGIS_CACHE` environment override is refused for an installed
 package. Job logs remain after uninstall. This cache supports operational
-recovery; durable findings, decisions and validation evidence still belong in
+recovery. Raw progress and command output stay in that cache; only material
+findings, decisions, blockers, and consolidated validation outcomes belong in
 the repository journal.
 
 ## Configuration
@@ -177,6 +178,21 @@ A task journal has a machine-readable header followed by a current checklist
 and append-only log. Its header records `stage`, `type`, `path`,
 `requirements`, optional `parent`, `branch`, `base`, and `opened`.
 
+The Log is a compact progress-and-evidence ledger, not an activity transcript.
+It keeps stage transitions; material scope, implementation, or test changes;
+consolidated automated or manual verification; blockers; approvals;
+deviations; and delivery outcomes. Routine searches, reads, edits, tool
+mechanics, corrected command retries, and content already held in another
+durable artifact stay out. Existing entries remain append-only when the
+logging contract changes.
+
+Build normally records one reproducible red result and one final focused green
+result per meaningful behavior increment, grouping requirements that share a
+test seam. Inner-loop retries are not journal events. Validate records one
+consolidated final result and retains an earlier failed gate only when it
+exposed a candidate problem, caused an implementation or test change, or
+remains an accepted limitation.
+
 Current journals also provide durable semantic sections:
 
 - `## Frame`: problem, desired outcome, actors, scenario, examples and
@@ -198,19 +214,36 @@ The journal may additionally hold:
 - `## Stage report`: replaceable latest result with changes, evidence,
   issues, next action, user need, and review fields.
 
+These sections divide ownership deliberately: Frame holds detailed scope,
+Requirement coverage holds behavior mapping, Design and specs hold technical
+choices, Rulings hold durable decisions, Handoff holds resume state, and Stage
+report holds the latest communication snapshot. The Log references those
+records instead of copying them. Stage report and Handoff refresh at stage
+transitions, pauses or session ends, and blockers—not after routine work.
+
 `anchor --task` writes `TASK-<id>.anchor.json`, a SHA-256 starting-point
 fingerprint. `evolution --task` writes the corresponding
 `TASK-<id>.evolution.json` comparison. These are durable inspection
 evidence, not a replacement for review.
 
-Each component page under `knowledge/` documents purpose, public interface,
-key behaviors, current architecture, and files. When component structure will
-change, Design records `### Proposed architecture - TASK-<id>` in the task
-without replacing the current-state knowledge diagram. Validate compares the
-proposal with built code, updates the component page to the resulting current
-state, records justified differences, and retains the task proposal as
-historical design evidence. The knowledge directory is intentionally
-navigable without a separate component manifest.
+Each component page under `knowledge/` routes matching requests through
+selection signals to the component's owned source and focused tests. It records
+purpose and boundaries, public interface, invariants, key behaviors, current
+architecture, and files; components with multiple independent edit-and-test
+seams also carry a change map. The route narrows discovery, while exact source
+and tests remain authoritative. The no-argument `components` command derives a
+deterministic catalogue from each page's first level-one title, or filename
+stem fallback, and lexical repository-relative path. It does not parse body
+sections, create metadata, or maintain a separate registry.
+
+When component structure will change, Design records
+`### Proposed architecture - TASK-<id>` in the task without replacing the
+current-state knowledge diagram. Validate compares the proposal with built
+code, updates the component page to the resulting current state, records
+justified differences, and retains the task proposal as historical design
+evidence. The knowledge directory remains intentionally navigable without a
+separate component manifest; `components` is a read-only projection of the
+pages already present.
 
 ## Derived traceability
 

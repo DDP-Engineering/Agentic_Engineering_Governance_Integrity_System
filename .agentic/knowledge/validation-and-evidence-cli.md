@@ -8,24 +8,45 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Validation and evidence CLI
 
-## Purpose
+## Routing
+
+Read this page when a request mentions governance findings, strict checks,
+configured validation, impacted tests, delivery reports, evidence anchors,
+repository evolution, requirement coverage, diagrams, traceability exports, or
+path explanations. The public command signals are `check`, `test`, `report`,
+`anchor`, `evolution`, `diagram`, `trace`, and `explain`.
+
+Start implementation inspection in
+`05_Software/aegis/template/.agentic/aegis.py`, using the `cmd_<command>` entry
+point and the symbols in the Change map. Start verification in the focused test
+file named there. The same Python file also contains the Core CLI lifecycle;
+requests about `init`, `task`, `req`, `status`, `summary`, or `brief` belong to
+that component instead.
+
+## Purpose and boundaries
 
 The canonical CLI evaluates repository governance records, runs
 repository-configured validation commands, and writes reproducible task
-evidence. It is advisory by default and does not enforce a workflow stage,
-commit, publish, or access the network.
+evidence. Its built-in logic is advisory by default and does not enforce a
+workflow stage, commit, publish, or directly access the network. Explicitly
+configured child commands retain their own side effects and authority needs.
+
+This component owns evaluation, configured-command execution, evidence
+fingerprints, delivery projections, and read-only register views. The Core CLI
+lifecycle owns installation, scaffolding, status, summary, and resume views.
+The Reusable workflow payload defines the workflow and artifact contracts that
+this component evaluates; changing those contracts is not owned here merely
+because `check` reports on them.
 
 ## Public interface
 
-`check` reports governance, relationship, durable-record, and bounded-review
-findings and optionally runs configured commands.
-`test` executes a named configured command, optionally recording task evidence.
-`report` appends a delivery snapshot. `anchor` fingerprints repository state
-for an active task, while `evolution` classifies later changes against it.
-`diagram` renders the requirement register as a Mermaid coverage map, to
-standard output or to a UTF-8 file. `trace` exports the same register as a
-flat traceability matrix in Markdown or comma-separated values. `explain`
-reports what governs one repository path and which journals delivered it.
+`check` reports governance and optionally runs configured commands. `test`
+executes one configured command and may record its result in a task journal.
+`report` appends a delivery snapshot. `anchor` fingerprints Git-visible state;
+`evolution` classifies later changes against that anchor. `diagram` renders a
+Mermaid coverage map. `trace` exports the complete requirement register as
+Markdown or CSV. `explain` reports the requirements and journals governing one
+repository path.
 
 `trace` distinguishes unreadable requirement files from listed records with
 validation errors and retains rows when optional knowledge prose is unreadable.
@@ -33,6 +54,36 @@ It labels uncertain ownership explicitly, derives categories from the first
 folder below `requirements/`, and escapes literal Markdown cell content before
 joining list entries. `--format` selects the format independently of the file
 suffix; `--out` supplies portable encoding.
+
+## Invariants
+
+- `check` remains advisory unless `--strict` is requested; `test` mirrors the
+  configured command's exit status.
+- Configured repository commands run only through an explicit `test` or
+  `check --run` request, with the configured timeout and output handling.
+- Built-in AEGIS logic does not advance a workflow stage, commit, publish, or
+  directly access the network; child commands launched by `test` or
+  `check --run` are not sandboxed by this CLI and may have those side effects.
+- `coverage_class` is the single coverage-precedence rule shared by `check`,
+  `diagram`, `trace`, and `explain`; their verdicts must not diverge.
+- `trace` retains every readable requirement and degrades optional unreadable
+  knowledge into explicit ownership uncertainty instead of dropping rows.
+- `anchor` and `evolution` describe Git-visible repository state as evidence;
+  their fingerprints are reproducible records, not tamper-proof proof.
+- `report` projects recorded task state. Missing, malformed, or stale review
+  evidence must never become an approval claim.
+
+## Change map
+
+| Change requested | Start with | Focused verification |
+|---|---|---|
+| Governance finding or strict-exit semantics | `run_checks`, `cmd_check`, and the relevant `check_*` rule | `test_check.py`; strict-mode tests in `test_run_report.py` |
+| Configured or impacted test execution | `run_configured_commands`, `impacted_tests`, `cmd_test` | `test_run_report.py::test_run_reports_ok_and_fail_and_feeds_strict` and the `test_test_*` group |
+| Delivery report or review/deviation projection | `cmd_report`, `bound_stage_report`, `recorded_deviations` | `test_run_report.py::test_report_leads_with_the_recorded_deviations` and the `test_report_*` group |
+| Anchor or evolution evidence | `repository_manifest`, `cmd_anchor`, `cmd_evolution` | `test_repo_evolution.py::test_anchor_records_visible_files_metadata_and_hashes` and `test_repo_evolution.py::test_evolution_classifies_changes_and_retains_compact_history` |
+| Coverage class or Mermaid diagram | `coverage_class`, `knowledge_components`, `diagram_scope`, `render_diagram`, `cmd_diagram` | `test_run_report.py::test_every_coverage_class_matches_what_check_reports` and the `test_diagram_*` group |
+| Traceability row or export format | `trace_rows`, `render_trace_md`, `render_trace_csv`, `cmd_trace` | the `test_trace_*` group in `test_run_report.py`, especially delimiter, encoding, and unreadable-input cases |
+| Path-to-governance explanation | `match_any`, `cmd_explain` | `test_run_report.py::test_explain_traces_a_path_to_its_requirements_and_tasks` |
 
 ## Key behaviors
 
@@ -62,86 +113,65 @@ suffix; `--out` supplies portable encoding.
 
 ## Architecture
 
-Eight commands over one register. Each entry point composes shared readers
-rather than owning its own parsing, which is why a finding, a report and a
-diagram can never disagree about what the records say. `coverage_class` is
-the same rule applied to judgement rather than to parsing: `check` turns its
-verdict into findings while `diagram`, `explain` and `trace` turn the same
-verdict into a label, so the precedence between a broken link, a by-hand
-method and an empty one exists in exactly one place.
-
-The three readers of the whole register differ only in what they narrow.
-`diagram` groups it into a picture that stops being legible past a few dozen
-nodes; `explain` answers about one path; `trace` narrows nothing and is the
-one form that leaves the repository, which is why it is the only one that
-owes an escaping and encoding contract.
+Eight command entry points reuse shared readers and focused processors.
+Coverage precedence lives in one function, while each command invokes only the
+parsing, diff, execution, or rendering seams it needs.
 
 ```mermaid
 flowchart TD
-    check(["check"])
-    test(["test"])
-    report(["report"])
-    anchor(["anchor"])
-    evolution(["evolution"])
-    diagram(["diagram"])
-    explain(["explain"])
-    trace(["trace"])
+    check(["cmd_check"])
+    test(["cmd_test"])
+    report(["cmd_report"])
+    evidencecmd(["cmd_anchor / cmd_evolution"])
+    registerviews(["cmd_diagram / cmd_trace"])
+    explain(["cmd_explain"])
 
-    cfg["load_config - aegis.toml"]
-    scan["scan_requirements / scan_journals - parse the register"]
-    diffs["collect_diff - task base, else merge base"]
-    runner["run_configured_commands - subprocess, timeouts"]
-    manifest["repository_manifest - SHA-256 fingerprints"]
-    render["render_diagram - Mermaid text"]
-    rows["render_trace_md / render_trace_csv - one row per requirement"]
-    covers["match_any - affected_paths cover this path"]
-    devs["recorded_deviations - judgement out of the log"]
-    bound["bound_stage_report - current recorded review state"]
-    review["review_settings - optional bounded review policy"]
-    cover["coverage_class - one verdict per record"]
+    configured["load_config / run_configured_commands"]
+    impacted["impacted_tests"]
+    scan["scan_requirements / scan_journals / knowledge_components"]
+    cover["coverage_class"]
+    diffs["collect_diff"]
+    reportstate["bound_stage_report / recorded_deviations"]
+    manifest["repository_manifest"]
+    render["render_diagram / render_trace_md / render_trace_csv"]
+    covers["match_any"]
 
     register[("requirements/ tasks/ knowledge/")]
     evidence[("TASK-id.anchor.json / .evolution.json")]
 
-    check --> cfg
+    check --> configured
     check --> scan
-    check --> diffs
-    check --> runner
     check --> cover
-    diagram --> cover
-    explain --> cover
-    trace --> cover
-    trace --> scan
-    trace --> rows
-    test --> cfg
-    test --> runner
+    check --> diffs
+    test --> configured
+    test --> impacted
+    impacted --> diffs
     report --> scan
     report --> diffs
-    report --> bound
-    report --> review
-    diagram --> scan
-    diagram --> render
-    explain --> scan
-    explain --> covers
-    report --> devs
-    anchor --> manifest
-    evolution --> manifest
-    scan --> register
+    report --> reportstate
+    evidencecmd --> manifest
     manifest --> evidence
-    evolution --> evidence
+    registerviews --> scan
+    registerviews --> cover
+    registerviews --> render
+    explain --> scan
+    explain --> cover
+    explain --> covers
+    scan --> register
+
+    classDef boundary fill:#fff4d6,stroke:#8a6d1d
+    class register,evidence boundary
 ```
 
-
-`explain` runs the register the other way round - a path in, the
-requirements covering it out - which is why it needs no reader of its own.
-Not shown: the check catalog's individual rules, and the fact that only
-`anchor` and `evolution` write outside the journal. Every command here is
-advisory - none of them blocks, and none of them commits.
+Not shown: the individual check rules. `explain` reverses the register from a
+path to its requirements; only `anchor` and `evolution` write evidence outside
+the journal.
 
 ## Files
 
-- `05_Software/aegis/template/.agentic/aegis.py` - Canonical check, command,
-  report, anchor, evolution, diagram, and trace implementation.
+- `05_Software/aegis/template/.agentic/aegis.py` - All entry points and shared
+  processors named in the Change map; this monolithic file also contains the
+  separate Core CLI lifecycle component.
 - `05_Software/aegis/tests/test_check.py` - Governance-check catalog tests.
 - `05_Software/aegis/tests/test_run_report.py` - Strict-mode, configured-run,
   test, and reporting tests.

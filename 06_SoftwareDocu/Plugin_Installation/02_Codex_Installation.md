@@ -6,7 +6,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Install AEGIS for Codex
 
-**Applies to:** AEGIS 0.10.0 release package
+**Applies to:** AEGIS 0.11.0 release package
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
@@ -23,7 +23,7 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.10.0-windows.zip` or `aegis-0.10.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
 
 ```text
 python .agentic/aegis.py init
@@ -36,7 +36,7 @@ Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a ra
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-Codex-0.10.0-windows.zip` on Windows or `AEGIS-Codex-0.10.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-codex` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Use `AEGIS-Codex-0.11.0-windows.zip` on Windows or `AEGIS-Codex-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-codex` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -81,7 +81,7 @@ node setup.mjs doctor
 
 ![Recorded package installation evidence for Codex](assets/02_Codex_evidence.png)
 
-*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.10.0 delivery. Paths are replaced with placeholders; results are not simulated.*
+*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
 
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
@@ -116,4 +116,4 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [OpenAI plugins](https://learn.chatgpt.com/docs/plugins)
 - [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.10.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.

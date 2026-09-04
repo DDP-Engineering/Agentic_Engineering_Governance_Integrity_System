@@ -8,12 +8,16 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Planning
 
 These documents describe the current implementation, not an unbuilt roadmap.
-As of **2026-09-03**, the project version is **AEGIS 0.10.0**. It includes the
+As of **2026-09-04**, the project version is **AEGIS 0.11.0**. It includes the
 core, the OpenCode, Codex, Pi, Qwen Code and Claude Code integrations, and the
 workflow-prompt improvements for evidence-led framing, atomic behavior
 coverage, proportionate design, and validation-time architecture
-reconciliation. The existing `0.9.1` delivery artifacts remain the last built
-package set until the `0.10.0` packages are generated.
+reconciliation. It also adds low-context component discovery and narrows
+`DEVIATION` notices to material engineering departures. Current Unreleased
+guidance also makes the journal Log a compact progress-and-evidence ledger
+rather than an execution transcript. The existing `0.10.0` delivery artifacts
+remain the last built package set; `0.11.0` has been assigned in source but has
+not been packaged.
 
 - [Overview](00_README.md) — core workflow, host integrations and source boundaries.
 - [Workflow and stages](01_Workflow_And_Stages.md) - semantic analysis protocol,

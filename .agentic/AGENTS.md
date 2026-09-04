@@ -93,9 +93,10 @@ yours to write.
 2. Compare `git branch --show-current` with the journal's `branch:` line.
    On a mismatch, stop and reconcile first — check out the recorded
    branch, or say so if it does not exist here — before touching anything.
-3. Read its `stage:` line and relevant log entries: agreed scope, user/Git
-   limits, unresolved issues, decisions, and latest evidence; open the step
-   file for that stage from the table above. Follow references to complete
+3. Read its `stage:` line, dedicated Frame/Design/Rulings/Handoff sections as
+   applicable, and relevant log entries: stage outcomes, blockers, material
+   changes, and consolidated evidence; open the step file for that stage from
+   the table above. Follow references to complete
    evidence, not just the last few lines of a long log. A missing, stale,
    or shortened summary requires journal review before continuing.
 4. Continue at the first unticked item of `## Done checklist`. The
@@ -166,11 +167,29 @@ something other than what you expected, when a `Manual:`/`Inspection:`
 method stands in for a test that could have been automated, when you retire
 a requirement, and when diff review turns up work nobody asked for.
 
-The journal line you would have written anyway is still written. The notice
+Record the material deviation in the journal Log as durable history. The notice
 is its twin, not its replacement — a journal is read afterwards, and by then
 the human has already paid for not knowing. `DEVIATION` is deliberately not
 `WARNING`: `check` prints `WARN` and `NOTE` for its own findings, and your
 judgement should not be mistaken for the tool's.
+
+## Journal log
+
+The append-only `## Log` is a progress-and-evidence ledger, not a session or
+tool transcript. Record only durable events that change the task's stage,
+scope, engineering outcome, verification status, authority, or ability to
+proceed: stage transitions; material scope or implementation decisions not
+already captured in Rulings, Design, or a spec; consolidated automated or
+manual verification results; material discoveries; blockers; approvals;
+deviations; and delivery outcomes.
+
+Do not log routine reads, searches, edits, tool mechanics, corrected command
+retries, or repeated content already held by another journal section or linked
+artifact. A failed command belongs only when it exposes a candidate problem,
+changes the implementation or tests, or remains an accepted verification
+limitation. Consolidate related test results by meaningful behavior increment;
+do not append every inner-loop retry. Keep entries concise and link to the
+durable detail instead of copying it. Existing entries are never rewritten.
 
 ## Rulings and handoffs
 
@@ -190,14 +209,16 @@ Handoff adds an approval stop.
 
 ## Stage reporting
 
-At each stage completion or pause, present one compact report **before any
-detailed explanation**. Reporting does not introduce approval stops: the two
+At each stage completion, pause or session end, or blocker, present one compact
+report **before any detailed explanation**. Reporting does not introduce
+approval stops: the two
 ordinary checkpoints, adoption approvals, and explicit user limits still
 apply. Immediate `DEVIATION` notices remain immediate; do not defer them to
 the report. Do not report after every command.
 
-After recording evidence and decisions in `## Log`, update the journal's
-single `## Stage report` section using the plain fields in `templates/task.md`:
+At that boundary, record any durable event that belongs in `## Log`, then
+update the journal's single `## Stage report` section using the plain fields in
+`templates/task.md`:
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
 `needs_user`, `spec_compliance`, `implementation_quality`, and `review_round`.
 It is a replaceable latest snapshot; the log stays append-only. Review fields

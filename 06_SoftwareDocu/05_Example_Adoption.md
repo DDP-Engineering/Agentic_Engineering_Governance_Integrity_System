@@ -44,22 +44,32 @@ continue adoption TASK-a1b2, next component
 
 Per component, the agent: reads the code **and its existing tests**
 (tests are the best evidence of intended behavior), writes
-`knowledge/<component>.md`, draws that page's `## Architecture` diagram
-while the source is still open, and derives requirements - `active`, with
-`affected_paths` set to the component's files and `linked_tests`
-pointing at the **existing** tests that already verify each behavior.
+`knowledge/<component>.md` as a concise route to the owned source and focused
+tests, draws that page's `## Architecture` diagram while the source is still
+open, and derives requirements - `active`, with `affected_paths` set to the
+component's files and `linked_tests` pointing at the **existing** tests that
+already verify each behavior.
+
+The page records the request signals that select the component, its purpose and
+boundaries, public interface, load-bearing invariants, current behaviors,
+architecture and owned files. It adds a change map only when multiple
+independent edit-and-test seams would otherwise force broad discovery. This
+shortens later orientation; it does not replace reading the exact source and
+tests before a change.
 
 The diagram is the cheapest it will ever be in this session, and it is a
-drawing of what the code **does**, not what it should do: a shape nobody
-can explain is a finding for the journal, not something to tidy away in
+drawing of what the code **does**, not what it should do: shapes nobody
+can explain belong in one consolidated component finding, not a stream of
+exploration notes or something to tidy away in
 the picture. Where the agent cannot tell which way a dependency points, it
 leaves the arrow out and says so underneath rather than guessing. For a
 legacy component this often ends up being the only architecture document
 that has ever existed for it.
 Adoption mostly *links* tests; it writes new ones only where a
 load-bearing behavior has none (or records the requirement with empty
-`linked_tests` - see below). Suspicious behavior is adopted as-is and
-noted in the journal as a future task, never silently "fixed".
+`linked_tests` - see below). Suspicious behavior is adopted as-is and included
+in that consolidated finding or a separately created future-task record, never
+silently "fixed".
 
 Each session ends with a ticked checkbox and a small, readable diff.
 Useful properties:

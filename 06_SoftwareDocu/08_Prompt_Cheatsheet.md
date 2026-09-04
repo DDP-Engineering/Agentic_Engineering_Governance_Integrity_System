@@ -90,9 +90,10 @@ notice you do not have to answer.
 
 *Watch during:* those notices - they are the first place you hear about an
 anomaly, while it is still cheap to say something.
-*Check afterwards:* the journal and its task sidecars have the whole story -
-scope, exact red command and exit, pre-implementation `anchor`, final
-`evolution`, findings, validation evidence, and report.
+*Check afterwards:* the task-owned records retain the durable milestones -
+accepted scope, one meaningful red and final green per behavior increment,
+pre-implementation `anchor`, final `evolution`, material findings, validation
+evidence, and report. Routine tool activity and corrected retries are omitted.
 
 Frame now records a compact idea card: problem, desired outcome, actors,
 scenario, examples and counterexamples, boundaries, constraints, success

@@ -18,8 +18,9 @@ requirement links current so that set stays correct.
 - Every requirement on its `requirements:` line, and their specs.
 - The existing tests for the files you are about to touch.
 
-**Stage report (completion or pause):** After updating the log, header and
-checklist, refresh the single `## Stage report` section in this task journal:
+**Stage report (completion or pause):** At this boundary, record only durable
+events allowed by the journal contract, update the header and checklist, and
+refresh the single `## Stage report` section in this task journal:
 At every stage transition or pause, append any new Ruling and refresh the Handoff;
 also refresh the Handoff for a blocker or session end.
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
@@ -34,8 +35,9 @@ stale records and read omitted details before continuing. Preserve existing
 approval stops and immediate deviation notices; this report adds no new stop.
 
 **Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist and relevant log entries (scope, user limits,
-unresolved issues, decisions and evidence); follow links to needed records.
+the journal header/checklist, dedicated durable sections, and relevant log
+entries (stage outcomes, blockers, material changes and consolidated evidence);
+follow links to needed records.
 This stage's required full reads still apply. Use linked requirements and
 source as needed, not the whole register. Do not act on missing, stale, or
 shortened reporting without reviewing the full journal information.
@@ -62,13 +64,16 @@ integrated proof.
 3. Run the test and watch it fail. Confirm the failure is the one you
    expect (missing behavior), not a typo, an import error, or a bad
    fixture.
-4. Record the observed failure in `## Log` before implementing. Include the
-   **exact test selector or command**, its **non-zero exit code**, and the
-   **expected missing-behavior failure reason**:
+4. Before implementing a meaningful behavior increment, record one consolidated
+   observed failure in `## Log`. Related requirements that share the same test
+   seam may use one record. Include their IDs, the **exact test selector or command**,
+   its **non-zero exit code**, and the **expected missing-behavior failure reason**:
    `- <date> build red: command=\`pytest -q tests/x.py::test_y\`; exit=1;`
    ` expected missing behavior=<reason>.`
-   Keep it reproducible but short; do not paste the full traceback. This is
-   an agent-authored journal record, not independent proof. For a
+   Keep it reproducible but short; do not paste the full traceback or create a
+   separate line per requirement when one run demonstrates the same gap. Do
+   not log a typo, import error, bad fixture, tool failure, or corrected retry.
+   This is an agent-authored journal record, not independent proof. For a
    `Manual:`/`Inspection:` method, record a **manual observation** after the
    implementation instead: method, action, and observed result.
 5. Run `python .agentic/aegis.py anchor --task TASK-<id>` after the expected
@@ -95,7 +100,9 @@ integrated proof.
    `affected_paths` you touched, so it is fast enough to run after every
    edit. `--base HEAD` narrows it further to what you have not committed
    yet — without it the basis is the whole branch, which on a long-lived
-   branch selects most of the suite. Repeat steps 2–8 until the
+   branch selects most of the suite. Do not log each inner-loop retry. When the
+   behavior increment is green, append one consolidated result naming the
+   command, exit zero, and covered requirements. Repeat steps 2–8 until the
    requirement is done.
 9. Move to the next requirement and repeat from step 1.
 10. When all requirements are green, run
@@ -114,14 +121,16 @@ integrated proof.
 
 - New and changed tests, and the implementation that satisfies them.
 - Updated `affected_paths`, `linked_tests`, `status` on each requirement.
-- Journal log lines: one reproducible red-test record per automated
-  requirement, a manual observation where applicable, plus accepted warnings.
+- Journal log lines: one reproducible red result and one final focused green
+  result per meaningful behavior increment, a consolidated manual observation
+  where applicable, plus material accepted warnings.
 
 **Done when:**
 
-- [ ] each automated requirement has a pre-implementation red record with
-      exact selector or command, non-zero exit, and expected failure reason;
-      each manual requirement has a post-implementation observation
+- [ ] each automated behavior increment has a pre-implementation red record
+      with requirement IDs, exact selector or command, non-zero exit, and
+      expected failure reason, plus one final focused green result; each manual
+      increment has a consolidated post-implementation observation
 - [ ] repository anchor recorded after red and evolution reviewed after implementation
 - [ ] implementation makes those tests pass
 - [ ] `test --impacted` green

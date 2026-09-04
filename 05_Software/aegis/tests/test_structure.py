@@ -147,6 +147,28 @@ def test_payload_ships_a_complete_cli_reference(tmp_path):
     assert "--version" in text
 
 
+def test_component_catalogue_command_guides_every_useful_stage(tmp_path):
+    """REQ-FUNC-8ec7a0c7: one flat command exposes title-and-path discovery."""
+    _agentic, aegis = make_repo(tmp_path)
+    commands = next(action.choices for action in aegis.build_parser()._actions
+                    if isinstance(action, argparse._SubParsersAction))
+    assert "components" in commands
+
+    agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")
+    cli = (PAYLOAD / "CLI.md").read_text(encoding="utf-8")
+    assert "python .agentic/aegis.py components" in agents
+    assert "## `components`" in cli
+
+    for step in ("1_frame.md", "2_specify.md", "3_design.md", "adopt.md"):
+        text = (PAYLOAD / "steps" / step).read_text(encoding="utf-8")
+        assert "aegis.py components" in text, step
+    for step in ("4_build.md", "5_validate.md"):
+        text = (PAYLOAD / "steps" / step).read_text(encoding="utf-8")
+        assert "aegis.py components" in text and "additional" in text, step
+    deliver = (PAYLOAD / "steps" / "6_deliver.md").read_text(encoding="utf-8")
+    assert "aegis.py components" not in deliver
+
+
 @pytest.mark.parametrize("name", ["aegis.py", "CLI.md"])
 def test_installed_cli_matches_template(name):
     """REQ-TEST-e38913a7: the installed CLI matches the managed payload."""
@@ -181,7 +203,7 @@ def test_build_stage_records_reproducible_red_evidence_without_git_witness():
 
 
 def test_deviation_notices_are_stated_when_recorded_not_only_at_delivery():
-    """REQ-UX-ccb4ca06: an anomaly is spoken when it happens, never stopping."""
+    """REQ-UX-ccb4ca06: material departures are spoken without tool noise."""
     # normalized: these are wrapped prose, and a rewrap must not fail the guard
     def flat(*parts: str) -> str:
         return " ".join((PAYLOAD.joinpath(*parts)
@@ -197,10 +219,16 @@ def test_deviation_notices_are_stated_when_recorded_not_only_at_delivery():
     assert "DEVIATION <stage>:" in agents
     assert "never pauses the work" in agents
     assert "Autopilot does not suppress" in agents
+    assert "materially differs" in agents
+    assert "recoverable internal tool-use errors" in agents
+    assert "expected failing test" in agents
+    assert "when a command exits non-zero" not in agents
 
     # every stage that records an anomaly states it at the same moment
     assert "state it as a deviation notice" in build
     assert "state it as a deviation notice" in validate
+    assert "materially limits" in build
+    assert "operational detail, not a deviation" in validate
 
     # delivery still presents the aggregate; notices never stand in for it
     assert "notices supplement this presentation" in deliver
@@ -649,3 +677,48 @@ def test_adopt_and_validate_keep_the_architecture_diagram_current():
     assert "built code" in validate
     assert "current-state" in validate
     assert "historical design evidence" in validate
+
+
+def test_component_knowledge_routes_implementation_work():
+    """REQ-FUNC-9db20045: component pages route work to exact code and tests."""
+    component = (PAYLOAD / "templates" / "component.md").read_text(
+        encoding="utf-8")
+    adopt = (PAYLOAD / "steps" / "adopt.md").read_text(encoding="utf-8")
+    frame = (PAYLOAD / "steps" / "1_frame.md").read_text(encoding="utf-8")
+    specify = (PAYLOAD / "steps" / "2_specify.md").read_text(encoding="utf-8")
+    design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
+    build = (PAYLOAD / "steps" / "4_build.md").read_text(encoding="utf-8")
+    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(
+        encoding="utf-8")
+    component_flat = " ".join(component.split())
+    adopt_flat = " ".join(adopt.split())
+    frame_flat = " ".join(frame.split())
+    specify_flat = " ".join(specify.split())
+    design_flat = " ".join(design.split())
+    build_flat = " ".join(build.split())
+    validate_flat = " ".join(validate.split())
+
+    for heading in ("## Routing", "## Purpose and boundaries",
+                    "## Public interface", "## Invariants",
+                    "## Change map", "## Key behaviors",
+                    "## Architecture", "## Files"):
+        assert heading in component
+    assert "exact source and tests remain authoritative" in component_flat
+    assert "multiple independent edit-and-test seams" in component_flat
+
+    assert "## Routing" in adopt_flat
+    assert "exact source and tests" in adopt_flat
+    assert "## Routing" in frame_flat
+    assert "selection signals" in frame_flat
+    assert "legacy page" in frame_flat
+    assert "available sections" in frame_flat
+    assert "exact source and tests" in frame_flat
+    assert "## Purpose and boundaries" in specify_flat
+    assert "## Invariants" in specify_flat
+    assert "## Change map" in design_flat
+    assert "aegis.py components" in build_flat
+    for heading in ("Routing", "Purpose and boundaries", "Invariants",
+                    "Change map"):
+        assert heading in validate_flat
+    assert "touched legacy page" in validate_flat
+    assert "migrate it to the current template" in validate_flat

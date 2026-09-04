@@ -88,15 +88,34 @@ An explicit autopilot request suppresses the first stop, not external
 authority or the delivery boundary. Neither child tasks, stage reporting,
 rulings, handoffs, nor review add a new ordinary approval checkpoint.
 
-Record accepted deviations immediately and say them in the conversation:
+Record material accepted deviations immediately and say them in the
+conversation:
 
 ```text
 DEVIATION <stage>: <what> - <why accepted, or what it costs>
 ```
 
-Examples include accepting a `check` warning, a failed/skipped verification,
-unexpected anchor/evolution evidence, or a manual verification method standing
-in for an automatable test.
+A deviation exists only when the candidate, agreed scope, design or contract,
+or confidence in required verification materially departs from what was
+planned. Examples include retaining an implementation outside the agreed
+design, weakening or skipping required verification, retiring a requirement,
+accepting unexpected candidate files, or retaining unrequested work found in
+review.
+
+Corrected shell quoting, failed searches, rejected atomic patches, mistyped
+paths, transient command failures, expected red tests, and unrelated findings
+are operational details rather than deviations because they do not change the
+candidate, scope, or evidence.
+
+## Component knowledge discovery
+
+`python .agentic/aegis.py components` gives agents a deterministic, read-only
+list of component titles and repository-relative knowledge-page paths. Frame,
+Specify, and Design use it when the relevant page is not already known;
+Build and Validate use it only when an additional unnamed component is
+discovered; adoption uses it to avoid duplicate pages. The command interprets
+titles only, creates no registry or metadata, and leaves the page's Routing
+section, exact source, and focused tests authoritative.
 
 ## Explicit review is policy, not a stage
 
@@ -121,8 +140,12 @@ or the delivery checkpoint.
 
 ## Durable resume state
 
-The task journal is the durable history. Its append-only `## Log` records
-observations and decisions. New journals also support:
+The task journal is the durable history. Its append-only `## Log` is a compact
+progress-and-evidence ledger, not an execution transcript. It records stage
+transitions, material engineering or scope changes, consolidated verification,
+blockers, approvals, deviations, and delivery outcomes. Routine tool use,
+corrected retries, and detail already held by requirements, designs, Rulings,
+Handoff, or the Stage report do not belong there. New journals also support:
 
 - **Rulings:** append-only durable decisions; a later ruling supersedes an
   earlier ruling by ID instead of rewriting history.

@@ -38,10 +38,12 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-The workflow shall instruct the agent to state every deviation it records in
-the conversation at the moment it records it, in both checkpoint and autopilot
-mode, as one line that names the stage, what departed from the expected path,
-and either why it is accepted or what it costs.
+When the candidate, agreed scope, design or contract, or confidence in required
+verification materially departs from what was planned or required, the
+workflow shall instruct the agent to state the recorded deviation immediately
+in both checkpoint and autopilot mode as one line that names the stage, what
+departed, and either why it is accepted or what it costs, while excluding
+corrected internal tool-use errors and ordinary expected red tests.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -54,19 +56,23 @@ and either why it is accepted or what it costs.
 # The prefix alone is not enough — it has to say what someone does.
 verification = """
 The structure test reads the canonical payload and asserts that AGENTS.md
-defines the deviation notice with its one-line shape, its stage label, and the
-rule that stating one never pauses the work in either interaction mode; and
-that each step file which records an anomaly - build, validate and deliver -
-instructs the agent to state it at that point, with deliver keeping the notice
-supplementary to its own presentation.
+defines the one-line, non-pausing notice in both interaction modes, limits it
+to material candidate, scope, contract, design, or verification departures,
+and explicitly excludes corrected internal tool errors and expected red tests;
+it also confirms build and validate use the same material-impact boundary and
+delivery keeps real notices supplementary to its own presentation.
 """
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
     "05_Software/aegis/template/.agentic/AGENTS.md",
+    "05_Software/aegis/template/.agentic/aegis.py",
     "05_Software/aegis/template/.agentic/steps/4_build.md",
     "05_Software/aegis/template/.agentic/steps/5_validate.md",
     "05_Software/aegis/template/.agentic/steps/6_deliver.md",
+    "05_Software/aegis/tests/test_structure.py",
+    "06_SoftwareDocu/02_Folders_and_Files.md",
+    "06_SoftwareDocu/07_FAQ.md",
 ]
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
@@ -82,15 +88,13 @@ spec = ""
 
 priority = "normal"   # low | normal | high
 rationale = """
-The journal already records anomalies faithfully, but a journal is read after
-the fact, so an accepted warning, a skipped suite or a worthless evidence
-record reaches the human only at the delivery checkpoint - after the work that
-depended on it is finished. Stating the same fact when it happens costs one
-line and lets the human redirect while redirecting is still cheap. It is a
-notification rather than a pause because turning every anomaly into a stop
-would replace the two agreed checkpoints with a per-stage approval treadmill,
-which is the outcome the interaction modes exist to avoid.
+The journal already records material departures faithfully, but it is read
+after the fact, so an accepted implementation limitation, skipped suite, or
+weakened evidence reaches the human only after dependent work is finished.
+Stating that fact immediately keeps redirection cheap. Internal tool retries do
+not change the engineering decision or evidence and would only bury meaningful
+notices in operational noise.
 """
 
 created = 2026-08-18
-updated = 2026-08-18
+updated = 2026-09-04
