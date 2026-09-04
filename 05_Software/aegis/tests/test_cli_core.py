@@ -555,6 +555,190 @@ def test_nested_new_forms_are_not_accepted(tmp_path, argv):
         aegis.build_parser().parse_args(argv)
 
 
+# TESTS - component catalogue
+
+
+def test_components_lists_titles_paths_and_stem_fallback_without_writes(
+        tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-8ec7a0c7: catalogue rows are deterministic and read-only."""
+    agentic, aegis = make_repo(tmp_path)
+    knowledge = agentic / "knowledge"
+    knowledge.mkdir(exist_ok=True)
+    (knowledge / "zeta.md").write_text(
+        "# Zeta component\n\n## Routing\n", encoding="utf-8", newline="\n")
+    (knowledge / "alpha.md").write_text(
+        "<!-- orientation -->\n\n# Alpha component\n", encoding="utf-8", newline="\n")
+    (knowledge / "untitled.md").write_text(
+        "## Routing\n\nNo level-one title.\n", encoding="utf-8", newline="\n")
+    monkeypatch.setattr(
+        aegis,
+        "knowledge_components",
+        lambda *_args, **_kwargs: pytest.fail(
+            "components must not parse component requirement claims"),
+    )
+    before = snapshot(tmp_path)
+
+    assert aegis.main(["components"]) == 0
+    assert capsys.readouterr().out == (
+        "Alpha component\t.agentic/knowledge/alpha.md\n"
+        "untitled\t.agentic/knowledge/untitled.md\n"
+        "Zeta component\t.agentic/knowledge/zeta.md\n"
+    )
+    assert snapshot(tmp_path) == before
+
+
+def test_components_normalizes_and_bounds_titles(tmp_path, capsys):
+    """REQ-FUNC-8ec7a0c7: titles remain one short printable output field."""
+    agentic, aegis = make_repo(tmp_path)
+    knowledge = agentic / "knowledge"
+    knowledge.mkdir(exist_ok=True)
+    raw_title = "Alpha\t\x1b[31m" + ("x" * 100)
+    (knowledge / "alpha.md").write_text(
+        f"# {raw_title}\n", encoding="utf-8", newline="\n")
+
+    assert aegis.main(["components"]) == 0
+    title, path = capsys.readouterr().out.rstrip("\n").split("\t")
+    assert path == ".agentic/knowledge/alpha.md"
+    assert title.startswith("Alpha [31m")
+    assert title.endswith("…")
+    assert len(title) == aegis.COMPONENT_TITLE_WIDTH
+    assert all(char.isprintable() for char in title)
+
+
+def test_components_preserves_internal_symlink_lexical_path(
+        tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-8ec7a0c7: an in-catalogue link keeps its catalogue path."""
+    repo = tmp_path / "repo"
+    agentic, aegis = make_repo(repo)
+    knowledge = agentic / "knowledge"
+    knowledge.mkdir(exist_ok=True)
+    target = knowledge / "target.md"
+    target.write_text("# Target\n", encoding="utf-8", newline="\n")
+    alias = knowledge / "alias.md"
+    try:
+        alias.symlink_to(target)
+    except OSError:
+        alias.write_text("# Target\n", encoding="utf-8", newline="\n")
+        original_resolve = aegis.Path.resolve
+
+        def resolve(path, *args, **kwargs):
+            return target if path == alias else original_resolve(
+                path, *args, **kwargs)
+
+        monkeypatch.setattr(aegis.Path, "resolve", resolve)
+
+    assert aegis.main(["components"]) == 0
+    assert capsys.readouterr().out == (
+        "Target\t.agentic/knowledge/alias.md\n"
+        "Target\t.agentic/knowledge/target.md\n"
+    )
+
+
+def test_components_rejects_symlinks_escaping_the_catalogue(
+        tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-8ec7a0c7: catalogue links cannot make external files pages."""
+    repo = tmp_path / "repo"
+    agentic, aegis = make_repo(repo)
+    knowledge = agentic / "knowledge"
+    knowledge.mkdir(exist_ok=True)
+    external = tmp_path / "external.md"
+    external.write_text("# External secret\n", encoding="utf-8", newline="\n")
+    escape = knowledge / "escape.md"
+    try:
+        escape.symlink_to(external)
+    except OSError:
+        escape.write_text("# External secret\n", encoding="utf-8", newline="\n")
+        original_resolve = aegis.Path.resolve
+
+        def resolve(path, *args, **kwargs):
+            return external if path == escape else original_resolve(
+                path, *args, **kwargs)
+
+        monkeypatch.setattr(aegis.Path, "resolve", resolve)
+    before = snapshot(repo)
+
+    assert aegis.main(["components"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "error: .agentic/knowledge/escape.md resolves outside "
+        ".agentic/knowledge\n"
+    )
+    assert snapshot(repo) == before
+
+
+def test_components_bounds_symlink_resolution_loops(tmp_path, capsys,
+                                                      monkeypatch):
+    """REQ-FUNC-8ec7a0c7: resolution loops use the one-line error path."""
+    agentic, aegis = make_repo(tmp_path)
+    knowledge = agentic / "knowledge"
+    knowledge.mkdir(exist_ok=True)
+    loop = knowledge / "loop.md"
+    loop.write_text("# Loop\n", encoding="utf-8", newline="\n")
+    original_resolve = aegis.Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if path == loop:
+            raise RuntimeError("symlink loop")
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(aegis.Path, "resolve", resolve)
+
+    assert aegis.main(["components"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "error: .agentic/knowledge/loop.md cannot be resolved: symlink loop\n"
+    )
+
+
+def test_components_rejects_nonprintable_catalogue_paths(tmp_path, capsys,
+                                                          monkeypatch):
+    """REQ-FUNC-8ec7a0c7: unsafe filenames cannot corrupt catalogue rows."""
+    agentic, aegis = make_repo(tmp_path)
+    unsafe = agentic / "knowledge" / "bad\tname.md"
+    monkeypatch.setattr(
+        aegis, "knowledge_page_texts", lambda: [(unsafe, "## No title\n")])
+
+    assert aegis.main(["components"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "error: component knowledge page path contains non-printable "
+        "characters\n"
+    )
+    assert aegis.component_title("\x07", "\x1b") == "component"
+
+
+def test_components_reports_an_empty_catalogue_without_writes(tmp_path, capsys):
+    """REQ-FUNC-8ec7a0c7: no pages is a successful, explicit empty result."""
+    agentic, aegis = make_repo(tmp_path)
+    (agentic / "knowledge").mkdir(exist_ok=True)
+    before = snapshot(tmp_path)
+
+    assert aegis.main(["components"]) == 0
+    assert capsys.readouterr().out == "no component knowledge pages\n"
+    assert snapshot(tmp_path) == before
+
+
+def test_components_rejects_unreadable_utf8_without_partial_output(tmp_path,
+                                                                    capsys):
+    """REQ-FUNC-8ec7a0c7: an unreadable page uses the bounded CLI error path."""
+    agentic, aegis = make_repo(tmp_path)
+    knowledge = agentic / "knowledge"
+    knowledge.mkdir(exist_ok=True)
+    (knowledge / "alpha.md").write_text("# Alpha\n", encoding="utf-8")
+    (knowledge / "broken.md").write_bytes(b"# Broken\n\xff")
+    before = snapshot(tmp_path)
+
+    assert aegis.main(["components"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith(
+        "error: .agentic/knowledge/broken.md is not valid UTF-8:")
+    assert snapshot(tmp_path) == before
+
+
 # TESTS - task and status round trip
 
 

@@ -49,10 +49,12 @@ The repository shall provide user guidance that explains how to install, configu
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspection: review the user-documentation index and its installation, folder, feature, quick-fix, adoption, team, FAQ, prompt, and CLI-reference guides against the canonical payload."
+verification = "Inspection: review the user-documentation index and its installation, folder, feature, quick-fix, adoption, team, FAQ, prompt, and CLI-reference guides against the canonical payload and its command reference."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
+    "05_Software/aegis/template/.agentic/CLI.md",
+    "05_Software/aegis/README.md",
     "06_SoftwareDocu/00_Index.md",
     "06_SoftwareDocu/01_Install_and_Setup.md",
     "06_SoftwareDocu/02_Folders_and_Files.md",
@@ -78,4 +80,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-09-04

@@ -20,8 +20,9 @@ requirement alone is not enough to build from.
   may be updating one rather than writing a new one.
 - The knowledge page for each component in scope.
 
-**Stage report (completion or pause):** After updating the log, header and
-checklist, refresh the single `## Stage report` section in this task journal:
+**Stage report (completion or pause):** At this boundary, record only durable
+events allowed by the journal contract, update the header and checklist, and
+refresh the single `## Stage report` section in this task journal:
 At every stage transition or pause, append any new Ruling and refresh the Handoff;
 also refresh the Handoff for a blocker or session end.
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
@@ -36,8 +37,9 @@ stale records and read omitted details before continuing. Preserve existing
 approval stops and immediate deviation notices; this report adds no new stop.
 
 **Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist and relevant log entries (scope, user limits,
-unresolved issues, decisions and evidence); follow links to needed records.
+the journal header/checklist, dedicated durable sections, and relevant log
+entries (stage outcomes, blockers, material changes and consolidated evidence);
+follow links to needed records.
 This stage's required full reads still apply. Use linked requirements and
 source as needed, not the whole register. Do not act on missing, stale, or
 shortened reporting without reviewing the full journal information.
@@ -84,7 +86,9 @@ shortened reporting without reviewing the full journal information.
    `.agentic/templates/spec.md` to `.agentic/specs/<REQ-ID>.md` and set
    `spec = "specs/<REQ-ID>.md"` in the requirement.
 10. Put every requirement ID on the journal's `requirements:` header line,
-   comma-separated, and log what you created or changed.
+    comma-separated. Append one consolidated `specify` outcome line with
+    created, revised, reused, and retired counts; name individual IDs only for
+    a retirement or material scope change.
 11. Run `python .agentic/aegis.py check` and fix every format error it
     reports. A draft requirement's empty `linked_tests` is intentionally
     silent until build; if that warning appears now, the requirement was
@@ -125,4 +129,4 @@ itself is a normal task (`--type change`) whose scope says so.
 **Skip when:** The quick path — `frame` already named the existing
 requirements, and `build` will update them. Also skip for a change with no
 externally observable effect (a refactor fully covered by existing
-requirements); log that judgement in one line.
+requirements); include that judgement in the consolidated specify outcome.

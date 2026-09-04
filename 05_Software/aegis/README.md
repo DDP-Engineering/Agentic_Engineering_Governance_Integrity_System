@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.10.0
+# AEGIS 0.11.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,7 +16,7 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The project version is **0.10.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+The project version is **0.11.0**. Optional OpenCode, Codex, Pi, Qwen Code and
 Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 
@@ -76,6 +76,16 @@ a simple component. The page reduces broad discovery, but the exact source and
 tests remain authoritative and are inspected before implementation. A legacy
 page without Routing supplies only provisional orientation from its available
 sections and is migrated to the current template when its component is touched.
+List the available component titles and paths before choosing what to read:
+
+```text
+python .agentic/aegis.py components
+```
+
+The command accepts no arguments, parses only page titles, creates no index,
+and does not select a component automatically. Titles are bounded to one safe
+output field, and links cannot escape the knowledge directory; the chosen
+page, exact source, and tests remain the authority.
 
 For an automated requirement, write and observe the expected failing test
 before implementation, recording its command, non-zero exit and failure reason.
@@ -146,6 +156,12 @@ the read-only `summary` output into chat before detailed explanation.
 Reported stage/result and current journal stage are separate. Missing evidence
 stays `not recorded`; stale or shortened records require journal review.
 No new approval stops, dependencies, or model calls are introduced.
+
+The append-only task Log is deliberately narrower than a session transcript.
+It keeps stage transitions, material engineering changes, consolidated
+verification, blockers, approvals, deviations, and delivery outcomes. Routine
+tool activity, corrected retries, and detail already held in another durable
+artifact stay out of it.
 
 For models with limited context, start with `brief`, current-stage
 instructions, and handoff sources. Required full validation and delivery reads

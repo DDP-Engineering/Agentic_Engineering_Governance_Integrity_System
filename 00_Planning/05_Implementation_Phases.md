@@ -9,17 +9,17 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # 05 - Implementation phases
 
 The original core implementation plan is complete. This document records the
-assigned **AEGIS 0.10.0** project and its five host integrations as of
-**2026-09-03**. The existing `0.9.1` archives remain the last built delivery
-set; assigning a source version does not publish packages to a registry.
+assigned **AEGIS 0.11.0** project and its five host integrations as of
+**2026-09-04**. The existing `0.10.0` archives remain the last built delivery
+set; assigning a source version does not build or publish packages.
 
 ## Completed implementation
 
 | Area | Implemented outcome |
 |---|---|
 | Workflow payload | A managed `.agentic/` payload with the full contract, six ordinary stage files, adoption instructions, a shared evidence-led semantic analysis cycle, and reusable artifact templates. |
-| Durable artifacts | Structured Frame cards, atomic Requirement coverage, proportionate task designs, TOML requirements, Markdown specs/knowledge/journals, append-only rulings, replaceable handoffs/stage reports, and anchor/evolution JSON evidence. |
-| Companion CLI | Offline-first standard-library `aegis.py` with installation, scaffolding, traceability, configured test execution, reporting, and machine-readable output. |
+| Durable artifacts | Structured Frame cards, atomic Requirement coverage, proportionate task designs, TOML requirements, Markdown specs/knowledge/journals, compact append-only progress-and-evidence logs, append-only rulings, replaceable handoffs/stage reports, and anchor/evolution JSON evidence. |
+| Companion CLI | Offline-first standard-library `aegis.py` with installation, scaffolding, title-only component discovery, traceability, configured test execution, reporting, and machine-readable output. |
 | Validation | A 21-check advisory catalog, optional strict CI enforcement, impacted-test selection, configured command timeouts, anchors, evolution, and delivery reporting. |
 | Coordination | One-level child tasks, bounded `brief`/ `summary` views, explicit review policy, and durable handoff state for cross-session/model work. |
 | Host integrations | OpenCode primary/review agents, Codex plugin/skill/review roles, Pi and Qwen extensions, and Claude Code plugin/commands/review agents/hooks. |
@@ -57,15 +57,48 @@ run `init`. Host integrations are a separate source tree: their builder copies
 shared libraries into each package. Installing raw source as a marketplace
 omits those libraries and can cause the missing `lib/bridge.mjs` failure.
 
-## 0.9.1 implementation state
+## Unreleased compact journal logging
 
-Version 0.9.1 adds the `trace` requirement-register export in Markdown and CSV,
-with corrected literal text rendering, omission reporting, and category labels.
-The repository's impacted-test command now uses its configured Python runtime.
+The task Log is now explicitly a progress-and-evidence ledger rather than an
+execution transcript. It retains stage transitions, material engineering or
+scope changes, consolidated verification, blockers, approvals, deviations,
+and delivery outcomes. Routine reads, searches, edits, internal tool mechanics,
+corrected retries, and duplicated artifact content stay out.
+
+Frame, Specify, and Design each append one compact outcome and keep detail in
+their dedicated sections or linked artifacts. Build groups related requirements
+into one red/final-green pair per meaningful behavior increment. Validate keeps
+one final result and only material earlier failures. Stage reports refresh at
+transitions, pauses or session ends, and blockers rather than after routine
+work. Existing task history is not rewritten, and no new CLI command or
+automatic compaction was added.
+
+The current checkout's Python product suite completed **400 tests with two
+platform-dependent skips** after these changes. Both canonical and installed
+payloads compile, and CLI help exits successfully.
+
+## 0.11.0 component navigation and deviation policy
+
+Version 0.11.0 adds one flat, no-argument `components` command. It derives a
+bounded printable title and lexical repository-relative path from each
+component knowledge page so an agent can choose what to read without loading
+the source tree broadly. Frame, Specify, Design, conditional Build/Validate,
+and adoption guidance use the catalogue where it materially helps. It adds no
+metadata format, registry, filter, JSON mode, automatic routing, write, or
+network behavior.
+
+The deviation contract now reserves `DEVIATION` for material departures in
+the candidate, agreed scope/design/contract, or required verification
+confidence. Corrected tool-use mistakes, expected test-first failures, and
+unrelated findings remain operational detail rather than permanent engineering
+deviations or journal events.
+
+Canonical and installed CLI versions report `0.11.0`; no `0.11.0` delivery
+artifacts have been built.
 
 ## 0.10.0 workflow improvements
 
-The working tree strengthens early-stage idea analysis without changing the
+Version 0.10.0 strengthened early-stage idea analysis without changing the
 six stages, Python CLI syntax, adapter operations, host authentication, or
 stage sequence or adapter interface:
 
@@ -84,12 +117,19 @@ stage sequence or adapter interface:
   evidence;
 - Markdown guides and the four affected PowerPoint companions are synchronized.
 
-The final working-tree proof for this change completed **390 tests with two
+The final implementation proof for this change completed **390 tests with two
 platform-dependent skips**, Ruff passed, both independent review roles
 approved the unchanged candidate, all 43 affected-deck slides were inspected,
 and all four template-fidelity checks passed. Local-model execution was
 excluded by instruction, so the 64K/offline-model design remains a prompt
 contract rather than measured model compliance.
+
+## 0.9.1 implementation state
+
+Version 0.9.1 added the `trace` requirement-register export in Markdown and
+CSV, with corrected literal text rendering, omission reporting, and category
+labels. The repository's impacted-test command also began using its configured
+Python runtime.
 
 ## 0.9.0 coordination baseline
 

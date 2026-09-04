@@ -13,6 +13,21 @@ All notable changes to AEGIS are documented in this file.
 
 ### Changed
 
+- Make task journals compact progress-and-evidence ledgers by consolidating
+  verification and excluding routine tool activity and duplicated artifacts.
+
+## [0.11.0] - 2026-09-04
+
+### Added
+
+- Add a read-only `components` command that lists component knowledge titles
+  and paths for low-context navigation.
+
+### Changed
+
+- Limit `DEVIATION` notices to material scope, implementation, contract, or
+  verification departures; corrected internal tool errors are operational detail.
+
 - Turn component knowledge pages into concise implementation routes with
   selection signals, boundaries, invariants and focused change-and-test seams.
 

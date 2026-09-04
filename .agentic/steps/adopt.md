@@ -19,8 +19,9 @@ Three phases: survey, one component per session, close.
 - `.agentic/templates/component.md` and `.agentic/templates/requirement.toml`.
 - The adoption journal, if a previous session already created one.
 
-**Stage report (completion or pause):** After updating the log, header and
-checklist, refresh the single `## Stage report` section in this task journal:
+**Stage report (completion or pause):** At this boundary, record only durable
+events allowed by the journal contract, update the header and checklist, and
+refresh the single `## Stage report` section in this task journal:
 At every stage transition or pause, append any new Ruling and refresh the Handoff;
 also refresh the Handoff for a blocker or session end.
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
@@ -35,8 +36,9 @@ stale records and read omitted details before continuing. Preserve existing
 approval stops and immediate deviation notices; this report adds no new stop.
 
 **Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist and relevant log entries (scope, user limits,
-unresolved issues, decisions and evidence); follow links to needed records.
+the journal header/checklist, dedicated durable sections, and relevant log
+entries (stage outcomes, blockers, material changes and consolidated evidence);
+follow links to needed records.
 This stage's required full reads still apply. Use linked requirements and
 source as needed, not the whole register. Do not act on missing, stale, or
 shortened reporting without reviewing the full journal information.
@@ -62,8 +64,9 @@ exactly where it stands: `stage: survey` → `stage: components` →
    item per component with a one-line scope and its file globs.
 4. **Stop and hand the list to the owner.** They review and edit it —
    splitting, merging, renaming, dropping. This is the alignment moment
-   of adoption; nothing else happens until the list is agreed. Record
-   their edits in the log, then set `stage: components`.
+   of adoption; nothing else happens until the list is agreed. Record one
+   consolidated approval outcome and any material boundary changes in the Log,
+   then set `stage: components`.
 
 *Phase 2 — one component per session.*
 
@@ -98,7 +101,8 @@ ones are not.
 11. Behavior that looks *wrong*: still write the requirement — the
     register must describe what the code actually does — but say so
     plainly in its prose (`Adopted as-is <date>; suspected defect: <what
-    looks wrong>`) and log it as a future task. What is forbidden is
+    looks wrong>`) and include it in one consolidated component finding or
+    future-task record in the Log. What is forbidden is
     canonizing it *silently* as if intended, and fixing it during
     adoption; the fix is a separate task with its own journal.
 12. Tick the component off, commit, and end the session. The next session
@@ -124,7 +128,8 @@ ones are not.
 - One adoption journal with the owner-agreed component checklist.
 - `.agentic/knowledge/<component>.md` per adopted component.
 - Requirement files, and specs only where needed.
-- A log of untested behaviors and suspect behaviors, as the backlog.
+- Untested behaviors remain visible through empty `linked_tests` and `check`;
+  suspect behaviors remain in requirement prose and consolidated Log findings.
 
 **Done when:**
 
@@ -134,7 +139,8 @@ ones are not.
       code does now
 - [ ] every component's behaviors are covered by requirements
 - [ ] `linked_tests` point at the existing tests that verify them
-- [ ] untested and suspect behaviors logged as backlog, not hidden
+- [ ] untested behaviors visible through requirement links and `check`, not
+      duplicated line by line in the Log
 - [ ] suspect behaviors adopted as-is, marked as suspected in their
       requirement prose, and logged as future tasks
 - [ ] `check` reports no errors over the whole tree

@@ -17,7 +17,7 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.10.0 project combines staged instructions, evidence-led idea capture,
+The 0.11.0 source combines staged instructions, evidence-led idea capture,
 requirements, linked tests, journals, repository evolution, review policy and
 a Python CLI. Its five host integrations add native entry points and shared
 verification jobs. Core records live in Git; installed host resources and job
@@ -39,6 +39,16 @@ the branch, read the current step, Handoff paths and required full journal,
 and continue the first unticked action. Missing/stale/shortened state means
 read more. A `summary` is recorded information, not fresh proof or approval.
 Local verification jobs and uncommitted files do not travel with Git.
+
+## What belongs in the task Log?
+
+Only durable progress and evidence: stage transitions, material changes or
+decisions, consolidated test results, blockers, approvals, deviations, and the
+delivery outcome. Frame, Requirement coverage, Design, Rulings, Handoff, and
+Stage report own their detailed information; the Log does not duplicate them.
+Routine searches, edits, tool mechanics, corrected retries, and repeated test
+attempts stay out. During build, retain one expected red and one final green per
+meaningful behavior increment.
 
 ## Does it work without Git?
 
@@ -166,12 +176,15 @@ them in full.
 A one-line notification the agent speaks the moment it records a
 deviation, in the shape `DEVIATION <stage>: <what> - <why accepted, or
 what it costs>`. It is not a stop: the agent says it and carries on,
-never waiting for a reply. You get one when it accepts a `check`
-warning, when a command exits non-zero or a verification is skipped or
-cannot be run, when `anchor` or `evolution` reports something other than
-expected, when a `Manual:`/`Inspection:` method stands in for a test that
-could have been automated, when a requirement is retired, and when diff
-review turns up work nobody asked for. The journal line is still written
+never waiting for a reply. You get one only when the candidate, agreed scope,
+design or contract, or confidence in required verification materially differs
+from the plan: for example, when a relevant limitation is accepted,
+verification is skipped or weakened, a requirement is retired, unexpected
+candidate files are retained, or review finds unrequested work that remains.
+Corrected quoting mistakes, failed searches, rejected atomic patches, mistyped
+paths, transient command failures, expected red tests, and unrelated findings
+are not deviations because they do not change the candidate or its evidence.
+The journal line is still written
 - the notice is its twin, not its replacement, because a journal is read
 afterwards and by then you have already paid for not knowing.
 

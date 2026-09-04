@@ -18,8 +18,9 @@ prove the final tree before it is presented for publication.
 - The knowledge page of each component you touched, and
   `.agentic/templates/component.md`.
 
-**Stage report (completion or pause):** After updating the log, header and
-checklist, refresh the single `## Stage report` section in this task journal:
+**Stage report (completion or pause):** At this boundary, record only durable
+events allowed by the journal contract, update the header and checklist, and
+refresh the single `## Stage report` section in this task journal:
 At every stage transition or pause, append any new Ruling and refresh the Handoff;
 also refresh the Handoff for a blocker or session end.
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
@@ -34,8 +35,9 @@ stale records and read omitted details before continuing. Preserve existing
 approval stops and immediate deviation notices; this report adds no new stop.
 
 **Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist and relevant log entries (scope, user limits,
-unresolved issues, decisions and evidence); follow links to needed records.
+the journal header/checklist, dedicated durable sections, and relevant log
+entries (stage outcomes, blockers, material changes and consolidated evidence);
+follow links to needed records.
 This stage's required full reads still apply. Use linked requirements and
 source as needed, not the whole register. Do not act on missing, stale, or
 shortened reporting without reviewing the full journal information.
@@ -114,9 +116,12 @@ verdict or green suite does not replace integration proof in the parent.
    This executes the configured full verification commands plus the advisory
    catalog. If any fix changes the candidate, repeat the relevant review and
    this proof; the last proof must describe the tree handed to `deliver`.
-9. Record the actual result in the log: command, exit code, commands/tests run,
-   and remaining warnings with their accepted reasons. Never write "green"
-   over a non-zero exit. A failure introduced by this task returns to the
+9. Record one consolidated final validation result in the log: command, exit
+   code, commands/tests run, and remaining warnings with their accepted
+   reasons. Record an earlier failed gate only when it exposed a candidate
+   problem, caused an implementation or test change, or remains an accepted
+   limitation; omit corrected operational retries. Never write "green" over a
+   non-zero exit. A failure introduced by this task returns to the
    appropriate earlier stage. A pre-existing base-branch failure is named and
    kept out of scope, with its effect on CI stated honestly. A non-zero exit, a
    warning you accept, and a verification you skipped or could not run are each

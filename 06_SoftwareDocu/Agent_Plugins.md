@@ -74,7 +74,7 @@ The fingerprint covers Git-visible tracked and untracked non-ignored files, exce
 
 ## Verification status
 
-Checks use temporary Git fixtures with the real AEGIS payload and isolated host configuration directories. They include Windows and Ubuntu 24.04 under WSL, OpenCode 1.18.18 backend registration, Codex 0.151.0 installation and app-server skill discovery, owned-file lifecycle, runtime resolution, output recovery, duplicate prevention and cancellation of configured subprocesses. Pi 0.84.4 and Qwen Code 0.22.3 were also checked on Windows and Ubuntu 24.04: native resources, Pi schema validation/direct status, Qwen MCP connection, protocol framing and actual workflow calls, review-launch arguments and lifecycle protection. The canonical task journal records the final commands and outcomes.
+Checks use temporary Git fixtures with the real AEGIS payload and isolated host configuration directories. They include Windows and Ubuntu 24.04 under WSL, OpenCode 1.18.18 backend registration, Codex 0.151.0 installation and app-server skill discovery, owned-file lifecycle, runtime resolution, output recovery, duplicate prevention and cancellation of configured subprocesses. Pi 0.84.4 and Qwen Code 0.22.3 were also checked on Windows and Ubuntu 24.04: native resources, Pi schema validation/direct status, Qwen MCP connection, protocol framing and actual workflow calls, review-launch arguments and lifecycle protection. The canonical task journal records the consolidated final commands and outcomes rather than every retry.
 
 No local or remote model requests are used for these checks. Native Desktop UI interaction and a complete model-driven workflow remain unverified; common backend registration must not be described as GUI verification. For native desktop acceptance, open a fresh project session, confirm the agent/skill choices, and run an approved task with the user's chosen provider.
 
@@ -110,7 +110,7 @@ they do not mutate task journals or implement a general enforcement sandbox.
 Each user's chosen host/provider remains responsible for authentication and
 model access. No recipient needs the package author's sign-in.
 
-This guide describes the assigned **0.10.0** source and recorded implementation
-checks. The version assignment did not rerun model workflows, install into real
-user profiles, rebuild delivery packages, or publish to a registry. The last
-delivery archives are generated separately under `07_Delivery/`.
+This guide describes the assigned **0.11.0** source and recorded implementation
+checks. The 0.11.0 delivery build does not rerun model workflows, install into
+real user profiles, or publish to a registry. Current archives are generated
+locally under `07_Delivery/`.

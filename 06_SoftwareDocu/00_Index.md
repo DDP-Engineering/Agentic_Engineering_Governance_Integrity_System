@@ -7,9 +7,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS - user documentation
 
-Guides for the assigned **AEGIS 0.10.0** project, including the OpenCode,
-Codex, Pi, Qwen Code and Claude Code integrations. The last generated delivery
-delivery archives are generated separately under `07_Delivery/`.
+Guides for the assigned **AEGIS 0.11.0** source, including the OpenCode,
+Codex, Pi, Qwen Code and Claude Code integrations. The current 0.11.0 delivery
+archives and publication records are under `07_Delivery/`.
 
 Start with installation and folders, then choose the relevant worked example.
 Examples illustrate the workflow; sample output is not evidence of a test run.

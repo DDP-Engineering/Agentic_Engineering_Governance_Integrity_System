@@ -72,6 +72,9 @@ promise that every relevant file will fit at once:
 - Design uses 30 lines as a default, not a hard cap, and expands only for
   material interface, state, trust, concurrency, compatibility, migration or
   operational risk.
+- The journal Log keeps only stage outcomes, material engineering changes,
+  consolidated verification, blockers, approvals, deviations, and delivery;
+  it links to dedicated detail instead of repeating it.
 
 These structures improve consistency for capable offline models, including
 Qwen-family deployments, but do not prove a particular model will comply. No
@@ -114,7 +117,11 @@ and the delivery checkpoint still apply.
 
 Checkpoint mode retains the end-of-frame and pre-delivery approval boundaries.
 Autopilot can suppress the frame stop only when the user requests it. Immediate
-`DEVIATION` notices remain visible in conversation in either mode.
+`DEVIATION` notices for material scope, implementation, contract, or
+verification departures remain visible in either mode. Corrected internal tool
+errors are operational detail—neither deviations nor journal events. Expected
+red tests are ordinary test-first evidence and are consolidated by meaningful
+behavior increment.
 
 ## Independent reviewers in each host
 
@@ -153,8 +160,9 @@ own environment. Claude Desktop WSL plugin sessions are currently unsupported.
 Verification reservations are local to the configured shared cache and
 checkout. They survive host restarts but do not lock other machines or detect
 manually launched test suites. Inspect uncertain processes before restarting
-verification; record relevant outcomes in the journal so another machine has
-durable evidence rather than relying on local cache access.
+verification. Retain one consolidated material outcome in the journal so
+another machine has durable evidence; keep polling detail, retries, and raw
+output in the local job cache.
 
 The core works offline. Model-driven host sessions use the user's selected
 provider and may require network access. No models are bundled. Package

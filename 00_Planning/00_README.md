@@ -8,11 +8,14 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS implementation overview
 
-Status as of **2026-09-03**: the assigned project version is **AEGIS 0.10.0**.
+Status as of **2026-09-04**: the assigned project version is **AEGIS 0.11.0**.
 It includes the core, five optional host integrations, and the workflow-prompt
 improvements for evidence-led idea capture and bounded offline models. The
-last generated delivery set remains `0.9.1`; no integration package has been
-published to a registry.
+current core also provides title-only component discovery, material-impact
+deviation notices, and compact progress-and-evidence task logs that exclude
+routine tool activity and duplicated artifact content. The last generated
+delivery set remains `0.10.0`; no integration package has been published to a
+registry for `0.11.0`.
 The runnable product is at `05_Software/aegis/`; the reusable core payload is
 `05_Software/aegis/template/.agentic/`; host adapters are under
 `05_Software/aegis/integrations/`; user guides are under `06_SoftwareDocu/`.
@@ -41,9 +44,9 @@ for the repository journal. Claude Code also has bounded advisory hooks.
 
 The host provides the model session and its existing permission system. The
 AEGIS adapter reads the nearest Git checkout's installed contract, runs its
-local CLI, and returns evidence for the coordinator to record. The coordinator
-maintains the journal and follows user authority; no adapter advances stages
-or grants Git permission.
+local CLI, and returns results for the coordinator to assess. The coordinator
+records only the durable material outcome, maintains the journal, and follows
+user authority; no adapter advances stages or grants Git permission.
 
 | Host | Implemented entry points | Independent review support |
 |---|---|---|
@@ -80,6 +83,9 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 - Frame cards, requirement-coverage tables, designs, requirements,
   specifications, journals, knowledge pages, anchors, and evolution reports
   are plain files below `.agentic/`.
+- A journal Log retains only stage outcomes, material engineering changes,
+  consolidated verification, blockers, approvals, deviations, and delivery;
+  dedicated artifacts hold the detail and routine execution stays out.
 - `check` is advisory by default. `check --strict` is the optional CI
   boundary that fails on errors and configured promoted warnings.
 - Explicit review is optional policy, not a stage. When enabled it records
@@ -87,6 +93,9 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   fix-and-re-review loop; ordinary validation remains required either way.
 - `brief` is the bounded resume view; `summary` is the narrower projection
   of the latest recorded stage report.
+- `components` is a read-only, no-argument title-and-path catalogue for
+  selecting concise component knowledge before exact source and tests. It
+  creates no metadata registry and does not choose a component automatically.
 
 AEGIS applies to software development. Repository maintenance, versioning,
 release construction, package publication, and deployment follow the

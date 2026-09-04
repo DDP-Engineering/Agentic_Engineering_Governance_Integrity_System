@@ -52,11 +52,13 @@ python .agentic/aegis.py anchor --task TASK-c3d1a2b4
 Correct the heading, run focused proof and inspect the repository changes:
 
 ```sh
-python .agentic/aegis.py test --impacted --base HEAD --task TASK-c3d1a2b4
+python .agentic/aegis.py test --impacted --base HEAD
 python .agentic/aegis.py evolution --task TASK-c3d1a2b4
 ```
 
-The requirement remains the durable contract; the journal explains this repair.
+Run edit-test retries without `--task`. Once the correction is stable, retain
+one consolidated green result for the focused regression in the Log. The
+requirement remains the durable contract; the journal explains this repair.
 The IDs, paths and commands are a worked example, not recorded test results.
 
 ## Validate: review the final candidate

@@ -126,6 +126,7 @@ opened: 2026-08-02
 - 2026-08-02 frame: scope agreed - M3U only, no PLS; full path.
 - 2026-08-02 specify: created REQ-FUNC-3fa2.
 - 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=no M3U writer exists.
+- 2026-08-02 build green: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=0; M3U round-trip behavior verified.
 ```
 
 The abbreviated example uses short IDs for readability. Real IDs have eight
@@ -134,21 +135,38 @@ hex digits; header values are plain values, without inline comments.
 The header block (`key: value` lines under the title) is machine-read by
 `status`, `check` and `report` - keep it one key per line with no blank
 lines inside. Header lines are edited in place; log lines are only ever
-appended, one sentence each.
+appended. The Log is a concise progress-and-evidence ledger: retain stage
+transitions, material changes or decisions, consolidated test results,
+blockers, approvals, deviations and delivery outcomes. Do not copy durable
+artifact content or record routine searches, edits, tool mechanics, or
+corrected command retries.
 
-A log line that records a *deviation* - an accepted warning, a skipped
-verification, a retired requirement, unrequested work in the diff - has a
-twin in the conversation: the agent states it at the same moment as one
+The other journal sections own their detail: Frame owns scope evidence,
+Requirement coverage owns behavior mapping, Design owns implementation choices,
+Rulings own durable decisions, Handoff owns the next bounded action, and Stage
+report owns the latest boundary snapshot. The Log references material outcomes
+from those sections instead of duplicating their contents. During build, retain
+one expected red and one final green per meaningful behavior increment, not
+every edit-run retry. Refresh Handoff and Stage report when completing a stage,
+pausing, blocking, or handing work over rather than after routine tool activity.
+
+A log line that records a *deviation* - an accepted implementation or evidence
+limitation, weakened or skipped verification, a retired requirement, or
+unrequested work retained in the diff - has a twin in the conversation: the
+agent states it at the same moment as one
 `DEVIATION <stage>: <what> - <why>` line. The journal line is still
 written; the notice does not replace it. It exists because a journal is
 read afterwards, and by then the human has already paid for not knowing.
+Corrected search, quoting, patch, path, and other internal tool-use errors are
+operational details rather than deviations because they do not change the
+candidate, scope, or verification evidence.
 
 A journal can also contain one replaceable `## Stage report` section with
 plain one-line `stage`, `result`, `current`, `changed`, `evidence`, `issues`,
 `next`, and `needs_user` fields. `summary TASK-<id>` reads it without writing.
 The report's stage can be completed while the header already names the next
 stage; `current` binds the report to that header. Blank, stale, or shortened
-information is explicit, never treated as success. The full log remains the
+information is explicit, never treated as success. The compact Log remains the
 append-only history; the latest report is not independent or fresh proof.
 See the CLI reference for allowed values and output limits.
 

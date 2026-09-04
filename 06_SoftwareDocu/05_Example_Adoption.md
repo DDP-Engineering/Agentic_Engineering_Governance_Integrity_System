@@ -58,16 +58,18 @@ shortens later orientation; it does not replace reading the exact source and
 tests before a change.
 
 The diagram is the cheapest it will ever be in this session, and it is a
-drawing of what the code **does**, not what it should do: a shape nobody
-can explain is a finding for the journal, not something to tidy away in
+drawing of what the code **does**, not what it should do: shapes nobody
+can explain belong in one consolidated component finding, not a stream of
+exploration notes or something to tidy away in
 the picture. Where the agent cannot tell which way a dependency points, it
 leaves the arrow out and says so underneath rather than guessing. For a
 legacy component this often ends up being the only architecture document
 that has ever existed for it.
 Adoption mostly *links* tests; it writes new ones only where a
 load-bearing behavior has none (or records the requirement with empty
-`linked_tests` - see below). Suspicious behavior is adopted as-is and
-noted in the journal as a future task, never silently "fixed".
+`linked_tests` - see below). Suspicious behavior is adopted as-is and included
+in that consolidated finding or a separately created future-task record, never
+silently "fixed".
 
 Each session ends with a ticked checkbox and a small, readable diff.
 Useful properties:

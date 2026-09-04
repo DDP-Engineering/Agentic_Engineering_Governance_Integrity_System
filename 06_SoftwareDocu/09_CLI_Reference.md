@@ -35,9 +35,10 @@ itself makes no network requests; configured project commands may do so.
 | `evolution` | Compare the repository with its active task anchor. | After implementation and after any later validation edit. |
 | `status` | List open tasks or inspect one journal. | Before starting or resuming work, and whenever the next step is unclear. |
 | `brief` | Print a deterministic bounded resume view from durable files. | First when resuming, especially with a small-context model. |
+| `components` | List component knowledge titles and page paths. | Before choosing which component page to read. |
 | `check` | Run the heuristic governance catalog. | During work for feedback; with `--strict --run` at the validation or CI boundary. |
-| `test` | Run a command configured in `.agentic/aegis.toml`. | During build and validation, optionally recording the result in a journal. |
-| `summary` | Print a compact recorded stage snapshot without writes. | After recording a stage completion or pause; use `brief` first to resume. |
+| `test` | Run a command configured in `.agentic/aegis.toml`. | During build and validation; add `--task` only for a result that belongs in the durable Log. |
+| `summary` | Print a compact recorded stage snapshot without writes. | After recording a stage completion, pause, blocker, or handoff; use `brief` first to resume. |
 | `report` | Append a delivery summary to a task journal. | After validation and explicit delivery approval, before the delivery commit or PR. |
 | `diagram` | Draw the requirement register as a Mermaid coverage map. | In review or handover, when the question is where verification is thin. |
 | `trace` | Export the requirement register as a traceability matrix. | In audit, review or handover, when the whole register has to leave the repository. |
@@ -290,8 +291,9 @@ needs_user: no
 any transition. Use canonical ordinary/adoption stages, not display aliases.
 `result` accepts `in_progress`, `completed`, `paused`, `blocked`, or `skipped`.
 The other fields contain the agent's recorded observations and decisions;
-blank values print `not recorded`. Keep evidence and decisions in the
-append-only log as well; replace only this latest-view section.
+blank values print `not recorded`. Add a concise Log line only when the boundary
+or outcome is durable; do not duplicate the whole Stage report. Replace only
+this latest-view section.
 
 Output fields, in order: **Stage, Task, Current, Requirements, Changed,
 Evidence, Issues, Next, Needs user, Spec compliance, Implementation quality,
@@ -333,6 +335,26 @@ stale-data markers. Two calls against unchanged files are byte-identical.
 Resume with `brief`, then read the current step and handoff `must_read` paths.
 Use `summary` for the latest bound stage-report projection and the full journal
 for complete history and evidence.
+
+## `components`
+
+```text
+python .agentic/aegis.py components
+```
+
+`components` reads `.agentic/knowledge/*.md` titles and prints one
+tab-separated bounded printable title and lexical repository-relative path per
+component, ordered by path. It uses the first level-one heading, falling back
+to the filename stem so a headingless page remains discoverable. It does not
+parse body sections. It rejects a link that resolves outside the knowledge
+directory, a resolution loop, or a non-printable catalogue path without
+partial output. An empty catalogue prints
+`no component knowledge pages`. The command accepts no arguments and writes
+nothing.
+
+Use the list to choose which page to read during governed work or to inventory
+existing pages during adoption. It does not infer ownership, select a page, or
+replace Routing, exact source, or focused tests.
 
 ## Coordinated workflow records
 
@@ -431,7 +453,7 @@ Options:
 | `name` | Run that configured command, for example `test` or `lint`. |
 | `--impacted` | For the default `test` command, substitute linked impacted tests into the configured `test_impacted` template. |
 | `--base <rev>` | Take the diff against that revision instead of the merge base. `--base HEAD` selects only uncommitted work. |
-| `--task TASK-<id>` | Validate the task ID before running and append the result and duration to its journal. |
+| `--task TASK-<id>` | Validate the task ID before running and append every invocation's result and duration to its journal. Use only for deliberate durable evidence. |
 
 If impact selection cannot produce a focused set, AEGIS explains why
 and falls back to the full `test` command. `--impacted` cannot be combined
@@ -443,13 +465,17 @@ right basis for reviewing a branch and the wrong one for an edit-run loop on
 a long-lived branch, where it can select most of the suite. Use `--base HEAD`
 during build to select only what you have not committed yet.
 
+Omit `--task` from ordinary edit-test retries. Add it only when the invocation
+is the consolidated red, final green for a meaningful behavior increment, or
+final validation result that should remain in the durable Log.
+
 A focused set that would make the command longer than the platform can launch
 is not an error: AEGIS reduces it to one entry per distinct test file,
 says so, and only falls back to the full suite if even that is too long.
 
 **When to use:**
 
-- use `test --impacted --base HEAD --task ...` for a fast build-loop regression;
+- use `test --impacted --base HEAD` for a fast build-loop regression;
 - use `test --task ...` for the configured full suite during validation;
 - use `test <name>` for other configured read-only checks such as linting.
 
@@ -459,7 +485,7 @@ says so, and only falls back to the full suite if even that is too long.
 python .agentic/aegis.py test
 python .agentic/aegis.py test --impacted
 python .agentic/aegis.py test --impacted --base HEAD
-python .agentic/aegis.py test --impacted --task TASK-8b12
+python .agentic/aegis.py test --task TASK-8b12
 python .agentic/aegis.py test lint
 ```
 
@@ -720,7 +746,7 @@ python .agentic/aegis.py explain C:\repo\src\export\m3u.py
 
 | Situation | Exit behavior |
 |---|---|
-| `init`, `task`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `report`, `diagram`, `trace`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
+| `init`, `task`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `components`, `report`, `diagram`, `trace`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
 | Usage, missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
 | Plain `check` finds errors or warnings | Exit 0; it remains advisory. |
 | `check --strict` finds a strict failure | Exit 1. |

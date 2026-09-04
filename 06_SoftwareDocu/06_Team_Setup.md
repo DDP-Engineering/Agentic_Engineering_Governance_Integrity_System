@@ -104,12 +104,14 @@ minimal Gitea/GitHub-style step:
 ## Conventions worth agreeing on (all social, none enforced)
 
 - **Journals are per-task, not per-person** - if you hand a task over,
-  the journal goes with it; the log shows who did what when.
+  the journal goes with it; the Log shows durable stage progress and evidence,
+  not every action performed by each participant.
 - **Don't renumber, don't reuse ids** - retire requirements
   (`status = "retired"`) instead of deleting them; history stays
   readable.
 - **The frame checkpoint is where scope arguments belong** - cheaper
-  than review-time arguments, and recorded in the journal either way.
+  than review-time arguments. The journal retains the accepted scope and any
+  material unresolved issue, not the full discussion transcript.
 - **`DEVIATION` lines arrive mid-run and are not a question** - the agent
   states one and carries on; nobody is being asked to decide. Read them
   as they land, raise what bothers you, and expect all of them again at

@@ -80,12 +80,16 @@ selecting focused tests. Then implement until green, using focused regression
 as the inner loop:
 
 ```bash
-python .agentic/aegis.py test --impacted --base HEAD --task TASK-8b12
+python .agentic/aegis.py test --impacted --base HEAD
 ```
 
 ```
 test --impacted (1 test ref(s)): exit 0 (0.4s)
 ```
+
+Inner-loop retries omit `--task`, so they do not turn the journal into a command
+transcript. After the increment is stable, record one consolidated green result
+that names the final focused command and verified behavior.
 
 After implementation, the agent compares the candidate with that anchor:
 
@@ -94,9 +98,10 @@ python .agentic/aegis.py evolution --task TASK-8b12
 ```
 
 The output names every added, modified, and removed path as `source`, `tests`,
-or `other`. Changes are expected and never make the command fail - but if the
-report names something the agent did not expect, that gets a `DEVIATION build:`
-line in the conversation as well as in the journal.
+or `other`. Changes are expected and never make the command fail. Reconcile an
+unexpected path first. Use a `DEVIATION build:` line only if the final candidate
+retains a material scope, design, implementation, or evidence departure; a
+surprising report that is corrected is ordinary development work.
 
 The agent runs `aegis check` before leaving the stage and self-corrects
 anything it flags (a forgotten `affected_paths` entry, a stray file). A
@@ -184,9 +189,11 @@ commit, push, merge or publish.
 
 ## What you can rely on afterwards
 
-The journal and its state sidecars tell the whole story - scope decision, red
-test, repository evolution, findings, ticked checklists, and delivery report.
-Review is reading those task-owned files plus the diff. And if you stop
+The task-owned records collectively retain the durable story: accepted scope,
+one meaningful red and final green per behavior increment, repository evolution,
+material findings, stage outcomes, and delivery report. They intentionally omit
+routine searches, edits, tool mechanics, and corrected retries. Review those
+records with the diff. And if you stop
 mid-task (any stage, any reason):
 
 ```bash

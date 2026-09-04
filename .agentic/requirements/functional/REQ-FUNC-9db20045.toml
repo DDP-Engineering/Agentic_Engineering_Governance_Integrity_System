@@ -53,11 +53,14 @@ verification = "Run the linked structural test and inspect the canonical workflo
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+    "05_Software/aegis/template/.agentic/AGENTS.md",
     "05_Software/aegis/template/.agentic/templates/component.md",
     "05_Software/aegis/template/.agentic/steps/adopt.md",
     "05_Software/aegis/template/.agentic/steps/1_frame.md",
     "05_Software/aegis/template/.agentic/steps/2_specify.md",
     "05_Software/aegis/template/.agentic/steps/3_design.md",
+    "05_Software/aegis/template/.agentic/steps/4_build.md",
     "05_Software/aegis/template/.agentic/steps/5_validate.md",
 ]
 
@@ -65,6 +68,7 @@ affected_paths = [
 # these select the impacted regression set.
 linked_tests = [
     "05_Software/aegis/tests/test_structure.py::test_component_knowledge_routes_implementation_work",
+    "05_Software/aegis/tests/test_structure.py::test_component_catalogue_command_guides_every_useful_stage",
 ]
 
 # --- optional below this line ---

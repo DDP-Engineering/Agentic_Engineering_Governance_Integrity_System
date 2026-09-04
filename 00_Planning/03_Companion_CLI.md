@@ -33,9 +33,10 @@ semantics remain those of the target repository.
 | `evolution --task` | Writes the matching evolution JSON. | Compare current repository state with the active anchor. |
 | `status [task] [--all] [--json]` | Read-only. | List journals or inspect one task. |
 | `brief <task>` | Read-only deterministic bounded resume view. | First when resuming a task. |
-| `summary <task>` | Read-only latest stage-report projection. | After recording a stage completion or pause. |
+| `summary <task>` | Read-only latest stage-report projection. | After recording a stage completion, pause or session end, or blocker. |
+| `components` | Read-only title-and-path catalogue of component knowledge pages. | Choose which concise component page to inspect. |
 | `check [--task] [--strict] [--run] [--full] [--json]` | Read-only unless `--run` executes configured commands. | Advisory governance feedback or CI proof. |
-| `test [name] [--impacted] [--base] [--task]` | Runs one configured command; may append a task-log line. | Focused build loop or full configured suite. |
+| `test [name] [--impacted] [--base] [--task]` | Runs one configured command; `--task` appends that result to the journal Log. | Focused build loop or deliberately retained verification evidence. |
 | `report <task>` | Appends a delivery report to the journal. | After validation, before a granted delivery action. |
 | `diagram [--component] [--task] [--out]` | Read-only unless `--out` writes the Mermaid text. | Inspect requirement coverage. |
 | `trace [--format {md,csv}] [--out PATH]` | Read-only unless `--out` writes the export. | Export the requirement register with coverage and ownership. |
@@ -45,6 +46,12 @@ semantics remain those of the target repository.
 authoritative syntax reference. `.agentic/CLI.md` gives the full contract,
 examples, output rules, and exit behavior.
 
+Use `test` without `--task` for ordinary inner-loop retries. Supply `--task`
+only when that individual run is the durable consolidated red, focused green,
+or final verification result the journal should retain. The option records
+every invocation it receives; it does not decide whether a run is material or
+deduplicate retries.
+
 ## Resume commands are complementary
 
 `brief` and `summary` are intentionally different:
@@ -52,11 +59,21 @@ examples, output rules, and exit behavior.
 | Command | Output | What it is for |
 |---|---|---|
 | `brief TASK-<id>` | Task identity, stage, branch/base, requirements, checklist, bound stage report, review policy, rulings, handoff, visible children, and details pointer. | Bounded re-entry before reading the current step and handoff sources. |
-| `summary TASK-<id>` | The latest bound stage report: result, current stage, changes, evidence, issues, next action, user need, review fields, and details pointer. | Compact reporting after a stage completion or pause. |
+| `summary TASK-<id>` | The latest bound stage report: result, current stage, changes, evidence, issues, next action, user need, review fields, and details pointer. | Compact reporting after a stage completion, pause or session end, or blocker. |
 
 Both commands are deterministic reads of durable files. Neither runs tests,
 consults Git, writes state, proves that the candidate is still valid, or grants
 authority. A truncation/stale marker means read the full journal.
+
+## Component catalogue
+
+`components` accepts no arguments and prints one bounded printable title and
+lexical repository-relative path per `.agentic/knowledge/*.md` page in
+deterministic path order. It uses the first level-one heading or the filename
+stem when a heading is absent. It interprets no body metadata, creates no
+index, performs no automatic routing, and writes nothing. Unreadable pages,
+link escapes, resolution loops, and non-printable catalogue paths fail through
+the bounded CLI error path without partial output.
 
 ## Configuration-backed execution
 

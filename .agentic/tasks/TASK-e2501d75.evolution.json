@@ -1,0 +1,214 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-09-04T13:46:26.755611Z",
+      "anchor_head": "c9c46c23c0cf82a46e6a46ff351b1dbbda14d650",
+      "anchor_id": "969b236ec41cb8c2",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "0fec1e4742a271ebda3d4e31cf10726e8a4d333944f59cbf401e5b5b1ab9ad7d"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8ca21c602c97ff0a3a7aded9fe3aa44ae7c4a5572dae3c7f0db3f8e2f3643bd4"
+          },
+          "path": "05_Software/aegis/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "fc691b9569b411e8d8b8f3070622d686d6cd78bb11ea32cb499f7eb50c18b745"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "85bd10af126231ff409956a73756bb3247eb11e152b8b1a8ccb28b7fe83fda00"
+          },
+          "path": "05_Software/aegis/template/.agentic/AGENTS.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "0ada1fa1f5df3069ea7624766f5285c2e43e2ed23a10d71e84e8e4b2e57f242c"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "6be3143de79b91ba8d9d6e1b0cc7bebb5f5e4e6657e47f9733791b51d720cc49"
+          },
+          "path": "05_Software/aegis/template/.agentic/CLI.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "7be554672b5818c6635792bcadafe8d94bf2577412c6b6fa1f22387583fcf167"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "012c37173f0dc80b5b77010461dc6aad6445ea2dc8a27135b4ff903ade86d2a9"
+          },
+          "path": "05_Software/aegis/template/.agentic/aegis.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "28a959b53c2bddf655ffef787e9e2915776d381affe57641b221b82e3c178b0f"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "d9d70c2824114d3ea31629266ea7e280852fb87415015c9cf1fe733ef5ead8c3"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/1_frame.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "4b3b7660d5ac9c5fcfabf6d7a61b0dde0b5108d340bcc494a99eb8d7c3295274"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "8f80bb280236ef8cfa5ad7567b6e9b8071a80ea740711a7043172a05158b3389"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/2_specify.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b7c2097e5a4b043e9c5c2912a5a3038de4682ea84b000daf03779f9567b6d1f5"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "5bd8e88b3eacda7200b475b18aa7140ffa85a940fad10b6b0ee766a17d7f9d87"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/3_design.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d3194d31f08e37b53e49db212f6ba45ee24da031362ed3f6c56265afad8666b5"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "902272a77dbb09c246da3bd34b2a1c4743fb51c30d561b8e6a6544db05a72aaa"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/4_build.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d1fb5c4778e81092047e14c0257f64aa6bd0ef4d07046e91c7ad1f3e372b7fa2"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "f894ba46558d399bea605f4671c8d71de95552953693c0bfaaf6c6c4c9ad25db"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/5_validate.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "efeff0307bcee67a57c254a9609b60559bd21427be570312b848708775302010"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "4ead9ab2aaa3ee6cba9ffaa02aca12eeef8217a731ef4b711d01b223fb230def"
+          },
+          "path": "05_Software/aegis/template/.agentic/steps/adopt.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "36e42a7f23bbbf1e68f1d44e13e903c2f53aec17f21b5993a6d131b990b938da"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "4a08d833e693660aa33838d79cda626c6b334b59eae5bd9fc97d3d5ecf500128"
+          },
+          "path": "05_Software/aegis/tests/test_cli_core.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "da5cceeba58514a448d1bac1ffd42803a7907a970de3ca3c24fd73e7b375d53e"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c673ce324597849bd62eeddf021492d2969f5954fec1f2272f5bfe6efc6b1e17"
+          },
+          "path": "06_SoftwareDocu/09_CLI_Reference.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "3d5c9084745a97ad0ac2586852bb169a24c34a09869fe935a8f30ab40c5c854e"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "302b33c92a06090cf57f49ab700e746f99a3195aaf8c169a8500430e8decae49"
+          },
+          "path": "CHANGELOG.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 0,
+            "modified": 3,
+            "removed": 0,
+            "unchanged": 73
+          },
+          "source": {
+            "added": 0,
+            "modified": 9,
+            "removed": 0,
+            "unchanged": 80
+          },
+          "tests": {
+            "added": 0,
+            "modified": 1,
+            "removed": 0,
+            "unchanged": 14
+          }
+        },
+        "status": {
+          "added": 0,
+          "modified": 13,
+          "removed": 0,
+          "unchanged": 167
+        }
+      },
+      "current_head": "c9c46c23c0cf82a46e6a46ff351b1dbbda14d650",
+      "evolution_stage": "build",
+      "evolved_at": "2026-09-04T14:18:12.245251Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-e2501d75"
+}
