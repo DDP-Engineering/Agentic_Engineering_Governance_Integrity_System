@@ -203,14 +203,20 @@ fingerprint. `evolution --task` writes the corresponding
 `TASK-<id>.evolution.json` comparison. These are durable inspection
 evidence, not a replacement for review.
 
-Each component page under `knowledge/` documents purpose, public interface,
-key behaviors, current architecture, and files. When component structure will
-change, Design records `### Proposed architecture - TASK-<id>` in the task
-without replacing the current-state knowledge diagram. Validate compares the
-proposal with built code, updates the component page to the resulting current
-state, records justified differences, and retains the task proposal as
-historical design evidence. The knowledge directory is intentionally
-navigable without a separate component manifest.
+Each component page under `knowledge/` routes matching requests through
+selection signals to the component's owned source and focused tests. It records
+purpose and boundaries, public interface, invariants, key behaviors, current
+architecture, and files; components with multiple independent edit-and-test
+seams also carry a change map. The route narrows discovery, while exact source
+and tests remain authoritative.
+
+When component structure will change, Design records
+`### Proposed architecture - TASK-<id>` in the task without replacing the
+current-state knowledge diagram. Validate compares the proposal with built
+code, updates the component page to the resulting current state, records
+justified differences, and retains the task proposal as historical design
+evidence. The knowledge directory is intentionally navigable without a
+separate component manifest.
 
 ## Derived traceability
 

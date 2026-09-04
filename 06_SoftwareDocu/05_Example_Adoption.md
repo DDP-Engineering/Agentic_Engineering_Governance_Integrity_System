@@ -44,10 +44,18 @@ continue adoption TASK-a1b2, next component
 
 Per component, the agent: reads the code **and its existing tests**
 (tests are the best evidence of intended behavior), writes
-`knowledge/<component>.md`, draws that page's `## Architecture` diagram
-while the source is still open, and derives requirements - `active`, with
-`affected_paths` set to the component's files and `linked_tests`
-pointing at the **existing** tests that already verify each behavior.
+`knowledge/<component>.md` as a concise route to the owned source and focused
+tests, draws that page's `## Architecture` diagram while the source is still
+open, and derives requirements - `active`, with `affected_paths` set to the
+component's files and `linked_tests` pointing at the **existing** tests that
+already verify each behavior.
+
+The page records the request signals that select the component, its purpose and
+boundaries, public interface, load-bearing invariants, current behaviors,
+architecture and owned files. It adds a change map only when multiple
+independent edit-and-test seams would otherwise force broad discovery. This
+shortens later orientation; it does not replace reading the exact source and
+tests before a change.
 
 The diagram is the cheapest it will ever be in this session, and it is a
 drawing of what the code **does**, not what it should do: a shape nobody

@@ -74,8 +74,13 @@ ones are not.
 
 5. Take the first unticked component. Read its source **and its existing
    tests** — the tests are the primary evidence of intended behavior.
-6. Write `.agentic/knowledge/<component>.md` from the template: purpose,
-   public interface, key behaviors, architecture, files.
+6. Write `.agentic/knowledge/<component>.md` from the template. Derive
+   `## Routing`, `## Purpose and boundaries`, `## Public interface`,
+   `## Invariants`, `## Key behaviors`, `## Architecture`, and `## Files`
+   from the exact source and tests. Add `## Change map` when multiple
+   independent edit-and-test seams would otherwise require broad discovery.
+   The page is an orientation route; the exact source and tests remain the
+   authority for future changes.
 7. Draw the component's `## Architecture` diagram while its source is still
    in front of you — this session is the cheapest this drawing will ever
    be. Draw what the code does, not what it should do: an odd shape you
@@ -130,6 +135,8 @@ ones are not.
 
 - [ ] component breakdown proposed and reviewed by the owner
 - [ ] every agreed component has a knowledge page
+- [ ] every knowledge page routes a request to owned source and focused tests,
+      with boundaries and invariants derived from current evidence
 - [ ] every knowledge page carries an `## Architecture` diagram of what the
       code does now
 - [ ] every component's behaviors are covered by requirements

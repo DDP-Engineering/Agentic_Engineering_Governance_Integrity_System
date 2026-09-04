@@ -67,6 +67,16 @@ must be no new externally observable behavior, interface, data format or
 dependency, and no security- or data-handling behavior changes. Record the
 eligibility reason in frame; validation and authority limits still apply.
 
+Component knowledge pages are concise implementation routes. Their `Routing`
+signals select the owning component and point to its first source and focused
+test seams; boundaries, invariants, current architecture, behaviors, and files
+provide the context needed to change it safely. A `Change map` is useful for a
+component with multiple independent edit-and-test seams and can be omitted for
+a simple component. The page reduces broad discovery, but the exact source and
+tests remain authoritative and are inspected before implementation. A legacy
+page without Routing supplies only provisional orientation from its available
+sections and is migrated to the current template when its component is touched.
+
 For an automated requirement, write and observe the expected failing test
 before implementation, recording its command, non-zero exit and failure reason.
 Anchor the repository after that red result and compare it after implementation:

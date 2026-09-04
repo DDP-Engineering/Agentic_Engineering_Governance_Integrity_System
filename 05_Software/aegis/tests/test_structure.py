@@ -649,3 +649,45 @@ def test_adopt_and_validate_keep_the_architecture_diagram_current():
     assert "built code" in validate
     assert "current-state" in validate
     assert "historical design evidence" in validate
+
+
+def test_component_knowledge_routes_implementation_work():
+    """REQ-FUNC-9db20045: component pages route work to exact code and tests."""
+    component = (PAYLOAD / "templates" / "component.md").read_text(
+        encoding="utf-8")
+    adopt = (PAYLOAD / "steps" / "adopt.md").read_text(encoding="utf-8")
+    frame = (PAYLOAD / "steps" / "1_frame.md").read_text(encoding="utf-8")
+    specify = (PAYLOAD / "steps" / "2_specify.md").read_text(encoding="utf-8")
+    design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
+    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(
+        encoding="utf-8")
+    component_flat = " ".join(component.split())
+    adopt_flat = " ".join(adopt.split())
+    frame_flat = " ".join(frame.split())
+    specify_flat = " ".join(specify.split())
+    design_flat = " ".join(design.split())
+    validate_flat = " ".join(validate.split())
+
+    for heading in ("## Routing", "## Purpose and boundaries",
+                    "## Public interface", "## Invariants",
+                    "## Change map", "## Key behaviors",
+                    "## Architecture", "## Files"):
+        assert heading in component
+    assert "exact source and tests remain authoritative" in component_flat
+    assert "multiple independent edit-and-test seams" in component_flat
+
+    assert "## Routing" in adopt_flat
+    assert "exact source and tests" in adopt_flat
+    assert "## Routing" in frame_flat
+    assert "selection signals" in frame_flat
+    assert "legacy page" in frame_flat
+    assert "available sections" in frame_flat
+    assert "exact source and tests" in frame_flat
+    assert "## Purpose and boundaries" in specify_flat
+    assert "## Invariants" in specify_flat
+    assert "## Change map" in design_flat
+    for heading in ("Routing", "Purpose and boundaries", "Invariants",
+                    "Change map"):
+        assert heading in validate_flat
+    assert "touched legacy page" in validate_flat
+    assert "migrate it to the current template" in validate_flat

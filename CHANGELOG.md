@@ -11,6 +11,11 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Turn component knowledge pages into concise implementation routes with
+  selection signals, boundaries, invariants and focused change-and-test seams.
+
 ## [0.10.0] - 2026-09-03
 
 ### Added

@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When an operator adopts an existing repository, the workflow payload shall guide a survey, owner-approved component checklist, evidence-based component records, and an explicit close-out sequence without rewriting adopted behavior.
+When an operator adopts an existing repository, the workflow payload shall guide a survey, owner-approved component checklist, routing-oriented evidence-based component records, and an explicit close-out sequence without rewriting adopted behavior.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When an operator adopts an existing repository, the workflow payload shall guide
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspection: read steps/adopt.md and confirm survey, owner review, one-component evidence gathering, untested and suspected behavior handling, report, and outcome-dependent close-out instructions."
+verification = "Inspection: read steps/adopt.md and confirm survey, owner review, one-component source-and-test evidence gathering, routing-oriented knowledge capture, untested and suspected behavior handling, report, and outcome-dependent close-out instructions."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -71,4 +71,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-09-04

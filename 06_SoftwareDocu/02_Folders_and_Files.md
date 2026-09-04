@@ -174,10 +174,13 @@ requirement's `spec` field; `check` verifies the reference resolves.
 
 ## Knowledge - `knowledge/<component>.md`
 
-One plain page per component: Purpose, Public interface, Key behaviors
-(citing requirement IDs), Architecture, Files. The `validate` stage asks the
-agent to update the page of any component it materially changed. There is no
-manifest and no registry - the folder listing is the component list.
+One plain page per component: Routing, Purpose and boundaries, Public
+interface, Invariants, Key behaviors (citing requirement IDs), Architecture,
+and Files. A Change map is included when the component has multiple independent
+edit-and-test seams. Routing selects the page and points to owned source and
+focused tests; it narrows discovery but never replaces exact source-and-test
+inspection. The `validate` stage reconciles every affected section. There is
+no manifest and no registry - the folder listing is the component list.
 
 **Architecture** holds a Mermaid diagram of that component's own logic -
 what a reader has to hold in their head to change it safely, at ten to

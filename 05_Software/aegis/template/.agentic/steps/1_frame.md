@@ -17,7 +17,10 @@ the task journal that every later stage reads and updates.
 - `.agentic/AGENTS.md` (stage table, artifact locations, interaction modes).
 - `python .agentic/aegis.py status` — an open task may already cover this.
 - The knowledge page for the area named in the ask, if one exists:
-  `.agentic/knowledge/<component>.md`.
+  `.agentic/knowledge/<component>.md`. Read its `## Routing` selection signals
+  first to confirm ownership or follow the named adjacent route. If it is a
+  legacy page without Routing, use its available sections only to locate the
+  exact source and tests, and include page reconciliation in the task scope.
 
 **Stage report (completion or pause):** After updating the log, header and
 checklist, refresh the single `## Stage report` section in this task journal:
@@ -72,10 +75,13 @@ Path and reason:
    scenario, examples, constraints, success signals, explicit scope, and
    exclusions. Preserve the user's terms where changing them could change
    meaning.
-2. Locate the smallest sufficient repository evidence: relevant knowledge
-   pages, existing requirements, interfaces, and representative source or
-   tests. Record repository claims as `OBSERVED` with paths; mark conclusions
-   as `INFERRED`. Do not edit product files.
+2. Locate the smallest sufficient repository evidence. Use each current
+   component page's `## Routing` selection signals to confirm ownership and its
+   starting seams. For a legacy page, use the available sections as provisional
+   orientation and record the missing routing contract for validation. Then
+   inspect the exact interfaces, representative source, and tests. Record
+   repository claims as `OBSERVED` with paths; mark conclusions as `INFERRED`.
+   Do not edit product files.
 3. **Challenge.** Look for contradictions between the request, existing
    behavior, requirements, and repository rules. Identify missing triggers,
    observers, boundaries, failure cases, permissions, compatibility effects,

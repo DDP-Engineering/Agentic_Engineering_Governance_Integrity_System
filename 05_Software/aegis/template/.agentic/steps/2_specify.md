@@ -18,7 +18,12 @@ requirement alone is not enough to build from.
 - `.agentic/templates/requirement.toml` and `.agentic/templates/spec.md`.
 - Existing requirements whose `affected_paths` touch the same files — you
   may be updating one rather than writing a new one.
-- The knowledge page for each component in scope.
+- The knowledge page for each component in scope. Read its
+  `## Purpose and boundaries`, `## Public interface`, `## Invariants`, and
+  `## Key behaviors` sections before confirming each claim against the exact
+  source and tests. If a legacy page lacks one or more sections, use only the
+  available sections, do not infer the missing claims, and record page
+  reconciliation as in-scope validation work.
 
 **Stage report (completion or pause):** After updating the log, header and
 checklist, refresh the single `## Stage report` section in this task journal:

@@ -17,7 +17,10 @@ decisions remain explicit, and a reviewer can see why the shape was chosen.
 - The task journal `.agentic/tasks/TASK-<id>.md`.
 - Every requirement listed on its `requirements:` line, and their specs.
 - The knowledge page for each component you will touch:
-  `.agentic/knowledge/<component>.md`.
+  `.agentic/knowledge/<component>.md`. Use `## Change map` for the relevant
+  edit-and-test seam when present, then check the named exact source and tests.
+  For a legacy page without Routing, use its available sections only as
+  provisional orientation and leave migration to validation.
 
 **Stage report (completion or pause):** After updating the log, header and
 checklist, refresh the single `## Stage report` section in this task journal:
@@ -45,10 +48,12 @@ shortened reporting without reviewing the full journal information.
 
 1. Decide whether a note is needed; see Skip when. If not, record the reason in
    the journal and mark every coverage-table row `no design impact`.
-2. **Analyze** the Frame, requirements, specs, current component knowledge, and
-   representative implementation seams. **Challenge** contradictions,
-   infeasible constraints, implicit coupling, missing failure behavior, and
-   unresolved decisions before choosing a shape.
+2. **Analyze** the Frame, requirements, specs, current component knowledge,
+   and representative implementation seams. Preserve the page's boundaries
+   and invariants; use its `## Change map` only as a route, then verify the
+   exact implementation. **Challenge** contradictions, infeasible constraints,
+   implicit coupling, missing failure behavior, and unresolved decisions
+   before choosing a shape.
 3. Write the note under the journal's existing `## Design` heading. 30 lines is the default,
    not a hard limit: use the shortest record that makes
    the known implementation path sufficiently constrained. Add proportionate

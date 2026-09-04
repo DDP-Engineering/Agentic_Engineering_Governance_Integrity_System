@@ -8,7 +8,23 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Core CLI lifecycle
 
-## Purpose
+## Routing
+
+Read this page when a request mentions `init`, `task`, `req`, `status`,
+`summary`, `brief`, task-header parsing, rulings, handoffs, visible child tasks,
+or installation of the copied core payload. Start implementation inspection in
+`05_Software/aegis/template/.agentic/aegis.py` at the matching `cmd_<command>`
+entry point or the symbol named in the Change map. Start focused verification
+in `05_Software/aegis/tests/test_cli_core.py`; summary, brief, and extended
+status behavior also lives in `test_run_report.py`.
+
+Requests about `check`, configured test execution, reports, anchors, evolution,
+diagrams, trace exports, or path explanations belong to the Validation and
+evidence CLI page even though those commands share `aegis.py`. Requests that
+change the workflow steps or artifact templates belong to the Reusable
+workflow payload rather than this CLI component.
+
+## Purpose and boundaries
 
 The canonical AEGIS CLI installs repository-owned data areas and scaffolds
 durable journals and requirements. It also exposes concise status views so an
@@ -28,6 +44,30 @@ stage view using the same journal lookup plus a strict optional-section
 parser; it does not call Git, load configuration, or execute commands.
 `brief` adds a deterministic bounded durable re-entry view from the journal,
 review policy, rulings, handoff, and child journals visible in the checkout.
+
+## Invariants
+
+- `init` preserves repository-owned data and configuration, and a second run
+  over a complete installation is byte-for-byte idempotent.
+- `task` and `req` use collision-resistant repository-local identifiers and
+  preserve their canonical template structure.
+- `status`, `summary`, and `brief` are read-only views; they do not advance a
+  stage, execute configured commands, commit, publish, or access the network.
+- Missing recorded evidence remains `not recorded`; malformed, stale, or
+  mismatched stage reports never become success or approval claims.
+- Child relationships are one level deep, recorded only on the child, and
+  discovered only from journals visible in the current checkout.
+- Bounded output never replaces required full-journal or step-file reads.
+
+## Change map
+
+| Change requested | Start with | Focused verification |
+|---|---|---|
+| Copied-payload initialization or managed pointers | `cmd_init` and its initialization helpers | the `test_init_*` group in `test_cli_core.py` |
+| Task or requirement scaffolding and identifiers | `new_id`, `cmd_task`, `cmd_req` | the `test_task_*`, `test_req_*`, and parent/child groups in `test_cli_core.py` |
+| Status lookup or task-header display | `read_journal`, `cmd_status` | status groups in `test_cli_core.py` and `test_run_report.py` |
+| Recorded stage summary | `parse_stage_report`, `cmd_summary` | the `test_summary_*` group in `test_run_report.py` |
+| Durable resume brief, rulings, handoff, or children | `parse_rulings`, `parse_handoff`, `visible_children`, `review_settings`, `cmd_brief` | the `test_brief_*`, ruling, handoff, and child groups in `test_cli_core.py` and `test_run_report.py` |
 
 ## Key behaviors
 
@@ -66,8 +106,8 @@ unchanged.
   Requirement-record scaffold.
 - `05_Software/aegis/tests/test_cli_core.py` - Isolated copied-payload tests
   for lifecycle behavior.
-- `05_Software/aegis/tests/test_run_report.py` - Status component-display
-  coverage.
+- `05_Software/aegis/tests/test_run_report.py` - Extended status, summary, and
+  brief behavior coverage.
 
 ## Architecture
 
@@ -77,8 +117,12 @@ but neither renderer executes configured commands or reads live Git state.
 
 ```mermaid
 flowchart LR
+    init[init] --> install[managed pointers / config / data folders]
+    req[req] --> ids[new_id]
+    req --> reqtemplate[(requirement template)]
     status[status] --> read[read_journal]
-    task[task --parent] --> read
+    task[task --parent] --> ids
+    task --> read
     summary[summary] --> read
     brief[brief] --> read
     summary --> record[parse_stage_report]

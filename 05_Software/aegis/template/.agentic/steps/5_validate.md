@@ -86,17 +86,23 @@ verdict or green suite does not replace integration proof in the parent.
    `stage:` to `specify` or `design`, replace the checklist with that stage's
    "Done when" list, log why, and stop. An implementation flaw returns to
    `build` by the same protocol.
-3. Update component knowledge. For every component whose behavior, interface,
-   or file set materially changed, update or create
-   `.agentic/knowledge/<component>.md` from the template. Keep **Purpose**,
-   **Public interface**, **Key behaviors**, **Architecture**, and **Files**
-   true. Read any `### Proposed architecture - TASK-<id>` diagram from the
-   task's Design and compare it with the built code. Update the component
-   page's `## Architecture` diagram to the resulting current-state
-   implementation. Retain the task proposal as historical design evidence;
-   never delete it. If the built code differs from the proposal, record the
-   justified deviation or decision. When no proposal exists, derive the
-   current-state diagram directly from the built code.
+3. Update component knowledge. For every component whose routing, boundary,
+   invariant, behavior, interface, architecture, or file set materially
+   changed, update or create `.agentic/knowledge/<component>.md` from the
+   template. A touched legacy page that lacks Routing or another standard
+   section is knowledge drift; migrate it to the current template before
+   reconciling **Routing**, **Purpose and boundaries**, **Public
+   interface**, **Invariants**, **Key behaviors**, **Architecture**, and
+   **Files** against the exact source and tests. Reconcile **Change map** when
+   the component has multiple independent edit-and-test seams, and omit it
+   when Routing and Files already identify one obvious seam. Read any
+   `### Proposed architecture - TASK-<id>` diagram from the task's Design and
+   compare it with the built code. Update the component page's
+   `## Architecture` diagram to the resulting current-state implementation.
+   Retain the task proposal as historical design evidence; never delete it.
+   If the built code differs from the proposal, record the justified deviation
+   or decision. When no proposal exists, derive the current-state diagram
+   directly from the built code.
 4. Re-read each requirement. Confirm its status and prose describe the built
    behavior, its verification matches the observation, and all affected paths
    and linked tests are current. Correct them now.
