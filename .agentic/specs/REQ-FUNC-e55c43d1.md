@@ -11,15 +11,20 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 ## Behavior
 
 `brief TASK-<id>` renders a richer resume view than `summary` using only the
-workspace configuration and durable task journals. It writes nothing and does
+workspace configuration, durable task journals and context-file presence. It writes nothing and does
 not call Git, subprocesses, configured commands, a model, or the network.
 Repeated runs against unchanged files are byte-identical.
 
 The fixed section order is `AEGIS brief`, Task, Stage, Branch/base, Parent,
-Requirements, Checklist, Stage report, Review, Active rulings, Handoff,
+Requirements, Context, Checklist, Stage report, Interaction, Review, Active rulings, Handoff,
 Visible children, Details. Legacy omissions render as `not recorded`,
 `none recorded`, or `none visible`; approval and success are never inferred.
 Stale stage-report or handoff bindings are explicitly marked.
+
+Context lists `.agentic/context/project.md` and `.agentic/context/environment.md`
+with `present` or `not recorded`. This is a bounded presence-only route to
+project-owned files; callers read their bodies separately and verify relevant
+claims against the checkout. Missing files remain compatible with brief.
 
 ## Data / interface
 

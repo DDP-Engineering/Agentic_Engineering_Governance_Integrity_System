@@ -11,7 +11,38 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-10
+
+### Added
+
+- Project-owned project/environment context scaffolds and compact resume pointers.
+
 ### Changed
+
+- Align planning and user guides with current context behavior and keep dated
+  verification history in task/build records; refresh installation PDFs.
+- Keep project, component, and active behavior documentation current and positive;
+  record proposals and investigation history in draft/task records.
+
+- Default to a user choice checkpoint after every workflow stage, with optional
+  project-configured autopilot that never bypasses publication approval.
+
+## [0.12.0] - 2026-09-08
+
+### Added
+
+- Add test command previews and opt-in refusal of full-suite fallback, plus
+  compact evolution responses that preserve complete saved evidence.
+
+### Fixed
+
+- Broaden unsupported test-name selectors to validated file references without
+  interpolating their text into shell commands.
+
+### Changed
+
+- Prefer project-native focused build tests and one final full validation;
+  omit template-only scaffold notes and repeated stage instructions.
 
 - Make task journals compact progress-and-evidence ledgers by consolidating
   verification and excluding routine tool activity and duplicated artifacts.
@@ -266,4 +297,3 @@ All notable changes to AEGIS are documented in this file.
 
 - Advisory task workflow with requirements, specifications, knowledge pages,
   structured checks, focused test selection, and machine-readable reporting.
-

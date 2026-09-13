@@ -752,8 +752,10 @@ Stage: validate
 Branch/base: feature @ not recorded
 Parent: none
 Requirements: REQ-FUNC-1111
+Context: .agentic/context/project.md (present); .agentic/context/environment.md (present)
 Checklist: 1/2 done; next=review candidate
 Stage report: validate - in_progress; changed=candidate; evidence=tests passed; issues=none; next=review; needs_user=no
+Interaction: checkpoint
 Review: policy=disabled; max_fix_cycles=2; spec=not recorded; quality=not recorded; round=not recorded
 Active rulings:
 - RULING-002 | decision=Use brief | reason=bounded | source=technical | supersedes=RULING-001
@@ -775,6 +777,31 @@ def test_brief_reads_only_durable_workspace_files(tmp_path, monkeypatch, capsys)
         monkeypatch.setattr(aegis, name, lambda *_a, _name=name, **_k: pytest.fail(_name))
     code, out = run(aegis, capsys, "brief", "TASK-ab12")
     assert code == 0 and out.startswith("AEGIS brief\n")
+
+
+@pytest.mark.parametrize("present", [(), ("project.md",), ("environment.md",),
+                                     ("project.md", "environment.md")])
+def test_brief_context_is_optional_bounded_and_read_only(tmp_path, monkeypatch, capsys, present):
+    """REQ-FUNC-e55c43d1: context is a presence-only route, including legacy repos."""
+    agentic, aegis = make_repo(tmp_path)
+    write_brief_fixture(agentic)
+    for name in present:
+        write(agentic / "context" / name, "PRIVATE CONTEXT BODY\n" * 1000)
+    original = aegis.read_text
+
+    def reject_context_read(path):
+        assert path.parent != agentic / "context", "brief must not preload context"
+        return original(path)
+
+    monkeypatch.setattr(aegis, "read_text", reject_context_read)
+    before = snapshot(tmp_path)
+    code, out = run(aegis, capsys, "brief", "ab12")
+    assert code == 0
+    for name in aegis.CONTEXT_FILES:
+        state = "present" if name in present else "not recorded"
+        assert f".agentic/context/{name} ({state})" in out
+    assert "PRIVATE CONTEXT BODY" not in out
+    assert snapshot(tmp_path) == before
 
 
 def test_brief_renders_legacy_journal_without_guessing(tmp_path, capsys):
@@ -801,10 +828,24 @@ opened: 2026-08-31
     assert code == 0
     assert "Parent: none" in out
     assert "Stage report: not recorded" in out
+    assert "Interaction: checkpoint" in out
     assert "Active rulings:\n- none recorded" in out
     assert "Handoff: not recorded" in out
     assert "Visible children:\n- none visible" in out
     assert "approved" not in out
+
+
+def test_brief_prefers_recorded_task_interaction_mode(tmp_path, capsys):
+    """REQ-FUNC-d60b322b: a task override survives configuration and resume."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_brief_fixture(agentic)
+    text = path.read_text(encoding="utf-8").replace(
+        "path: full\n", "path: full\ninteraction: autopilot\n")
+    write(path, text)
+
+    code, out = run(aegis, capsys, "brief", "ab12")
+    assert code == 0
+    assert "Interaction: autopilot" in out
 
 
 def test_brief_lists_active_rulings_and_sorted_visible_children(tmp_path, capsys):

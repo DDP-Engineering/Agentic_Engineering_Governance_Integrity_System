@@ -111,10 +111,11 @@ def test_header_parser_round_trip_against_the_template(tmp_path):
     assert data["id"] == "TASK-0000"
     assert data["title"] == "<one-line title>"
     assert data["header"] == {
-        "stage": "frame",
-        "type": "feature",
-        "path": "full",
-        "requirements": "",
+            "stage": "frame",
+            "type": "feature",
+            "path": "full",
+            "interaction": "checkpoint",
+            "requirements": "",
         "parent": "",
         "branch": "<branch>",
         "base": "",
@@ -297,11 +298,78 @@ def test_init_never_overwrites_an_existing_aegis_toml(tmp_path):
     assert config.read_text(encoding="utf-8") == mine
 
 
+def test_init_scaffolds_current_context_without_authoring_notes(tmp_path):
+    """Project-owned context starts as UTF-8 structure, not invented facts."""
+    agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    for name in aegis.CONTEXT_FILES:
+        path = agentic / "context" / name
+        assert path.read_text(encoding="utf-8") == aegis.scaffold_template(name)
+        assert "AEGIS:TEMPLATE" not in path.read_text(encoding="utf-8")
+        assert b"\r\n" not in path.read_bytes()
+        assert not path.read_bytes().startswith(b"\xef\xbb\xbf")
+
+
+@pytest.mark.parametrize("existing", ["project.md", "environment.md"])
+@pytest.mark.parametrize("mine", [b"", b"# My context\r\n\r\nCurrent fact: caf\xc3\xa9\r\n"])
+def test_init_preserves_each_context_file_when_adding_its_sibling(tmp_path, existing, mine):
+    """Upgrade scaffolding preserves even empty or CRLF project-owned files."""
+    agentic, aegis = make_repo(tmp_path)
+    context = agentic / "context"
+    context.mkdir()
+    (context / existing).write_bytes(mine)
+    sibling = next(name for name in aegis.CONTEXT_FILES if name != existing)
+    assert aegis.main(["init"]) == 0
+    assert (context / existing).read_bytes() == mine
+    assert (context / sibling).is_file()
+    before = snapshot(tmp_path)
+    assert aegis.main(["init"]) == 0
+    assert snapshot(tmp_path) == before
+
+
+def test_init_preserves_concurrently_created_context(tmp_path, monkeypatch):
+    """A file appearing after the absence check keeps its owner's bytes."""
+    agentic, aegis = make_repo(tmp_path)
+    original = aegis.scaffold_template
+
+    def concurrent_owner(name):
+        content = original(name)
+        (agentic / "context" / name).write_bytes(b"Owner's current facts\n")
+        return content
+
+    monkeypatch.setattr(aegis, "scaffold_template", concurrent_owner)
+    assert aegis.main(["init"]) == 0
+    for name in aegis.CONTEXT_FILES:
+        assert (agentic / "context" / name).read_bytes() == b"Owner's current facts\n"
+
+
 def test_init_writes_review_disabled_with_two_fix_cycles(tmp_path):
     """REQ-FUNC-9514e017: fresh workspaces preserve behavior with review off."""
     _agentic, aegis = make_repo(tmp_path)
     assert aegis.main(["init"]) == 0
     assert aegis.load_config()["review"] == {"enabled": False, "max_fix_cycles": 2}
+
+
+def test_init_writes_autopilot_disabled(tmp_path):
+    """REQ-FUNC-d60b322b: fresh workspaces stop at every stage by default."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    assert aegis.load_config()["interaction"] == {"autopilot": False}
+
+
+def test_missing_interaction_table_is_backward_compatible(tmp_path):
+    """REQ-FUNC-d60b322b: legacy configuration fails safe to checkpoints."""
+    _, aegis = make_repo(tmp_path)
+    assert aegis.autopilot_enabled({"schema": 1}) is False
+    assert aegis.interaction_mode({"schema": 1}) == "checkpoint"
+
+
+def test_interaction_settings_accept_only_a_toml_boolean(tmp_path):
+    """REQ-FUNC-d60b322b: invalid autopilot values fail safe."""
+    _, aegis = make_repo(tmp_path)
+    assert aegis.autopilot_enabled({"interaction": {"autopilot": True}}) is True
+    assert aegis.interaction_mode({"interaction": {"autopilot": True}}) == "autopilot"
+    assert aegis.autopilot_enabled({"interaction": {"autopilot": "true"}}) is False
 
 
 def test_missing_review_table_is_backward_compatible(tmp_path):
@@ -334,6 +402,23 @@ def test_init_preserves_existing_workspace_config(tmp_path):
     path.write_text(original, encoding="utf-8")
     assert aegis.main(["init"]) == 0
     assert path.read_text(encoding="utf-8") == original
+
+
+def test_task_records_the_configured_interaction_mode(tmp_path, capsys, monkeypatch):
+    """REQ-FUNC-d60b322b: resolved task mode survives later sessions."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    path = agentic / "aegis.toml"
+    text = path.read_text(encoding="utf-8").replace("autopilot = false",
+                                                    "autopilot = true")
+    path.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(aegis, "git_branch", lambda: "master")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Remember interaction mode"]) == 0
+    journal = tmp_path / capsys.readouterr().out.strip()
+    assert aegis.parse_journal(journal.read_text("utf-8"))["header"]["interaction"] == \
+        "autopilot"
 
 
 def test_init_appends_to_pointer_files_without_clobbering(tmp_path):
@@ -863,15 +948,15 @@ def test_task_records_no_commit_without_history(tmp_path, capsys, monkeypatch):
 
 
 def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
-    """The only differences from the template are the substituted values."""
-    agentic, aegis = make_repo(tmp_path)
+    """The durable template structure survives substitutions and note removal."""
+    _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_branch", lambda: "main")
     capsys.readouterr()
 
     aegis.main(["task", "Keep the shape"])
     generated = (tmp_path / capsys.readouterr().out.strip()).read_text("utf-8")
-    original = (agentic / "templates" / "task.md").read_text("utf-8")
+    original = aegis.scaffold_template("task.md")
 
     assert "Keep the shape\n\nstage: frame\n" in generated
     changed = [

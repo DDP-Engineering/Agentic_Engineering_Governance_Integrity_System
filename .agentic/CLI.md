@@ -82,8 +82,10 @@ python .agentic/aegis.py init [--git]
 
 **Description:** Finish installing a copied AEGIS payload. It:
 
-- creates `.agentic/requirements/`, `specs/`, `tasks/`, and `knowledge/`
+- creates `.agentic/requirements/`, `specs/`, `tasks/`, `knowledge/`, and `context/`
   when absent;
+- scaffolds `context/project.md` and `context/environment.md` independently
+  when absent, stripping marked authoring notes and preserving existing bytes;
 - creates a default `.agentic/aegis.toml` only when absent;
 - adds or refreshes the managed AEGIS digest in root
   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
@@ -91,7 +93,10 @@ python .agentic/aegis.py init [--git]
 - preserves project-owned data and an existing `aegis.toml`.
 
 The command is idempotent: running it again does not replace the repository's
-configuration or governance records.
+configuration or governance records. Context scaffolds contain headings, not
+project claims. Populate current positive facts during frame or adoption and
+reconcile affected sections when implementation or setup changes. Keep history
+in task records. Missing context in an older project adds no workflow gate.
 
 When Git is installed but the directory is not a repository, plain `init`
 prints the next command and changes no Git state. `init --git` explicitly runs
@@ -110,8 +115,8 @@ python .agentic/aegis.py init
 python .agentic/aegis.py init --git
 ```
 
-Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, and
-optional `[check]` settings describe the repository.
+Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, optional
+`[interaction]`, and optional `[check]` settings describe the repository.
 
 ## `task`
 
@@ -121,8 +126,8 @@ python .agentic/aegis.py task "<title>" [--type {feature,fix,change,adopt}] [--p
 
 **Description:** Create `.agentic/tasks/TASK-<id>.md` from the task
 template. The journal receives a collision-resistant ID, the current date,
-the current Git branch when available, and `stage: frame`. The new path is
-printed on stdout.
+the current Git branch when available, `stage: frame`, and the interaction mode
+resolved from `aegis.toml`. The new path is printed on stdout.
 
 The default type is `feature`. Accepted types are:
 
@@ -155,6 +160,10 @@ lookup scans journals visible in the current checkout only, so it cannot claim
 knowledge of children that exist solely on another branch. The parent owns
 validation of the integrated candidate.
 
+New task and requirement records omit explicitly marked template-only authoring
+notes while retaining their license and data fields. Existing records are never
+rewritten. Inspect the templates when their full field guidance is needed.
+
 ## `anchor`
 
 ```text
@@ -178,7 +187,7 @@ prove that a test or implementation was honest.
 ## `evolution`
 
 ```text
-python .agentic/aegis.py evolution --task TASK-<id> [--json]
+python .agentic/aegis.py evolution --task TASK-<id> [--json] [--compact]
 ```
 
 **Description:** Compare the current Git-visible repository with the active
@@ -192,6 +201,10 @@ later validation edit can be reflected without duplicate history.
 
 Both commands use UTC ISO 8601 timestamps. `--json` emits one complete machine
 envelope on stdout.
+
+For evolution, `--compact --json` emits paths, statuses and areas without the
+before/after hashes. The saved evolution file remains complete; ordinary `--json`
+output retains its existing schema and detail.
 
 ## `req`
 
@@ -328,17 +341,23 @@ python .agentic/aegis.py brief <TASK-id|id>
 ```
 
 **Description:** Print a read-only, deterministic resume view derived only
-from the task journal, visible task journals, and `.agentic/aegis.toml`. It
+from the task journal, visible task journals, `.agentic/aegis.toml`, and the
+presence of the two project context files. It
 does not call Git, run commands, write files, advance stages, or infer approval.
 Two calls against unchanged files are byte-identical.
 
 The fixed output order is: `AEGIS brief`, Task, Stage, Branch/base, Parent,
-Requirements, Checklist, Stage report, Review, Active rulings, Handoff,
+Requirements, Context, Checklist, Stage report, Interaction, Review, Active rulings, Handoff,
 Visible children, and Details. Scalar values are limited to 240 characters;
 at most eight active rulings and twenty visible children are printed, followed
 by a visible omission marker. Missing legacy fields print `not recorded` or
 `none`; stale stage-report or handoff bindings are labelled stale. Read the
 full journal whenever detail is omitted or the current stage requires it.
+
+Context lists `.agentic/context/project.md` and `.agentic/context/environment.md`
+as `present` or `not recorded`. It reads no context bodies and creates nothing.
+Presence establishes neither completeness nor accuracy: open the project profile
+and relevant environment sections, then follow the selected authoritative links.
 
 Use `brief` first for re-entry, then read the current step file and the
 handoff's `must_read` paths. Use `summary` when you need the latest bound stage
@@ -393,6 +412,21 @@ records authority already granted and cannot expand user or Git authority.
 The single `## Handoff` block is replaceable, stage-bound resume state;
 `status` is `ready`, `waiting`, or `blocked` and must be refreshed at every
 transition, pause, blocker, or session end.
+
+Stage interaction defaults are configured independently of publication
+authority:
+
+```toml
+[interaction]
+autopilot = false
+```
+
+`autopilot` must be a TOML Boolean. Missing or invalid values mean `false`:
+checkpoint mode stops after every stage and presents the next choices.
+`true` flows between intermediate stages but never bypasses the required
+pre-publication approval. New tasks copy the resolved value into their
+`interaction: checkpoint|autopilot` header so the mode survives resume. An
+explicit user instruction may override the configured default for that task.
 
 Explicit review is configured independently of mandatory validation:
 
@@ -469,7 +503,7 @@ command set.
 ## `test`
 
 ```text
-python .agentic/aegis.py test [name] [--impacted] [--base <rev>] [--task TASK-<id>]
+python .agentic/aegis.py test [name] [--impacted] [--no-fallback] [--dry-run] [--base <rev>] [--task TASK-<id>]
 ```
 
 **Description:** Run a command from the `[commands]` table in
@@ -482,11 +516,14 @@ Options:
 |---|---|
 | `name` | Run that configured command, for example `test` or `lint`. |
 | `--impacted` | For the default `test` command, substitute linked impacted tests into the configured `test_impacted` template. |
+| `--no-fallback` | With `--impacted`, exit 1 without running or recording test evidence when selection is unavailable. |
+| `--dry-run` | Preview the command and working directory without execution or journal writes; exit zero is not test proof. |
 | `--base <rev>` | Take the diff against that revision instead of the merge base. `--base HEAD` selects only uncommitted work. |
 | `--task TASK-<id>` | Validate the task ID before running and append the result and duration to its journal. |
 
 If impact selection cannot produce a focused set, AEGIS explains why
-and falls back to the full `test` command. `--impacted` cannot be combined
+and falls back to the full `test` command unless `--no-fallback` was requested.
+`--no-fallback` requires `--impacted`. `--impacted` cannot be combined
 with a command name other than `test`.
 
 Without `--base`, the diff runs from the merge base with the default branch,
@@ -495,14 +532,21 @@ right basis for reviewing a branch and the wrong one for an edit-run loop on
 a long-lived branch, where it can select most of the suite. Use `--base HEAD`
 during build to select only what you have not committed yet.
 
+Unsupported selector suffixes, including test names containing spaces or quotes,
+are discarded in favor of their validated test file. Unsafe or repository-escaping
+file paths are never interpolated. Multiple references to a broadened file become
+one file argument. AEGIS supplies references; the configured runner must honor
+both file and exact-selector input. It does not translate between test frameworks.
+Paths with spaces still require a project-native command rather than interpolation.
+
 A focused set that would make the command longer than the platform can launch
 is not an error: AEGIS reduces it to one entry per distinct test file,
 says so, and only falls back to the full suite if even that is too long.
 
 **When to use:**
 
-- use `test --impacted --base HEAD --task ...` for a fast build-loop regression;
-- use `test --task ...` for the configured full suite during validation;
+- use a focused project-native command, or `test --impacted --base HEAD --no-fallback`, during build;
+- use `check --task TASK-<id> --strict --run` once after final edits and review; do not precede it with another full `test`;
 - use `test <name>` for other configured read-only checks such as linting.
 
 **Examples:**

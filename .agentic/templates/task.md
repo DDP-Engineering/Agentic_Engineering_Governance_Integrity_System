@@ -6,7 +6,7 @@ See the LICENSE.txt in the .agentic folder for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-<!--
+<!-- AEGIS:TEMPLATE
 Task journal. One file per task, at .agentic/tasks/TASK-<id>.md, kept
 after delivery as the task's historical record.
 
@@ -18,6 +18,8 @@ the block, no comments between the lines — so it stays machine-readable.
                 (adoption journals: survey | components | close | done)
   type          feature | fix | change | adopt
   path          full | quick
+  interaction   checkpoint | autopilot; copied from aegis.toml when created
+                and updated when an explicit user instruction overrides it
   requirements  comma-separated requirement IDs, empty until specify
   parent        optional top-level TASK-id; blank for an ordinary task
   branch        the branch this task is delivered on
@@ -57,6 +59,7 @@ validation or delivery outcome. Do not refresh after routine work.
 stage: frame
 type: feature
 path: full
+interaction: checkpoint
 requirements:
 parent:
 branch: <branch>
@@ -67,20 +70,57 @@ opened: 2026-01-01
 
 - [ ] copy the "Done when" list from the current step file here
 
+## Frame
+
+Problem:
+Desired outcome:
+Actors:
+Primary scenario:
+Examples:
+Counterexamples:
+In scope:
+Out of scope:
+Constraints:
+Success signals:
+Evidence:
+Assumptions:
+Unknowns:
+Decision-blocking questions:
+Proposed behaviors:
+Path and reason:
+
+## Requirement coverage
+
+<!-- AEGIS:TEMPLATE
+A broad Frame outcome may produce several atomic behavior rows. Each
+atomic behavior maps to exactly one requirement. Keep this table current
+through design.
+| Frame outcome | Atomic behavior | Requirement | Positive case | Boundary or failure | Verification | Design decision or no impact |
+|---|---|---|---|---|---|---|
+-->
+
+## Design
+
+<!-- AEGIS:TEMPLATE
+Filled at design when the task is non-trivial; otherwise record why skipped.
+-->
+
 ## Log
 
 - 2026-01-01 frame: <scope agreed, exclusions, chosen path and why>
 
 ## Rulings
 
-<!-- Append decisions here; never edit history. Supersede with a new ruling.
+<!-- AEGIS:TEMPLATE
+Append decisions here; never edit history. Supersede with a new ruling.
 - RULING-001 | date=YYYY-MM-DD | decision=<decision> | reason=<reason> | source=user | supersedes=none
 source: user | repository | requirement | technical
 -->
 
 ## Handoff
 
-<!-- Replace these fields with the latest minimal resume snapshot.
+<!-- AEGIS:TEMPLATE
+Replace these fields with the latest minimal resume snapshot.
 status: ready | waiting | blocked
 -->
 

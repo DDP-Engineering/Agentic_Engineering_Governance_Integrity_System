@@ -8,7 +8,7 @@ import { discoverRuntime, readSettings } from './runtime.mjs';
 
 const operations = new Set(['status', 'resume', 'read', 'summary', 'check', 'scaffold', 'evidence', 'candidate', 'diff', 'run', 'job']);
 const values = new Set(['root', 'task', 'document', 'kind', 'title', 'type', 'category', 'parent', 'action', 'base', 'path', 'command', 'id', 'role']);
-const flags = new Set(['all', 'strict', 'impacted']);
+const flags = new Set(['all', 'strict', 'impacted', 'no-fallback', 'compact']);
 
 /** Argument-array bridge for Codex skill scripts; role is a guard, not identity authentication. */
 export async function runBridge(argv) {
@@ -17,7 +17,7 @@ export async function runBridge(argv) {
   const args = {};
   for (let i = 0; i < rest.length; i++) {
     const key = rest[i].replace(/^--/, '');
-    if (flags.has(key)) args[key] = true;
+    if (flags.has(key)) args[key.replaceAll('-', '_')] = true;
     else if (values.has(key) && rest[i + 1] !== undefined) args[key] = rest[++i];
     else throw new Error(`Unknown or incomplete option: ${rest[i]}`);
   }

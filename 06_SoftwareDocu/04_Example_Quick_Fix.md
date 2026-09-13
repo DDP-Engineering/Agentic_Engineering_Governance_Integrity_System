@@ -9,8 +9,8 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 The quick path is `frame -> build -> validate -> deliver`. It omits specify
 and design only when the fix meets the installed frame step's eligibility
-rules. Autopilot skips the frame checkpoint; it preserves deviation notices,
-review policy and the delivery checkpoint.
+rules. Autopilot skips intermediate stage-choice checkpoints; it preserves
+deviation notices, review policy and the delivery checkpoint.
 
 ## You say
 
@@ -49,10 +49,15 @@ Then capture the red-test state before changing implementation:
 python .agentic/aegis.py anchor --task TASK-c3d1a2b4
 ```
 
+Prepare the project's documented test environment. The commands below assume
+its impacted runner honors the linked references. Preview selection with
+`test --impacted --base HEAD --dry-run` if needed. If `--no-fallback` refuses
+selection, use a native focused command; it did not run tests or record proof.
+
 Correct the heading, run focused proof and inspect the repository changes:
 
 ```sh
-python .agentic/aegis.py test --impacted --base HEAD
+python .agentic/aegis.py test --impacted --base HEAD --no-fallback
 python .agentic/aegis.py evolution --task TASK-c3d1a2b4
 ```
 
@@ -63,8 +68,10 @@ The IDs, paths and commands are a worked example, not recorded test results.
 
 ## Validate: review the final candidate
 
-Review the change and its tests. If the component description is still accurate,
-record why its knowledge page needs no change. Refresh evolution after any
+Review the change and its tests against the existing contract. Reconcile affected
+project/environment context and component descriptions with the candidate,
+leaving unchanged sections untouched. Current prose states actual behavior;
+the journal carries repair history. Refresh evolution after any
 later candidate edit. Run final configured proof once:
 
 ```sh

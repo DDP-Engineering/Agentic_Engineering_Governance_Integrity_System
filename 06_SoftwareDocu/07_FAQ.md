@@ -17,7 +17,7 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.11.0 source combines staged instructions, evidence-led idea capture,
+The 0.13.0 source combines staged instructions, evidence-led idea capture,
 requirements, linked tests, journals, repository evolution, review policy and
 a Python CLI. Its five host integrations add native entry points and shared
 verification jobs. Core records live in Git; installed host resources and job
@@ -41,6 +41,12 @@ read more. A `summary` is recorded information, not fresh proof or approval.
 Local verification jobs and uncommitted files do not travel with Git.
 
 ## What belongs in the task Log?
+
+Project and component documents hold current positive behavior and actual setup.
+Populate `context/project.md` and `context/environment.md` at frame/adoption,
+update affected facts when implementation or setup changes, and reconcile at
+validate. Draft/task records hold proposals; journals and Git retain history.
+See [project context](Project_Context.md) for examples and ownership.
 
 Only durable progress and evidence: stage transitions, material changes or
 decisions, consolidated test results, blockers, approvals, deviations, and the
@@ -94,8 +100,9 @@ or delivery approval.
 ## What about a requirement no test can verify?
 Say so in the requirement. Start its `verification` with `Manual:` or
 `Inspection:` and name the method ("Manual: install on a clean laptop and
-read the splash screen"), and `check` records it as verified by hand
-instead of listing it among the tests you still owe. It stays a NOTE -
+read the splash screen"), and `check` classifies it as a named manual method
+instead of listing it among missing automated tests. The label does not prove
+that the method was performed; record its action and observed result separately. It stays a NOTE -
 printed and counted on every run, but never promotable to a `--strict`
 failure, so review of the method remains necessary. The honesty is on you: a
 test you have not written yet is not a manual method, and writing
@@ -164,11 +171,13 @@ an area with no requirement - that's a signal to add one, not a
 punishment.
 
 ## What are the pauses? Can I turn them off?
-Two by default: after `frame` (scope confirmation) and before the
-delivery commit/PR. Say "autopilot to deliver" and only the pre-PR stop
-remains. The pauses are conversational instructions, not mechanisms -
-your agent CLI's own permission system is unaffected and unchanged.
-Autopilot suppresses the frame *stop*, not the agent's voice: deviation
+By default, the workflow stops after every stage and presents concrete choices
+to continue, revise or return, or pause. Set `[interaction] autopilot = true`
+in `.agentic/aegis.toml`, or explicitly request autopilot for one task, to flow
+between intermediate stages. Missing or invalid settings mean autopilot is off.
+The pre-publication stop always remains. These pauses are conversational
+instructions, not mechanisms; your agent CLI's permission system is unchanged.
+Autopilot suppresses intermediate stops, not the agent's voice: deviation
 notices still arrive mid-run, and delivery still presents every one of
 them in full.
 
@@ -271,6 +280,30 @@ can survive a session restart; adapters using the same cache prevent a second
 job in the same checkout. External suites are outside that protection. Do not
 erase an uncertain reservation merely to retry. A changed candidate invalidates
 final-proof use even when the recorded command exited zero.
+
+## Can I avoid running the full suite after every edit?
+
+Yes. Use project-native focused tests during build, then full strict verification
+after final edits and review. `test --impacted --base HEAD --dry-run` previews
+selection without executing it. Add `--no-fallback` to an impacted run to refuse
+unavailable selection; without it, the full command remains the fallback. The
+runner must honor the selected references. A preview, refusal or cancelled job
+is not passing evidence, and later candidate changes still require fresh proof.
+
+## Can I remove handoffs and saved metadata to save tokens?
+
+Keep the required handoffs and evidence. New records omit marked template-only
+notes, and stage files refer to shared instructions. Record consolidated outcomes
+instead of tool transcripts; keep handoffs short and refresh them at boundaries,
+pauses, blockers and session ends. `evolution --compact --json` reduces response
+text while keeping full saved fingerprints. Existing journals are not compacted,
+and actual end-to-end token savings have not been measured.
+
+## Does AEGIS configure the test environment for any project?
+
+No. The project owns its toolchain, readiness checks and runner commands. AEGIS
+neither installs dependencies nor translates framework-specific selectors.
+Configure and verify focused routing during [setup](01_Install_and_Setup.md#verify-focused-routing-before-using-it).
 
 ## Does every edit require AEGIS?
 

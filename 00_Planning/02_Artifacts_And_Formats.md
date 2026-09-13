@@ -25,14 +25,35 @@ records; those records do not replace the authoritative task journal.
   specs/                                      repository-owned optional detail
   tasks/                                      repository-owned journals and JSON evidence
   knowledge/                                  repository-owned component pages
+  context/project.md, context/environment.md   repository-owned current context
 ```
 
-Exactly 15 files are managed by the payload: `AGENTS.md`, `CLI.md`,
-`LICENSE.txt`, `aegis.py`, seven step files, and four templates. A payload
+Exactly 17 files are managed by the payload: `AGENTS.md`, `CLI.md`,
+`LICENSE.txt`, `aegis.py`, seven step files, and six templates. A payload
 upgrade replaces only those managed files. It preserves `aegis.toml`,
-requirements, specs, tasks, anchors, evolution reports, and knowledge pages.
+requirements, specs, tasks, anchors, evolution reports, knowledge pages, and
+current project/environment context. `init` scaffolds each missing context
+file; existing files retain their bytes. Context and component pages describe
+current positive facts. Draft/task records hold proposals; journals and Git
+retain history.
 Run `python .agentic/aegis.py init` after a payload update to refresh the
 managed root digests in `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`.
+
+## Current project context
+
+For the current-context format and lifecycle, see
+[Project context](../06_SoftwareDocu/Project_Context.md). Both files use UTF-8
+Markdown with stable headings. The profile holds purpose, responsibilities,
+supported operation, constraints and entry points; the environment guide links
+toolchain, setup, readiness and verification. `aegis.toml` and existing setup
+documents remain canonical for commands and values.
+
+Frame/adoption populates confirmed facts. Build updates affected facts as changes
+become real; validate reconciles current context, component pages and active
+contracts. Pause/resume state stays in the journal/Handoff. Brief exposes file
+presence only. Shared current documents retain one positive behavior statement,
+including meaningful error/security responses, rather than alternatives or
+change history. Suspected defects belong in task findings pending clarification.
 
 ## Integration packages and installed files
 
@@ -65,7 +86,7 @@ someone's installed profile.
 Package setup supports explicit profile/runtime paths. Update and removal
 validate owned content and refuse unsafe collisions or active/uncertain jobs;
 they preserve unrelated settings. Codex and Claude also validate their native
-AEGIS caches, refusing added, edited or missing content. The 15-file core
+AEGIS caches, refusing added, edited or missing content. The 17-file core
 payload and each host package have separate update procedures.
 
 ## Verification job cache
@@ -96,6 +117,7 @@ thereafter. The implemented configuration surface is:
 | `[timeouts]` | Optional per-command limits overriding `[commands] timeout`. A timeout means the command proved nothing; it is not reported as a test failure. |
 | `[layout]` | `source`, `tests`, and optional `docs` globs drive traceability/layout checks. `default_branch` can select the diff base. |
 | `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 5 (default 2). |
+| `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; publication authority applies in both modes. |
 | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
 | `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
 
@@ -128,7 +150,31 @@ secret_patterns_extra = []
 strict_promote = ["no-linked-tests"]
 ```
 
+The commands are examples for a Python project, not built-in runner choices.
+Each project owns toolchain setup and a runner that understands its linked
+references. `test --dry-run` previews the selected command and working directory;
+`test --impacted --no-fallback` refuses unavailable selection. Neither a preview
+nor a refusal writes test evidence. These are invocation options, not new TOML
+keys. Unsupported selector suffixes may broaden to a validated file reference;
+unsafe file paths still require a project-native command.
+
+## Lean generated records
+
+`task`, `req` and context scaffolding in `init` omit marked authoring notes.
+Markdown templates use `<!-- AEGIS:TEMPLATE` blocks with a standalone closing `-->`;
+requirement templates use `# AEGIS:TEMPLATE-BEGIN` / `# AEGIS:TEMPLATE-END`.
+The complete field guidance stays in the managed templates. Licenses, durable
+fields and unmarked data are preserved. Existing journals and requirements are
+not compacted or rewritten, and their data formats are unchanged.
+
 ## Requirements and specifications
+
+Active contracts describe the implemented behavior positively, with explicit
+triggers and responses for important error/security cases. Draft records hold
+agreed proposals. Resolve spec open decisions before activation and retain their
+decision trail in the journal. Retired records remain available for traceability
+and are excluded from current behavior summaries. Preserve established contracts
+when implementation disagrees; resolve the finding or obtain change authority.
 
 One TOML requirement expresses one independently verifiable behavior:
 
@@ -224,7 +270,10 @@ transitions, pauses or session ends, and blockers—not after routine work.
 `anchor --task` writes `TASK-<id>.anchor.json`, a SHA-256 starting-point
 fingerprint. `evolution --task` writes the corresponding
 `TASK-<id>.evolution.json` comparison. These are durable inspection
-evidence, not a replacement for review.
+evidence, not a replacement for review. `evolution --compact --json` omits
+before/after hashes from the response and retains paths, statuses, areas and
+counts. The saved comparison remains complete; ordinary `--json` retains its
+existing detail. Anchor coverage and storage have not been narrowed.
 
 Each component page under `knowledge/` routes matching requests through
 selection signals to the component's owned source and focused tests. It records

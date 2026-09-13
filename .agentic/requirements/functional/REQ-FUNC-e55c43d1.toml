@@ -69,6 +69,7 @@ affected_paths = [
 # these select the impacted regression set.
 linked_tests = [
     "05_Software/aegis/tests/test_run_report.py::test_brief_has_fixed_section_order_and_no_side_effects",
+    "05_Software/aegis/tests/test_run_report.py::test_brief_context_is_optional_bounded_and_read_only",
     "05_Software/aegis/tests/test_run_report.py::test_brief_reads_only_durable_workspace_files",
     "05_Software/aegis/tests/test_run_report.py::test_brief_renders_legacy_journal_without_guessing",
     "05_Software/aegis/tests/test_run_report.py::test_brief_lists_active_rulings_and_sorted_visible_children",
@@ -89,4 +90,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-31
-updated = 2026-08-31
+updated = 2026-09-10

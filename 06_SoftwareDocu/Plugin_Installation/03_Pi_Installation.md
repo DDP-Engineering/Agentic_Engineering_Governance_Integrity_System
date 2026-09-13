@@ -6,11 +6,12 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Install AEGIS for Pi
 
-**Applies to:** AEGIS 0.11.0 release package
+**Source version:** AEGIS 0.13.0
+**Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
 
-This guide installs the complete AEGIS package for Pi. It does not publish the plugin or modify the selected project’s Git history.
+This guide installs the complete AEGIS package for Pi in the user's host profile. Repository Git operations and package publication require their own authority.
 
 ![Five-step installation flow for Pi](assets/03_Pi_flow.png)
 
@@ -23,20 +24,22 @@ AEGIS has two separate parts:
 1. The **core workflow** belongs in every target Git repository as `.agentic/`.
 2. The **host plugin** belongs in each user’s harness profile and provides the AEGIS entry points.
 
-Install the core from `aegis-0.11.0-windows.zip` or `aegis-0.11.0-linux.tar.gz`. Copy its `.agentic/` directory to the repository root, then run:
+Use the core payload from the supplied release, or `05_Software/aegis/template/.agentic/` when installing from this source checkout. Copy `.agentic/` to the target repository root, then run:
 
 ```text
 python .agentic/aegis.py init
 ```
 
+`init` creates each missing `context/project.md` and `context/environment.md` and preserves existing project files. Populate verified current purpose, responsibilities and setup during frame/adoption. Keep proposals in draft/task records and history in journals/Git. Configure actual verification commands and layout in `.agentic/aegis.toml`; see [Project context](../Project_Context.md).
+
 Use `python3` on Linux when that is the available command. Git, Python 3.11+ and Node.js 22+ must be visible to the harness. Install and authenticate the host application with the user’s own account/provider first. The AEGIS package includes no subscription, API key, model configuration or machine-specific runtime settings.
 
-Verify the archive digest against `07_Delivery/dist/SHA256SUMS`. Do not use a raw integration source directory: only the assembled delivery archive contains the complete shared library.
+Verify an archive against the checksum manifest supplied with that delivery. Use a complete assembled package with its shared libraries. The package manifest and README identify the actual version and supported installation options.
 
 
 ## 1. Choose and extract the package
 
-Use `AEGIS-Pi-0.11.0-windows.zip` on Windows or `AEGIS-Pi-0.11.0-linux.tar.gz` on Linux. Extract the archive completely. The resulting folder is named `aegis-pi` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
+Select the complete package for this host and operating system from the supplied delivery. Extract the archive completely. The resulting folder is named `aegis-pi` and must contain `setup.mjs`, `Install-AEGIS.cmd`, `install.sh`, `README.md` and `lib/` or `plugins/aegis/lib/`.
 
 Do not run installation from inside the ZIP viewer. Open a terminal in the extracted package directory.
 
@@ -57,7 +60,7 @@ node setup.mjs install
 The owned package is copied beneath `PI_CODING_AGENT_DIR/extensions/aegis` (normally `~/.pi/agent/extensions/aegis`). Unrelated configuration and credentials are preserved. If automatic discovery needs help, use:
 
 ```text
-`node setup.mjs install --config-dir <pi-config> --host-cli <pi-executable-or-cli.js>`
+node setup.mjs install --config-dir <pi-config> --host-cli <pi-executable-or-cli.js>
 ```
 
 Executable and profile paths may contain spaces; quote them in the active shell.
@@ -77,12 +80,7 @@ From the extracted package directory run:
 node setup.mjs doctor
 ```
 
-`node setup.mjs doctor` reports Pi, five commands, eleven tools and `models_invoked: false`. The evidence image below comes from an isolated Windows profile using Pi 0.84.4.
-
-![Recorded package installation evidence for Pi](assets/03_Pi_evidence.png)
-
-*Figure 2. Historical 0.9.1 package verification recorded on 2026-09-03; rerun `doctor` for the 0.11.0 delivery. Paths are replaced with placeholders; results are not simulated.*
-
+`node setup.mjs doctor` reports Pi, five commands, eleven tools and `models_invoked: false`.
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
 ## 5. Update or remove
@@ -116,4 +114,4 @@ Update and removal refuse edited/missing owned files and active or uncertain ver
 - [Pi documentation](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/index.md)
 - [Pi packages and extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md)
 
-For AEGIS-specific behavior, the packaged `README.md`, `06_SoftwareDocu/Agent_Plugins.md` and `07_Delivery/aegis-0.11.0/BUILD.md` are authoritative for this release.
+For AEGIS-specific behavior, use the supplied package's `README.md`, the installed core contract and [agent plugin guide](../Agent_Plugins.md). Dated verification evidence belongs in [delivery records](../../07_Delivery/README.md), separately from these setup instructions.

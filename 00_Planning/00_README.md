@@ -8,14 +8,13 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS implementation overview
 
-Status as of **2026-09-04**: the assigned project version is **AEGIS 0.11.0**.
-It includes the core, five optional host integrations, and the workflow-prompt
-improvements for evidence-led idea capture and bounded offline models. The
-current core also provides title-only component discovery, material-impact
-deviation notices, and compact progress-and-evidence task logs that exclude
-routine tool activity and duplicated artifact content. The last generated
-delivery set remains `0.10.0`; no integration package has been published to a
-registry for `0.11.0`.
+The assigned source version is **AEGIS 0.13.0**. It includes the core and five
+optional host integrations, evidence-led stage artifacts, focused verification,
+compact progress records, current project/environment context and bounded
+component discovery. Checkpoint mode presents user choices after every stage;
+configured autopilot continues between stages while publication approval remains.
+Delivery packages and build records live under `07_Delivery/`. Source version
+assignment and delivery construction are separate operations.
 The runnable product is at `05_Software/aegis/`; the reusable core payload is
 `05_Software/aegis/template/.agentic/`; host adapters are under
 `05_Software/aegis/integrations/`; user guides are under `06_SoftwareDocu/`.
@@ -81,18 +80,30 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 - Existing-repository adoption is a separate `survey -> components -> close
   -> done` flow, not a seventh ordinary stage.
 - Frame cards, requirement-coverage tables, designs, requirements,
-  specifications, journals, knowledge pages, anchors, and evolution reports
+  specifications, journals, current project/environment context, knowledge pages,
+  anchors, and evolution reports
   are plain files below `.agentic/`.
 - A journal Log retains only stage outcomes, material engineering changes,
   consolidated verification, blockers, approvals, deviations, and delivery;
   dedicated artifacts hold the detail and routine execution stays out.
+- Build uses project-native focused tests or a configured runner that honors
+  impacted references. `--dry-run` previews execution; `--no-fallback` refuses
+  a full-suite fallback. Full strict verification follows final edits and review.
+- New task/requirement/context records omit marked template-only notes; existing records
+  and full saved fingerprints remain intact. Compact output is a presentation
+  choice, not evidence deletion or automatic test-result reuse.
 - `check` is advisory by default. `check --strict` is the optional CI
   boundary that fails on errors and configured promoted warnings.
 - Explicit review is optional policy, not a stage. When enabled it records
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop; ordinary validation remains required either way.
-- `brief` is the bounded resume view; `summary` is the narrower projection
-  of the latest recorded stage report.
+- Project and component documents describe actual positive behavior and setup.
+  Frame/adoption populates known facts, build updates affected facts and validate
+  reconciles them against the candidate and established requirements. Proposed
+  capabilities remain in draft/task records.
+- `brief` is the bounded resume view, including current-context paths and
+  presence without reading their bodies. `summary` projects the latest recorded
+  stage report.
 - `components` is a read-only, no-argument title-and-path catalogue for
   selecting concise component knowledge before exact source and tests. It
   creates no metadata registry and does not choose a component automatically.
@@ -111,7 +122,7 @@ AEGIS, under the maintainer's scope instruction.
 | [02_Artifacts_And_Formats.md](02_Artifacts_And_Formats.md) | Ownership split, directory layout, configuration, and durable formats. |
 | [03_Companion_CLI.md](03_Companion_CLI.md) | Core CLI commands, separate host operations, and execution boundaries. |
 | [04_Collaboration_And_Small_Models.md](04_Collaboration_And_Small_Models.md) | Branch-based collaboration and bounded re-entry for constrained models. |
-| [05_Implementation_Phases.md](05_Implementation_Phases.md) | Released and unreleased implementation, verification scope, and maintenance. |
+| [05_Implementation_Phases.md](05_Implementation_Phases.md) | Current capabilities, verification routes, ownership and maintenance. |
 
 Start with the [user guide index](../06_SoftwareDocu/00_Index.md) or
 [agent package guide](../06_SoftwareDocu/Agent_Plugins.md) for installation.

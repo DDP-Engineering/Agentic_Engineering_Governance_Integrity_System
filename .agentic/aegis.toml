@@ -36,6 +36,11 @@ docs = [
     "CHANGELOG.md",
 ]
 
+[interaction]
+# Stop after every stage and present the next choices. Publication approval
+# remains required when this is true.
+autopilot = false
+
 [zones]
 # What each stage may write besides `.agentic/`, which every stage may
 # always write. Values name the globs above: "source", "tests". A stage

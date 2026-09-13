@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When an agent begins ordinary governed work, the workflow payload shall guide it through distinct framing, specification, design, build, validation, and delivery stages with durable journal state and a checkpoint before publication.
+When an agent begins ordinary governed work, the workflow payload shall guide it through distinct framing, specification, design, build, validation, and delivery stages with durable interaction state, user choices after every stage by default, optional configured autopilot, and a checkpoint before publication.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When an agent begins ordinary governed work, the workflow payload shall guide it
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspection: read AGENTS.md and steps 1 through 6, confirming the unchanged stage order and checkpoints, optional child integration, durable resume state, bounded review behavior, and separation of validation from delivery; run the linked structural tests."
+verification = "Inspect AGENTS.md, task/config handling, and steps 1 through 6; run linked CLI and structural tests proving unchanged stage order, autopilot missing/false/true behavior, durable task mode, stage-choice boundaries, optional child integration, and separation of validation from delivery."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -68,7 +68,7 @@ linked_tests = [
     "05_Software/aegis/tests/test_structure.py::test_six_stage_workflow_separates_validation_from_publication",
     "05_Software/aegis/tests/test_structure.py::test_build_stage_records_reproducible_red_evidence_without_git_witness",
     "05_Software/aegis/tests/test_structure.py::test_deliver_folds_close_out_into_a_local_only_delivery",
-    "05_Software/aegis/tests/test_structure.py::test_six_stage_workflow_and_two_checkpoints_are_unchanged",
+    "05_Software/aegis/tests/test_structure.py::test_six_stage_workflow_stops_at_each_stage_when_autopilot_is_off",
     "05_Software/aegis/tests/test_structure.py::test_parent_validates_integrated_visible_child_work",
 ]
 
@@ -81,4 +81,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-31
+updated = 2026-09-10

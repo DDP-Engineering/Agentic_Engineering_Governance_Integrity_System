@@ -15,6 +15,11 @@ the task journal that every later stage reads and updates.
 
 - The prompt itself, and anything it points at.
 - `.agentic/AGENTS.md` (stage table, artifact locations, interaction modes).
+- `.agentic/context/project.md` and relevant sections of
+  `.agentic/context/environment.md`, when present. Follow their authoritative
+  references; confirm facts against this checkout. Missing context is an
+  invitation to inspect, not a blocker. Populate only confirmed current facts
+  within scope; keep proposed features and unresolved questions in the Frame.
 - `python .agentic/aegis.py status` — an open task may already cover this.
 - `python .agentic/aegis.py components` when the prompt does not already name
   an exact component page; use its title-and-path list to choose candidates.
@@ -24,29 +29,12 @@ the task journal that every later stage reads and updates.
   legacy page without Routing, use its available sections only to locate the
   exact source and tests, and include page reconciliation in the task scope.
 
-**Stage report (completion or pause):** At this boundary, record only durable
-events allowed by the journal contract, update the header and checklist, and
-refresh the single `## Stage report` section in this task journal:
-At every stage transition or pause, append any new Ruling and refresh the Handoff;
-also refresh the Handoff for a blocker or session end.
-`stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
-`needs_user`, `spec_compliance`, `implementation_quality`, and `review_round`
-(plain one-line fields, no fences). Record the completed stage
-separately from `current`, which must match the header after any transition;
-use `paused` when waiting or ending a session. Other results are `in_progress`,
-`completed`, `blocked`, `skipped`. Run
-`python .agentic/aegis.py summary TASK-<id>` and copy its block before any
-detailed explanation. Unknown values stay blank (`not recorded`); refresh
-stale records and read omitted details before continuing. Preserve existing
-approval stops and immediate deviation notices; this report adds no new stop.
-
-**Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist, dedicated durable sections, and relevant log
-entries (stage outcomes, blockers, material changes and consolidated evidence);
-follow links to needed records.
-This stage's required full reads still apply. Use linked requirements and
-source as needed, not the whole register. Do not act on missing, stale, or
-shortened reporting without reviewing the full journal information.
+**Reporting and resume:** Follow `.agentic/AGENTS.md` sections "Resume a task",
+"Rulings and handoffs", and "Stage reporting". At transitions and pauses,
+update the current checklist, minimal Handoff and Stage report, then show
+`summary TASK-<id>`. Read required durable evidence; missing or shortened
+context requires review. This adds no approval stop and never defers a material
+deviation notice. Reuse unchanged instructions already read in this session.
 
 ## Frame card
 
@@ -125,11 +113,15 @@ Path and reason:
     behavior supports a success signal, no unknown became invented behavior,
     and scope, exclusions, examples, and path agree. Copy the Done checklist.
 12. Checkpoint mode: present the Frame card, chosen path, proposed behaviors,
-    assumptions, and decision-blocking questions, and wait for a yes. Describe
-    the result as scope acceptance, not implementation. Autopilot records the
-    same concise frame outcome and continues.
-13. Set `stage: specify` (full path) or `stage: build` (quick path), and
-    replace `## Done checklist` with the next stage's Done when list.
+    assumptions, decision-blocking questions and the `frame` Stage-boundary
+    choices from `AGENTS.md`; refresh the waiting Handoff and paused Stage
+    report, then stop. Describe the requested decision as scope acceptance, not implementation.
+    Autopilot records the same concise frame outcome and
+    continues without the intermediate menu.
+13. After the user chooses to continue, or immediately in autopilot, record
+    scope acceptance, set `stage: specify` (full path) or `stage: build`
+    (quick path), and replace `## Done checklist` with the next stage's Done
+    when list.
 
 **Outputs:**
 
@@ -147,7 +139,7 @@ Path and reason:
 - [ ] task branch established; `branch:` header matches the checkout
 - [ ] task journal created with a complete header
 - [ ] proposed behaviors map to the desired outcome and success signals
-- [ ] scope confirmed (checkpoint mode) or logged (autopilot)
+- [ ] scope confirmed by the user (checkpoint mode) or logged (autopilot)
 - [ ] `stage:` advanced
 
 **Skip when:** Never. Every task starts here, however small. If the prompt

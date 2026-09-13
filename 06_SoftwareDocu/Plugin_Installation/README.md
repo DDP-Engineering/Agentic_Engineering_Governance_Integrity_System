@@ -18,4 +18,14 @@ host-specific format:
 | Qwen Code | [Guide](04_Qwen_Code_Installation.md) | [PDF](pdf/04_Qwen_Code_Installation.pdf) |
 | Claude Code | [Guide](05_Claude_Code_Installation.md) | [PDF](pdf/05_Claude_Code_Installation.pdf) |
 
-Markdown is the maintained source. Generated PDFs are under `pdf/`. Figures under `assets/` include five installation diagrams, recorded/sanitized verification evidence for each package, and the unchanged OpenCode screen supplied by the user. The evidence refresh used isolated profiles and invoked no model. Claude installation was not repeated because its CLI was unavailable; that guide labels package-only evidence explicitly.
+Markdown is the maintained source for the current AEGIS 0.13.0 installation
+guidance. Generated PDFs live under `pdf/`; generic installation-flow figures
+live under `assets/`. Choose the actual supplied package by its manifest and
+checksum record. Source version assignment and archive construction are separate
+operations.
+
+The manuals cover repository core setup, project/environment context, per-user
+host installation and verification. Current procedures live here; dated package
+and host evidence lives in [delivery records](../../07_Delivery/README.md) and
+task records. Historical evidence assets remain preserved separately from the
+current installation instructions.

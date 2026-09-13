@@ -16,9 +16,9 @@ Authority and scope
 Entry and durable state
 1. Call aegis_status. For a named task call aegis_resume; for an unnamed request inspect open journals for overlap. Do not silently pick among several plausible tasks. Create a task with aegis_scaffold only when new work is required.
 2. Read the current step with aegis_read document=step, the journal and Handoff must_read files. Resume follows the first unticked current-stage checklist item; a slash command never advances a stage by itself. Full journal reads for validate/deliver remain required.
-3. Follow the installed full or quick path. Frame writes the scope and proposed requirements before the normal frame checkpoint. User approval of an existing concrete frame need not be requested again. Explicit "autopilot to deliver" suppresses the frame pause only. Preserve the pre-publication checkpoint and other explicit user constraints.
+3. Follow the installed full or quick path and resolved interaction mode. Missing or invalid `[interaction].autopilot` means off. In checkpoint mode stop after every stage and present the installed choices; in autopilot flow between stages. Persist explicit user overrides in the journal. Preserve the pre-publication checkpoint and other explicit user constraints in both modes.
 4. Maintain the standard journal with native file edits: header, current stage checklist, append-only Log and Rulings, replaceable Handoff and Stage report. AEGIS has no generic stage-mutation CLI. Never invent a machine.input command. The coordinator alone owns this journal; reviewers return findings.
-5. Update Handoff and Stage report at transitions, pauses and session end. Run aegis_summary and show its text before details. Preserve missing evidence as not recorded. Emit required DEVIATION notices immediately. Neither reports nor deviations introduce extra approval gates.
+5. Update Handoff and Stage report at transitions, stage-choice boundaries, pauses and session end. Run aegis_summary and show its text before details. Preserve missing evidence as not recorded. Emit required DEVIATION notices immediately. Reports and deviations do not add stops beyond the configured stage boundaries.
 
 Build and validation
 - Use meaningful red tests before implementation, record the real failure, then aegis_evidence action=anchor at the installed step's required point. Fix the cause, link verification to requirements, and use impacted testing where appropriate. Refresh evolution after candidate edits. Never manufacture red-test history.
@@ -37,3 +37,32 @@ Independent review
 
 Completion
 Present the validated candidate, actual verification scope/results, remaining issues and next authorized action. Never claim GUI behavior verified from backend tests alone. Deliver is publish-only: candidate changes return to validation. Stronger prompts and adapter tools guide execution; they do not guarantee model compliance or grant Git authority.
+
+## Current project context
+
+Read the installed contract's current-context guidance. At frame/resume, open
+`.agentic/context/project.md` and relevant `context/environment.md` sections
+when present, then follow selected component and source/test references.
+Older payloads may omit these files. Keep project/component documents and
+active requirements/specs about current positive behavior. Draft/task records
+hold proposals; journals and Git retain history. Preserve established contracts.
+Update affected facts when implementation/setup changes and reconcile at
+validate; `aegis.toml` remains canonical for configured commands and layout.
+
+## Efficient verification
+
+Use the repository's documented setup/readiness checks before testing in a new
+checkout; do not repeatedly start full suites to diagnose missing tools or services.
+Use focused native commands during build. On a payload whose `test --help` exposes
+these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
+(or bridge `--impacted --no-fallback`). The project runner must actually honor
+selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
+An unavailable selection requires a focused project command or deferred full proof,
+not a claim that tests passed. Start full validation after candidate edits and
+review; do not run a separate full suite immediately beforehand. Preserve the
+installed final-proof contract and rerun when the final candidate changes.
+For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
+while preserving complete saved evidence. These options are opt-in; with an older
+payload, use native focused commands and its supported evidence format.
+Reuse unchanged instructions in an intact session, maintain a short Handoff, and
+poll the existing job at useful intervals instead of launching duplicate suites.

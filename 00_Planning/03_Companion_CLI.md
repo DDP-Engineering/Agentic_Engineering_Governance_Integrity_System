@@ -26,17 +26,17 @@ semantics remain those of the target repository.
 
 | Command | Read/write boundary | Use |
 |---|---|---|
-| `init [--git]` | Creates missing data folders/config and refreshes managed root digests. | Finish install or refresh root pointers after a payload upgrade. |
+| `init [--git]` | Creates missing data folders/config and each missing context scaffold, preserves existing project files, and refreshes managed root digests. | Finish installation or upgrade. |
 | `task <title> [--type] [--parent]` | Writes a new journal. | Start governed feature, fix, change, or adoption work. |
 | `req <category> <title>` | Writes a new requirement scaffold. | Add a durable behavior contract. |
 | `anchor --task` | Writes/replaces the active anchor JSON. | Capture the known starting point before implementation. |
-| `evolution --task` | Writes the matching evolution JSON. | Compare current repository state with the active anchor. |
+| `evolution --task [--json] [--compact]` | Writes the matching evolution JSON. | Compare current repository state with the active anchor. |
 | `status [task] [--all] [--json]` | Read-only. | List journals or inspect one task. |
 | `brief <task>` | Read-only deterministic bounded resume view. | First when resuming a task. |
 | `summary <task>` | Read-only latest stage-report projection. | After recording a stage completion, pause or session end, or blocker. |
 | `components` | Read-only title-and-path catalogue of component knowledge pages. | Choose which concise component page to inspect. |
 | `check [--task] [--strict] [--run] [--full] [--json]` | Read-only unless `--run` executes configured commands. | Advisory governance feedback or CI proof. |
-| `test [name] [--impacted] [--base] [--task]` | Runs one configured command; `--task` appends that result to the journal Log. | Focused build loop or deliberately retained verification evidence. |
+| `test [name] [--impacted] [--no-fallback] [--dry-run] [--base] [--task]` | Runs one configured command; `--task` appends its result. A preview or fallback refusal runs no command and writes no test evidence. | Inspect selection, run focused build checks, or retain consolidated verification evidence. |
 | `report <task>` | Appends a delivery report to the journal. | After validation, before a granted delivery action. |
 | `diagram [--component] [--task] [--out]` | Read-only unless `--out` writes the Mermaid text. | Inspect requirement coverage. |
 | `trace [--format {md,csv}] [--out PATH]` | Read-only unless `--out` writes the export. | Export the requirement register with coverage and ownership. |
@@ -50,7 +50,9 @@ Use `test` without `--task` for ordinary inner-loop retries. Supply `--task`
 only when that individual run is the durable consolidated red, focused green,
 or final verification result the journal should retain. The option records
 every invocation it receives; it does not decide whether a run is material or
-deduplicate retries.
+deduplicate retries. Generated tasks, requirements and context files omit marked template-only
+authoring notes while retaining licenses and data fields; existing records are
+never rewritten by scaffolding.
 
 ## Resume commands are complementary
 
@@ -58,12 +60,19 @@ deduplicate retries.
 
 | Command | Output | What it is for |
 |---|---|---|
-| `brief TASK-<id>` | Task identity, stage, branch/base, requirements, checklist, bound stage report, review policy, rulings, handoff, visible children, and details pointer. | Bounded re-entry before reading the current step and handoff sources. |
+| `brief TASK-<id>` | Task identity, stage, branch/base, parent, requirements, context paths/presence, checklist, bound stage report, interaction mode, review policy, rulings, handoff, visible children, and details pointer. | Bounded re-entry before reading current context, the step and handoff sources. |
 | `summary TASK-<id>` | The latest bound stage report: result, current stage, changes, evidence, issues, next action, user need, review fields, and details pointer. | Compact reporting after a stage completion, pause or session end, or blocker. |
 
 Both commands are deterministic reads of durable files. Neither runs tests,
 consults Git, writes state, proves that the candidate is still valid, or grants
 authority. A truncation/stale marker means read the full journal.
+
+Context lists `.agentic/context/project.md` and `.agentic/context/environment.md`
+as `present` or `not recorded`. Brief reads neither body and creates nothing.
+Presence establishes the file's existence, not its accuracy or completeness.
+Read the profile and relevant environment sections, then follow selected
+component, requirement, source and test links. Legacy projects may omit either
+file. The full fixed output order is documented in `.agentic/CLI.md`.
 
 ## Component catalogue
 
@@ -80,12 +89,31 @@ the bounded CLI error path without partial output.
 `test` runs the named `[commands]` entry (default `test`). With
 `--impacted`, it uses the selected requirement-linked tests; with an empty
 selection or no `test_impacted` command, it falls back to the full suite and
-states why. `--base HEAD` limits impact selection to uncommitted work.
+states why unless `--no-fallback` was requested. That option requires
+`--impacted` and exits 1 before execution when selection is unavailable.
+`--base HEAD` limits impact selection to uncommitted work.
+
+`--dry-run` prints the selected command and working directory without executing
+or appending a journal result. Exit zero means the preview succeeded, not that
+tests passed. Combined with `--no-fallback`, unavailable selection still exits 1.
+
+Unsupported selector suffixes, including names with spaces, quotes or Unicode,
+are discarded in favor of the validated test file. Duplicate references to a
+broadened file become one argument. Unsafe or repository-escaping file paths
+are not interpolated. AEGIS does not translate test frameworks: the configured
+runner must honor both file references and any supported exact selectors.
+Paths containing spaces still need a native project command.
+
+Build uses focused native commands or verified impacted routing. The instructions
+schedule full strict verification after final edits and review, avoiding a separate
+full `test` immediately beforehand. Environment preparation uses project-owned
+readiness checks and the environment guide's canonical references. Configured
+commands, paths and timeouts remain authoritative in `aegis.toml`.
 
 `check --run` executes eligible plain `[commands]` entries. Template
-commands containing `{`, reserved `timeout`/`workdir` keys, and
-side-effect-looking names are skipped unless `[check] run` explicitly allows
-them. `[timeouts]` and `[commands] timeout` bound command duration. A
+commands containing `{` and reserved `timeout`/`workdir` keys are always
+skipped. Side-effect-looking command names are skipped unless `[check] run`
+explicitly allows them. `[timeouts]` and `[commands] timeout` bound command duration. A
 timed-out command proves nothing; a command that completes unsuccessfully is a
 `command-failed` error.
 
@@ -121,14 +149,22 @@ python .agentic/aegis.py init
 ```
 
 Plain `init` does not create a Git repository. `init --git` does so only
-when explicitly requested. An upgrade replaces the 15 managed payload files,
-preserves repository-owned records and `aegis.toml`, and then reruns
+when explicitly requested. An upgrade replaces the 17 managed payload files,
+preserves repository-owned context, records and `aegis.toml`, and then reruns
 `init` to refresh root digests. Review the repository diff before any commit.
+
+`init` creates `context/project.md` and `context/environment.md` independently
+from their managed Markdown templates only when absent. Existing bytes, including
+empty files, are preserved. Scaffolds provide headings, not inferred project
+facts. Populate current facts during frame/adoption and reconcile affected
+sections as implementation or setup changes. History stays in task/Git records.
 
 Machine-readable JSON is available for `anchor`, `evolution`, `status`,
 and `check`. Each emits one schema-versioned document on stdout; `check
 --run` sends command progress to stderr so stdout remains parseable.
-`trace` exports Markdown (default) or CSV, not JSON.
+`trace` exports Markdown (default) or CSV, not JSON. For evolution,
+`--compact --json` returns paths, statuses and areas without before/after hashes;
+the saved evidence remains complete. Ordinary JSON output is unchanged.
 
 ## Separate host operations
 
@@ -157,6 +193,13 @@ command name, never arbitrary shell text supplied to the adapter. Poll `job`
 until completion and inspect the full result and candidate comparison. A
 static check, successful job submission or exit zero with a changed candidate
 does not establish final proof.
+
+For impacted `kind: test` runs, `no_fallback: true` forwards `--no-fallback`.
+`kind: validate` rejects selection overrides. The evidence operation accepts
+`compact: true` only for evolution. The Codex bridge spells these options
+`--no-fallback` and `--compact`. They are opt-in and require a supporting
+payload; default calls keep compatibility with older payloads. Preview directly
+through the payload CLI rather than creating a verification job.
 
 For example, from a complete installed Codex plugin:
 

@@ -25,6 +25,10 @@ tracking; they do not synchronize uncommitted work between machines.
   reviewable. They are evidence files, not locks.
 - `check` after merge is the reconciliation tool: it can expose duplicate
   IDs, dangling references, uncovered paths, stale links, and scope drift.
+- Project/environment context and component pages are shared current-state
+  documents. Each branch edits only affected facts. After integration, reconcile
+  those facts with the combined implementation and established requirements.
+  Journals and Git retain decisions/history; draft records hold proposed behavior.
 - Child tasks are opt-in and only one level deep. Their `parent:` links are
   child-side, each child keeps independent evidence, and the parent validates
   the integrated candidate. Only children visible in the current checkout are
@@ -42,7 +46,9 @@ models:
 
 1. Run `status` if the task identifier is unknown.
 2. Run `brief TASK-<id>`.
-3. Read the current step file and the Handoff `must_read` paths.
+3. Read `.agentic/context/project.md` and relevant
+   `.agentic/context/environment.md` sections when present, then the current
+   step file and Handoff `must_read` paths.
 4. Load only linked requirements, specifications, knowledge, source, and tests
    that the current step needs.
 5. Read the full journal whenever the brief is shortened, stale, incomplete,
@@ -54,9 +60,24 @@ characters and makes truncation explicit. `status` lists up to twenty open
 journals by default; `check` prints up to forty findings unless `--full`
 or `--strict` requests all findings.
 
+Brief includes only the two context paths and their file presence. Read selected
+references instead of preloading the project. Missing files remain compatible
+with legacy projects; empty sections remain valid until facts are established.
+Describe actual responsibilities and behavior positively, and keep uncertainty
+in the task rather than filling shared documents with speculative features.
+
 These bounds reduce avoidable context use; they are not a tokenizer-specific
 context guarantee and never allow an agent to skip required source, evidence,
-or full-journal reads.
+or full-journal reads. Within an intact session, reuse unchanged documents
+already read and inspect changed sections with their relevant earlier decisions
+and evidence. Compaction or lost context requires durable re-entry again.
+Step files reference the shared reporting/resume instructions instead of copying
+them; Handoff remains required and should contain only the next action and
+necessary paths, rather than repeated Frame, Design or Log content.
+
+Fresh task, requirement and context scaffolds omit marked authoring notes. Evolution can
+return compact paths/statuses/areas while retaining complete fingerprints on disk.
+These reduce text volume; actual end-to-end token savings have not been measured.
 
 The current prompt contract is designed to remain practical with a minimum
 64K context budget. It does this through compact durable records rather than a
@@ -86,14 +107,15 @@ For a constrained model, one stage per session is a practical operating
 pattern:
 
 ```text
-brief -> current step -> handoff must_read -> first unticked action
+brief -> current context -> current step -> handoff must_read -> first unticked action
 -> update Log, Handoff, and Stage report -> summary -> stop
 ```
 
 The prompt cheatsheet in `.agentic/AGENTS.md` and
 `06_SoftwareDocu/08_Prompt_Cheatsheet.md` provides stage-scoped prompts.
-A larger model may continue through several stages, but the same durable
-records must be updated at each pause or transition.
+Checkpoint mode uses this shape by default for every model. Configured
+autopilot may continue through several stages, but the same durable records
+must be updated at each pause or transition.
 
 ## Decisions, authority, and review
 
@@ -115,10 +137,13 @@ fix-and-re-review rounds. It does not create a review stage or replace
 `validate`; ordinary semantic review, focused/full proof, strict checking,
 and the delivery checkpoint still apply.
 
-Checkpoint mode retains the end-of-frame and pre-delivery approval boundaries.
-Autopilot can suppress the frame stop only when the user requests it. Immediate
+Checkpoint mode stops after every stage and presents concrete continue, revise
+or return, and pause choices. `[interaction] autopilot = false` is the default,
+including for legacy configurations with no interaction table. Autopilot flows
+between intermediate stages when configured or explicitly requested. Immediate
 `DEVIATION` notices for material scope, implementation, contract, or
-verification departures remain visible in either mode. Corrected internal tool
+verification departures and pre-publication approval remain visible in either
+mode. Corrected internal tool
 errors are operational detail—neither deviations nor journal events. Expected
 red tests are ordinary test-first evidence and are consolidated by meaningful
 behavior increment.
@@ -162,14 +187,22 @@ checkout. They survive host restarts but do not lock other machines or detect
 manually launched test suites. Inspect uncertain processes before restarting
 verification. Retain one consolidated material outcome in the journal so
 another machine has durable evidence; keep polling detail, retries, and raw
-output in the local job cache.
+output in the local job cache. Poll at useful intervals, reusing the same job,
+rather than repeatedly reopening its unchanged output. Record fresh proof for
+the candidate being delivered.
+
+Prepare the project's documented environment before verification, use focused
+build tests, and run full strict verification after final edits and review.
+An unchanged fingerprint during a cancelled job does not establish that an
+earlier successful run covered the final candidate or its environment.
 
 The core works offline. Model-driven host sessions use the user's selected
 provider and may require network access. No models are bundled. Package
 verification has exercised backend/native resources without model requests;
 complete model-led workflows and reviewer behavior, including small-model
 compliance, remain unverified. See
-[implementation status](05_Implementation_Phases.md) for the tested versions.
+[implementation status](05_Implementation_Phases.md) for verification routes
+and the distinction between current guidance and recorded evidence.
 
 ## Team CI
 

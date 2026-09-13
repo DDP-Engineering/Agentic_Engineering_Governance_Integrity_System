@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.11.0
+# AEGIS 0.13.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,7 +16,7 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The project version is **0.11.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+The project version is **0.13.0**. Optional OpenCode, Codex, Pi, Qwen Code and
 Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 
@@ -29,7 +29,7 @@ Git and a compatible host installation.
 
 | Path in this directory | Purpose |
 |---|---|
-| `template/.agentic/` | Reusable 15-file managed workflow payload; source of truth for downstream installations. |
+| `template/.agentic/` | Reusable managed workflow payload; source of truth for downstream installations. |
 | `integrations/` | Five host adapters, shared runtime and JavaScript behavior tests. |
 | `tests/` | Python product suite, including wrappers that run integration tests. |
 
@@ -49,10 +49,25 @@ managed guidance blocks in `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`. It also
 reports Git availability. When Git is installed but the target is not yet a
 repository, `init --git` creates one explicitly.
 
-For a core upgrade, replace only the 15 managed payload files and rerun `init`
+For a core upgrade, replace only the managed payload files and rerun `init`
 to refresh root guidance. Preserve repository-owned configuration, requirements,
-specifications, journals, knowledge and evidence. See
+specifications, journals, context, knowledge and evidence. See
 [install and setup](../../06_SoftwareDocu/01_Install_and_Setup.md).
+
+`init` also creates each missing `.agentic/context/project.md` and
+`.agentic/context/environment.md` from generic Markdown templates. Existing
+context files are preserved byte-for-byte. These are short current-state
+orientation and setup guides: populate verified facts at frame/adoption and
+update affected sections as implementation or setup changes. `brief` reports
+their paths and presence without loading their contents. Missing context is
+supported in older projects.
+
+Project documents, component pages, and active requirements/specs describe
+actual behavior positively. Keep proposals in draft/task records and history
+in journals, Git, and the changelog. Preserve meaningful error and security
+responses, and obtain authorization before changing established behavior.
+See [project context](../../06_SoftwareDocu/Project_Context.md) for ownership,
+formats, lifecycle, and examples.
 
 ## Use
 
@@ -129,6 +144,32 @@ The link exists only in the child. Reverse lookup sees only journals in the
 current checkout; each child retains its own branch/base and validation, while
 the parent proves the integrated candidate.
 
+## Efficient verification and records
+
+AEGIS keeps runner commands project-configured. Prepare the repository's documented
+environment once, use focused native tests during build, and run full strict
+verification after final edits and review. Impacted routing is optional: the project
+runner must honor the selected files/tests. Preview without executing or recording
+proof, then refuse expensive fallback when using it inside the build loop:
+
+```text
+python .agentic/aegis.py test --impacted --base HEAD --dry-run
+python .agentic/aegis.py test --impacted --base HEAD --no-fallback
+python .agentic/aegis.py check --task TASK-<id> --strict --run
+```
+
+Unsupported test-name suffixes broaden safely to file-level selection; unsafe file
+paths still refuse selection. Existing callers keep full-suite fallback unless
+`--no-fallback` is specified. A dry-run success is not a test result. Do not run a
+separate full `test` immediately before final strict verification.
+
+New task and requirement records omit marked template-only explanations; licenses,
+fields and existing records are preserved. Step files refer to shared reporting
+instructions instead of repeating them. Evolution supports `--compact --json` for
+paths/statuses/areas, retaining complete hashes in the saved evidence. Host adapters
+expose `no_fallback` for impacted runs and `compact` for evolution on supporting
+payloads. See `06_SoftwareDocu/09_CLI_Reference.md` for the command contracts.
+
 ## Documentation layout
 
 In `.agentic/aegis.toml`, set optional `[layout] docs` globs for project
@@ -147,15 +188,29 @@ python .agentic/aegis.py summary TASK-<id>
 
 `brief` is the first re-entry view: deterministic, read-only, and bounded to
 240-character values, eight active rulings, and twenty visible children. It
-includes the parent, checklist, bound report, configured review state, active
-rulings, stage-bound handoff, and visible children. Read its current step and
+includes the parent, checklist, bound report, resolved interaction mode,
+configured review state, active rulings, stage-bound handoff, and visible
+children. Read its current step and
 handoff `must_read` files next, then the full journal wherever required.
 
 The agent records one fixed report at stage completion or pause, then copies
 the read-only `summary` output into chat before detailed explanation.
 Reported stage/result and current journal stage are separate. Missing evidence
 stays `not recorded`; stale or shortened records require journal review.
-No new approval stops, dependencies, or model calls are introduced.
+With autopilot off, every completed stage ends at a user choice checkpoint.
+
+Interaction defaults are project configuration:
+
+```toml
+[interaction]
+autopilot = false
+```
+
+Missing or invalid values mean off. Checkpoint mode presents three or four
+stage-specific choices: continue, revise or return, and pause. Autopilot flows
+through intermediate stages, but never bypasses pre-publication approval. New
+task journals record the resolved mode so it remains stable across resumes;
+an explicit user instruction can override the configured default for that task.
 
 The append-only task Log is deliberately narrower than a session transcript.
 It keeps stage transitions, material engineering changes, consolidated
@@ -177,7 +232,8 @@ The payload's prompt cheatsheet includes explicit one-stage sessions; actual
 model compliance and 64K-context performance require separate model runs.
 See `template/.agentic/CLI.md` for the optional journal record and output limits.
 
-New journals also carry append-only supersedable Rulings, one replaceable
+New journals also carry their `interaction: checkpoint|autopilot` mode,
+append-only supersedable Rulings, one replaceable
 Handoff (`current`, `next`, `must_read`, `blockers`, `status`), and compatible
 review fields. Optional explicit review defaults off:
 

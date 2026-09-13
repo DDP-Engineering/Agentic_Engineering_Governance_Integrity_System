@@ -94,6 +94,23 @@ def load(path: Path) -> dict:
 
 
 @needs_git
+def test_compact_evolution_retains_complete_saved_fingerprints(tmp_path, capsys):
+    """@brief Compact presentation preserves the durable comparison evidence."""
+    agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["anchor", "--task", "TASK-abcd"]) == 0
+    write(tmp_path / "src/app.py", "VALUE = 2\n")
+    capsys.readouterr()
+    assert aegis.main(["evolution", "--task", "TASK-abcd", "--json", "--compact"]) == 0
+    response = json.loads(capsys.readouterr().out)
+    saved = load(agentic / "tasks/TASK-abcd.evolution.json")["reports"][-1]
+    assert response["counts"] == saved["counts"]
+    assert response["changes"] == [{"path": "src/app.py", "status": "modified",
+                                    "area": "source"}]
+    assert saved["changes"][0]["before"]["sha256"]
+    assert saved["changes"][0]["after"]["sha256"]
+
+
+@needs_git
 def test_anchor_records_visible_files_metadata_and_hashes(tmp_path, capsys):
     """Anchor includes tracked/untracked files, excluding ignored and AEGIS data."""
     agentic, aegis = make_repo(tmp_path)

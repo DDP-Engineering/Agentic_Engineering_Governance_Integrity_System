@@ -9,38 +9,23 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # Stage 4 — build
 
 **Purpose:** Implement the linked requirements test-first, one at a time,
-using the impacted-test set as the fast inner loop, and keep the
-requirement links current so that set stays correct.
+using focused project test commands as the inner loop, and keep requirement
+links current for optional impacted selection.
 
 **Read first:**
 
 - The task journal `.agentic/tasks/TASK-<id>.md`, including `## Design`.
 - Every requirement on its `requirements:` line, and their specs.
 - The existing tests for the files you are about to touch.
+- Relevant `.agentic/context/environment.md` sections and their canonical setup
+  references, when present. Use `aegis.toml` for configured commands and paths.
 
-**Stage report (completion or pause):** At this boundary, record only durable
-events allowed by the journal contract, update the header and checklist, and
-refresh the single `## Stage report` section in this task journal:
-At every stage transition or pause, append any new Ruling and refresh the Handoff;
-also refresh the Handoff for a blocker or session end.
-`stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
-`needs_user`, `spec_compliance`, `implementation_quality`, and `review_round`
-(plain one-line fields, no fences). Record the completed stage
-separately from `current`, which must match the header after any transition;
-use `paused` when waiting or ending a session. Other results are `in_progress`,
-`completed`, `blocked`, `skipped`. Run
-`python .agentic/aegis.py summary TASK-<id>` and copy its block before any
-detailed explanation. Unknown values stay blank (`not recorded`); refresh
-stale records and read omitted details before continuing. Preserve existing
-approval stops and immediate deviation notices; this report adds no new stop.
-
-**Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist, dedicated durable sections, and relevant log
-entries (stage outcomes, blockers, material changes and consolidated evidence);
-follow links to needed records.
-This stage's required full reads still apply. Use linked requirements and
-source as needed, not the whole register. Do not act on missing, stale, or
-shortened reporting without reviewing the full journal information.
+**Reporting and resume:** Follow `.agentic/AGENTS.md` sections "Resume a task",
+"Rulings and handoffs", and "Stage reporting". At transitions and pauses,
+update the current checklist, minimal Handoff and Stage report, then show
+`summary TASK-<id>`. Read required durable evidence; missing or shortened
+context requires review. This adds no approval stop and never defers a material
+deviation notice. Reuse unchanged instructions already read in this session.
 
 **Steps:**
 
@@ -53,8 +38,23 @@ its journal and requirement links current, and expose its state to the parent
 through the shared checkout. The parent does not treat child completion as
 integrated proof.
 
+Before running tests in a new checkout, follow the repository's documented
+setup and readiness checks for the required runtimes, dependencies, services
+and working directory. Inspect an active verification job before launching
+another. Diagnose a missing prerequisite directly; do not repeatedly launch
+whole suites to discover it. Setup never grants permission for host changes,
+network downloads, or installation beyond existing authorization.
+
+When a behavior or environment change becomes real, update affected project
+context and component documentation to describe the current candidate directly.
+Keep run outcomes and unresolved setup problems in the journal, not the shared
+environment guide. Validate reconciles these current-state descriptions.
+
 1. Pick one requirement. Work it to green before starting the next - do
    not open several at once.
+   If implementation exposes an additional component not named in the design,
+   run `python .agentic/aegis.py components`, read the selected page and exact
+   seams, and log the scope effect before editing that component.
 2. Write or extend a test that expresses that requirement's
    `verification` and fails for the right reason. Write the test
    **before** you touch any implementation file. Where `verification`
@@ -95,27 +95,35 @@ integrated proof.
    unlinked new test would not be in the set, and a changed source file
    no requirement covers makes `--impacted` refuse and fall back to the
    full suite (by design).
-8. Run `python .agentic/aegis.py test --impacted --base HEAD` as the inner
-   loop. It runs only the tests linked to requirements whose
-   `affected_paths` you touched, so it is fast enough to run after every
-   edit. `--base HEAD` narrows it further to what you have not committed
-   yet — without it the basis is the whole branch, which on a long-lived
-   branch selects most of the suite. Do not log each inner-loop retry. When the
-   behavior increment is green, append one consolidated result naming the
-   command, exit zero, and covered requirements. Repeat steps 2–8 until the
-   requirement is done.
+8. Run the smallest project-native command that proves this behavior increment.
+   Where the configured runner honors selectors, optionally preview
+   `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then use
+   `python .agentic/aegis.py test --impacted --base HEAD --no-fallback`.
+   The preview is not proof. If selection is unavailable or the project runner
+   ignores selectors, use a focused native command instead; do not trigger a
+   full-suite fallback after every edit. AEGIS does not infer runner syntax or
+   guarantee that a configured command is focused. Keep the full project suite
+   for final validation unless an identified integration risk requires it sooner.
+   Do not log inner-loop retries. When the increment is green, append one
+   consolidated result with the command, exit zero, and covered requirements.
+   Repeat steps 2-8 until the requirement is done.
 9. Move to the next requirement and repeat from step 1.
 10. When all requirements are green, run
     `python .agentic/aegis.py evolution --task TASK-<id>`. Review every added,
     modified, and removed path, then run `python .agentic/aegis.py check`.
-   Fix what it flags, or record in one log line which warning you accept
-   and why — and state it as a deviation notice in the conversation at the
-   same time, per `AGENTS.md`. An `evolution` report that does not match
-   what you expected — no changed files, or a file set the design note
-   never named — is itself a deviation: say so rather than moving on.
-11. Tick the checklist, set `stage: validate`, and **replace
+   Fix what it flags, or record in one log line which warning remains and why;
+   state it as a deviation notice only when accepting that finding materially
+   limits the candidate or its verification, per `AGENTS.md`; unrelated or
+   corrected findings are ordinary evidence. Reconcile an unexpected
+   `evolution` report.
+   It becomes a deviation only if you accept candidate files or omissions that
+   materially depart from the agreed scope or design.
+11. In checkpoint mode, present the `build` Stage-boundary choices from
+    `AGENTS.md`, refresh the waiting Handoff and paused Stage report, then stop
+    before transition. After the user chooses to continue, or immediately in
+    autopilot, tick the checklist, set `stage: validate`, and **replace
     `## Done checklist`** with the validate stage's "Done when" list from
-    `5_validate.md` — the checklist always shows the current stage's items.
+    `5_validate.md` - the checklist always shows the current stage's items.
 
 **Outputs:**
 
@@ -133,7 +141,7 @@ integrated proof.
       increment has a consolidated post-implementation observation
 - [ ] repository anchor recorded after red and evolution reviewed after implementation
 - [ ] implementation makes those tests pass
-- [ ] `test --impacted` green
+- [ ] focused project tests green, with their actual scope recorded
 - [ ] `affected_paths` and `linked_tests` updated on every requirement
 - [ ] `status = "active"` on every requirement this task delivers — or
       `"retired"`, with the reason in its prose, where this task

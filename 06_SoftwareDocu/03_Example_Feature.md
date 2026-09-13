@@ -7,9 +7,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Example - a feature, full workflow
 
-The everyday case: a new user-facing behavior, checkpoint mode (the
-default - the agent stops twice: after `frame`, and before the delivery
-commit). Between those two stops it does not go quiet: whenever it
+The everyday case: a new user-facing behavior in checkpoint mode. This is the
+default: the agent stops after every stage with concrete continue, revise or
+return, and pause choices. Between those stops it does not go quiet: whenever it
 records a deviation it also says so, as a single `DEVIATION` line that
 never pauses the work and never waits for an answer.
 
@@ -22,6 +22,11 @@ using aegis workflow, implement: export a playlist as an M3U file
 ## Stage 1-3 - frame, specify, design
 
 The agent first analyzes the request and selected repository evidence. It
+reads `.agentic/context/project.md` and relevant environment-guide sections when
+present, follows their component/source/test references, and verifies current
+claims against this checkout. Missing context can be populated incrementally
+with known facts. Proposed export behavior stays in task/draft records until
+implemented. It
 records a Frame card that separates what you stated, what it observed in files,
 what it inferred, and what remains unknown. It then establishes a suitable task
 branch unless current instructions require the existing branch, creates a
@@ -35,8 +40,8 @@ You answer - trim it, extend it, or just "yes". This accepts scope; it does
 not claim implementation. The agent then builds a behavior inventory and
 Frame-to-requirement coverage table, writes the requirement file (`aegis req
 functional "Export playlist as M3U"`), adds a short exact-format spec, and
-records a proportionate design with requirement links and test seams. No pause
-- the journal records each stage transition:
+records a proportionate design with requirement links and test seams. Each
+stage ends with its own report and choices before the journal advances:
 
 ```
 - 2026-08-02 frame: scope agreed - M3U only; full path.
@@ -61,6 +66,12 @@ python .agentic/aegis.py explain src/export/m3u.py
 
 ## Stage 4 - build (test first)
 
+First prepare the project's documented test environment and confirm readiness.
+The pytest references in this example assume a runner that honors them. Preview
+selection with `test --impacted --base HEAD --dry-run` when needed; a preview is
+not proof. If selection is unavailable or the runner ignores it, use a native
+focused command rather than repeatedly falling back to the full suite.
+
 The step file orders it explicitly: failing test **before** implementation,
 with a reproducible red record in the journal.
 
@@ -80,7 +91,7 @@ selecting focused tests. Then implement until green, using focused regression
 as the inner loop:
 
 ```bash
-python .agentic/aegis.py test --impacted --base HEAD
+python .agentic/aegis.py test --impacted --base HEAD --no-fallback
 ```
 
 ```
@@ -109,8 +120,11 @@ finding it accepts rather than corrects is spoken, not just logged.
 
 ## Stage 5 - validate
 
-The agent reviews the candidate and refreshes its requirements and knowledge
-page. If `[review] enabled = true`, obtain both independent verdicts for the
+The agent reviews the candidate and reconciles affected requirements, project
+context, environment guidance and component knowledge. The current documents
+describe the built positive behavior and actual setup. History and proposals
+remain in task records; an established contract is preserved when a defect
+needs correction. If `[review] enabled = true`, obtain both independent verdicts for the
 same candidate within the configured round limit. Then run final proof once
 through the strict check with its eligible configured commands. Naming the task scopes the
 diff checks to it and reports a branch mismatch:
@@ -138,9 +152,13 @@ splash text could be asserted; deferred, so a regression there is silent.
 One line, mid-run, then it carries on. It is the agent's judgement, not a
 `check` finding, which is why it says `DEVIATION` and not `WARN`.
 
-Any correction sends the task back to the appropriate stage and makes this
-proof run again. If validation changes a repository file outside `.agentic/`,
-the agent reruns `evolution` first so the saved report matches the final
+Corrections to executable behavior, tests or verification configuration need
+relevant focused proof before the final full run. Prose-only corrections need
+semantic and traceability review, not an extra runtime run of their own. Schedule
+full strict verification after all edits and review; a failure or a later
+candidate change requires fresh proof for the candidate handed to deliver.
+If validation changes a repository file outside `.agentic/`, the agent reruns
+`evolution` first so the saved report matches the final
 candidate. Once it is current, `stage: deliver` means "validated, not yet
 published."
 

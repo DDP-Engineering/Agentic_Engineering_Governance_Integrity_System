@@ -801,6 +801,18 @@ def test_wrongly_typed_config_tables_do_not_crash(nogit_repo, capsys):
     assert "summary:" in out
 
 
+@pytest.mark.parametrize("value", ['"true"', "1", "[]"])
+def test_invalid_autopilot_values_warn_and_fail_safe(nogit_repo, capsys, value):
+    """REQ-FUNC-d60b322b: malformed interaction policy cannot enable autopilot."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml",
+          f"schema = 1\n\n[interaction]\nautopilot = {value}\n")
+    cfg = aegis.load_config()
+    assert aegis.autopilot_enabled(cfg) is False
+    assert any("[interaction] autopilot should be bool" in line
+               for line in lines_for(run_check(aegis, capsys), "config"))
+
+
 @pytest.mark.parametrize("body,expected,settings", [
     ('enabled = "yes"\nmax_fix_cycles = 2', "enabled should be bool", (False, 2)),
     ('enabled = true\nmax_fix_cycles = true', "max_fix_cycles should be int", (True, 0)),

@@ -25,10 +25,43 @@ durable journal. This page tours both kinds of state.
   specs/           optional per-requirement specs     (yours)
   tasks/           journals + anchor/evolution state  (yours)
   knowledge/       one page per component             (yours)
+  context/
+    project.md     current project orientation        (yours)
+    environment.md current setup and verification     (yours)
 ```
 
 The split matters: **payload** files are replaced on upgrade; **yours**
 are never shipped in a payload and never overwritten.
+
+## Templates and generated records
+
+Newly scaffolded tasks, requirements, and context files omit explicitly marked
+instruction-only notes. The full guidance remains in the managed templates;
+licenses, durable fields and unmarked data are preserved. Existing records are
+not rewritten or compacted. Markdown templates mark notes with
+`<!-- AEGIS:TEMPLATE` and a standalone `-->`; requirement templates use
+`# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
+
+## Project context - `context/`
+
+`project.md` holds current purpose, users, responsibilities, supported operation,
+established constraints, and component entry points. `environment.md` holds
+current toolchain/setup routes, configuration names, readiness checks, and
+build/verification references. Both are project-owned Markdown with stable
+headings, scaffolded independently only when absent. Commands and layout values
+stay canonical in `aegis.toml`; existing setup docs are linked rather than copied.
+
+Read the profile at frame/resume and relevant environment sections before setup
+or verification. Populate from current evidence during frame/adoption; update
+affected sections as facts change and reconcile them at validate. An absent or
+partial file is compatible with ordinary work. See [Project context](Project_Context.md).
+
+Project documents, component pages, and active requirements/specs describe
+current behavior positively, including meaningful failure responses. They are
+current-state guides rather than histories or inventories of absent features.
+Draft requirements/specs carry agreed proposed behavior; journals, Git and the
+changelog carry decisions and history. An implementation mismatch calls for
+investigation or an authorized change, not an easier replacement contract.
 
 ## Requirements - `requirements/<category>/REQ-<CODE>-<id>.toml`
 
@@ -91,10 +124,11 @@ a validated rule; a constraint that reads better plainly is better plainly.
 pays off immediately.
 
 **Retiring one.** When a behavior is deliberately removed, never delete
-the file: set `status = "retired"`, add `Retired <date>: <why>` to the
-prose, and keep the id on the retiring task's own journal - that is the
-record of what was retired and why. `check` stops applying active-only
-rules to it, and the history stays readable. Retiring one is also spoken:
+the file: set `status = "retired"` and keep the id, reason and authorization
+in the retiring task's journal. Preserve the behavior statement as a traceable
+contract rather than appending a retirement narrative. Current project and
+component summaries describe active behavior. `check` applies its status-aware
+rules to retired records. Retiring one is also spoken:
 an agent that retires a requirement states it as a `DEVIATION` line as it
 does so, because a contract being withdrawn is not something to discover
 in a diff afterwards.
@@ -150,6 +184,12 @@ one expected red and one final green per meaningful behavior increment, not
 every edit-run retry. Refresh Handoff and Stage report when completing a stage,
 pausing, blocking, or handing work over rather than after routine tool activity.
 
+Keep Handoff fields short: current stage, next action, necessary read paths and
+blockers. Refresh them at transitions, pauses, blockers and session ends; do not
+repeat Frame, Design or Log content. In an intact session, reuse unchanged
+instructions already read. After compaction or lost context, follow the required
+resume and full-journal reads again.
+
 A log line that records a *deviation* - an accepted implementation or evidence
 limitation, weakened or skipped verification, a retired requirement, or
 unrequested work retained in the diff - has a twin in the conversation: the
@@ -184,7 +224,17 @@ included, while `.agentic/**`, ignored caches/build outputs, `__pycache__/`,
 `.pyc`, and `.pyo` files are excluded. The records describe change; they are
 editable repository files, not tamper-proof evidence.
 
+`evolution --compact --json` omits before/after hashes from the response while
+retaining changed paths, statuses, areas and counts. Saved evolution reports
+retain their full evidence. Ordinary `--json` output is unchanged; compact
+output does not shrink the anchor inventory or delete saved metadata.
+
 ## Specs - `specs/REQ-<...>.md`
+
+The linked requirement's status distinguishes agreed draft behavior from an
+implemented active contract. Resolve open decisions before activation and keep
+their history in the journal. Active prose describes current positive outcomes,
+including meaningful failure responses.
 
 Free markdown, only when the requirement alone is not enough to build
 from (file formats, protocols, dialog text). Referenced by the

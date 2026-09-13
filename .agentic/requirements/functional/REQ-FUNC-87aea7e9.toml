@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When an operator runs init for a copied AEGIS payload, the CLI shall create missing data directories and configuration, refresh managed root guidance, preserve repository-owned records and configuration, and report Git availability.
+When an operator runs init for a copied AEGIS payload, the CLI shall complete installation with missing data directories, configuration and project/environment context scaffolds, refreshed managed root guidance, preserved repository-owned file bytes, and a Git-availability report.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -63,6 +63,9 @@ linked_tests = [
     "05_Software/aegis/tests/test_cli_core.py::test_init_is_a_byte_for_byte_no_op_on_the_second_run",
     "05_Software/aegis/tests/test_cli_core.py::test_init_never_overwrites_an_existing_aegis_toml",
     "05_Software/aegis/tests/test_cli_core.py::test_init_leaves_user_data_folders_untouched",
+    "05_Software/aegis/tests/test_cli_core.py::test_init_scaffolds_current_context_without_authoring_notes",
+    "05_Software/aegis/tests/test_cli_core.py::test_init_preserves_each_context_file_when_adding_its_sibling",
+    "05_Software/aegis/tests/test_cli_core.py::test_init_preserves_concurrently_created_context",
 ]
 
 # --- optional below this line ---
@@ -74,4 +77,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-09-10

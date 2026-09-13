@@ -6,211 +6,123 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# 05 - Implementation phases
+# 05 - Current implementation
 
-The original core implementation plan is complete. This document records the
-assigned **AEGIS 0.11.0** project and its five host integrations as of
-**2026-09-04**. The existing `0.10.0` archives remain the last built delivery
-set; assigning a source version does not build or publish packages.
+The assigned source version is **AEGIS 0.13.0**. This page describes current
+capabilities, source ownership and verification methods. Release history is in
+the [changelog](../CHANGELOG.md); dated build evidence is retained under
+`07_Delivery/` and implementation evidence in task records.
 
-## Completed implementation
+## Implemented capabilities
 
-| Area | Implemented outcome |
+| Area | Current behavior |
 |---|---|
-| Workflow payload | A managed `.agentic/` payload with the full contract, six ordinary stage files, adoption instructions, a shared evidence-led semantic analysis cycle, and reusable artifact templates. |
-| Durable artifacts | Structured Frame cards, atomic Requirement coverage, proportionate task designs, TOML requirements, Markdown specs/knowledge/journals, compact append-only progress-and-evidence logs, append-only rulings, replaceable handoffs/stage reports, and anchor/evolution JSON evidence. |
-| Companion CLI | Offline-first standard-library `aegis.py` with installation, scaffolding, title-only component discovery, traceability, configured test execution, reporting, and machine-readable output. |
-| Validation | A 21-check advisory catalog, optional strict CI enforcement, impacted-test selection, configured command timeouts, anchors, evolution, and delivery reporting. |
-| Coordination | One-level child tasks, bounded `brief`/ `summary` views, explicit review policy, and durable handoff state for cross-session/model work. |
-| Host integrations | OpenCode primary/review agents, Codex plugin/skill/review roles, Pi and Qwen extensions, and Claude Code plugin/commands/review agents/hooks. |
-| Shared adapter runtime | Eleven operations, checkout-local CLI invocation, candidate comparison, detached verification jobs, duplicate prevention, cancellation and restart recovery. |
-| Host package lifecycle | Windows/POSIX launchers, runtime discovery, owned-file installation/update/removal, backups and protection of active/uncertain jobs. |
-| Documentation and delivery | User guides in `06_SoftwareDocu/`, planning records, core release builder and separate five-host package builder, with outputs under `07_Delivery/`. |
+| Workflow | Six ordinary stages, a quick path for eligible repairs, and a separate component-by-component adoption flow. |
+| Interaction | Stage checkpoints by default, optional project-configured autopilot, explicit publication authority, and immediate material deviation notices. |
+| Project context | Project-owned `context/project.md` and `context/environment.md`, scaffolded independently by `init` when absent and preserved byte-for-byte when present. |
+| Current documentation | Positive actual responsibilities and behavior in project/component documents and active contracts, with proposals in draft/task records and history in journals/Git. |
+| Durable artifacts | Frame cards, atomic requirement coverage, task designs, TOML requirements, Markdown specs and knowledge, append-only Log/Rulings, replaceable Handoff/Stage report, and anchor/evolution evidence. |
+| Companion CLI | Offline-first standard-library Python scaffolding, component discovery, traceability, configured execution and bounded reporting. |
+| Verification | A 21-check advisory catalog, optional strict CI, focused/impacted test selection, dry-run previews, fallback refusal, timeouts, and complete saved evidence with optional compact presentation. |
+| Coordination | Presence-only context pointers in `brief`, stage reporting through `summary`, one-level child tasks, independent review verdicts and bounded correction rounds. |
+| Integrations | OpenCode, Codex, Pi, Qwen Code and Claude Code entry points backed by eleven shared adapter operations. |
+| Host lifecycle | Complete package assembly, runtime discovery, owned installation/update/removal, verification jobs, duplicate prevention, cancellation and recovery. |
 
-## Current product boundaries
-
-The runnable implementation remains under:
+## Source ownership
 
 ```text
 05_Software/aegis/
-  template/.agentic/       installable managed payload
-  integrations/
-    opencode/              OpenCode resources and setup
-    codex/                 Codex marketplace/plugin resources and setup
-    pi/                    Pi extension and reviewer launcher
-    qwen/                  Qwen extension and MCP entry point
-    claude/                Claude marketplace/plugin, MCP and hooks
-    shared/                runtime, adapters, workers, lifecycle and vendored libraries
-    tests/                 JavaScript behavior tests
-  tests/                   Python suite, including integration test wrappers
-  README.md                package overview
+  template/.agentic/       canonical managed core
+    templates/            six generic artifact templates
+    steps/                six ordinary stages plus adoption
+    aegis.py              Python CLI
+  integrations/           five host adapters and shared runtime
+    tests/                JavaScript behavior tests
+  tests/                  Python product suite and integration wrappers
+  README.md               package overview
+
+.agentic/
+  context/                this project's current profile and environment
+  knowledge/              this project's component orientation
+  requirements/           this project's behavior contracts
+  tasks/                  this project's progress and evidence
 
 02_Tools/
-  build_aegis_release.py   core release archive and publication-record builder
-  build_agent_plugins.mjs  complete five-host package directory builder
+  build_aegis_release.py  core archive and build-record builder
+  build_agent_plugins.mjs complete host-package builder
 ```
 
-The root `.agentic/` directory is an installed copy used to govern this
-repository. It is not the product source of truth. Update the template first,
-then copy the exact managed payload into root or downstream repositories and
-run `init`. Host integrations are a separate source tree: their builder copies
-shared libraries into each package. Installing raw source as a marketplace
-omits those libraries and can cause the missing `lib/bridge.mjs` failure.
+The managed core contains 17 files. Downstream projects own their context,
+configuration and records. Update the canonical template and installed mirror
+together, then replace only managed files during upgrades. Each missing context
+file is scaffolded independently by `init`; existing project data keeps its bytes.
+The downstream starter changelog remains empty.
 
-## Unreleased compact journal logging
+## Project context lifecycle
 
-The task Log is now explicitly a progress-and-evidence ledger rather than an
-execution transcript. It retains stage transitions, material engineering or
-scope changes, consolidated verification, blockers, approvals, deviations,
-and delivery outcomes. Routine reads, searches, edits, internal tool mechanics,
-corrected retries, and duplicated artifact content stay out.
+Read the profile at frame/resume and relevant environment sections before setup,
+build or verification. Select component, requirement, source and test references
+instead of preloading the repository. Brief lists the two paths with `present`
+or `not recorded`; their contents and accuracy require direct review.
 
-Frame, Specify, and Design each append one compact outcome and keep detail in
-their dedicated sections or linked artifacts. Build groups related requirements
-into one red/final-green pair per meaningful behavior increment. Validate keeps
-one final result and only material earlier failures. Stage reports refresh at
-transitions, pauses or session ends, and blockers rather than after routine
-work. Existing task history is not rewritten, and no new CLI command or
-automatic compaction was added.
+Populate confirmed purpose, implementation and setup facts during frame or
+adoption. New projects add responsibilities as they are implemented. Build
+updates affected facts as changes become real; validate reconciles current
+context, component pages and active contracts against the candidate and
+authorized intent. Preserve unrelated sections and established requirements.
+Missing or partial context is compatible with ordinary work.
 
-The current checkout's Python product suite completed **400 tests with two
-platform-dependent skips** after these changes. Both canonical and installed
-payloads compile, and CLI help exits successfully.
+Current documents contain one positive description of each actual behavior,
+including meaningful error, security and compatibility responses. Draft
+requirements/specs hold agreed proposals. Journals, Git and the changelog carry
+past decisions and changes. Suspected defects remain task findings pending
+clarification rather than becoming assumed active contracts.
 
-## 0.11.0 component navigation and deviation policy
+## Verification methods and evidence
 
-Version 0.11.0 adds one flat, no-argument `components` command. It derives a
-bounded printable title and lexical repository-relative path from each
-component knowledge page so an agent can choose what to read without loading
-the source tree broadly. Frame, Specify, Design, conditional Build/Validate,
-and adoption guidance use the catalogue where it materially helps. It adds no
-metadata format, registry, filter, JSON mode, automatic routing, write, or
-network behavior.
+Use repository `AGENTS.md` for the validation obligations and
+`.agentic/aegis.toml` for canonical commands and layout. The product suite covers
+isolated CLI/scaffolding behavior, context preservation and optional brief
+pointers, traceability, configured execution, packaging and host integration
+behavior. Focused tests precede the full product suite for executable changes.
 
-The deviation contract now reserves `DEVIATION` for material departures in
-the candidate, agreed scope/design/contract, or required verification
-confidence. Corrected tool-use mistakes, expected test-first failures, and
-unrelated findings remain operational detail rather than permanent engineering
-deviations or journal events.
+Host verification has separate scopes:
 
-Canonical and installed CLI versions report `0.11.0`; no `0.11.0` delivery
-artifacts have been built.
+- Package checks inspect resources, runtime discovery and owned lifecycle.
+- Backend checks inspect native registration, tool discovery and protocol calls.
+- Desktop acceptance inspects the visible resources in the selected environment.
+- Model-led acceptance exercises the workflow and independent reviews with the
+  user's authorized provider and chosen model.
 
-## 0.10.0 workflow improvements
+A result supports only its recorded candidate and environment. Package/backend
+checks alone establish neither Desktop nor model-led acceptance. Small-context
+operation is supported by selective reading and compact records; model compliance
+requires its own measured evaluation. Consult [agent package guidance](../06_SoftwareDocu/Agent_Plugins.md)
+for verification routes and links to recorded evidence.
 
-Version 0.10.0 strengthened early-stage idea analysis without changing the
-six stages, Python CLI syntax, adapter operations, host authentication, or
-stage sequence or adapter interface:
+## Builders and distribution
 
-- the managed contract defines **Analyze -> Challenge -> Write -> Audit** and
-  `STATED`/`OBSERVED`/`INFERRED`/`UNKNOWN` evidence labels;
-- Frame writes a durable idea card before branch and journal mechanics and
-  treats its checkpoint as scope acceptance rather than implementation;
-- Specify builds a behavior inventory and atomic coverage table, uses semantic
-  split/reuse rules, derives concrete verification, and escalates exact
-  contracts to specs;
-- Design uses 30 lines as a default rather than a cap, expands with risk,
-  traces decisions and test seams, and keeps proposed architecture in the
-  task;
-- Validate reconciles that proposal with built code, updates canonical
-  current-state component knowledge, and retains the proposal as historical
-  evidence;
-- Markdown guides and the four affected PowerPoint companions are synchronized.
-
-The final implementation proof for this change completed **390 tests with two
-platform-dependent skips**, Ruff passed, both independent review roles
-approved the unchanged candidate, all 43 affected-deck slides were inspected,
-and all four template-fidelity checks passed. Local-model execution was
-excluded by instruction, so the 64K/offline-model design remains a prompt
-contract rather than measured model compliance.
-
-## 0.9.1 implementation state
-
-Version 0.9.1 added the `trace` requirement-register export in Markdown and
-CSV, with corrected literal text rendering, omission reporting, and category
-labels. The repository's impacted-test command also began using its configured
-Python runtime.
-
-## 0.9.0 coordination baseline
-
-Version 0.9.0 introduced the coordinated-workflow capabilities:
-
-- deterministic `brief` resume output distinct from `summary`;
-- optional explicit review with `enabled` and `max_fix_cycles`;
-- independent specification-compliance and implementation-quality verdicts;
-- append-only rulings and stage-bound handoffs;
-- visible one-level child tasks;
-- expanded check coverage for configuration, manual verification, review
-  evidence, stage zones, and command execution;
-- synchronized Markdown and presentation documentation.
-
-The root repository deliberately enables explicit review with two permitted
-fix cycles. That is repository configuration, not a new workflow stage.
-
-## Integration verification status
-
-The implementation has been checked with real installed AEGIS payloads in
-temporary Git fixtures and isolated host profiles. The following are verified
-backend/native-resource observations on **Windows and Ubuntu 24.04 under WSL**:
-
-| Host version tested | Observed coverage |
+| Builder | Output |
 |---|---|
-| OpenCode 1.18.18 | Backend registration, agent/command/tool resources and adapter workflow calls. |
-| Codex 0.151.0 | Native marketplace/plugin lifecycle, app-server skill discovery and command bridge calls. |
-| Pi 0.84.4 | Native extension/skill/command/tool discovery, schema validation, direct status and reviewer launch arguments. |
-| Qwen Code 0.22.3 | Native extension inventory, MCP connection/protocol and workflow calls. |
-| Claude Code 2.1.259 | Native plugin inventory/loading, MCP connection, direct advisory hook execution and owned lifecycle. |
+| `python 02_Tools/build_aegis_release.py --version <x.y.z>` | Core Windows/Linux archives, checksums and build records under `07_Delivery/aegis-<version>/`, with matching source/changelog version. |
+| `node 02_Tools/build_agent_plugins.mjs --output <fresh-output-directory>` | Five complete host-package directories, including shared libraries and launchers, using the existing core version. |
 
-Shared tests exercise runtime resolution, configuration preservation, owned
-content conflicts, tracked output recovery, duplicate prevention, cancellation
-and uncertain-worker handling. The [recorded integration implementation proof](../.agentic/tasks/TASK-7616551e.md)
-on 2026-09-03 completed the configured Windows product suite with **387 passed,
-2 skipped**, Ruff passing and no static-check errors. The two skips concern
-Windows symlink availability/semantics; existing older-journal warnings and
-the bounded scan of vendored code were recorded as limitations. This is dated
-implementation evidence, not a promise that every subsequent checkout is green.
+Distribute a complete assembled directory or an archive of it. Each recipient
+installs into their own host profile and authenticates independently. Source
+version assignment, local package construction, host installation and external
+publication have separate outcomes and authority.
 
-No local or remote model requests were made for those checks. Native Desktop
-UI interaction, full model-driven workflows and actual model-led independent
-reviews remain unverified. Backend discovery is not GUI acceptance, and declared
-tool restrictions do not establish OS isolation. Claude supports native local
-Desktop Code sessions sharing its configuration; Desktop WSL plugin sessions
-are currently unsupported. Linux Claude Desktop is beta. Host support may
-change independently of these packages; consult the
-[package guides](../06_SoftwareDocu/Agent_Plugins.md) for setup and current limits.
+## Maintenance
 
-## Two separate builders
-
-| Builder | Purpose and output |
-|---|---|
-| `python 02_Tools/build_aegis_release.py --version <x.y.z>` | Builds the core release with a matching changelog/version, validates the 15-file payload, runs the product suite, checks Windows/Linux archive inventories, and writes hashes/metadata under `07_Delivery/aegis-<version>/`. |
-| `node 02_Tools/build_agent_plugins.mjs --output <fresh-output-directory>` | Uses the existing core version and assembles five complete host package directories, including shared libraries and launchers. Refuses to overwrite existing host package directories; performs no registry publication or model requests. |
-
-Distribute complete host directories or archives made from them. Installation
-records discovered runtime paths for each user's own environment. A package
-build does not replace host lifecycle verification or authorize a release.
-
-## Maintenance rules
-
-1. Treat `template/.agentic/` as the source of managed workflow behavior.
-2. Update tests when CLI behavior changes; run focused checks first and the
-   product suite before release.
-3. Update the relevant user and planning documentation in the same change when
-   commands, workflow contracts, artifact formats, or configuration change.
-4. Keep the template generic. Do not add this repository's task history,
-   release entries, or project-specific facts to the downstream starter files.
-5. Treat versioning, archive construction, and publication records as
-   repository operations. Do not open a workflow journal for the release
-   itself.
-6. Use the core release builder for versioned core archives and the agent
-   package builder for complete integrations. Preserve the existing version
-   unless a version assignment is explicitly requested.
-7. Keep host setup and shared-runtime changes covered by focused behavior tests,
-   then run the configured full suite and strict check on the final candidate.
-   Review documentation-only work directly, outside AEGIS; do not create workflow
-   journals or tests that assert prose or links for those updates.
-8. Record tested host versions and platforms. Keep backend, Desktop UI and
-   model-workflow evidence distinct; do not imply unperformed verification.
-
-Future work begins from the current implementation and its tests, not from the
-obsolete pre-implementation phase estimates that this document replaces.
+1. Keep managed templates generic and project facts in project-owned files.
+2. Preserve the assigned version unless a version change is requested.
+3. Update current planning, user guides and affected generated companions with
+   workflow, command, configuration or artifact changes.
+4. Use behavior tests for executable changes and direct semantic/link/layout
+   review for documentation-only changes.
+5. Keep documentation-only maintenance and release operations outside AEGIS
+   task governance.
+6. Preserve the user's dirty work and require applicable authority for Git and
+   external actions.
+7. Keep dated verification evidence in task/build records and current guidance
+   in these documents.

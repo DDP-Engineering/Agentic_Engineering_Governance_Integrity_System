@@ -82,8 +82,10 @@ python .agentic/aegis.py init [--git]
 
 **Description:** Finish installing a copied AEGIS payload. It:
 
-- creates `.agentic/requirements/`, `specs/`, `tasks/`, and `knowledge/`
+- creates `.agentic/requirements/`, `specs/`, `tasks/`, `knowledge/`, and `context/`
   when absent;
+- scaffolds `context/project.md` and `context/environment.md` independently
+  when absent, preserving existing bytes and stripping marked authoring notes;
 - creates a default `.agentic/aegis.toml` only when absent;
 - adds or refreshes the managed AEGIS digest in root
   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
@@ -92,6 +94,10 @@ python .agentic/aegis.py init [--git]
 
 The command is idempotent: running it again does not replace the repository's
 configuration or governance records.
+
+Context scaffolds contain headings for current project/setup facts. Populate
+them from evidence during frame or adoption and update affected sections when
+facts change. See [Project context](Project_Context.md).
 
 When Git is installed but the directory is not a repository, plain `init`
 prints the next command without changing Git state. `init --git` explicitly
@@ -109,8 +115,8 @@ python .agentic/aegis.py init
 python .agentic/aegis.py init --git
 ```
 
-Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, and
-optional `[check]` settings describe the repository.
+Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, optional
+`[interaction]`, and optional `[check]` settings describe the repository.
 
 ## `task`
 
@@ -120,8 +126,8 @@ python .agentic/aegis.py task "<title>" [--type {feature,fix,change,adopt}] [--p
 
 **Description:** Create `.agentic/tasks/TASK-<id>.md` from the task
 template. The journal receives a collision-resistant ID, the current date,
-the current Git branch when available, and `stage: frame`. The new path is
-printed on stdout.
+the current Git branch when available, `stage: frame`, and the interaction mode
+resolved from `aegis.toml`. The new path is printed on stdout.
 
 The default type is `feature`. Accepted types are:
 
@@ -152,6 +158,10 @@ keeps independent branch/base, requirements, validation, and delivery state.
 Reverse lookup reports children visible in the current checkout only. Parent
 validation owns the integrated candidate.
 
+New task and requirement records omit explicitly marked template-only authoring
+notes while retaining their license and data fields. Existing records are never
+rewritten. Inspect the templates when their full field guidance is needed.
+
 ## `anchor`
 
 ```text
@@ -172,7 +182,7 @@ reported visibly.
 ## `evolution`
 
 ```text
-python .agentic/aegis.py evolution --task TASK-<id> [--json]
+python .agentic/aegis.py evolution --task TASK-<id> [--json] [--compact]
 ```
 
 Compare the current repository with its active task anchor and report added,
@@ -188,6 +198,10 @@ not prove that the red test or implementation was honest.
 `check --task` adds a `repo-evolution` NOTE when the active pair is missing or
 incomplete. Missing records never become warnings. Malformed or task-mismatched
 state files are warnings, but an ordinary non-strict check still exits zero.
+
+For evolution, `--compact --json` emits paths, statuses and areas without the
+before/after hashes. The saved evolution file remains complete; ordinary `--json`
+output retains its existing schema and detail.
 
 ## `req`
 
@@ -327,10 +341,16 @@ python .agentic/aegis.py brief <TASK-id|id>
 `brief` is a read-only deterministic resume view built only from durable
 workspace files. It never calls Git, runs commands, writes state, advances a
 stage, or infers approval. Its fixed order is Task, Stage, Branch/base, Parent,
-Requirements, Checklist, Stage report, Review, Active rulings, Handoff,
+Requirements, Context, Checklist, Stage report, Interaction, Review, Active rulings, Handoff,
 Visible children, and Details. Scalars are limited to 240 characters, active
 rulings to eight, and visible children to twenty, with explicit omission and
 stale-data markers. Two calls against unchanged files are byte-identical.
+
+Context lists the project profile and environment guide paths as `present` or
+`not recorded`; it reads neither body and creates nothing. Missing files are
+supported. Read the profile and relevant environment sections before following
+their selected references; presence alone establishes neither accuracy nor
+completeness.
 
 Resume with `brief`, then read the current step and handoff `must_read` paths.
 Use `summary` for the latest bound stage-report projection and the full journal
@@ -369,6 +389,17 @@ compatible. Rulings use this append-only form:
 it never rewrites history or expands authority. Handoff is one replaceable
 stage-bound block with `current`, `next`, `must_read`, `blockers`, and a
 `ready`, `waiting`, or `blocked` status.
+
+```toml
+[interaction]
+autopilot = false
+```
+
+Missing or invalid `autopilot` values mean off. Checkpoint mode stops after
+every stage and presents the applicable choices. Autopilot flows between
+intermediate stages but does not bypass publication approval. New journals
+record the resolved `interaction: checkpoint|autopilot` mode; an explicit user
+instruction may override the configured default for that task.
 
 ```toml
 [review]
@@ -439,7 +470,7 @@ command set.
 ## `test`
 
 ```text
-python .agentic/aegis.py test [name] [--impacted] [--base <rev>] [--task TASK-<id>]
+python .agentic/aegis.py test [name] [--impacted] [--no-fallback] [--dry-run] [--base <rev>] [--task TASK-<id>]
 ```
 
 **Description:** Run a command from the `[commands]` table in
@@ -452,11 +483,14 @@ Options:
 |---|---|
 | `name` | Run that configured command, for example `test` or `lint`. |
 | `--impacted` | For the default `test` command, substitute linked impacted tests into the configured `test_impacted` template. |
+| `--no-fallback` | With `--impacted`, exit 1 without running or recording test evidence when selection is unavailable. |
+| `--dry-run` | Preview the command and working directory without execution or journal writes; exit zero is not test proof. |
 | `--base <rev>` | Take the diff against that revision instead of the merge base. `--base HEAD` selects only uncommitted work. |
 | `--task TASK-<id>` | Validate the task ID before running and append every invocation's result and duration to its journal. Use only for deliberate durable evidence. |
 
 If impact selection cannot produce a focused set, AEGIS explains why
-and falls back to the full `test` command. `--impacted` cannot be combined
+and falls back to the full `test` command unless `--no-fallback` was requested.
+`--no-fallback` requires `--impacted`. `--impacted` cannot be combined
 with a command name other than `test`.
 
 Without `--base`, the diff runs from the merge base with the default branch,
@@ -469,14 +503,22 @@ Omit `--task` from ordinary edit-test retries. Add it only when the invocation
 is the consolidated red, final green for a meaningful behavior increment, or
 final validation result that should remain in the durable Log.
 
+Unsupported selector suffixes, including test names containing spaces or quotes,
+are discarded in favor of their validated test file. Unsafe or repository-escaping
+file paths are never interpolated. Multiple references to a broadened file become
+one file argument. AEGIS supplies references; the configured runner must honor
+both file and exact-selector input. It does not translate between test frameworks.
+Paths with spaces still require a project-native command rather than interpolation.
+
 A focused set that would make the command longer than the platform can launch
 is not an error: AEGIS reduces it to one entry per distinct test file,
-says so, and only falls back to the full suite if even that is too long.
+says so, and only falls back to the full suite if even that is too long and
+`--no-fallback` was not requested. With that flag, it refuses execution instead.
 
 **When to use:**
 
-- use `test --impacted --base HEAD` for a fast build-loop regression;
-- use `test --task ...` for the configured full suite during validation;
+- use a focused project-native command, or `test --impacted --base HEAD --no-fallback`, during build;
+- use `check --task TASK-<id> --strict --run` once after final edits and review; do not precede it with another full `test`;
 - use `test <name>` for other configured read-only checks such as linting.
 
 **Examples:**
@@ -484,7 +526,8 @@ says so, and only falls back to the full suite if even that is too long.
 ```text
 python .agentic/aegis.py test
 python .agentic/aegis.py test --impacted
-python .agentic/aegis.py test --impacted --base HEAD
+python .agentic/aegis.py test --impacted --base HEAD --dry-run
+python .agentic/aegis.py test --impacted --base HEAD --no-fallback
 python .agentic/aegis.py test --task TASK-8b12
 python .agentic/aegis.py test lint
 ```

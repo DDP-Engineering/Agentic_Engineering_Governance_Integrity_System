@@ -20,7 +20,11 @@ After install (doc 01), you say:
 using aegis workflow, adopt this repository
 ```
 
-The agent explores the repo and writes an adoption journal
+The agent reads existing context and canonical setup references, then explores
+the repo. Survey populates
+`.agentic/context/project.md` and `.agentic/context/environment.md` with verified
+current facts, linking existing docs/configuration rather than duplicating them.
+Empty sections remain valid; uncertainty stays in the journal. It writes an adoption journal
 (`type: adopt`) containing a proposed component list - one checklist
 item per component with a one-line scope and its file globs:
 
@@ -62,14 +66,17 @@ drawing of what the code **does**, not what it should do: shapes nobody
 can explain belong in one consolidated component finding, not a stream of
 exploration notes or something to tidy away in
 the picture. Where the agent cannot tell which way a dependency points, it
-leaves the arrow out and says so underneath rather than guessing. For a
+leaves the arrow out and records the uncertainty in the journal. For a
 legacy component this often ends up being the only architecture document
 that has ever existed for it.
 Adoption mostly *links* tests; it writes new ones only where a
 load-bearing behavior has none (or records the requirement with empty
-`linked_tests` - see below). Suspicious behavior is adopted as-is and included
-in that consolidated finding or a separately created future-task record, never
-silently "fixed".
+`linked_tests` - see below). Suspicious behavior and its source/test evidence
+belong in a consolidated journal finding or future-task record. Confirm the
+intended outcome with the owner before activating a new requirement for that
+disputed behavior; preserve existing contracts while investigating. Requirement
+prose describes the agreed positive behavior, with investigation history in the
+journal. Adoption leaves product changes to their own authorized task.
 
 Each session ends with a ticked checkbox and a small, readable diff.
 Useful properties:
@@ -86,6 +93,10 @@ Useful properties:
   stop and summarize."
 
 ## Final session - close
+
+Reconcile the context files and component pages against the surveyed checkout.
+Describe actual positive responsibilities and setup, preserve established
+contracts, and keep investigation findings and adoption history in the journal.
 
 ```
 continue adoption TASK-a1b2, close it
@@ -110,7 +121,9 @@ A visual legibility judgment or a clean-machine installation check may need
 manual verification. Literal dialog wording can often be tested automatically;
 do not classify it as manual merely because a test has not been written. Give those a `verification` starting
 `Manual:` or `Inspection:` that names the method, and they are recorded
-as verified by hand instead of joining the test backlog:
+as requiring the named manual method instead of joining the automated-test
+backlog. This classification does not establish that anyone performed it;
+record the actual action and observed result separately:
 
 ```
 NOTE   manual-verification  .agentic/requirements/ux/REQ-UX-91c0.toml - by hand: install on a ...

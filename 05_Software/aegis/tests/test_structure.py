@@ -75,6 +75,8 @@ EXPECTED_FILES = (
     "steps/6_deliver.md",
     "steps/adopt.md",
     "templates/component.md",
+    "templates/environment.md",
+    "templates/project.md",
     "templates/requirement.toml",
     "templates/spec.md",
     "templates/task.md",
@@ -234,14 +236,14 @@ def test_deviation_notices_are_stated_when_recorded_not_only_at_delivery():
     assert "notices supplement this presentation" in deliver
 
 
-def test_stage_report_instructions_keep_boundaries_and_approval_rules():
-    """REQ-UX-84868466: stage reports are consistent notifications, not new gates."""
+def test_stage_report_instructions_define_stage_choice_boundaries():
+    """REQ-UX-84868466: checkpoint reports end with explicit next choices."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
     scaffold = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
     assert "## Stage reporting" in agents
     assert "before any detailed explanation" in agents
-    assert "does not introduce approval stops" in agents
-    assert "Stop and ask twice, not once per stage" in agents
+    assert "stop after every completed stage" in agents
+    assert "Stage-boundary choices" in agents
     assert "DEVIATION <stage>:" in agents
     assert "## Stage report" in scaffold
     for key in ("stage", "result", "current", "changed", "evidence", "issues",
@@ -249,10 +251,10 @@ def test_stage_report_instructions_keep_boundaries_and_approval_rules():
         assert re.search(rf"^{key}:\s*$", scaffold, re.MULTILINE)
     for step in (PAYLOAD / "steps").glob("*.md"):
         text = " ".join(step.read_text(encoding="utf-8").split())
-        assert "**Stage report" in text, step.name
+        assert "**Reporting and resume:**" in text, step.name
         assert "summary TASK-<id>" in text, step.name
-        assert "completed stage" in text and "current" in text, step.name
-        assert "pause" in text and "before any detailed explanation" in text, step.name
+        assert "completed stage" in agents and "current" in agents
+        assert "pause" in text and "Stage reporting" in text, step.name
 
 
 def test_resume_guidance_is_local_and_preserves_required_evidence():
@@ -266,9 +268,9 @@ def test_resume_guidance_is_local_and_preserves_required_evidence():
     assert prompts.count("Stop after this stage.") == 6
     for step in (PAYLOAD / "steps").glob("*.md"):
         text = " ".join(step.read_text(encoding="utf-8").split())
-        assert "**Resume context:**" in text, step.name
-        assert "relevant log entries" in text, step.name
-        assert "required full reads still apply" in text, step.name
+        assert "Resume a task" in text, step.name
+        assert "Read required durable evidence" in text, step.name
+        assert "context requires review" in text, step.name
 
 
 def test_workflow_defines_append_only_rulings_and_supersession():
@@ -293,7 +295,7 @@ def test_every_stage_refreshes_handoff_on_pause_or_transition():
     """REQ-FUNC-7ea14fe4: every stage boundary leaves a usable handoff."""
     for step in (PAYLOAD / "steps").glob("*.md"):
         text = " ".join(step.read_text(encoding="utf-8").split())
-        assert "refresh the Handoff" in text, step.name
+        assert "minimal Handoff" in text, step.name
         assert "transition" in text and "pause" in text, step.name
 
 
@@ -410,17 +412,18 @@ def test_every_pause_refreshes_stage_report_and_handoff():
     """REQ-FUNC-7ea14fe4: user reporting and worker resume state move together."""
     for step in (PAYLOAD / "steps").glob("*.md"):
         text = " ".join(step.read_text("utf-8").split())
-        assert "Stage report (completion or pause)" in text, step.name
-        assert "refresh the Handoff" in text, step.name
+        assert "Stage reporting" in text and "pauses" in text, step.name
+        assert "minimal Handoff" in text, step.name
 
 
-def test_six_stage_workflow_and_two_checkpoints_are_unchanged():
-    """REQ-FUNC-d60b322b: enhancements add no stage or approval stop."""
+def test_six_stage_workflow_stops_at_each_stage_when_autopilot_is_off():
+    """REQ-FUNC-d60b322b: stage order is unchanged while control is explicit."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
     assert all(f"| {number} | {stage} |" in agents for number, stage in enumerate(
         ("frame", "specify", "design", "build", "validate", "deliver"), 1))
-    assert "Stop and ask twice, not once per stage" in agents
-    assert "No new approval checkpoint" in agents
+    assert "autopilot = false" in agents
+    assert "Missing table or key means `false`" in agents
+    assert "pre-publication approval" in agents
 
 
 def test_pointer_digest_is_sufficient_for_offline_resume():
@@ -429,7 +432,9 @@ def test_pointer_digest_is_sufficient_for_offline_resume():
     digest = source.split('POINTER_DIGEST = """\\\n', 1)[1].split('"""', 1)[0]
     for phrase in ("brief TASK-<id>", "one-level child", "Rulings are append-only",
                    "Handoff is replaceable", "optional explicit review",
-                   "bounded fix", "cannot grant authority"):
+                   "bounded fix", "cannot grant authority",
+                   "autopilot = false", "stops after every stage",
+                   "publication approval"):
         assert phrase in digest
 
 

@@ -15,32 +15,17 @@ prove the final tree before it is presented for publication.
 
 - The task journal `.agentic/tasks/TASK-<id>.md`, whole file.
 - Every requirement on its `requirements:` line.
+- `python .agentic/aegis.py components` if diff review exposes an additional
+  touched component whose knowledge page the task did not already name.
 - The knowledge page of each component you touched, and
   `.agentic/templates/component.md`.
 
-**Stage report (completion or pause):** At this boundary, record only durable
-events allowed by the journal contract, update the header and checklist, and
-refresh the single `## Stage report` section in this task journal:
-At every stage transition or pause, append any new Ruling and refresh the Handoff;
-also refresh the Handoff for a blocker or session end.
-`stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
-`needs_user`, `spec_compliance`, `implementation_quality`, and `review_round`
-(plain one-line fields, no fences). Record the completed stage
-separately from `current`, which must match the header after any transition;
-use `paused` when waiting or ending a session. Other results are `in_progress`,
-`completed`, `blocked`, `skipped`. Run
-`python .agentic/aegis.py summary TASK-<id>` and copy its block before any
-detailed explanation. Unknown values stay blank (`not recorded`); refresh
-stale records and read omitted details before continuing. Preserve existing
-approval stops and immediate deviation notices; this report adds no new stop.
-
-**Resume context:** Run `brief TASK-<id>` first, then read this stage's instructions,
-the journal header/checklist, dedicated durable sections, and relevant log
-entries (stage outcomes, blockers, material changes and consolidated evidence);
-follow links to needed records.
-This stage's required full reads still apply. Use linked requirements and
-source as needed, not the whole register. Do not act on missing, stale, or
-shortened reporting without reviewing the full journal information.
+**Reporting and resume:** Follow `.agentic/AGENTS.md` sections "Resume a task",
+"Rulings and handoffs", and "Stage reporting". At transitions and pauses,
+update the current checklist, minimal Handoff and Stage report, then show
+`summary TASK-<id>`. Read required durable evidence; missing or shortened
+context requires review. This adds no approval stop and never defers a material
+deviation notice. Reuse unchanged instructions already read in this session.
 
 ## Optional explicit review and bounded re-review
 
@@ -88,24 +73,48 @@ verdict or green suite does not replace integration proof in the parent.
    `stage:` to `specify` or `design`, replace the checklist with that stage's
    "Done when" list, log why, and stop. An implementation flaw returns to
    `build` by the same protocol.
-3. Update component knowledge. For every component whose behavior, interface,
-   or file set materially changed, update or create
-   `.agentic/knowledge/<component>.md` from the template. Keep **Purpose**,
-   **Public interface**, **Key behaviors**, **Architecture**, and **Files**
-   true. Where `design` drew the architecture as it was going to be, check
-   the built code against it now: reconcile any difference in the diagram's
-   favor only if the code is right, and delete the line naming it an intended
-   shape — from here the page describes what exists.
+3. Update component knowledge. For every component whose routing, boundary,
+   invariant, behavior, interface, architecture, or file set materially
+   changed, update or create `.agentic/knowledge/<component>.md` from the
+   template. A touched legacy page that lacks Routing or another standard
+   section is knowledge drift; migrate it to the current template before
+   reconciling **Routing**, **Purpose and boundaries**, **Public
+   interface**, **Invariants**, **Key behaviors**, **Architecture**, and
+   **Files** against the exact source and tests. Reconcile **Change map** when
+   the component has multiple independent edit-and-test seams, and omit it
+   when Routing and Files already identify one obvious seam. Read any
+   `### Proposed architecture - TASK-<id>` diagram from the task's Design and
+   compare it with the built code. Update the component page's
+   `## Architecture` diagram to the resulting current-state implementation.
+   Retain the task proposal as historical design evidence; never delete it.
+   If the built code differs from the proposal, record the justified deviation
+   or decision. When no proposal exists, derive the current-state diagram
+   directly from the built code.
+   Reconcile affected sections of `.agentic/context/project.md` and
+   `.agentic/context/environment.md` with the same candidate and canonical
+   configuration/setup references. Populate missing files only with known
+   in-scope facts; preserve unrelated sections. Project and component documents
+   state current positive responsibilities and behavior. Replace stale claims;
+   keep proposals, removed-feature inventories, before/after narratives, and
+   investigation history in the journal. Leave unchanged sections untouched.
 4. Re-read each requirement. Confirm its status and prose describe the built
    behavior, its verification matches the observation, and all affected paths
-   and linked tests are current. Correct them now.
+   and linked tests are current. Correct documentation drift now; a mismatch
+   with an established contract returns to build or an authorized scope
+   decision, rather than weakening the requirement to match the code. Active
+   prose states the current positive outcome and meaningful failure responses.
+   Resolve draft-spec open decisions before activation and retain their decision
+   history in the journal, not the active spec.
 5. Complete and record every `Manual:` or `Inspection:` verification. Name the
    method, action, and observed result; never substitute a manual label for an
    automatable test that is merely missing. Where a manual method stands in for
    a test that could have been written, state it as a deviation notice in the
    conversation, per `AGENTS.md`.
-6. If steps 1-5 changed source, tests, requirements, specs, or knowledge, rerun
-   the impacted set and resolve the result before proving the repository.
+6. If steps 1-5 changed executable behavior, tests, or verification configuration,
+   run relevant focused proof as needed to resolve the change. Prose-only updates
+   require semantic and traceability review; they do not alone require another
+   runtime test run. Do not run an impacted set that expands to the full suite
+   immediately before the final full proof.
 7. If validation changed any repository file outside `.agentic/`, rerun
    `python .agentic/aegis.py evolution --task TASK-<id>` so the saved,
    timestamped report describes the final candidate. Review every added,
@@ -114,8 +123,12 @@ verdict or green suite does not replace integration proof in the parent.
 8. **Prove the final candidate only after every candidate-changing step:**
    `python .agentic/aegis.py check --task TASK-<id> --strict --run`.
    This executes the configured full verification commands plus the advisory
-   catalog. If any fix changes the candidate, repeat the relevant review and
-   this proof; the last proof must describe the tree handed to `deliver`.
+   catalog. Schedule this once after edits and review, rather than once per
+   stage. A failure or subsequent candidate change requires relevant review and
+   fresh proof; the last proof must describe the tree handed to `deliver`.
+   Do not run a separate full `test` immediately before this command. An earlier
+   full run, a dry-run preview, or an unchanged fingerprint on a cancelled job
+   cannot substitute for the required successful final verification.
 9. Record one consolidated final validation result in the log: command, exit
    code, commands/tests run, and remaining warnings with their accepted
    reasons. Record an earlier failed gate only when it exposed a candidate
@@ -123,14 +136,19 @@ verdict or green suite does not replace integration proof in the parent.
    limitation; omit corrected operational retries. Never write "green" over a
    non-zero exit. A failure introduced by this task returns to the
    appropriate earlier stage. A pre-existing base-branch failure is named and
-   kept out of scope, with its effect on CI stated honestly. A non-zero exit, a
-   warning you accept, and a verification you skipped or could not run are each
-   a deviation: state it as a deviation notice when you record it, per
-   `AGENTS.md`, rather than letting `deliver` be the first the human hears of
-   it.
-10. Tick the checklist, set `stage: deliver`, and replace it with the delivery
-   stage's "Done when" list from `6_deliver.md`. The task now means
-   "validated, not yet published."
+   kept out of scope, with its effect on CI stated honestly. State it as a
+   deviation notice when the candidate advances while accepting a relevant
+   failure or warning, omitting or weakening required verification, or
+   substituting materially weaker evidence. A tool-use error or failed command that is
+   corrected and rerun successfully without affecting the candidate or proof
+   is operational detail, not a deviation. Apply the material-impact rule in
+   `AGENTS.md` rather than turning every non-zero exit into a notice.
+10. In checkpoint mode, present the `validate` Stage-boundary choices from
+    `AGENTS.md`, refresh the waiting Handoff and paused Stage report, then stop
+    before transition. After the user chooses to continue, or immediately in
+    autopilot, tick the checklist, set `stage: deliver`, and replace it with
+    the delivery stage's "Done when" list from `6_deliver.md`. The task now
+    means "validated, not yet published."
 
 **Outputs:**
 

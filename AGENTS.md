@@ -180,6 +180,10 @@ Handoff `must_read` files. Required full journal reads still apply. Optional
 one-level child tasks are child-side links visible only in this checkout; the
 parent validates the integrated candidate.
 
+Read `.agentic/context/project.md` and relevant `context/environment.md`
+sections when present. Keep project and component context current and positive;
+task records carry proposals and history. Preserve established behavior contracts.
+
 Rulings are append-only; Handoff is replaceable. Rulings and Handoff cannot grant authority.
 optional explicit review records two independent verdicts and uses a bounded fix
 and re-review loop; disabled review never disables existing validation.

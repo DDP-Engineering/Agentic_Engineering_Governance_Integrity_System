@@ -37,7 +37,9 @@ python .agentic/aegis.py init
 This finishes the installation, idempotently:
 
 - creates the data folders (`requirements/`, `specs/`, `tasks/`,
-  `knowledge/`),
+  `knowledge/`, `context/`),
+- creates each missing `context/project.md` and `context/environment.md` from
+  generic templates, preserving existing files independently,
 - writes a default `.agentic/aegis.toml` - **only if absent**; an
   existing one is never touched,
 - creates or appends the root pointer files `AGENTS.md`, `CLAUDE.md`,
@@ -60,6 +62,12 @@ anchors, and evolution reports remain unavailable until Git is installed.
 Review the diff and commit only with explicit authorization. Re-running `init`
 preserves project data and configuration and refreshes the managed pointer
 blocks when needed; text outside those blocks is preserved.
+
+The context scaffolds start with empty headings. During frame or adoption,
+populate verified current project and environment facts, linking existing setup
+docs and configuration. New projects add responsibilities as they are built;
+existing projects describe inspected implementation. See
+[project context](Project_Context.md) for the format and update lifecycle.
 
 ## Step 3 - tell the config about your project
 
@@ -104,6 +112,40 @@ lint = 120
 
 A command stopped by its limit is reported as having proved nothing, which
 is different from a suite that ran and failed.
+
+The pytest commands above are examples for a Python project. AEGIS does not
+choose a framework, install dependencies or translate selectors. Use your
+project's documented runtimes, dependency setup, services and readiness checks
+before starting tests. Diagnose missing prerequisites directly instead of
+repeatedly launching a full suite.
+
+### Verify focused routing before using it
+
+Configure `test` as the full suite. Add `test_impacted` only when the project's
+runner accepts the linked file references and supported exact selectors.
+A wrapper that ignores its arguments will still run the full suite.
+
+```text
+python .agentic/aegis.py test --impacted --base HEAD --dry-run
+python .agentic/aegis.py test --impacted --base HEAD --no-fallback
+```
+
+The first command previews the selected command and working directory. Inspect
+whether it selects focused tests or would fall back to the full command. It
+executes nothing, and exit zero is not passing test evidence. The second refuses
+unavailable selection with exit 1 and no test execution or journal result.
+Without `--no-fallback`, existing full-suite fallback remains enabled.
+
+Confirm the runner actually honors selection from its own output. If it does
+not, use a native focused project command. Unsupported test-name suffixes can
+broaden safely to a validated file reference; paths containing spaces still
+need a native project command. See the [CLI reference](09_CLI_Reference.md#test)
+for selection and workdir rules.
+
+During build, use focused checks. After final edits and review, run
+`check --task TASK-<id> --strict --run` with the full suite included in its eligible
+commands. Avoid a separate full `test` immediately beforehand. This is workflow
+guidance, not an execution quota or automatic reuse of previous test results.
 
 Everything else in the file is optional tuning and can wait.
 

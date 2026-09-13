@@ -24,7 +24,7 @@ agent plugin assembly are separate operations:
 Build the current AEGIS release archives and tracked publication record with:
 
 ```text
-py -3.12 02_Tools/build_aegis_release.py --version 0.11.0
+py -3.12 02_Tools/build_aegis_release.py --version 0.13.0
 ```
 
 On Linux, use `python3` in place of `py -3.12`. The build environment needs
@@ -34,7 +34,7 @@ the product suite. See the [development setup](../README.md#environment-and-deve
 `--version` must match the payload's existing `VERSION` declaration and have a
 dated entry in the root changelog. The builder does not assign a new version.
 
-The builder validates the 15-file payload, runs the complete product test
+The builder validates the 17-file payload, runs the complete product test
 suite, and writes reproducible Windows `.zip` and Linux `.tar.gz` archives
 under `07_Delivery/dist/`. Checksums and release metadata are written under
 `07_Delivery/aegis-<version>/` as `SHA256SUMS`, `release-manifest.json` and

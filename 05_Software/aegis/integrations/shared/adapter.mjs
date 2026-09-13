@@ -65,18 +65,20 @@ export function commandArgs(operation, args = {}) {
   }
   if (operation === 'evidence') {
     const action = pick(args.action, ['anchor', 'evolution', 'report'], 'evidence action');
-    return action === 'report' ? ['report', taskID(args.task)] : [action, '--task', taskID(args.task), '--json'];
+    if (args.compact && action !== 'evolution') throw new Error('Compact evidence requires evolution');
+    return action === 'report' ? ['report', taskID(args.task)] : [action, '--task', taskID(args.task), '--json', ...(args.compact ? ['--compact'] : [])];
   }
   if (operation === 'run') {
     taskID(args.task);
     if (args.kind === 'validate') {
-      if (args.command || args.impacted || args.base) throw new Error('Validation uses configured commands; command/impacted/base overrides are not accepted.');
+      if (args.command || args.impacted || args.base || args.no_fallback) throw new Error('Validation uses configured commands; test selection overrides are not accepted.');
       return ['check', '--task', args.task, '--strict', '--run', '--json'];
     }
     pick(args.kind, ['test'], 'run kind');
+    if (args.no_fallback && !args.impacted) throw new Error('no_fallback requires impacted');
     if (args.command && !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(args.command)) throw new Error('Invalid configured command name');
     if (args.base && (!/^[a-zA-Z0-9][a-zA-Z0-9_./~^+-]*$/.test(args.base) || args.base.includes('..'))) throw new Error('Invalid base revision');
-    return ['test', args.command || 'test', '--task', args.task, ...(args.impacted ? ['--impacted'] : []), ...(args.base ? ['--base', args.base] : [])];
+    return ['test', args.command || 'test', '--task', args.task, ...(args.impacted ? ['--impacted'] : []), ...(args.no_fallback ? ['--no-fallback'] : []), ...(args.base ? ['--base', args.base] : [])];
   }
   throw new Error(`Unsupported operation: ${operation}`);
 }

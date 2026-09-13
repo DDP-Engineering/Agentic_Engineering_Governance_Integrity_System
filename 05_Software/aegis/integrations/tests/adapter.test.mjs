@@ -38,6 +38,16 @@ test('argument arrays preserve metacharacters and reject malformed IDs and unsup
   assert.throws(() => commandArgs('evidence', { action: 'init', task: 'TASK-aabb' }), /action/i);
 });
 
+test('focused refusal and compact evolution are explicit portable options', () => {
+  assert.deepEqual(commandArgs('run', { kind: 'test', task: 'TASK-aabb', impacted: true, no_fallback: true }),
+    ['test', 'test', '--task', 'TASK-aabb', '--impacted', '--no-fallback']);
+  assert.throws(() => commandArgs('run', { kind: 'validate', task: 'TASK-aabb', no_fallback: true }), /overrides/);
+  assert.throws(() => commandArgs('run', { kind: 'test', task: 'TASK-aabb', no_fallback: true }), /requires impacted/);
+  assert.deepEqual(commandArgs('evidence', { action: 'evolution', task: 'TASK-aabb', compact: true }),
+    ['evolution', '--task', 'TASK-aabb', '--json', '--compact']);
+  assert.throws(() => commandArgs('evidence', { action: 'anchor', task: 'TASK-aabb', compact: true }), /requires evolution/);
+});
+
 test('resolves the actual checkout from a subdirectory; rejects uninstalled nested Git repos', async () => {
   const { root } = await fixture('root with spaces');
   const sub = path.join(root, 'src');

@@ -33,10 +33,8 @@ After extracting the chosen package, run `sh install.sh` on Linux, `Install-AEGI
 For recipient-facing, illustrated walkthroughs, start with the
 [combined installation manual](Plugin_Installation/00_AEGIS_Plugin_Installation_Manual.md)
 or choose a host-specific Markdown/PDF guide from
-[Plugin_Installation/README.md](Plugin_Installation/README.md). The figures use
-sanitized isolated-install evidence; the Claude guide marks its current package
-check separately because Claude Code was unavailable during the documentation
-refresh.
+[Plugin_Installation/README.md](Plugin_Installation/README.md). The guides describe current installation procedures and verification scopes.
+Dated package and host results remain in task/build records.
 
 OpenCode installs into its configuration directory and adds `plugins/aegis-package.js`. Agent and command registration happens through a config hook, preserving the existing JSON/JSONC bytes. Conflicting AEGIS definitions are refused. After restarting the backend, select Aegis and use `/aegis-status` or `/aegis-start <request>`. CLI and Desktop share the configuration when they use the same backend; remote servers and WSL require their own installation.
 
@@ -46,7 +44,7 @@ present in a raw source-only plugin installation. Codex does not provide the sam
 
 Pi installs into `PI_CODING_AGENT_DIR/extensions/aegis` (default `~/.pi/agent/extensions/aegis`). Its skill is discovered through the extension. Five native commands dispatch workflow operations; only `aegis-start` sends a model request. Pi has no built-in subagents: `review.mjs` starts separate nonpersistent review processes with read-oriented tools. This is not an OS sandbox; real reviews use the configured model and are outside model-free package tests.
 
-Qwen installs into `QWEN_HOME/extensions/aegis` (default `~/.qwen/extensions/aegis`). Native discovery loads the Markdown commands, skill, context and two read-oriented agents. Its MCP server runs with the workspace as its working directory and the installed Node path. `qwen extensions list` shows resources and `qwen mcp list` checks connection. Qwen slash commands are model prompts. Existing settings bytes remain unchanged for both new hosts; use `--config-dir`, `--host-cli`, `--python`, `--node` and `--cache` when needed.
+Qwen installs into `QWEN_HOME/extensions/aegis` (default `~/.qwen/extensions/aegis`). Native discovery loads the Markdown commands, skill, context and two read-oriented agents. Its MCP server runs with the workspace as its working directory and the installed Node path. `qwen extensions list` shows resources and `qwen mcp list` checks connection. Qwen slash commands are model prompts. Existing settings bytes remain unchanged for both hosts; use `--config-dir`, `--host-cli`, `--python`, `--node` and `--cache` when needed.
 
 Runtime paths discovered by installation are stored in each package's `runtime.json`. The bridge can override executable paths with AEGIS_NODE and AEGIS_PYTHON. Installed packages reject a different AEGIS_CACHE value: change the recorded cache with installer `update --cache PATH` after verification finishes; update/removal checks both the previous and requested caches for reservations. AEGIS_CACHE is available for unpacked packages without installed runtime settings. Git must remain discoverable to the backend. Defaults store jobs under XDG_CACHE_HOME/aegis/integrations or ~/.cache/aegis/integrations so all integrations share duplicate-run detection; keep all installations on the same cache for this protection.
 
@@ -72,11 +70,40 @@ Cancellation terminates the descendant process tree. Linux handling includes sep
 
 The fingerprint covers Git-visible tracked and untracked non-ignored files, except task journals/evidence and Python bytecode. It excludes ignored files, external inputs and submodule contents; it is a review aid, not a tamper-proof attestation.
 
-## Verification status
+## Verification methods and evidence
 
-Checks use temporary Git fixtures with the real AEGIS payload and isolated host configuration directories. They include Windows and Ubuntu 24.04 under WSL, OpenCode 1.18.18 backend registration, Codex 0.151.0 installation and app-server skill discovery, owned-file lifecycle, runtime resolution, output recovery, duplicate prevention and cancellation of configured subprocesses. Pi 0.84.4 and Qwen Code 0.22.3 were also checked on Windows and Ubuntu 24.04: native resources, Pi schema validation/direct status, Qwen MCP connection, protocol framing and actual workflow calls, review-launch arguments and lifecycle protection. The canonical task journal records the consolidated final commands and outcomes rather than every retry.
+Verify the candidate at the scope needed for the change:
 
-No local or remote model requests are used for these checks. Native Desktop UI interaction and a complete model-driven workflow remain unverified; common backend registration must not be described as GUI verification. For native desktop acceptance, open a fresh project session, confirm the agent/skill choices, and run an approved task with the user's chosen provider.
+1. Use isolated package tests to check assembled resources, syntax/imports,
+   runtime discovery, configuration preservation and owned lifecycle.
+2. Run `node setup.mjs doctor` in the selected installed environment to check
+   runtime and registration metadata.
+3. Open a fresh host session to check the actual visible agents, skills and
+   commands for that backend/profile.
+4. Exercise a model-led workflow or independent reviews only with the user's
+   chosen provider and authorization.
+
+Each result applies to its recorded candidate and environment. Package/backend
+checks establish resource and protocol behavior; Desktop and model-led acceptance
+require their own observations. Keep commands, exits, tested host versions and
+limitations in task/build records rather than a running history in this guide.
+Recorded evidence is available in [delivery records](../07_Delivery/README.md)
+and the [integration task](../.agentic/tasks/TASK-7616551e.md).
+
+## Current repository context
+
+Host-facing instructions read the installed contract's current-context guidance.
+At frame/resume, open `.agentic/context/project.md` and relevant
+`context/environment.md` sections when present, then select component,
+requirement, source and test references. Brief lists context paths and presence,
+not their bodies. Existing projects remain compatible with missing context.
+
+Project/component documents and active contracts describe current positive
+behavior and actual setup. Draft/task records hold proposals; journals and Git
+retain history. Populate facts during frame/adoption, update affected sections
+as implementation/setup changes, and reconcile at validate. Configuration
+values and commands remain canonical in `aegis.toml`. See
+[Project context](Project_Context.md).
 
 Primary references: [OpenCode plugins](https://opencode.ai/docs/plugins/), [OpenCode config](https://opencode.ai/docs/config/), [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins), and [Codex custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
@@ -88,7 +115,6 @@ The fifth package provides `/aegis:start`, `/aegis:resume`, `/aegis:status`, `/a
 
 Install the complete built package with its launcher or `node setup.mjs install`; do not register raw source directories as marketplaces. The installed copy includes `plugins/aegis/lib/bridge.mjs` and all runtime dependencies. Update/uninstall preserve unrelated settings, plugin data and job logs, and refuse changed owned files or active/uncertain jobs. Claude CLI 2.1.259+, Node 22+, Python 3.11+ and Git are required. See the [Claude package guide](../05_Software/aegis/integrations/claude/README.md) for profile options, troubleshooting and verification boundaries.
 
-Claude Code 2.1.259 native loading, inventory, MCP connection, direct hook execution and lifecycle were verified in isolated Windows and Ubuntu 24.04 profiles without model requests. Desktop UI and model-led workflow/review behavior remain unverified.
 
 ## Host entry points at a glance
 
@@ -110,7 +136,24 @@ they do not mutate task journals or implement a general enforcement sandbox.
 Each user's chosen host/provider remains responsible for authentication and
 model access. No recipient needs the package author's sign-in.
 
-This guide describes the assigned **0.11.0** source and recorded implementation
-checks. The 0.11.0 delivery build does not rerun model workflows, install into
-real user profiles, or publish to a registry. Current archives are generated
-locally under `07_Delivery/`.
+This guide describes the assigned **0.13.0** source. Complete packages are built
+separately under `07_Delivery/`; use the manifest and README of the package
+actually supplied. Source changes take effect in an installed host through its
+normal package update procedure.
+
+## Focused verification options
+
+The shared run operation accepts `no_fallback: true` with `kind: test` and
+`impacted: true`; the CLI bridge spells the flags `--impacted --no-fallback`.
+Selection failure exits without starting the full configured test command. Use a
+project-native focused command when the installed payload lacks this option or
+the project runner ignores selectors. `kind: validate` rejects selection overrides
+and retains complete final verification. Preview directly with the supporting
+payload's `test --impacted --base HEAD --dry-run`; previews do not create jobs or
+record passing evidence.
+
+The evidence operation accepts `compact: true` for evolution only (`--compact` in
+the bridge). Its response omits hashes while its on-disk evidence stays complete.
+Both options are explicit so normal operations remain compatible with older
+payloads. Installed personal plugins are updated only through their normal release
+and installation process; changing source does not upgrade them automatically.

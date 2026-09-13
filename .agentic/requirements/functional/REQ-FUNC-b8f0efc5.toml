@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When AEGIS creates or records governed work artifacts, the payload shall provide templates for task journals, requirements, specifications, and component knowledge that preserve durable behavior-focused context.
+When AEGIS creates or records governed work artifacts, the payload shall provide templates for task journals, requirements, specifications, component knowledge, project profiles, and environment guides that preserve durable behavior-focused context.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When AEGIS creates or records governed work artifacts, the payload shall provide
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspection: compare the four canonical templates with their documented artifact locations and confirm the task template carries compatible parent, ruling, handoff, stage-report, and review scaffolds needed to resume and verify governed work."
+verification = "Inspection: compare the canonical templates with their documented artifact locations, confirm current positive facts in project/component guidance, and confirm the task template carries parent, ruling, handoff, stage-report and review scaffolds for progress and history."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -57,6 +57,8 @@ affected_paths = [
     "05_Software/aegis/template/.agentic/templates/requirement.toml",
     "05_Software/aegis/template/.agentic/templates/spec.md",
     "05_Software/aegis/template/.agentic/templates/component.md",
+    "05_Software/aegis/template/.agentic/templates/project.md",
+    "05_Software/aegis/template/.agentic/templates/environment.md",
 ]
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
@@ -75,4 +77,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-31
+updated = 2026-09-10

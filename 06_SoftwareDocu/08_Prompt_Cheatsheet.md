@@ -22,10 +22,13 @@ The AEGIS payload is at <extracted-release>/.agentic.
 Copy it into this repository as .agentic/, run
 python .agentic/aegis.py init, then edit .agentic/aegis.toml so that
 [commands] test runs our real test suite and [layout] source/tests match
-our real folders. Show me the resulting diff and stop - do not commit.
+our real folders. Populate the context files with verified current facts and
+links to canonical setup references; leave unknown sections empty.
+Show me the resulting diff and stop - do not commit.
 ```
 
-*What happens:* copy + `init` (data folders, default config, pointer
+*What happens:* copy + `init` (data folders, missing project/environment context,
+default config, pointer
 digests appended to `AGENTS.md`/`CLAUDE.md`/`QWEN.md`) + config tuning.
 *Check afterwards:* the diff touches only `.agentic/` and the three
 pointer files; your existing pointer content is preserved. Then commit
@@ -39,7 +42,9 @@ minimal skeleton with src/ and tests/ and a meaningful test of the initial
 behavior we agreed.
 Then install AEGIS from <extracted-release>/.agentic
 (copy + python .agentic/aegis.py init), point .agentic/aegis.toml at the
-skeleton's test command and folders, and stop before committing.
+skeleton's test command and folders. Populate context/project.md and
+context/environment.md with the confirmed purpose, implemented skeleton and
+available setup. Keep future features in draft/task records. Stop before committing.
 ```
 
 *Check afterwards:* `python .agentic/aegis.py check` reports `result: ok`
@@ -76,15 +81,17 @@ anything else happens - that review is the alignment moment.
 using aegis workflow, implement: <what, for whom, and why>
 ```
 
-Two stops by default: after `frame` (scope confirmation - the cheap
-moment to say "not that, this") and before the delivery commit/PR.
-Trust the scope already? Suppress the first stop:
+By default, the agent stops after every stage, reports the result, and offers
+three or four choices: continue to the named next stage, revise or return to a
+specific artifact, or pause the workflow. The delivery commit/PR always needs
+explicit approval. To flow through intermediate stages, request autopilot:
 
 ```
 using aegis workflow, autopilot to deliver: implement <what>
 ```
 
-Autopilot suppresses the frame *stop*, not the agent's voice: anything it
+Autopilot suppresses intermediate stage-choice stops, not the agent's voice or
+publication approval: anything it
 deviates on still arrives mid-run as a one-line `DEVIATION <stage>: ...`
 notice you do not have to answer.
 
@@ -106,16 +113,24 @@ particular model.
 
 ## Resume with limited context
 
+Read the project profile and relevant environment sections listed by `brief`,
+when present, before selecting component and source/test references. Missing
+context is compatible with older projects. Shared context records verified
+current facts; task records carry progress and unanswered questions. See
+[project context](Project_Context.md) for setup and maintenance guidance.
+
 ```text
 Read .agentic/AGENTS.md. Continue TASK-<id> using the current stage file.
 Start with python .agentic/aegis.py brief TASK-<id>, then read the header,
 checklist, relevant decisions, unresolved issues, and required evidence.
+Read the project profile and relevant environment sections when present;
+confirm their claims against the current checkout and canonical references.
 Record and show the stage report. Stop after this stage.
 Do not commit or push.
 ```
 
-This explicitly bounds the session to one stage; it does not change ordinary
-checkpoint or autopilot behavior. Load source and linked requirements as
+This explicitly bounds an autopilot session to one stage and matches ordinary
+checkpoint behavior. Load source and linked requirements as
 needed. A missing/stale snapshot or shortened output requires the full journal
 information before acting, and required full validation/delivery reads are
 never skipped. `summary` does not run checks or prove the recorded claims.
@@ -242,7 +257,10 @@ We just merged <branches>. Run python .agentic/aegis.py check and fix
 every error it reports - duplicate requirement ids, dangling journal
 references, stale affected_paths, unresolved specs - re-running until no
 errors remain. List the warnings but fix only the mechanically obvious
-ones. Summarize what you changed and what you left for a human.
+ones. Reconcile affected project/environment context and component pages
+against the merged implementation and established active contracts; flag
+disputed behavior for a human. Summarize what you changed and what you left
+for a human.
 ```
 
 *Check afterwards:* `check` shows `errors=0`; anything the agent left is
@@ -260,6 +278,24 @@ a conscious human decision, not a silent skip.
 
 These require the corresponding complete package and a repository core.
 Codex uses a skill/bridge, not the five slash commands supplied by other hosts.
+
+## Keep verification and records proportionate
+
+```text
+Use this project's documented environment and readiness checks. During build,
+run focused native tests. Use AEGIS impacted selection only if the configured
+runner honors its references; preview with --dry-run and refuse full-suite
+fallback with --no-fallback. Neither a preview nor a refusal is passing proof.
+Run full strict verification after final edits and review, without a duplicate
+full test immediately before it. Later candidate changes require fresh proof.
+Keep consolidated red/green outcomes, findings and decisions in the journal.
+Refresh minimal Handoff and Stage report fields at transitions, pauses, blockers
+and session ends. Reuse unchanged instructions in an intact session; preserve
+required full reads after compaction or resumption. Do not delete saved evidence.
+```
+
+These are 0.13.0 workflow and CLI options. They do not create a result-reuse cache,
+remove review requirements or change existing delivery authority.
 
 ## Resume a tracked verification job
 

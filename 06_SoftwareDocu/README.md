@@ -11,15 +11,19 @@ Start at [00_Index.md](00_Index.md) for the installation guide, worked examples,
 team guidance, FAQ and prompt cheatsheet. Guides 01-08 each have a matching
 PowerPoint deck; decks summarize the detailed Markdown rather than replace it.
 
-These documents describe the assigned **AEGIS 0.11.0** source at
+These documents describe the assigned **AEGIS 0.13.0** source at
 `05_Software/aegis/` and its five host integrations:
 OpenCode, Codex, Pi, Qwen Code and Claude Code. See
 [Agent_Plugins.md](Agent_Plugins.md) for distribution and installation and
 [Plugin_Installation/README.md](Plugin_Installation/README.md) for illustrated,
 host-by-host installation manuals in Markdown and PDF. See
 [09_CLI_Reference.md](09_CLI_Reference.md) for the core command surface.
-The current built delivery packages are 0.11.0. Building them creates local
-archives and publication records; it does not publish them remotely.
+The [project context guide](Project_Context.md) defines the current profile,
+environment guide, positive behavior documentation and their update lifecycle.
+Project-owned documents describe actual current facts. Journals, Git and
+delivery records retain change history and dated verification evidence.
+Delivery packages are built separately from source-version assignment. A build
+creates local archives and publication records; it does not publish them remotely.
 
 The core keeps durable workflow records in the repository. Optional packages
 add native host resources, local runtime/ownership records and tracked jobs in
@@ -32,6 +36,8 @@ Documentation-only updates here are reviewed directly, without AEGIS task
 journals or development test runs. Update Markdown and slide companions
 together when their shared content changes.
 
-The plugin installation PDFs are generated from their Markdown sources. Their
-figures distinguish isolated command evidence from unavailable Desktop UI
-acceptance; they do not turn a backend or package check into a GUI claim.
+The plugin installation PDFs are generated from their Markdown sources.
+Installation guides describe current setup and verification procedures using
+the actual supplied package version. Build records retain dated results;
+package/backend checks, Desktop acceptance and model-led acceptance have
+separate verification scopes.

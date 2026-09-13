@@ -30,6 +30,12 @@ from the workflow it already has.
 
 ## After a merge
 
+Recheck affected project/environment context and component pages against the
+merged implementation and established requirements. Each branch edits only the
+facts it changes. Keep current positive statements in shared documents and
+decisions/history in task records. Context is shared project data, so ordinary
+review and merge apply. See [project context](Project_Context.md).
+
 Run the reconciliation check on the target branch:
 
 ```bash
@@ -145,7 +151,17 @@ Review is disabled by default, while ordinary semantic review remains required.
 The parent validates the combined candidate after child branches become visible.
 Passing child tests are not proof of the integrated result. The final
 `check --strict --run` executes the configured proof; do not duplicate a long
-suite already owned by an integration job.
+suite already owned by an integration job. Schedule full verification after
+final edits and review, with focused native checks during build. Ensure that the
+project runner honors any impacted references; `--no-fallback` prevents CLI
+fallback, not a runner that ignores selection.
+
+Agree on documented readiness checks for each checkout. Handoff and Stage report
+still refresh at stage boundaries, pauses, blockers and session ends, but they
+should not repeat the full journal. Reuse unchanged instructions in an intact
+session; a new session or compaction requires durable re-entry. Neither an older
+successful run nor an unchanged fingerprint on a cancelled job proves the final
+candidate. These guidelines add no cross-machine test-result cache.
 
 ## Each user installs their own host package
 

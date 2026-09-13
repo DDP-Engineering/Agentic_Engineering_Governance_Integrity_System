@@ -37,18 +37,18 @@ paths. This records evidence and decisions without requesting hidden reasoning.
 
 An unknown becomes a decision-blocking question only when implementation
 cannot proceed safely without an answer. Other unknowns remain explicit in the
-Frame, requirement, spec, or design rather than being silently converted into
+Frame, draft requirement/spec, or task design rather than being silently converted into
 product behavior.
 
 ## Ordinary lifecycle
 
 | Stage | Step file | Implemented responsibility |
 |---|---|---|
-| `frame` | `steps/1_frame.md` | Analyze the idea and evidence; record problem, outcome, actors, scenario, examples, scope, constraints, success, assumptions, unknowns, proposed behavior, authority limits and path in a durable Frame card. |
+| `frame` | `steps/1_frame.md` | Read current project context and relevant environment references; analyze the idea and evidence; record scope, constraints, success signals, unknowns and proposed behavior in the Frame card. |
 | `specify` | `steps/2_specify.md` | Build a behavior inventory and coverage table; map every atomic behavior to exactly one requirement; derive concrete positive, boundary and failure verification; add a spec for exact contracts that do not fit safely in requirement prose. |
 | `design` | `steps/3_design.md` | Record the shortest sufficiently constrained, requirement-linked implementation path; scale depth with interface, state, trust, concurrency, migration and operational risk; preserve material open decisions and proposed architecture in the task. |
-| `build` | `steps/4_build.md` | Write and observe the expected failing test before implementation for automated requirements; carry out declared manual/inspection methods after the change; keep traceability links current. |
-| `validate` | `steps/5_validate.md` | Reconcile the candidate and any task-level architecture proposal with built code, update current-state knowledge, retain the proposal as historical evidence, run focused and full proof, strict checks, and review evidence. |
+| `build` | `steps/4_build.md` | Write and observe the expected failing test before implementation; carry out declared manual/inspection methods after the change; update traceability and affected context as implementation or setup changes. |
+| `validate` | `steps/5_validate.md` | Reconcile project/environment context, component knowledge and active contracts with the candidate and authorized intent; retain proposals in task history; complete final strict verification after edits and review. |
 | `deliver` | `steps/6_deliver.md` | Present the unchanged validated candidate, append the delivery report, and act only within granted Git/PR authority. |
 
 A fix or change may take the quick path only when all frame criteria hold:
@@ -74,19 +74,62 @@ tree before implementation, then review evolution after the edits.
 If the candidate changes after validation, return to `validate`. Deliver is
 not a place to make unvalidated implementation changes.
 
+## Project-configured verification
+
+`.agentic/context/project.md` describes the project's current purpose,
+responsibilities, constraints and implementation entry points.
+`.agentic/context/environment.md` links current setup and verification guidance.
+Populate verified facts during frame or adoption, update affected sections when
+facts change, and reconcile at validate. For a new project, add responsibilities
+as they are implemented; draft/task records hold planned behavior.
+
+Project documents, component pages and active requirements/specs state current
+positive behavior, including meaningful security and failure responses. Journals,
+Git and the changelog hold history. A conflict with an established requirement
+calls for investigation or an authorized change, not a weaker replacement rule.
+Missing or partial context is compatible with the advisory workflow.
+
+Before testing in a new checkout, follow the project's documented readiness
+checks from the environment guide and its canonical references for runtimes,
+dependencies, services and working directory. Diagnose
+missing prerequisites directly. AEGIS supplies no automatic installer or
+framework-specific test adapter; setup stays within existing user authority.
+
+During build, use the smallest native command that proves the behavior increment.
+Where the configured runner honors selectors, preview and run with:
+
+```text
+python .agentic/aegis.py test --impacted --base HEAD --dry-run
+python .agentic/aegis.py test --impacted --base HEAD --no-fallback
+```
+
+A preview executes nothing and is not proof. Unavailable selection with
+`--no-fallback` exits without running tests; choose a focused project command
+or defer full verification. The flag cannot make a runner that ignores selectors
+focused. Existing callers without it retain full-suite fallback.
+
+Schedule `check --task TASK-<id> --strict --run` after final edits and review.
+Avoid a separate full `test` immediately beforehand or an impacted run that
+expands to the same full suite. Relevant failures or subsequent candidate
+changes require fresh proof. Ordinary prose corrections require semantic and
+traceability review rather than an automatic extra runtime run. This scheduling
+is agent guidance, not a CLI execution quota or a cache of reusable test results.
+
 ## Interaction boundaries
 
-Checkpoint mode is the default. It asks at two meaningful boundaries:
+Checkpoint mode is the default. It stops after every stage, presents the stage
+report and three or four concrete choices, and waits before advancing. Choices
+name the next stage, a specific revision or earlier-stage route, and pausing the
+workflow. The delivery boundary separately requires explicit authority for the
+stated commit or pull request.
 
-1. End of `frame`: confirm the Frame card, scope, assumptions,
-   decision-blocking questions, selected path, and proposed behaviors. This is
-   scope acceptance, not implementation or delivery authority.
-2. Before a delivery commit or pull request: present the validated candidate
-   and proof for explicit authority.
-
-An explicit autopilot request suppresses the first stop, not external
-authority or the delivery boundary. Neither child tasks, stage reporting,
-rulings, handoffs, nor review add a new ordinary approval checkpoint.
+The optional `[interaction] autopilot` Boolean in `.agentic/aegis.toml`
+defaults to `false`, including when the table or key is missing. An invalid
+value also fails safe to off. Autopilot flows between intermediate stages but
+does not suppress external authority or the delivery boundary. New journals
+record the resolved mode; an explicit user instruction may override the
+configured default for that task. Neither child tasks, stage reporting,
+rulings, handoffs, nor review adds a stop beyond these configured boundaries.
 
 Record material accepted deviations immediately and say them in the
 conversation:
@@ -158,13 +201,20 @@ Resume safely:
 
 1. Run `python .agentic/aegis.py status` when the task ID is unknown.
 2. Run `python .agentic/aegis.py brief TASK-<id>`.
-3. Read the current step file and the Handoff `must_read` paths.
+3. Read the project profile and relevant environment sections when present,
+   then the current step file and Handoff `must_read` paths. Confirm relevant
+   claims against this checkout; context-file presence alone is not evidence.
 4. Read the full journal wherever detail is omitted, stale, unresolved, or
    required by the current stage; then continue at the first unticked item.
 
 `brief` never proves the recorded state is still true. `summary` is useful
 after a stage report is written, but it is narrower still and never replaces
-required journal, source, or evidence reads.
+required journal, source, or evidence reads. In an intact session, reuse
+unchanged instructions and documents already read. After compaction or lost
+context, follow the resume procedure and required full reads. Step files point
+to the shared reporting/resume contract. Handoffs still refresh at transitions,
+pauses, blockers and session ends; update their short fields without repeating
+the Frame, Design or Log.
 
 ## Executing through a host integration
 
@@ -195,8 +245,12 @@ Existing-repository adoption follows `steps/adopt.md`:
 survey -> components -> close -> done
 ```
 
-It produces requirements and knowledge from observed code and tests, then
-checks the resulting register. It is not an ordinary-stage shortcut.
+Survey populates current project/environment context from verified repository
+facts. Component sessions describe actual positive responsibilities and agreed
+behavior from source and tests. Suspected defects and investigation evidence
+belong in the journal; confirm intent before activating a disputed new
+requirement and preserve existing contracts while investigating. Close reconciles
+the context, knowledge pages and register. Adoption keeps its own lifecycle.
 
 Large work may use optional one-level child tasks. A child keeps its own
 journal, branch/base, requirements, evidence, validation, and delivery
