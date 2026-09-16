@@ -147,7 +147,108 @@ During build, use focused checks. After final edits and review, run
 commands. Avoid a separate full `test` immediately beforehand. This is workflow
 guidance, not an execution quota or automatic reuse of previous test results.
 
-Everything else in the file is optional tuning and can wait.
+Everything else in the file is optional tuning and can wait. The full list
+is below.
+
+## Settings reference
+
+`aegis.toml` is both the configuration and its own reference: the keys most
+projects never change are written as commented defaults with their rationale,
+so the file `init` hands you already names every setting the CLI reads. This
+section repeats them with what `init` writes and what applies when a key is
+absent.
+
+`init` writes this file **only when it is missing**. Upgrading AEGIS never
+touches an existing one, which is also why a key added by a later version is
+not added to your file - take it from here.
+
+### Top level
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `schema` | `1` | `check` warns that the schema should be the integer 1. |
+
+### `[commands]` - what AEGIS runs
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `test` | `"pytest -q"` | `aegis test` reports that no runnable entry named `test` exists, and `check --run` has nothing to prove. |
+| `test_impacted` | commented `"pytest -q {tests}"` | Focused selection is unavailable, so `test --impacted` falls back to the full command unless you pass `--no-fallback`. |
+| `<name>` | commented `lint = "ruff check ."` | Any other entry you add, such as `lint` or `build`, is a command `check --run` executes. |
+| `timeout` | commented `0` | No limit. Zero, a negative number and an unreadable value all mean no limit too. |
+| `workdir` | commented `"app"` | Commands run at the repository root. A directory that escapes the root or does not exist falls back to the root, and `check` reports it. |
+
+Never put a directory change inside a command. AEGIS substitutes
+repository-relative paths into `{tests}`, so a command that moves itself would
+resolve them a second time and find nothing. `workdir` rewrites those paths to
+match instead.
+
+### `[timeouts]` - one limit per command
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `<command name>` | commented `test = 5400` and `lint = 120` | No limit for that command. A value here wins over `[commands] timeout`, and only a positive integer sets a limit at all. |
+
+Nothing is limited by default, because a limit short enough to cut off a
+healthy suite would report a failure that never happened. A command stopped by
+its limit is reported as having proved nothing, which is not the same as a
+suite that ran and failed.
+
+### `[layout]` - what the heuristics treat as code
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `source` | `["src/"]` | No source globs, so the traceability heuristics have nothing to match. |
+| `tests` | `["tests/"]` | No test globs. |
+| `docs` | `[]` | Documentation is reported as sitting outside the layout. It stays in the diff and the secret scan either way. |
+| `default_branch` | commented `"develop"` | The base is whatever `origin/HEAD` points at, then a local `master`, then a local `main`, and nothing at all when none of those resolve. |
+
+`default_branch` names the ref every diff is measured from, so it decides what
+`check`, `impacted`, `anchor` and `evolution` consider changed. Set it when the
+branch your work merges into is not the one AEGIS would find on its own.
+
+### `[interaction]` - when the agent stops
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `autopilot` | `false` | `false`. An invalid value resolves to `false` as well, and `check` reports it. |
+
+`false` stops after every completed stage and presents the next choices.
+`true` flows between stages and still requires publication approval. An
+explicit instruction for one task overrides this default and is recorded in
+that task's journal header, so the choice survives a resume.
+
+### `[review]` - optional explicit verdicts
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `enabled` | `false` | `false`. Ordinary semantic review, the full suite and the strict check are required whichever way this is set. |
+| `max_fix_cycles` | `2` | `2`. A value outside 0 through 5 resolves to 0, and `check` reports it. |
+
+### `[zones]` - what each stage may write
+
+Every stage may always write under `.agentic/`. A value names the `[layout]`
+globs that stage may write as well - `"source"`, `"tests"`, or nothing.
+
+| Stage | Default |
+|---|---|
+| `frame`, `specify`, `design`, `survey`, `close` | nothing beyond `.agentic/` |
+| `components` | `["tests"]` |
+| `build`, `validate`, `deliver` | unlisted, so unconstrained |
+
+`init` writes each of these as a commented line. Zones are advisory like
+everything else: `check` reports an edit outside the current stage's zone as
+`stage-zone`, and never stops one.
+
+### `[check]` - the advisory report
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `ignore` | `[]` | Nothing is excluded from the checks. |
+| `secret_patterns_extra` | `[]` | Only the built-in secret patterns apply. |
+| `strict_promote` | `[]` | `--strict` fails on errors, a failed `--run` command among them, and on no warnings. |
+| `run` | commented `["test", "lint"]` | `check --run` executes every `[commands]` entry except names that read as side effects - `deploy`, `migrat`, `publish`, `release`, `push`, `upload` - which are skipped with a visible line. |
+
 
 ## First contact
 

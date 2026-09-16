@@ -7,8 +7,11 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Delivery
 
-This folder holds the **AEGIS 0.13.0** delivery archives and build records
-from **2026-09-10**. All current download links refer to this version.
+This folder holds the **AEGIS 0.13.0** delivery archives and build records.
+The core pair and the documentation ZIP were rebuilt on **2026-09-16** to carry
+the configuration-documentation change; the ten host-integration packages are
+unchanged from the **2026-09-10** build. All current download links refer to
+this version.
 
 ## Download the latest built packages
 
@@ -43,11 +46,14 @@ profiles or `runtime.json`.
 
 ## Verification and checksums
 
-The full product suite passed: **435 passed, 2 skipped** for Windows
-symlink limitations. All 13 archives passed inventory, byte and SHA-256 checks.
-Packaged JavaScript syntax and relative imports passed, and Linux launchers carry
-execute permission. No models were called and no real host profile was changed.
-Desktop GUI, native host installation and model-driven workflows were not run.
+The full product suite passed: **436 passed, 2 skipped** for Windows
+symlink limitations. The three rebuilt archives passed inventory, byte and
+SHA-256 checks, and the ten carried-forward archives matched their recorded
+SHA-256 values. Packaged JavaScript syntax, relative imports and Linux launcher
+permissions were verified in the 2026-09-10 build of those unchanged archives.
+The two updated decks were verified from their slide XML, not by rendering. No
+models were called and no real host profile was changed. Desktop GUI, native
+host installation and model-driven workflows were not run.
 
 Use [SHA256SUMS](dist/SHA256SUMS) to verify all archives. See the
 [build record](aegis-0.13.0/BUILD.md) and

@@ -29,6 +29,8 @@ task records. Repository maintenance and delivery tooling live in `02_Tools/`.
 ## Invariants
 
 - Initialization preserves each existing project context file byte-for-byte.
+- The configuration initialization writes names every key the CLI reads,
+  live or as a commented default with its rationale.
 - Project context, component pages and active contracts describe current
   positive behavior; draft records hold proposals and journals retain history.
 - Current documentation is reconciled with exact evidence and authorized

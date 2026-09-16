@@ -494,7 +494,9 @@ and falls back to the full `test` command unless `--no-fallback` was requested.
 with a command name other than `test`.
 
 Without `--base`, the diff runs from the merge base with the default branch,
-so everything the branch has changed since it forked counts. That is the
+so everything the branch has changed since it forked counts. The default branch
+is `[layout] default_branch` when set, else whatever `origin/HEAD` points at,
+else a local `master`, else a local `main`. That is the
 right basis for reviewing a branch and the wrong one for an edit-run loop on
 a long-lived branch, where it can select most of the suite. Use `--base HEAD`
 during build to select only what you have not committed yet.

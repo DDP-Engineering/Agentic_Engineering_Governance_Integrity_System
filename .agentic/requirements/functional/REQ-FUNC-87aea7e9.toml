@@ -62,6 +62,7 @@ linked_tests = [
     "05_Software/aegis/tests/test_cli_core.py::test_init_creates_folders_config_and_pointers",
     "05_Software/aegis/tests/test_cli_core.py::test_init_is_a_byte_for_byte_no_op_on_the_second_run",
     "05_Software/aegis/tests/test_cli_core.py::test_init_never_overwrites_an_existing_aegis_toml",
+    "05_Software/aegis/tests/test_cli_core.py::test_generated_config_documents_every_validated_key",
     "05_Software/aegis/tests/test_cli_core.py::test_init_leaves_user_data_folders_untouched",
     "05_Software/aegis/tests/test_cli_core.py::test_init_scaffolds_current_context_without_authoring_notes",
     "05_Software/aegis/tests/test_cli_core.py::test_init_preserves_each_context_file_when_adding_its_sibling",
@@ -77,4 +78,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-09-10
+updated = 2026-09-16
