@@ -11,6 +11,21 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Document every configuration setting with the value `init` writes and the
+  behavior that applies when the key is absent, in the installation guide and
+  as a new settings slide in its deck.
+
+### Changed
+
+- Name `[layout] default_branch` in the configuration `init` writes and in
+  the configuration guide, so every key the CLI reads is discoverable from
+  the generated file.
+- State how the default branch resolves where the CLI reference relies on it.
+- Carry `[layout] default_branch` and `[interaction] autopilot` into the
+  configuration table of the Folders & Files guide and deck.
+
 ## [0.13.0] - 2026-09-10
 
 ### Added

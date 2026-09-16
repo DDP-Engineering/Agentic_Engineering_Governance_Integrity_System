@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib.util
 import itertools
+import re
 import shutil
 from pathlib import Path
 
@@ -55,6 +56,25 @@ def snapshot(root: Path) -> dict[str, bytes]:
         for path in sorted(root.rglob("*"))
         if path.is_file()
     }
+
+
+def config_sections(text: str) -> dict[str, list[str]]:
+    """@brief The generated aegis.toml split into {table name: its lines}."""
+    sections: dict[str, list[str]] = {}
+    current: list[str] | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            current = sections.setdefault(stripped[1:-1], [])
+        elif current is not None:
+            current.append(line)
+    return sections
+
+
+def declares(lines: list[str], key: str) -> bool:
+    """@brief True when the table assigns `key`, live or commented out."""
+    pattern = re.compile(rf"^\s*(?:#\s*)?{re.escape(key)}\s*=")
+    return any(pattern.match(line) for line in lines)
 
 
 # TESTS - id generation
@@ -296,6 +316,21 @@ def test_init_never_overwrites_an_existing_aegis_toml(tmp_path):
 
     assert aegis.main(["init"]) == 0
     assert config.read_text(encoding="utf-8") == mine
+
+
+def test_generated_config_documents_every_validated_key(tmp_path):
+    """Every key the CLI reads is named in the config init writes."""
+    agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+
+    sections = config_sections((agentic / "aegis.toml").read_text(encoding="utf-8"))
+    for table, keys in aegis.CONFIG_SHAPE.items():
+        assert table in sections, f"[{table}] is missing from the default config"
+        for key in keys:
+            assert declares(sections[table], key), (
+                f"[{table}] {key} is read by the CLI but absent from the "
+                "default config, live or commented"
+            )
 
 
 def test_init_scaffolds_current_context_without_authoring_notes(tmp_path):

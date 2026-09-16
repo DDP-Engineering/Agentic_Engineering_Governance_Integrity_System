@@ -117,6 +117,12 @@ test = "pytest -q"
 source = ["src/"]
 tests = ["tests/"]
 docs = []  # documentation paths; still scanned for secrets, not source
+# default_branch = "develop"            # the ref every diff is measured from
+#
+# Set this when the branch your work merges into is not the one AEGIS would
+# find on its own. Without it the base is whatever `origin/HEAD` points at,
+# then a local `master`, then a local `main`. It decides what `check`,
+# `impacted`, `anchor` and `evolution` consider changed.
 
 [interaction]
 # false stops at every completed stage and presents the next choices.

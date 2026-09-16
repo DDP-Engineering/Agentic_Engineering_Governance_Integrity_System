@@ -288,6 +288,9 @@ and called a finding when it sits inside your configured source or test globs.
 
 ## Configuration - `aegis.toml`
 
+Each key's default value and its behavior when absent are in the
+[settings reference](01_Install_and_Setup.md#settings-reference).
+
 | Key | Meaning |
 |---|---|
 | `[commands] test` | Your full test suite; used by `aegis test` and `check --run`. |
@@ -298,11 +301,13 @@ and called a finding when it sits inside your configured source or test globs.
 | `[commands] workdir` | Repository-relative directory in which commands run. |
 | `[layout] source / tests` | Globs that tell the heuristics what is code and what is test. |
 | `[layout] docs` | Optional documentation globs accepted by the layout check; still secret-scanned, not counted as code, tests, or stage write zones. |
+| `[layout] default_branch` | The ref every diff is measured from. Without it the base is `origin/HEAD`, then a local `master`, then a local `main`. |
 | `[zones] <stage>` | What that stage may write besides `.agentic/` - `"source"`, `"tests"`, or nothing. Omit a stage to leave it unconstrained. |
 | `[check] ignore` | Globs excluded from every check. |
 | `[check] secret_patterns_extra` | Extra regexes for the secret scan. |
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
+| `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages and still requires publication approval. |
 | `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-5 and defaults to 2. |
 
 When enabled, each review round needs two independent verdicts: specification
