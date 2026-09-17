@@ -37,7 +37,10 @@ access the network.
 
 ## Public interface
 
-`python .agentic/aegis.py init` completes installation of a copied payload.
+`python .agentic/aegis.py init` completes installation of a copied payload
+and maintains the managed anchor/evolution block in the root `.gitignore`
+according to `[records] commit_fingerprints`, reporting sidecars that remain
+tracked without running any Git write.
 `task` creates a feature, fix, change, or adoption journal and can attach one
 level of optional child task. `req` creates a
 categorized requirement scaffold. `status` lists open journals or displays one
@@ -56,6 +59,11 @@ knowledge directory, resolution loops, and non-printable catalogue paths.
 
 - `init` preserves repository-owned data and configuration, and a second run
   over a complete installation is byte-for-byte idempotent.
+- `init` edits the root `.gitignore` only between its managed markers,
+  preserving every other byte and the file's newline style, and creates that
+  file only while sidecars are ignored.
+- `init` reports tracked sidecars and prints their removal command; it runs no
+  Git write of its own.
 - `task` and `req` use collision-resistant repository-local identifiers and
   preserve their canonical template structure.
 - `status`, `summary`, `brief`, and `components` are read-only views; they do
@@ -77,6 +85,7 @@ knowledge directory, resolution loops, and non-printable catalogue paths.
 | Change requested | Start with | Focused verification |
 |---|---|---|
 | Copied-payload initialization or managed pointers | `cmd_init` and its initialization helpers | the `test_init_*` group in `test_cli_core.py` |
+| Managed sidecar ignore block or its report | `write_ignore_block`, `tracked_fingerprints`, `commit_fingerprints` | the ignore-block and `commit_fingerprints` groups in `test_cli_core.py` |
 | Task or requirement scaffolding and identifiers | `new_id`, `cmd_task`, `cmd_req` | the `test_task_*`, `test_req_*`, and parent/child groups in `test_cli_core.py` |
 | Status lookup or task-header display | `read_journal`, `cmd_status` | status groups in `test_cli_core.py` and `test_run_report.py` |
 | Recorded stage summary | `parse_stage_report`, `cmd_summary` | the `test_summary_*` group in `test_run_report.py` |
@@ -104,6 +113,8 @@ knowledge directory, resolution loops, and non-printable catalogue paths.
   compatible journal re-entry.
 - `REQ-FUNC-8ec7a0c7` - List component knowledge titles and paths without
   modifying repository state.
+- Maintain the managed anchor/evolution ignore block from
+  `[records] commit_fingerprints` and report tracked sidecars. (no req)
 
 The optional Stage report is agent-authored, not fresh proof. Stage and result
 refer to the reported work, Current comes from the header, and a mismatched

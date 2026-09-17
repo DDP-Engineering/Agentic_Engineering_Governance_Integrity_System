@@ -816,8 +816,8 @@ def test_invalid_autopilot_values_warn_and_fail_safe(nogit_repo, capsys, value):
 @pytest.mark.parametrize("body,expected,settings", [
     ('enabled = "yes"\nmax_fix_cycles = 2', "enabled should be bool", (False, 2)),
     ('enabled = true\nmax_fix_cycles = true', "max_fix_cycles should be int", (True, 0)),
-    ('enabled = true\nmax_fix_cycles = 6', "max_fix_cycles should be 0 through 5", (True, 0)),
-    ('enabled = true\nmax_fix_cycles = -1', "max_fix_cycles should be 0 through 5", (True, 0)),
+    ('enabled = true\nmax_fix_cycles = 256', "max_fix_cycles should be 0 through 255", (True, 0)),
+    ('enabled = true\nmax_fix_cycles = -1', "max_fix_cycles should be 0 through 255", (True, 0)),
 ])
 def test_invalid_review_values_warn_and_fail_safe(nogit_repo, capsys, body, expected,
                                                    settings):
@@ -827,6 +827,62 @@ def test_invalid_review_values_warn_and_fail_safe(nogit_repo, capsys, body, expe
     cfg = aegis.load_config()
     assert aegis.review_settings(cfg) == settings
     assert any(expected in line for line in lines_for(run_check(aegis, capsys), "config"))
+
+
+@pytest.mark.parametrize("value", ['"true"', "1", "[]"])
+def test_invalid_records_values_warn_and_fail_safe(nogit_repo, capsys, value):
+    """A malformed [records] setting cannot commit sidecars by accident."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml",
+          f"schema = 1\n\n[records]\ncommit_fingerprints = {value}\n")
+    assert aegis.commit_fingerprints(aegis.load_config()) is False
+    assert any("[records] commit_fingerprints should be bool" in line
+               for line in lines_for(run_check(aegis, capsys), "config"))
+
+
+# TESTS - check 22: fingerprints-tracked
+
+
+def test_fingerprints_tracked_silent_when_sidecars_are_local(tmp_path, capsys):
+    """Untracked sidecars behind the managed ignore block raise nothing."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write(agentic / "tasks" / "TASK-abcd.anchor.json", "{}\n")
+    assert lines_for(run_check(aegis, capsys), "fingerprints-tracked") == []
+
+
+def test_fingerprints_tracked_warns_when_sidecars_are_committed(tmp_path, capsys):
+    """Tracked sidecars contradict the default and name the human remedy."""
+    agentic, aegis = make_git_repo(tmp_path)
+    sidecar = write(agentic / "tasks" / "TASK-abcd.anchor.json", "{}\n")
+    git(tmp_path, "add", "-f", str(sidecar.relative_to(tmp_path)))
+    git(tmp_path, "commit", "-m", "sidecar")
+    lines = lines_for(run_check(aegis, capsys), "fingerprints-tracked")
+    assert len(lines) == 1
+    assert lines[0].startswith("WARN")
+    assert "1 tracked sidecar(s)" in lines[0]
+    assert "git rm --cached" in lines[0]
+    assert len(lines[0]) <= 100 and not lines[0].endswith("...")
+
+
+def test_fingerprints_tracked_notes_a_missing_ignore_block(tmp_path, capsys):
+    """Without the managed block the finding is a note, never a warning."""
+    _agentic, aegis = make_git_repo(tmp_path)
+    (tmp_path / ".gitignore").unlink()
+    lines = lines_for(run_check(aegis, capsys), "fingerprints-tracked")
+    assert len(lines) == 1
+    assert lines[0].startswith("NOTE") and "run init" in lines[0]
+
+
+def test_fingerprints_tracked_warns_when_block_outlives_the_setting(tmp_path, capsys):
+    """commit_fingerprints = true with the block still present asks for init."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write(agentic / "aegis.toml",
+          "schema = 1\n\n[records]\ncommit_fingerprints = true\n")
+    lines = lines_for(run_check(aegis, capsys), "fingerprints-tracked")
+    assert len(lines) == 1
+    assert lines[0].startswith("WARN") and "rerun init" in lines[0]
+    assert aegis.main(["init"]) == 0
+    assert lines_for(run_check(aegis, capsys), "fingerprints-tracked") == []
 
 
 def review_config(agentic: Path, enabled: bool = True, cycles: int = 2) -> None:
@@ -1229,7 +1285,7 @@ def test_help_lists_every_slug_and_the_diff_basis(nogit_repo, capsys):
     out = capsys.readouterr().out
     for slug, _desc in aegis.CHECKS:
         assert slug in out
-    assert len(aegis.CHECKS) == 21
+    assert len(aegis.CHECKS) == 22
     # the count the help announces must be the count it lists
     assert f"the {len(aegis.CHECKS)} checks" in out
     assert "merge-base" in out and "origin/HEAD" in out

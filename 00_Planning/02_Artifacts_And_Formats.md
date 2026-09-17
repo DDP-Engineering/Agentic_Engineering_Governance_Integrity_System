@@ -116,7 +116,8 @@ thereafter. The implemented configuration surface is:
 | `[commands]` | `test` is the full suite; `test_impacted` may use `{tests}`; any other plain name is available to `check --run`. `timeout` is the default per-command limit and `workdir` selects an application subdirectory. |
 | `[timeouts]` | Optional per-command limits overriding `[commands] timeout`. A timeout means the command proved nothing; it is not reported as a test failure. |
 | `[layout]` | `source`, `tests`, and optional `docs` globs drive traceability/layout checks. `default_branch` can select the diff base. |
-| `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 5 (default 2). |
+| `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 255 (default 2). |
+| `[records]` | Exact Boolean `commit_fingerprints` (default `false`). While false, `init` maintains a managed `.gitignore` block that excludes the anchor/evolution sidecars; true removes that block so they are committed with the journal. |
 | `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; publication authority applies in both modes. |
 | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
 | `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
@@ -273,7 +274,10 @@ fingerprint. `evolution --task` writes the corresponding
 evidence, not a replacement for review. `evolution --compact --json` omits
 before/after hashes from the response and retains paths, statuses, areas and
 counts. The saved comparison remains complete; ordinary `--json` retains its
-existing detail. Anchor coverage and storage have not been narrowed.
+existing detail. Anchor coverage and storage have not been narrowed. Both
+sidecars are excluded from Git by default through the managed `.gitignore`
+block `init` maintains, so the journal's recorded evolution line is the shared
+evidence.
 
 Each component page under `knowledge/` routes matching requests through
 selection signals to the component's owned source and focused tests. It records

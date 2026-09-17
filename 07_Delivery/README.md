@@ -8,10 +8,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Delivery
 
 This folder holds the **AEGIS 0.13.0** delivery archives and build records.
-The core pair and the documentation ZIP were rebuilt on **2026-09-16** to carry
-the configuration-documentation change; the ten host-integration packages are
-unchanged from the **2026-09-10** build. All current download links refer to
-this version.
+The core pair and the documentation ZIP were rebuilt on **2026-09-17** to carry
+the review-bound and fingerprint-record changes; the ten host-integration
+packages are unchanged from the **2026-09-10** build. All current download links
+refer to this version.
 
 ## Download the latest built packages
 
@@ -25,8 +25,9 @@ this version.
 | Claude Code plugin | [ZIP](dist/agent-plugins-0.13.0/AEGIS-Claude-Code-0.13.0-windows.zip) | [tar.gz](dist/agent-plugins-0.13.0/AEGIS-Claude-Code-0.13.0-linux.tar.gz) |
 
 The [documentation ZIP](dist/AEGIS-Documentation-0.13.0.zip) contains the
-complete `06_SoftwareDocu/` tree plus the license. Open `00_Index.md` after
-extraction.
+delivered `06_SoftwareDocu/` guide tree plus the license. Open `00_Index.md`
+after extraction. Maintainer-only files in that folder, such as the workflow
+overhead analysis, are not delivered and are not listed in the index.
 
 ## Install
 
@@ -46,12 +47,12 @@ profiles or `runtime.json`.
 
 ## Verification and checksums
 
-The full product suite passed: **436 passed, 2 skipped** for Windows
+The full product suite passed: **449 passed, 2 skipped** for Windows
 symlink limitations. The three rebuilt archives passed inventory, byte and
 SHA-256 checks, and the ten carried-forward archives matched their recorded
 SHA-256 values. Packaged JavaScript syntax, relative imports and Linux launcher
 permissions were verified in the 2026-09-10 build of those unchanged archives.
-The two updated decks were verified from their slide XML, not by rendering. No
+The three updated decks were verified from their slide XML, not by rendering. No
 models were called and no real host profile was changed. Desktop GUI, native
 host installation and model-driven workflows were not run.
 

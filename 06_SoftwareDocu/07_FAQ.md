@@ -82,7 +82,7 @@ GUI discovery or an end-to-end model-led workflow. See [Agent_Plugins.md](Agent_
 
 ## What does `check` actually check?
 
-The current catalog has 21 checks, including artifact/link integrity, scope and
+The current catalog has 22 checks, including artifact/link integrity, scope and
 layout, secrets in added diff lines, repository evolution, enabled review state,
 stage zones, command failures/timeouts and the case where no command ran.
 `check --help` lists the installed catalog; the [CLI reference](09_CLI_Reference.md)
@@ -208,7 +208,8 @@ rather than scraping the human output.
 
 ## Does repository evolution prove the tests were honest?
 No. `anchor` and `evolution` make the changed file set visible and durable,
-but both records live in the repository and can be replaced. They help a human
+but both records live in the working tree, are kept out of git by default,
+and can be replaced. They help a human
 or agent notice that tests, source, tools, or documentation changed; they are
 not signatures, attestations, or tamper-proof evidence.
 

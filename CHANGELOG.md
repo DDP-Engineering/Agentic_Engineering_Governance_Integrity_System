@@ -13,12 +13,20 @@ All notable changes to AEGIS are documented in this file.
 
 ### Added
 
+- `[records] commit_fingerprints` (default `false`): `init` maintains a
+  managed block in the root `.gitignore` that keeps anchor and evolution
+  sidecars out of git, removes it when the setting is `true`, and names
+  sidecars that are still tracked without running any git write. A new
+  `fingerprints-tracked` check reports a repository that disagrees with the
+  setting.
 - Document every configuration setting with the value `init` writes and the
   behavior that applies when the key is absent, in the installation guide and
   as a new settings slide in its deck.
 
 ### Changed
 
+- Accept `[review] max_fix_cycles` from 0 through 255 instead of 0 through 5;
+  the default stays 2 and total review rounds remain `1 + max_fix_cycles`.
 - Name `[layout] default_branch` in the configuration `init` writes and in
   the configuration guide, so every key the CLI reads is discoverable from
   the generated file.

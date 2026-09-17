@@ -2,13 +2,13 @@
   "artifacts": {
     "aegis-0.13.0-linux.tar.gz": {
       "platform": "linux",
-      "sha256": "f8aacd41f98691ca994df1a46a87bad157852a2c46e397e817c2d8bea32a9942",
-      "size": 165400
+      "sha256": "77c79b62e3e99c5ddf1b5d1bcd5d8ab04cd19d02ed7a6bc7be092838337a4528",
+      "size": 168147
     },
     "aegis-0.13.0-windows.zip": {
       "platform": "windows",
-      "sha256": "b2b861740f4373a1e93be48d9ac7a4274151d34bb1ca0412af6df944539d1502",
-      "size": 198425
+      "sha256": "d6a53482f1fa3be6e8a42c9446a0cf5b268615cf6fa01a7c006db1f0588aa600",
+      "size": 201391
     }
   },
   "dependencies": "standard-library-only",

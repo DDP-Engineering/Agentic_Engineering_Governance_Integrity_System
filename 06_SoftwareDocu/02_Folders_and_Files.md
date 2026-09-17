@@ -23,7 +23,7 @@ durable journal. This page tours both kinds of state.
   aegis.toml       your configuration                 (yours)
   requirements/    the durable contracts              (yours)
   specs/           optional per-requirement specs     (yours)
-  tasks/           journals + anchor/evolution state  (yours)
+  tasks/           journals; sidecars git-ignored     (yours)
   knowledge/       one page per component             (yours)
   context/
     project.md     current project orientation        (yours)
@@ -222,7 +222,11 @@ Each task can also own two schema-1 JSON sidecars:
 The inventory comes from Git: tracked and untracked non-ignored files are
 included, while `.agentic/**`, ignored caches/build outputs, `__pycache__/`,
 `.pyc`, and `.pyo` files are excluded. The records describe change; they are
-editable repository files, not tamper-proof evidence.
+editable files, not tamper-proof evidence. By default they stay out of git:
+`init` maintains a marked block in the root `.gitignore` for both sidecars,
+and the journal log line is the durable record. `[records]
+commit_fingerprints = true` removes that block so they travel with the
+journal.
 
 `evolution --compact --json` omits before/after hashes from the response while
 retaining changed paths, statuses, areas and counts. Saved evolution reports
@@ -308,7 +312,8 @@ Each key's default value and its behavior when absent are in the
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
 | `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages and still requires publication approval. |
-| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-5 and defaults to 2. |
+| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. |
+| `[records] commit_fingerprints` | `false` keeps anchor/evolution sidecars out of git through a managed `.gitignore` block that `init` maintains; `true` removes the block so they are committed with the journal. |
 
 When enabled, each review round needs two independent verdicts: specification
 compliance and implementation quality. One initial round plus at most

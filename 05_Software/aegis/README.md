@@ -114,6 +114,13 @@ python .agentic/aegis.py evolution --task TASK-<id>
 These commands are advisory. They record added, modified, and removed
 Git-visible files without blocking development or claiming tamper-proof
 evidence. Git-ignored files and generated Python bytecode caches are excluded.
+
+Both sidecars stay out of Git by default. `[records] commit_fingerprints` is
+`false`, so `init` maintains a marked block in the root `.gitignore` that
+excludes them and the journal's recorded evolution line remains the durable
+evidence. Set it to `true` and rerun `init` to remove the block and commit
+them with the journal. AEGIS never untracks a file; `init` prints the
+`git rm --cached` command for a human to run.
 Requirements with a declared `Manual:` or `Inspection:` method instead need a
 recorded observation after implementation, with the anchor taken before edits.
 

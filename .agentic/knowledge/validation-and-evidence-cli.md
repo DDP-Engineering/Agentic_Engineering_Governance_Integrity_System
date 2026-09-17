@@ -70,6 +70,9 @@ suffix; `--out` supplies portable encoding.
   knowledge into explicit ownership uncertainty instead of dropping rows.
 - `anchor` and `evolution` describe Git-visible repository state as evidence;
   their fingerprints are reproducible records, not tamper-proof proof.
+- Anchor and evolution sidecars are local evidence unless
+  `[records] commit_fingerprints` is true; `check` reports a repository whose
+  tracked state contradicts that setting and never untracks a file itself.
 - `report` projects recorded task state. Missing, malformed, or stale review
   evidence must never become an approval claim.
 
@@ -78,6 +81,7 @@ suffix; `--out` supplies portable encoding.
 | Change requested | Start with | Focused verification |
 |---|---|---|
 | Governance finding or strict-exit semantics | `run_checks`, `cmd_check`, and the relevant `check_*` rule | `test_check.py`; strict-mode tests in `test_run_report.py` |
+| Sidecar tracking finding | `check_fingerprints`, `tracked_fingerprints` | the `test_fingerprints_tracked_*` group in `test_check.py` |
 | Configured or impacted test execution | `run_configured_commands`, `impacted_tests`, `cmd_test` | `test_run_report.py::test_run_reports_ok_and_fail_and_feeds_strict` and the `test_test_*` group |
 | Delivery report or review/deviation projection | `cmd_report`, `bound_stage_report`, `recorded_deviations` | `test_run_report.py::test_report_leads_with_the_recorded_deviations` and the `test_report_*` group |
 | Anchor or evolution evidence | `repository_manifest`, `cmd_anchor`, `cmd_evolution` | `test_repo_evolution.py::test_anchor_records_visible_files_metadata_and_hashes` and `test_repo_evolution.py::test_evolution_classifies_changes_and_retains_compact_history` |
@@ -110,6 +114,8 @@ suffix; `--out` supplies portable encoding.
 - `REQ-FUNC-cbff6478` - Check configured review bounds and block unapproved
   final-round delivery state.
 - `REQ-FUNC-7ea14fe4` - Report malformed rulings and stale or invalid handoffs.
+- Report anchor/evolution sidecars whose tracked state contradicts
+  `[records] commit_fingerprints`. (no req)
 
 ## Architecture
 

@@ -29,10 +29,11 @@ Show me the resulting diff and stop - do not commit.
 
 *What happens:* copy + `init` (data folders, missing project/environment context,
 default config, pointer
-digests appended to `AGENTS.md`/`CLAUDE.md`/`QWEN.md`) + config tuning.
-*Check afterwards:* the diff touches only `.agentic/` and the three
-pointer files; your existing pointer content is preserved. Then commit
-yourself - governance should not self-install silently.
+digests appended to `AGENTS.md`/`CLAUDE.md`/`QWEN.md`, and the managed
+anchor/evolution block in `.gitignore`) + config tuning.
+*Check afterwards:* the diff touches only `.agentic/`, the three
+pointer files and `.gitignore`; your existing content in all of them is
+preserved. Then commit yourself - governance should not self-install silently.
 
 ## Set up a brand-new project
 

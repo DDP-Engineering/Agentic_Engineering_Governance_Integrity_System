@@ -26,7 +26,7 @@ semantics remain those of the target repository.
 
 | Command | Read/write boundary | Use |
 |---|---|---|
-| `init [--git]` | Creates missing data folders/config and each missing context scaffold, preserves existing project files, and refreshes managed root digests. | Finish installation or upgrade. |
+| `init [--git]` | Creates missing data folders/config and each missing context scaffold, preserves existing project files, refreshes managed root digests, and maintains the managed anchor/evolution block in the root `.gitignore`. | Finish installation or upgrade. |
 | `task <title> [--type] [--parent]` | Writes a new journal. | Start governed feature, fix, change, or adoption work. |
 | `req <category> <title>` | Writes a new requirement scaffold. | Add a durable behavior contract. |
 | `anchor --task` | Writes/replaces the active anchor JSON. | Capture the known starting point before implementation. |
@@ -119,7 +119,7 @@ timed-out command proves nothing; a command that completes unsuccessfully is a
 
 ## Governance checks
 
-`check` currently implements 21 checks. They cover:
+`check` currently implements 22 checks. They cover:
 
 - requirement parsing, IDs, journal headers, and specification references;
 - path coverage, linked tests, stale paths, scope drift, and source/test
@@ -128,7 +128,8 @@ timed-out command proves nothing; a command that completes unsuccessfully is a
   delivery checklists, layout, stage zones, and configuration shapes;
 - anchor/evolution evidence, configured-command completion, timeouts, and
   empty `--run` execution;
-- manual verification declarations and enabled explicit-review evidence.
+- manual verification declarations, enabled explicit-review evidence, and
+  anchor/evolution sidecar tracking against `[records] commit_fingerprints`.
 
 The default diff base is the configured `[layout] default_branch`, then
 `origin/HEAD`, then local `master` or `main`. Without Git or a merge base,

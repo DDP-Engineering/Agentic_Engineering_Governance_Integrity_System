@@ -129,6 +129,12 @@ minimal Gitea/GitHub-style step:
   validate the combined candidate in the parent.
 - **Commit journals with approved work**: code without its child journal,
   Rulings, and refreshed Handoff is not a transferable governed task.
+- **Sidecars stay local**: `[records] commit_fingerprints` is `false`, so
+  `init` keeps a managed `.gitignore` block that excludes
+  `TASK-<id>.anchor.json` and `.evolution.json`. They never reach a
+  teammate's checkout, and the journal's recorded evolution line is the
+  shared evidence. Set it to `true` and rerun `init` if your team wants the
+  sidecars in review; `check` reports a repository that disagrees.
 - **Resume from durable state**: run `brief TASK-<id>`, read the current step
   and Handoff `must_read` paths, then inspect the full journal where required.
   A Handoff coordinates work; it never authorizes a push, merge, or release.

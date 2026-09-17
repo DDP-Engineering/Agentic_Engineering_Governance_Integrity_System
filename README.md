@@ -32,7 +32,7 @@ wants one.
   durable handoffs, and optional one-level child tasks support cross-session
   and multi-agent work.
 - **Evidence, not theatre:** configured tests, impacted-test selection,
-  anchors, evolution reports, and 21 advisory checks keep the work auditable.
+  anchors, evolution reports, and 22 advisory checks keep the work auditable.
 - **Optional explicit review:** repositories can enable independent
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop. Review never replaces ordinary validation.

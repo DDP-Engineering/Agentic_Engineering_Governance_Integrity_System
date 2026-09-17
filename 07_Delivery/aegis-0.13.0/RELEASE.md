@@ -9,8 +9,8 @@ The `0.13.0` section of `CHANGELOG.md` records what this release changed.
 
 | Platform | Artifact | Bytes | SHA-256 |
 |---|---|---:|---|
-| Linux | `aegis-0.13.0-linux.tar.gz` | 165,400 | `f8aacd41f98691ca994df1a46a87bad157852a2c46e397e817c2d8bea32a9942` |
-| Windows | `aegis-0.13.0-windows.zip` | 198,425 | `b2b861740f4373a1e93be48d9ac7a4274151d34bb1ca0412af6df944539d1502` |
+| Linux | `aegis-0.13.0-linux.tar.gz` | 168,147 | `77c79b62e3e99c5ddf1b5d1bcd5d8ab04cd19d02ed7a6bc7be092838337a4528` |
+| Windows | `aegis-0.13.0-windows.zip` | 201,391 | `d6a53482f1fa3be6e8a42c9446a0cf5b268615cf6fa01a7c006db1f0588aa600` |
 
 The archives under `../dist/` are ignored build outputs. This folder is the
 tracked publication record used to verify those local artifacts.

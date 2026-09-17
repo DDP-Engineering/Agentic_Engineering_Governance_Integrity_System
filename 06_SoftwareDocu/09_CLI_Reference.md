@@ -89,6 +89,9 @@ python .agentic/aegis.py init [--git]
 - creates a default `.agentic/aegis.toml` only when absent;
 - adds or refreshes the managed AEGIS digest in root
   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
+- adds or removes the managed anchor/evolution block in the root `.gitignore`
+  according to `[records] commit_fingerprints`, and names sidecars that are
+  still tracked so a human can untrack them (it never runs `git rm`);
 - reports whether Git is installed and whether the directory is a repository;
 - preserves project-owned data and an existing `aegis.toml`.
 
@@ -116,7 +119,7 @@ python .agentic/aegis.py init --git
 ```
 
 Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, optional
-`[interaction]`, and optional `[check]` settings describe the repository.
+`[interaction]`, `[records]`, and `[check]` settings describe the repository.
 
 ## `task`
 
@@ -177,7 +180,8 @@ Python bytecode under `__pycache__/`, plus `.pyc` and `.pyo` files, is always
 excluded. Run it after the expected red test and before implementation, or
 immediately before the first implementation edit when no automated red test
 applies. Replacing an anchor without a completed evolution is allowed but
-reported visibly.
+reported visibly. Both sidecars stay out of git by default; see
+`[records] commit_fingerprints`.
 
 ## `evolution`
 
@@ -412,7 +416,19 @@ Review is optional; validation and delivery approval are not. When enabled,
 candidate verdicts (`approved` or `changes_required`) and `review_round` is
 bounded by `1 + max_fix_cycles`. Any candidate change invalidates both
 verdicts. Exhaustion blocks with `needs_user: yes`. `max_fix_cycles` accepts
-integers 0 through 5; invalid types or values warn and fail safe.
+integers 0 through 255; invalid types or values warn and fail safe.
+
+```toml
+[records]
+commit_fingerprints = false
+```
+
+Anchor and evolution sidecars are local evidence by default: `init` keeps a
+marked block in the root `.gitignore` that excludes them, and the journal log
+line remains the durable record. Set `commit_fingerprints = true` and rerun
+`init` to remove the block and commit the sidecars with the journal. `check`
+reports `fingerprints-tracked` when the repository disagrees with the setting.
+AEGIS never untracks files; `init` prints the `git rm --cached` command.
 
 ## `check`
 

@@ -45,6 +45,9 @@ This finishes the installation, idempotently:
 - creates or appends the root pointer files `AGENTS.md`, `CLAUDE.md`,
   `QWEN.md` (a short digest under markers; your existing content in
   those files is preserved),
+- adds or removes the managed anchor/evolution block in the root
+  `.gitignore` to match `[records] commit_fingerprints`, and names any
+  sidecars that are still tracked instead of running a Git write,
 - reports whether Git is installed and whether this directory is already a
   Git repository.
 
@@ -223,7 +226,13 @@ that task's journal header, so the choice survives a resume.
 | Setting | `init` writes | When absent |
 |---|---|---|
 | `enabled` | `false` | `false`. Ordinary semantic review, the full suite and the strict check are required whichever way this is set. |
-| `max_fix_cycles` | `2` | `2`. A value outside 0 through 5 resolves to 0, and `check` reports it. |
+| `max_fix_cycles` | `2` | `2`. A value outside 0 through 255 resolves to 0, and `check` reports it. |
+
+### `[records]` - fingerprint sidecars
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `commit_fingerprints` | `false` | `false`. `init` keeps a managed block in the root `.gitignore` that excludes `.agentic/tasks/*.anchor.json` and `*.evolution.json`; the journal log line is the durable record. `true` removes the block so the sidecars are committed. `check` reports `fingerprints-tracked` when the repository disagrees. |
 
 ### `[zones]` - what each stage may write
 

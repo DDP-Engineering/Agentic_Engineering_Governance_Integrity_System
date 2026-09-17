@@ -31,7 +31,7 @@ max_fix_cycles = 2
 ```
 
 Missing `[review]` means `(False, 2)`. `enabled` accepts only a TOML Boolean.
-`max_fix_cycles` accepts an exact non-Boolean integer from 0 through 5; a
+`max_fix_cycles` accepts an exact non-Boolean integer from 0 through 255; a
 missing value defaults to 2 and an invalid value safely permits zero cycles
 while `check` warns. The journal stage report appends, in order:
 

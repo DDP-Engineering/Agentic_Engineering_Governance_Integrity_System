@@ -294,7 +294,8 @@ def test_init_creates_folders_config_and_pointers(tmp_path, capsys):
 def test_init_writes_lf_only_and_no_bom(tmp_path):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
-    for path in [agentic / "aegis.toml"] + [tmp_path / n for n in aegis.POINTER_FILES]:
+    for path in [agentic / "aegis.toml", tmp_path / aegis.IGNORE_FILE] + \
+            [tmp_path / n for n in aegis.POINTER_FILES]:
         raw = path.read_bytes()
         assert b"\r\n" not in raw
         assert not raw.startswith(b"\xef\xbb\xbf")
@@ -385,6 +386,80 @@ def test_init_writes_review_disabled_with_two_fix_cycles(tmp_path):
     assert aegis.load_config()["review"] == {"enabled": False, "max_fix_cycles": 2}
 
 
+def test_init_writes_records_commit_fingerprints_false(tmp_path):
+    """Fresh workspaces keep anchor/evolution sidecars out of git."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    assert aegis.load_config()["records"] == {"commit_fingerprints": False}
+
+
+def test_commit_fingerprints_setting_fails_safe(tmp_path):
+    """Only an exact TOML Boolean can turn sidecar commits on."""
+    _, aegis = make_repo(tmp_path)
+    assert aegis.commit_fingerprints({"schema": 1}) is False
+    assert aegis.commit_fingerprints({"records": {"commit_fingerprints": True}}) is True
+    assert aegis.commit_fingerprints({"records": {"commit_fingerprints": "true"}}) is False
+
+
+def test_init_creates_gitignore_with_the_managed_fingerprint_block(tmp_path, capsys):
+    _, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    text = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert text == "\n".join((aegis.IGNORE_MARK_BEGIN, *aegis.FINGERPRINT_PATTERNS,
+                              aegis.IGNORE_MARK_END)) + "\n"
+    assert ".gitignore       created (anchor/evolution sidecars stay local)" in \
+        capsys.readouterr().out
+
+
+def test_init_appends_ignore_block_and_keeps_crlf_without_clobbering(tmp_path):
+    _, aegis = make_repo(tmp_path)
+    prior = "node_modules/\r\n*.log"
+    (tmp_path / ".gitignore").write_bytes(prior.encode("utf-8"))
+
+    assert aegis.main(["init"]) == 0
+    raw = (tmp_path / ".gitignore").read_bytes()
+    assert raw.startswith(b"node_modules/\r\n*.log\r\n")
+    assert b"\r\n.agentic/tasks/*.anchor.json\r\n" in raw
+    assert b"\n" not in raw.replace(b"\r\n", b"")
+
+    aegis.main(["init"])
+    assert (tmp_path / ".gitignore").read_bytes() == raw
+
+
+def test_init_refreshes_a_stale_ignore_block_in_place(tmp_path):
+    _, aegis = make_repo(tmp_path)
+    stale = (f"build/\n{aegis.IGNORE_MARK_BEGIN}\nold-pattern\n{aegis.IGNORE_MARK_END}\n"
+             "dist/\n")
+    (tmp_path / ".gitignore").write_text(stale, encoding="utf-8", newline="\n")
+    assert aegis.main(["init"]) == 0
+    text = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert text.startswith("build/\n" + aegis.IGNORE_MARK_BEGIN)
+    assert text.endswith(aegis.IGNORE_MARK_END + "\ndist/\n")
+    assert "old-pattern" not in text and text.count(aegis.IGNORE_MARK_BEGIN) == 1
+
+
+def test_init_removes_the_ignore_block_when_sidecars_are_committed(tmp_path, capsys):
+    agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    (tmp_path / ".gitignore").write_text(
+        "mine/\n" + (tmp_path / ".gitignore").read_text(encoding="utf-8") + "*.tmp\n",
+        encoding="utf-8", newline="\n")
+    write_config = (agentic / "aegis.toml").read_text(encoding="utf-8").replace(
+        "commit_fingerprints = false", "commit_fingerprints = true")
+    (agentic / "aegis.toml").write_text(write_config, encoding="utf-8", newline="\n")
+
+    capsys.readouterr()
+    assert aegis.main(["init"]) == 0
+    assert (tmp_path / ".gitignore").read_text(encoding="utf-8") == "mine/\n*.tmp\n"
+    assert ".gitignore       removed" in capsys.readouterr().out
+
+    (tmp_path / ".gitignore").unlink()
+    capsys.readouterr()
+    assert aegis.main(["init"]) == 0
+    assert not (tmp_path / ".gitignore").exists()
+    assert ".gitignore       absent" in capsys.readouterr().out
+
+
 def test_init_writes_autopilot_disabled(tmp_path):
     """REQ-FUNC-d60b322b: fresh workspaces stop at every stage by default."""
     _agentic, aegis = make_repo(tmp_path)
@@ -420,6 +495,10 @@ def test_review_settings_accept_exact_boolean_and_bounded_integer(tmp_path):
         (True, 0)
     assert aegis.review_settings({"review": {"enabled": False, "max_fix_cycles": 5}}) == \
         (False, 5)
+    assert aegis.review_settings({"review": {"enabled": True, "max_fix_cycles": 255}}) == \
+        (True, 255)
+    assert aegis.review_settings({"review": {"enabled": True, "max_fix_cycles": 256}}) == \
+        (True, 0)
 
 
 def test_review_settings_reject_boolean_as_integer(tmp_path):
