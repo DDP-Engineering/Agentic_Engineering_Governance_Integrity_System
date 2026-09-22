@@ -43,6 +43,10 @@ functional "Export playlist as M3U"`), adds a short exact-format spec, and
 records a proportionate design with requirement links and test seams. Each
 stage ends with its own report and choices before the journal advances:
 
+After the chosen transition, the agent reads the next step file named directly
+in the current step's instructions, such as `.agentic/steps/3_design.md` after
+Specify. The quick path and correction returns name their destination files too.
+
 ```
 - 2026-08-02 frame: scope agreed - M3U only; full path.
 - 2026-08-02 specify: created REQ-FUNC-3fa2 + spec.
@@ -52,10 +56,9 @@ stage ends with its own report and choices before the journal advances:
 
 That last line is design's other output. Because the feature changes the
 `export` component's shape, the task Design carries a compact proposed
-architecture with the new writer. The canonical `knowledge/export.md`
-diagram continues to describe current code during implementation. At
-`validate`, the agent reconciles that page with what was actually built, so a
-reader never has to distinguish a proposed diagram from current knowledge.
+architecture with the new writer. The canonical `knowledge/export.md` diagram
+describes current code during Design. Validate updates it against the reviewed
+implementation before final review and proof.
 
 Before touching an unfamiliar file, the agent - or you - can ask what
 already governs it:
@@ -102,6 +105,11 @@ Inner-loop retries omit `--task`, so they do not turn the journal into a command
 transcript. After the increment is stable, record one consolidated green result
 that names the final focused command and verified behavior.
 
+Update directly affected docstrings, usage examples, and setup instructions
+with the implementation. Record material discoveries and design changes in
+the task journal. Component knowledge is reconciled during Validate; update
+relevant facts earlier only when another agent needs them for a handoff.
+
 After implementation, the agent compares the candidate with that anchor:
 
 ```bash
@@ -120,8 +128,11 @@ finding it accepts rather than corrects is spoken, not just logged.
 
 ## Stage 5 - validate
 
-The agent reviews the candidate and reconciles affected requirements, project
-context, environment guidance and component knowledge. The current documents
+The agent reviews the candidate and resolves implementation corrections, then
+updates or creates affected component knowledge pages against the code and
+tests. It migrates touched legacy pages and reconciles architecture diagrams
+with what was built. It also reconciles affected
+requirements, project context, and environment guidance. The current documents
 describe the built positive behavior and actual setup. History and proposals
 remain in task records; an established contract is preserved when a defect
 needs correction. If `[review] enabled = true`, obtain both independent verdicts for the

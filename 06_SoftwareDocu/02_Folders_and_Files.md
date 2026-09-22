@@ -251,7 +251,9 @@ interface, Invariants, Key behaviors (citing requirement IDs), Architecture,
 and Files. A Change map is included when the component has multiple independent
 edit-and-test seams. Routing selects the page and points to owned source and
 focused tests; it narrows discovery but never replaces exact source-and-test
-inspection. The `validate` stage reconciles every affected section. There is
+inspection. Validate updates or creates affected pages against the reviewed
+code and tests, before final independent reviews and proof. Build updates
+component facts earlier when another agent needs them for a handoff. There is
 no manifest and no registry - the folder listing is the component list.
 
 **Architecture** holds a Mermaid diagram of that component's own logic -
@@ -260,8 +262,9 @@ fifteen nodes rather than every function. It is written by hand, not derived
 from the code: a parser would need writing per language and could only ever
 draw what already exists. Adoption draws it once per component while the
 source is open. When structure will change, `design` records a proposed
-diagram in the task journal without replacing this current-state page;
-`validate` reconciles the canonical diagram with what was actually built.
+diagram in the task journal without replacing this current-state page. Validate
+updates the canonical diagram with what was actually built and checks it
+against the final code.
 
 ## Reading the register back
 

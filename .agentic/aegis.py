@@ -196,7 +196,7 @@ Handoff `must_read` files. Required full journal reads still apply. Optional
 one-level child tasks are child-side links visible only in this checkout; the
 parent validates the integrated candidate.
 
-Read `.agentic/context/project.md` and relevant `context/environment.md`
+Read `.agentic/context/project.md` and relevant `.agentic/context/environment.md`
 sections when present. Keep project and component context current and positive;
 task records carry proposals and history. Preserve established behavior contracts.
 
@@ -1082,10 +1082,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     config = AGENTIC / "aegis.toml"
     if config.is_file():
         schema = load_config().get("schema", "?")
-        print(f"  {'aegis.toml':<16} kept (yours; schema {schema})")
+        print(f"  {'.agentic/aegis.toml':<24} kept (yours; schema {schema})")
     else:
         write_text(config, DEFAULT_CONFIG)
-        print(f"  {'aegis.toml':<16} created")
+        print(f"  {'.agentic/aegis.toml':<24} created")
 
     for name in POINTER_FILES:
         print(f"  {name:<16} {write_pointer(name)}")
@@ -1136,7 +1136,7 @@ def scaffold_template(name: str) -> str:
 
 
 def cmd_task(args: argparse.Namespace) -> int:
-    """@brief Scaffold a task journal from templates/task.md."""
+    """@brief Scaffold a task journal from .agentic/templates/task.md."""
     title = args.title.strip()
     if not title:
         raise UserError("task title must not be empty")
@@ -1471,7 +1471,7 @@ def parse_handoff(text: str) -> dict[str, str]:
             raise UserError("Handoff requires one 'key: value' per line")
         key, value = match.group(1).lower(), match.group(2).strip()
         if key not in HANDOFF_FIELDS:
-            raise UserError("unknown Handoff field; see templates/task.md")
+            raise UserError("unknown Handoff field; see .agentic/templates/task.md")
         if key in fields:
             raise UserError(f"duplicate Handoff field: {key}")
         if key == "current" and value and value not in KNOWN_STAGES:
@@ -1538,7 +1538,7 @@ def parse_stage_report(text: str) -> dict[str, str]:
             raise UserError("Stage report requires one 'key: value' per line")
         key, value = match.group(1).lower(), match.group(2).strip()
         if key not in STAGE_REPORT_FIELDS:
-            raise UserError("unknown Stage report field; see templates/task.md")
+            raise UserError("unknown Stage report field; see .agentic/templates/task.md")
         if key in fields:
             raise UserError(f"duplicate Stage report field: {key}")
         allowed = (KNOWN_STAGES if key in {"stage", "current"} else
@@ -1745,7 +1745,7 @@ CHECKS: tuple[tuple[str, str], ...] = (
     ("repo-evolution", "a scoped task has a completed anchor/evolution pair"),
     ("fingerprints-tracked",
      "anchor/evolution sidecars are committed only when [records] commit_fingerprints is true"),
-    ("config", "aegis.toml keys have the documented shapes"),
+    ("config", ".agentic/aegis.toml keys have the documented shapes"),
     ("command-failed", "a --run command ran to completion and succeeded"),
     ("command-timeout", "no --run command was stopped by its time limit"),
     ("nothing-ran", "--run actually executed at least one command"),
@@ -2824,6 +2824,67 @@ SIDE_EFFECT_NAME_RE = re.compile(r"deploy|migrat|publish|release|push|upload",
                                  re.IGNORECASE)
 
 
+def plan_configured_commands(cfg: dict) -> list[tuple[str, str, str, str]]:
+    """
+    @brief Decide what `check --run` would execute, without executing it.
+    @details Returns one `(name, command, decision, reason)` per configured
+             entry, where `decision` is `run` or `skipped`. Both the preview
+             and the real run read this single function, so a `--dry-run`
+             plan can never promise a different set than `--run` delivers.
+    """
+    allowed = str_list(cfg_table(cfg, "check").get("run"))
+    plan: list[tuple[str, str, str, str]] = []
+    for name, command in runnable_commands(cfg):
+        if allowed and name not in allowed:
+            plan.append((name, command, "skipped", "not listed in [check] run"))
+        elif not allowed and SIDE_EFFECT_NAME_RE.search(name):
+            plan.append((name, command, "skipped",
+                         ("name suggests side effects - list it in "
+                          "[check] run to include it")))
+        else:
+            plan.append((name, command, "run", ""))
+    return plan
+
+
+def preview_configured_commands(cfg: dict, stream=None) -> list[dict]:
+    """
+    @brief Print what `check --run` would execute, and run nothing.
+    @details `--run` already prints `run: <name> started` before each command,
+             but that reaches a human watching a live terminal - an agent
+             calling the command through a shell tool receives all output only
+             once the command has returned, by which time an hour-long suite
+             has already been spent. A caller that must decide *whether* it can
+             afford this proof needs the answer beforehand, so this prints the
+             plan and the per-command limit, and returns.
+
+             The limit is the honest duration signal available without running
+             anything: `no limit` says the repository believes the command may
+             legitimately take as long as it takes.
+    """
+    out = stream if stream is not None else sys.stdout
+    plan = plan_configured_commands(cfg)
+    will_run = [entry for entry in plan if entry[2] == "run"]
+    print(f"dry-run: check --run would execute {len(will_run)} of {len(plan)} "
+          f"[commands] entries; workdir={command_workdir(cfg)}", file=out)
+
+    records: list[dict] = []
+    for name, command, decision, reason in plan:
+        if decision == "skipped":
+            print(f"run: {name} skipped ({reason})", file=out)
+            records.append({"name": name, "status": "skipped", "reason": reason})
+            continue
+        limit = command_timeout(cfg, name)
+        print(f"run: {name} would run "
+              f"({'no limit' if limit is None else f'limit {limit}s'})", file=out)
+        print(f"  $ {command}", file=out)
+        records.append({"name": name, "status": "planned", "command": command,
+                        "timeout": limit})
+    # Same closing sentence as `test --dry-run`, and for the same reason: a
+    # preview must never be mistaken for the proof the validate stage requires.
+    print("dry-run: no command run; no verification result recorded", file=out)
+    return records
+
+
 def run_configured_commands(cfg: dict, findings: list,
                             stream=None) -> list[dict]:
     """
@@ -2843,8 +2904,7 @@ def run_configured_commands(cfg: dict, findings: list,
              `--json`, so stdout stays one parseable document). Returns one
              record per configured command for the JSON envelope.
     """
-    entries = runnable_commands(cfg)
-    allowed = str_list(cfg_table(cfg, "check").get("run"))
+    entries = plan_configured_commands(cfg)
     out = stream if stream is not None else sys.stdout
     results: list[dict] = []
     workdir = command_workdir(cfg)
@@ -2853,17 +2913,11 @@ def run_configured_commands(cfg: dict, findings: list,
     def say(text: str) -> None:
         print(text, file=out, flush=True)  # live: each command lands visibly
 
-    for name, command in entries:
-        if allowed and name not in allowed:
-            say(f"run: {name} skipped (not listed in [check] run)")
+    for name, command, decision, reason in entries:
+        if decision == "skipped":
+            say(f"run: {name} skipped ({reason})")
             results.append({"name": name, "status": "skipped",
-                            "reason": "not listed in [check] run"})
-            continue
-        if not allowed and SIDE_EFFECT_NAME_RE.search(name):
-            say(f"run: {name} skipped (name suggests side effects - "
-                "list it in [check] run to include it)")
-            results.append({"name": name, "status": "skipped",
-                            "reason": "name suggests side effects"})
+                            "reason": reason})
             continue
         say(f"run: {name} started")  # a 20-minute suite must not look hung
         limit = command_timeout(cfg, name)
@@ -2916,9 +2970,16 @@ def cmd_check(args: argparse.Namespace) -> int:
     findings = run_checks(cfg, args.task)
     # under --json stdout must stay one parseable document, so live progress
     # goes to stderr instead of being lost.
-    runs = (run_configured_commands(cfg, findings,
-                                    sys.stderr if args.json else None)
-            if args.run else [])
+    progress = sys.stderr if args.json else None
+    if args.dry_run:
+        # The preview never appends `nothing-ran`: that ERROR exists because
+        # `--run` promised verification and delivered none. `--dry-run`
+        # promised a plan, and delivering one is not a failed proof.
+        runs = preview_configured_commands(cfg, progress)
+    elif args.run:
+        runs = run_configured_commands(cfg, findings, progress)
+    else:
+        runs = []
 
     counts = {"ERROR": 0, "WARN": 0, "NOTE": 0}
     promoted = set(str_list(cfg_table(cfg, "check").get("strict_promote")))
@@ -2941,6 +3002,8 @@ def cmd_check(args: argparse.Namespace) -> int:
                         "notes": counts["NOTE"]},
             "result": worst or "ok",
             "run": runs,
+            # explicit, so a consumer can never read a plan as a proof
+            "dry_run": bool(args.dry_run),
             "strict": {"enabled": bool(args.strict),
                        "promoted_warnings": promoted_warns,
                        "passed": not failed} if args.strict else None,
@@ -3151,14 +3214,14 @@ def cmd_test(args: argparse.Namespace) -> int:
     if (args.name in RESERVED_COMMAND_KEYS or not isinstance(command, str)
             or not command.strip() or "{" in command):
         raise UserError(
-            f"no runnable [commands] entry named '{args.name}' in aegis.toml")
+            f"no runnable [commands] entry named '{args.name}' in .agentic/aegis.toml")
 
     label = args.name
     fallback = ""
     if args.impacted:
         template_cmd = commands.get("test_impacted")
         if not isinstance(template_cmd, str) or "{tests}" not in template_cmd:
-            fallback = "no test_impacted template in aegis.toml"
+            fallback = "no test_impacted template in .agentic/aegis.toml"
         else:
             tests, reason = impacted_tests(cfg, getattr(args, "base", "") or "")
             substituted, tests, reason = fit_impacted(template_cmd, tests, reason)
@@ -3970,7 +4033,10 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--strict", action="store_true",
                        help="CI mode: exit 1 on errors and promoted warnings")
     check.add_argument("--run", action="store_true",
-                       help="also execute the [commands] entries from aegis.toml")
+                       help="also execute the [commands] entries from .agentic/aegis.toml")
+    check.add_argument("--dry-run", action="store_true",
+                       help="list what --run would execute, with each command's"
+                            " limit, and run none of it")
     check.add_argument("--full", action="store_true",
                        help=f"print every finding (default caps at {FINDING_CAP};"
                             " --strict implies --full)")

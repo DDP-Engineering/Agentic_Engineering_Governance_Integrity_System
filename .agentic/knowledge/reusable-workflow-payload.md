@@ -58,7 +58,9 @@ define durable artifact formats.
   deviations or pausing the work.
 
 - `REQ-FUNC-500cfb8b` - Carry each component's architecture diagram in
-  its knowledge page, drawn at adoption and revised at design.
+  its knowledge page, drawn at adoption and reconciled with the reviewed
+  implementation in validate before final review and proof. Build updates
+  relevant facts earlier when needed for an agent handoff.
 
 - `REQ-UX-84868466` - Present a consistent report and concrete next choices at
   checkpoint boundaries without deferring deviation notices.

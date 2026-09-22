@@ -27,13 +27,15 @@ The plugin MCP tool prefix is mcp__plugin_aegis_aegis__ (for example mcp__plugin
 ## Current project context
 
 Read the installed contract's current-context guidance. At frame/resume, open
-`.agentic/context/project.md` and relevant `context/environment.md` sections
+`.agentic/context/project.md` and relevant `.agentic/context/environment.md` sections
 when present, then follow selected component and source/test references.
 Older payloads may omit these files. Keep project/component documents and
 active requirements/specs about current positive behavior. Draft/task records
 hold proposals; journals and Git retain history. Preserve established contracts.
-Update affected facts when implementation/setup changes and reconcile at
-validate; `aegis.toml` remains canonical for configured commands and layout.
+Update implementation and setup instructions as needed during build. Reconcile
+component knowledge during validate before final review and proof; update
+relevant facts earlier when another agent needs them for a handoff.
+`.agentic/aegis.toml` remains canonical for configured commands and layout.
 
 ## Efficient verification
 

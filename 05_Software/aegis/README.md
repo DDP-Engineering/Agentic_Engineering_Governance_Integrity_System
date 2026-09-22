@@ -77,6 +77,9 @@ using aegis workflow, implement feature X
 
 The stages are frame, specify, design, build, validate, and deliver. The quick
 path is frame, build, validate, deliver, but size alone does not qualify a change.
+Each step file names the repo-relative file to read before work in the next
+stage, including the quick-path jump and returns for correction. Workflow
+instructions and host prompts name installed files relative to the checkout root.
 An existing requirement must already cover the behavior being changed. There
 must be no new externally observable behavior, interface, data format or
 dependency, and no security- or data-handling behavior changes. Record the
@@ -90,7 +93,8 @@ component with multiple independent edit-and-test seams and can be omitted for
 a simple component. The page reduces broad discovery, but the exact source and
 tests remain authoritative and are inspected before implementation. A legacy
 page without Routing supplies only provisional orientation from its available
-sections and is migrated to the current template when its component is touched.
+sections and is migrated to the current template during validation of changes
+to its component.
 List the available component titles and paths before choosing what to read:
 
 ```text
@@ -234,7 +238,11 @@ artifact, then audit it. Material claims are labelled stated, observed,
 inferred, or unknown. The journal retains a structured Frame and requirement
 coverage table; design depth grows when interfaces, state, trust, concurrency,
 migration, or operational risk require it. Proposed architecture stays in the
-task until validation reconciles the current component knowledge page.
+task during design. Build updates directly affected docstrings, usage examples,
+and setup instructions. Validate updates component knowledge and architecture
+after implementation corrections and before final review and proof. Earlier
+component updates are appropriate when another agent needs current facts for a
+handoff.
 The payload's prompt cheatsheet includes explicit one-stage sessions; actual
 model compliance and 64K-context performance require separate model runs.
 See `template/.agentic/CLI.md` for the optional journal record and output limits.

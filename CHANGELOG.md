@@ -25,6 +25,10 @@ All notable changes to AEGIS are documented in this file.
 
 ### Changed
 
+- Use repo-relative paths in workflow transitions, instructions, CLI guidance,
+  and host prompts so agents can open the intended files from the checkout root.
+- Reconcile component knowledge and architecture in validate before final review
+  and proof; update during build only when needed for an agent handoff.
 - Accept `[review] max_fix_cycles` from 0 through 255 instead of 0 through 5;
   the default stays 2 and total review rounds remain `1 + max_fix_cycles`.
 - Name `[layout] default_branch` in the configuration `init` writes and in

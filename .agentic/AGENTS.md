@@ -77,7 +77,7 @@ the merge-base diff cannot tell which stage introduced an edit. Advisory
 like the rest: `check` reports an edit outside the current stage's zone
 as `stage-zone`, it never blocks one, and a hit usually means the
 journal's `stage:` is stale rather than that the edit was wrong. Change
-the zones in `[zones]` in `aegis.toml`.
+the zones in `[zones]` in `.agentic/aegis.toml`.
 
 **Adopting an existing repo** into this workflow is not a stage — follow
 `.agentic/steps/adopt.md` once, then work normally. Adoption journals use
@@ -95,7 +95,7 @@ defined in that one file; `status` points them back at it.
 | Component knowledge | `.agentic/knowledge/<component>.md`, one page per component |
 | Project profile | `.agentic/context/project.md`, current purpose, responsibilities, constraints, and entry points |
 | Environment guide | `.agentic/context/environment.md`, current toolchain, setup, readiness, and verification routes |
-| Templates | `.agentic/templates/` - `requirement.toml`, `spec.md`, `task.md`, `component.md`, `project.md`, `environment.md` |
+| Templates | `.agentic/templates/requirement.toml`, `.agentic/templates/spec.md`, `.agentic/templates/task.md`, `.agentic/templates/component.md`, `.agentic/templates/project.md`, `.agentic/templates/environment.md` |
 | Step files | `.agentic/steps/` |
 | CLI reference | `.agentic/CLI.md` |
 | Config | `.agentic/aegis.toml` — test/lint commands, source and test globs |
@@ -103,14 +103,16 @@ defined in that one file; `status` points them back at it.
 Source code and tests stay where the repo already keeps them. Never write
 work products anywhere else; `check` flags strays.
 
-**Do not edit the payload.** `AGENTS.md`, `CLI.md`, `steps/`, `templates/`,
-`aegis.py` and `LICENSE.txt` are replaced wholesale when this workflow is
+**Do not edit the payload.** `.agentic/AGENTS.md`, `.agentic/CLI.md`,
+`.agentic/steps/`, `.agentic/templates/`, `.agentic/aegis.py` and
+`.agentic/LICENSE.txt` are replaced wholesale when this workflow is
 upgraded, so any change you make there is silently lost. Found a bug in
-`aegis.py`, or need a rule the steps do not cover? Say so and let the
+`.agentic/aegis.py`, or need a rule the steps do not cover? Say so and let the
 human decide — a project-specific rule belongs in a file this repository
 owns, not in the payload. Everything else under `.agentic/` —
-`requirements/`, `specs/`, `tasks/`, `knowledge/`, `context/`, `aegis.toml` - is
-yours to write.
+`.agentic/requirements/`, `.agentic/specs/`, `.agentic/tasks/`,
+`.agentic/knowledge/`, `.agentic/context/`, `.agentic/aegis.toml` - is yours to
+write.
 
 ## Current project context
 
@@ -137,6 +139,12 @@ claims against this checkout; another branch's plans are not current facts.
 
 ### Current-state documentation rule
 
+Build updates documentation directly affected by implementation, such as
+docstrings, usage examples, and setup instructions. Validate owns comprehensive
+component knowledge and architecture updates after implementation corrections
+and before final independent reviews, when enabled, and final proof. Update
+relevant component facts earlier when another agent needs them for a handoff.
+
 Project documents, component pages, and active requirements/specs describe
 current responsibilities and observable behavior directly and positively.
 For example: "The admin page displays the project logo in its top-right
@@ -159,7 +167,8 @@ than appending a correction history. Preserve established requirements unless
 the user authorizes a behavior change: a code/document conflict is a finding,
 not permission to rewrite the contract to fit the easiest implementation.
 
-Link authoritative setup docs and `[commands]`/`[layout]` in `aegis.toml` rather
+Link authoritative setup docs and `[commands]`/`[layout]` in
+`.agentic/aegis.toml` rather
 than maintaining duplicate values. Keep secrets in their approved stores and
 machine-specific paths and run outcomes in task evidence. Context adds guidance,
 not a new gate, approval, or automatic setup authority.
@@ -337,7 +346,7 @@ when they have not changed; inspect changed sections and relevant earlier
 rulings/evidence. After compaction or lost context, follow the resume procedure
 and required full reads. Keep Handoff fields short and update changed fields
 instead of restating Frame, Design, or Log. Generated records omit marked
-authoring notes; full guidance stays in `templates/` for reference.
+authoring notes; full guidance stays in `.agentic/templates/` for reference.
 
 ## Rulings and handoffs
 
@@ -366,7 +375,7 @@ report after every command.
 
 At that boundary, record any durable event that belongs in `## Log`, then
 update the journal's single `## Stage report` section using the plain fields in
-`templates/task.md`:
+`.agentic/templates/task.md`:
 `stage`, `result`, `current`, `changed`, `evidence`, `issues`, `next`,
 `needs_user`, `spec_compliance`, `implementation_quality`, and `review_round`.
 It is a replaceable latest snapshot; the log stays append-only. Review fields
@@ -403,8 +412,8 @@ Starting work is one line:
 using aegis workflow, implement feature X
 ```
 
-That means: read this file, start at `1_frame.md`, and follow the interaction
-mode recorded for the task. With the default configuration, stop after each
+That means: read this file, start at `.agentic/steps/1_frame.md`, and follow
+the interaction mode recorded for the task. With the default configuration, stop after each
 stage and show the Stage-boundary choices. An explicit `autopilot to deliver`
 instruction selects autopilot for that task, while preserving pre-publication
 approval. `fix X` or `change X` work the same way - `frame` decides whether

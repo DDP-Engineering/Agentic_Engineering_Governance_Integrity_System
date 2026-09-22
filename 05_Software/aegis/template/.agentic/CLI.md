@@ -84,8 +84,9 @@ python .agentic/aegis.py init [--git]
 
 - creates `.agentic/requirements/`, `specs/`, `tasks/`, `knowledge/`, and `context/`
   when absent;
-- scaffolds `context/project.md` and `context/environment.md` independently
-  when absent, stripping marked authoring notes and preserving existing bytes;
+- scaffolds `.agentic/context/project.md` and
+  `.agentic/context/environment.md` independently when absent, stripping
+  marked authoring notes and preserving existing bytes;
 - creates a default `.agentic/aegis.toml` only when absent;
 - adds or refreshes the managed AEGIS digest in root
   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
@@ -93,7 +94,7 @@ python .agentic/aegis.py init [--git]
   according to `[records] commit_fingerprints`, and names sidecars that are
   still tracked so a human can untrack them (it never runs `git rm`);
 - reports whether Git is installed and whether the directory is a repository;
-- preserves project-owned data and an existing `aegis.toml`.
+- preserves project-owned data and an existing `.agentic/aegis.toml`.
 
 The command is idempotent: running it again does not replace the repository's
 configuration or governance records. Context scaffolds contain headings, not
@@ -130,7 +131,7 @@ python .agentic/aegis.py task "<title>" [--type {feature,fix,change,adopt}] [--p
 **Description:** Create `.agentic/tasks/TASK-<id>.md` from the task
 template. The journal receives a collision-resistant ID, the current date,
 the current Git branch when available, `stage: frame`, and the interaction mode
-resolved from `aegis.toml`. The new path is printed on stdout.
+resolved from `.agentic/aegis.toml`. The new path is printed on stdout.
 
 The default type is `feature`. Accepted types are:
 
@@ -305,7 +306,7 @@ current: design
 changed: requirements created; IDs are on the journal header
 evidence: check exit 0; tests not run at this stage
 issues: none recorded
-next: follow 3_design.md
+next: follow .agentic/steps/3_design.md
 needs_user: no
 ```
 
@@ -473,7 +474,8 @@ the `git rm --cached` command for a human to run.
 ## `check`
 
 ```text
-python .agentic/aegis.py check [--task TASK-<id>] [--strict] [--run] [--full] [--json]
+python .agentic/aegis.py check [--task TASK-<id>] [--strict] [--run] [--dry-run]
+                               [--full] [--json]
 ```
 
 **Description:** Run the advisory check catalog over requirements, journals,
@@ -496,8 +498,9 @@ Options:
 | Option | Effect |
 |---|---|
 | `--task TASK-<id>` | Scope diff-based checks to the named task. |
-| `--strict` | Exit 1 for errors, failed `--run` commands, and warnings promoted in `aegis.toml`; also implies `--full`. |
-| `--run` | Also execute eligible `[commands]` entries from `aegis.toml`. |
+| `--strict` | Exit 1 for errors, failed `--run` commands, and warnings promoted in `.agentic/aegis.toml`; also implies `--full`. |
+| `--run` | Also execute eligible `[commands]` entries from `.agentic/aegis.toml`. |
+| `--dry-run` | List what `--run` would execute, with each command's limit, and run none of it. |
 | `--full` | Print every finding instead of capping human-readable output at 40. |
 | `--json` | Emit one complete schema-versioned JSON document on stdout; `--run` progress goes to stderr. |
 
@@ -506,6 +509,9 @@ Options:
 - use plain `check` during specification, design, and build for inexpensive
   feedback;
 - use `--task` when a shared branch contains unrelated changes;
+- use `--dry-run` before committing to `--run` when you need to know what
+  the proof costs - it reports the commands and their limits without
+  starting any of them, and is never itself evidence;
 - use `--strict --run` after the final candidate is stable or in CI;
 - use `--json` only when a script needs structured results.
 
@@ -514,6 +520,7 @@ Options:
 ```text
 python .agentic/aegis.py check
 python .agentic/aegis.py check --task TASK-8b12
+python .agentic/aegis.py check --dry-run
 python .agentic/aegis.py check --task TASK-8b12 --strict --run
 python .agentic/aegis.py check --strict --full
 python .agentic/aegis.py check --json
