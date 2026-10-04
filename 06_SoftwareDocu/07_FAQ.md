@@ -17,7 +17,7 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.13.0 source combines staged instructions, evidence-led idea capture,
+The 0.14.0 source combines staged instructions, evidence-led idea capture,
 requirements, linked tests, journals, repository evolution, review policy and
 a Python CLI. Its five host integrations add native entry points and shared
 verification jobs. Core records live in Git; installed host resources and job

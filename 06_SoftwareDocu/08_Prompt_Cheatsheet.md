@@ -295,7 +295,7 @@ and session ends. Reuse unchanged instructions in an intact session; preserve
 required full reads after compaction or resumption. Do not delete saved evidence.
 ```
 
-These are 0.13.0 workflow and CLI options. They do not create a result-reuse cache,
+These are 0.14.0 workflow and CLI options. They do not create a result-reuse cache,
 remove review requirements or change existing delivery authority.
 
 ## Resume a tracked verification job

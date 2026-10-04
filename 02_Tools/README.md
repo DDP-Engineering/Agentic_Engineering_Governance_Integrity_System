@@ -24,7 +24,7 @@ agent plugin assembly are separate operations:
 Build the current AEGIS release archives and tracked publication record with:
 
 ```text
-py -3.12 02_Tools/build_aegis_release.py --version 0.13.0
+py -3.12 02_Tools/build_aegis_release.py --version 0.14.0
 ```
 
 On Linux, use `python3` in place of `py -3.12`. The build environment needs

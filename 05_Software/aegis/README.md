@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.13.0
+# AEGIS 0.14.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,7 +16,7 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The project version is **0.13.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+The project version is **0.14.0**. Optional OpenCode, Codex, Pi, Qwen Code and
 Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 

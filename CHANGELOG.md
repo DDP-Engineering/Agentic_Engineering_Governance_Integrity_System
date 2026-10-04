@@ -11,18 +11,13 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-04
+
 ### Added
 
-- Optional CodeGraph code navigation: eight `know_graph` commands answer where
-  Python symbols are defined and used, from a local SQLite index the
-  CodeGraph add-on builds under `.agentic/knowledge/codegraph/`. Off by
-  default (`[codegraph] enabled = false`); while off, nothing starts and
-  nothing is written. The core runs the add-on as an isolated child process
-  of the same Python, bounds its time and output, and validates every
-  response. Queries are read-only and label each relation; indexing is
-  explicit and incremental, and in a Git repository it refuses to write
-  unless the index folder is ignored and untracked. The add-on lives in `05_Software/aegis/plugins/codegraph/`
-  with vendored Tree-sitter natives for Windows x64 and Linux x86_64.
+- Optional CodeGraph add-on (`05_Software/aegis/plugins/codegraph/`): eight
+  `know_graph` commands answer bounded Python navigation questions from a local
+  index; off by default (`[codegraph] enabled`).
 - `[records] commit_fingerprints` (default `false`): `init` maintains a
   managed block in the root `.gitignore` that keeps anchor and evolution
   sidecars out of git, removes it when the setting is `true`, and names
@@ -50,13 +45,8 @@ All notable changes to AEGIS are documented in this file.
 
 ### Fixed
 
-- On Windows, the CLI and the CodeGraph plugin no longer run a `git.exe` or
-  `taskkill.exe` placed inside the repository: Windows searches the working
-  directory before PATH unless `NoDefaultCurrentDirectoryInExePath` is set,
-  and AEGIS runs from the repository root. Both now start these programs by
-  the absolute path found on PATH outside the repository, skipping empty and
-  relative PATH entries; a Git found only inside the repository counts as
-  missing.
+- On Windows, the CLI and CodeGraph no longer run a `git.exe` or `taskkill.exe`
+  placed in the repository; both now start programs found on PATH outside it.
 
 ## [0.13.0] - 2026-09-10
 
