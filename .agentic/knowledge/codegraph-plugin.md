@@ -84,6 +84,8 @@ installed copy in `.agentic/plugins/codegraph/`.
 - Symbol IDs are the first 32 hex digits of SHA-256 over path, scope, kind,
   name, signature and ordinal (`symbol_id`); a change to extraction output
   raises `EXTRACTOR_REVISION`.
+- Git runs by the absolute path `programs.find` returns from PATH outside the
+  repository; without one the plugin behaves as when Git is not installed.
 - No child process (Git, extraction workers) receives the watched standard
   input: the watcher reads a private duplicate and standard input becomes the
   null device.
@@ -160,6 +162,7 @@ Paths without a folder are under `05_Software/aegis/plugins/codegraph/`.
 - `REQ-PLAT-dc7bdd06` — the binding matching the running Python is selected.
 - `REQ-PLAT-3430c1f3` — Windows and Ubuntu produce identical facts.
 - `REQ-FUNC-871f7c12` — `check` reports malformed `[codegraph]` settings.
+- `REQ-SEC-8960c937` — Git starts only from PATH outside the repository.
 
 ## Architecture
 
@@ -199,6 +202,7 @@ a worker; queries reuse `scope` for the freshness check.
 - `05_Software/aegis/plugins/codegraph/codegraph/natives.py` — binding selection and capability.
 - `05_Software/aegis/plugins/codegraph/codegraph/store.py` — schema, headers, reader and writer connections.
 - `05_Software/aegis/plugins/codegraph/codegraph/safety.py` — write preconditions, lock, identity, replace.
+- `05_Software/aegis/plugins/codegraph/codegraph/programs.py` — locates Git on PATH, never inside the repository.
 - `05_Software/aegis/plugins/codegraph/codegraph/indexer.py` — incremental publish, rebuild, label resolution.
 - `05_Software/aegis/plugins/codegraph/codegraph/queries.py` — query answers.
 - `05_Software/aegis/plugins/codegraph/codegraph/protocol.py` — envelope, views, budgets, page tokens.

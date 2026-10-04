@@ -48,6 +48,16 @@ All notable changes to AEGIS are documented in this file.
 - Carry `[layout] default_branch` and `[interaction] autopilot` into the
   configuration table of the Folders & Files guide and deck.
 
+### Fixed
+
+- On Windows, the CLI and the CodeGraph plugin no longer run a `git.exe` or
+  `taskkill.exe` placed inside the repository: Windows searches the working
+  directory before PATH unless `NoDefaultCurrentDirectoryInExePath` is set,
+  and AEGIS runs from the repository root. Both now start these programs by
+  the absolute path found on PATH outside the repository, skipping empty and
+  relative PATH entries; a Git found only inside the repository counts as
+  missing.
+
 ## [0.13.0] - 2026-09-10
 
 ### Added

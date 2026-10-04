@@ -1,0 +1,47 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-8960c937"
+
+title = "Start Git from the CodeGraph plugin only from outside the repository"
+
+status = "active"
+
+requirement = """
+When the CodeGraph plugin starts Git, it shall run Git from an absolute location
+found on PATH outside the repository - skipping empty and relative PATH entries
+and entries inside the repository - and shall behave as when Git is not
+installed when no such location exists, so that a program file inside the
+repository is never executed.
+"""
+
+verification = "With `NoDefaultCurrentDirectoryInExePath` removed from the environment and a fake `git` placed in the repository root of a Git work tree, `scope` reports `inventory=git` and indexing applies the Git ignore precondition using the real Git, never the fake; with PATH limited to a repository folder holding a fake `git` plus an empty and a relative entry, `scope` reports `inventory=filesystem` and the fake never runs."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/programs.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_git_comes_from_path_not_from_the_repository",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_git_reachable_only_inside_the_repository_is_not_used",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_a_batch_file_is_never_taken_for_git",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_a_path_folder_that_cannot_be_read_is_skipped",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_a_path_entry_inside_the_repository_is_skipped_even_for_a_link",
+]
+
+
+spec = ""
+
+priority = "normal"   # low | normal | high
+rationale = "The plugin runs with the repository root as its working directory, so on Windows a committed git.exe would otherwise run."        # why this behavior exists, if not obvious
+
+created = 2026-10-04
+updated = 2026-10-03

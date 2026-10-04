@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -238,5 +240,93 @@ def test_report_counts_selection_and_skips(tmp_path: Path):
     assert report["manifests"] == ["pyproject.toml"]
     assert report["patterns"]["source"] == ["src/"]
     assert os.path.isfile(tmp_path / "src" / "a.py")
+
+# TESTS - Git from PATH only (REQ-SEC-8960c937)
+
+
+def plant_fake_git(folder: Path) -> None:
+    """@brief A program called git in folder that is plainly not Git."""
+    folder.mkdir(parents=True, exist_ok=True)
+    if sys.platform == "win32":
+        system = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
+        shutil.copy2(system / "hostname.exe", folder / "git.exe")
+    else:
+        fake = folder / "git"
+        fake.write_text("#!/bin/sh\necho FAKE-PROGRAM\n", encoding="utf-8")
+        fake.chmod(0o755)
+
+
+@pytest.fixture()
+def exposed_repo(tmp_path: Path, monkeypatch) -> Path:
+    """@brief A Git work tree as working directory, search guard removed, fake git in its root."""
+    from conftest import make_repo
+    root = make_repo(tmp_path / "repo", {"src/a.py": "x = 1\n"}, use_git=True)
+    plant_fake_git(root)
+    monkeypatch.delenv("NoDefaultCurrentDirectoryInExePath", raising=False)
+    monkeypatch.chdir(root)
+    if sys.platform != "win32":
+        monkeypatch.setenv("PATH", "." + os.pathsep + os.environ.get("PATH", ""))
+    return root
+
+
+def test_git_comes_from_path_not_from_the_repository(exposed_repo: Path):
+    """REQ-SEC-8960c937: inventory and the Git precondition use the real Git."""
+    from codegraph import safety
+    settings = config.load(exposed_repo)
+    assert scope.inventory(settings).mode == "git"
+    assert scope.report(settings)["inventory"] == "git"
+    state = safety.destination_state(settings)
+    assert state["repository"] is True and state["ignored"] is True
+
+
+@pytest.mark.skipif(sys.platform == "win32" or os.geteuid() == 0,
+                    reason="POSIX folder permissions, as a non-root user")
+def test_a_path_folder_that_cannot_be_read_is_skipped(exposed_repo: Path, monkeypatch,
+                                                      tmp_path_factory):
+    """REQ-SEC-8960c937: an unreadable PATH folder is passed over, not a crash."""
+    from codegraph import programs
+    locked = tmp_path_factory.mktemp("locked")
+    locked.chmod(0)
+    monkeypatch.setenv("PATH", str(locked) + os.pathsep + os.environ.get("PATH", ""))
+    try:
+        found = programs.find("git", exposed_repo)
+    finally:
+        locked.chmod(0o755)
+    assert found is not None and not Path(found).is_relative_to(locked)
+
+
+def test_a_path_entry_inside_the_repository_is_skipped_even_for_a_link(exposed_repo: Path,
+                                                                       monkeypatch):
+    """REQ-SEC-8960c937: a repository folder on PATH is never used, whatever its links point to."""
+    from codegraph import programs
+    real = shutil.which("git", path=os.environ.get("PATH", "").replace("." + os.pathsep, "", 1))
+    tools = exposed_repo / "linked"
+    tools.mkdir()
+    try:
+        os.symlink(real, tools / ("git.exe" if sys.platform == "win32" else "git"))
+    except (OSError, NotImplementedError):
+        pytest.skip("creating links needs a privilege on this machine")
+    monkeypatch.setenv("PATH", str(tools))
+    assert programs.find("git", exposed_repo) is None
+
+
+def test_git_reachable_only_inside_the_repository_is_not_used(exposed_repo: Path, monkeypatch):
+    """REQ-SEC-8960c937: repository, relative and empty PATH entries are skipped."""
+    from codegraph import programs
+    plant_fake_git(exposed_repo / "tools")
+    monkeypatch.setenv("PATH", os.pathsep.join([str(exposed_repo / "tools"), "", "tools"]))
+    assert programs.find("git", exposed_repo) is None
+    assert scope.inventory(config.load(exposed_repo)).mode == "filesystem"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="batch files exist on Windows only")
+def test_a_batch_file_is_never_taken_for_git(exposed_repo: Path, monkeypatch, tmp_path_factory):
+    """REQ-SEC-8960c937: only `git.exe` qualifies; `cmd.exe` would re-parse a batch file's arguments."""
+    from codegraph import programs
+    elsewhere = tmp_path_factory.mktemp("elsewhere")
+    (elsewhere / "git.cmd").write_text("@echo FAKE-PROGRAM\n", encoding="utf-8")
+    monkeypatch.setenv("PATH", str(elsewhere) + os.pathsep + os.environ.get("PATH", ""))
+    found = programs.find("git", exposed_repo)
+    assert found is not None and found.lower().endswith("git.exe"), found
 
 # END OF FILE

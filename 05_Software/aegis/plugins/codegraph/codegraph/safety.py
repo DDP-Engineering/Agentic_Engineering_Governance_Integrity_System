@@ -30,7 +30,7 @@ import time
 from pathlib import Path
 from typing import Self
 
-from codegraph import natives, store
+from codegraph import natives, programs, store
 from codegraph.config import LOCK_NAME, Settings
 
 # CONSTANTS
@@ -95,9 +95,12 @@ class WriterLock:
 
 
 def _git(settings: Settings, *args: str) -> subprocess.CompletedProcess | None:
-    """@brief Run Git in the root with empty input; None when Git is not installed."""
+    """@brief Run Git in the root with empty input; None when no Git outside the root exists."""
+    git = programs.find(GIT, settings.root)
+    if git is None:
+        return None
     try:
-        return subprocess.run([GIT, "-C", str(settings.root), *args], capture_output=True,
+        return subprocess.run([git, "-C", str(settings.root), *args], capture_output=True,
                               stdin=subprocess.DEVNULL, check=False, timeout=60)
     except (OSError, subprocess.SubprocessError):
         return None

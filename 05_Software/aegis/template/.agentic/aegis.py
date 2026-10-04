@@ -329,11 +329,64 @@ def template(name: str) -> str:
     return read_text(path)
 
 
+#: resolved program locations, keyed by name, PATH and repository root
+_PROGRAMS: dict[tuple[str, str, str], str | None] = {}
+
+
+def system_program(name: str) -> str | None:
+    """
+    @brief Absolute path of a program found on PATH outside the repository.
+    @return None when no such location exists - the program counts as missing.
+    @details Windows searches the working directory before PATH unless
+             `NoDefaultCurrentDirectoryInExePath` is set, and AEGIS runs from
+             the repository root, so a program committed there would run in
+             place of the real one; `shutil.which` searches it too. This walk
+             skips empty and relative PATH entries and anything inside the
+             repository, including a link that points into it.
+    """
+    path_value = os.environ.get("PATH", "")
+    key = (name, path_value, str(ROOT))
+    if key not in _PROGRAMS:
+        root = ROOT.resolve()
+        # Windows: `.exe` only, as a bare-name launch would; a `.cmd` or `.bat`
+        # runs through cmd.exe, which re-parses arguments such as file names
+        names = [name + ".exe"] if sys.platform == "win32" and not Path(name).suffix else [name]
+        found = None
+        for entry in path_value.split(os.pathsep):
+            entry = entry.strip().strip('"')
+            if not entry or not os.path.isabs(entry):
+                continue
+            try:
+                folder = Path(entry).resolve()
+            except (OSError, ValueError):
+                continue
+            if folder.is_relative_to(root):
+                continue   # a repository folder on PATH is never searched
+            for candidate in names:
+                path = folder / candidate
+                # os.path.isfile reports an unreadable folder as False instead of raising
+                if not os.path.isfile(path) or (sys.platform != "win32"
+                                                and not os.access(path, os.X_OK)):
+                    continue
+                try:
+                    resolved = path.resolve()
+                except (OSError, ValueError):
+                    break
+                if not resolved.is_relative_to(root):
+                    found = str(resolved)
+                break   # this folder's match decides it; a link into the repository is skipped
+            if found:
+                break
+        _PROGRAMS[key] = found
+    return _PROGRAMS[key]
+
+
 def run_git(*args: str) -> tuple[int, str] | None:
     """
     @brief Run git in the repo root with captured output.
-    @details Returns (returncode, stdout), or None when the git binary is
-             missing or the call itself failed - callers degrade, never crash.
+    @details Returns (returncode, stdout), or None when no git program is
+             found outside the repository (`system_program`) or the call
+             itself failed - callers degrade, never crash.
     @details Output is held in memory: a very large diff (generated or
              vendored trees) costs proportional memory for the duration of
              the call. There is no in-tool mitigation - `[check] ignore`
@@ -341,9 +394,12 @@ def run_git(*args: str) -> tuple[int, str] | None:
              does not reduce this. Keep generated trees out of the diff
              (`.gitignore`, a vendor submodule) if it matters here.
     """
+    git = system_program("git")
+    if git is None:
+        return None
     try:
         out = subprocess.run(
-            ["git", *args],
+            [git, *args],
             check=False,          # the caller reads returncode; git failing is data
             cwd=str(ROOT),
             capture_output=True,
@@ -2753,11 +2809,13 @@ def kill_tree(proc: subprocess.Popen) -> bool:
     """
     if sys.platform == "win32":
         killed = False
+        taskkill = system_program("taskkill")   # never a copy inside the repository
         try:
-            result = subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                                    check=False,   # a failed kill is reported, not raised
-                                    capture_output=True, timeout=20)
-            killed = result.returncode == 0
+            if taskkill is not None:
+                result = subprocess.run([taskkill, "/F", "/T", "/PID", str(proc.pid)],
+                                        check=False,   # a failed kill is reported, not raised
+                                        capture_output=True, timeout=20)
+                killed = result.returncode == 0
         except (OSError, subprocess.SubprocessError):
             killed = False  # taskkill missing, denied, or itself hung
         proc.kill()  # the shell itself, regardless of taskkill's outcome

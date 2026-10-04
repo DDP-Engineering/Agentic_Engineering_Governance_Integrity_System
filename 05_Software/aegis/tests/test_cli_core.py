@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib.util
 import itertools
+import os
 import re
 import shutil
 from pathlib import Path
@@ -1215,7 +1216,9 @@ def test_git_branch_asks_git_for_the_current_branch(tmp_path, monkeypatch):
 
     monkeypatch.setattr(aegis.subprocess, "run", fake_run)
     assert aegis.git_branch() == "feature/m3u-export"
-    assert seen == [["git", "branch", "--show-current"]]
+    # Git runs by the absolute path found on PATH outside the repository
+    assert seen == [[aegis.system_program("git"), "branch", "--show-current"]]
+    assert os.path.isabs(seen[0][0])
 
 
 def test_git_branch_falls_back_on_empty_output_or_failure(tmp_path, monkeypatch):

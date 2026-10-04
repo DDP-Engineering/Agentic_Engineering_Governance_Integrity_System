@@ -28,6 +28,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from codegraph import programs
 from codegraph.config import Settings
 
 # CONSTANTS
@@ -119,13 +120,17 @@ def _patterns(settings: Settings) -> list[str]:
 
 def _git(settings: Settings, *args: str) -> subprocess.CompletedProcess | None:
     """
-    @brief Run Git in the root; None when the executable is missing.
-    @details Git gets its own empty standard input: on Windows, starting a child
+    @brief Run Git in the root; None when no Git outside the root exists.
+    @details Git is located by `programs.find`, never inside the repository.
+             It gets its own empty standard input: on Windows, starting a child
              that inherits a pipe another thread is reading blocks until that
              read ends, which would stall indexing under `--watch-stdin`.
     """
+    git = programs.find(GIT, settings.root)
+    if git is None:
+        return None
     try:
-        return subprocess.run([GIT, "-C", str(settings.root), *args],
+        return subprocess.run([git, "-C", str(settings.root), *args],
                               stdin=subprocess.DEVNULL, capture_output=True, check=False,
                               timeout=60)
     except (OSError, subprocess.SubprocessError):

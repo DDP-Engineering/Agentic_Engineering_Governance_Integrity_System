@@ -1,0 +1,48 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-283dff37"
+
+title = "Start Git and taskkill only from outside the repository"
+
+status = "active"
+
+requirement = """
+When the AEGIS CLI starts Git, or starts the Windows `taskkill` program to stop a
+process tree, it shall run the program from an absolute location found on
+PATH outside the repository - skipping empty and relative PATH entries and
+entries inside the repository - and shall treat the program as unavailable
+when no such location exists, so that a program file inside the repository is
+never executed.
+"""
+
+verification = "With `NoDefaultCurrentDirectoryInExePath` removed from the environment and a fake `git` (and, on Windows, `taskkill`) placed in the repository root, the CLI's Git calls report the real Git and its tree kill runs the real `taskkill`, never the fake; with PATH limited to a repository folder holding a fake `git` plus an empty and a relative entry, Git calls report Git as unavailable and the fake never runs."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_system_programs.py::test_git_comes_from_path_not_from_the_repository",
+    "05_Software/aegis/tests/test_system_programs.py::test_git_reachable_only_inside_the_repository_is_unavailable",
+    "05_Software/aegis/tests/test_system_programs.py::test_taskkill_comes_from_path_not_from_the_repository",
+    "05_Software/aegis/tests/test_cli_core.py::test_git_branch_asks_git_for_the_current_branch",
+    "05_Software/aegis/tests/test_system_programs.py::test_a_batch_file_is_never_taken_for_the_program",
+    "05_Software/aegis/tests/test_system_programs.py::test_a_path_folder_that_cannot_be_read_is_skipped",
+    "05_Software/aegis/tests/test_system_programs.py::test_a_path_entry_inside_the_repository_is_skipped_even_for_a_link",
+]
+
+
+spec = ""
+
+priority = "normal"   # low | normal | high
+rationale = "Windows searches the working directory before PATH unless NoDefaultCurrentDirectoryInExePath is set, and AEGIS runs from the repository root, so a committed git.exe would otherwise run."        # why this behavior exists, if not obvious
+
+created = 2026-10-04
+updated = 2026-10-03

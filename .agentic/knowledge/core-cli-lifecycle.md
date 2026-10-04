@@ -59,6 +59,11 @@ knowledge directory, resolution loops, and non-printable catalogue paths.
 
 ## Invariants
 
+- Git and `taskkill` run by the absolute path `system_program` finds on PATH
+  outside the repository - never from the working directory, a relative or
+  empty PATH entry, or the repository tree; Git found nowhere else counts as
+  missing and every Git-dependent command degrades as without Git
+  (REQ-SEC-283dff37).
 - `init` preserves repository-owned data and configuration, and a second run
   over a complete installation is byte-for-byte idempotent.
 - `init` edits the root `.gitignore` only between its managed markers,
@@ -96,6 +101,7 @@ knowledge directory, resolution loops, and non-printable catalogue paths.
 
 ## Key behaviors
 
+- `REQ-SEC-283dff37` - Start Git and taskkill only from outside the repository.
 - `REQ-FUNC-87aea7e9` - Initialize a copied payload while preserving
   repository-owned data and configuration.
 - `REQ-FUNC-938600f4` - Create a uniquely identified task journal with the
