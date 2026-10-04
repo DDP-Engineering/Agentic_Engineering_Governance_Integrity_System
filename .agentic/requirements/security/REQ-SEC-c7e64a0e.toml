@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-c7e64a0e"
+
+title = "Confine the configured database path before dispatch"
+
+status = "active"
+
+requirement = """
+If `[codegraph] database` does not resolve, after following symlinks and
+junctions, to a file named `NAME.sqlite` directly inside the repository's
+`.agentic/knowledge/codegraph/` folder, where `NAME` contains only letters,
+digits, `_` and `-`, then the AEGIS CLI shall exit 1 with a one-line error
+naming the setting and start no plugin process.
+"""
+
+verification = "In isolated payload copies with a recording stub, configure `src/index.sqlite`, `../outside.sqlite`, `.agentic/knowledge/codegraph/codegraph.sqlite-journal`, `.agentic/knowledge/codegraph/codegraph.lock`, `.agentic/knowledge/codegraph/sub/x.sqlite`, and (where the platform allows symlinks) a `.agentic/knowledge/codegraph` link to an outside folder: each `know_graph` call exits 1 with the error and no launch. Boundary: `.agentic/knowledge/codegraph/codegraph.sqlite` and `.agentic/knowledge/codegraph/alt-1.sqlite` launch the stub."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_invalid_database_path_starts_nothing",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_linked_storage_folder_is_rejected",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_alternative_database_name_is_accepted",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

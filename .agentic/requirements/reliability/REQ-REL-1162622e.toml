@@ -1,0 +1,41 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-1162622e"
+
+title = "Bound parsing time per file"
+
+status = "active"
+
+requirement = """
+If parsing or extracting one file exceeds `[codegraph] parse_timeout_seconds`,
+then CodeGraph shall record the file as `failed` with reason `parse-timeout`,
+publish none of its facts, and continue indexing the remaining files.
+"""
+
+verification = "With a short timeout and a test hook that slows one file's parse, that file is `failed` with `parse-timeout`, its earlier facts are absent, the other files are indexed, and the next file after it parses correctly."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/python_extract.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_slow_file_fails_with_parse_timeout_and_the_next_file_parses",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_pool_stops_when_asked",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

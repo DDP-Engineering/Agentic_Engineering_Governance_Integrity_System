@@ -1,0 +1,45 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-aa0a867a"
+
+title = "Extract Python definitions with exact source ranges"
+
+status = "active"
+
+requirement = """
+When CodeGraph indexes a Python file, it shall record each module, class,
+function, method, parameter and supported assignment binding with its kind,
+simple and qualified name, compact signature, enclosing scope and exact start
+and end positions.
+"""
+
+verification = "Fixtures with nested classes, decorated and async functions, multiline signatures, non-ASCII identifiers and CRLF line endings yield the definitions and positions given in the extraction spec; definitions written inside comments or strings yield none."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/python_extract.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_definitions_have_kinds_names_signatures_and_positions",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_comments_and_strings_define_nothing",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_crlf_and_lf_sources_give_identical_positions",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_columns_count_code_points_not_bytes",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_typed_star_parameters_are_parameters",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_module_range_ends_at_the_last_character",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

@@ -1,0 +1,47 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-41815b22"
+
+title = "Check index freshness against the sources"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `check` operation, CodeGraph shall compare
+the selected scope's current inventory, content hashes, project manifests and
+indexing configuration with the recorded manifest and report freshness
+`current`, `stale` with bounded lists of added, changed, deleted and failed
+files, or `unknown` when the comparison is interrupted or sources change
+during it.
+"""
+
+verification = "After indexing a fixture, `check` reports `current`; after adding, equal-size editing or deleting a file, changing a manifest or an ingestion setting, it reports `stale` with that difference; changing `max_results` keeps `current`; a test hook editing a file during the check gives `unknown`; nothing is written."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_check_reports_current_then_each_kind_of_staleness",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_check_during_a_source_edit_is_unknown",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_check_treats_a_vanished_file_as_unknown",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_check_out_of_time_says_so_in_every_view",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

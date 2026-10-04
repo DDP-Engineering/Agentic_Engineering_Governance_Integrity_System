@@ -1,0 +1,46 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-68f1bb5d"
+
+title = "Confine the database path in direct plugin runs"
+
+status = "active"
+
+requirement = """
+If the database path that CodeGraph receives on its command line, or reads
+from `[codegraph] database`, does not resolve to a `NAME.sqlite` file directly
+inside the root's `.agentic/knowledge/codegraph/` folder, then CodeGraph shall
+exit 1 with a one-line error before reading or writing any database file.
+"""
+
+verification = "Run `codegraph.py index --root` and `codegraph.py find --root` with each invalid path from the dispatch spec: each exits 1 with the error and creates no file. Boundary: the default path proceeds."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/config.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_config.py::test_default_and_alternative_database_names_are_accepted",
+    "05_Software/aegis/plugins/codegraph/tests/test_config.py::test_database_outside_the_storage_rule_is_rejected",
+    "05_Software/aegis/plugins/codegraph/tests/test_config.py::test_database_reached_through_a_linked_folder_is_rejected",
+    "05_Software/aegis/plugins/codegraph/tests/test_config.py::test_invalid_settings_are_one_line_errors",
+    "05_Software/aegis/plugins/codegraph/tests/test_config.py::test_unparseable_configuration_is_a_config_error",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_invalid_database_paths_are_refused_before_any_file",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

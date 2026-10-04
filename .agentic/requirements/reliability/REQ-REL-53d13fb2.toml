@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-53d13fb2"
+
+title = "Stop a plugin that exceeds its time limit"
+
+status = "active"
+
+requirement = """
+If the CodeGraph plugin is still running when its operation's configured time
+limit expires, the AEGIS CLI shall terminate the plugin's whole process tree,
+report a process failure and exit 1, leaving the database files unchanged and
+the process that launched AEGIS running.
+"""
+
+verification = "A stub plugin that starts a child process and outlives `timeout_seconds`, and separately `check_timeout_seconds` and a positive `index_timeout_seconds`, makes the command exit 1 within the limit plus a small margin; both stub processes are gone, the test process that launched AEGIS is alive, and the database folder is byte-identical. Boundary: with `index_timeout_seconds = 0`, an index stub that runs longer than the read limit completes successfully."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_time_limit_kills_the_plugin_tree",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_index_without_a_limit_outlasts_the_read_limit",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_a_refused_tree_kill_returns_and_says_so",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_a_child_still_holding_the_output_is_reported",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

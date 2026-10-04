@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-569a1a97"
+
+title = "Answer in the requested protocol version"
+
+status = "active"
+
+requirement = """
+When a caller requests a protocol version, CodeGraph shall answer in that
+version when it supports it and otherwise return status `error` with reason
+`protocol` and the list of supported versions.
+"""
+
+verification = "Requesting version 1 returns envelopes with `protocol` 1; requesting 0 or 2 returns `error` with reason `protocol` listing `[1]`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+    "05_Software/aegis/plugins/codegraph/codegraph.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_requested_protocol_version_is_answered_or_refused",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

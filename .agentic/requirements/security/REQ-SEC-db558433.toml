@@ -1,0 +1,39 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-db558433"
+
+title = "Write only generated storage during indexing"
+
+status = "active"
+
+requirement = """
+When CodeGraph indexes, recovers or rebuilds, it shall create or modify files
+only inside the root's `.agentic/knowledge/codegraph/` folder.
+"""
+
+verification = "Record every path, size and hash in a fixture repository whose plugin copy has no `__pycache__`, before and after `index`, `index --rebuild` and a recovery, through AEGIS and standalone: only files inside `.agentic/knowledge/codegraph/` differ."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+    "05_Software/aegis/plugins/codegraph/codegraph.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_indexing_writes_only_the_storage_folder",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

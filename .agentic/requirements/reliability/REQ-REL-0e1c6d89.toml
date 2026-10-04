@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-0e1c6d89"
+
+title = "Bound the plugin output while it is read"
+
+status = "active"
+
+requirement = """
+If the CodeGraph plugin writes more than the output cap to standard output,
+the AEGIS CLI shall stop reading at the cap, terminate the plugin, and exit 1
+with a one-line error naming the output limit.
+"""
+
+verification = "A stub writing 10 MiB to standard output makes a read command exit 1 promptly with the output-limit error and leaves no stub process; a stub writing a valid response just under the cap succeeds."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_output_cap_stops_a_flooding_plugin",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_no_survivors_are_claimed_for_a_plugin_that_already_exited",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

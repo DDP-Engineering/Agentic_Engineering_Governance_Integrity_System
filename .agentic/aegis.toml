@@ -8,6 +8,7 @@ schema = 1
 test = "python -m pytest -q 05_Software/aegis/tests"
 test_impacted = "python -m pytest -q {tests}"
 lint = "python -m ruff check 05_Software/aegis"
+codegraph_test = "python -m pytest -q 05_Software/aegis/plugins/codegraph/tests"
 # timeout = 1800                        # seconds allowed per command
 
 [layout]
@@ -22,11 +23,13 @@ source = [
     "02_Tools/",
     "05_Software/aegis/template/.agentic/aegis/",
     "05_Software/aegis/template/.agentic/",
+    "05_Software/aegis/plugins/",
 ]
 tests = [
     "05_Software/aegis/integrations/tests/",
     "05_Software/aegis/tests/",
     "05_Software/aegis/tests/",
+    "05_Software/aegis/plugins/codegraph/tests/",
 ]
 docs = [
     "README.md",
@@ -59,11 +62,31 @@ autopilot = false
 # Optional explicit verdicts and bounded fix-and-re-review rounds. Normal
 # validation remains required when explicit review is disabled.
 enabled = true
-max_fix_cycles = 2
+max_fix_cycles = 4
 
 [check]
 secret_patterns_extra = []
-ignore = []
+# Vendored Tree-sitter binaries: third-party, hash-pinned in requirements.lock,
+# and too large for the diff scanner to read.
+ignore = [
+    "05_Software/aegis/plugins/codegraph/vendor/",
+    ".agentic/plugins/codegraph/vendor/",
+]
 strict_promote = []
 # run = ["test", "lint"]   # restrict what `check --run` executes; without
 #                          # this, side-effect-looking names are skipped
+
+[codegraph]
+# The knowledge graph indexes this repository's [layout] source and tests.
+# The vendored Tree-sitter packages are third-party code, not ours to navigate.
+enabled = true
+exclude = ["05_Software/aegis/plugins/codegraph/vendor/"]
+# Folders imports start from, so `from codegraph import config` and the
+# tests' `from conftest import ...` bind to the indexed modules.
+python_import_roots = [
+    "05_Software/aegis/plugins/codegraph",
+    "05_Software/aegis/plugins/codegraph/tests",
+    "05_Software/aegis/template/.agentic",
+    "05_Software/aegis/tests",
+    "02_Tools",
+]

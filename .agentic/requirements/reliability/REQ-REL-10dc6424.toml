@@ -1,0 +1,41 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-10dc6424"
+
+title = "Discard an indexing run whose plugin code changed"
+
+status = "active"
+
+requirement = """
+If the content of the plugin folder at publication time differs from its
+content when the indexing run started, then CodeGraph shall discard the run's
+unpublished work, keep the last completed generation, and report status
+`error` with reason `plugin_changed`.
+"""
+
+verification = "With a test hook pausing before publication, edit an engine file in a copy of the plugin folder without touching `MANIFEST.json`: the run reports `plugin_changed` and readers still see the previous snapshot. Boundary: an unchanged folder publishes normally."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_changed_plugin_content_discards_the_run",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

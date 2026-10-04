@@ -1,0 +1,50 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-8cb1a3b7"
+
+title = "Report status, index, freshness and capability separately"
+
+status = "active"
+
+requirement = """
+CodeGraph shall return every operation's result in the versioned response
+envelope with separate `status`, `index`, `freshness` and `indexing_supported`
+fields, the snapshot ID and the generation, so that an empty successful search
+reports status `ok` with no results and an unusable index reports status
+`unavailable`.
+"""
+
+verification = "Fixture responses for every operation and field value validate against the envelope rules in the protocol spec; `find` with no match returns `ok` and an empty result list; the same `find` on a missing database returns `unavailable` with index `missing`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_envelope_keeps_status_index_freshness_and_capability_separate",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_every_status_value_validates",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_every_index_and_freshness_value_validates",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_values_outside_the_vocabulary_are_rejected",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_exit_codes_follow_the_status",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_index_refusals_report_the_database_state",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_plugin_envelopes_carry_state_and_capability",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_reasons_come_from_the_vocabulary",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_every_action_has_a_valid_fixture_whose_views_agree",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

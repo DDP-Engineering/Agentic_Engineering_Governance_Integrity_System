@@ -1,0 +1,51 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-PLAT-dc7bdd06"
+
+title = "Use the vendored parsers that match the running Python"
+
+status = "active"
+
+requirement = """
+CodeGraph shall load native parser modules only for indexing, from the
+vendored set matching the running platform, architecture and Python ABI, and
+shall report `indexing_supported` false when no set matches and
+`python_support` `untested` when a compatible set serves a Python outside the
+tested support matrix.
+"""
+
+verification = "Read operations leave no native module in `sys.modules`; a simulated unmatched platform reports `indexing_supported` false while queries still work; a simulated newer Python served by an abi3 set reports `untested`; a separately installed `tree_sitter` on `PYTHONPATH` or in user site-packages is not loaded under the AEGIS dispatch flags."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/natives.py",
+    "05_Software/aegis/plugins/codegraph/vendor/",
+    "05_Software/aegis/plugins/codegraph/MANIFEST.json",
+    "05_Software/aegis/plugins/codegraph/codegraph.py",
+    ".gitignore",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_running_interpreter_can_index_and_reports_its_matrix_status",
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_interpreter_without_a_matching_binary_cannot_index",
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_compatible_binary_outside_the_tested_matrix_is_untested",
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_capability_check_loads_no_native_module",
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_vendored_parser_wins_over_an_installed_package",
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_vendored_parser_parses_python_source",
+    "05_Software/aegis/plugins/codegraph/tests/test_natives.py::test_git_would_commit_every_vendored_file",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

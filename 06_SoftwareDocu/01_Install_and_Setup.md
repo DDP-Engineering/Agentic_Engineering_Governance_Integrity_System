@@ -258,6 +258,21 @@ everything else: `check` reports an edit outside the current stage's zone as
 | `strict_promote` | `[]` | `--strict` fails on errors, a failed `--run` command among them, and on no warnings. |
 | `run` | commented `["test", "lint"]` | `check --run` executes every `[commands]` entry except names that read as side effects - `deploy`, `migrat`, `publish`, `release`, `push`, `upload` - which are skipped with a visible line. |
 
+### `[codegraph]` - the optional knowledge graph
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `enabled` | `false` | `false`: every `know_graph` command answers `disabled` and starts nothing. Only `true` enables them. |
+| `database` | commented `".agentic/knowledge/codegraph/codegraph.sqlite"` | That default. Any other value must be a `NAME.sqlite` file directly inside `.agentic/knowledge/codegraph/`; the commands refuse anything else, and `check` reports it. |
+| `max_results` | commented `20` | `20` records per answer. 1 through 200; the commands refuse other values, and `check` reports them. |
+| `max_output_bytes` | commented `8192` | `8192` bytes per answer. 512 through 32768, refused and reported like `max_results`. |
+| `timeout_seconds` | commented `5` | 5 seconds for one query; at least 1. |
+| `check_timeout_seconds` | commented `30` | 30 seconds for `know_graph_check`; at least 1. |
+| `index_timeout_seconds` | commented `0` | No limit for `know_graph_index`; a positive value sets one. |
+
+The commands need the CodeGraph plugin in `.agentic/plugins/codegraph/`; its
+`README.md` covers installation and the plugin's own indexing-scope keys.
+
 
 ## First contact
 

@@ -12,7 +12,9 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 The companion CLI uses Python 3.11 or later and the standard library. Product
 verification uses pytest and Ruff. Host integrations use Node.js 22 or later;
-Git supplies repository evidence and isolated test fixtures.
+Git supplies repository evidence and isolated test fixtures. The CodeGraph
+add-on runs on the same Python with its vendored natives and needs no
+installation.
 
 ## Setup
 
@@ -22,7 +24,10 @@ Repository tooling is documented in `02_Tools/README.md`.
 
 ## Configuration and services
 
-`.agentic/aegis.toml` owns verification commands and layout for this repository.
+`.agentic/aegis.toml` owns verification commands and layout for this repository,
+and enables CodeGraph with import roots for the plugin, the core and their
+tests. Build or refresh the local index with
+`python .agentic/aegis.py know_graph_index`.
 Host runtime paths and job caches are configured per installation as documented
 in `06_SoftwareDocu/Agent_Plugins.md`.
 
@@ -46,7 +51,10 @@ Use `.agentic/aegis.toml` `[commands]` for canonical test, impacted-test and lin
 commands; the default working directory is the repository root. `AGENTS.md`
 defines minimum Python compilation, product-suite and CLI verification.
 Focused selectors target `05_Software/aegis/tests/` or the integration tests
-owned by the changed behavior. Run-specific outcomes belong in task evidence.
+owned by the changed behavior. The CodeGraph suite runs separately through
+`[commands] codegraph_test`; its parity matrix is Windows Python 3.11, 3.12
+and 3.14 and WSL Ubuntu 24.04 Python 3.12, as listed in the plugin's
+`MANIFEST.json`. Run-specific outcomes belong in task evidence.
 
 ## Platform details
 

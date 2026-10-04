@@ -25,13 +25,17 @@ durable journal. This page tours both kinds of state.
   specs/           optional per-requirement specs     (yours)
   tasks/           journals; sidecars git-ignored     (yours)
   knowledge/       one page per component             (yours)
+    codegraph/     optional local index; ignore in git (generated)
   context/
     project.md     current project orientation        (yours)
     environment.md current setup and verification     (yours)
+  plugins/         optional add-ons, e.g. codegraph/  (add-on payload)
 ```
 
 The split matters: **payload** files are replaced on upgrade; **yours**
-are never shipped in a payload and never overwritten.
+are never shipped in a payload and never overwritten. **Add-on payload** is
+committed like the core but replaced by its own upgrade; a core upgrade keeps
+it. **Generated** data is rebuilt locally and never committed.
 
 ## Templates and generated records
 
@@ -256,6 +260,11 @@ code and tests, before final independent reviews and proof. Build updates
 component facts earlier when another agent needs them for a handoff. There is
 no manifest and no registry - the folder listing is the component list.
 
+`knowledge/codegraph/` is different: when the optional CodeGraph plugin is
+enabled, `know_graph_index` builds a SQLite index of source symbols there.
+It is local, derived data - one per checkout and safe to delete - and must
+be listed in `.gitignore`; indexing refuses to write it otherwise. It is not a component page and `components` does not list it.
+
 **Architecture** holds a Mermaid diagram of that component's own logic -
 what a reader has to hold in their head to change it safely, at ten to
 fifteen nodes rather than every function. It is written by hand, not derived
@@ -317,6 +326,7 @@ Each key's default value and its behavior when absent are in the
 | `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages and still requires publication approval. |
 | `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. |
 | `[records] commit_fingerprints` | `false` keeps anchor/evolution sidecars out of git through a managed `.gitignore` block that `init` maintains; `true` removes the block so they are committed with the journal. |
+| `[codegraph] enabled` and limits | Turns on the optional `know_graph` commands (default `false`) and bounds their answers and run time; see the settings reference. |
 
 When enabled, each review round needs two independent verdicts: specification
 compliance and implementation quality. One initial round plus at most

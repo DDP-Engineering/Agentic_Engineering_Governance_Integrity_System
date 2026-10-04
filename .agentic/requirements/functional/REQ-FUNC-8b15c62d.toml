@@ -1,0 +1,38 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-8b15c62d"
+
+title = "Start the CodeGraph plugin only from knowledge-graph commands"
+
+status = "active"
+
+requirement = """
+While CodeGraph is enabled, the AEGIS CLI shall start the CodeGraph plugin
+only when an operator runs a `know_graph` command.
+"""
+
+verification = "With CodeGraph enabled and a recording stub plugin in an isolated payload copy, run `init`, `status`, `brief`, `summary`, `check`, `check --run`, `components`, `explain`, `trace` and `diagram`: the stub records no launch. Boundary: one `know_graph` call in the same copy records exactly one launch."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_governance_commands_never_start_the_plugin",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

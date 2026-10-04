@@ -1,0 +1,41 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-DATA-9004cf27"
+
+title = "Identify symbols with stable 128-bit IDs"
+
+status = "active"
+
+requirement = """
+CodeGraph shall identify each symbol by a 128-bit digest of its path,
+enclosing scope, kind, name, normalized signature and duplicate disambiguator.
+"""
+
+verification = "Indexing a fixture twice, and again after inserting blank lines above a function, gives identical IDs; renaming the function changes its ID; two identical definitions in one scope get distinct IDs; JSON shows each full ID as 32 hexadecimal characters."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/python_extract.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_ids_survive_line_shifts_and_change_on_rename",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_identical_definitions_get_distinct_ids",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_symbol_id_matches_the_documented_formula",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

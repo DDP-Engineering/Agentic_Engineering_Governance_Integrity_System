@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-a8ece064"
+
+title = "Report knowledge-graph status"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `status` operation, CodeGraph shall report
+availability, snapshot ID, generation, indexed time, scope and coverage
+counts, supported languages, whether this Python can index, and whether Git
+reports the database folder as ignored and untracked, without hashing source
+files.
+"""
+
+verification = "On fixtures with no database, a current database, a folder Git does not ignore and a tracked database file, `status` reports the matching fields; an instrumented file-open hook shows no source file is read."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_status_reports_state_coverage_and_git_diagnostics",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_status_sees_storage_git_would_record",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_status_text_shows_whether_this_python_can_index",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

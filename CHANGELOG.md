@@ -13,6 +13,16 @@ All notable changes to AEGIS are documented in this file.
 
 ### Added
 
+- Optional CodeGraph code navigation: eight `know_graph` commands answer where
+  Python symbols are defined and used, from a local SQLite index the
+  CodeGraph add-on builds under `.agentic/knowledge/codegraph/`. Off by
+  default (`[codegraph] enabled = false`); while off, nothing starts and
+  nothing is written. The core runs the add-on as an isolated child process
+  of the same Python, bounds its time and output, and validates every
+  response. Queries are read-only and label each relation; indexing is
+  explicit and incremental, and in a Git repository it refuses to write
+  unless the index folder is ignored and untracked. The add-on lives in `05_Software/aegis/plugins/codegraph/`
+  with vendored Tree-sitter natives for Windows x64 and Linux x86_64.
 - `[records] commit_fingerprints` (default `false`): `init` maintains a
   managed block in the root `.gitignore` that keeps anchor and evolution
   sidecars out of git, removes it when the setting is `true`, and names

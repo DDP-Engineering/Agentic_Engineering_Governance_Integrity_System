@@ -1,0 +1,41 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-6f924213"
+
+title = "Allow one index writer at a time"
+
+status = "active"
+
+requirement = """
+CodeGraph shall allow at most one indexing run at a time through an
+operating-system lock on the stable `codegraph.lock` file that is released
+when its holder exits, reporting index state `busy` to a concurrent run.
+"""
+
+verification = "While a slowed indexing run holds the lock, a second run reports `busy` immediately; killing the first run, including while its spawned workers run, lets a new run proceed; the lock file keeps its identity across runs and rebuilds and is never deleted by indexing."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_second_writer_is_busy_and_a_killed_holder_frees_the_lock",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_a_commit_blocked_by_a_reader_reports_busy",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-d6ef4d32"
+
+title = "Show a symbol and its neighborhood"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `symbol` operation with a symbol ID,
+CodeGraph shall return the symbol's signature, range and enclosing scope with
+a bounded one-hop neighborhood of its callers, callees and references, each
+carrying its resolution label.
+"""
+
+verification = "For a fixture function with linked and candidate callers and two callees, the response shows each neighbor once with its label; a high fan-out symbol's neighborhood is truncated with `has_more`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_symbol_shows_its_labelled_neighborhood",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

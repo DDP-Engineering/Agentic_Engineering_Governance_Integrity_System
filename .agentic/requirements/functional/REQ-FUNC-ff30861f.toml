@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-ff30861f"
+
+title = "Check cited files before reporting locations"
+
+status = "active"
+
+requirement = """
+When a query result cites source locations, CodeGraph shall hash-check the
+cited files, mark citations from files changed since indexing as stale instead
+of reporting their old locations as current, and report freshness
+`not_fully_checked`.
+"""
+
+verification = "After indexing, edit one cited file: a query citing it marks that citation stale while citations from unchanged files remain current, and every query reports `not_fully_checked`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_changed_cited_files_are_marked_stale",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

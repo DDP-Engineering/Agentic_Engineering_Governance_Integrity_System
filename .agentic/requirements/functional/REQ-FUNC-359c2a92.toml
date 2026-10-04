@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-359c2a92"
+
+title = "List the callers of a symbol"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `callers` operation with a symbol ID,
+CodeGraph shall return the linked incoming calls and, listed separately, the
+candidate callers of that symbol, each with its location and resolution label.
+"""
+
+verification = "A fixture with a direct call, a call through a lexical binding and a same-name call in another module returns two linked callers and one candidate caller in separate lists."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_callers_lists_linked_and_candidate_callers_separately",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_callers_page_through_linked_callers_then_candidates_once",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

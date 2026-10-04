@@ -24,6 +24,8 @@ diagrams, trace exports, or path explanations belong to the Validation and
 evidence CLI page even though those commands share `aegis.py`. Requests that
 change the workflow steps or artifact templates belong to the Reusable
 workflow payload rather than this CLI component.
+Requests about the `know_graph*` commands or `[codegraph]` settings belong to
+the CodeGraph plugin page.
 
 ## Purpose and boundaries
 

@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-7e74dacf"
+
+title = "Update the index incrementally"
+
+status = "active"
+
+requirement = """
+When an operator runs indexing against an existing compatible index, CodeGraph
+shall reuse facts for files whose content hash and extractor revisions are
+unchanged, re-extract changed files, add new files, and remove the facts of
+deleted or newly excluded files.
+"""
+
+verification = "Index a fixture, then add, edit with equal size, delete, rename and exclude files and change a manifest: after re-indexing, queries reflect every change, an instrumented counter shows unchanged files were not re-parsed, and no fact refers to a removed file."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_incremental_update_reuses_unchanged_files_and_applies_every_change",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_reused_files_take_the_new_role",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_failed_files_are_extracted_again",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

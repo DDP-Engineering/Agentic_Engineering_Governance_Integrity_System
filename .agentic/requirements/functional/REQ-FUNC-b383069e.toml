@@ -1,0 +1,49 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-b383069e"
+
+title = "Dispatch knowledge-graph queries to the plugin"
+
+status = "active"
+
+requirement = """
+When an operator runs `know_graph`, `know_graph_check`, `know_graph_find`,
+`know_graph_file`, `know_graph_symbol`, `know_graph_callers` or
+`know_graph_refs` while CodeGraph is enabled, the AEGIS CLI shall run
+`.agentic/plugins/codegraph/codegraph.py` with its own Python interpreter in
+isolated, no-bytecode, UTF-8 mode, passing the matching operation, the
+absolute root, configuration and database paths, the expected protocol version
+and any target after an end-of-options marker, and print the plugin's
+validated response.
+"""
+
+verification = "A stub plugin records its interpreter, flags and arguments: each of the seven commands produces the operation, paths, protocol version and target defined in the dispatch spec, run by the same interpreter with `-I -B -X utf8`; a target beginning with `-` arrives unchanged as the target; a command missing its required target exits 2 without a launch."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+    "05_Software/aegis/template/.agentic/CLI.md",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_read_commands_run_the_entry_point_isolated_with_their_arguments",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_target_parses_the_same_on_every_python",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_more_than_one_target_is_a_usage_error",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_options_a_command_does_not_use_are_usage_errors",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

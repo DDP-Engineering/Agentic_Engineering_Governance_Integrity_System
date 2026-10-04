@@ -1,0 +1,42 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-c7ece57c"
+
+title = "Discover project manifests outside the selected sources"
+
+status = "active"
+
+requirement = """
+CodeGraph shall read the recognized project manifests found in the selected
+source and test folders and in their ancestor folders up to the repository
+root, outside excluded paths, record each manifest's content hash in the
+indexed input manifest, and add no symbols from them.
+"""
+
+verification = "In a fixture whose sources sit under `pkg/src/` with a `pyproject.toml` at the root and in `pkg/`, both manifests are recorded with hashes and contribute no symbols; a manifest inside an excluded folder is ignored; editing a recorded manifest makes `check` report it changed."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_manifests_in_ancestor_folders_are_recorded_without_symbols",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_report_counts_selection_and_skips",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_check_reports_current_then_each_kind_of_staleness",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

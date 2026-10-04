@@ -1,0 +1,45 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-0858819d"
+
+title = "Stop indexing when its launcher disappears"
+
+status = "active"
+
+requirement = """
+While indexing with `--watch-stdin`, if standard input reaches end-of-file,
+CodeGraph shall cancel parsing, extraction, resolution and publication, stop
+its extraction workers, and exit leaving the last completed generation
+unchanged.
+"""
+
+verification = "Start `codegraph.py index --watch-stdin` on a pipe and close the pipe during a slowed run: the process exits promptly, publishes no new generation and leaves no worker process. Boundary: without the flag, a closed standard input does not stop the run."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+    "05_Software/aegis/plugins/codegraph/codegraph.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_closing_standard_input_stops_a_watched_run",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_without_the_flag_a_closed_input_does_not_stop_the_run",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_a_watched_run_with_open_input_completes",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_cancellation_during_resolution_publishes_nothing",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

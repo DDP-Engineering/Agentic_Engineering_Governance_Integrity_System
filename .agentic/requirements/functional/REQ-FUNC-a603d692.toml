@@ -1,0 +1,41 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-a603d692"
+
+title = "Outline one indexed file"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `file` operation with a repository path,
+CodeGraph shall return that file's symbols in source order with their nesting,
+kinds, signatures and ranges, together with the file's role, language and
+extraction status, and status `not_found` for a path that is not indexed.
+"""
+
+verification = "For a fixture module, the outline lists classes, methods and functions in source order with nesting; a path given with backslashes or `./` resolves to the same file; an unindexed or excluded path returns `not_found`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_file_outline_in_source_order_with_nesting",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_file_without_a_path_is_an_invalid_request",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

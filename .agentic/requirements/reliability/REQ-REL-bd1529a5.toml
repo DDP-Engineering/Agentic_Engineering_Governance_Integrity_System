@@ -1,0 +1,45 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-bd1529a5"
+
+title = "Rebuild without replacing the wrong file"
+
+status = "active"
+
+requirement = """
+When an operator requests a rebuild, or indexing finds an unsupported
+CodeGraph schema, CodeGraph shall build and validate a new database under a
+temporary name in the database folder, replace the target only after
+validation, replace an unrecoverable old database together with its journal,
+and keep the previous database when the rebuild fails.
+"""
+
+verification = "Rebuild over a healthy database, an interrupted one and a damaged one whose header still carries the CodeGraph ID: each ends with a valid database and no journal from the old file; a forced failure during the build leaves the old database readable; an open reader on Windows causes bounded retries, not corruption."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_rebuild_replaces_healthy_interrupted_and_damaged_databases",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_failed_rebuild_keeps_the_previous_database",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_rebuild_waits_for_an_open_reader_instead_of_corrupting",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_a_journal_without_its_database_never_meets_the_rebuilt_file",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

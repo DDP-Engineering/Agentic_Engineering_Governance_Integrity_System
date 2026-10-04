@@ -1,0 +1,46 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-baa92928"
+
+title = "Select source files with the AEGIS layout rules"
+
+status = "active"
+
+requirement = """
+CodeGraph shall select for indexing the inventoried files that match `[layout]
+source`, `[layout] tests` when `[codegraph] index_tests` is true, or
+`[codegraph] include`, excluding files that match `[codegraph] exclude`,
+built-in dependency and output folders, or the installed root `.agentic/`
+folder, using the same directory-prefix and case-sensitive glob semantics as
+the AEGIS CLI.
+"""
+
+verification = "Contract fixtures shared with the AEGIS matcher give identical selections for directory prefixes, bare names, `*`/`?`/`[]` globs, case differences, overlapping patterns and duplicate entries; `exclude` wins over `include`; `node_modules/` and the root `.agentic/` are excluded while a nested `05_Software/aegis/template/.agentic/aegis.py` is selected; `index_tests = false` drops test files."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/config.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_matcher_agrees_with_the_aegis_cli",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_selection_applies_layout_include_and_exclusions",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_test_files_are_dropped_when_tests_are_not_indexed",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_roles_languages_and_skip_reasons",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

@@ -1,0 +1,51 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-7432a8a2"
+
+title = "Label Python references by their resolution evidence"
+
+status = "active"
+
+requirement = """
+When CodeGraph indexes a Python file, it shall record each call, import and
+identifier reference with its location, target spelling and one resolution
+label from `direct-syntax`, `lexical-binding`, `candidate`, `unresolved` and
+`external`, linking a target only for `direct-syntax` and `lexical-binding`
+and keeping name-only matches as bounded candidates.
+"""
+
+verification = "Fixtures with local shadowing, module and `from` imports, star imports, dynamic calls through `getattr` and `importlib`, and same-named functions in two modules produce the labels in the extraction spec; a call whose name matches exactly one function elsewhere stays `candidate`; no test-coverage relation is produced."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/python_extract.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_references_record_how_each_name_is_bound",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_parameter_shadows_module_name_and_builtins_are_marked",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_star_imports_and_dynamic_access_stay_unresolved",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_relative_imports_resolve_against_the_package",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_cross_file_labels_follow_binding_evidence",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_single_name_match_elsewhere_stays_a_candidate",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_attribute_delete_and_rebinding_targets_are_writes",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_nested_class_methods_do_not_see_the_outer_class_body",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_lambda_bodies_record_their_references",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_attribute_calls_on_any_receiver_are_calls",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_global_and_nonlocal_names_bind_to_the_outer_definition",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

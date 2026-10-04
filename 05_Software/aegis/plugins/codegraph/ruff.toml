@@ -1,0 +1,9 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt file for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+# Ruff's default rules apply to the plugin; the vendored Tree-sitter packages
+# are third-party code kept byte-identical to their wheels, so they are not linted.
+extend-exclude = ["vendor"]

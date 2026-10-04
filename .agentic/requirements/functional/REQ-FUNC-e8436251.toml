@@ -1,0 +1,42 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-e8436251"
+
+title = "Resolve symbol ID prefixes without guessing"
+
+status = "active"
+
+requirement = """
+When an operator supplies a symbol ID or ID prefix, CodeGraph shall resolve it
+against the whole current index, returning status `ambiguous` with the
+matching choices when several symbols share the prefix and status `not_found`
+when none does.
+"""
+
+verification = "In a seeded index where two IDs share an 11-character prefix, the 10-character prefix returns `ambiguous` with both, a 12-character prefix resolves, an unknown prefix returns `not_found`, and a symbol beyond the first page of any listing resolves."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_prefixes_resolve_against_the_whole_index",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_ambiguous_choices_render_as_symbols_within_the_budget",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

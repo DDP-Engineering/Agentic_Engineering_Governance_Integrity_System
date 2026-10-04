@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-4277bfc7"
+
+title = "Recover an interrupted write only during explicit indexing"
+
+status = "active"
+
+requirement = """
+When an indexing run starts on a CodeGraph database with a hot journal,
+CodeGraph shall let SQLite roll the journal back under the writer lock before
+updating the index, without deleting any journal file itself.
+"""
+
+verification = "After an interrupted transaction, readers report `needs_recovery` and leave the journal in place; the next `index` completes and readers then report `ready` with the updated generation."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_only_indexing_recovers_an_interrupted_write",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

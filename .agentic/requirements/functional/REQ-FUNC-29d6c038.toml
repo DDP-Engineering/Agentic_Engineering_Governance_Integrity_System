@@ -1,0 +1,42 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-29d6c038"
+
+title = "Preview the indexing scope without writing"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `scope` operation, CodeGraph shall report
+the selected patterns, the selected file and byte totals, the counts by role
+and language, the skip reasons and the inventory mode without creating or
+modifying any file.
+"""
+
+verification = "On a fixture repository with source, tests, an oversized file and an unsupported file, `codegraph.py scope --root` reports the expected totals, counts, skip reasons and `inventory=git`; a recursive inventory of the repository, including `.agentic/` and the plugin folder, is identical before and after, with no `__pycache__` created."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_scope_preview_reports_selection_and_writes_nothing",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_scope_without_layout_is_unavailable",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-PLAT-3430c1f3"
+
+title = "Behave identically on Windows and Ubuntu"
+
+status = "active"
+
+requirement = """
+CodeGraph shall produce the same normalized index contents and query results
+on Windows x64 and Ubuntu x64 for the same repository content, on every Python
+version in the published support matrix.
+"""
+
+verification = "Run the plugin suite and the dispatch tests on Windows with Python 3.11, 3.12 and 3.14 and on WSL Ubuntu 24.04 with its system Python: the shared golden fixtures, including CRLF and non-ASCII files, give identical normalized results, and the support matrix in the plugin manifest lists exactly the environments that passed."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/",
+    "05_Software/aegis/plugins/codegraph/MANIFEST.json",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_normalized_facts_match_the_golden_digest",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_crlf_and_lf_sources_give_identical_positions",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_columns_count_code_points_not_bytes",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_target_parses_the_same_on_every_python",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

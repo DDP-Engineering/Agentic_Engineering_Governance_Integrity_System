@@ -1,0 +1,50 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-NFR-17c50caa"
+
+title = "Bound query output"
+
+status = "active"
+
+requirement = """
+CodeGraph shall limit each query response to `[codegraph] max_results` records and
+`max_output_bytes` bytes including metadata, truncating at record boundaries and
+reporting `has_more`; when a single record alone exceeds the budget, it shall keep
+that record with its locations and IDs exact and its long signature, name and
+spelling text shortened with an ellipsis; and it shall cap an explicitly enlarged
+response at 32 KiB.
+"""
+
+verification = "On a high fan-out fixture, default responses hold at most 20 records and 8192 bytes and remain valid JSON with `has_more` true; `--max-bytes 100000` yields at most 32768 bytes; text output obeys the same limits; a budget smaller than one record still returns one record per page until paging ends; a record with a 70,000-character signature is shortened to fit 32768 bytes with its path and ID intact."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_byte_budget_drops_whole_records_and_reports_more",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_enlarged_budget_is_capped_at_32_kib",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_small_results_are_untouched",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_default_and_enlarged_query_budgets",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_out_of_range_budgets_are_invalid_requests",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_a_budget_smaller_than_one_record_still_makes_progress",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_check_lists_stay_within_the_byte_budget",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_one_oversized_record_is_shortened_to_fit_the_hard_cap",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

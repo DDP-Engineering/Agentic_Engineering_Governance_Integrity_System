@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-43a76b41"
+
+title = "Report a missing scope instead of scanning the repository"
+
+status = "active"
+
+requirement = """
+If `[layout] source`, `[layout] tests` and `[codegraph] include` are all empty
+or absent, then CodeGraph shall report `scope_missing` with a suggestion to
+configure `[layout]` or `include`, and index no files.
+"""
+
+verification = "With all three settings empty, `scope` and `index` report `scope_missing` and create no database; with only `include` set, selection proceeds."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_empty_layout_reports_scope_missing",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_include_alone_is_a_scope",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_index_without_layout_writes_nothing",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

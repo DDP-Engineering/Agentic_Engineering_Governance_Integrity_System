@@ -48,3 +48,10 @@ dist/
 
 # Codex local state
 .codex/local/
+
+# CodeGraph local index (generated per checkout)
+.agentic/knowledge/codegraph/
+
+# CodeGraph's vendored Windows natives are sources; `*.py[cod]` above would hide them
+!05_Software/aegis/plugins/codegraph/vendor/**/*.pyd
+!.agentic/plugins/codegraph/vendor/**/*.pyd

@@ -31,6 +31,7 @@ Git and a compatible host installation.
 |---|---|
 | `template/.agentic/` | Reusable managed workflow payload; source of truth for downstream installations. |
 | `integrations/` | Five host adapters, shared runtime and JavaScript behavior tests. |
+| `plugins/codegraph/` | Optional CodeGraph add-on: Python code navigation behind the `know_graph` commands, with its own tests. |
 | `tests/` | Python product suite, including wrappers that run integration tests. |
 
 The repository-root `.agentic/` is this project's installed instance, with its
@@ -266,6 +267,20 @@ required.
 Review disabled does not skip semantic review, full validation, strict checks,
 or the delivery checkpoint.
 
+## Optional code navigation
+
+The CodeGraph add-on indexes Python source into a local SQLite database under
+`.agentic/knowledge/codegraph/` and answers bounded questions through eight
+core commands: `know_graph`, `know_graph_check`, `know_graph_find`,
+`know_graph_file`, `know_graph_symbol`, `know_graph_callers`,
+`know_graph_refs` and `know_graph_index`. It is off by default, runs on the
+same Python as AEGIS with vendored Tree-sitter natives for Windows x64 and
+Linux x86_64, and never replaces reading the cited source. Queries are
+read-only; only `know_graph_index` writes, and in a Git repository only to a
+folder Git ignores.
+Install it by copying `plugins/codegraph/` (without `tests/`) to
+`.agentic/plugins/codegraph/`; see its [README](plugins/codegraph/README.md).
+
 ## Optional host integrations
 
 | Host | AEGIS resources |
@@ -327,6 +342,7 @@ with `pytest` and `ruff` installed, with Git and Node.js 22+ available:
 
 ```bash
 python -m pytest -q tests
+python -m pytest -q plugins/codegraph/tests
 python -m ruff check .
 python template/.agentic/aegis.py --help
 ```

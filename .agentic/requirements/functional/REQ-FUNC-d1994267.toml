@@ -1,0 +1,39 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-d1994267"
+
+title = "Map the plugin response status to the exit code"
+
+status = "active"
+
+requirement = """
+When the CodeGraph plugin returns a valid response, the AEGIS CLI shall exit 0
+for status `ok`, `ambiguous`, `not_found`, `expired`, `unavailable` or
+`disabled`, and exit 1 for status `error`.
+"""
+
+verification = "A stub returning each status value through a read command produces the listed exit code, and the printed response keeps the stub's status."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_status_maps_to_the_exit_code",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

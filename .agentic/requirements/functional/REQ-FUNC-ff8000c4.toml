@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-ff8000c4"
+
+title = "Page through results with request-bound tokens"
+
+status = "active"
+
+requirement = """
+When a query has more results than one response holds, CodeGraph shall return
+a page token bound to the snapshot ID and to the operation, target, ordering
+and limit, and for a supplied token it shall return status `expired` when the
+snapshot changed and status `error` when the token belongs to a different
+request.
+"""
+
+verification = "Paging through a high fan-out result returns every record exactly once; a token reused after re-indexing or a rebuild returns `expired`; a token reused with another target returns `error`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_page_tokens_round_trip_and_bind_the_request",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_paging_returns_every_record_once_and_binds_the_request",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_callers_page_through_linked_callers_then_candidates_once",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

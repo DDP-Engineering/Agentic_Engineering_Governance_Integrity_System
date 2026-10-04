@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-b96977c7"
+
+title = "Classify database state through SQLite for readers"
+
+status = "active"
+
+requirement = """
+When a read operation opens the database, CodeGraph shall report index state
+`needs_recovery` when SQLite reports a hot journal that a read-only connection
+cannot roll back, `busy` when SQLite still reports the database busy after a
+short busy timeout, and `incompatible` for a file without the CodeGraph
+`application_id` or with an unsupported schema, and shall otherwise serve the
+last completed generation whatever journal files are present.
+"""
+
+verification = "A transaction interrupted by killing its process gives `needs_recovery`; a writer holding SQLite's exclusive lock beyond the busy timeout gives `busy`; while an indexer parses, builds a temporary database or holds a RESERVED lock, reads succeed; a harmless leftover journal file leaves reads working; a foreign SQLite file gives `incompatible`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_reader_states_come_from_sqlite",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_reads_continue_while_an_indexer_extracts",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

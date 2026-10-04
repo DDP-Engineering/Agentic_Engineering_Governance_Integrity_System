@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-57e210bb"
+
+title = "Refuse to index into storage that Git would record"
+
+status = "active"
+
+requirement = """
+If the root is a Git repository and Git reports the database folder as not
+ignored or as containing tracked files, then CodeGraph shall refuse to index
+with status `error` and reason `destination_not_ignored` or
+`destination_tracked`, naming the remedy, before creating or modifying any
+file or folder.
+"""
+
+verification = "In a Git fixture without the ignore rule, indexing returns `destination_not_ignored` and neither the database folder nor the lock file exists afterwards; with the rule and a tracked file inside the folder it returns `destination_tracked`; with the rule and nothing tracked it proceeds; in a non-Git folder the check is skipped."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_storage_git_would_record_is_refused_before_any_write",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_tracked_storage_is_refused",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_ignored_storage_and_plain_folders_proceed",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

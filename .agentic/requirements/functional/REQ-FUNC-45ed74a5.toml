@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-45ed74a5"
+
+title = "Keep only safe facts from files with syntax errors"
+
+status = "active"
+
+requirement = """
+If a Python file contains syntax errors, then CodeGraph shall record the file
+as `partial` with the facts from unaffected regions, or as `failed` with a
+concise reason when no region can be extracted safely, and remove that file's
+facts from earlier generations.
+"""
+
+verification = "An in-progress edit with an unclosed bracket inside one function keeps the definitions outside it and marks the file `partial`; an undecodable `.py` file is `failed`; facts indexed earlier for those files are no longer returned."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/python_extract.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_syntax_error_keeps_unaffected_top_level_statements",
+    "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py::test_undecodable_file_is_failed",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_broken_file_no_longer_returns_its_earlier_facts",
+]
+
+
+spec = "specs/REQ-FUNC-aa0a867a.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

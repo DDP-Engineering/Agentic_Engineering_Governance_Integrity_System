@@ -1,0 +1,39 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-f5d5ee3d"
+
+title = "Report a missing plugin as unavailable"
+
+status = "active"
+
+requirement = """
+If CodeGraph is enabled and `.agentic/plugins/codegraph/codegraph.py` does not exist,
+then the AEGIS CLI shall report status `unavailable` with reason `plugin_missing`
+and exit 0 without starting a process.
+"""
+
+verification = "In an isolated payload copy with `[codegraph] enabled = true` and no plugin folder, each `know_graph` command prints status `unavailable` with reason `plugin_missing`, exits 0 and creates no file. Boundary: adding the stub plugin makes the same commands launch it."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_missing_plugin_is_unavailable",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

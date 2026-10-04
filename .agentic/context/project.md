@@ -18,13 +18,18 @@ human developers and coding agents working in Git repositories.
 The core provides workflow instructions, portable artifact templates, and a
 Python companion CLI for scaffolding, orientation, traceability and verification
 reporting. Host integrations connect OpenCode, Codex, Pi, Qwen Code and Claude
-Code to the installed repository workflow.
+Code to the installed repository workflow. The optional CodeGraph add-on
+answers bounded Python code-navigation questions through the core's
+`know_graph` commands.
 
 ## Supported operation
 
 The Python core targets Python 3.11 or later on Windows and Linux. The host
 bridge uses Node.js 22 or later. Core workflow artifacts are ordinary Markdown,
-TOML and JSON files carried on project branches.
+TOML and JSON files carried on project branches. CodeGraph indexing uses
+vendored Tree-sitter natives for Windows x64 and Linux x86_64 on Python 3.11
+through 3.14; its local SQLite index is generated per checkout and ignored by
+Git.
 
 ## Established constraints
 
@@ -40,6 +45,8 @@ in the root `.agentic/`. Authorization for external actions remains with users.
   template work to canonical source and tests.
 - `05_Software/aegis/template/.agentic/aegis.py` implements the companion CLI.
 - `05_Software/aegis/integrations/` contains host adapters and shared runtime.
+- `05_Software/aegis/plugins/codegraph/` contains the CodeGraph add-on and its
+  suite; `.agentic/plugins/codegraph/` is this repository's installed copy.
 - `05_Software/aegis/tests/` contains the Python product suite, including
   integration wrappers; `05_Software/aegis/integrations/tests/` contains host
   and bridge behavior tests.

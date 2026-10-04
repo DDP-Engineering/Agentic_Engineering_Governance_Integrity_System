@@ -1,0 +1,39 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-81588d5e"
+
+title = "List the references to a symbol"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `refs` operation with a symbol ID,
+CodeGraph shall return the identifier references to that symbol, each with its
+reference kind, location and resolution label.
+"""
+
+verification = "A fixture variable read, written and passed as an argument returns three references with their kinds; a shadowing local of the same name in another function is not among them."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_refs_lists_reads_writes_and_arguments_but_not_shadows",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

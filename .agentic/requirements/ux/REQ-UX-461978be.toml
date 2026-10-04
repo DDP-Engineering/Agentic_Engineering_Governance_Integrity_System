@@ -1,0 +1,45 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-UX-461978be"
+
+title = "Render compact text by default and JSON on request"
+
+status = "active"
+
+requirement = """
+CodeGraph shall render each response as compact text by default, showing
+symbol IDs as their shortest unique prefix of at least 10 hexadecimal
+characters, and as exactly one JSON document on standard output when `--json`
+is requested, with progress written only to standard error.
+"""
+
+verification = "Representative responses match the golden text examples in the protocol spec, including a 10-character ID; `--json` output parses as one document with full 32-character IDs; queries write nothing to standard error on success; index progress appears only on standard error."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_compact_text_matches_the_golden_example",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_unavailable_text_carries_the_fallback_message",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_text_envelope_view_carries_text_instead_of_records",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_queries_print_one_document_and_nothing_on_stderr",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_short_names_render_with_their_parameters",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

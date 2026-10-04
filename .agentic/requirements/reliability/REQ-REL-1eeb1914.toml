@@ -1,0 +1,46 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-REL-1eeb1914"
+
+title = "Publish each index generation atomically"
+
+status = "active"
+
+requirement = """
+CodeGraph shall publish each indexing run as one complete generation with a
+new random 128-bit snapshot ID, leaving the last completed generation readable
+and unchanged when a run is interrupted, cancelled or fails.
+"""
+
+verification = "Kill the indexer at injected points before publication: readers then see the previous generation and snapshot ID, and SQLite's integrity check passes. Two completed runs, and a delete-and-rebuild, produce distinct snapshot IDs."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_first_index_creates_an_owned_database_with_one_generation",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_every_run_and_rebuild_gets_a_new_snapshot",
+    "05_Software/aegis/plugins/codegraph/tests/test_indexer.py::test_killed_run_leaves_the_previous_generation",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_an_interrupted_first_run_leaves_no_database",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_generation_keeps_counting_across_a_rebuild",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_a_query_reads_one_generation",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

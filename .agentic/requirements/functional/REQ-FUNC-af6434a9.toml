@@ -1,0 +1,43 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-af6434a9"
+
+title = "Answer queries without writing"
+
+status = "active"
+
+requirement = """
+When an operator runs the CodeGraph `status`, `check`, `find`, `file`,
+`symbol`, `callers` or `refs` operation, CodeGraph shall leave every file and
+folder unchanged, including when the database is missing, stale, incompatible,
+busy or needs recovery.
+"""
+
+verification = "Record every path, size and hash, including `.agentic/` and a plugin copy without `__pycache__`, before and after each operation in each database state, through AEGIS and standalone and with a read-only database folder: the records are identical and a missing database is not created."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+    "05_Software/aegis/plugins/codegraph/codegraph.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_queries_change_nothing_in_any_database_state",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_queries_work_in_a_read_only_storage_folder",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

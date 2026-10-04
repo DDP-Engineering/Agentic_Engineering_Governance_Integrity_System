@@ -63,6 +63,7 @@ linked_tests = [
     "05_Software/aegis/tests/test_check.py::test_scope_drift_fires_and_is_silent_when_requirement_is_touched",
     "05_Software/aegis/tests/test_check.py::test_task_scoping_narrows_coverage_and_drift",
     "05_Software/aegis/tests/test_run_report.py::test_strict_fails_on_an_error",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_check_reports_malformed_codegraph_settings",
 ]
 
 # --- optional below this line ---
@@ -74,4 +75,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-08-14
-updated = 2026-08-14
+updated = 2026-10-03

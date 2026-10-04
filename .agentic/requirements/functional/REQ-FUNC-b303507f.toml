@@ -1,0 +1,40 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-b303507f"
+
+title = "Report disabled CodeGraph without starting the plugin"
+
+status = "active"
+
+requirement = """
+When an operator runs any `know_graph` command while `.agentic/aegis.toml` has
+no `[codegraph]` table or sets `[codegraph] enabled = false`, the AEGIS CLI
+shall report status `disabled` and exit 0 without starting the CodeGraph
+plugin or opening a database file.
+"""
+
+verification = "In an isolated payload copy with a recording stub plugin, run all eight `know_graph` commands with no `[codegraph]` table and again with `enabled = false`: each prints status `disabled`, exits 0, the stub records no launch, and `.agentic/knowledge/codegraph/` is not created. Boundary: `enabled = true` makes the same commands launch the stub."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_disabled_codegraph_starts_nothing",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

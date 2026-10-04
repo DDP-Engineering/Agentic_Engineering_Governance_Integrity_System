@@ -1,0 +1,41 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-SEC-135c0df0"
+
+title = "Open only CodeGraph databases for writing"
+
+status = "active"
+
+requirement = """
+If a file already exists at the configured database path without the CodeGraph
+`application_id` in its SQLite header, then CodeGraph shall refuse to index,
+recover or rebuild it and leave the file byte-identical.
+"""
+
+verification = "A foreign SQLite database with and without a hot journal, and a text file, at the database path stay byte-identical after `index` and `index --rebuild`, which report the refusal; a missing database is created with the CodeGraph `application_id`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_foreign_files_are_never_opened_for_writing",
+    "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py::test_missing_database_is_created_with_the_codegraph_marker",
+]
+
+
+spec = "specs/REQ-REL-1eeb1914.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03

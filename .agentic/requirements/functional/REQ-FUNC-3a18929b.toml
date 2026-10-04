@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-3a18929b"
+
+title = "Inventory files from Git or the filesystem"
+
+status = "active"
+
+requirement = """
+CodeGraph shall take its candidate files from Git's tracked files and, when
+`[codegraph] include_untracked` is true, its non-ignored untracked files while
+the root is a Git repository, and from a walk of the configured folders
+labeled `inventory=filesystem` while Git is not installed or the root is not a
+Git repository.
+"""
+
+verification = "Fixtures: a Git repository with tracked, untracked, ignored and deleted files (ignored and deleted omitted, untracked following the setting); a plain folder with Git available (filesystem walk reported, dependency folders pruned); Git removed from `PATH` (filesystem walk). Boundary: a Git repository whose listing command fails returns status `error` and does not fall back to the filesystem."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_git_inventory_lists_tracked_and_untracked_visible_files",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_plain_folder_uses_a_pruned_filesystem_walk",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_missing_git_falls_back_to_the_filesystem",
+    "05_Software/aegis/plugins/codegraph/tests/test_scope.py::test_failing_git_listing_is_an_error_not_a_wider_scan",
+]
+
+
+spec = "specs/REQ-FUNC-b383069e.md"
+
+priority = "normal"   # low | normal | high
+rationale = ""        # why this behavior exists, if not obvious
+
+created = 2026-10-03
+updated = 2026-10-03
