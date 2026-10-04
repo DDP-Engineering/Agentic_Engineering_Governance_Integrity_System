@@ -1,0 +1,3971 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-10-03T17:14:13.568525Z",
+      "anchor_head": "c51c0df15fe6646369435f5852874383099fc8cc",
+      "anchor_id": "f8e5d84e5fe25563",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "25649a332f975e4885495af9f825b36b899e5c176d8664fcad14812da23b1966"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3c38f8e3d52bc78a14d3189cd765749ae1e5dd4737dc1be9f129825e1371b3f3"
+          },
+          "path": ".gitignore",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "e62366d2af7845cb8131ac7da141a438ac940183786c8936d403fe0a68584b19"
+          },
+          "area": "other",
+          "before": null,
+          "path": "01_Documentation/LocalModelsTests.7z",
+          "status": "added"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2e6c300ec187c3eb0d35628b5700cf50d9019a4e94575e33ba8f1644cfe6e48f"
+          },
+          "path": "01_Documentation/LocalModelsTests/OVERALL_REPORT.html",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "690c4beaf75468d3e6a3861a0ea71620935beb0620cb47c4c4c8f545dddacdff"
+          },
+          "path": "01_Documentation/LocalModelsTests/OVERALL_REPORT.pdf",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f4104c5d90a0b149f402bf96d4a59b22ff9fb2b5b2aa705ee9de3b31e1dfd97b"
+          },
+          "path": "01_Documentation/LocalModelsTests/README.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "288ea1e156294cbc0cfefc5dc5a3301fcad6148a7187e38e96f9ab26c7769f88"
+          },
+          "path": "01_Documentation/LocalModelsTests/TEST_ENVIRONMENT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "815f0adeac0c58e55cff2a1a77df243e61d889ec3476b414c7abf83e5c033635"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/codex_adapter.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1b68a284375f407bab5feafe5633061618ba7d095c884fb53308e5ce03fe339e"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1bf83171e7d8c9781c759cfe666ec5aa71887f134042e1ceb7306df7640b47e3"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "bed81a8f4a10c480a39c0028304fd853eb754ea36c6e158a9260face7a400a21"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/artifacts/.agentic/tasks/TASK-3de18226.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e04e069a8c7a32fda99df7855d59f24e82d3e2a7d35a06ea5c063d3755698d18"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d259b0277ac45018d2efc3a0b07ca2f8feccabd6549cd9957196de7a7e2b7870"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "54e412416797f6605dfba03ec0010905b1461ada2129818d84eafbad46870494"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f99306ba5ab19ac76c15d9897ccc5680138438ba60f369bedd3bc750a8d17f84"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ecb03b0c1384d50d4ab010b0dbc3ccff9e8ab42fa9ef8082cb90b3618de30435"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "405b997dc5bda5e6ccdc637c13caefd30bc8b3ce9c3216dc0760705a9b97d310"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3ed2bc3d5870c83516af1bffdad66015f6b5d4fc90b6401b1232f8eb1e275967"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4e00b918bcdd8ba9d7c70143bba6c4f66d8e694092bf62fc12ac9d9d2d806b36"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4e00b918bcdd8ba9d7c70143bba6c4f66d8e694092bf62fc12ac9d9d2d806b36"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "41f86ef6654719fa5344cc70ef97a8b280a3b55523be7c61da415adda4d13a71"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3f995662c4ee0af74ad89e9702a1d437185db27a50b489958e90b6432a1c09fd"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5b4fa67e9b8bf56a64ca42d1d4ca6929942a6f6484435c142f0e7c90b857297f"
+          },
+          "path": "01_Documentation/LocalModelsTests/abandoned/muse-codex-128k-xhigh-20260919/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3495dbf263d5cefa5b7bfb7dc24ef14914c7dcaba49e834242f737e65bb63af0"
+          },
+          "path": "01_Documentation/LocalModelsTests/matrix.yaml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0000d2253c4537c62137469e68ddde3d41b18c7b71ab247ca06396f1114929de"
+          },
+          "path": "01_Documentation/LocalModelsTests/opencode-home/opencode/opencode.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "df5fd9c6818203916f1aef717079bdac80b54da595acad611d05928693738313"
+          },
+          "path": "01_Documentation/LocalModelsTests/overhead-pi-muse-glimmer.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0976086ec36016eb3a848365613ec3608bde9378105920813239baed0cde423d"
+          },
+          "path": "01_Documentation/LocalModelsTests/prompt.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "174f9e99e628f2d87444b7ea088912841afb1824032d21f6955ad290858b029b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/artifacts/.agentic/tasks/TASK-a1b2c3d4.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "50a7b1eb315c3f85577276612875da89bc04138159584bea609d6c4f06628704"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "502986da31887617b95e1b9ed97cc18ac1c041537a459eec54db6959a0b43e70"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "acdb1c1d4d7f17ba1a339bf2e3e63a8aea3db85d13b65fb4f3b8d7528cef2da6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8010c60c4ec596eed47d81808af471f2f45eb1b8bf6894084bf2ac664d09f874"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4d74d03df2c9fd51eb36cdd870ee9935fac6c2d74446385d3a4cc8421b5da88d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7ac7b7c5902637bf9b012fdb24c7f81a40b177110e62107d92974218b21e4a12"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "99a4b77cc2fea36d260cfbb37ab969df59bcbf98aabda6ee78ec5d4fcf961d7c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dc6b82cf1bb2028dafb6c603d84fe5daf6f12576f4a5db93bf5172bbddf886f1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "23cc3275d62e6944d6fb224d53bc0edd14af8920f2123d7b47218e498cedd6cd"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a433b6f6009b9a4adcd8ee79badea1b58c714cee2b5782ab0965ca9a8e22e97d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9e0650f2c2eb447174a09b18d589b336419e4c77ad43c4151ff848f3fa66ef1e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/bonsai-pi-256k-nothink-t07-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "71d31b1422ed12ba3f85134189420e0c24bc2006ac934802b2ddecd0ff7d82d5"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "fb86a9d386a4951a80c25e9532ad203025b60a9299e696976f5064199c01e56c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f01bc862f84d9ecdaa2eaee0a690b0074265f194922bc4b0f2d558796f3c052f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/.agentic/specs/REQ-FUNC-duration-formatter.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d827afa5a1f272862f8c3dd863ab698a8b4d93f8b69f5d1c2a945175817e9356"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/.agentic/tasks/TASK-5b04a1f0.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d9d747317fcace466aacd6247e12db4eb06e90e531bd23c149087e3c4d1b886b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7bbc40b7ec09b94790c14b96199b768219e085a1fcbeab862da028e763cc0980"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/05_Software/AudioMancer/tests/verify_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "606e34a91a753d52f6c6462466018b05ae693918ef79dabb9031eee3c33f3ea4"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/05_Software/AudioMancer/tests/verify_time_service_v2.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "24102183796a3bad6a37277f2e97c375fd088e442153f1d185afc742eb216a47"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/05_Software/AudioMancer/tests/verify_time_service_v3.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "544195dfd8a499972a2430b60fec654b770f1f8eb895b142a40f54fe310ea586"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/05_Software/AudioMancer/tests/verify_time_service_v4.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b6027d06c553a4f8ffd8b30de360d9b64d1d5cfb0172aaf4cd82953ef4a4f6aa"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/artifacts/05_Software/AudioMancer/tests/verify_time_service_v5.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "85bbf7278123ca329c3bc423d68d458b531001a1a5ebd5c3db68f51e7d0a4c7a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "46f42e1b73f0f66ed57ad0b10ff24ba791cfcb78a750cf41ad2cd014aeec3901"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "203905563859f265e7f8461a0a615beae31466d7c4f610e07675c8e533d2e6ed"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2605a5a12d93a6249d3ef572379d1fe94270899befc777822284f4808fd2eaee"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d89f3e24d94b947d0ec02d820512b7577941da714a2631d2853d38762b12b45a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cca87502303e8cec80d8cdf20563e6916a8bbff098efc77d0c3294e63dd9caf9"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "bfa16d89a8e669646e5acb79c602cda3ae0de172e3d314435c7eef0ee82eaeec"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2041392dbca5a704255b2293339c8587b796c504ee768f242c10b3ea0ef85e83"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f9abf341236037b3c45d808ee018164f4170e601c8dfe553ff73c9baa65f3b59"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f9abf341236037b3c45d808ee018164f4170e601c8dfe553ff73c9baa65f3b59"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "787cd4797cf40c961849e6d9995fcec16bc5bd699d344e6658e142f97a8ed92b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e93b2f0b2349a9157c1596a2dea8e25814550acb0fe675eb285bdf4ff3070b27"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e0f29d7bfabb7c5f35f43bd86cd7c713dd78fbddcbc99439e8d0ca66df4490ef"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gemma-qwen-128k-think-t07-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e6cc961cc73b0a25b76ed3628301846c0727ff4e6d630d262abf9f95d4fe0c09"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "341f48d271e82a72772a19e34319550061773f402ec4ac94d7568f4f893e0ec2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "90eb9c28160254d5e4589598d46e7d45d0ee1ab21f02f05d9c7f839e93c06e45"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/artifacts/.agentic/requirements/functional/REQ-FUNC-b8dc70ac.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4c3b39b9537522b97a23435f5d907694ad512f4e95081407bf53e182af5914a2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/artifacts/.agentic/specs/REQ-FUNC-b8dc70ac.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b7c4e9999cf580555346f5d0da923bc034d8f6780933c9b526db3fd62f5b30c1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/artifacts/.agentic/tasks/TASK-2e6f0a65.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8d157694477c99d3915bfe22d089201d69e3b1c5cf12bd88ebf2d2afddb494a5"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "22b7559f909a983e3b359e4fef110f9d587263829e08b58b41669c6c76f3f42f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "495fa87a72948510a68f8a586d7ab5aa2969f974e732b7c809c773029210b169"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9e4335cf39ae9317f98b2f9140520bbdcf3a42f439bd905b9e4387123f884692"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1b7c05320a217dbae4292ba27f9633130a12b22e00e24bd7d1b5d1d5e6ba733c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8cd068f6005c59e5a9f9825032286b10a7910421bf923d8f29b8ff87204f89f7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a5e09bd2fc3f8f84c981194c5bd11773b2f8870868b09994c83c8ecf8eca19ed"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dcefbf6e181873673b956532931ce30dc7d53e35687aa56e3d4ccd87f55b0f7c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f8fbfa9faacb95d790d87ebcf59da630cb41e3d989e4cbd5cd98479dff40b512"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/session.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1b1b5c4340b68b4e5b17a2919c4bd36c91947fe09f1a00632f7be66a89cc0f3e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1b1b5c4340b68b4e5b17a2919c4bd36c91947fe09f1a00632f7be66a89cc0f3e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e785d9573fb06dd72519748eac722f41d992e830bf63135d9757541b2c89cd81"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6709c6deb68404347060e81cac47d4697c0b227ef02ae51be922d96b6a388c09"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "38f76a7e441a54232d787a91f4d9075b1ae622528fb7f45786513c99ffc29bc9"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-oc-high-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e132d9407f8516df67e992f69cacdcc4aea4cda6da22eca75e276bfae317943e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "02b940e5ed2b58e43df912aacde82735d7164d97e063aaaf93c8230df69e9547"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5bd84850bd508ddb29bf956f4392ab0cb23ec231e0d27df3329e8bcb11e4fea3"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/artifacts/.agentic/requirements/functional/REQ-FUNC-840f688f.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "63054a60daed984ac83b9b5589cfd052f3fe86efde20b46b2fa6b7cb6a764f32"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/artifacts/.agentic/specs/REQ-FUNC-840f688f.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1fda5e7e7c7ca0791069c4cc473c2a9a96a1f1106b2f78ca2789c046b9ecef2d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/artifacts/.agentic/tasks/TASK-f35a69dc.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ee4caa31f6935c4792afa6c6b231b6fe93b26bf03c1a8bbcd2aaf6bbf81c59cc"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9ec8d0bb8caa7dbc047eee62e97be838a5e905d03c6f88033e431be32c3b3b9d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8d3722d370cbdcf508881cd97ec30c5b173010cea8dad141cb0f61522f0c9c04"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "abe4fedb2328276c9ed7a73af2b87ef3e58b1cead197f2a0fd2482c2a3471715"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f5b6209c7dec22ec86123b28c022aa8c380fb5cf9dc7ed2ac16bca8f31ec1134"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c4bdc02fd0b2fe57c78ed1447fc1d93b94e5eb4033fc519fa1776beb0bf6a05e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9cd3b0ffad102c4c404275dfba97ddb0ba64b78b11ac12419f095326e6bf6ef4"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "60ddafbafaa69dc75824d1bef56bb09d7c9c3c3cbe9c6684ea8269d7e443d1fa"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "822c01fcfb107a977558b4f872b534ef45e695c6d697466d321b3283ab25871a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "61097ab93d891b92af252988960591ffdcb014fb5f148679cd8f34a78a8adff2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "61097ab93d891b92af252988960591ffdcb014fb5f148679cd8f34a78a8adff2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "48296f4cced12a4391da1670726379b7538c7d4d0b097020b82d45e7779d2f6f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "db2a9a19ce5628eec7c918bff35e9fec3c086ced32b74ed986213bcdc961ede2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "01cdcbddd023b117ff7cf57b739ce9eede4ce89b69daa5aa17f695058f53b606"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gpt56sol-pi-high-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dc7c1613ce3ea15110a862c66dd7e8b7af12ae7fcd013f0ac3e2175b9831b246"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/artifacts/.agentic/tasks/TASK-914d7ba1.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c8d15f4583440d11f5e9608d4f9d364915dcce4737fab37bf85bd9f5672643e0"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e54c0d33adfe16deefc4c305723b15902c745ec88f64e05f68c3682bb607720d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/artifacts/langdetect/__init__.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "503369565882edd6b7da20e702129d000a06c0a9671b7d38deee86d175bb9a7a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/artifacts/langdetect/lang_detect_exception.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b529798af62268c492d06842d7087050210b0f1eebc5e2f93510a0b9faf38077"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/artifacts/sitecustomize.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "61abf0939412144d841d9204803eef3cc33b10b1f77389bb94b441f4a08e6d67"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3821c1ab4463aa203fbeb554f35836442a81ba0e53aab4921b5dbdfe5d4e541e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "30a7e7183baa53c3eff57e1aaed789ccea5663acd3f2cddece5ace4b688061ed"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5ab15fca659a4ebb2cf95a010f5dac048bb9060ec3f22b94430c74a35a4dc56a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d963b503a2115a597f7ab541f12f9f65b0a6eca81d2deea5b9a37f9f7482f25d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "80b2a522081819ac38e22c8a1a8ac2b36e1a7d1d6a71be8c760d08bbab5e4702"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6180e42f6bda2664da5fa1e6a10da1b4abd6756297aab9e7eaab7333f3c176fa"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "90c1a1c379c4abcb129c6382710a6cde49f72be061bfd34cb105f6586abc24a7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9a1f4ea3785404fa33b12f40dcf83bb6e0c98c087b16d1c236ad4f66666ab02a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cef94fd99410304a1ccd5ee22339e740a456653dbea3368ada396331aa2f4015"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-pi-128k-high-t08-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1671daa7bf8c46184b02a09b494940397018b304ec215b9e921f2f9dca86fcb8"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "39f9f384f454ec9a0b770f43bcff9949e00e524c15a7b3669fc158988e0ee4db"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "790df9ffbcbbab76f7dd51aa09477718539924809c8f8fbc8417a2d90ffda411"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9fc56f45b9ee241923aa6d6eaecc396f8654a7a4d2a659fbdf44f3eeb13c5d05"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "49dd5fda32137eac36272a6f43f09f230cc31f975adc922c5cc6d7e4efe3a5a5"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "229a280b5668ff522254c31cbfb14acc11c913980fee43119826f1b53e006a30"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cd0a743b042cab0b454e38f4c15567a71fefd53d2dd6e5afdd83c9d542b25108"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "83c88e06ee74c6791b293a429959f800680f5fac38ead224affc86df2bf72191"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ea9d087e1deac2e501de18301bcc8da84642c70a429a94d2d5db3da82c20c50f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ea9d087e1deac2e501de18301bcc8da84642c70a429a94d2d5db3da82c20c50f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "748bac20fb2ab160121e843837c1db96b26eefd2d0889b1eb956db9a12c3789b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "85206caeeb1ecc5bfaac45a678796447e2d4d1b7c7d96059e5fba3a9359e64c1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c8a3cf23c2116dc16bb470b15132aa6e905b5eaa81d5a294388018559c1e4a6e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/gptoss-qwen-128k-high-t08-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "37402ebee2317df0afab4112d5034fae14c8cdf1e4715b5e4adc5155c4f06ca9"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3b513d26e798028e99b8350ee0ba4627dea0a90345508c75192b1d6ce74bbf7b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9374fbc37a1ad4b4d8b1f7be4b638671975f87a69dc1473a51108ce3e64bd1bc"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-0752e20f.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5b7e5266313da4d3a609f4fd5e418a1ed7b1e5d86c4bb5121f59aac08d1a88d7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/artifacts/.agentic/tasks/TASK-efd0d4bd.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7d31b41f4d5a8b80ae8949a3534f7b1ae2a17bbbb976c56c465c1bddea3ee1b1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "24050e5a74951b368e4bcf4252ebc4746e53b4678cbdda3c7d0b8e10391cdd8f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8bb3eb4eae6204f91459895edd9db28cea44e15010ebfc903116546020aa0377"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a1acbdadb6cd7095907599ca5ec3fdff3eca2696ab15fff7e75dc69d608bd507"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "605c5b71055ba47fbbc4ab6c2494717c2473ed2fc343852e499ec345341874bb"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f36f81986cb5d97e8c77dfd084a2075299eaa7baab204a9705b5c4476b7a9400"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "09c930e289083077fe4c7d56d5a4bbf087122006260890df1f90c5ef36af0ec1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dabf1688a31ee6a8a4070eadda85180624623c23b5359acf0650dadfbb595af8"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "713fec3560742adecb87f3020f3eec4d68fff5df5d14118043b585d70933efe9"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/session.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "15a2a038743fd770a3fdec74b6d381fc5dba5bdb631e5f9ac7d031617b9a7172"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "15a2a038743fd770a3fdec74b6d381fc5dba5bdb631e5f9ac7d031617b9a7172"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2fd9fc004487609040ed10e6d4251fbcd2077cefcc0bfb357bbb174b03c59308"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8d569c6b36f57eeeb6a8c399c20422995f59b4e18f168c5593bc60b0437286f6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0581ccaa419877161a4c4b6c77298add07a3875a78221a497dd82532064db1c1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-oc-128k-xhigh-20260919/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "832794a18fb0f6d14590fa78c7b646e71d3a900c7d09ddb87b4a87537d97f231"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c73b2ee186cfed625b701ced7468eb1e94caa3588eaec7e5d5806d0c126dad79"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7a8a75f6c3e82e0c4819df6baff8ed693ac37a4748cf988476d2d1bfc4d06d03"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-248df779.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2f12728827a76b85cf8b9908f47b041409abe03944f1f50703f0b5b87a20836d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/artifacts/.agentic/tasks/TASK-59bbffbf.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0fe6484c6ac052bb29a4e27b83472ab9829b6fb216522c7bbc2f8665ea6dff90"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0ac868ad0a52f2472db3eb444027645ca2a3fad5c0a975ea32ecd55970da084d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5b90917a2d50460d266d90c6ab5c501ba8e89a94d7b2b3e20d9273b771e2f518"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6b76aba0c172ba743f3b1cbc0fdd985bb7f9dac0a3b873cbb323d419a6b722f0"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6a7770ea29498d026322783a09b299fbd3a4ab842d47e6b22ea9fd890bc9a1c6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cd07f1c192a657fa541991feda37743364adbcac4d3ee1e362031f773018a0a8"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ae9c758848f0196f1420f62f942dcd047087d13a9da450d5caf00c45763d45d2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "626869da3b6dc43249ff9cd36fca088d9cc703d876713685f9ff444ba33462a5"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3a7a4fa467e500f20a0f2bcfc3d3dd3408303aaab6f09da4db82eccc12790484"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a30d05500c57f6e85b690fe37ca89fac1f2f65477d7ed3216576de00904f2a2e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a30d05500c57f6e85b690fe37ca89fac1f2f65477d7ed3216576de00904f2a2e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7cbde3b3ffa664be3fcb4cf006ebb8644e37d684f5b336504d79ff35c816f2e0"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "df813521f241a98c184eae81724b242f19bf98389632750cee5d7b8c374a4911"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c4334d0c91e5c2e0fadf1d9f9446e0d9b445445573d914289f3e9cb288efff50"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-20260919/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b396c45999219377dc00f2bf966ca3644dfa9061d7961237abdc3f907ef49bd8"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dcb34c12d257effc801358ca06d9c0621da9bd1e471a7cfda27a32359d581c2a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b84f339b6dcdb14b1886610f0703e560fe06f72a1d87866ddc1ea4294b3f2abc"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-fcd2dd50.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1f8b5ec0e864d301ff7150d0362b1c0674a00bf85000359f474b2298d7294adc"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/artifacts/.agentic/tasks/TASK-19217d4d.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1e8d2a61418a7a7e2fe40f3c56e6e160ac26b07e94e40ec344e085879d4b1104"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "db9afc82658e15d355d1c7c2d98d7542c958b3c5995d6f65243bda8b145b5561"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6c6633908c5e5ea34a08facc45ac32ae33311dee223f4a082f08ed6d0159d115"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a1ee957584ff7bb7ee57c6777ac56ae6ad32a9ee7db4838ef5684ef60ee74090"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "298557af9a896b0b6e5af2b08807afbc25e2734e9b239d7a5c21eb3b8099ea57"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e6fe639d0fba029122ba860bce03564dd5912f9f3b19134d4c052b318fc960c4"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d01bd3d774e74906d9f585b1dab19c69a01d0b78e8aca9c7985e8992f8e44ac0"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d7809462ff79102065c70559edaac66cd51937cd193a0ec44b77e0d8d369836f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0a283f67c1abb70993b01d8964c09552afdd495d97b315a164fb3779dbe0dc24"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "56dc57135655dbef6d63ce3037c3f8361ca489743d48176cb55d71d0c140ebf2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "56dc57135655dbef6d63ce3037c3f8361ca489743d48176cb55d71d0c140ebf2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "da3d155a3843ccc0de2f653f8dc2b3f0171eeaab95c26ba735167a1fcdd3ea69"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "59158f84470f5f9525da004594d6497b2e4de79597b64d652cb0867e5a4e990c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5a8dcff75b239a7039adf4e8a5b756417d3529f6fdab5cd8579afa6592b5a42d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-pi-128k-xhigh-t1-20260919/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6f4d67e2a783e410b1238f69b89c7a849d63e554912ca7b7b8456c6e315731e7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6802df30c30366d15d006f865d867bed6f12fce219b187f9e02fe6b6045a4851"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e003e6471ada78256ba10403f2da87a4c5168dfc49ebd5c217796562bd752c84"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-44e090ec.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b5ec1af2fad2d48b749d2cd8ad83795e8c0e61152ab326b0493d4987b5f1b40c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/artifacts/.agentic/tasks/TASK-e54da72a.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "713951f7cd718ae0a24c8daa682a7eaeb0e9b38108efc92db1342221bd1ab81a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9891b1fb2d6fc28f6b7d9bc6e6f47d84eee8d2c6aea8b36421dd536ad3265059"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1148e76d49ba5898179f420f2780a894edff2c7e6352d6e56e956cfa3fc63628"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "55ffa90debcb71a48727ca588043f0c7483b358f11b8461c82f9f5e6f17168e8"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9c10fbf66e668c79b859f9a782d653fae9ec8799c48f45eb1f8e197344c9f1f5"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8200c341a3faf0f22d5f396536040269e49100680cb7c6ea5f8e2347b7553e86"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1fb968754320b0fc878387b20ba29f2f727c517f95e298c47109f3bb62871b07"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c10490ed74170240ebe3119e8dd7e1805b482e9ec365ff783c56082c33bcb83f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3868b3585b85605eb6dc1c46d06b7ee9a116ed813b1b9f20b6b0505f0d6e1683"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "21771b8be0db4dc9c5b833e12a1bb40bb80a997226117464aa90f6d963f97009"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "21771b8be0db4dc9c5b833e12a1bb40bb80a997226117464aa90f6d963f97009"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "138c98d548920fcb4e540b4aa8b3e914fc9aabb3ad4e014ccc7882a0e64ad208"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "fbb8abf5881c6d39ec46d1105168f10616a4fcabed4099a79049230004cfd794"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1276229ca5271b95c464ef2d22042b003ea2b8e1a117ca24bc9dc1eaa2320597"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-20260919/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e0275d625db2b0ca9744cb81c4f76aff60a6bb25eca1a2857597dd4ca4ab53f4"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "aac35db24aef4c1574adc97455ef1a5d9873e69c2b499fd65560a69bd5d83e1e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "40f4d5edf76217b271f57482e71f8576413b85c22cce21ab6c99705063caf463"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-949b7887.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a14d08f9dee71c2ff722dfeadfd7726d2bfa6762ae420c3f087dc2cf9602f2c2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-99b753cf.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "586f7cd1986c2eef0d1f9e7bdf6e1acb0331e6e025c7db74ac1dfdabeef67253"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/artifacts/.agentic/requirements/functional/REQ-FUNC-ed0ce24e.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b04d6dad903a2d2338ec08f969c1a45a42c551b3cc898d23a2190861bddc9726"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/artifacts/.agentic/tasks/TASK-3f1ff225.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "48b8ca8eeed56511902a5264391121928b2b06f9474364f1eaa3fcd4903fdf57"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "012279001e3fe958c0d14f7457409b4c978e5cfc7f74eaf504444a0769fedffd"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "555ff80477b7ad70773da77ce027befeaeee54b9ac960064b94c615c4c0464b2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f1ac170c278935b0bc1fd220079f634133c77cdda027ab020a9c0b66602df37d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0161e97d52e1ca3ff6415074f3821640cedad0441fd90fcc638706511a559c37"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "930c125cb2116875ae407f7241cc72682e153e2b4346afee206ff598581ca701"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "34c36883699db533f56e6be7caed74fb6aac251d9186c31e07d6e350e72c4a66"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dc0beeae561a5866c4ebb2482e8ac4801e0aafb40d4285c5e660b2cf631f45bf"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "723150a5cc05dd9a1a7f0e856a14cdc06a4920d5df7e28eaade65dd8fc192271"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5abacb913c68fdb423ae60bebe8fad61078454f4df0dff0f41fdf1c6bf2144d7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5abacb913c68fdb423ae60bebe8fad61078454f4df0dff0f41fdf1c6bf2144d7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "eea1dfb60373f0b7bae49458e855f9bdf39e9ac00dc12b3eccfc1891f39358be"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4fcf67e4ee2a268c5b18c100567032fe17253532d2b09904df2a1e136e88b194"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8f6df0f9ebebf8ccd0ab1e0cee5a6421967574bb97caa50e8cc5b8a1e33ed478"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/muse-qwen-128k-xhigh-t1-20260919/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c4999c681f550308a8d75f494255df8abf84d4c504c9e5a62979e2fb75a9fdfb"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "53fe7285bdb781f0ea1072b690baf813131521b31acd6fdfe21642b98af49043"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5ee04b1825c58bffcd07f2bda2552bfaf4cf3875594684b5bcbfa0aedf12fce2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/artifacts/.agentic/tasks/TASK-e7772626.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "acc3f9efc40a0b648a7bef416254f574660ee1589d5067b018ed16672810dbc7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e0ef7263b71ba61fc8932d8ad005d05aa4e35f558b59c4f6a2b7798e52fd6502"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "26b48e4de284a0dc4c8f55226a36b4d5f905bdee51aaf17e4b828f32f7611270"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5a2cc7e27bdf039a6a362376a4645fce2ce4d9594f7ce7e41d10aff2b5fc4819"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "93c0cb08eb7809d3f374bdcb9d3e350451c37d8a6801c47f46f63317aaf5357e"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "91e91174326a02a092eecc33088bf2895883cc5b9521dc1b30481a59a8f0ffcd"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5df48df9edbce0852d3d2fdf5d5358e8dd266cb932556a7894e5d5f1e690d95b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a64c12cfdce43c931d3fc2b890f7396ad0ed544ce4806cfd4366fbb71f033b4f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f85fa1bc9fdc24bdd0fb7bb1ca2801715e2b3d90190fe04933d3db7cb0d1a28d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/session.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2e0c074350271cb1022166357fb89b9fa7474200bc9985561358bb37626ba68d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2e0c074350271cb1022166357fb89b9fa7474200bc9985561358bb37626ba68d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "945465cf32859bca6531b4e062357ce2648fa60cb92df32f531b01fb247d46dd"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f0c41b94b7a265e598d1788a84a25a9218ca1c7cb7a44adeb0d76d5b43dd0ec0"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5044500cdc31e6fd55b33a05a3de93a36f2a5c0cdb6675162817a7ac7e653847"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-oc-128k-think-t1-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "76202b9561d749525e00b83bce0afd5d169f1751b6cdf14eeab1a6e38468da84"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "10b5f6aff426024215d80f2b411891e0d811db0506ea5c0290d7fc94e2645ac9"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3f226f6f9034f9fe90cb3ec920c3d3c932f270e3d6e2d01e013fa4382cf4615a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/artifacts/.agentic/requirements/functional/REQ-FUNC-f4247abb.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "988665f1169b50ffc2c30b4152d8a57d791794c10379566edecba62ac19dff81"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/artifacts/.agentic/tasks/TASK-9ab0fca7.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1876874b80730433c02fcd3d2390fb37ea8a4e36805c4d73c1076e0e681e6ea0"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/artifacts/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2fa996714675b93ffc686f6cdb1b8ac20a1fd1ceb18332d496fe11a56a391428"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3598ed049e49ceec2160ab252b22e310866cec85918af0a88111311be3656b0d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "970301fcb68b5b3fd19d8425815c85b40718d4d4b5a4fb8c63f1a0e23fd87f58"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1232fb400b066f438461811d78064f798743b8e5605e5e32eed332482da67e27"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "da2f2c359f812e19837d6ac7efe1942e9faab2a69eb59cc5830a292eed84deaf"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3113fda399201c1c2f691d0894ca45dd930de67dd1faad1ba6984b11490418e7"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "30e34a0b3973af95174bfaa66124b1928fa2b43e4e0badada0061f44e51eb04c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a2504f4394e212ea05c0a9e424fee3c79074b02f4c3cc774bbd5bd6231ffd768"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d9edb6b6f79bf77bbeb9cbcd4b4b7ee0cef19cfbf8f0a28ec938fe4e9c220bcf"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d9edb6b6f79bf77bbeb9cbcd4b4b7ee0cef19cfbf8f0a28ec938fe4e9c220bcf"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ef6b377f20e22b149a5251420dc81e03173b23e1347d70a15c56b41739d8cc84"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ec70f6903f31762a496baa5dd4e2ac22ee19d3a468e73ce546bb8c4ab2f92384"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c0323e4faea4ff658cdae0b1214204821d4f26f08a27ede1f05c12cb1153cf9c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-pi-128k-think-t1-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "92e280e9f5841af7cd1c933f1d1d9e3b050a60f3aae06c40ea6c5ee7bbfd85e6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2a22428bcad30fee3fff89961b4121ff64eb5a7a534f96b184ec26267e2b0889"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5d2e53af8315d7d35e83f65cdccf10f4d5fd6499603402f4a777350197946f99"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/artifacts/.agentic/specs/REQ-REL-a54e058d.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ae27d9b65baa46cde788d47d5e6492a29a200a40d9d515c1bd45a6a9a0580cf5"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/artifacts/.agentic/tasks/TASK-ca40968c.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a4a3cbeb06703e15668f9e67bafe5cc499991a9cfac20fe725a3f4ac3d8cd730"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4e789242ef010bb4f0f48fd44e77b1102d8f04f69eab8f5466badacd85719c54"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "213dd0817f30dbff1188b8aa08da7a1ed017276ede0a25ed9bf43b1544204b72"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "fe93fd6b6e1a897be013553183e574e93c4f48be67b8499a7e64f54d52f0ef54"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ab2da3dccfa1c31e14038f36cba6b6770fb26c2706db5cde9e4113eb147f0b42"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "67356fc66cba94ba3d72def22e9d5e9015b6dc387c24e5943e5deaea2a40d73c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5570eea3a5f933e93c98e5d2d5749241613a430404e1e465c5dd92acc1dd1e8c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "9927459d6fb86c4e3db9d59c876ae74397538c31e00dc5cc0b7db60e3bcbe7d1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ae5d12cad8f726b1b4d8231bf540e7b3d2bf8b247d96975b6401710ed55a1f95"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "db362a0ca0978469d909252d48f27153cc81034ad814b3ae52d2fe85fa2b13c6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "db362a0ca0978469d909252d48f27153cc81034ad814b3ae52d2fe85fa2b13c6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d74e954244000de43a81f64f1c8d7a1282716fc0616ab84f7a14799892196424"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "c2cac6d4985520e5c0a4d31d37d125efb6dcc57fed56e0d6ec368471b16eb7e1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6db834a49dd3db333ae902ed90157b34a15744537b0d1a2f2de50c569f872d8a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen35-9b-qwen-128k-think-t1-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "bd84cbb51b6feed26605175af65eb8ee7c991b1154df5a65251b084b39239e09"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "266bd866ed5749fcb3f336672b5b0ad2b91caacaca8125f104a45748721e80cf"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f287637cace7b2fd3a2d50096553c8dcfba4072098fc250409dfd01ed0ad433d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/artifacts/.agentic/requirements/functional/REQ-FUNC-bce9cb2e.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "4ada8ade913a6a71e257fa8d7635e90fcd7694f09cdb40b50f542c22af161370"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/artifacts/.agentic/specs/REQ-FUNC-bce9cb2e.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1c0082608ab2625144c178af391ed40cdfb98e267dfc392df67f4bf5af461f0c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/artifacts/.agentic/tasks/TASK-4f282447.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7f6f3e10b50af775e028cbb17e9574c6e9141ece0fadb8c2089b50ae68851720"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "61b4905ff28dba974ce7371198eb92f79172de450d6a314ec71bd1d6899a3dfb"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "089faa60a91f16b1742eae99ac22fe7851d79cc09a48019868dd2847b82de016"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "90007400815a2e3804a6006b7647a347b9238acf785a69e5e5d95fbf59393ea6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "fed7a8b1f40b404a212a3348a7d0d68a65fe34f07df4a70b03e3626432d4e012"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3a702411d692a3101d7ae5dd54d9ee452b02ea8f57fed53107d1988279e94b38"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5a6af22970374aa2d72644f6ac9ff9a865993470dcf4b8ef8f1454fddd97fcfb"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "331d495fea91b7d76182faa4402d8974f018e07b40fdc25e36316198add4608c"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "67da91723550730eccf8f05c826f3d37d2ecf3e131685007929517058b4824de"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1ecd4932f47293dd6a0a9f2bee3192f0e6f4b74df94d8ac05e4b540765520c74"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ec20f3ffc5d2dd7209139e490a71fb7f32c9bbc1db5e03f6acf02f34fcec9b8b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "895d9a91862a262f23f68b4d332f26742fb55b632b5a2ff4e72a720c7216f942"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-high8k-kvq8-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cd481d112d26f5877707194de837c6e79da35296cb0316e03af3554180016135"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ed7215679423cb5bcb621e8fc4ed99a72d0036a77dc5222d7508bc0c910f49a1"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6bdf4b1126ee66595bd1bcae08d603d34b144fa3df86e16d1a523196c09e8655"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/artifacts/.agentic/requirements/functional/REQ-FUNC-c315235c.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0e11e0408cdfc308a7f3e553a17add957e195d21e3bfd21441cce988526a9105"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/artifacts/.agentic/tasks/TASK-17df8023.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6db082d874e9172fabd8a4f09ab2ea049e8be44262709a7cb35a54768d6d9050"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "11e3aaedda6e19cb77dbd30d8be6d8330eed460b886e30451dd1bd18ea8aa4d2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a71ad3c06a9772810516934cce292e9b55a0dd9cb9c80ac1d2adc305e773ad9a"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e9811b06e1c52ce26ad10c64eae717e4a6c9fb6e4c6bcfcaa762163f4b4da272"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e64967b539ea9a6437ca040ae7fea8e24603d0c0df977ea11b04c155703c9091"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a7cafbb84123f83387935f6685c961b64db54eeeb4c7c2ddff5c54a1e2242dfd"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "003bfaacf6218dd474f7fac96852332953074cbebac88e41e375218637271ca2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d1451646fcf8acd8fc51226e4027803939c6cf798ff66caf291df9187e6deabf"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f14015fe2aa4680d27fe2b1b84f4a546037a871704695fbc2b2cb1a15aa05aff"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "dcdefb6fb339e56a1a2883799fefa6df3b9d7d2ac58a492bc0d75b9a0273df94"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b8492fe7f439b8af044785acd29f13d6143f95eb84f1195568ab51663dc5f5a9"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "611ebe246192994cef8a6d0c9de4be2f97acf32a9bc6d45dc847cc9be965d27f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-pi-128k-nothink-t1-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b18b39ade4c888ddf7761d7235300d4cc0cc4527f854b94aed3b12c14f080c9d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/REPORT.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b319b046cf01a1c2f12404e2494624c58830b5f06ce5502f3be33310a8edea06"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/REVIEW.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b8b38afc3c783c9fb1cb540500831e40cfadf89022508e1b9709a8bf3fdc0cfe"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/artifacts/.agentic/requirements/functional/REQ-FUNC-18d6ac2e.toml",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "75c024abcb07015a5929d934a78a237fb2482876c932c3b6a3c8e4149b737170"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/artifacts/.agentic/tasks/TASK-68189c65.md",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "0f79c02d228aa4fec8e25cb2e60c968f98d343f15909982062eee611a5b9c98f"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/artifacts/05_Software/AudioMancer/tests/test_time_service.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8af73cf006ee1a0334a3c50bcb008cc3998efec9f2311815e15a4f1b6132588d"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/diff.patch",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "066ab8376cae5f585ff52079b649af1a01860bad75a499ec06e6d8a2ee744ac6"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/git_status.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8db8ef68c060379411e7b2d595aa6396460942b4f9bb55975fad859ef2f75fec"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/gpu.csv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d4a1d79d3a2cbb8034e462e2c5314ec7402adfe47bd11bde1901542052ea69c2"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/manual.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d482fb502726da26f83c4706fefa429504548faff3aaab998f4e8aedb00bc5ec"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/normalized.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3ddd3ca077bb342403797d4555243526d582fede966936f10c4eae79ecf2ced8"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/score.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "324c28fc5cd54706d1f5d28470b85a6c46a66db79f5e3e25e6d802cfcfe0d629"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/score.txt",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b03e49506ebe0598b4acc6cf99768c05ee2a7451e055c52bc30c60e48b69cc8b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/session.jsonl",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7673ae8910d0cbf7aeff0ea3d1cc66035a6f8ecbbba4b5e8aeb7c3d6b869ab1b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/stdout.live.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7673ae8910d0cbf7aeff0ea3d1cc66035a6f8ecbbba4b5e8aeb7c3d6b869ab1b"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/stdout.log",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "653c44cfbe78acdfc3e599dc9b94b43c211fbb31730cbaf8fce5e14ac0133801"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/summary.json",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "1eb40422304a5e6d09ec581c004a5bae8572a908679b754e551dfd3db51a3e25"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/tools.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cb54660263ba0e09251c30cb02dd53898320d7d136e4273eba18bb79ed40d630"
+          },
+          "path": "01_Documentation/LocalModelsTests/runs/qwen38-27b-qwen-128k-nothink-t1-20260920/usage.tsv",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "3fa71e55d5ed0e47ecfe175f79426483ea98a6bf132fe8adc34e3721a9ad7691"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/adapters/__init__.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "789c843732a71eabd91e606829c39a4b5dacdfd7907ec21f99e92b05bb88e46f"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/adapters/common.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8525ec924cd1f68cf22e25f0eb1a5676fff24fce4bb8740094536066f5819709"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/adapters/opencode_adapter.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cdae5e8c2837be34a45885f842c6fbde1c9991fdf4d1d3d4b53d676164e972ca"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/adapters/pi_adapter.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a34b6ccead952061e10a7ee0b0673990bd209c1a45cb6236a0c78e736b6cbfa0"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/adapters/qwen_adapter.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "ee041a4b1ff0ef3a7336ab3aa09ed084405f3b44184daf3460c993ace9de7c64"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/analyze.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "cc0510a17fec31da2d1ed06586cbd63d7da5391bf5a827909c5f233749ecd3f1"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/archive_run.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "a46b054b9e0b590caccfdf471d8e4595fa8b2e5019b05eb72db96dd663218344"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/attach.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "d115b8c32278649ee8bf82eacc2ff152be15dfe4ea5b24cff455c281cfc4107c"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/build_overall_report.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b192232eff421030db0df16f18f39e0a34ee194aa14a5e3b46ad0df34df41d67"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/gpu_sampler.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "894a159ff9e5b624ab8989aa53ee1a560d539c0a2843422321f2e0be86ff3a1c"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/measure_overhead.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "bde67de28cc0594e3fc9a9126a80199d4249f9f182f37ff9eeb19bf181e47c88"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/prepare_repo.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5d71c276e581f4e92cbab40b0907e063ed1c5f8a34af61572a348fc345e230e8"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/read_pi_session.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "f6cc710e4f11f35ef9aca5677752c6f16efacb0342e7fdd5eead5537c638d646"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/reference_impl.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "438854b6939129cbed1683c6e414ce1409ed30330378290ee1e7e82c3a6f3a46"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/report.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "5b13d8b8bfb410cdb8d3aea02ffacdc284dd6738955a1836abc39a561fb90f6f"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/report_sections.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "35851b5edf17b194a03359f57a901ab8ae09cc2aeb1259f0880567a3abc4d0b1"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/runner.py",
+          "status": "removed"
+        },
+        {
+          "after": null,
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "081eb2d7ed3840acaed72916756fab58dd385b70364bbc4c4bb6f82403f4d781"
+          },
+          "path": "01_Documentation/LocalModelsTests/tools/score_bench.py",
+          "status": "removed"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "0f6d4c8074ff974dac40f9f59bc8cfbea31038972923a2f84bae48fd1b8622f0"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b5c2afb9866398b89f66265d5f33b292b1df2b97d101b86d1d650d37c65eccc1"
+          },
+          "path": "05_Software/aegis/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "e6a97079a10031a7916a9d58b3ccafde630c0cc986c535b8704e2357422254da"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2d42408966bbd3c24d7b4de01aabc44dff9d09e184e3cbd249e582da6bfa3f23"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/MANIFEST.json",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "cd9dc17071afaee5a417f0bd7f88800b81dfee64de29df47ddd27d2c212cb8c6"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/README.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d5ea1cdf4d22fdb4a9941cb9a6f6399c13044ed7bc3f5ed7b4a93b6e9d820e09"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "c8695478397a337b4440ca4cdc66813dfa8b3cd562cb6c585bc110295353663a"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/__init__.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "24eec0610fb221bfa0dabdba7a3c5fde89637e22a2d47d141012cdba4921f70b"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "cf8e2f1f0d8156244e039c3162283e4405d73655dd0333abab9485678182bfc2"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/config.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "6b985a55645622bf0e60306592a02ed7cf4cfdb98382b1d9973e7f761fb5c159"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/indexer.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "f7e70f1db70cbbd0dd5ec7e014f75aacf2090f51c4ae9ab06cdf718355ecf5f7"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/natives.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "378776e8c79932fb2e07a668fa14b1e05f0a6f15c14041de64246e6b25046158"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "9987f0f6a69155dc5c8931d5fb78477b7ad404278882d3f902eb4f3b5d8e423d"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/python_extract.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "ed5bf4089cefe9726fe4605b687d1a6b4887251e616518be726a310a522c894a"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "5afd48226c20bb321e721874cb1af4202a49c0dd7614ffe2af4b20ebeb8e6bee"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/safety.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "14724770b40d99172ba66d98a42ed3871630b3687310f876347c4b96de81af02"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/scope.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "1de68e812ad31d1f23a99e29166582642be693221a6b214eb67f00c0ed62d945"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/store.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "cffcbabc3db8610ff8126ba3e8a71f610379b8faca47800833096f92a4b9d053"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/ruff.toml",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "57820bb2c03527d6526ec6cae6ceef1b5781be653f5ca3b5aaf0b0a69e42f5a3"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "bb134258c267415fa22e1fc575fe66fc4a3a5613df6fbde477c31ad7c7292273"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/tests/conftest.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "0c6eccfd26ffadf25cd6eb0be57313140e248c9017762e6c20e72f83d61d65bc"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_cli.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "242131259060045e422fb81f834d0c62a542a100800ffb6dad8d940e8a48638e"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_config.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d798cb9db06bef628041622404d0c73619969b260778c9f2d88c9f259adc8f3e"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_indexer.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "1bd336a4b27d2d4c2cdb75a515cbfd1fb72e1481f38fd7ab590225ec3432600c"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "265420949c5dd2b29d92a9f169fdb48215ebbdf3fe0d652606a91f89be52995c"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_natives.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "c0e01728b5421ea592de1b10beeea155bc5721392451c4e9b0e1dd974df0ffc4"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_protocol.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "813c6082bdce0a470f2417e18d85796fa4238683cf3e6d006894d8447c70b501"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_python_extract.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d4b9a4dcb7f5ef2879e8738e69f3a6fb55a71e143083e4052e125294de1b5cdc"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_queries.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "13ab776064c85c675666b7fd2ee7920c1c70de521bd2d9460db0f84f0deaf716"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_scope.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "6574ffa3ca288d08bb4eb45eb61709c8f3ad8ef3fdf3c747760200cf729ba1bb"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_write_safety.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "8fc27b0249c99e11646f01a4e576142f3c8f1beb86547a7b3ef36214559287ac"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/vendor/tree_sitter/_binding.cp311-win_amd64.pyd",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "308ae28f960129b14bcd18f4b33c57fd994ea21b18c1724904b63ee2bc7e059c"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/vendor/tree_sitter/_binding.cp312-win_amd64.pyd",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "d8efa5533a1c79cc404df3a0ff03d76626ad50d54b74d97e4cf6e30ab85bebe4"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/vendor/tree_sitter/_binding.cp313-win_amd64.pyd",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "c276116e98520909e4941577c8ede2c6a2cebaad9fa7d115d9cf2eccc32ab0a1"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/vendor/tree_sitter/_binding.cp314-win_amd64.pyd",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "5d1068799f4fa77609d741e0c56df941cecdee43456d6e019f2c9207d1d1947c"
+          },
+          "area": "other",
+          "before": null,
+          "path": "05_Software/aegis/plugins/codegraph/vendor/tree_sitter_python/_binding.pyd",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "a0d9d8c299d7336cfdd63c48c84633382dd167807963733f963a0565e81bae06"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "2a5c79a9f05f2d7af0ac6bb1f1827a44b4cd4fe3ba2c2a427e2cbfb097186526"
+          },
+          "path": "05_Software/aegis/template/.agentic/AGENTS.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "014ef155e53b8abbf77b63eaa780eed06f535f1e1cea12c96102594728645b52"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "516345364bb5441a1fbca9943a87ef87e361be229511d7bb61b6adf4e01a523a"
+          },
+          "path": "05_Software/aegis/template/.agentic/CLI.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "259b15a7f2ef9b1365675a44386dc1e7a43621fad953b0b95892c34a70965041"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "bb03b5109ab25c1484d66cd30c940437def0b3cef59def0debb08d517c0ab140"
+          },
+          "path": "05_Software/aegis/template/.agentic/aegis.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "1f5b05b53fb9cb52f8b865f06d711234d08d9e2988ff549cd7198a8705f9c5d2"
+          },
+          "area": "tests",
+          "before": null,
+          "path": "05_Software/aegis/tests/test_codegraph_dispatch.py",
+          "status": "added"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "01c0f7ec3427eef01f3ec9e504358fad879da75c2faed1b5cbb35baeee35c670"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "8193247b5bc91a887885418b308549a2e486f9be6cd5cbec18e2b51792895049"
+          },
+          "path": "06_SoftwareDocu/01_Install_and_Setup.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "64ffc9d827e551074c6d6dda3ee7c7bcad442d79e024918858792b5a636c7117"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "fc69435a54acb3816b6ed72c160b134f4abc6c306315086ca42a8c41006f8d17"
+          },
+          "path": "06_SoftwareDocu/02_Folders_and_Files.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "247ce505a29f47532fc814e09e1b2185f50323b15d8863975890e7951aa53378"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "7df46231cb64859f3ed671569558f3af6f30c25ff489a7811a4e19cdfd7864ce"
+          },
+          "path": "06_SoftwareDocu/09_CLI_Reference.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "9706aa9cc6bd0f44b80a2034c91f5d4f634f9944b8237772c558d5c18ff6fe83"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "35ae2b1973515344e52294c3cfb87bd9a694439b8b49d981e2a1854f967d84ed"
+          },
+          "path": "CHANGELOG.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 28,
+            "modified": 9,
+            "removed": 348,
+            "unchanged": 87
+          },
+          "source": {
+            "added": 0,
+            "modified": 3,
+            "removed": 0,
+            "unchanged": 88
+          },
+          "tests": {
+            "added": 1,
+            "modified": 0,
+            "removed": 0,
+            "unchanged": 16
+          }
+        },
+        "status": {
+          "added": 29,
+          "modified": 12,
+          "removed": 348,
+          "unchanged": 191
+        }
+      },
+      "current_head": "c51c0df15fe6646369435f5852874383099fc8cc",
+      "evolution_stage": "validate",
+      "evolved_at": "2026-10-04T02:58:54.104860Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-b96d5bb3"
+}
