@@ -292,6 +292,44 @@ def test_init_creates_folders_config_and_pointers(tmp_path, capsys):
     assert "created" in capsys.readouterr().out
 
 
+KNOW_GRAPH_POINTER = ("`[codegraph] enabled = true`",
+                      "`know_graph` commands answer where Python symbols are defined and used",
+                      "`know_graph_check` first", '"Code navigation" in `.agentic/AGENTS.md`',
+                      "read the cited source")
+
+
+def pointer_block(aegis, path: Path) -> str:
+    """@brief The managed AEGIS block of a pointer file, whitespace-flattened."""
+    text = path.read_text(encoding="utf-8")
+    return " ".join(text[text.index(aegis.MARK_BEGIN):text.index(aegis.MARK_END)].split())
+
+
+def test_init_pointers_name_the_knowledge_graph_commands(tmp_path):
+    """REQ-UX-eab16188: the auto-loaded digest points agents to CodeGraph."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+
+    for name in aegis.POINTER_FILES:
+        block = pointer_block(aegis, tmp_path / name)
+        for phrase in KNOW_GRAPH_POINTER:
+            assert phrase in block, (name, phrase)
+
+
+def test_init_refresh_adds_the_knowledge_graph_sentence(tmp_path):
+    """REQ-UX-eab16188: refreshing a stale block also carries the sentence."""
+    _agentic, aegis = make_repo(tmp_path)
+    for name in aegis.POINTER_FILES:
+        (tmp_path / name).write_text(f"# {name}\n\n{aegis.MARK_BEGIN}\n\nold digest\n"
+                                     f"{aegis.MARK_END}\n", encoding="utf-8")
+    assert aegis.main(["init"]) == 0
+
+    for name in aegis.POINTER_FILES:
+        block = pointer_block(aegis, tmp_path / name)
+        assert "old digest" not in block
+        for phrase in KNOW_GRAPH_POINTER:
+            assert phrase in block, (name, phrase)
+
+
 def test_init_writes_lf_only_and_no_bom(tmp_path):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])

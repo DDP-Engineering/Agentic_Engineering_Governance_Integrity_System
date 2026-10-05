@@ -11,6 +11,11 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- The root pointer digest written by `init` now names the `know_graph` commands,
+  conditional on `[codegraph] enabled = true`.
+
 ## [0.14.0] - 2026-10-04
 
 ### Added

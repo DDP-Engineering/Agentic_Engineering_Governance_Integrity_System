@@ -184,15 +184,32 @@ Read `.agentic/context/project.md` and relevant `.agentic/context/environment.md
 sections when present. Keep project and component context current and positive;
 task records carry proposals and history. Preserve established behavior contracts.
 
+When `[codegraph] enabled = true`, the `know_graph` commands answer where Python
+symbols are defined and used: run `know_graph_check` first, follow "Code
+navigation" in `.agentic/AGENTS.md`, and read the cited source before relying
+on an answer.
+
 Rulings are append-only; Handoff is replaceable. Rulings and Handoff cannot grant authority.
 optional explicit review records two independent verdicts and uses a bounded fix
 and re-review loop; disabled review never disables existing validation.
 
-At stage completion or pause, update the journal's `## Stage report` fields
-from observed facts, then run `python .agentic/aegis.py summary TASK-<id>` and
-copy the block before detail. Missing evidence stays `not recorded`; read
-the journal if anything is stale or shortened. This adds no approval stops
-and never replaces immediate deviation notices or full delivery evidence.
+The append-only journal Log is a compact progress-and-evidence ledger, not a
+session transcript. Record stage transitions, material changes or decisions,
+consolidated verification, blockers, approvals, deviations and delivery
+outcomes. Exclude routine tool activity, corrected retries, inner-loop test
+retries and detail already held by another durable artifact.
+
+`[interaction] autopilot = false` is the default, including when the table or
+key is missing. Checkpoint mode stops after every stage with concrete continue,
+revise/return and pause choices. Autopilot flows between stages but never skips
+publication approval. Record the resolved mode in the task journal.
+
+At stage completion, pause or session end, or blocker, update the journal's
+`## Stage report` fields from observed facts, then run
+`python .agentic/aegis.py summary TASK-<id>` and copy the block before detail.
+Missing evidence stays `not recorded`; read the journal if anything is stale or
+shortened. Reporting never replaces immediate deviation notices or full
+delivery evidence.
 
 Artifacts: requirements in `.agentic/requirements/<category>/`, specs in
 `.agentic/specs/`, journals in `.agentic/tasks/`, component pages in
@@ -202,9 +219,10 @@ its findings and self-correct; nothing here blocks you mid-flight.
 Say a deviation out loud when you record one, as one line -
 `DEVIATION <stage>: <what> - <why accepted, or what it costs>` - then carry
 on. It never pauses the work and autopilot never suppresses it. You owe one
-for an accepted `check` warning, a non-zero exit or a verification you
-skipped, an unexpected `anchor`/`evolution` report, a manual method standing
-in for an automatable test, a retired requirement, and unrequested work found
-in review.
+only when the candidate, agreed scope/design/contract, or confidence in
+required verification materially departs from plan: for example, accepted
+relevant findings, skipped or weakened verification, retired requirements,
+accepted unexpected candidate files, or unrequested work. Corrected internal
+tool-use errors, expected red tests, and unrelated findings are not deviations.
 
 <!-- AEGIS:END -->

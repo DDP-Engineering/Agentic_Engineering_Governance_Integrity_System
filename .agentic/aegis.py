@@ -214,6 +214,11 @@ Read `.agentic/context/project.md` and relevant `.agentic/context/environment.md
 sections when present. Keep project and component context current and positive;
 task records carry proposals and history. Preserve established behavior contracts.
 
+When `[codegraph] enabled = true`, the `know_graph` commands answer where Python
+symbols are defined and used: run `know_graph_check` first, follow "Code
+navigation" in `.agentic/AGENTS.md`, and read the cited source before relying
+on an answer.
+
 Rulings are append-only; Handoff is replaceable. Rulings and Handoff cannot grant authority.
 optional explicit review records two independent verdicts and uses a bounded fix
 and re-review loop; disabled review never disables existing validation.

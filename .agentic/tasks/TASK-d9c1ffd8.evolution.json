@@ -1,0 +1,123 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-10-05T06:29:16.724147Z",
+      "anchor_head": "1aee86b4d4220e834f19ddedea42fa3f0a36e207",
+      "anchor_id": "63c755da9813969e",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "f06675c2472a4f18f8f461b6a276b7874d422b0457a2b368708c9869b3661f52"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "7809fa885e43c2069aa982bdf37512e702f1ee162cc9c1e181dd8f8e5be8b8f1"
+          },
+          "path": "05_Software/aegis/template/.agentic/aegis.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "9642665093bf4891b6b4670001e2b658f9232393ce2a4bda3e4f46fa009c1025"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "58e8f0a020cd3795250615d98908ae7e7395cae2afd38f9ec0bf54219e0e3a55"
+          },
+          "path": "05_Software/aegis/tests/test_cli_core.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "41698f3a07eca71be03e450dc2682819fa8761ac9ef29c3b03e2d389320c900e"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "85685792f53415ab1bbd1606d6db995b1366ba941791c6d7ceb92782e1d09374"
+          },
+          "path": "AGENTS.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "b10557f98257c8b7c763169de6ddbacb524cc1978667cc7597bd7a28bcb01b5a"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "2de74c6d03f6a8b89137b50b3cb269def141de64f09201db45e81fe0fb339467"
+          },
+          "path": "CHANGELOG.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "4267dc30ef2d67d67293ace28412852866b20bc6346b7bdcbb559788a585ae32"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b0b348a6176d136bdb6b5bdd9bdcfbb8dba264c085b72fca6b9647526b23059a"
+          },
+          "path": "CLAUDE.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "18417d378e799650335bd955a629cebcc21a12559b3342faf6fd18f5c832e512"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "6c4304819c151566883fe5b268bd3daeb61fd210ebf42628ed1dcf98e4ff11f9"
+          },
+          "path": "QWEN.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 0,
+            "modified": 4,
+            "removed": 0,
+            "unchanged": 81
+          },
+          "source": {
+            "added": 0,
+            "modified": 1,
+            "removed": 0,
+            "unchanged": 120
+          },
+          "tests": {
+            "added": 0,
+            "modified": 1,
+            "removed": 0,
+            "unchanged": 27
+          }
+        },
+        "status": {
+          "added": 0,
+          "modified": 6,
+          "removed": 0,
+          "unchanged": 228
+        }
+      },
+      "current_head": "1aee86b4d4220e834f19ddedea42fa3f0a36e207",
+      "evolution_stage": "validate",
+      "evolved_at": "2026-10-05T06:39:38.535018Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-d9c1ffd8"
+}

@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-UX-eab16188"
+
+title = "Name the knowledge-graph commands in the generated pointer digest"
+
+status = "active"
+
+requirement = """
+When `init` writes or refreshes the AEGIS block in the root pointer files
+(`AGENTS.md`, `CLAUDE.md`, `QWEN.md`), the block shall include one sentence
+telling an agent that, when `[codegraph] enabled = true`, the `know_graph`
+commands answer where Python symbols are defined and used, that
+`know_graph_check` comes first, that "Code navigation" in `.agentic/AGENTS.md`
+holds the rules, and that cited source is read before an answer is relied on.
+"""
+
+verification = "Automated: run `init` in a temporary repository, both fresh and over pointer files holding a stale AEGIS block, and assert that the AEGIS block of each of AGENTS.md, CLAUDE.md and QWEN.md carries the sentence: `[codegraph] enabled = true`, the `know_graph` commands answer where Python symbols are defined and used, `know_graph_check` first, \"Code navigation\" in `.agentic/AGENTS.md`, and read the cited source; and that the digest phrases required for offline resume are still present."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_cli_core.py::test_init_pointers_name_the_knowledge_graph_commands",
+    "05_Software/aegis/tests/test_cli_core.py::test_init_refresh_adds_the_knowledge_graph_sentence",
+    "05_Software/aegis/tests/test_structure.py::test_pointer_digest_is_sufficient_for_offline_resume",
+]
+
+
+spec = ""
+
+priority = "normal"   # low | normal | high
+rationale = "Hosts load the root pointer files automatically, but an agent answering a question does not open the full contract; without a pointer it never finds the commands."
+
+created = 2026-10-04
+updated = 2026-10-05

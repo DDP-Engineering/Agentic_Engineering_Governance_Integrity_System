@@ -121,6 +121,8 @@ Paths without a folder are under `05_Software/aegis/plugins/codegraph/`.
 - `REQ-FUNC-d1994267` — only status `error` exits 1.
 - `REQ-FUNC-48ff6d8e` — `know_graph_index` holds the plugin's input open and passes `--watch-stdin`.
 - `REQ-UX-8c5b157a` — `AGENTS.md` and `CLI.md` describe when and how to use the commands.
+- `REQ-UX-eab16188` — the root pointer digest `init` writes names the commands, so agents
+  that never open the contract find them (owned by the Reusable workflow payload page).
 - `REQ-FUNC-29d6c038` — `scope` previews the selection and writes nothing.
 - `REQ-FUNC-baa92928` — selection follows the AEGIS layout pattern rules.
 - `REQ-FUNC-43a76b41` — an empty scope is reported, not scanned.

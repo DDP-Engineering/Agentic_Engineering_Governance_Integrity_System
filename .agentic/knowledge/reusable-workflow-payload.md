@@ -77,6 +77,8 @@ define durable artifact formats.
 - `REQ-FUNC-7ea14fe4` - Preserve append-only rulings and a replaceable handoff.
 - `REQ-UX-8c5b157a` - Describe the optional knowledge-graph commands, their
   read-only queries and explicit indexing, and their folders in the contract.
+- `REQ-UX-eab16188` - Name the knowledge-graph commands in the root pointer
+  digest `init` writes, so agents that never open the contract still find them.
 
 Every stage file includes brief-first resume, report, ruling, handoff and
 stage-choice reminders. The task template provides compatible interaction,
