@@ -1,0 +1,44 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-c88e2b22"
+
+title = "Name the enclosing symbol of every reported reference"
+
+status = "active"
+
+requirement = """
+When a CodeGraph `symbol`, `callers` or `refs` answer reports a reference,
+the reference shall carry the qualified name of the symbol that contains it,
+or none when no symbol contains it, and its compact text line shall show that
+name beside the containing symbol's ID prefix.
+"""
+
+verification = "A fixture with a call inside a method, a call inside a module-level function and a call in module-level code: `callers` and `refs` JSON records carry `from_name` equal to the method's, the function's and the module's qualified names, and a `symbol` neighbor carries the same field; the compact lines read `from=<qualified name> id=<prefix>`, and a record without a containing symbol renders `from=-`."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+    "05_Software/aegis/plugins/codegraph/README.md",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_references_name_their_containing_symbol",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_reference_lines_name_their_container",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_an_oversized_container_name_is_shortened_like_other_names",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = "Answers named the containing function only by ID, so an agent needed one extra lookup per caller to say which function makes a call."
+
+created = 2026-10-05
+updated = 2026-10-05

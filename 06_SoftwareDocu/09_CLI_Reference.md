@@ -848,10 +848,16 @@ Behavior shared by every command:
   a previous answer's `next=` field); `know_graph_symbol` takes `--limit` and
   `--max-bytes`. A page always carries at least one record.
 - A target that starts with `-` goes after `--`.
+- `know_graph_symbol`, `know_graph_callers` and `know_graph_refs` take up to
+  20 IDs, listed together after any options, and answer them in one response
+  in the order given; with more than one distinct target, each reference line
+  carries `for=<id>`. The first unknown, ambiguous or malformed ID answers for
+  the whole request and is named in the message.
 - Answers label each relation `direct-syntax`, `lexical-binding`,
   `candidate`, `unresolved` or `external`, and cite the files they come from.
   A `candidate` is never a confirmed call; read the cited source before
-  acting on one.
+  acting on one. Each reference names the function, class or module that
+  contains it, as `from=<qualified name> id=<id>`.
 - Only status `error` exits 1. A time limit or more than 64 KiB of output
   stops the plugin's process tree; either, or a malformed response, prints one
   error line and exits 1.
@@ -909,11 +915,12 @@ The path may be repository-relative or absolute, with either separator.
 ## `know_graph_symbol`
 
 ```text
-python .agentic/aegis.py know_graph_symbol [--json] [--limit N] [--max-bytes N] <id>
+python .agentic/aegis.py know_graph_symbol [--json] [--limit N] [--max-bytes N] <id>...
 ```
 
-**Description:** Show one symbol - signature, location and enclosing scope -
-with a bounded neighborhood of callers, callees and references. The ID may be
+**Description:** Show symbols - signature, location and enclosing scope -
+with a bounded neighborhood of callers, callees and references; several
+symbols share one neighborhood limit, in the order given. The ID may be
 the full ID or any unique prefix, such as the short ID other answers print;
 an ambiguous prefix lists the choices. The neighborhood is not paged; a larger
 `--limit` shows more of it.
@@ -923,22 +930,22 @@ an ambiguous prefix lists the choices. The neighborhood is not paged; a larger
 ## `know_graph_callers`
 
 ```text
-python .agentic/aegis.py know_graph_callers [--json] [--limit N] [--max-bytes N] [--page TOKEN] <id>
+python .agentic/aegis.py know_graph_callers [--json] [--limit N] [--max-bytes N] [--page TOKEN] <id>...
 ```
 
-**Description:** List call sites that bind to the symbol, then call sites
-that match it by name only (`candidate`), each group in file order; paging
-continues through both.
+**Description:** For each symbol, list call sites that bind to it, then call
+sites that match it by name only (`candidate`), each group in file order;
+paging continues through both and on to the next symbol.
 
 **When to use:** Before changing a function's behavior or signature.
 
 ## `know_graph_refs`
 
 ```text
-python .agentic/aegis.py know_graph_refs [--json] [--limit N] [--max-bytes N] [--page TOKEN] <id>
+python .agentic/aegis.py know_graph_refs [--json] [--limit N] [--max-bytes N] [--page TOKEN] <id>...
 ```
 
-**Description:** List every reference bound to the symbol - imports, calls,
+**Description:** List every reference bound to each symbol - imports, calls,
 reads and writes - with its label. Call sites that match only by name are
 listed by `know_graph_callers`; other name-only matches are not listed.
 
@@ -968,6 +975,7 @@ indexer, and readers keep the last completed snapshot.
 python .agentic/aegis.py know_graph_index
 python .agentic/aegis.py know_graph_find OrderRepository
 python .agentic/aegis.py know_graph_callers 3f9a1c27be
+python .agentic/aegis.py know_graph_callers 3f9a1c27be 8d02e4b711
 python .agentic/aegis.py know_graph_find -- -weird-name
 ```
 

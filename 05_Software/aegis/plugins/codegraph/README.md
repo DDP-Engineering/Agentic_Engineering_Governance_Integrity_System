@@ -98,6 +98,12 @@ Every reference carries a label:
 Answers cite the files they come from. Read the cited source before acting on
 an answer, and treat `candidate` and `unresolved` as leads, not facts.
 
+Each reference also names the function, class or module that contains it, as
+`from=<qualified name> id=<id>`. `symbol`, `callers` and `refs` take up to 20
+IDs after `--` and answer them in one response, in the order given; with
+several distinct targets, each reference line carries `for=<id>`, and the
+first unknown, ambiguous or malformed ID answers for the whole request.
+
 ## Standalone use
 
 The entry point accepts the same operations AEGIS uses plus `scope`, which

@@ -9,7 +9,7 @@
 """
 @file cli.py
 @brief Command line of the CodeGraph plugin.
-@details `codegraph.py <operation> --root PATH [options] [-- target]`. Every
+@details `codegraph.py <operation> --root PATH [options] [-- target...]`. Every
          operation answers with one protocol envelope, printed as compact text
          by default, as JSON with `--json`, or as JSON carrying the text with
          `--text-envelope` (the view AEGIS requests). Progress goes only to
@@ -36,6 +36,8 @@ from codegraph.safety import Refused
 # CONSTANTS
 
 PROGRESS_EVERY = 50
+#: operations that take several symbol IDs after `--`; the others take one target
+ID_OPERATIONS = ("symbol", "callers", "refs")
 
 # HELPER FUNCTIONS
 
@@ -70,17 +72,23 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
              as empty right after the operation and then reject a later
              `-- name`; separating the marker first gives every supported
              version the same result.
+             `targets` lists every target; `symbol`, `callers` and `refs` take
+             several IDs after `--`, every other operation one target.
     """
     argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
     if "--" not in argv:
-        return parser.parse_args(argv)
+        args = parser.parse_args(argv)
+        args.targets = [] if args.target is None else [args.target]
+        return args
     marker = argv.index("--")
     tail = argv[marker + 1:]
     args = parser.parse_args(argv[:marker])
-    if len(tail) != 1 or args.target is not None:
-        parser.error("give exactly one target, after --")
-    args.target = tail[0]
+    several = args.operation in ID_OPERATIONS
+    if not tail or args.target is not None or (len(tail) > 1 and not several):
+        parser.error("give the symbol IDs after --" if several
+                     else "give exactly one target, after --")
+    args.targets, args.target = tail, tail[0]
     return args
 
 

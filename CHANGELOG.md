@@ -15,6 +15,10 @@ All notable changes to AEGIS are documented in this file.
 
 - The root pointer digest written by `init` now names the `know_graph` commands,
   conditional on `[codegraph] enabled = true`.
+- CodeGraph answers name the function, class or module containing each
+  reference (`from=<qualified name> id=<id>`, JSON `from_name`).
+- `know_graph_symbol`, `know_graph_callers` and `know_graph_refs` take up to 20
+  IDs and answer them in one response, in the order given.
 
 ## [0.14.0] - 2026-10-04
 

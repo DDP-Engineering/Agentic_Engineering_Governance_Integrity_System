@@ -1,0 +1,201 @@
+{
+  "reports": [
+    {
+      "anchor_created_at": "2026-10-05T07:11:26.320214Z",
+      "anchor_head": "e35e60bd53da6f5d9f35509ae68946225f2fdf36",
+      "anchor_id": "eca079e820c85d64",
+      "anchor_stage": "build",
+      "changes": [
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "6053ea6a0295637e8e154b214ebbacca3ed8eab4c020c4bc82f2c55a9e02a6db"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "cd9dc17071afaee5a417f0bd7f88800b81dfee64de29df47ddd27d2c212cb8c6"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/README.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "88ba88e333cba1711a4d72798197655ec93a063bee8f16eb2590f1e9f9172c28"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "24eec0610fb221bfa0dabdba7a3c5fde89637e22a2d47d141012cdba4921f70b"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "7250c4dc497abf5aebd4e2a4eb121cdf7476f9e1423d655a743f68da202b034d"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "378776e8c79932fb2e07a668fa14b1e05f0a6f15c14041de64246e6b25046158"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "7bb037c7d9e97e67de0d3f041ee016a67bf3cf6a60011c049f1e30363a08f8a0"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "ed5bf4089cefe9726fe4605b687d1a6b4887251e616518be726a310a522c894a"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "bbdcf7cab33d3dd59ea14866346424074f971f6c07aa5bc88d7d1988fad72862"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "0c6eccfd26ffadf25cd6eb0be57313140e248c9017762e6c20e72f83d61d65bc"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_cli.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "98819e381a0c6ada9059a5f849a715ebc74bd4e57d60fdcb9e57bdde6020df30"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "6e8c48e708781f16968861b9b76c4600510c27066476f6a51a531008cf7eb37a"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_protocol.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "6433ed08bfd33fa40780e0aae308696ac84a928cc48e04ac3c2058d1ec584cb3"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "bf71f87b046156da750dd7d6dc4662cc5aa8fc57b5a9ed68eb6610828e671051"
+          },
+          "path": "05_Software/aegis/plugins/codegraph/tests/test_queries.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "fcffed55b9fb44a88762ce617c8616ae5376dae2ac7a8c29733467c8a3a0ef7e"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "014ef155e53b8abbf77b63eaa780eed06f535f1e1cea12c96102594728645b52"
+          },
+          "path": "05_Software/aegis/template/.agentic/CLI.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "a4a19d711ef084952664d6e96ea97b46b978a47d5bae9488b927012689107c4a"
+          },
+          "area": "source",
+          "before": {
+            "kind": "file",
+            "sha256": "f06675c2472a4f18f8f461b6a276b7874d422b0457a2b368708c9869b3661f52"
+          },
+          "path": "05_Software/aegis/template/.agentic/aegis.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "81dbc1aad66dd504089d2b5a18e9919a13f649e49512795aba07ac88b33d2efb"
+          },
+          "area": "tests",
+          "before": {
+            "kind": "file",
+            "sha256": "1f5b05b53fb9cb52f8b865f06d711234d08d9e2988ff549cd7198a8705f9c5d2"
+          },
+          "path": "05_Software/aegis/tests/test_codegraph_dispatch.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "34be2d9a0eda382ef9158dfb256a9b431448517014c1924e33f4e0f71e94c316"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "247ce505a29f47532fc814e09e1b2185f50323b15d8863975890e7951aa53378"
+          },
+          "path": "06_SoftwareDocu/09_CLI_Reference.md",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "kind": "file",
+            "sha256": "3f3adffdd629acca1908faaf0d0c6532537502518529d93a7a9278c3a281a1bf"
+          },
+          "area": "other",
+          "before": {
+            "kind": "file",
+            "sha256": "b10557f98257c8b7c763169de6ddbacb524cc1978667cc7597bd7a28bcb01b5a"
+          },
+          "path": "CHANGELOG.md",
+          "status": "modified"
+        }
+      ],
+      "counts": {
+        "area": {
+          "other": {
+            "added": 0,
+            "modified": 2,
+            "removed": 0,
+            "unchanged": 83
+          },
+          "source": {
+            "added": 0,
+            "modified": 6,
+            "removed": 0,
+            "unchanged": 115
+          },
+          "tests": {
+            "added": 0,
+            "modified": 4,
+            "removed": 0,
+            "unchanged": 24
+          }
+        },
+        "status": {
+          "added": 0,
+          "modified": 12,
+          "removed": 0,
+          "unchanged": 222
+        }
+      },
+      "current_head": "e35e60bd53da6f5d9f35509ae68946225f2fdf36",
+      "evolution_stage": "build",
+      "evolved_at": "2026-10-05T07:44:58.021118Z"
+    }
+  ],
+  "schema": 1,
+  "task": "TASK-2bb6095f"
+}

@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import hashlib
+import itertools
 import os
 import re
 import sqlite3
@@ -39,7 +40,11 @@ MIN_DISPLAY = 10
 HEX = re.compile(r"[0-9a-f]+")
 SYMBOL_COLUMNS = ("s.id, s.kind, s.name, s.qualified_name, s.signature, f.path, s.start_line, "
                   "s.start_column, s.end_line, s.end_column, f.role, f.language, s.depth")
-REF_COLUMNS = "r.rowid, r.kind, r.spelling, f.path, r.line, r.column, r.label, r.target_id, r.from_id"
+REF_COLUMNS = ("r.rowid, r.kind, r.spelling, f.path, r.line, r.column, r.label, r.target_id, "
+               "r.from_id, fs.qualified_name")
+#: where REF_COLUMNS come from: the reference, its file and the symbol containing it
+REF_SOURCE = ("refs r JOIN files f ON f.id = r.file_id "
+              "LEFT JOIN symbols fs ON fs.id = r.from_id")
 MESSAGES = {
     "missing": "No CodeGraph index yet. Run know_graph_index, or use ordinary search.",
     "incompatible": "The CodeGraph database is not usable here. Run know_graph_index "
@@ -53,6 +58,8 @@ LISTED_KINDS = ("module", "class", "function", "method")
 #: the bounds a request may set: records per answer, and the smallest byte budget
 MAX_LIMIT = 200
 MIN_BYTES = 512
+#: symbol IDs one `symbol`, `callers` or `refs` request may name
+MAX_TARGETS = 20
 
 # HELPER FUNCTIONS
 
@@ -137,37 +144,64 @@ class _Answer:
 
     def reference(self, row, **extra) -> dict:
         """@brief A reference record from a REF_COLUMNS row."""
-        _rowid, kind, spelling, path, line, column, label, target, origin = row
+        _rowid, kind, spelling, path, line, column, label, target, origin, origin_name = row
         record = {"kind": kind, "label": label, "path": path, "line": line, "column": column,
                   "spelling": spelling, "target": target, "from": origin,
-                  "from_display": self.display(origin),
+                  "from_display": self.display(origin), "from_name": origin_name,
                   "citation": self.citation(path, self.sha(path))}
         record.update(extra)
         return record
 
     # targets and paging
 
-    def resolve_target(self):
-        """@brief (symbol row, None) or (None, envelope) for an ID or prefix target."""
-        target = (self.args.target or "").strip().lower()
+    def resolve_target(self, raw: str, named: bool = False):
+        """
+        @brief (symbol row, None) or (None, envelope) for one ID or prefix target.
+        @param[in] named Name the target in the message, for a request with several.
+        """
+        target = (raw or "").strip().lower()
+        which = f"'{raw}': " if named else ""
         if not target or not HEX.fullmatch(target) or len(target) > 32:
             return None, self.envelope("error", reason="invalid_request",
-                                       message="a symbol ID is hexadecimal, as returned by find")
+                                       message=which + "a symbol ID is hexadecimal, "
+                                                       "as returned by find")
         rows = self.conn.execute(
             f"SELECT {SYMBOL_COLUMNS} FROM symbols s JOIN files f ON f.id = s.file_id "
             "WHERE s.id >= ? AND s.id < ? ORDER BY s.id LIMIT ?",
             (target, target + "g", self.limit + 1)).fetchall()
         if not rows:
             return None, self.envelope("not_found", reason="not_found",
-                                       message="no symbol has this ID; it may have changed "
-                                               "since indexing - run find again")
+                                       message=which + "no symbol has this ID; it may have "
+                                                       "changed since indexing - run find again")
         if len(rows) > 1:
             choices = [self.symbol(row) for row in rows[:self.limit]]
             return None, self.finish(self.envelope("ambiguous", reason="ambiguous",
-                                                   message="several symbols share this prefix; "
-                                                           "use a longer ID", results=choices,
+                                                   message=which + "several symbols share this "
+                                                                   "prefix; use a longer ID",
+                                                   results=choices,
                                                    has_more=len(rows) > self.limit))
         return rows[0], None
+
+    def resolve_targets(self):
+        """
+        @brief (symbol rows in request order, None) or (None, envelope).
+        @details Every target resolves before any record is read; the first that
+                 fails answers for the whole request. Targets resolving to the
+                 same symbol are answered once, at the first position.
+        """
+        targets = getattr(self.args, "targets", None) or [self.args.target]
+        if len(targets) > MAX_TARGETS:
+            return None, self.envelope("error", reason="invalid_request",
+                                       message=f"give at most {MAX_TARGETS} symbol IDs")
+        rows, seen = [], set()
+        for raw in targets:
+            row, failure = self.resolve_target(raw, named=len(targets) > 1)
+            if failure:
+                return None, failure
+            if row[0] not in seen:
+                seen.add(row[0])
+                rows.append(row)
+        return rows, None
 
     def page(self, target: str, ordering: str):
         """@brief (offset, digest) or (None, envelope) for the supplied page token."""
@@ -349,71 +383,96 @@ class _Answer:
                             has_more=len(rows) > self.limit)
         return self.finish(env, offset, digest)
 
+    def subject(self, sid: str) -> dict:
+        """@brief The fields naming the target a reference record answers for."""
+        return {"subject": sid, "subject_display": self.display(sid)}
+
     def symbol_query(self) -> dict:
-        """@brief One symbol with a bounded one-hop neighborhood."""
-        row, failure = self.resolve_target()
+        """@brief Symbols with a bounded one-hop neighborhood, in request order."""
+        rows, failure = self.resolve_targets()
         if failure:
             return failure
-        sid = row[0]
-        neighbors = []
-        for relation, sql, params in (
-                ("caller", (f"SELECT {REF_COLUMNS} FROM refs r JOIN files f ON f.id = r.file_id "
-                            "WHERE r.target_id = ? AND r.kind = 'call'"), (sid,)),
-                ("caller", (f"SELECT {REF_COLUMNS} FROM refs r JOIN files f ON f.id = r.file_id "
-                            "JOIN candidates c ON c.ref_rowid = r.rowid "
-                            "WHERE c.symbol_id = ? AND r.kind = 'call'"), (sid,)),
-                ("callee", (f"SELECT {REF_COLUMNS} FROM refs r JOIN files f ON f.id = r.file_id "
-                            "WHERE r.from_id = ? AND r.kind = 'call'"), (sid,)),
-                ("reference", (f"SELECT {REF_COLUMNS} FROM refs r JOIN files f ON f.id = "
-                               "r.file_id WHERE r.target_id = ? AND r.kind != 'call'"), (sid,))):
-            for ref in self.conn.execute(sql + " ORDER BY f.path, r.line, r.column, r.rowid",
-                                         params):
-                neighbors.append(self.reference(ref, relation=relation))
+
+        def neighborhood():
+            for row in rows:
+                sid = row[0]
+                for relation, sql in (
+                        ("caller", (f"SELECT {REF_COLUMNS} FROM {REF_SOURCE} "
+                                    "WHERE r.target_id = ? AND r.kind = 'call'")),
+                        ("caller", (f"SELECT {REF_COLUMNS} FROM {REF_SOURCE} "
+                                    "JOIN candidates c ON c.ref_rowid = r.rowid "
+                                    "WHERE c.symbol_id = ? AND r.kind = 'call'")),
+                        ("callee", (f"SELECT {REF_COLUMNS} FROM {REF_SOURCE} "
+                                    "WHERE r.from_id = ? AND r.kind = 'call'")),
+                        ("reference", (f"SELECT {REF_COLUMNS} FROM {REF_SOURCE} "
+                                       "WHERE r.target_id = ? AND r.kind != 'call'"))):
+                    for ref in self.conn.execute(
+                            sql + " ORDER BY f.path, r.line, r.column, r.rowid", (sid,)):
+                        yield self.reference(ref, relation=relation, **self.subject(sid))
+        # one record past the window decides `has_more`; nothing beyond it is read
+        neighbors = list(itertools.islice(neighborhood(), self.limit + 1))
         window = neighbors[:self.limit]
-        env = self.envelope(results=window, details={"symbol": self.symbol(row)},
+        details: dict = {"targets": len(rows)}
+        if len(rows) == 1:
+            details["symbol"] = self.symbol(rows[0])
+        else:
+            details["symbols"] = [self.symbol(row) for row in rows]
+        env = self.envelope(results=window, details=details,
                             has_more=len(neighbors) > len(window))
         return self.finish(env)
 
     def callers(self) -> dict:
         """@brief Linked incoming calls and, separately, candidate callers."""
-        row, failure = self.resolve_target()
+        rows, failure = self.resolve_targets()
         if failure:
             return failure
-        sid = row[0]
-        offset, digest = self.page(sid, "location")
+        sids = [row[0] for row in rows]
+        offset, digest = self.page(",".join(sids), "location")
         if offset is None:
             return digest
-        # one sequence - linked calls, then candidate calls - so offsets page both
-        rows = self.conn.execute(
-            f"SELECT {REF_COLUMNS}, 0 FROM refs r JOIN files f ON f.id = r.file_id "
-            "WHERE r.target_id = ? AND r.kind = 'call' UNION ALL "
-            f"SELECT {REF_COLUMNS}, 1 FROM refs r JOIN files f ON f.id = r.file_id "
-            "JOIN candidates c ON c.ref_rowid = r.rowid WHERE c.symbol_id = ? "
-            "AND r.kind = 'call' ORDER BY 10, 4, 5, 6, 1 LIMIT ? OFFSET ?",
-            (sid, sid, self.limit + 1, offset)).fetchall()
-        window = rows[:self.limit]
-        env = self.envelope(
-            results=[self.reference(r[:9]) for r in window if r[9] == 0],
-            details={"candidates": [self.reference(r[:9]) for r in window if r[9] == 1]},
-            has_more=len(rows) > self.limit)
+        # one sequence per target - linked calls, then candidate calls - and the
+        # targets' sequences one after another, so offsets page all of them
+        parts = []
+        for ordinal in range(len(sids)):
+            parts += [(f"SELECT {REF_COLUMNS}, {ordinal}, 0 FROM {REF_SOURCE} "
+                       "WHERE r.target_id = ? AND r.kind = 'call'"),
+                      (f"SELECT {REF_COLUMNS}, {ordinal}, 1 FROM {REF_SOURCE} "
+                       "JOIN candidates c ON c.ref_rowid = r.rowid WHERE c.symbol_id = ? "
+                       "AND r.kind = 'call'")]
+        # sort by position: 11 target ordinal, 12 linked-before-candidate, then 4 path,
+        # 5 line, 6 column, 1 rowid of REF_COLUMNS (a compound SELECT sorts by position)
+        found = self.conn.execute(
+            " UNION ALL ".join(parts) + " ORDER BY 11, 12, 4, 5, 6, 1 LIMIT ? OFFSET ?",
+            (*[sid for sid in sids for _ in range(2)], self.limit + 1, offset)).fetchall()
+        window = found[:self.limit]
+
+        def records(linked: int) -> list[dict]:
+            return [self.reference(r[:10], **self.subject(sids[r[10]]))
+                    for r in window if r[11] == linked]
+        env = self.envelope(results=records(0),
+                            details={"candidates": records(1), "targets": len(sids)},
+                            has_more=len(found) > self.limit)
         return self.finish(env, offset, digest)
 
     def refs(self) -> dict:
-        """@brief Identifier references linked to one symbol."""
-        row, failure = self.resolve_target()
+        """@brief Identifier references linked to each target, in request order."""
+        rows, failure = self.resolve_targets()
         if failure:
             return failure
-        sid = row[0]
-        offset, digest = self.page(sid, "location")
+        sids = [row[0] for row in rows]
+        offset, digest = self.page(",".join(sids), "location")
         if offset is None:
             return digest
-        rows = self.conn.execute(
-            f"SELECT {REF_COLUMNS} FROM refs r JOIN files f ON f.id = r.file_id "
-            "WHERE r.target_id = ? ORDER BY f.path, r.line, r.column, r.rowid LIMIT ? OFFSET ?",
-            (sid, self.limit + 1, offset)).fetchall()
-        window = rows[:self.limit]
-        env = self.envelope(results=[self.reference(r) for r in window],
-                            has_more=len(rows) > self.limit)
+        parts = [f"SELECT {REF_COLUMNS}, {ordinal} FROM {REF_SOURCE} WHERE r.target_id = ?"
+                 for ordinal in range(len(sids))]
+        # 11 target ordinal, then 4 path, 5 line, 6 column, 1 rowid of REF_COLUMNS
+        found = self.conn.execute(
+            " UNION ALL ".join(parts) + " ORDER BY 11, 4, 5, 6, 1 LIMIT ? OFFSET ?",
+            (*sids, self.limit + 1, offset)).fetchall()
+        window = found[:self.limit]
+        env = self.envelope(results=[self.reference(r[:10], **self.subject(sids[r[10]]))
+                                     for r in window],
+                            details={"targets": len(sids)}, has_more=len(found) > self.limit)
         return self.finish(env, offset, digest)
 
 # PUBLIC API

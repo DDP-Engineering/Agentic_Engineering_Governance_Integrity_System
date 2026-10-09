@@ -1,0 +1,52 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-40ac076a"
+
+title = "Answer several symbol IDs in one knowledge-graph query"
+
+status = "active"
+
+requirement = """
+When the CodeGraph `symbol`, `callers` or `refs` operation is given up to 20
+symbol IDs or ID prefixes, CodeGraph shall answer for all of them in one
+response, in the order given, with every reference naming the target symbol it
+answers for, and shall instead answer the first target that is malformed,
+unknown or ambiguous for the whole request, naming that target.
+"""
+
+verification = "With two fixture functions: `callers` for both IDs returns each one's callers in request order, each record's `subject` equal to its target's full ID and each text line ending `for=<prefix>`; `refs` and `symbol` (with `details.symbols`) behave the same; a duplicate ID is answered once; paging across both targets returns every record once and a token reused with the targets in another order returns `page_token_mismatch`; 21 IDs return `error` with `invalid_request`; a valid ID followed by an unknown one returns `not_found` naming the unknown ID, and an ambiguous prefix returns `ambiguous` with its choices."
+
+affected_paths = [
+    "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
+    "05_Software/aegis/plugins/codegraph/codegraph/protocol.py",
+    "05_Software/aegis/plugins/codegraph/README.md",
+    "05_Software/aegis/plugins/codegraph/codegraph/cli.py",
+    "05_Software/aegis/template/.agentic/CLI.md",
+]
+
+linked_tests = [
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_several_targets_answer_in_request_order",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_duplicate_targets_are_answered_once",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_target_failures_answer_for_the_whole_request",
+    "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_id_operations_take_several_targets_after_the_marker",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_several_targets_render_their_subjects",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_paging_runs_across_targets_and_binds_their_order",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_a_kept_neighbor_survives_when_its_target_is_trimmed",
+    "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_several_target_fixtures_validate_and_their_views_agree",
+]
+
+
+spec = "specs/REQ-FUNC-8cb1a3b7.md"
+
+priority = "normal"   # low | normal | high
+rationale = "Agents following a call chain looked up several IDs one command at a time, and shell loops over IDs are refused by host permission checks."
+
+created = 2026-10-05
+updated = 2026-10-05

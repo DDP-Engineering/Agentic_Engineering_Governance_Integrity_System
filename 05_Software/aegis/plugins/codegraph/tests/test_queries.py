@@ -312,6 +312,116 @@ def test_refs_lists_reads_writes_and_arguments_but_not_shadows(repo: Path):
     found = sorted((r["kind"], r["line"]) for r in env["results"])
     assert found == [("read", 2), ("read", 3), ("write", 2)]
 
+# TESTS - containing symbols (REQ-FUNC-c88e2b22)
+
+
+def test_references_name_their_containing_symbol(repo: Path):
+    """REQ-FUNC-c88e2b22: method, function and module containers are named."""
+    save_order = find_id(repo, "shop.orders.save_order")
+    callers = query(repo, "callers", "--", save_order)
+    assert {r["from_name"] for r in callers["results"]
+            if r["path"] == "src/shop/service.py"} == {"shop.service.checkout"}
+    write = query(repo, "callers", "--", find_id(repo, "shop.orders.OrderRepository.write"))
+    assert [r["from_name"] for r in write["details"]["candidates"]] == \
+        ["shop.orders.OrderRepository.save"]
+    refs = query(repo, "refs", "--", find_id(repo, "shop.counter.counter"))
+    assert {r["from_name"] for r in refs["results"]} == {"shop.counter"}
+    symbol = query(repo, "symbol", "--", save_order)
+    callees = {r["spelling"]: r["from_name"] for r in symbol["results"]
+               if r["relation"] == "callee"}
+    assert callees["OrderRepository"] == "shop.orders.save_order"
+    text = run_entry(["callers", "--root", str(repo), "--", save_order]).stdout
+    assert "| from=shop.service.checkout id=" in text
+
+# TESTS - several targets (REQ-FUNC-40ac076a, REQ-FUNC-ff8000c4)
+
+TWO = "def alpha():\n    pass\n\n\ndef beta():\n    pass\n\n\n" + "".join(
+    f"def u{n:02d}():\n    alpha()\n    beta()\n\n\n" for n in range(6))
+LOOSE = "def loose(obj):\n    obj.alpha()\n    obj.beta()\n"
+
+
+def test_several_targets_answer_in_request_order(repo: Path):
+    """REQ-FUNC-40ac076a: one answer per request, records tagged with their target."""
+    save_order = find_id(repo, "shop.orders.save_order")
+    write = find_id(repo, "shop.orders.OrderRepository.write")
+    counter = find_id(repo, "shop.counter.counter")
+    callers = query(repo, "callers", "--", save_order, write)
+    assert (callers["status"], callers["details"]["targets"]) == ("ok", 2)
+    assert {r["subject"] for r in callers["results"]} == {save_order}
+    assert [r["subject"] for r in callers["details"]["candidates"]] == [save_order, write]
+    # request order is the reverse of path order (counter.py sorts before service.py)
+    refs = query(repo, "refs", "--", save_order, counter)
+    subjects = [r["subject"] for r in refs["results"]]
+    assert subjects == sorted(subjects, key=[save_order, counter].index)
+    assert set(subjects) == {counter, save_order}
+    symbol = query(repo, "symbol", "--", write, save_order)
+    assert [s["id"] for s in symbol["details"]["symbols"]] == [write, save_order]
+    assert "symbol" not in symbol["details"] and symbol["details"]["targets"] == 2
+    order = [r["subject"] for r in symbol["results"]]
+    assert order == sorted(order, key=[write, save_order].index)
+    text = run_entry(["callers", "--root", str(repo), "--", save_order, write]).stdout
+    lines = [line for line in text.splitlines() if line.startswith(("caller:", "candidate:"))]
+    assert lines and all(line.endswith((f"| for={save_order[:10]}", f"| for={write[:10]}"))
+                         for line in lines)
+    single = run_entry(["callers", "--root", str(repo), "--", save_order]).stdout
+    assert "for=" not in single
+    assert query(repo, "callers", "--", save_order)["details"]["targets"] == 1
+
+
+def test_duplicate_targets_are_answered_once(repo: Path):
+    """REQ-FUNC-40ac076a: an ID and its own prefix are one target."""
+    save_order = find_id(repo, "shop.orders.save_order")
+    twice = query(repo, "callers", "--", save_order, save_order[:12])
+    once = query(repo, "callers", "--", save_order)
+    assert twice["details"]["targets"] == 1
+    assert twice["results"] == once["results"]
+
+
+def test_target_failures_answer_for_the_whole_request(repo: Path):
+    """REQ-FUNC-40ac076a: the first bad target decides, and it is named."""
+    save_order = find_id(repo, "shop.orders.save_order")
+    many = query(repo, "callers", "--", *[save_order] * 21)
+    assert (many["status"], many["reason"]) == ("error", "invalid_request")
+    unknown = query(repo, "refs", "--", save_order, "0000000000")
+    assert unknown["status"] == "not_found" and "0000000000" in unknown["message"]
+    assert unknown["results"] == []
+    malformed = query(repo, "symbol", "--", save_order, "xyz")
+    assert (malformed["status"], malformed["reason"]) == ("error", "invalid_request")
+    assert "xyz" in malformed["message"]
+    database = sqlite3.connect(config.load(repo).database)
+    ids = [row[0] for row in database.execute("SELECT id FROM symbols")]
+    database.close()
+    shared = next(c for c in "0123456789abcdef" if sum(i.startswith(c) for i in ids) > 1)
+    ambiguous = query(repo, "callers", "--", save_order, shared)
+    assert ambiguous["status"] == "ambiguous" and f"'{shared}'" in ambiguous["message"]
+    assert ambiguous["results"] and all(r["id"].startswith(shared)
+                                        for r in ambiguous["results"])
+
+
+def test_paging_runs_across_targets_and_binds_their_order(tmp_path: Path):
+    """REQ-FUNC-ff8000c4: every record once, in target order; reordered targets mismatch."""
+    root = make_repo(tmp_path / "repo", {"src/two.py": TWO, "src/loose.py": LOOSE})
+    run_json(["index", "--root", str(root)])
+    alpha, beta = find_id(root, "src.two.alpha"), find_id(root, "src.two.beta")
+
+    def records(env: dict) -> list:
+        return [("linked", r["subject"], r["path"], r["line"]) for r in env["results"]] + [
+            ("candidate", r["subject"], r["path"], r["line"])
+            for r in env["details"].get("candidates", [])]
+    seen = page_all(root, "callers", "--", alpha, beta, key=records)
+    assert len(seen) == len(set(seen)) == 14
+    # beta first, as requested: its six linked calls and its candidate fill the first
+    # page of seven, then alpha's - never the linked calls of both targets first
+    first = query(root, "callers", "--limit", "7", "--", beta, alpha)
+    second = query(root, "callers", "--limit", "7", "--page", first["next_page"], "--",
+                   beta, alpha)
+    assert {subject for _kind, subject, *_rest in records(first)} == {beta}
+    assert {subject for _kind, subject, *_rest in records(second)} == {alpha}
+    assert [kind for kind, *_rest in records(first)].count("candidate") == 1
+    token = query(root, "callers", "--limit", "5", "--", alpha, beta)["next_page"]
+    swapped = query(root, "callers", "--limit", "5", "--page", token, "--", beta, alpha)
+    assert (swapped["status"], swapped["reason"]) == ("error", "page_token_mismatch")
+
 # TESTS - cited files (REQ-FUNC-ff30861f)
 
 

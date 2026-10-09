@@ -12,7 +12,8 @@ This spec is the CodeGraph response protocol, version 1. It is also referenced
 by REQ-FUNC-29d6c038, REQ-FUNC-e8436251, REQ-FUNC-af6434a9, REQ-FUNC-569a1a97,
 REQ-UX-461978be, REQ-FUNC-a8ece064, REQ-FUNC-41815b22, REQ-FUNC-ab604fdb,
 REQ-FUNC-a603d692, REQ-FUNC-d6ef4d32, REQ-FUNC-359c2a92, REQ-FUNC-81588d5e,
-REQ-FUNC-ff30861f, REQ-NFR-17c50caa, REQ-FUNC-ff8000c4 and REQ-PLAT-dc7bdd06.
+REQ-FUNC-ff30861f, REQ-NFR-17c50caa, REQ-FUNC-ff8000c4, REQ-PLAT-dc7bdd06,
+REQ-FUNC-c88e2b22 and REQ-FUNC-40ac076a.
 
 ## Behavior
 
@@ -107,8 +108,11 @@ For `index`, every plugin-produced outcome other than a published generation is
 - **Reference**: `kind` (`call`, `import`, `read`, `write`), `label`
   (`direct-syntax`, `lexical-binding`, `candidate`, `unresolved`, `external`),
   `path`, `line`, `column`, `spelling`, `target` (symbol ID or null),
-  `from` (ID of the enclosing symbol or null), `from_display`, `citation`;
-  `symbol` neighbors add `relation`.
+  `from` (ID of the enclosing symbol or null), `from_display`, `from_name`
+  (qualified name of the enclosing symbol, or null with `from`), `citation`;
+  on `symbol`, `callers` and `refs` answers `subject` (the full ID of the
+  target symbol the record answers for) and `subject_display`; `symbol`
+  neighbors add `relation`.
 
 ### Actions
 
@@ -119,10 +123,29 @@ For `index`, every plugin-produced outcome other than a published generation is
 | `check` | none | `added`, `changed`, `deleted`, `failed`, `manifests_changed` (each bounded), `config_changed` (bool) |
 | `find` | symbols in rank order | none |
 | `file` | the file's symbols in source order, each with `depth` | `path`, `role`, `language`, `extraction` (`complete`, `partial`, `failed`), `reason` |
-| `symbol` | neighbor references, each with `relation` (`caller`, `callee`, `reference`) | `symbol`: the symbol record |
-| `callers` | linked incoming calls | `candidates`: candidate callers |
-| `refs` | identifier references | none |
+| `symbol` | neighbor references, each with `relation` (`caller`, `callee`, `reference`) | `targets`: the number of distinct targets; `symbol`: the symbol record, or with several targets `symbols`: their records in request order |
+| `callers` | linked incoming calls | `candidates`: candidate callers; `targets`: the number of distinct targets |
+| `refs` | identifier references | `targets`: the number of distinct targets |
 | `index` | none | `files` (`indexed`, `reused`, `partial`, `failed`, `skipped`), `symbols`, `references`, `elapsed_ms` |
+
+### Several targets
+
+`symbol`, `callers` and `refs` take one to 20 symbol IDs or ID prefixes;
+more than 20 return `error` with reason `invalid_request`. `find` and `file`
+take exactly one target.
+
+- Every target is resolved before any record is read, in request order. The
+  first target that is malformed, unknown or ambiguous answers for the whole
+  request - `error` (`invalid_request`), `not_found` or `ambiguous` with that
+  target's choices - and its message names the target.
+- Targets that resolve to the same symbol are answered once, at the first
+  position.
+- Records follow the targets in request order, then the action's own
+  ordering. `callers` pages one sequence per target - its linked calls, then
+  its candidate calls - and the targets' sequences follow each other;
+  offsets count records across all targets.
+- `symbol` windows its neighbors across all targets at the limit, as for one
+  target, and is not paged.
 
 ### Ranking for `find`
 
@@ -142,11 +165,14 @@ start line and ID.
 - Records are dropped from the end until the output fits; a record is never
   cut at a boundary, and one paged record always stays even when it alone
   exceeds the budget, so `next_page` always moves forward. If that record is
-  still over the budget, its `signature`, `qualified_name`, `name` and
-  `spelling` are cut to 511 characters plus `…`; paths and IDs are never cut. Dropping sets `has_more` and,
-  for paged actions, `next_page`. `check`'s lists and an ambiguous answer's
-  choices are shortened the same way.
-- `file`, `callers` and `refs` fetch `limit + 1` rows to decide `has_more`;
+  still over the budget, its `signature`, `qualified_name`, `name`,
+  `spelling` and `from_name` are cut to 511 characters plus `…`; paths and
+  IDs are never cut. Dropping sets `has_more` and, for paged actions,
+  `next_page`. `check`'s lists, an ambiguous answer's choices and a `symbol`
+  answer's `symbols` (after its neighbors) are shortened the same way; a
+  target in `symbols` stays while a kept neighbor answers for it.
+- `file`, `callers` and `refs` fetch `limit + 1` rows to decide `has_more`, and
+  `symbol` reads at most `limit + 1` neighbors across its targets;
   `find` ranks the rows its SQL filter matched in memory, then slices.
 - `callers` pages one sequence: linked calls first, then candidate calls,
   each in path, line and column order; offsets count records of both.
@@ -156,8 +182,8 @@ start line and ID.
 ### Paging
 
 `next_page` is an opaque base64url string encoding the snapshot ID, a
-16-hexadecimal digest of the action, target, ordering and limit, and the
-offset. A token whose snapshot differs from the served one returns `expired`;
+16-hexadecimal digest of the action, the target (for IDs, every resolved
+target ID in request order), ordering and limit, and the offset. A token whose snapshot differs from the served one returns `expired`;
 a token whose digest differs from the current request returns `error` with
 reason `page_token_mismatch`; an undecodable token returns `error` with
 `invalid_request`. Paging applies to `find`, `file`, `callers` and `refs`.
@@ -179,7 +205,12 @@ shown=<n> | more=<yes|no>[ | next=<token>]
 
 Symbol line: `<qualified_name><signature tail> | <path>:<start line>-<end line> | id=<prefix>`,
 where `<prefix>` is the shortest unique ID prefix of at least 10 characters.
-Reference line: `<label> <kind> <spelling> | <path>:<line> | from=<prefix or ->`.
+Reference line: `<label> <kind> <spelling> | <path>:<line> | from=<from_name> id=<prefix>`,
+or `from=-` when no symbol contains the reference. When `details.targets` is
+above 1, each reference line carries ` | for=<prefix of its subject>`, before
+any ` (changed since indexing)`; `callers` lists linked calls, then candidates;
+a `symbol` answer prints each target's symbol line followed by that target's
+neighbors, and a neighbor whose target line is not shown after the groups.
 An ambiguous answer lists its choices as symbol lines. `status` adds
 `indexing: supported (<tested|untested>)` or `indexing: unsupported`.
 A stale citation appends ` (changed since indexing)`.
@@ -196,6 +227,13 @@ shown=0 | more=no
 No CodeGraph index yet. Run know_graph_index, or use ordinary search.
 ```
 
+```text
+CodeGraph | callers | ok | index=ready | freshness=not_fully_checked | snapshot=5c0d2e9a41 gen=3
+caller: lexical-binding call derive_run_id | adore/orchestrator.py:2723 | from=adore.orchestrator.Orchestrator._run_id id=cc6a51a850 | for=18b88b36ba
+candidate: candidate call self._run_id | adore/orchestrator.py:696 | from=adore.orchestrator.Orchestrator._pick_ticket id=afa1dd4300 | for=cc6a51a850
+shown=2 | more=no
+```
+
 An empty successful search renders `shown=0 | more=no` with status `ok`.
 
 ## Acceptance
@@ -208,4 +246,7 @@ An empty successful search renders `shown=0 | more=no` with status `ok`.
 ## Assumptions and open decisions
 
 - Path filters, kind filters and role filters for `find` are deferred; page
-  tokens therefore bind action, target, ordering and limit only.
+  tokens therefore bind action, targets, ordering and limit only.
+- `from_name` is the enclosing symbol's full qualified name, not a name
+  relative to the module, so it is unambiguous without the path; the longer
+  line means fewer records fit a byte budget.

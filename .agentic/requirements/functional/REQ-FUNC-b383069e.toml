@@ -20,11 +20,11 @@ When an operator runs `know_graph`, `know_graph_check`, `know_graph_find`,
 `.agentic/plugins/codegraph/codegraph.py` with its own Python interpreter in
 isolated, no-bytecode, UTF-8 mode, passing the matching operation, the
 absolute root, configuration and database paths, the expected protocol version
-and any target after an end-of-options marker, and print the plugin's
-validated response.
+and any targets after an end-of-options marker - one name or path, or one or
+more symbol IDs - and print the plugin's validated response.
 """
 
-verification = "A stub plugin records its interpreter, flags and arguments: each of the seven commands produces the operation, paths, protocol version and target defined in the dispatch spec, run by the same interpreter with `-I -B -X utf8`; a target beginning with `-` arrives unchanged as the target; a command missing its required target exits 2 without a launch."
+verification = "A stub plugin records its interpreter, flags and arguments: each of the seven commands produces the operation, paths, protocol version and target defined in the dispatch spec, run by the same interpreter with `-I -B -X utf8`; a target beginning with `-` arrives unchanged as the target; three IDs given to `know_graph_callers` arrive after `--` in the order given; a command missing its required target exits 2 without a launch; the plugin parses one target the same way on every supported Python and rejects a second target for `find` and `file` as a usage error."
 
 affected_paths = [
     "05_Software/aegis/template/.agentic/aegis.py",
@@ -37,6 +37,7 @@ linked_tests = [
     "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_target_parses_the_same_on_every_python",
     "05_Software/aegis/plugins/codegraph/tests/test_cli.py::test_more_than_one_target_is_a_usage_error",
     "05_Software/aegis/tests/test_codegraph_dispatch.py::test_options_a_command_does_not_use_are_usage_errors",
+    "05_Software/aegis/tests/test_codegraph_dispatch.py::test_id_commands_pass_every_id_in_order",
 ]
 
 
@@ -46,4 +47,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-10-03
-updated = 2026-10-03
+updated = 2026-10-05

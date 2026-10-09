@@ -48,7 +48,8 @@ REASONS = ("not_enabled", "plugin_missing", "missing", "incompatible", "busy", "
            "indexing_unsupported", "replace_failed", "internal")
 HEX32 = re.compile(r"[0-9a-f]{32}")
 #: record lists that budgets may shorten, in the order they are shortened
-TRIMMABLE = (("details", "candidates"), ("results", None), ("details", "added"),
+TRIMMABLE = (("details", "candidates"), ("results", None), ("details", "symbols"),
+             ("details", "added"),
              ("details", "changed"), ("details", "deleted"), ("details", "failed"),
              ("details", "manifests_changed"))
 #: the paged record lists; a budget always leaves at least one of their records
@@ -56,7 +57,7 @@ PAGED = (("details", "candidates"), ("results", None))
 #: characters a descriptive text field of a kept record may use once the budget is exhausted
 LONG_TEXT = 512
 #: the fields that shortening may cut; locations and IDs stay exact so citations hold
-SHORTENED = ("signature", "qualified_name", "name", "spelling")
+SHORTENED = ("signature", "qualified_name", "name", "spelling", "from_name")
 
 _PLUGIN_VERSION: list[str] = []
 
@@ -90,12 +91,18 @@ def _symbol_line(record: dict) -> str:
     return line
 
 
-def _reference_line(record: dict, prefix: str = "") -> str:
-    """@brief One reference as `label kind spelling | path:line | from=prefix`."""
-    origin = record.get("from_display") or (record.get("from") or "")[:10] or "-"
+def _reference_line(record: dict, prefix: str = "", several: bool = False) -> str:
+    """
+    @brief One reference as `label kind spelling | path:line | from=name id=prefix`.
+    @param[in] several Append `| for=<subject>` - the request named several targets.
+    """
+    shown = record.get("from_display") or (record.get("from") or "")[:10]
+    origin = f"{record.get('from_name') or '-'} id={shown}" if shown else "-"
     line = (f"{prefix}{record.get('label', '')} {record.get('kind', '')} "
             f"{record.get('spelling', '')} | {record.get('path', '')}:{record.get('line', '')}"
             f" | from={origin}")
+    if several:
+        line += f" | for={record.get('subject_display') or (record.get('subject') or '')[:10]}"
     if record.get("citation") == "stale":
         line += " (changed since indexing)"
     return line
@@ -109,6 +116,7 @@ def _pairs(mapping: dict) -> str:
 def _body(env: dict) -> list[str]:
     """@brief The record or detail lines for one action."""
     action, details, results = env["action"], env.get("details") or {}, env.get("results") or []
+    several = (details.get("targets") or 1) > 1
     lines: list[str] = []
     if env.get("status") == "ambiguous":
         return [_symbol_line(record) for record in results]
@@ -120,14 +128,29 @@ def _body(env: dict) -> list[str]:
             indent = "  " * max(record.get("depth", 1) - 1, 0) if action == "file" else ""
             lines.append(indent + _symbol_line(record))
     elif action == "symbol":
-        if details.get("symbol"):
-            lines.append(_symbol_line(details["symbol"]))
-        lines += [_reference_line(record, f"{record.get('relation', '')}: ") for record in results]
+        def neighbor(record: dict) -> str:
+            return _reference_line(record, f"{record.get('relation', '')}: ", several)
+        if not several:
+            if details.get("symbol"):
+                lines.append(_symbol_line(details["symbol"]))
+            lines += [neighbor(record) for record in results]
+        else:
+            # each target heads its own neighbors; a neighbor whose target line a
+            # budget trimmed still prints, after the groups, with its `for=`
+            shown = set()
+            for target in details.get("symbols", []):
+                shown.add(target.get("id"))
+                lines.append(_symbol_line(target))
+                lines += [neighbor(record) for record in results
+                          if record.get("subject") == target.get("id")]
+            lines += [neighbor(record) for record in results
+                      if record.get("subject") not in shown]
     elif action == "callers":
-        lines += [_reference_line(record, "caller: ") for record in results]
-        lines += [_reference_line(record, "candidate: ") for record in details.get("candidates", [])]
+        lines += [_reference_line(record, "caller: ", several) for record in results]
+        lines += [_reference_line(record, "candidate: ", several)
+                  for record in details.get("candidates", [])]
     elif action == "refs":
-        lines += [_reference_line(record) for record in results]
+        lines += [_reference_line(record, "", several) for record in results]
     elif action in ("status", "check", "scope", "index"):
         for key, value in details.items():
             if isinstance(value, dict):
@@ -258,6 +281,15 @@ def fit(env: dict, max_bytes: int, view_name: str, next_page=None) -> dict:
     while len(output(fitted, view_name).encode("utf-8")) > limit:
         for section, key in TRIMMABLE:
             records = fitted[section].get(key) if key else fitted[section]
+            if (section, key) == ("details", "symbols"):
+                # a target stays while a kept neighbor answers for it
+                answered = {record.get("subject") for record in fitted["results"]}
+                spare = [index for index, target in enumerate(records or [])
+                         if target.get("id") not in answered]
+                if spare:
+                    records.pop(spare[-1])
+                    break
+                continue
             if records and not ((section, key) in PAGED and record_count(fitted) <= 1):
                 records.pop()
                 break
@@ -272,6 +304,7 @@ def fit(env: dict, max_bytes: int, view_name: str, next_page=None) -> dict:
         records = [*fitted["results"], *fitted["details"].get("candidates", [])]
         if isinstance(fitted["details"].get("symbol"), dict):
             records.append(fitted["details"]["symbol"])
+        records += fitted["details"].get("symbols") or []
         for record in records:
             for key in SHORTENED:
                 value = record.get(key)

@@ -4099,9 +4099,9 @@ KNOW_GRAPH_COMMANDS: dict[str, tuple[str, str | None, str]] = {
     "know_graph_check": ("check", None, "compare the knowledge graph with the sources"),
     "know_graph_find": ("find", "name", "find symbols by name"),
     "know_graph_file": ("file", "path", "list the symbols of one source file"),
-    "know_graph_symbol": ("symbol", "id", "show one symbol by ID or ID prefix"),
-    "know_graph_callers": ("callers", "id", "list the callers of one symbol"),
-    "know_graph_refs": ("refs", "id", "list the references to one symbol"),
+    "know_graph_symbol": ("symbol", "id", "show symbols by ID or ID prefix"),
+    "know_graph_callers": ("callers", "id", "list the callers of symbols"),
+    "know_graph_refs": ("refs", "id", "list the references to symbols"),
     "know_graph_index": ("index", None, "build or update the knowledge graph"),
 }
 #: operations whose answers page through records, and those with record budgets
@@ -4308,7 +4308,9 @@ def cmd_know_graph(args: argparse.Namespace) -> int:
         argv.append("--watch-stdin")
     if operation in ("check", "index") and limit:
         argv += ["--deadline", f"{limit * CODEGRAPH_DEADLINE_SHARE:g}"]
-    if target:
+    if target == "id":
+        argv += ["--", *args.target]   # one or more IDs, in the order given
+    elif target:
         argv += ["--", repo_path_arg(args.target) if target == "path" else args.target]
     raw, err = codegraph_run(argv, operation, limit)
     env = codegraph_validate(raw, operation, args.json, err)
@@ -4451,7 +4453,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     for command, (operation, target, summary) in KNOW_GRAPH_COMMANDS.items():
         graph = subs.add_parser(command, help=f"{summary} (CodeGraph plugin)")
-        if target:
+        if target == "id":
+            graph.add_argument("target", nargs="+", help="one or more symbol IDs or"
+                                                         " ID prefixes (at most 20)")
+        elif target:
             graph.add_argument("target", help=f"the {target}; put it after -- when it"
                                               " starts with -")
         graph.add_argument("--json", action="store_true",

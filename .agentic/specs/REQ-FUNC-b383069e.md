@@ -25,9 +25,9 @@ The response envelope itself is defined in `specs/REQ-FUNC-8cb1a3b7.md`.
 | `know_graph_check` | `check` | none | `check_timeout_seconds` |
 | `know_graph_find NAME` | `find` | name text | `timeout_seconds` |
 | `know_graph_file PATH` | `file` | repository path normalized by the core's `repo_path_arg` | `timeout_seconds` |
-| `know_graph_symbol ID` | `symbol` | symbol ID or prefix | `timeout_seconds` |
-| `know_graph_callers ID` | `callers` | symbol ID or prefix | `timeout_seconds` |
-| `know_graph_refs ID` | `refs` | symbol ID or prefix | `timeout_seconds` |
+| `know_graph_symbol ID...` | `symbol` | one or more symbol IDs or prefixes | `timeout_seconds` |
+| `know_graph_callers ID...` | `callers` | one or more symbol IDs or prefixes | `timeout_seconds` |
+| `know_graph_refs ID...` | `refs` | one or more symbol IDs or prefixes | `timeout_seconds` |
 | `know_graph_index [--rebuild]` | `index` | none | `index_timeout_seconds` |
 
 Every command accepts `--json`. `know_graph_find`, `know_graph_file`,
@@ -72,7 +72,7 @@ database.
     (--json | --text-envelope)
     [--limit N] [--max-bytes N] [--page TOKEN]
     [--rebuild] [--watch-stdin] [--deadline SECONDS]
-    [-- <target>]
+    [-- <target>...]
 ```
 
 - The core passes `--json` when the operator asked for JSON, and
@@ -82,7 +82,10 @@ database.
   `check` and `index` when their limit is positive, set to 80% of that limit
   so the plugin's own answer (for example freshness `unknown`) arrives before
   the core has to stop it.
-- The target always follows `--`, so a target starting with `-` is data.
+- Targets always follow `--`, so a target starting with `-` is data. The
+  core passes every ID it was given, in order; the plugin rejects a second
+  target for `find` and `file` as a usage error and more than 20 IDs with
+  `invalid_request`.
 - `shell=False`; the working directory is the root. On POSIX the plugin starts
   in a new session (`start_new_session=True`), the prerequisite of `kill_tree`.
 

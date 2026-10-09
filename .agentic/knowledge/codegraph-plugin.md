@@ -39,13 +39,14 @@ installed copy in `.agentic/plugins/codegraph/`.
 ## Public interface
 
 - Core commands: `know_graph`, `know_graph_check`, `know_graph_find NAME`,
-  `know_graph_file PATH`, `know_graph_symbol ID`, `know_graph_callers ID`,
-  `know_graph_refs ID` (each with `--json`, `--limit`, `--max-bytes`,
-  `--page`) and `know_graph_index [--rebuild] [--json]`. Text output by
+  `know_graph_file PATH`, `know_graph_symbol ID...`, `know_graph_callers ID...`,
+  `know_graph_refs ID...` (each with `--json`, `--limit`, `--max-bytes`,
+  `--page`) and `know_graph_index [--rebuild] [--json]`. The three ID
+  commands take up to 20 IDs and answer them in one response. Text output by
   default; `--json` prints the plugin's envelope unchanged.
 - Plugin entry: `python -I -B -X utf8 .agentic/plugins/codegraph/codegraph.py
   <operation> --root R [--config C] [--database D] [--protocol 1]
-  [--json | --text-envelope] [options] [-- TARGET]`, with operations `scope`,
+  [--json | --text-envelope] [options] [-- TARGET...]`, with operations `scope`,
   `status`, `check`, `find`, `file`, `symbol`, `callers`, `refs`, `index`.
 - Protocol v1: one JSON envelope per run with `schema`, `provider`,
   `protocol`, `plugin_version`, `action`, `status`, `reason`, `message`,
@@ -79,7 +80,12 @@ installed copy in `.agentic/plugins/codegraph/`.
   that replaces the target only after validation.
 - Every query reads inside one transaction, so an answer never mixes
   generations; a page always carries at least one record, and `callers` pages
-  linked calls, then candidate calls, as one sequence.
+  linked calls, then candidate calls, as one sequence per target, the targets'
+  sequences following each other in request order.
+- Several targets resolve before any record is read; the first malformed,
+  unknown or ambiguous target answers for the whole request, and targets
+  resolving to one symbol are answered once. Every reference record carries its
+  container's qualified name (`from_name`) and, on ID answers, its `subject`.
 - A `candidate` is never promoted to a link, even with a single match.
 - Symbol IDs are the first 32 hex digits of SHA-256 over path, scope, kind,
   name, signature and ordinal (`symbol_id`); a change to extraction output
@@ -113,7 +119,8 @@ Paths without a folder are under `05_Software/aegis/plugins/codegraph/`.
 - `REQ-FUNC-b303507f` — disabled CodeGraph answers `disabled` and starts nothing.
 - `REQ-FUNC-f5d5ee3d` — an enabled but missing plugin answers `unavailable` (`plugin_missing`).
 - `REQ-FUNC-8b15c62d` — governance commands never start the plugin.
-- `REQ-FUNC-b383069e` — the core dispatches each command with fixed arguments and the target after `--`.
+- `REQ-FUNC-b383069e` — the core dispatches each command with fixed arguments and the
+  targets after `--` (one name or path, or one or more IDs).
 - `REQ-SEC-c7e64a0e` — the core confines the database path before dispatch.
 - `REQ-REL-53d13fb2` — a plugin over its time limit is stopped with its process tree.
 - `REQ-REL-0e1c6d89` — plugin output beyond 64 KiB stops the plugin.
@@ -160,7 +167,10 @@ Paths without a folder are under `05_Software/aegis/plugins/codegraph/`.
 - `REQ-FUNC-81588d5e` — `refs` lists bound references with labels.
 - `REQ-FUNC-ff30861f` — cited files changed since indexing are marked stale.
 - `REQ-NFR-17c50caa` — answers stay within record and byte budgets.
-- `REQ-FUNC-ff8000c4` — page tokens are bound to the snapshot and request.
+- `REQ-FUNC-ff8000c4` — page tokens are bound to the snapshot and request,
+  including every target in order.
+- `REQ-FUNC-c88e2b22` — each reference names its containing symbol.
+- `REQ-FUNC-40ac076a` — `symbol`, `callers` and `refs` answer up to 20 IDs at once.
 - `REQ-PLAT-dc7bdd06` — the binding matching the running Python is selected.
 - `REQ-PLAT-3430c1f3` — Windows and Ubuntu produce identical facts.
 - `REQ-FUNC-871f7c12` — `check` reports malformed `[codegraph]` settings.

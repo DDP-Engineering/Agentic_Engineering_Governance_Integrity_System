@@ -104,6 +104,84 @@ def test_compact_text_matches_the_golden_example():
         "shown=1 | more=no")
 
 
+def reference(**fields) -> dict:
+    """@brief One reference record, overridable field by field."""
+    record = {"kind": "call", "label": "lexical-binding", "path": "adore/orchestrator.py",
+              "line": 2723, "column": 16, "spelling": "derive_run_id",
+              "target": "18b88b36ba" + "0" * 22, "from": "cc6a51a850" + "0" * 22,
+              "from_display": "cc6a51a850", "from_name": "adore.orchestrator.Orchestrator._run_id",
+              "subject": "18b88b36ba" + "0" * 22, "citation": "current"}
+    record.update(fields)
+    return record
+
+
+def test_reference_lines_name_their_container():
+    """REQ-FUNC-c88e2b22: `from=<name> id=<prefix>`, or `from=-` without a container."""
+    env = protocol.envelope("refs", index="ready", freshness="current", capability=CAPABLE,
+                            meta=META, results=[reference(),
+                                                reference(**{"from": None, "from_display": None,
+                                                             "from_name": None})],
+                            details={"targets": 1})
+    assert protocol.render_text(env).splitlines()[1:3] == [
+        ("lexical-binding call derive_run_id | adore/orchestrator.py:2723"
+         " | from=adore.orchestrator.Orchestrator._run_id id=cc6a51a850"),
+        "lexical-binding call derive_run_id | adore/orchestrator.py:2723 | from=-"]
+
+
+def test_an_oversized_container_name_is_shortened_like_other_names():
+    """REQ-FUNC-c88e2b22: a long `from_name` is cut; IDs and paths never are."""
+    env = protocol.envelope("refs", index="ready", freshness="current", capability=CAPABLE,
+                            meta=META, results=[reference(from_name="n" * 40000)],
+                            details={"targets": 1})
+    fitted = protocol.fit(env, max_bytes=2048, view_name="json")
+    kept = fitted["results"][0]
+    assert len(kept["from_name"]) == protocol.LONG_TEXT and kept["from_name"].endswith("…")
+    assert kept["from"] == reference()["from"] and kept["path"] == "adore/orchestrator.py"
+
+
+def test_several_targets_render_their_subjects():
+    """REQ-FUNC-40ac076a: `for=` on every reference line; symbol lines head their neighbors."""
+    first = dict(SYMBOL, id="aaaaaaaaaa" + "0" * 22, display_id="aaaaaaaaaa", name="first",
+                 qualified_name="scope.first")
+    second = dict(SYMBOL, id="bbbbbbbbbb" + "0" * 22, display_id="bbbbbbbbbb", name="second",
+                  qualified_name="scope.second")
+    env = protocol.envelope(
+        "symbol", index="ready", freshness="current", capability=CAPABLE, meta=META,
+        results=[reference(relation="caller", subject=first["id"]),
+                 reference(relation="callee", subject=second["id"])],
+        details={"targets": 2, "symbols": [first, second]})
+    lines = protocol.render_text(env).splitlines()[1:5]
+    assert lines[0].startswith("scope.first") and lines[2].startswith("scope.second")
+    assert lines[1].startswith("caller: ") and lines[1].endswith(" | for=aaaaaaaaaa")
+    assert lines[3].startswith("callee: ") and lines[3].endswith(" | for=bbbbbbbbbb")
+    many = [dict(SYMBOL, id=f"{n:02d}" * 16, display_id=f"{n:02d}" * 5) for n in range(20)]
+    crowded = protocol.envelope("symbol", index="ready", freshness="current",
+                                capability=CAPABLE, meta=META, results=[],
+                                details={"targets": 20, "symbols": many})
+    fitted = protocol.fit(crowded, max_bytes=1024, view_name="json")
+    assert len(protocol.output(fitted, "json").encode("utf-8")) <= 1024
+    assert fitted["has_more"] is True and 0 < len(fitted["details"]["symbols"]) < 20
+
+
+def test_a_kept_neighbor_survives_when_its_target_is_trimmed():
+    """REQ-FUNC-40ac076a: trimming the target list never hides or misfiles a kept neighbor."""
+    targets = [dict(SYMBOL, id=f"{n:02d}" * 16, display_id=f"{n:02d}" * 5, name=f"t{n}",
+                    qualified_name=f"scope.t{n}") for n in range(20)]
+    late = targets[15]
+    env = protocol.envelope(
+        "symbol", index="ready", freshness="not_fully_checked", capability=CAPABLE, meta=META,
+        results=[reference(relation="caller", subject=late["id"],
+                           subject_display=late["display_id"])],
+        details={"targets": 20, "symbols": targets})
+    for budget in (512, 700, 2048, 32768):
+        lines = protocol.render_text(protocol.fit(env, budget, "text")).splitlines()
+        kept = [index for index, line in enumerate(lines) if line.startswith("caller: ")]
+        assert len(kept) == 1, budget
+        assert lines[kept[0]].endswith(f"| for={late['display_id']}"), budget
+        above = lines[kept[0] - 1]
+        assert "| id=" not in above or above.endswith(f"id={late['display_id']}"), budget
+
+
 def test_unavailable_text_carries_the_fallback_message():
     """REQ-UX-461978be: non-ok responses explain what to do instead."""
     env = protocol.envelope("find", status="unavailable", reason="missing",
@@ -184,8 +262,9 @@ SHORT_SYMBOL = {"id": "a" * 32, "display_id": "aaaaaaaaaa", "kind": "function", 
           "start": {"line": 1, "column": 1}, "end": {"line": 2, "column": 5},
           "role": "source", "language": "python", "depth": 1, "citation": "current"}
 SHORT_REFERENCE = {"kind": "call", "label": "lexical-binding", "path": "n.py", "line": 7,
-             "column": 3, "spelling": "f", "target": "a" * 32, "from": None,
-             "from_display": None, "citation": "current"}
+             "column": 3, "spelling": "f", "target": "a" * 32, "from": "b" * 32,
+             "from_display": "bbbbbbbbbb", "from_name": "n.g", "subject": "a" * 32,
+             "subject_display": "aaaaaaaaaa", "citation": "current"}
 
 
 @pytest.mark.parametrize("name, signature, expected", [
@@ -212,14 +291,16 @@ def fixture(action: str) -> dict:
         return protocol.envelope(action, results=[SHORT_SYMBOL], index="ready")
     if action == "symbol":
         return protocol.envelope(action, results=[dict(SHORT_REFERENCE, relation="caller")],
-                                 details={"symbol": SHORT_SYMBOL}, index="ready")
+                                 details={"targets": 1, "symbol": SHORT_SYMBOL}, index="ready")
     if action == "callers":
         return protocol.envelope(action, results=[SHORT_REFERENCE],
                                  details={"candidates": [dict(SHORT_REFERENCE, line=9,
-                                                              label="candidate")]},
+                                                              label="candidate")],
+                                          "targets": 1},
                                  index="ready")
     if action == "refs":
-        return protocol.envelope(action, results=[SHORT_REFERENCE], index="ready")
+        return protocol.envelope(action, results=[SHORT_REFERENCE], details={"targets": 1},
+                                 index="ready")
     return protocol.envelope(action, index="ready", freshness="current",
                              details={"files": {"indexed": 3}, "inventory": "git"})
 
@@ -238,6 +319,30 @@ def test_every_action_has_a_valid_fixture_whose_views_agree(action: str):
     for key, value in shown["details"].items():
         if isinstance(value, str):
             assert f"{key}: {value}" in text
+
+@pytest.mark.parametrize("action", ["symbol", "callers", "refs"])
+def test_several_target_fixtures_validate_and_their_views_agree(action: str):
+    """REQ-FUNC-40ac076a: two targets validate, and every record line names its target."""
+    other = dict(SHORT_SYMBOL, id="c" * 32, display_id="cccccccccc", qualified_name="m.h")
+    first = dict(SHORT_REFERENCE, relation="caller")
+    second = dict(SHORT_REFERENCE, relation="callee", line=8, subject=other["id"],
+                  subject_display=other["display_id"])
+    details = {"targets": 2}
+    if action == "symbol":
+        details["symbols"] = [SHORT_SYMBOL, other]
+    if action == "callers":
+        details["candidates"] = [dict(second, line=9, label="candidate")]
+    env = protocol.envelope(action, results=[first, second], details=details, index="ready")
+    protocol.validate(env)
+    shown = json.loads(protocol.output(env, "json"))
+    text = protocol.render_text(env)
+    assert f"shown={protocol.record_count(shown)}" in text
+    for record in shown["results"] + shown["details"].get("candidates", []):
+        line = next(line for line in text.splitlines()
+                    if f"{record['path']}:{record['line']} |" in line)
+        assert f"from={record['from_name']} id={record['from_display']}" in line
+        assert line.endswith(f"| for={record['subject_display']}")
+
 
 def test_one_oversized_record_is_shortened_to_fit_the_hard_cap():
     """REQ-NFR-17c50caa: the record a page keeps never pushes it past 32768 bytes."""

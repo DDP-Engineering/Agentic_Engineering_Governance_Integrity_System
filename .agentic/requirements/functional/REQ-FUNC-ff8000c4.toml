@@ -15,13 +15,13 @@ status = "active"
 
 requirement = """
 When a query has more results than one response holds, CodeGraph shall return
-a page token bound to the snapshot ID and to the operation, target, ordering
-and limit, and for a supplied token it shall return status `expired` when the
+a page token bound to the snapshot ID and to the operation, its targets in
+order, ordering and limit, and for a supplied token it shall return status `expired` when the
 snapshot changed and status `error` when the token belongs to a different
 request.
 """
 
-verification = "Paging through a high fan-out result returns every record exactly once; a token reused after re-indexing or a rebuild returns `expired`; a token reused with another target returns `error`."
+verification = "Paging through a high fan-out result returns every record exactly once; a token reused after re-indexing or a rebuild returns `expired`; a token reused with another target, or with the same targets in another order, returns `error`; paging across two targets returns each target's records in request order."
 
 affected_paths = [
     "05_Software/aegis/plugins/codegraph/codegraph/queries.py",
@@ -32,6 +32,7 @@ linked_tests = [
     "05_Software/aegis/plugins/codegraph/tests/test_protocol.py::test_page_tokens_round_trip_and_bind_the_request",
     "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_paging_returns_every_record_once_and_binds_the_request",
     "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_callers_page_through_linked_callers_then_candidates_once",
+    "05_Software/aegis/plugins/codegraph/tests/test_queries.py::test_paging_runs_across_targets_and_binds_their_order",
 ]
 
 
@@ -41,4 +42,4 @@ priority = "normal"   # low | normal | high
 rationale = ""        # why this behavior exists, if not obvious
 
 created = 2026-10-03
-updated = 2026-10-03
+updated = 2026-10-05

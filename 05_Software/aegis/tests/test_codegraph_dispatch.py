@@ -245,6 +245,22 @@ def test_read_commands_run_the_entry_point_isolated_with_their_arguments(tmp_pat
     assert caught.value.code == 2
 
 
+def test_id_commands_pass_every_id_in_order(tmp_path: Path, capsys):
+    """REQ-FUNC-b383069e: several IDs arrive after `--` in order; find and file keep one."""
+    agentic, aegis = make_repo(tmp_path)
+    ids = ["0123456789", "abcdef0123", "fedcba9876"]
+    for command in ("know_graph_symbol", "know_graph_callers", "know_graph_refs"):
+        assert aegis.main([command, *ids]) == 0, command
+        assert calls(agentic)[-1]["argv"][-4:] == ["--", *ids]
+    launched = len(calls(agentic))
+    for command in ("know_graph_find", "know_graph_file"):
+        with pytest.raises(SystemExit) as caught:
+            aegis.main([command, "one", "two"])
+        assert caught.value.code == 2
+    assert len(calls(agentic)) == launched
+    capsys.readouterr()
+
+
 @pytest.mark.parametrize("argv", [
     ["know_graph", "--limit", "5"], ["know_graph_check", "--max-bytes", "2048"],
     ["know_graph", "--page", "x"], ["know_graph_symbol", "0123456789", "--page", "x"],

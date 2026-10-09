@@ -84,12 +84,23 @@ def test_target_parses_the_same_on_every_python(argv: list[str], target):
 
 
 @pytest.mark.parametrize("argv", [["find", "--root", "r", "--", "a", "b"],
-                                  ["find", "a", "--root", "r", "--", "b"]])
+                                  ["find", "a", "--root", "r", "--", "b"],
+                                  ["file", "--root", "r", "--", "a.py", "b.py"],
+                                  ["callers", "a1", "--root", "r", "--", "b2"]])
 def test_more_than_one_target_is_a_usage_error(argv: list[str]):
-    """REQ-FUNC-b383069e: one target, given once."""
+    """REQ-FUNC-b383069e: one name or path, given once; IDs only after `--`."""
     with pytest.raises(SystemExit) as caught:
         cli.parse_arguments(argv)
     assert caught.value.code == 2
+
+
+@pytest.mark.parametrize("operation", ["symbol", "callers", "refs"])
+def test_id_operations_take_several_targets_after_the_marker(operation: str):
+    """REQ-FUNC-40ac076a: every ID after `--` is kept, in order."""
+    args = cli.parse_arguments([operation, "--root", "r", "--", "a1", "b2", "c3"])
+    assert args.targets == ["a1", "b2", "c3"] and args.target == "a1"
+    assert cli.parse_arguments([operation, "a1", "--root", "r"]).targets == ["a1"]
+    assert cli.parse_arguments(["find", "--root", "r", "--", "x"]).targets == ["x"]
 
 # TESTS - protocol version (REQ-FUNC-569a1a97)
 
