@@ -38,7 +38,7 @@ status = "active"
 # Do not contort prose to fit a pattern - a constraint that reads better
 # plainly is better plainly.
 requirement = """
-When governed implementation work touches a known component, the workflow payload shall route the agent through concise component knowledge that identifies selection signals, ownership boundaries, invariants, current architecture, implementation files, and focused change-and-test seams before exact source and tests are inspected.
+When governed implementation work touches a known component, the workflow payload shall route the agent through concise component knowledge that identifies selection signals, ownership boundaries, invariants, implementation files, and focused change-and-test seams before exact source and tests are inspected.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -49,7 +49,7 @@ When governed implementation work touches a known component, the workflow payloa
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Run the linked structural test and inspect the canonical workflow payload: the component template exposes the routing information, implementation stages consume it before source inspection, adoption derives it from source and tests, validation reconciles it after relevant changes, and exact source and tests remain authoritative."
+verification = "Run the linked structural test and inspect the canonical workflow payload: the component template exposes the routing information, implementation stages consume it before source inspection, adoption derives it from source and tests, validation reconciles it after relevant changes, removing a retired `## Architecture` section from a touched page, and exact source and tests remain authoritative."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -84,4 +84,4 @@ change must verify.
 """
 
 created = 2026-09-04
-updated = 2026-09-04
+updated = 2026-10-20

@@ -42,7 +42,7 @@ from pathlib import Path
 
 import tomllib
 
-VERSION = "0.13.0"
+VERSION = "0.14.0"
 SCHEMA = 1
 
 AGENTIC = Path(__file__).resolve().parent
@@ -140,6 +140,16 @@ autopilot = false
 [review]
 enabled = false
 max_fix_cycles = 2
+
+[diagrams]
+# true has design draw Mermaid diagrams of the proposed implementation into
+# .agentic/tasks/diagram_TASK-<id>.md for the human, shown at the design
+# checkpoint. Missing, false, or any non-boolean value draws none, and no
+# stage, review or check depends on a diagram.
+enabled = false
+# The diagrams design may draw: "structure", "sequence", "state". Missing or
+# not a list means ["structure"]; a list with no known name draws none.
+types = ["structure"]
 
 [records]
 # Anchor and evolution sidecars under .agentic/tasks/ are local evidence.
@@ -1785,8 +1795,12 @@ CONFIG_SHAPE: dict[str, dict[str, type]] = {
     "zones": {stage: list for stage in DEFAULT_ZONES},
     "interaction": {"autopilot": bool},
     "review": {"enabled": bool, "max_fix_cycles": int},
+    "diagrams": {"enabled": bool, "types": list},
     "records": {"commit_fingerprints": bool},
 }
+
+#: the diagram types `[diagrams] types` may name.
+DIAGRAM_TYPES = ("structure", "sequence", "state")
 
 
 def check_config(add, cfg: dict) -> None:
@@ -1811,6 +1825,10 @@ def check_config(add, cfg: dict) -> None:
             and not 0 <= cycles <= MAX_FIX_CYCLES_LIMIT):
         add("WARN", "config", name,
             f"[review] max_fix_cycles should be 0 through {MAX_FIX_CYCLES_LIMIT}")
+    types = cfg_table(cfg, "diagrams").get("types")
+    if isinstance(types, list) and any(item not in DIAGRAM_TYPES for item in types):
+        add("WARN", "config", name,
+            f"[diagrams] types should name only {', '.join(DIAGRAM_TYPES)}")
     for key, value in cfg_table(cfg, "commands").items():
         if key != "timeout" and not isinstance(value, str):
             add("WARN", "config", name, f"[commands] {key} should be a string")

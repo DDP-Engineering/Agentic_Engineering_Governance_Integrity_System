@@ -120,7 +120,8 @@ python .agentic/aegis.py init --git
 ```
 
 Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, optional
-`[interaction]`, `[records]`, and `[check]` settings describe the repository.
+`[interaction]`, `[diagrams]`, `[records]`, and `[check]` settings describe the
+repository.
 
 ## `task`
 
@@ -452,6 +453,23 @@ candidate; any candidate edit invalidates both. The maximum total rounds are
 Review disabled skips only these optional verdicts and their fix loop; semantic
 review, full validation, the strict check, evidence, and delivery approval stay
 mandatory.
+
+Design diagrams are optional and off by default:
+
+```toml
+[diagrams]
+enabled = false
+types = ["structure"]
+```
+
+`enabled` must be a TOML Boolean; missing or invalid values mean `false`, and no
+stage draws a diagram. With `true`, design ends by drawing Mermaid diagrams of
+the proposed implementation into `.agentic/tasks/diagram_TASK-<id>.md`, as
+described in `.agentic/steps/diagrams.md`. `types` lists any of `structure`,
+`sequence` and `state`; a missing or non-list value means `["structure"]`, and a
+list with no known name draws nothing. `check` warns when
+`enabled` is not a Boolean, `types` is not a list, or a type name is unknown.
+No stage, review or check finding depends on a diagram.
 
 Fingerprint sidecars are local evidence by default:
 

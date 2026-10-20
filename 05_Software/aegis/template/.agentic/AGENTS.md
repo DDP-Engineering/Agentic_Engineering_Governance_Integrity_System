@@ -92,6 +92,7 @@ defined in that one file; `status` points them back at it.
 | Category folders | `functional/ ux/ nfr/ security/ data/ platform/ reliability/ test/` for `REQ-FUNC/UX/NFR/SEC/DATA/PLAT/REL/TEST` |
 | Specs (optional) | `.agentic/specs/REQ-<CAT>-<hex>.md` |
 | Task journals | `.agentic/tasks/TASK-<hex>.md`, one per task, kept after delivery |
+| Diagrams (optional) | `.agentic/tasks/diagram_TASK-<hex>.md`, drawn at design for the human when `[diagrams] enabled = true` |
 | Component knowledge | `.agentic/knowledge/<component>.md`, one page per component |
 | Project profile | `.agentic/context/project.md`, current purpose, responsibilities, constraints, and entry points |
 | Environment guide | `.agentic/context/environment.md`, current toolchain, setup, readiness, and verification routes |
@@ -141,7 +142,7 @@ claims against this checkout; another branch's plans are not current facts.
 
 Build updates documentation directly affected by implementation, such as
 docstrings, usage examples, and setup instructions. Validate owns comprehensive
-component knowledge and architecture updates after implementation corrections
+component knowledge updates after implementation corrections
 and before final independent reviews, when enabled, and final proof. Update
 relevant component facts earlier when another agent needs them for a handoff.
 

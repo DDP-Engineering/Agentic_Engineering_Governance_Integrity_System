@@ -184,19 +184,14 @@ Draw this repository's coverage map with
 python .agentic/aegis.py diagram --out docs/coverage.mmd and read it.
 Tell me which components carry behaviors with no linked test, which rely
 on a declared "Manual:" or "Inspection:" method, and whether any
-requirement is sitting outside every knowledge page. Then, for each
-component you flagged, open its knowledge page and tell me whether its
-"## Architecture" diagram still matches the code. Change nothing yet.
+requirement is sitting outside every knowledge page. Change nothing yet.
 ```
 
 *Why this exists:* `check` reports coverage one requirement at a time, in
 a list nobody reads to the end. The map puts the same facts in a shape you
-can scan, and asking about the architecture diagrams in the same pass
-catches the one kind of drift `check` cannot see - a hand-drawn picture
-that quietly stopped being true.
-*Follow-up:* "write the missing tests for &lt;component&gt;" or "redraw the
-architecture for &lt;component&gt;". Use AEGIS for the software change;
-a documentation-only redraw is direct maintenance in this repository.
+can scan.
+*Follow-up:* "write the missing tests for &lt;component&gt;". Use AEGIS for the
+software change.
 
 ## Ask what already governs a file (before changing unfamiliar code)
 
@@ -295,7 +290,7 @@ and session ends. Reuse unchanged instructions in an intact session; preserve
 required full reads after compaction or resumption. Do not delete saved evidence.
 ```
 
-These are 0.13.0 workflow and CLI options. They do not create a result-reuse cache,
+These are 0.14.0 workflow and CLI options. They do not create a result-reuse cache,
 remove review requirements or change existing delivery authority.
 
 ## Resume a tracked verification job

@@ -70,20 +70,21 @@ deviation notice. Reuse unchanged instructions already read in this session.
 7. List expected files and update each requirement's `affected_paths`.
    For child tasks, define non-overlapping child scopes and requirement links;
    integration ownership remains with the parent.
-8. When component structure will change, add a compact `### Proposed
-   architecture - TASK-<id>` diagram to this task's Design. Use searchable
-   code names and directional edges. During design, do not replace the current diagram
-   in `.agentic/knowledge/<component>.md`; validate updates that canonical
-   current-state page against the reviewed implementation. Behavior-only
-   changes may state that no architecture drawing is owed.
+8. Keep the proposal in the task journal. Leave every
+   `.agentic/knowledge/<component>.md` page unchanged during design; validate
+   reconciles those current-state pages with the reviewed implementation.
 9. Keep requirement-specific format, protocol, algorithm, or edge behavior in
    the linked spec rather than duplicating it in the task design.
 10. **Audit** traceability, feasibility, interfaces, state ownership, failure
     behavior, compatibility, verification seams, risks, and open decisions.
     Run `python .agentic/aegis.py check` and fix format errors.
-11. Append one concise `design` outcome line pointing to `## Design` and any
-    linked spec; do not copy decisions into the Log. In checkpoint mode,
-    present the `design` Stage-boundary choices from `.agentic/AGENTS.md`, refresh the
+11. If `.agentic/aegis.toml` sets `[diagrams] enabled = true` (a TOML boolean),
+    read `.agentic/steps/diagrams.md` and draw what it describes. Any other
+    value, or no `[diagrams]` table, means no diagrams.
+12. Append one concise `design` outcome line pointing to `## Design` and any
+    linked spec; do not copy decisions into the Log. In checkpoint mode, show
+    the summary, then the diagrams of any diagram file this stage wrote, then
+    the `design` Stage-boundary choices from `.agentic/AGENTS.md`; refresh the
     waiting Handoff and paused Stage report, then stop before transition. After
     the user chooses to continue, or immediately in autopilot, tick the
     checklist, set `stage: build`, and replace `## Done checklist` with the
@@ -94,9 +95,7 @@ deviation notice. Reuse unchanged instructions already read in this session.
 **Outputs:**
 
 - `## Design` section in the task journal.
-- Proposed architecture in the task journal where component structure changes;
-  canonical current-state knowledge remains unchanged during design and is
-  reconciled with the reviewed implementation in validate.
+- `.agentic/tasks/diagram_TASK-<id>.md`, only when `[diagrams] enabled = true`.
 - Updated `affected_paths` on the linked requirements.
 - Updated spec sections where the detail belongs to the behavior.
 
@@ -109,8 +108,7 @@ deviation notice. Reuse unchanged instructions already read in this session.
 - [ ] every requirement maps to a decision and test seam, or no design impact
 - [ ] meaningful alternatives, risks, and open decisions recorded
 - [ ] `affected_paths` match the expected file list
-- [ ] proposed architecture is in the task when structure changes; current
-      component knowledge remains true during design
+- [ ] current component knowledge remains true during design
 - [ ] `stage: build`
 
 **Skip when:** The quick path; or the work is a single-file change with no

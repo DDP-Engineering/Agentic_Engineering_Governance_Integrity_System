@@ -1,0 +1,46 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-ee1d2096"
+
+title = "Draw proposed-implementation diagrams at design when enabled"
+
+status = "active"
+
+requirement = """
+Where the AEGIS configuration sets `[diagrams] enabled = true`, when a task completes its design note, the workflow payload shall direct the agent to write Mermaid diagrams of the proposed implementation, one for each configured diagram type that the design covers, to `.agentic/tasks/diagram_TASK-<id>.md` and to link that file once from the journal's `## Design` section.
+"""
+
+verification = "Run the linked structural and discovery tests: with diagram generation enabled, the design step points to the diagram guide, and the guide names the file `.agentic/tasks/diagram_TASK-<id>.md`, the single Design link, the `structure`, `sequence` and `state` types with their applicability, Mermaid text as the format, and the precedence of the Design text; a task with no design note owes no file; status and check do not read a `diagram_TASK-<id>.md` file as a task journal."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/steps/3_design.md",
+    "05_Software/aegis/template/.agentic/steps/diagrams.md",
+    "05_Software/aegis/template/.agentic/AGENTS.md",
+    "02_Tools/build_aegis_release.py",
+    "02_Tools/README.md",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_structure.py::test_design_draws_diagrams_only_through_the_enabled_guide",
+    "05_Software/aegis/tests/test_cli_core.py::test_status_never_lists_a_diagram_file_as_a_journal",
+    "05_Software/aegis/tests/test_check.py::test_check_findings_ignore_a_diagram_file",
+    "05_Software/aegis/tests/test_check.py::test_check_findings_ignore_a_diagram_file_in_the_git_diff",
+]
+
+
+spec = "specs/REQ-FUNC-ee1d2096.md"
+
+priority = "normal"   # low | normal | high
+rationale = """
+Before build writes code, the human operator sees the proposed shape of the change. A separate file keeps the journal an evidence record and leaves the review candidate unchanged when the picture is edited, because host review fingerprints skip `.agentic/tasks/`. Mermaid text needs no renderer inside AEGIS.
+"""
+
+created = 2026-10-20
+updated = 2026-10-20

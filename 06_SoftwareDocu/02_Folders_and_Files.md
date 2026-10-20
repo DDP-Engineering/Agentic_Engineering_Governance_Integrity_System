@@ -18,7 +18,7 @@ durable journal. This page tours both kinds of state.
   CLI.md           complete CLI reference             (payload)
   aegis.py         the CLI                            (payload)
   LICENSE.txt      license text                       (payload)
-  steps/           one instruction file per stage     (payload)
+  steps/           stage files and the diagram guide  (payload)
   templates/       scaffolding sources                (payload)
   aegis.toml       your configuration                 (yours)
   requirements/    the durable contracts              (yours)
@@ -228,6 +228,12 @@ and the journal log line is the durable record. `[records]
 commit_fingerprints = true` removes that block so they travel with the
 journal.
 
+When `[diagrams] enabled = true`, design also writes `diagram_TASK-<id>.md`
+beside the journal: Mermaid diagrams of the proposed implementation for the
+human, linked once from `## Design` and shown at the design checkpoint. The
+file is committed with the journal. No stage, review or `check` finding depends
+on it, and journal discovery (`TASK-*.md`) never reads it.
+
 `evolution --compact --json` omits before/after hashes from the response while
 retaining changed paths, statuses, areas and counts. Saved evolution reports
 retain their full evidence. Ordinary `--json` output is unchanged; compact
@@ -247,24 +253,14 @@ requirement's `spec` field; `check` verifies the reference resolves.
 ## Knowledge - `knowledge/<component>.md`
 
 One plain page per component: Routing, Purpose and boundaries, Public
-interface, Invariants, Key behaviors (citing requirement IDs), Architecture,
-and Files. A Change map is included when the component has multiple independent
+interface, Invariants, Key behaviors (citing requirement IDs), and Files. A
+Change map is included when the component has multiple independent
 edit-and-test seams. Routing selects the page and points to owned source and
 focused tests; it narrows discovery but never replaces exact source-and-test
 inspection. Validate updates or creates affected pages against the reviewed
 code and tests, before final independent reviews and proof. Build updates
 component facts earlier when another agent needs them for a handoff. There is
 no manifest and no registry - the folder listing is the component list.
-
-**Architecture** holds a Mermaid diagram of that component's own logic -
-what a reader has to hold in their head to change it safely, at ten to
-fifteen nodes rather than every function. It is written by hand, not derived
-from the code: a parser would need writing per language and could only ever
-draw what already exists. Adoption draws it once per component while the
-source is open. When structure will change, `design` records a proposed
-diagram in the task journal without replacing this current-state page. Validate
-updates the canonical diagram with what was actually built and checks it
-against the final code.
 
 ## Reading the register back
 
@@ -316,6 +312,7 @@ Each key's default value and its behavior when absent are in the
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
 | `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages and still requires publication approval. |
 | `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. |
+| `[diagrams] enabled / types` | `enabled = true` has design draw Mermaid diagrams of the proposed implementation into `tasks/diagram_TASK-<id>.md`; it defaults to `false`. `types` lists any of `structure`, `sequence`, `state` and defaults to `["structure"]`. |
 | `[records] commit_fingerprints` | `false` keeps anchor/evolution sidecars out of git through a managed `.gitignore` block that `init` maintains; `true` removes the block so they are committed with the journal. |
 
 When enabled, each review round needs two independent verdicts: specification

@@ -49,7 +49,7 @@ When non-trivial work reaches design, the workflow shall direct the agent to rec
 # "Inspection:" and name the method, and `check` records the requirement
 # as verified by hand instead of counting it among the tests still owed.
 # The prefix alone is not enough — it has to say what someone does.
-verification = "Inspect the Design prompt and component/task scaffolds, then run the linked structural test to confirm complexity-based depth, requirement coverage, interface and state contracts, failure and operational considerations, test seams, explicit risks and open decisions, and separation of proposed from validated current architecture."
+verification = "Inspect the Design prompt and component/task scaffolds, then run the linked structural test to confirm complexity-based depth, requirement coverage, interface and state contracts, failure and operational considerations, test seams, explicit risks and open decisions, and separation of the proposed design from current component knowledge."
 
 # Repo-relative, forward slashes. The source files this behavior lives in.
 affected_paths = [
@@ -62,7 +62,7 @@ affected_paths = [
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
 # these select the impacted regression set.
 linked_tests = [
-    "05_Software/aegis/tests/test_structure.py::test_design_scales_depth_and_keeps_proposals_distinct_from_current_architecture",
+    "05_Software/aegis/tests/test_structure.py::test_design_scales_depth_and_keeps_proposals_out_of_current_knowledge",
 ]
 
 # --- optional below this line ---
@@ -74,4 +74,4 @@ priority = "normal"   # low | normal | high
 rationale = "A proportionate design envelope gives offline models explicit coverage targets without forcing every task into an underspecified fixed-size note."        # why this behavior exists, if not obvious
 
 created = 2026-09-03
-updated = 2026-09-03
+updated = 2026-10-20

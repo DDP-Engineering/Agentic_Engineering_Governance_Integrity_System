@@ -12,9 +12,11 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 Read this page when a request mentions governance findings, strict checks,
 configured validation, impacted tests, delivery reports, evidence anchors,
-repository evolution, requirement coverage, diagrams, traceability exports, or
-path explanations. The public command signals are `check`, `test`, `report`,
-`anchor`, `evolution`, `diagram`, `trace`, and `explain`.
+repository evolution, requirement coverage diagrams, traceability exports, or
+path explanations. The `[diagrams]` warning in `check` lives here; the design
+diagrams that setting turns on belong to the Reusable workflow payload. The
+public command signals are `check`, `test`, `report`, `anchor`, `evolution`,
+`diagram`, `trace`, and `explain`.
 
 Start implementation inspection in
 `05_Software/aegis/template/.agentic/aegis.py`, using the `cmd_<command>` entry
@@ -37,6 +39,11 @@ lifecycle owns installation, scaffolding, status, summary, and resume views.
 The Reusable workflow payload defines the workflow and artifact contracts that
 this component evaluates; changing those contracts is not owned here merely
 because `check` reports on them.
+
+Eight command entry points reuse shared readers and focused processors.
+Coverage precedence lives in one function, `explain` reverses the register from
+a path to its requirements, and only `anchor` and `evolution` write evidence
+outside the journal.
 
 ## Public interface
 
@@ -81,6 +88,7 @@ suffix; `--out` supplies portable encoding.
 | Change requested | Start with | Focused verification |
 |---|---|---|
 | Governance finding or strict-exit semantics | `run_checks`, `cmd_check`, and the relevant `check_*` rule | `test_check.py`; strict-mode tests in `test_run_report.py` |
+| Configuration warning | `CONFIG_SHAPE`, `DIAGRAM_TYPES`, `check_config` | the `test_invalid_*_values_*` group and the diagrams settings tests in `test_check.py` |
 | Sidecar tracking finding | `check_fingerprints`, `tracked_fingerprints` | the `test_fingerprints_tracked_*` group in `test_check.py` |
 | Configured or impacted test execution | `run_configured_commands`, `impacted_tests`, `cmd_test` | `test_run_report.py::test_run_reports_ok_and_fail_and_feeds_strict` and the `test_test_*` group |
 | Delivery report or review/deviation projection | `cmd_report`, `bound_stage_report`, `recorded_deviations` | `test_run_report.py::test_report_leads_with_the_recorded_deviations` and the `test_report_*` group |
@@ -114,64 +122,10 @@ suffix; `--out` supplies portable encoding.
 - `REQ-FUNC-cbff6478` - Check configured review bounds and block unapproved
   final-round delivery state.
 - `REQ-FUNC-7ea14fe4` - Report malformed rulings and stale or invalid handoffs.
+- `REQ-FUNC-cd29e673` - Warn about a non-Boolean `[diagrams] enabled`, a
+  non-list `types`, or an unknown diagram type name.
 - Report anchor/evolution sidecars whose tracked state contradicts
   `[records] commit_fingerprints`. (no req)
-
-## Architecture
-
-Eight command entry points reuse shared readers and focused processors.
-Coverage precedence lives in one function, while each command invokes only the
-parsing, diff, execution, or rendering seams it needs.
-
-```mermaid
-flowchart TD
-    check(["cmd_check"])
-    test(["cmd_test"])
-    report(["cmd_report"])
-    evidencecmd(["cmd_anchor / cmd_evolution"])
-    registerviews(["cmd_diagram / cmd_trace"])
-    explain(["cmd_explain"])
-
-    configured["load_config / run_configured_commands"]
-    impacted["impacted_tests"]
-    scan["scan_requirements / scan_journals / knowledge_components"]
-    cover["coverage_class"]
-    diffs["collect_diff"]
-    reportstate["bound_stage_report / recorded_deviations"]
-    manifest["repository_manifest"]
-    render["render_diagram / render_trace_md / render_trace_csv"]
-    covers["match_any"]
-
-    register[("requirements/ tasks/ knowledge/")]
-    evidence[("TASK-id.anchor.json / .evolution.json")]
-
-    check --> configured
-    check --> scan
-    check --> cover
-    check --> diffs
-    test --> configured
-    test --> impacted
-    impacted --> diffs
-    report --> scan
-    report --> diffs
-    report --> reportstate
-    evidencecmd --> manifest
-    manifest --> evidence
-    registerviews --> scan
-    registerviews --> cover
-    registerviews --> render
-    explain --> scan
-    explain --> cover
-    explain --> covers
-    scan --> register
-
-    classDef boundary fill:#fff4d6,stroke:#8a6d1d
-    class register,evidence boundary
-```
-
-Not shown: the individual check rules. `explain` reverses the register from a
-path to its requirements; only `anchor` and `evolution` write evidence outside
-the journal.
 
 ## Files
 

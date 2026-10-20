@@ -51,14 +51,13 @@ Specify. The quick path and correction returns name their destination files too.
 - 2026-08-02 frame: scope agreed - M3U only; full path.
 - 2026-08-02 specify: created REQ-FUNC-3fa2 + spec.
 - 2026-08-02 design: writer joins tracks; forward slashes everywhere.
-- 2026-08-02 design: proposed export architecture records the m3u writer in the task.
 ```
 
-That last line is design's other output. Because the feature changes the
-`export` component's shape, the task Design carries a compact proposed
-architecture with the new writer. The canonical `knowledge/export.md` diagram
-describes current code during Design. Validate updates it against the reviewed
-implementation before final review and proof.
+The proposal stays in the task: `knowledge/export.md` keeps describing the
+current code until validate reconciles it with the reviewed implementation.
+With `[diagrams] enabled = true`, design would also draw the new writer as a
+Mermaid structure diagram in `tasks/diagram_TASK-8b12.md` and show it at the
+design checkpoint; this example runs with the default, so it draws none.
 
 Before touching an unfamiliar file, the agent - or you - can ask what
 already governs it:
@@ -130,8 +129,7 @@ finding it accepts rather than corrects is spoken, not just logged.
 
 The agent reviews the candidate and resolves implementation corrections, then
 updates or creates affected component knowledge pages against the code and
-tests. It migrates touched legacy pages and reconciles architecture diagrams
-with what was built. It also reconciles affected
+tests. It migrates touched legacy pages. It also reconciles affected
 requirements, project context, and environment guidance. The current documents
 describe the built positive behavior and actual setup. History and proposals
 remain in task records; an established contract is preserved when a defect

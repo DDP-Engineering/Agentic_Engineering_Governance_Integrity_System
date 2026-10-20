@@ -20,7 +20,7 @@ in `05_Software/aegis/tests/test_cli_core.py`; summary, brief, and extended
 status behavior also lives in `test_run_report.py`.
 
 Requests about `check`, configured test execution, reports, anchors, evolution,
-diagrams, trace exports, or path explanations belong to the Validation and
+coverage diagrams, trace exports, or path explanations belong to the Validation and
 evidence CLI page even though those commands share `aegis.py`. Requests that
 change the workflow steps or artifact templates belong to the Reusable
 workflow payload rather than this CLI component.
@@ -34,6 +34,13 @@ plus a title-and-path catalogue for choosing concise component knowledge.
 
 This component does not itself advance a journal stage, commit, push, or
 access the network.
+
+Summary and brief compose the shared journal lookup with focused durable-record
+parsers; brief also reads workspace review policy and visible journals. The
+component catalogue uses the shared safe page reader with its own title-only
+projection and stops at title-and-path discovery: Routing, exact source and
+focused tests decide whether a selected page owns the work. None of these
+read-only renderers executes configured commands or reads live Git state.
 
 ## Public interface
 
@@ -135,44 +142,3 @@ unchanged.
   for lifecycle and component-catalogue behavior.
 - `05_Software/aegis/tests/test_run_report.py` - Extended status, summary, and
   brief behavior coverage.
-
-## Architecture
-
-Summary and brief compose the shared journal lookup with focused durable-record
-parsers. Brief additionally reads workspace review policy and visible journals.
-Components uses the shared safe page reader but its own title-only projection;
-coverage and trace views separately parse component claims. None of these
-read-only renderers executes configured commands or reads live Git state.
-
-```mermaid
-flowchart LR
-    init[init] --> install[managed pointers / config / data folders]
-    req[req] --> ids[new_id]
-    req --> reqtemplate[(requirement template)]
-    status[status] --> read[read_journal]
-    task[task --parent] --> ids
-    task --> read
-    summary[summary] --> read
-    brief[brief] --> read
-    components[components] --> titles[knowledge_titles]
-    titles --> pages[knowledge_page_texts]
-    claims[knowledge_components] --> pages
-    pages --> files[(knowledge/*.md)]
-    titles --> catalogue[bounded title + lexical path list]
-    summary --> record[parse_stage_report]
-    brief --> record
-    brief --> rulings[parse_rulings]
-    brief --> handoff[parse_handoff]
-    brief --> children[visible_children]
-    brief --> cfg[review_settings]
-    record --> journal[(task journal)]
-    rulings --> journal
-    handoff --> journal
-    children --> journals[(visible journals)]
-    read --> journal
-    summary --> output[bounded recorded summary]
-    brief --> resume[bounded durable brief]
-```
-
-The component catalogue stops at title-and-path discovery; Routing, exact
-source, and focused tests decide whether a selected page owns the work.

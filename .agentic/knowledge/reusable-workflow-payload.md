@@ -11,7 +11,8 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 ## Routing
 
 Use this page for core workflow stages, adoption, artifact scaffolding, current
-project context, and resume guidance. Start with
+project context, resume guidance, and the optional design diagrams (`[diagrams]`,
+`steps/diagrams.md`, `diagram_TASK-<id>.md`). Start with
 `05_Software/aegis/template/.agentic/AGENTS.md` and the affected step/template;
 CLI scaffolding and brief rendering live in `aegis.py`. Focused verification
 starts in `test_cli_core.py`, `test_run_report.py`, and `test_structure.py` under
@@ -22,9 +23,13 @@ source and tests under `05_Software/aegis/integrations/`.
 
 The canonical payload is the generic, copyable AEGIS workflow distributed to
 other repositories. It contains the operator contract, task stages, adoption
-procedure, generic artifact templates, CLI reference, and implementation.
+procedure, the optional design diagram guide, generic artifact templates, CLI
+reference, and implementation.
 Each downstream project owns its context, requirements, component pages and
-task records. Repository maintenance and delivery tooling live in `02_Tools/`.
+task records. The payload keeps one six-stage workflow: optional children,
+configured interaction, durable rulings, a current handoff, optional bounded
+review and optional design diagrams enrich the existing journal without adding
+a stage or service. Repository maintenance and delivery tooling live in `02_Tools/`.
 
 ## Invariants
 
@@ -36,6 +41,9 @@ task records. Repository maintenance and delivery tooling live in `02_Tools/`.
 - Current documentation is reconciled with exact evidence and authorized
   intent; established contracts remain binding when implementation disagrees.
 - The managed payload stays generic and the installed project owns its facts.
+- Design diagrams illustrate a proposal for the human; no stage completion,
+  validation step, review verdict or check finding depends on them, and the
+  Design text stays authoritative.
 
 ## Public interface
 
@@ -57,10 +65,15 @@ define durable artifact formats.
   when they happen without turning corrected internal tool errors into
   deviations or pausing the work.
 
-- `REQ-FUNC-500cfb8b` - Carry each component's architecture diagram in
-  its knowledge page, drawn at adoption and reconciled with the reviewed
-  implementation in validate before final review and proof. Build updates
-  relevant facts earlier when needed for an agent handoff.
+- `REQ-FUNC-ee1d2096` - Where `[diagrams] enabled = true`, draw Mermaid
+  diagrams of the proposed implementation at design into
+  `.agentic/tasks/diagram_TASK-<id>.md`, linked once from `## Design`.
+- `REQ-UX-b0bd0225` - Show those diagrams at the design checkpoint, after the
+  stage summary and before the stage-boundary choices.
+- `REQ-FUNC-f7220cb2` - Keep diagram generation off unless `enabled` is the
+  Boolean `true`.
+- `REQ-FUNC-6343dfb8` - Keep diagrams outside every stage obligation, review
+  verdict and check finding.
 
 - `REQ-UX-84868466` - Present a consistent report and concrete next choices at
   checkpoint boundaries without deferring deviation notices.
@@ -91,7 +104,7 @@ for selective loading. Component pages route deeper implementation discovery.
   operator prompts.
 - `05_Software/aegis/template/.agentic/CLI.md` - CLI contract and examples.
 - `05_Software/aegis/template/.agentic/steps/` - Ordinary-work and adoption
-  procedures.
+  procedures, plus the optional design diagram guide `diagrams.md`.
 - `05_Software/aegis/template/.agentic/templates/` - Durable artifact
   scaffolds.
 - `05_Software/aegis/template/.agentic/LICENSE.txt` - Payload license.
@@ -99,25 +112,3 @@ for selective loading. Component pages route deeper implementation discovery.
   structural regression tests.
 - `05_Software/aegis/tests/test_cli_core.py` - Initialization and scaffolding.
 - `05_Software/aegis/tests/test_run_report.py` - Bounded resume reporting.
-
-## Architecture
-
-The payload keeps one six-stage workflow. Optional children are ordinary
-one-level tasks, while configured interaction, durable rulings, a current
-handoff, and optional bounded review state enrich the existing journal without
-adding a stage or service.
-
-```mermaid
-flowchart TD
-    parent[parent task] --> childA[optional child task]
-    parent --> childB[optional child task]
-    childA --> integrated[parent integrated validation]
-    childB --> integrated
-    journal[(journal)] --> rulings[append-only rulings]
-    journal --> handoff[replaceable handoff]
-    journal --> report[stage report]
-    interaction[checkpoint by default or autopilot] --> report
-    policy[review policy] --> review[two verdicts + bounded fix loop]
-    integrated --> review
-    review --> checkpoint[existing delivery checkpoint]
-```
