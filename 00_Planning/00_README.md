@@ -8,7 +8,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS implementation overview
 
-The assigned source version is **AEGIS 0.13.0**. It includes the core and five
+The assigned source version is **AEGIS 0.14.0**. It includes the core and five
 optional host integrations, evidence-led stage artifacts, focused verification,
 compact progress records, current project/environment context and bounded
 component discovery. Checkpoint mode presents user choices after every stage;

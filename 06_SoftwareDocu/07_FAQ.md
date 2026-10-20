@@ -17,7 +17,7 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.13.0 source combines staged instructions, evidence-led idea capture,
+The 0.14.0 source combines staged instructions, evidence-led idea capture,
 requirements, linked tests, journals, repository evolution, review policy and
 a Python CLI. Its five host integrations add native entry points and shared
 verification jobs. Core records live in Git; installed host resources and job
@@ -138,18 +138,17 @@ file sits inside your configured `source` or `tests` globs. Ungoverned code
 in a governed area is worth knowing about, and it is exactly the kind of gap
 that is invisible until you ask.
 
-## Why isn't the architecture diagram generated from my code?
-Because generating it would break two promises. A parser that reads code
-has to be written per language - free for Python, absent for C, Java, C#
-and everything else - so a derived diagram would work in some of your
-repositories and not others. And derivation can only ever draw what
-already exists, which makes the interesting half impossible: the shape a
-change is *going to* produce. So the `## Architecture` diagram in each
-knowledge page is written by hand at adoption and kept as current-state
-knowledge. When a design changes structure, its proposed diagram lives in the
-task journal. At `validate`, after the implementation exists, the agent
-reconciles the canonical knowledge page with built code. The cost is honest:
-a hand-drawn diagram can go stale, and `check` cannot detect semantic drift.
+## Can I see the proposed change as a diagram before code is written?
+Yes, when you ask for it. Set `[diagrams] enabled = true` in
+`.agentic/aegis.toml` and design ends by drawing the proposed implementation
+as Mermaid diagrams - `structure`, `sequence` or `state`, as listed in
+`[diagrams] types` - into `.agentic/tasks/diagram_TASK-<id>.md`. In checkpoint
+mode they are shown before you choose whether build may start. The drawing
+comes from the design, not from a code parser, so it works for every language
+and can show a shape that does not exist yet. It only illustrates the design:
+no stage, review or `check` finding depends on it, and the Design text wins
+where the two disagree. AEGIS bundles no renderer; GitHub, GitLab and many
+Markdown previews draw Mermaid, and a terminal shows its text.
 
 ## Can it stop the agent writing code before the scope is agreed?
 The core has no write interceptor. It can report stage-zone findings. Each stage has a write

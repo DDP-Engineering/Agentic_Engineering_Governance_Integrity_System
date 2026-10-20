@@ -393,6 +393,14 @@ def test_init_writes_records_commit_fingerprints_false(tmp_path):
     assert aegis.load_config()["records"] == {"commit_fingerprints": False}
 
 
+def test_init_writes_diagrams_disabled_with_structure_type(tmp_path):
+    """REQ-FUNC-f7220cb2: fresh workspaces draw no diagram until enabled."""
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.main(["init"]) == 0
+    assert aegis.load_config()["diagrams"] == {"enabled": False,
+                                               "types": ["structure"]}
+
+
 def test_commit_fingerprints_setting_fails_safe(tmp_path):
     """Only an exact TOML Boolean can turn sidecar commits on."""
     _, aegis = make_repo(tmp_path)
@@ -995,6 +1003,24 @@ def test_status_accepts_a_bare_id_and_shows_only_the_last_five_log_lines(tmp_pat
     assert "log (last 5 of 7)" in out
     assert "line 1" not in out and "line 3" in out and "line 7" in out
     assert "checklist: 1/2 done" in out
+
+
+def test_status_never_lists_a_diagram_file_as_a_journal(tmp_path, capsys):
+    """REQ-FUNC-ee1d2096: the task's diagram file sits beside its journal."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    (agentic / "tasks" / "TASK-9f9f.md").write_text(
+        "# TASK-9f9f — Draw a picture\n\nstage: design\ntype: feature\n",
+        encoding="utf-8", newline="\n")
+    (agentic / "tasks" / "diagram_TASK-9f9f.md").write_text(
+        "# TASK-9f9f diagrams\n\n```mermaid\nflowchart LR\n    a --> b\n```\n",
+        encoding="utf-8", newline="\n")
+    capsys.readouterr()
+
+    assert aegis.main(["status"]) == 0
+    out = capsys.readouterr().out
+    assert "1 open task journal(s)" in out
+    assert "diagram_TASK" not in out
 
 
 def test_status_resolves_validate_and_deliver_step_files(tmp_path, capsys):

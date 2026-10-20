@@ -18,7 +18,7 @@ title = "Keep a current component architecture diagram in its knowledge page"
 
 # draft while being written, active once it is built and tested,
 # retired when the behavior is deliberately removed.
-status = "active"
+status = "retired"
 
 # Self-contained prose: a reader with no other context must be able to
 # understand and check it. No ticket numbers, no run IDs, no references
@@ -39,6 +39,7 @@ status = "active"
 # plainly is better plainly.
 requirement = """
 The workflow payload shall require each component knowledge page to carry a Mermaid architecture diagram of that component's current logic, drawn when the component is adopted and reconciled during validation after a task changes the implemented structure.
+Retired 2026-10-20: component pages no longer carry an architecture diagram; the optional `[diagrams]` setting alone governs model-drawn diagrams.
 """
 
 # The observation that settles whether the behavior holds — not a
@@ -61,10 +62,7 @@ affected_paths = [
 
 # "tests/path/test_file.py::test_name" entries. Kept current during build;
 # these select the impacted regression set.
-linked_tests = [
-    "05_Software/aegis/tests/test_structure.py::test_component_pages_carry_an_architecture_diagram",
-    "05_Software/aegis/tests/test_structure.py::test_adopt_and_validate_keep_the_architecture_diagram_current",
-]
+linked_tests = []
 
 # --- optional below this line ---
 
@@ -81,4 +79,4 @@ exist yet.
 """
 
 created = 2026-08-21
-updated = 2026-09-03
+updated = 2026-10-20

@@ -1,0 +1,46 @@
+# Copyright (c) 2026 DDP Engineering
+# This software is licensed under the PolyForm Noncommercial License 1.0.0.
+# Commercial use requires a separate commercial license.
+# See the LICENSE.txt in the .agentic folder for full license details.
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+
+
+schema = 1
+
+id = "REQ-FUNC-6343dfb8"
+
+title = "Keep diagrams outside every stage obligation"
+
+status = "active"
+
+requirement = """
+The workflow payload shall treat proposed-implementation diagrams as optional illustration for the human operator, so that no stage completion list, validation step, review verdict or check finding depends on whether a diagram file exists or what it contains.
+"""
+
+verification = "Run the linked structural and check tests: no Done when list in the step files mentions a diagram; the build, validate and deliver steps do not direct the agent to read or reconcile a diagram file; and check reports the same findings for a repository with and without `.agentic/tasks/diagram_TASK-<id>.md`."
+
+affected_paths = [
+    "05_Software/aegis/template/.agentic/steps/3_design.md",
+    "05_Software/aegis/template/.agentic/steps/4_build.md",
+    "05_Software/aegis/template/.agentic/steps/5_validate.md",
+    "05_Software/aegis/template/.agentic/steps/6_deliver.md",
+    "05_Software/aegis/template/.agentic/steps/diagrams.md",
+    "05_Software/aegis/template/.agentic/aegis.py",
+]
+
+linked_tests = [
+    "05_Software/aegis/tests/test_structure.py::test_no_stage_obligation_depends_on_diagrams",
+    "05_Software/aegis/tests/test_check.py::test_check_findings_ignore_a_diagram_file",
+    "05_Software/aegis/tests/test_check.py::test_check_findings_ignore_a_diagram_file_in_the_git_diff",
+]
+
+
+spec = ""
+
+priority = "normal"   # low | normal | high
+rationale = """
+The diagram only clarifies the proposed implementation to the human. A verified diagram would become a second design contract that small models must keep consistent.
+"""
+
+created = 2026-10-20
+updated = 2026-10-20

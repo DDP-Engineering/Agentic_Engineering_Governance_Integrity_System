@@ -43,7 +43,7 @@ Existing semantic review, full suite, strict check, evidence, and the delivery
 checkpoint remain mandatory.
 
 Apply this protocol after the semantic review, corrections, and documentation
-updates in steps 1-9 below, and before the final proof in step 10.
+updates in steps 1-8 below, and before the final proof in step 9.
 
 When review is enabled:
 
@@ -88,19 +88,17 @@ verdict or green suite does not replace integration proof in the parent.
 3. Update component knowledge after implementation corrections. For every
    materially changed component, update or create
    `.agentic/knowledge/<component>.md` against the reviewed code and tests.
-   If a touched legacy page lacks Routing or another standard section,
-   migrate it to the current template at `.agentic/templates/component.md`.
-   Reconcile Routing, Purpose and boundaries, Public interface, Invariants,
-   Key behaviors, Architecture, and Files. Reconcile Change map when the
+   If a touched legacy page lacks Routing or another standard section, or
+   still carries a retired `## Architecture` section, migrate it to the
+   current template at `.agentic/templates/component.md`: remove a retired
+   `## Architecture` section and keep any still-true constraint from it in
+   Purpose and boundaries or Invariants. Reconcile Routing,
+   Purpose and boundaries, Public interface, Invariants, Key behaviors, and
+   Files. Reconcile Change map when the
    component has multiple independent edit-and-test seams. Include any page
    updated earlier for a handoff. Finish these updates before the final
    independent reviews, when enabled, and final proof.
-4. Compare any `### Proposed architecture - TASK-<id>` diagram in
-   the task's Design with the built code and the component page's `## Architecture`
-   diagram. Update the current-state diagram to match the built code.
-   Retain the task proposal as historical design evidence; never delete it.
-   Record a justified deviation or decision if implementation differs from it.
-5. Reconcile project and environment context. Bring affected sections of
+4. Reconcile project and environment context. Bring affected sections of
    `.agentic/context/project.md` and `.agentic/context/environment.md` into
    agreement with the same candidate and the canonical configuration and setup
    references. Populate missing files only with known in-scope facts; preserve
@@ -108,7 +106,7 @@ verdict or green suite does not replace integration proof in the parent.
    responsibilities and behavior. Replace stale claims; keep proposals,
    removed-feature inventories, before/after narratives, and investigation
    history in the journal. Leave unchanged sections untouched.
-6. Re-read each requirement. Confirm its status and prose describe the built
+5. Re-read each requirement. Confirm its status and prose describe the built
    behavior, its verification matches the observation, and all affected paths
    and linked tests are current. Correct documentation drift now; a mismatch
    with an established contract returns to build or an authorized scope
@@ -116,43 +114,43 @@ verdict or green suite does not replace integration proof in the parent.
    prose states the current positive outcome and meaningful failure responses.
    Resolve draft-spec open decisions before activation and retain their decision
    history in the journal, not the active spec.
-7. Complete and record every `Manual:` or `Inspection:` verification. Name the
+6. Complete and record every `Manual:` or `Inspection:` verification. Name the
    method, action, and observed result; never substitute a manual label for an
    automatable test that is merely missing. Where a manual method stands in for
    a test that could have been written, state it as a deviation notice in the
    conversation, per `.agentic/AGENTS.md`.
-8. If steps 1-7 changed executable behavior, tests, or verification configuration,
+7. If steps 1-6 changed executable behavior, tests, or verification configuration,
    run relevant focused proof as needed to resolve the change. Prose-only updates
    require semantic and traceability review; they do not alone require another
    runtime test run. Do not run an impacted set that expands to the full suite
    immediately before the final full proof.
-9. If validation changed any repository file outside `.agentic/`, rerun
+8. If validation changed any repository file outside `.agentic/`, rerun
    `python .agentic/aegis.py evolution --task TASK-<id>` so the saved,
    timestamped report describes the final candidate. Review every added,
    modified, and removed path. The report is descriptive evidence, not a
    tamper-proof guarantee.
-10. **Prove the final candidate only after every candidate-changing step:**
-    `python .agentic/aegis.py check --task TASK-<id> --strict --run`.
-    This executes the configured full verification commands plus the advisory
-    catalog. Schedule this once after edits and review, rather than once per
-    stage. A failure or subsequent candidate change requires relevant review and
-    fresh proof; the last proof must describe the tree handed to `deliver`.
-    Do not run a separate full `test` immediately before this command. An earlier
-    full run, a dry-run preview, or an unchanged fingerprint on a cancelled job
-    cannot substitute for the required successful final verification.
-    `python .agentic/aegis.py check --task TASK-<id> --dry-run` lists what
-    `--run` would execute and each command's limit without running any of it.
-    Use it to find out what this proof costs *before* committing to it, not to
-    replace it.
-    **When you cannot run it, say so rather than skipping it.** A standing
-    instruction that forbids the full suite, an environment that cannot execute
-    it, or a limit you would exceed are all real constraints, and none of them
-    lets you omit the proof silently or record one that did not happen.
-    Substitute the narrowest proof that still covers the candidate, name what it
-    does not cover, and state the substitution as a deviation notice under
-    step 11. Steps 10 and 11 read together: this step says what the required
-    proof is, and step 11 says what you owe when you advance without it.
-11. Record one consolidated final validation result in the log: command, exit
+9. **Prove the final candidate only after every candidate-changing step:**
+   `python .agentic/aegis.py check --task TASK-<id> --strict --run`.
+   This executes the configured full verification commands plus the advisory
+   catalog. Schedule this once after edits and review, rather than once per
+   stage. A failure or subsequent candidate change requires relevant review and
+   fresh proof; the last proof must describe the tree handed to `deliver`.
+   Do not run a separate full `test` immediately before this command. An earlier
+   full run, a dry-run preview, or an unchanged fingerprint on a cancelled job
+   cannot substitute for the required successful final verification.
+   `python .agentic/aegis.py check --task TASK-<id> --dry-run` lists what
+   `--run` would execute and each command's limit without running any of it.
+   Use it to find out what this proof costs *before* committing to it, not to
+   replace it.
+   **When you cannot run it, say so rather than skipping it.** A standing
+   instruction that forbids the full suite, an environment that cannot execute
+   it, or a limit you would exceed are all real constraints, and none of them
+   lets you omit the proof silently or record one that did not happen.
+   Substitute the narrowest proof that still covers the candidate, name what it
+   does not cover, and state the substitution as a deviation notice under
+   step 10. Steps 9 and 10 read together: this step says what the required
+   proof is, and step 10 says what you owe when you advance without it.
+10. Record one consolidated final validation result in the log: command, exit
     code, commands/tests run, and remaining warnings with their accepted
     reasons. Record an earlier failed gate only when it exposed a candidate
     problem, caused an implementation or test change, or remains an accepted
@@ -166,7 +164,7 @@ verdict or green suite does not replace integration proof in the parent.
     corrected and rerun successfully without affecting the candidate or proof
     is operational detail, not a deviation. Apply the material-impact rule in
    `.agentic/AGENTS.md` rather than turning every non-zero exit into a notice.
-12. In checkpoint mode, present the `validate` Stage-boundary choices from
+11. In checkpoint mode, present the `validate` Stage-boundary choices from
     `.agentic/AGENTS.md`, refresh the waiting Handoff and paused Stage report, then stop
     before transition. After the user chooses to continue, or immediately in
     autopilot, tick the checklist, set `stage: deliver`, and replace it with
@@ -189,8 +187,6 @@ verdict or green suite does not replace integration proof in the parent.
       portability, security, and unrequested work
 - [ ] affected component knowledge updated or created against the reviewed code
       and tests; touched legacy pages migrated before final review and proof
-- [ ] component `## Architecture` diagram checked against the built code, and
-      the task's proposal retained
 - [ ] `.agentic/context/project.md` and `.agentic/context/environment.md` reconciled with the
       candidate
 - [ ] requirements re-read: status, prose, verification, paths, and links true

@@ -74,6 +74,7 @@ EXPECTED_FILES = (
     "steps/5_validate.md",
     "steps/6_deliver.md",
     "steps/adopt.md",
+    "steps/diagrams.md",
     "templates/component.md",
     "templates/environment.md",
     "templates/project.md",
@@ -83,6 +84,16 @@ EXPECTED_FILES = (
 )
 
 IGNORED_DIR_PARTS = {"__pycache__", ".pytest_cache"}
+
+
+def stage_step_files() -> list[Path]:
+    """
+    @brief The step files that run a stage or the adoption procedure.
+    @details The optional diagram guide runs inside design and carries no
+             stage reporting of its own.
+    """
+    return [path for path in sorted((PAYLOAD / "steps").glob("*.md"))
+            if path.name != "diagrams.md"]
 
 
 # GUARD PREDICATES (plain functions so they can be self-tested on bad input)
@@ -249,7 +260,7 @@ def test_stage_report_instructions_define_stage_choice_boundaries():
     for key in ("stage", "result", "current", "changed", "evidence", "issues",
                 "next", "needs_user"):
         assert re.search(rf"^{key}:\s*$", scaffold, re.MULTILINE)
-    for step in (PAYLOAD / "steps").glob("*.md"):
+    for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
         assert "**Reporting and resume:**" in text, step.name
         assert "summary TASK-<id>" in text, step.name
@@ -266,7 +277,7 @@ def test_resume_guidance_is_local_and_preserves_required_evidence():
     assert "Full journal reads required by validate and deliver still apply" in agents
     prompts = agents.split("For a small local model", 1)[1]
     assert prompts.count("Stop after this stage.") == 6
-    for step in (PAYLOAD / "steps").glob("*.md"):
+    for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
         assert "Resume a task" in text, step.name
         assert "Read required durable evidence" in text, step.name
@@ -293,7 +304,7 @@ def test_workflow_defines_replaceable_handoff_and_freshness():
 
 def test_every_stage_refreshes_handoff_on_pause_or_transition():
     """REQ-FUNC-7ea14fe4: every stage boundary leaves a usable handoff."""
-    for step in (PAYLOAD / "steps").glob("*.md"):
+    for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
         assert "minimal Handoff" in text, step.name
         assert "transition" in text and "pause" in text, step.name
@@ -410,7 +421,7 @@ def test_resume_starts_with_brief_but_requires_current_stage_sources():
 
 def test_every_pause_refreshes_stage_report_and_handoff():
     """REQ-FUNC-7ea14fe4: user reporting and worker resume state move together."""
-    for step in (PAYLOAD / "steps").glob("*.md"):
+    for step in stage_step_files():
         text = " ".join(step.read_text("utf-8").split())
         assert "Stage reporting" in text and "pauses" in text, step.name
         assert "minimal Handoff" in text, step.name
@@ -540,14 +551,12 @@ def test_specify_proves_behavior_coverage_and_verification_quality():
     assert "## Requirement coverage" in task
 
 
-def test_design_scales_depth_and_keeps_proposals_distinct_from_current_architecture():
+def test_design_scales_depth_and_keeps_proposals_out_of_current_knowledge():
     """REQ-FUNC-3e0263e7: design depth follows risk and proposals stay explicit."""
     design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
-    component = (PAYLOAD / "templates" / "component.md").read_text(
-        encoding="utf-8")
     validate = (PAYLOAD / "steps" / "5_validate.md").read_text(encoding="utf-8")
     design = " ".join(design.split())
-    component = " ".join(component.split())
+    validate = " ".join(validate.split())
 
     for phrase in ("30 lines is the default", "Requirements coverage",
                    "sufficiently constrained implementation path",
@@ -556,13 +565,10 @@ def test_design_scales_depth_and_keeps_proposals_distinct_from_current_architect
                    "Security and trust boundaries", "Compatibility and migration",
                    "Observability", "Open decisions"):
         assert phrase in design
-    assert "Proposed architecture" in design
     assert "decision-free" not in design
-    assert "do not replace the current diagram" in design
-    assert "Keep this drawn as the code is now" in component
-    for phrase in ("task's Design", "built code", "current-state",
-                   "historical design evidence", "never delete it"):
-        assert phrase in validate
+    # the proposal lives in the task; current pages change only after build
+    assert "unchanged during design" in design
+    assert "reviewed code and tests" in validate
 
 
 # TESTS - Python 3.11 compatibility
@@ -659,29 +665,74 @@ def test_every_test_file_carries_the_license_header():
         assert LICENSE_MARK in head, f"missing license header: {path.name}"
 
 
-def test_component_pages_carry_an_architecture_diagram():
-    """REQ-FUNC-500cfb8b: the page template defines where the drawing lives."""
-    text = (PAYLOAD / "templates" / "component.md").read_text(encoding="utf-8")
-    assert "## Architecture" in text
-    assert "```mermaid" in text
-    # the drawing is of this component's own logic, not of the whole system
-    assert "flowchart" in text
+def payload_flat(*parts: str) -> str:
+    """@brief One payload file with its whitespace collapsed to single spaces."""
+    return " ".join(PAYLOAD.joinpath(*parts).read_text(encoding="utf-8").split())
 
 
-def test_adopt_and_validate_keep_the_architecture_diagram_current():
-    """REQ-FUNC-500cfb8b: adoption creates the diagram; validation reconciles it."""
-    adopt = (PAYLOAD / "steps" / "adopt.md").read_text(encoding="utf-8")
-    design = (PAYLOAD / "steps" / "3_design.md").read_text(encoding="utf-8")
-    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(encoding="utf-8")
-    assert "## Architecture" in adopt
-    # adoption draws what is there; design records a proposal; validation
-    # reconciles the canonical knowledge page only after implementation.
-    assert "architecture" in adopt.lower()
-    assert "Proposed architecture" in design
-    assert "do not replace the current diagram" in design
-    assert "built code" in validate
-    assert "current-state" in validate
-    assert "historical design evidence" in validate
+def test_design_draws_diagrams_only_through_the_enabled_guide():
+    """REQ-FUNC-ee1d2096, REQ-FUNC-f7220cb2: one pointer, one guide, one file."""
+    design = payload_flat("steps", "3_design.md")
+    guide = payload_flat("steps", "diagrams.md")
+    assert "`[diagrams] enabled = true`" in design
+    assert "`.agentic/steps/diagrams.md`" in design
+    # the fail-safe reading: only the exact Boolean turns diagrams on
+    assert "(a TOML boolean)" in design
+    assert "Any other value, or no `[diagrams]` table, means no diagrams" in design
+    for phrase in ("`.agentic/tasks/diagram_TASK-<id>.md`",
+                   "Diagrams: [diagram_TASK-<id>.md](diagram_TASK-<id>.md)",
+                   "`structure`", "`sequence`", "`state`",
+                   "flowchart", "sequenceDiagram", "stateDiagram-v2",
+                   "Mermaid", "The Design text is authoritative",
+                   "Not drawn:", "no design note",
+                   "A non-list value counts as missing",
+                   "An empty list draws nothing: write no file and no link",
+                   "A list with no known name counts as an empty list"):
+        assert phrase in guide, phrase
+    # the worked example shows every edge mark it asks for
+    example = guide[guide.index("```mermaid"):guide.index("## Sequence")]
+    for mark in ("==>", "-.->", ":::added", ":::changed", ":::removed"):
+        assert mark in example, mark
+
+
+def test_design_checkpoint_shows_diagrams_before_the_choices():
+    """REQ-UX-b0bd0225: summary, then the diagrams, then the design choices."""
+    design = payload_flat("steps", "3_design.md")
+    guide = payload_flat("steps", "diagrams.md")
+    sentence = design[design.index("In checkpoint mode, show the summary"):]
+    sentence = sentence[:sentence.index(". ")]
+    assert (sentence.index("summary") < sentence.index("diagram file")
+            < sentence.index("Stage-boundary choices"))
+    assert "after the stage summary and before the design stage-boundary choices" in guide
+    assert "adds no display and no stop" in guide
+
+
+def test_no_stage_obligation_depends_on_diagrams():
+    """REQ-FUNC-6343dfb8: a diagram is illustration, never a completion duty."""
+    for path in sorted((PAYLOAD / "steps").glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        if "**Done when:**" in text:
+            done = text[text.index("**Done when:**"):]
+            done = done.split("**Skip when:**")[0]
+            assert "diagram" not in done.lower(), path.name
+    for name in ("4_build.md", "5_validate.md", "6_deliver.md"):
+        text = (PAYLOAD / "steps" / name).read_text(encoding="utf-8")
+        assert "diagram" not in text.lower(), name
+    assert "Nothing checks this file" in payload_flat("steps", "diagrams.md")
+
+
+def test_only_the_design_guide_directs_drawing_a_diagram():
+    """REQ-FUNC-f7220cb2: no other step, template or adoption step draws one."""
+    paths = [*sorted((PAYLOAD / "steps").glob("*.md")),
+             *sorted((PAYLOAD / "templates").glob("*"))]
+    for path in paths:
+        if path.name == "diagrams.md":
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert "mermaid" not in text.lower(), path.name
+        assert "Proposed architecture" not in text, path.name
+        if path.name != "5_validate.md":
+            assert "## Architecture" not in text, path.name
 
 
 def test_component_knowledge_routes_implementation_work():
@@ -705,9 +756,9 @@ def test_component_knowledge_routes_implementation_work():
 
     for heading in ("## Routing", "## Purpose and boundaries",
                     "## Public interface", "## Invariants",
-                    "## Change map", "## Key behaviors",
-                    "## Architecture", "## Files"):
+                    "## Change map", "## Key behaviors", "## Files"):
         assert heading in component
+    assert "## Architecture" not in component
     assert "exact source and tests remain authoritative" in component_flat
     assert "multiple independent edit-and-test seams" in component_flat
 
@@ -727,3 +778,6 @@ def test_component_knowledge_routes_implementation_work():
         assert heading in validate_flat
     assert "touched legacy page" in validate_flat
     assert "migrate it to the current template" in validate_flat
+    assert "retired `## Architecture` section" in validate_flat
+    assert ("remove a retired `## Architecture` section and keep any still-true "
+            "constraint from it in Purpose and boundaries or Invariants") in validate_flat

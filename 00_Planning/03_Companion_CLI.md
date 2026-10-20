@@ -150,7 +150,7 @@ python .agentic/aegis.py init
 ```
 
 Plain `init` does not create a Git repository. `init --git` does so only
-when explicitly requested. An upgrade replaces the 17 managed payload files,
+when explicitly requested. An upgrade replaces the 18 managed payload files,
 preserves repository-owned context, records and `aegis.toml`, and then reruns
 `init` to refresh root digests. Review the repository diff before any commit.
 

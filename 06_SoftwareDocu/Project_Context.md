@@ -18,7 +18,7 @@ context files and component pages carry current facts and routes to evidence.
 |---|---|---|
 | `context/project.md` | Markdown: purpose/users, responsibilities, supported operation, established constraints, implementation orientation, authoritative references | Project |
 | `context/environment.md` | Markdown: toolchain, setup, configuration/services, readiness checks, build/run, verification, platform details, authoritative references | Project |
-| `knowledge/<component>.md` | Markdown: current component routing, responsibilities, interfaces, invariants, behaviors, architecture, files | Project |
+| `knowledge/<component>.md` | Markdown: current component routing, responsibilities, interfaces, invariants, behaviors, files | Project |
 | `requirements/<category>/<id>.toml` | Structured behavior contract, status, verification and source/test links | Project |
 | `specs/<id>.md` | Detailed behavior following the linked requirement's status | Project |
 | `templates/project.md`, `templates/environment.md` | Generic authoring guidance and stable headings used by `init` | AEGIS payload |

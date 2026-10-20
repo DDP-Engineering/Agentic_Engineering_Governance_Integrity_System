@@ -6,7 +6,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Install AEGIS for OpenCode
 
-**Source version:** AEGIS 0.13.0
+**Source version:** AEGIS 0.14.0
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile

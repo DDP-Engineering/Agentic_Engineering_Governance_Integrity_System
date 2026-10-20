@@ -7,7 +7,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # Planning
 
-These documents describe the implemented **AEGIS 0.13.0** source: the core
+These documents describe the implemented **AEGIS 0.14.0** source: the core
 workflow, five host integrations, artifact contracts and verification routes.
 The core provides stage-by-stage user choices, configurable autopilot with
 publication approval, focused verification, compact records and bounded resume

@@ -119,7 +119,8 @@ python .agentic/aegis.py init --git
 ```
 
 Afterward, edit `.agentic/aegis.toml` so `[commands]`, `[layout]`, optional
-`[interaction]`, `[records]`, and `[check]` settings describe the repository.
+`[interaction]`, `[diagrams]`, `[records]`, and `[check]` settings describe the
+repository.
 
 ## `task`
 
@@ -417,6 +418,19 @@ candidate verdicts (`approved` or `changes_required`) and `review_round` is
 bounded by `1 + max_fix_cycles`. Any candidate change invalidates both
 verdicts. Exhaustion blocks with `needs_user: yes`. `max_fix_cycles` accepts
 integers 0 through 255; invalid types or values warn and fail safe.
+
+```toml
+[diagrams]
+enabled = false
+types = ["structure"]
+```
+
+Design diagrams are optional. Only the Boolean `enabled = true` turns them on:
+design then draws Mermaid diagrams of the proposed implementation into
+`.agentic/tasks/diagram_TASK-<id>.md`, following `.agentic/steps/diagrams.md`.
+`types` lists any of `structure`, `sequence` and `state`; a missing or non-list
+value means `["structure"]`, and a list with no known name draws nothing. Invalid types or names warn. No stage, review or check finding
+depends on a diagram.
 
 ```toml
 [records]

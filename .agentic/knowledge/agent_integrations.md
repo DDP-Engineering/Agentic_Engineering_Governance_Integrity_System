@@ -42,7 +42,8 @@ OpenCode: Aegis primary agent, two review agents, five /aegis commands, eleven t
 - Shared job reservations survive host restarts, reject duplicates, preserve
   uncertain live-process state, and cancel the complete descendant tree.
 - Reviewer prompts request independent bounded review, while the host's actual
-  permission system remains authoritative.
+  permission system remains authoritative. Codex review-role flags are
+  cooperative checks, not authentication.
 - Install, update, and uninstall change only owned resources, preserve user
   configuration, and refuse unsafe conflicts or active-job replacement;
   `doctor` remains read-only.
@@ -77,33 +78,6 @@ OpenCode: Aegis primary agent, two review agents, five /aegis commands, eleven t
 
 - REQ-FUNC-10f16f5c, REQ-FUNC-fc5a06d3, REQ-FUNC-f82635e2: native Claude resources, shared stdio transport and bounded context hooks.
 - REQ-PLAT-53de04ad and REQ-REL-61e3e7c7: native Claude user registration with owned cache hashing, same-version refresh and failure recovery.
-
-## Architecture
-
-```mermaid
-flowchart TD
-  O[OpenCode plugin] --> A[Shared adapter]
-  C[Codex skill and bridge] --> A
-  P[Pi extension] --> A
-  Q[Qwen native extension] --> M[Local stdio tool transport]
-  CC[Claude Code native plugin] --> M
-  CC --> HK[Bounded context hooks]
-  M --> A
-  P --> V[Fresh Pi review session]
-  A --> CLI[Checkout-local AEGIS CLI]
-  CLI <--> J[Project journal and requirements]
-  A --> W[Detached verification worker]
-  W --> CLI
-  W --> PT[Platform process-tree cancellation]
-  A <--> S[Shared job cache and checkout reservation]
-  W <--> S
-  I[Host installers] --> F[Owned-file lifecycle]
-  I --> R[Runtime discovery]
-  I --> H[Native host registration]
-  H --> N[Native cache ownership hashes]
-```
-
-Review prompts guide behavior; effective host permissions remain authoritative. Codex role flags are cooperative checks, not authentication. Jobs preserve uncertainty rather than automatically clearing possible live-process reservations.
 
 ## Files
 

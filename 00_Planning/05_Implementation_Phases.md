@@ -8,7 +8,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # 05 - Current implementation
 
-The assigned source version is **AEGIS 0.13.0**. This page describes current
+The assigned source version is **AEGIS 0.14.0**. This page describes current
 capabilities, source ownership and verification methods. Release history is in
 the [changelog](../CHANGELOG.md); dated build evidence is retained under
 `07_Delivery/` and implementation evidence in task records.
@@ -34,7 +34,7 @@ the [changelog](../CHANGELOG.md); dated build evidence is retained under
 05_Software/aegis/
   template/.agentic/       canonical managed core
     templates/            six generic artifact templates
-    steps/                six ordinary stages plus adoption
+    steps/                six stages, adoption, diagram guide
     aegis.py              Python CLI
   integrations/           five host adapters and shared runtime
     tests/                JavaScript behavior tests
@@ -52,7 +52,7 @@ the [changelog](../CHANGELOG.md); dated build evidence is retained under
   build_agent_plugins.mjs complete host-package builder
 ```
 
-The managed core contains 17 files. Downstream projects own their context,
+The managed core contains 18 files. Downstream projects own their context,
 configuration and records. Update the canonical template and installed mirror
 together, then replace only managed files during upgrades. Each missing context
 file is scaffolded independently by `init`; existing project data keeps its bytes.

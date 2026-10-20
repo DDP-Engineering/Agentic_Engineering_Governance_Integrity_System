@@ -840,6 +840,56 @@ def test_invalid_records_values_warn_and_fail_safe(nogit_repo, capsys, value):
                for line in lines_for(run_check(aegis, capsys), "config"))
 
 
+@pytest.mark.parametrize("body,expected", [
+    ('enabled = "true"', "[diagrams] enabled should be bool"),
+    ("enabled = 1", "[diagrams] enabled should be bool"),
+    ('types = "structure"', "[diagrams] types should be list"),
+    ('types = ["structure", "flow"]',
+     "[diagrams] types should name only structure, sequence, state"),
+    ("types = [1]", "[diagrams] types should name only structure, sequence, state"),
+])
+def test_invalid_diagrams_values_warn(nogit_repo, capsys, body, expected):
+    """REQ-FUNC-cd29e673: a misspelled diagrams setting is reported, not silent."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml", f"schema = 1\n\n[diagrams]\n{body}\n")
+    findings = lines_for(run_check(aegis, capsys), "config")
+    assert sum(expected in line for line in findings) == 1
+
+
+@pytest.mark.parametrize("body", [
+    "",
+    '[diagrams]\nenabled = true\ntypes = ["structure", "sequence", "state"]\n',
+    "[diagrams]\nenabled = false\ntypes = []\n",
+])
+def test_valid_or_missing_diagrams_settings_are_silent(nogit_repo, capsys, body):
+    """REQ-FUNC-cd29e673, REQ-FUNC-f7220cb2: no table or valid values add nothing."""
+    agentic, aegis = nogit_repo
+    write(agentic / "aegis.toml", f"schema = 1\n\n{body}")
+    assert not any("[diagrams]" in line
+                   for line in lines_for(run_check(aegis, capsys), "config"))
+
+
+def test_check_findings_ignore_a_diagram_file(nogit_repo, capsys):
+    """REQ-FUNC-6343dfb8: a diagram file neither adds nor removes a finding."""
+    agentic, aegis = nogit_repo
+    write_task(agentic, "TASK-abcd")
+    without = run_check(aegis, capsys, "--full")
+    write(agentic / "tasks" / "diagram_TASK-abcd.md",
+          "# TASK-abcd diagrams\n\n```mermaid\nflowchart LR\n    a --> b\n```\n")
+    assert run_check(aegis, capsys, "--full") == without
+
+
+@needs_git
+def test_check_findings_ignore_a_diagram_file_in_the_git_diff(tmp_path, capsys):
+    """REQ-FUNC-6343dfb8, REQ-FUNC-ee1d2096: diff-driven rules skip it too."""
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-abcd")
+    without = run_check(aegis, capsys, "--full")
+    write(agentic / "tasks" / "diagram_TASK-abcd.md",
+          "# TASK-abcd diagrams\n\n```mermaid\nflowchart LR\n    a ==> b\n```\n")
+    assert run_check(aegis, capsys, "--full") == without
+
+
 # TESTS - check 22: fingerprints-tracked
 
 

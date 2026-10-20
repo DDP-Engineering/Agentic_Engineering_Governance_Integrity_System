@@ -11,6 +11,8 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-20
+
 ### Added
 
 - `[records] commit_fingerprints` (default `false`): `init` maintains a
@@ -22,13 +24,15 @@ All notable changes to AEGIS are documented in this file.
 - Document every configuration setting with the value `init` writes and the
   behavior that applies when the key is absent, in the installation guide and
   as a new settings slide in its deck.
+- Optional `[diagrams]` setting, off by default: design draws Mermaid diagrams
+  of the proposed implementation into `tasks/diagram_TASK-<id>.md` for review.
 
 ### Changed
 
 - Use repo-relative paths in workflow transitions, instructions, CLI guidance,
   and host prompts so agents can open the intended files from the checkout root.
-- Reconcile component knowledge and architecture in validate before final review
-  and proof; update during build only when needed for an agent handoff.
+- Reconcile component knowledge in validate before final review and proof;
+  update during build only when needed for an agent handoff.
 - Accept `[review] max_fix_cycles` from 0 through 255 instead of 0 through 5;
   the default stays 2 and total review rounds remain `1 + max_fix_cycles`.
 - Name `[layout] default_branch` in the configuration `init` writes and in
@@ -37,6 +41,11 @@ All notable changes to AEGIS are documented in this file.
 - State how the default branch resolves where the CLI reference relies on it.
 - Carry `[layout] default_branch` and `[interaction] autopilot` into the
   configuration table of the Folders & Files guide and deck.
+
+### Removed
+
+- The design `### Proposed architecture` and component `## Architecture`
+  diagrams; validate drops a retired section from a page it updates.
 
 ## [0.13.0] - 2026-09-10
 

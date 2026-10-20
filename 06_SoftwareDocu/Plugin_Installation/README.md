@@ -18,7 +18,7 @@ host-specific format:
 | Qwen Code | [Guide](04_Qwen_Code_Installation.md) | [PDF](pdf/04_Qwen_Code_Installation.pdf) |
 | Claude Code | [Guide](05_Claude_Code_Installation.md) | [PDF](pdf/05_Claude_Code_Installation.pdf) |
 
-Markdown is the maintained source for the current AEGIS 0.13.0 installation
+Markdown is the maintained source for the current AEGIS 0.14.0 installation
 guidance. Generated PDFs live under `pdf/`; generic installation-flow figures
 live under `assets/`. Choose the actual supplied package by its manifest and
 checksum record. Source version assignment and archive construction are separate

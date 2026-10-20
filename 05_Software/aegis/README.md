@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.13.0
+# AEGIS 0.14.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,7 +16,7 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The project version is **0.13.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+The project version is **0.14.0**. Optional OpenCode, Codex, Pi, Qwen Code and
 Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 
@@ -87,7 +87,7 @@ eligibility reason in frame; validation and authority limits still apply.
 
 Component knowledge pages are concise implementation routes. Their `Routing`
 signals select the owning component and point to its first source and focused
-test seams; boundaries, invariants, current architecture, behaviors, and files
+test seams; boundaries, invariants, behaviors, and files
 provide the context needed to change it safely. A `Change map` is useful for a
 component with multiple independent edit-and-test seams and can be omitted for
 a simple component. The page reduces broad discovery, but the exact source and
@@ -237,10 +237,10 @@ analyze selected evidence, challenge gaps and contradictions, write the durable
 artifact, then audit it. Material claims are labelled stated, observed,
 inferred, or unknown. The journal retains a structured Frame and requirement
 coverage table; design depth grows when interfaces, state, trust, concurrency,
-migration, or operational risk require it. Proposed architecture stays in the
-task during design. Build updates directly affected docstrings, usage examples,
-and setup instructions. Validate updates component knowledge and architecture
-after implementation corrections and before final review and proof. Earlier
+migration, or operational risk require it. The proposal stays in the task
+during design. Build updates directly affected docstrings, usage examples,
+and setup instructions. Validate updates component knowledge after
+implementation corrections and before final review and proof. Earlier
 component updates are appropriate when another agent needs current facts for a
 handoff.
 The payload's prompt cheatsheet includes explicit one-stage sessions; actual
@@ -265,6 +265,21 @@ A candidate edit invalidates both verdicts. The workflow allows
 required.
 Review disabled does not skip semantic review, full validation, strict checks,
 or the delivery checkpoint.
+
+Design diagrams for the human are optional and default off:
+
+```toml
+[diagrams]
+enabled = false
+types = ["structure"]
+```
+
+With `enabled = true`, design ends by drawing Mermaid diagrams of the proposed
+implementation (`structure`, `sequence` or `state`, as listed in `types`) into
+`.agentic/tasks/diagram_TASK-<id>.md`, links the file from `## Design`, and
+shows the diagrams at the design checkpoint. They only illustrate the design:
+no stage, review or `check` finding depends on them, and AEGIS bundles no
+renderer.
 
 ## Optional host integrations
 

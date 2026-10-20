@@ -136,7 +136,7 @@ they do not mutate task journals or implement a general enforcement sandbox.
 Each user's chosen host/provider remains responsible for authentication and
 model access. No recipient needs the package author's sign-in.
 
-This guide describes the assigned **0.13.0** source. Complete packages are built
+This guide describes the assigned **0.14.0** source. Complete packages are built
 separately under `07_Delivery/`; use the manifest and README of the package
 actually supplied. Source changes take effect in an installed host through its
 normal package update procedure.

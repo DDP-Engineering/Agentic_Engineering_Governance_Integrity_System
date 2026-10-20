@@ -28,8 +28,9 @@ records; those records do not replace the authoritative task journal.
   context/project.md, context/environment.md   repository-owned current context
 ```
 
-Exactly 17 files are managed by the payload: `AGENTS.md`, `CLI.md`,
-`LICENSE.txt`, `aegis.py`, seven step files, and six templates. A payload
+Exactly 18 files are managed by the payload: `AGENTS.md`, `CLI.md`,
+`LICENSE.txt`, `aegis.py`, eight step files (six stages, adoption and the
+optional design diagram guide), and six templates. A payload
 upgrade replaces only those managed files. It preserves `aegis.toml`,
 requirements, specs, tasks, anchors, evolution reports, knowledge pages, and
 current project/environment context. `init` scaffolds each missing context
@@ -86,7 +87,7 @@ someone's installed profile.
 Package setup supports explicit profile/runtime paths. Update and removal
 validate owned content and refuse unsafe collisions or active/uncertain jobs;
 they preserve unrelated settings. Codex and Claude also validate their native
-AEGIS caches, refusing added, edited or missing content. The 17-file core
+AEGIS caches, refusing added, edited or missing content. The 18-file core
 payload and each host package have separate update procedures.
 
 ## Verification job cache
@@ -119,6 +120,7 @@ thereafter. The implemented configuration surface is:
 | `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 255 (default 2). |
 | `[records]` | Exact Boolean `commit_fingerprints` (default `false`). While false, `init` maintains a managed `.gitignore` block that excludes the anchor/evolution sidecars; true removes that block so they are committed with the journal. |
 | `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; publication authority applies in both modes. |
+| `[diagrams]` | Exact Boolean `enabled` defaults to `false`, including a missing table/key. `types` lists `structure`, `sequence` or `state` and defaults to `["structure"]`. When enabled, design draws Mermaid diagrams of the proposed implementation for the human; nothing checks them. |
 | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
 | `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
 
@@ -250,7 +252,8 @@ Current journals also provide durable semantic sections:
   Frame outcome to its requirement, positive case, boundary or failure,
   verification, and design decision or `no design impact`.
 - `## Design`: proportionate implementation decisions, traceability, test
-  seams, risks, open decisions, expected files, and any proposed architecture.
+  seams, risks, open decisions, and expected files, plus one link to
+  `diagram_TASK-<id>.md` when design diagrams are enabled.
 
 The journal may additionally hold:
 
@@ -281,20 +284,19 @@ evidence.
 
 Each component page under `knowledge/` routes matching requests through
 selection signals to the component's owned source and focused tests. It records
-purpose and boundaries, public interface, invariants, key behaviors, current
-architecture, and files; components with multiple independent edit-and-test
+purpose and boundaries, public interface, invariants, key behaviors, and files;
+components with multiple independent edit-and-test
 seams also carry a change map. The route narrows discovery, while exact source
 and tests remain authoritative. The no-argument `components` command derives a
 deterministic catalogue from each page's first level-one title, or filename
 stem fallback, and lexical repository-relative path. It does not parse body
 sections, create metadata, or maintain a separate registry.
 
-When component structure will change, Design records
-`### Proposed architecture - TASK-<id>` in the task without replacing the
-current-state knowledge diagram. Validate compares the proposal with built
-code, updates the component page to the resulting current state, records
-justified differences, and retains the task proposal as historical design
-evidence. The knowledge directory remains intentionally navigable without a
+Design keeps its proposal in the task and leaves component pages unchanged;
+validate reconciles them with the built code. When `[diagrams] enabled = true`,
+design also draws the proposal as Mermaid diagrams in
+`tasks/diagram_TASK-<id>.md` for the human. Nothing checks or reconciles that
+file. The knowledge directory remains intentionally navigable without a
 separate component manifest; `components` is a read-only projection of the
 pages already present.
 

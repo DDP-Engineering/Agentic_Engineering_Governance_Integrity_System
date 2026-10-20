@@ -228,6 +228,20 @@ that task's journal header, so the choice survives a resume.
 | `enabled` | `false` | `false`. Ordinary semantic review, the full suite and the strict check are required whichever way this is set. |
 | `max_fix_cycles` | `2` | `2`. A value outside 0 through 255 resolves to 0, and `check` reports it. |
 
+### `[diagrams]` - optional design diagrams
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `enabled` | `false` | `false`. Any value other than the Boolean `true` also means `false`, and `check` reports a non-Boolean. |
+| `types` | `["structure"]` | `["structure"]`. An empty list draws nothing; `check` reports a non-list or a name other than `structure`, `sequence` or `state`. |
+
+With `enabled = true`, design ends by drawing Mermaid diagrams of the proposed
+implementation into `.agentic/tasks/diagram_TASK-<id>.md`, links the file from
+the task's `## Design`, and shows the diagrams at the design checkpoint. They
+illustrate the design for you: no stage, review or `check` finding depends on
+them, and AEGIS bundles no renderer - GitHub, GitLab and many Markdown
+previews draw Mermaid, and a terminal shows its text.
+
 ### `[records]` - fingerprint sidecars
 
 | Setting | `init` writes | When absent |

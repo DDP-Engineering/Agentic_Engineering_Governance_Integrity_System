@@ -51,6 +51,7 @@ EXPECTED_PAYLOAD = {
     "steps/5_validate.md",
     "steps/6_deliver.md",
     "steps/adopt.md",
+    "steps/diagrams.md",
     "templates/component.md",
     "templates/environment.md",
     "templates/project.md",
