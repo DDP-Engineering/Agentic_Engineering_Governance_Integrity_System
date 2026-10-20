@@ -9,7 +9,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # TASK-fcd51702 - Draw optional implementation diagrams for the human at design
 
-stage: deliver
+stage: done
 type: feature
 path: full
 interaction: autopilot
@@ -24,9 +24,9 @@ opened: 2026-10-20
 - [x] validated candidate confirmed unchanged; otherwise returned to validate
 - [x] validation evidence, diff, exclusions, and outcome presented
 - [x] delivery confirmed by the human
-- [ ] journal and report included in the delivery commit
-- [ ] agreed outcome delivered, normally a PR
-- [ ] close-out committed after the outcome succeeded, or carried by the
+- [x] journal and report included in the delivery commit
+- [x] agreed outcome delivered, normally a PR
+- [x] close-out committed after the outcome succeeded, or carried by the
       delivery commit where nothing could fail after it
 
 ## Frame
@@ -607,6 +607,11 @@ changes; the task adds a guide file and a config table.
     anchor/evolution sidecars and the generated CodeGraph database.
   - Open TASK-699c6286 also lists the retired REQ-FUNC-500cfb8b; its owner
     decides how to treat it.
+- 2026-10-20 deliver: delivery commit 75508bc pushed to
+  `origin/ddp/optional-diagrams`. No pull request was requested. The report
+  check snapshot (errors=0, warnings=41) adds `outside-layout` warnings for the
+  release files under `07_Delivery/` and for `00_Planning/`, which `[layout]`
+  does not list. Task closed: stage done.
 
 ## Rulings
 
@@ -620,22 +625,22 @@ changes; the task adds a guide file and a config table.
 
 ## Handoff
 
-current: deliver
-status: waiting
-next: User reviews the uncommitted candidate and chooses the delivery outcome (commit/PR, changes, return to validate, or pause); no commit or push before that choice (RULING-007)
-must_read: .agentic/tasks/TASK-fcd51702.md, .agentic/steps/6_deliver.md
+current: done
+status: ready
+next: none; optionally open a pull request for ddp/optional-diagrams into master
+must_read: .agentic/tasks/TASK-fcd51702.md
 blockers: none
 
 ## Stage report
 
-stage: validate
-result: paused
-current: deliver
-changed: optional [diagrams] design diagrams (new steps/diagrams.md guide, config, check warning), removal of the old architecture-diagram obligations, tests, docs, decks and knowledge; 46 tracked files changed plus 11 new
-evidence: check --task TASK-fcd51702 --strict --run exit 0 (full pytest suite ok 208.6s, ruff ok, errors 0, warnings 21 explained); review round 3 both approved on 6566cdb8
-issues: DEVIATION root README.md:182 stale payload count (pre-existing); open TASK-699c6286 also lists retired REQ-FUNC-500cfb8b; repository-state warnings explained in Log
-next: user reviews the uncommitted candidate and chooses the delivery outcome
-needs_user: yes
+stage: deliver
+result: completed
+current: done
+changed: optional [diagrams] design diagrams, removal of the old architecture-diagram obligations, version 0.14.0 and its delivery record
+evidence: check --task TASK-fcd51702 --strict --run exit 0 (463 passed, 2 skipped; ruff ok); review round 3 both approved; delivery commit 75508bc pushed
+issues: DEVIATION root README.md:182 stale payload count (pre-existing); open TASK-699c6286 lists retired REQ-FUNC-500cfb8b
+next: none
+needs_user: no
 spec_compliance: approved
 implementation_quality: approved
 review_round: 3
