@@ -64,6 +64,15 @@ observable behavior, compatibility, security, data handling, or verification.
 Use the journal and linked artifacts as the durable result; conversational
 reasoning and a large context window are not durable evidence.
 
+**Interpret evidence in its scope.** Read a named file from the current checkout
+to assess the current candidate, including untracked files. `git show HEAD:path`
+and base diffs describe historical snapshots; a path absent there can still be
+present now. Discover the owning component page from known links or `components`
+before declaring it missing. Compare contracts by actor, interface and trigger:
+an added interface may reuse an unchanged function without replacing its contract.
+Name the incompatible obligations before declaring a contradiction. Keep a
+proposed implementation choice explicitly proposed until its authority is clear.
+
 **Quick path.** For a small fix or change: `frame → build → validate → deliver`.
 Decide this in `frame`, record `path: quick` in the journal header, and
 say why in the log. Everything else uses the full path.
@@ -168,6 +177,11 @@ than appending a correction history. Preserve established requirements unless
 the user authorizes a behavior change: a code/document conflict is a finding,
 not permission to rewrite the contract to fit the easiest implementation.
 
+When an active contract and source disagree, label normative interface text
+as the contract and observed runtime behavior as implementation. Keep the
+mismatch and its evidence in the journal; do not present the intended result
+as verified implementation or turn the defect into a new active requirement.
+
 Link authoritative setup docs and `[commands]`/`[layout]` in
 `.agentic/aegis.toml` rather
 than maintaining duplicate values. Keep secrets in their approved stores and
@@ -192,6 +206,10 @@ not a new gate, approval, or automatic setup authority.
    checklist always belongs to the **current** stage: advancing a stage
    replaces it with the next stage's "Done when" list (each step file's
    last step says so).
+   Reconcile that item with observed history: an unavailable past execution
+   remains an unticked limitation, not a future action to reconstruct. Name
+   the next feasible current action or the specific decision required to
+   proceed; a new run cannot establish past test-first execution.
 
 Load linked requirements, specs, knowledge, source, and tests as the current
 stage needs them; do not preload the whole repository or requirement register.
@@ -257,6 +275,12 @@ waiting Handoff intact.
 
 Use concrete stage names and artifacts rather than generic wording. Render
 each choice as its own numbered or bulleted line:
+
+The table applies to completed stage work. A pause during unfinished work or
+an inspection/record-only update reports the concrete pending action/decision,
+without a generic completion menu. Continuation requires the stage's actual
+proof, current verdicts and user authority; label unavailable transitions as
+unavailable. Recording a proposed exception does not accept it.
 
 | Completed work | Present these choices |
 |---|---|
@@ -365,7 +389,40 @@ stage transition, pause, blocker, and session end. The log remains the history,
 the Stage report remains the user-facing result, and neither Rulings nor
 Handoff adds an approval stop.
 
+Use one comma-separated `must_read:` line, never semicolons or bullets; name
+actual repository-relative files, including the journal and needed step file.
+Both next fields name the same concrete action or decision. Avoid generic
+references such as "the recorded next action"; keep the fields concise and
+put supporting context in issues or the Log.
+For current verification, next promises only the named command's result on
+the current candidate. Keep missing historical red/anchor evidence in issues;
+do not attach its recovery to that next operation. Check both saved next
+fields against this rule before running summary.
+
 ## Stage reporting
+
+Record updates are executable work: save, reread, then run summary. A malformed
+snapshot or failed summary requires an authorized record repair and another
+summary, not a claim that the transition was saved. Preserve legal content and
+append-only history. Use the task template's multiline examples.
+
+Within the user's authorized record-edit scope, use a permitted file-editing
+tool before concluding that a journal cannot be saved. An unavailable shell
+operation is not a rejected file edit. An exact-text mismatch is repairable:
+reread, retry a unique fragment, or preserve the current file in a full rewrite.
+Honor an actual host permission refusal; never bypass it or claim an unattempted
+write was denied. Tool availability alone grants no additional authority.
+Evaluate permissions per operation: a read-only shell or reviewer does not
+describe a separate coordinator record-edit tool. "Do not edit the validated
+candidate" still permits its required journal-only pause or return records.
+
+Explicit reviewers assess the current candidate against evidence due at review
+time: source, actual test assertions, available execution records and candidate
+binding. Validate's final full proof follows both approvals; its absence before
+review is not itself a finding. Missing required focused proof or actual behavior
+remains a finding. Existing tests can demonstrate a restored contract without a
+new test-file diff. Distinguish a candidate's defect from who introduced it;
+attribute ownership only when evidence establishes it.
 
 At each stage completion, pause or session end, or blocker, present one compact
 report **before any detailed explanation**. Reporting does not introduce
@@ -382,9 +439,15 @@ update the journal's single `## Stage report` section using the plain fields in
 It is a replaceable latest snapshot; the log stays append-only. Review fields
 are `disabled`/blank when optional review is off and current-candidate verdicts
 when it is on.
+Before editing journal records, read `.agentic/templates/task.md` if its
+authoring guidance is not already in this intact session. Generated journals
+omit that guidance; reading only the current step or populated journal does
+not replace it. Follow its empty-Rulings, Handoff and pause/report examples.
 Record the completed stage in `stage`, and the actual header stage in
 `current` after any transition. Use `result: paused` when waiting or ending a
-session; other outcomes are `in_progress`, `completed`, `blocked`, `skipped`.
+session; a requested bounded autopilot transition with no pending decision uses
+`result: completed`, Handoff `status: ready` and `needs_user: no` for that
+transition only. Other outcomes are `in_progress`, `blocked`, `skipped`.
 Stage names stay canonical (`specify` means requirements); reporting must not
 rename stages or claim the next stage has been completed.
 

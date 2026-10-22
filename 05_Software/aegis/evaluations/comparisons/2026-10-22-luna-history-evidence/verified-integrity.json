@@ -1,0 +1,122 @@
+[
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/attempts.json",
+    "sha256": "50d5bb8f1e66a9e235e20e811a0126cd213172c2c75372244475da1ccfb81381"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/evidence.zip",
+    "sha256": "0f7bd82440a82e8e733c7afa8b52eef3714a01b3a5bfd32ee7f41f9717c6791e"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/manifest.json",
+    "sha256": "7aebfc6f51f77dee216f7f145e7bc324c8179ee48c921697ff9d8d0b8a5d9394"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/results.json",
+    "sha256": "50d5bb8f1e66a9e235e20e811a0126cd213172c2c75372244475da1ccfb81381"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/timing.json",
+    "sha256": "633f18de39a867d0df13015177d53432bbbfa532425d59ae967620bebf433f60"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/02_Tools/evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/02_Tools/evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/02_Tools/evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/02_Tools/evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/05_Software/aegis/evaluations/capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/05_Software/aegis/evaluations/scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "sha256": "5e21f7ed09d8abad9fec4b16fa1adee1a3b21eea6f7bfe6acc6fdbfd1a3c55a9"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-spec-review.toml",
+    "sha256": "acac9ee3ee1cda314db9264e2c77270b786ac12b4717bbce7f8f2fb921438ff4"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-capabilities/sources/05_Software/aegis/evaluations/profiles/installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/attempts.json",
+    "sha256": "d3dcd7659229b45dd67f2effd59def8752d093559839ffae7879a4457054d3f0"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/evidence.zip",
+    "sha256": "873a4068c4ffee0896cee187c352f57449ee4b1ca79197c329053ef1d5dfa8a9"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/manifest.json",
+    "sha256": "aae04755c9087bb81b93b6ceef1b17481b5219d4515a869c729543f563a467b0"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/results.json",
+    "sha256": "d3dcd7659229b45dd67f2effd59def8752d093559839ffae7879a4457054d3f0"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/timing.json",
+    "sha256": "c31788d5efd958ffe2515d84fb35c0bad3b6390ffc4aa98e4b3773c40c19a495"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/02_Tools/evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/02_Tools/evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/02_Tools/evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/02_Tools/evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/05_Software/aegis/evaluations/capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/05_Software/aegis/evaluations/scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "sha256": "5e21f7ed09d8abad9fec4b16fa1adee1a3b21eea6f7bfe6acc6fdbfd1a3c55a9"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-spec-review.toml",
+    "sha256": "acac9ee3ee1cda314db9264e2c77270b786ac12b4717bbce7f8f2fb921438ff4"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates/2026-10-22-luna-history-evidence-core/sources/05_Software/aegis/evaluations/profiles/installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  }
+]

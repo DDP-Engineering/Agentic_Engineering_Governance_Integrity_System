@@ -1,0 +1,122 @@
+[
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/attempts.json",
+    "sha256": "e144356de3bf1595efe5bb098252de3e5f7f45bfc839fd4f8b690b9c6877e0fc"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/evidence.zip",
+    "sha256": "d3c23296bbfdc284b4e6cfccc41d62e01e65b66f7c2b8f923510230f22ce48a0"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/manifest.json",
+    "sha256": "7c96147c0571fc05a8e91ef3266540d0fc1f8f079b9ff99d4303948dec1d57c4"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/results.json",
+    "sha256": "e144356de3bf1595efe5bb098252de3e5f7f45bfc839fd4f8b690b9c6877e0fc"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/timing.json",
+    "sha256": "90f0f3fe7cef8f5c77ae39347fd63c8c5b167ac9bdeb4fc1306398ba917f70b5"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/02_Tools/evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/02_Tools/evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/02_Tools/evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/02_Tools/evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/05_Software/aegis/evaluations/capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/05_Software/aegis/evaluations/scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "sha256": "f8c48b7d8eaefc27e6ef828032e43a2fd94e46b5df6d1baddb9139878896fa95"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-spec-review.toml",
+    "sha256": "42c7eedc6bf9eabdd4f55ee29d323cffb6d46929cbf50f3d5106c6d0b43c417e"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-capabilities/sources/05_Software/aegis/evaluations/profiles/installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/attempts.json",
+    "sha256": "4f0956fb22daaf24ca8da04234469acda383f8b9aed66e4147eccdabe3a853f3"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/evidence.zip",
+    "sha256": "3b0afeb7c9b51b3a3248d617e8e3567e98832bd690d97153e923c181d3fd2d64"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/manifest.json",
+    "sha256": "d1f2fd4cf305de1b1d7d967d102026e61a64b6d84bee58a92dc17155fb9fb705"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/results.json",
+    "sha256": "4f0956fb22daaf24ca8da04234469acda383f8b9aed66e4147eccdabe3a853f3"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/timing.json",
+    "sha256": "af48809b56b62b36d5048f4ac6d4f72d888f8ce78ae3eabe102f2a6820cd2fc4"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/02_Tools/evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/02_Tools/evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/02_Tools/evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/02_Tools/evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/05_Software/aegis/evaluations/capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/05_Software/aegis/evaluations/scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "sha256": "f8c48b7d8eaefc27e6ef828032e43a2fd94e46b5df6d1baddb9139878896fa95"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-spec-review.toml",
+    "sha256": "42c7eedc6bf9eabdd4f55ee29d323cffb6d46929cbf50f3d5106c6d0b43c417e"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates/2026-10-22-sol-high-control-replay-core/sources/05_Software/aegis/evaluations/profiles/installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  }
+]

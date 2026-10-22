@@ -1,0 +1,183 @@
+--- preceding/AGENTS.md
++++ candidate/AGENTS.md
+@@ -63,6 +63,15 @@
+ observable behavior, compatibility, security, data handling, or verification.
+ Use the journal and linked artifacts as the durable result; conversational
+ reasoning and a large context window are not durable evidence.
++
++**Interpret evidence in its scope.** Read a named file from the current checkout
++to assess the current candidate, including untracked files. `git show HEAD:path`
++and base diffs describe historical snapshots; a path absent there can still be
++present now. Discover the owning component page from known links or `components`
++before declaring it missing. Compare contracts by actor, interface and trigger:
++an added interface may reuse an unchanged function without replacing its contract.
++Name the incompatible obligations before declaring a contradiction. Keep a
++proposed implementation choice explicitly proposed until its authority is clear.
+ 
+ **Quick path.** For a small fix or change: `frame → build → validate → deliver`.
+ Decide this in `frame`, record `path: quick` in the journal header, and
+@@ -403,6 +412,9 @@
+ reread, retry a unique fragment, or preserve the current file in a full rewrite.
+ Honor an actual host permission refusal; never bypass it or claim an unattempted
+ write was denied. Tool availability alone grants no additional authority.
++Evaluate permissions per operation: a read-only shell or reviewer does not
++describe a separate coordinator record-edit tool. "Do not edit the validated
++candidate" still permits its required journal-only pause or return records.
+ 
+ Explicit reviewers assess the current candidate against evidence due at review
+ time: source, actual test assertions, available execution records and candidate
+--- preceding/steps/3_design.md
++++ candidate/steps/3_design.md
+@@ -12,9 +12,15 @@
+ `build` has a sufficiently constrained implementation path, material open
+ decisions remain explicit, and a reviewer can see why the shape was chosen.
+ 
+-**Checkpoint response:** actual summary in a text fence, then the saved Mermaid
+-blocks themselves when applicable, then choices. A diagram link alone is not
+-display. Autopilot saves applicable diagrams without displaying them.
++**Checkpoint response:** assemble it from saved artifacts, in this order:
++
++1. The actual summary stdout inside a plain text fence.
++2. When this stage generated diagrams, read their saved file and copy each
++   diagram's complete Mermaid fence into the response, preserving its content.
++3. The Design boundary choices, including pause.
++
++Finish this assembly before sending; a path or description does not supply
++part 2. Autopilot reports the saved diagram path without displaying diagrams.
+ 
+ **Read first:**
+ 
+@@ -49,6 +55,10 @@
+    exact implementation. **Challenge** contradictions, infeasible constraints,
+    implicit coupling, missing failure behavior, and unresolved decisions
+    before choosing a shape.
++   Separate a proposed new interface from an existing function it calls:
++   their different invocation styles alone are not conflicting contracts.
++   Resolve component paths from journal links or `components`, then read the
++   owning page; do not infer a missing page from a guessed filename.
+ 3. Write the note under the journal's existing `## Design` heading. 30 lines is the default,
+    not a hard limit: use the shortest record that makes
+    the known implementation path sufficiently constrained. Add proportionate
+--- preceding/steps/5_validate.md
++++ candidate/steps/5_validate.md
+@@ -58,6 +58,12 @@
+ untested behavior and unsupported claims. An existing executed regression test
+ can cover a restoration without any test-file change. Candidate binding is
+ checked before and after each independent inspection; report both observations.
++Identify each linked requirement, spec and journal by its current checkout path
++in the review brief. Reviewers read those files even when untracked: an absent
++HEAD version is not missing current scope. Include this evidence order in each
++brief: inspect current files and focused proof, issue verdicts, then the
++coordinator runs final full proof after approvals. Incomplete final-proof
++checklist items at this point describe work still due, not failed execution.
+ For a request limited to processing supplied independent results for the
+ unchanged candidate, apply the decision below and report it; do not restart
+ reviews or run final proof while their outcome blocks further work.
+--- preceding/steps/6_deliver.md
++++ candidate/steps/6_deliver.md
+@@ -10,6 +10,13 @@
+ 
+ **Purpose:** Present, report, commit, and publish a validated candidate without
+ changing what was proved.
++
++**Before the first delivery response:** decide candidate identity, save the
++corresponding journal records, reread them, run summary, then present. Journal
++records are allowed here; they are distinct from editing the validated source,
++tests, requirements, specs or knowledge. Use the available record-edit tool
++within its declared scope, even when the shell is read-only. Report an actual
++permission refusal if encountered; do not infer one from another tool's mode.
+ 
+ **Read first:**
+ 
+@@ -29,15 +36,22 @@
+ 
+ **Steps:**
+ 
+-1. Confirm that this stage **does not edit the validated candidate**. Inspect
+-   the diff and status before publishing. Compare the current tree with the
+-   recorded proof, not merely with the task's Git base: a base diff includes
+-   work already present when proof ran. A dirty working tree alone does not
+-   establish a post-proof change. Use available candidate-binding evidence;
+-   distinguish a demonstrated mismatch from unavailable evidence.
+-   If source, tests, requirements,
+-   specs, or knowledge changed after the recorded proof—or must change now—
+-   persist a return to `validate` before responding: read
++1. Inspect the current candidate and the recorded final proof. Use the same
++   candidate-binding method and scope for both observations. Decide once:
++
++   | Observation | Decision |
++   |---|---|
++   | Current binding equals the recorded validated binding | Candidate unchanged within that binding's scope; continue to step 2. |
++   | Bindings differ, or an independently observed relevant edit occurred after proof | Return records to Validate below. |
++   | No comparable binding or other sufficient identity evidence | Record exactly what identity evidence is unavailable; pause without asserting either equality or a post-proof edit. |
++
++   A matching binding covers its included tracked and untracked files. A diff
++   from the task base describes the proposed change set, not changes since
++   validation; it cannot contradict the match by itself. If the binding excludes
++   a relevant path, inspect that path separately and state the actual limit.
++   Do not edit the candidate or rerun proof to resolve this delivery inspection.
++
++   For a return to Validate, read
+    `.agentic/steps/5_validate.md`, save `stage: validate`, replace the checklist
+    with its complete "Done when" list and append the reason once. Refresh
+    Handoff and Stage report with `current: validate` and the concrete next
+@@ -45,7 +59,8 @@
+    `needs_user: yes`. Clear stale enabled-review verdicts while retaining the
+    consumed round; disabled verdicts remain `disabled`. Reread the saved
+    sections, run `summary TASK-<id>` and show its actual output. A response
+-   proposing this return does not save it. Stop without publishing or running
++   proposing this return does not save it. This is a journal-only update, not
++   code repair or revalidation. Stop without publishing or running
+    verification outside the user's requested scope.
+ 2. When explicit review is enabled, confirm both current bound verdicts are
+    `approved` for this unchanged candidate. Blank, malformed, stale,
+@@ -54,12 +69,21 @@
+    checkpoint; disabled review never skips them.
+ 3. Keep the journal log append-only. Journal-only delivery records are
+    expected here; never rewrite or delete earlier evidence.
+-4. **Stop and present in both interaction modes:** validation commands and
++4. **Save the approval pause before presenting**, in both interaction modes.
++   Keep `stage: deliver` and its checklist; mark only observed completed items.
++   Save Handoff `current: deliver`, `status: waiting`, and the concrete delivery
++   decision in `next`. Save Stage report `stage: deliver`, `result: paused`,
++   `current: deliver`, `needs_user: yes`, actual changed/evidence/issues and the
++   same pending decision. Reread, run `summary TASK-<id>` and copy its actual
++   output in a text fence as the first response block.
++
++   Then present validation commands and
+    results, accepted warnings and pre-existing failures, the exact diff
+    summary, child status and integrated parent evidence when children are
+    visible, what will be committed, exclusions, and the intended outcome.
+-    Present the `deliver` Stage-boundary choices from `.agentic/AGENTS.md`, refresh the
+-    waiting Handoff and paused Stage report, and wait for the human's choice.
++   Present the `deliver` Stage-boundary choices from `.agentic/AGENTS.md` and
++   wait for the human's choice. Keep approval unavailable if identity or proof
++   is unresolved; a human approval cannot make missing proof current.
+     Any deviation notices you gave along the
+    way were notifications, not approvals: notices supplement this
+    presentation and never shorten it, so repeat every deviation here even
+--- preceding/steps/diagrams.md
++++ candidate/steps/diagrams.md
+@@ -82,13 +82,15 @@
+ - Put one diagram in each fenced block, using only the headers in the table
+   above.
+ 
+-**Presentation:** in checkpoint mode, show the file's diagrams after the stage
+-summary and before the design stage-boundary choices. Autopilot writes the
+-file, names its path in the Stage report `changed` field, and adds no display
+-and no stop. An explicit stop at Design still completes the configured diagram
+-artifacts before stopping and leaves the header at Design; it never skips
+-generation merely because Build is forbidden. In checkpoint mode, include the
+-saved Mermaid blocks themselves; a path or link alone is not their display.
++**Checkpoint presentation:** after saving, read the diagram file back. Build
++the response as: actual summary in a text fence; each saved diagram heading and
++its complete Mermaid fence; then all Design boundary choices. Copy the diagram
++blocks verbatim, as in the file example above. Inspect the response itself for
++those blocks before sending it; the journal link only locates the artifact.
++
++**Autopilot presentation:** save the file and report its path in `changed`;
++omit diagram display and add no stop. An explicit stop at Design still completes
++the configured artifacts and leaves the header at Design before stopping.
+ 
+ Nothing checks this file. It is not evidence, it is no Done when item, and no
+ later stage or review reads it.

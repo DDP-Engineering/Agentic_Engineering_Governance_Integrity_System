@@ -1,0 +1,28 @@
+{
+  "reason": "Native Spec role rejected by external ChatGPT capacity; excluded per user instruction.",
+  "observation": {
+    "variant": "corrected",
+    "profile": "capabilities",
+    "scenario": "review_detects_missing_behavior",
+    "collection": "2026-10-22",
+    "artifact_directory": "candidates/2026-10-22-luna-validation-records-capabilities",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": "unexposed",
+    "status": "completed",
+    "automatic_pass": false,
+    "seconds_including_nested_review": 151.778,
+    "coordinator_output_tokens": 2374,
+    "reviewer_output_tokens": 1149,
+    "reviewer_sessions": 2,
+    "coordinator_reasoning_tokens": 365,
+    "reviewer_reasoning_tokens": 0,
+    "failed_checks": "one_journal; two_real_review_sessions; same_unchanged_candidate; independent_read_evidence; verdicts_from_actual_reviewers",
+    "agents_contract_read": true,
+    "agents_contract_complete_read": true,
+    "step_prompts_read": ".agentic/steps/5_validate.md",
+    "journal_license_prologue": false
+  },
+  "independent_semantic_finding_retained": "Extra task journal was created before provider rejection. This observation is not erased by selection of a valid independent follow-up."
+}

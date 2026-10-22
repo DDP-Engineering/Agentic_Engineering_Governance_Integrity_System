@@ -15,6 +15,58 @@ lives in the payload itself, in `.agentic/AGENTS.md`.
 Replace `<angle-bracket>` parts before sending. On Linux distributions
 without a `python` alias, say `python3` in the prompts.
 
+Frame and validate read `.agentic/templates/task.md` before journal edits.
+New journals keep a visible link to this authoring guide. Existing task IDs are
+selectors for `brief` and `summary`; `task "<title>"` creates a new journal.
+At a stop, record the pause and use the actual summary after successful writes.
+Missing records still require repair when summary itself exits zero.
+Deliver saves either the approval pause or a stale-proof return before summary.
+Matching like-for-like candidate bindings establish identity within their scope;
+the Git base is used to describe the change set. Read current linked files even
+when untracked, and discover component paths before declaring missing evidence.
+An additional interface can reuse an existing contract without replacing it.
+At a Design checkpoint, copy the saved diagram blocks into the response after
+the actual fenced summary and before the choices; a link only locates the file.
+Append Log outcomes at the following section heading without retyping earlier
+evidence lines, and verify that their text and spacing remain unchanged.
+Reviewers inspect the current working tree and phase-appropriate proof; a pending
+final Validate checklist does not itself block independent approval. Diagram
+classes follow proposed node edits, independently of new connections.
+It compares against the proved tree; an ordinary diff from the task base can
+include already validated work. Validate saves failed-verification limitations
+before responding and leaves only journal record edits after final proof.
+Design applies diagram enablement and the types list before writing artifacts;
+an explicit Design stop still includes applicable diagrams. Empty types creates
+none. A bounded autopilot transition can report ready/completed without asking
+for a decision that is not pending. Review uses evidence due at that phase;
+final full proof follows approvals, and existing executed tests may cover a fix.
+An existing-contract quick fix records its requirement IDs in the header at
+Frame. Saved `next` fields name one action or scoped decision; checkpoint
+choices belong in the response. Resolve a recorded scope blocker before
+routing to a later stage, and distinguish accepted scope from requirement status.
+
+Destructive cleanup asks the actual target and recovery-policy questions before
+scope acceptance; permission to defer them does not resolve them. Frame examples
+must not assume an undecided eligibility boundary. Record refreshes preserve the
+journal's authoring-guide pointer and distinguish each Frame clause from Rulings.
+Current verification cannot recover historical red/anchor evidence. Copy every
+summary line, including Details and truncation warnings; shorten saved fields and
+rerun summary when needed. An unperformed evolution report stays unchecked with
+an applicability reason or an unresolved verification limitation.
+Label mixed-source claims separately: user clauses are stated, inspected test
+assertions are observed definitions, and constructed interface examples are
+inferred. Preserve the journal's original legal prologue verbatim, including
+SPDX and license references; it is not a removable authoring note.
+Creating a journal returns the ID/path to retain for subsequent edits. Repair
+that file after rejected edits and verify the saved stage checklist; incomplete
+fields do not justify creating another journal. A feature request establishes
+the desired capability, not an existing store, accumulated data or current defect.
+Save the Frame and pending questions before pausing for scope decisions. For an
+exact-match failure, reread and use actual multiline text; if necessary, rewrite
+the current journal with only authorized sections changed, preserving history.
+During resume, compare accepted outcomes rather than interpreting the Problem's
+original bug description as a commitment to keep that behavior.
+
 ## Install on an existing project - via an agent
 
 ```
@@ -91,6 +143,20 @@ explicit approval. To flow through intermediate stages, request autopilot:
 using aegis workflow, autopilot to deliver: implement <what>
 ```
 
+A record-only update or unfinished stage reports its pending action rather
+than a generic completion menu. A continuation choice is available only when
+the observed proof, current verdicts and user authority permit it. Failed
+verification or exhausted review names the concrete missing action/decision;
+proposing an exception does not accept it. Frame keeps inferred details as
+open questions rather than silently adding them to scope. Missing historical
+test or anchor evidence cannot be recreated by a new run.
+Before editing an existing journal, read the task template's authoring guidance
+if it is not already in the session. Generated journals omit those notes.
+No new human decision leaves Rulings unchanged; pending authority is not a Ruling.
+In both saved next fields, current verification names its command and current
+candidate; past red/anchor gaps remain in issues. Frame keeps feature scope and
+dependency choices open when evidence describes only what is implemented today.
+
 Autopilot suppresses intermediate stage-choice stops, not the agent's voice or
 publication approval: anything it
 deviates on still arrives mid-run as a one-line `DEVIATION <stage>: ...`
@@ -137,6 +203,20 @@ information before acting, and required full validation/delivery reads are
 never skipped. `summary` does not run checks or prove the recorded claims.
 These prompts reduce unnecessary context; they do not establish model
 compliance or proof that the recorded work succeeded.
+
+At an explicit stop, check the saved records as well as the response:
+Handoff `current` and Stage report `current` must match the header, Handoff
+must be waiting, and the report must say `result: paused`, `needs_user: yes`.
+A blocking decision uses blocked instead. Each field occupies one plain line;
+multiple `must_read` paths are comma-separated. The agent updates these
+records before running and showing `summary`.
+
+If the candidate changed after review, both current verdict fields must be
+cleared while the consumed review round and historical Log remain intact.
+Saying that approvals are stale in the response is insufficient. A request to
+inspect, reconcile records, or return to build and stop does not authorize
+repairing source/tests. When supplied review results exhaust the correction
+budget, record the blocking decision before attempting further work.
 
 ## Work on a quick fix
 

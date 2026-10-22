@@ -1,0 +1,90 @@
+--- preceding/AGENTS.md
++++ candidate/AGENTS.md
+@@ -397,6 +397,13 @@
+ summary, not a claim that the transition was saved. Preserve legal content and
+ append-only history. Use the task template's multiline examples.
+ 
++Within the user's authorized record-edit scope, use a permitted file-editing
++tool before concluding that a journal cannot be saved. An unavailable shell
++operation is not a rejected file edit. An exact-text mismatch is repairable:
++reread, retry a unique fragment, or preserve the current file in a full rewrite.
++Honor an actual host permission refusal; never bypass it or claim an unattempted
++write was denied. Tool availability alone grants no additional authority.
++
+ Explicit reviewers assess the current candidate against evidence due at review
+ time: source, actual test assertions, available execution records and candidate
+ binding. Validate's final full proof follows both approvals; its absence before
+--- preceding/steps/3_design.md
++++ candidate/steps/3_design.md
+@@ -11,6 +11,10 @@
+ **Purpose:** Write a short design note for non-trivial work, so that
+ `build` has a sufficiently constrained implementation path, material open
+ decisions remain explicit, and a reviewer can see why the shape was chosen.
++
++**Checkpoint response:** actual summary in a text fence, then the saved Mermaid
++blocks themselves when applicable, then choices. A diagram link alone is not
++display. Autopilot saves applicable diagrams without displaying them.
+ 
+ **Read first:**
+ 
+@@ -30,6 +34,10 @@
+ `summary TASK-<id>`. Read required durable evidence; missing or shortened
+ context requires review. This adds no approval stop and never defers a material
+ deviation notice. Reuse unchanged instructions already read in this session.
++If a journal edit fails an exact-text match, reread the current section and
++repair that same journal using the task template's fallback. Finish the saved
++Design and pause/transition records before responding; do not abandon a
++permitted record update because one text fragment was stale.
+ 
+ **Steps:**
+ 
+--- preceding/steps/5_validate.md
++++ candidate/steps/5_validate.md
+@@ -10,6 +10,14 @@
+ 
+ **Purpose:** Reconcile everything that may still change the candidate, then
+ prove the final tree before it is presented for publication.
++
++**Execution order for full authorized validation:** finish source, requirement,
++knowledge and context corrections; obtain enabled reviews; run final full proof;
++then update only journal records and show the actual summary. Any later edit to
++the proved candidate requires fresh relevant review and proof. If verification
++fails, save its actual command, exit and scope in the journal, refresh the
++pause/blocker and run summary before responding. A failed test is not a failed
++journal write. A narrower user request still limits which actions may run.
+ 
+ **Read first:**
+ 
+--- preceding/steps/6_deliver.md
++++ candidate/steps/6_deliver.md
+@@ -30,7 +30,12 @@
+ **Steps:**
+ 
+ 1. Confirm that this stage **does not edit the validated candidate**. Inspect
+-   the diff and status before publishing. If source, tests, requirements,
++   the diff and status before publishing. Compare the current tree with the
++   recorded proof, not merely with the task's Git base: a base diff includes
++   work already present when proof ran. A dirty working tree alone does not
++   establish a post-proof change. Use available candidate-binding evidence;
++   distinguish a demonstrated mismatch from unavailable evidence.
++   If source, tests, requirements,
+    specs, or knowledge changed after the recorded proof—or must change now—
+    persist a return to `validate` before responding: read
+    `.agentic/steps/5_validate.md`, save `stage: validate`, replace the checklist
+--- preceding/steps/diagrams.md
++++ candidate/steps/diagrams.md
+@@ -70,10 +70,13 @@
+   quotes.
+ - In structure diagrams, use `:::added`, `:::changed` or `:::removed` only for
+   nodes the Design proposes to add, modify or remove, with the corresponding
+-  `classDef` lines above. Leave a reused unchanged node unstyled, even when it
++  `classDef` lines above; include all three definitions for a consistent legend.
++  Leave a reused unchanged node unstyled, even when it
+   receives a new incoming edge. Draw added edges as `==>`, removed edges as
+   `-.->`, and unchanged edges as `-->`. Classify nodes and edges separately
+   against the proposed Design; a new connection alone does not modify its node.
++  Do not use removed-edge notation to distinguish a new test or dependency;
++  those edges are added even when their target is unchanged.
+ - Keep each diagram to about 15 nodes. Split a larger change into one
+   structure diagram per component.
+ - Put one diagram in each fenced block, using only the headers in the table

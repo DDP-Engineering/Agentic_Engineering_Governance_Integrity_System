@@ -11,10 +11,38 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Extend development prompt evaluations across all eight step prompts, with
+  real reviewer sessions, diagrams, autopilot and context-update cases.
+
+### Changed
+
+- Preserve delivery log text during appends, clarify review-phase evidence across
+  host reviewers, and check diagram node markers against the saved Design.
+- Clarify delivery identity and saved approval pauses, checkpoint diagram display,
+  and interpretation of current-checkout and review-phase evidence.
+- Clarify proof ordering, durable stage returns, diagram gates and markers,
+  review-time evidence and contract-versus-implementation documentation.
+- Link generated journals to their authoring guide and clarify Frame path decisions,
+  missing validation history and checkpoint reporting.
+- Clarify requirement headers, claim provenance, scoped resume decisions and
+  accepted-scope review in Frame, Validate and task-record guidance.
+- Clarify destructive-scope questions, append-only rulings, exact summaries,
+  existing test coverage and unperformed evidence in the three evaluated prompts.
+- Distinguish stated clauses from derived examples and preserve the original
+  journal copyright/license prologue during edits and rewrites.
+- Reuse the created journal when repairing edits, verify saved checklists, and
+  keep requested capabilities separate from unverified current conditions.
+- Clarify journal write recovery and pending Frame persistence; distinguish
+  reported defects from accepted outcomes during resume.
+
 ## [0.14.0] - 2026-10-20
 
 ### Added
 
+- Add a local prompt-evaluation harness with ten frame, validate and task-record
+  scenarios, recorded model/tool evidence and controlled baseline comparisons.
 - `[records] commit_fingerprints` (default `false`): `init` maintains a
   managed block in the root `.gitignore` that keeps anchor and evolution
   sidecars out of git, removes it when the setting is `true`, and names
@@ -29,6 +57,16 @@ All notable changes to AEGIS are documented in this file.
 
 ### Changed
 
+- Clarify frame, validate and task prompts with plain-field examples, synchronized
+  pause records, stale-verdict clearing and explicit limits on record-only work.
+- Keep inferred scope and missing historical evidence explicit, preserve complete
+  return checklists, and qualify continuation choices by proof and review state.
+- Require shared task-record authoring guidance for limited updates, with concrete
+  resume decisions and no placeholder Rulings for missing authority.
+- Keep next actions about current execution and distinguish observed absence
+  or environment facts from scope exclusions and dependency policy.
+- Increase the prompt-evaluation output budget to 16,384 tokens per response
+  to accommodate local-model reasoning.
 - Use repo-relative paths in workflow transitions, instructions, CLI guidance,
   and host prompts so agents can open the intended files from the checkout root.
 - Reconcile component knowledge in validate before final review and proof;
@@ -46,6 +84,11 @@ All notable changes to AEGIS are documented in this file.
 
 - The design `### Proposed architecture` and component `## Architecture`
   diagrams; validate drops a retired section from a page it updates.
+
+### Fixed
+
+- Support discoverable, bounded read-only Git inspection in prompt evaluations
+  and recognize explicit missing-verification reports without masking real runs.
 
 ## [0.13.0] - 2026-09-10
 

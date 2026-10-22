@@ -15,10 +15,13 @@ design recorded as skipped) draws nothing.
 
 **Steps:**
 
-1. Read `[diagrams] types` in `.agentic/aegis.toml`. When the key is missing,
+1. Confirm enabled is the TOML boolean `true` and Design is substantive, then
+   read `[diagrams] types` in `.agentic/aegis.toml`. When the key is missing,
    use `["structure"]`. A non-list value counts as missing. An empty list draws
    nothing: write no file and no link. An unknown name is ignored.
-   A list with no known name counts as an empty list.
+   A list with no known name counts as an empty list. Apply this gate before
+   writing any diagram heading, block, file or link. In particular, `types=[]`
+   is an explicit request for none, never a request for defaults or all types.
 2. From the final `## Design` text and the source you already read, draw one
    Mermaid diagram for each listed type that the design covers:
 
@@ -30,6 +33,11 @@ design recorded as skipped) draws nothing.
 
    For a listed type the design does not cover, write that type's heading
    with one line under it: `Not drawn: <reason>.`
+   Before drawing structure, classify each node from an explicit Design edit:
+   new node = added; changed implementation/responsibility = changed; removed
+   node = removed; reused unchanged node = no class. Record this small map in
+   the diagram file so the diagram can be checked against it. Participation in
+   the task or a new incoming edge does not make an existing node changed.
 3. Write the whole file `.agentic/tasks/diagram_TASK-<id>.md` each time design
    reaches this step:
 
@@ -55,8 +63,23 @@ design recorded as skipped) draws nothing.
    Not drawn: the change runs in one process with no asynchronous work.
    ````
 
-4. Add this line to `## Design` unless it is already there:
+4. Compare every structure-node class against that map and the saved Design.
+   In particular, a node described as unchanged has no added/changed/removed
+   class. Classify each edge independently. Fix any mismatch in the diagram
+   before copying its blocks into a checkpoint response; do not change the
+   Design to justify an accidental diagram marker.
+5. Add this line to `## Design` unless it is already there:
    `Diagrams: [diagram_TASK-<id>.md](diagram_TASK-<id>.md)`.
+
+6. **Checkpoint presentation:** when this stage wrote diagrams in checkpoint
+   mode, assemble the final response as: actual summary in a text fence; then
+   each saved heading and complete Mermaid fence copied verbatim; then all
+   Design boundary choices. Include the blocks even when unresolved Design
+   decisions prevent Build. A link does not display a proposal. Read the saved
+   file and check the outgoing response for every block before sending it.
+7. **Autopilot presentation:** save and report the file path in `changed`;
+   omit diagram display and add no stop. An explicit stop at Design still
+   completes the configured artifacts and leaves the header at Design.
 
 **Drawing rules:**
 
@@ -65,18 +88,19 @@ design recorded as skipped) draws nothing.
 - Name nodes and participants after searchable code names. Give each node a
   simple id of letters, digits and underscores, with its label in double
   quotes.
-- In structure diagrams, mark nodes `:::added`, `:::changed` or `:::removed`
-  using the three `classDef` lines above. Draw added edges as `==>`, removed
-  edges as `-.->`, and unchanged edges as `-->`.
+- In structure diagrams, use `:::added`, `:::changed` or `:::removed` only for
+  nodes the Design proposes to add, modify or remove, with the corresponding
+  `classDef` lines above; include all three definitions for a consistent legend.
+  Leave a reused unchanged node unstyled, even when it
+  receives a new incoming edge. Draw added edges as `==>`, removed edges as
+  `-.->`, and unchanged edges as `-->`. Classify nodes and edges separately
+  against the proposed Design; a new connection alone does not modify its node.
+  Do not use removed-edge notation to distinguish a new test or dependency;
+  those edges are added even when their target is unchanged.
 - Keep each diagram to about 15 nodes. Split a larger change into one
   structure diagram per component.
 - Put one diagram in each fenced block, using only the headers in the table
   above.
-
-**Presentation:** in checkpoint mode, show the file's diagrams after the stage
-summary and before the design stage-boundary choices. Autopilot writes the
-file, names its path in the Stage report `changed` field, and adds no display
-and no stop.
 
 Nothing checks this file. It is not evidence, it is no Done when item, and no
 later stage or review reads it.

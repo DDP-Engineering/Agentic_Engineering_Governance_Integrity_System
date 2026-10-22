@@ -1,0 +1,223 @@
+--- baseline/AGENTS.md
++++ corrected/AGENTS.md
+@@ -167,6 +167,11 @@
+ than appending a correction history. Preserve established requirements unless
+ the user authorizes a behavior change: a code/document conflict is a finding,
+ not permission to rewrite the contract to fit the easiest implementation.
++
++When an active contract and source disagree, label normative interface text
++as the contract and observed runtime behavior as implementation. Keep the
++mismatch and its evidence in the journal; do not present the intended result
++as verified implementation or turn the defect into a new active requirement.
+ 
+ Link authoritative setup docs and `[commands]`/`[layout]` in
+ `.agentic/aegis.toml` rather
+@@ -387,6 +392,19 @@
+ 
+ ## Stage reporting
+ 
++Record updates are executable work: save, reread, then run summary. A malformed
++snapshot or failed summary requires an authorized record repair and another
++summary, not a claim that the transition was saved. Preserve legal content and
++append-only history. Use the task template's multiline examples.
++
++Explicit reviewers assess the current candidate against evidence due at review
++time: source, actual test assertions, available execution records and candidate
++binding. Validate's final full proof follows both approvals; its absence before
++review is not itself a finding. Missing required focused proof or actual behavior
++remains a finding. Existing tests can demonstrate a restored contract without a
++new test-file diff. Distinguish a candidate's defect from who introduced it;
++attribute ownership only when evidence establishes it.
++
+ At each stage completion, pause or session end, or blocker, present one compact
+ report **before any detailed explanation**. Reporting does not introduce
+ stops by itself: checkpoint mode, the publication boundary, adoption approvals
+@@ -408,7 +426,9 @@
+ not replace it. Follow its empty-Rulings, Handoff and pause/report examples.
+ Record the completed stage in `stage`, and the actual header stage in
+ `current` after any transition. Use `result: paused` when waiting or ending a
+-session; other outcomes are `in_progress`, `completed`, `blocked`, `skipped`.
++session; a requested bounded autopilot transition with no pending decision uses
++`result: completed`, Handoff `status: ready` and `needs_user: no` for that
++transition only. Other outcomes are `in_progress`, `blocked`, `skipped`.
+ Stage names stay canonical (`specify` means requirements); reporting must not
+ rename stages or claim the next stage has been completed.
+ 
+--- baseline/steps/2_specify.md
++++ corrected/steps/2_specify.md
+@@ -46,6 +46,10 @@
+ 2. Split only when responses can vary, fail, change, or be verified
+    independently. Keep clauses together when they form one inseparable atomic
+    observable outcome. Final requirement prose normally contains one `shall`.
++   Normal and error responses that can fail independently normally get separate
++   requirements. If deliberately grouped, explain their inseparability in the
++   coverage table or linked spec and retain an oracle for each response. The
++   number of occurrences of `shall` alone does not decide atomicity.
+ 3. Reuse before creating, but compare semantics rather than titles. Reuse only
+    when actor/system, trigger or state, response, constraints, and observable
+    outcome match. Otherwise create a new requirement or deliberately revise the
+--- baseline/steps/3_design.md
++++ corrected/steps/3_design.md
+@@ -79,16 +79,23 @@
+     behavior, compatibility, verification seams, risks, and open decisions.
+     Run `python .agentic/aegis.py check` and fix format errors.
+ 11. If `.agentic/aegis.toml` sets `[diagrams] enabled = true` (a TOML boolean),
+-    read `.agentic/steps/diagrams.md` and draw what it describes. Any other
+-    value, or no `[diagrams]` table, means no diagrams.
++    read `.agentic/steps/diagrams.md` and apply its types gate before generating.
++    An empty types list generates no file or link. Any other enabled value,
++    or no `[diagrams]` table, means no diagrams. An explicit stop after Design
++    still includes enabled applicable artifacts, while keeping `stage: design`
++    and its checklist; do not advance to Build.
+ 12. Append one concise `design` outcome line pointing to `## Design` and any
+     linked spec; do not copy decisions into the Log. In checkpoint mode, show
+     the summary, then the diagrams of any diagram file this stage wrote, then
+     the `design` Stage-boundary choices from `.agentic/AGENTS.md`; refresh the
+     waiting Handoff and paused Stage report, then stop before transition. After
+-    the user chooses to continue, or immediately in autopilot, tick the
++    the user chooses to continue, or immediately in autopilot when no explicit
++    stop forbids the transition, tick the
+     checklist, set `stage: build`, and replace `## Done checklist` with the
+-    build stage's Done when list. Before build work, read
++    build stage's Done when list. Save and reread the matching Handoff/Stage
++    report and repair any summary format error before reporting the transition.
++    A bounded autopilot request to transition only stops before Build work with
++    ready/completed/needs_user=no when no human decision is pending. Before build work, read
+     `.agentic/steps/4_build.md`. If the user instead returns to Specify, read
+     `.agentic/steps/2_specify.md` before Specify work.
+ 
+--- baseline/steps/5_validate.md
++++ corrected/steps/5_validate.md
+@@ -44,6 +44,12 @@
+ 
+ Apply this protocol after the semantic review, corrections, and documentation
+ updates in steps 1-8 below, and before the final proof in step 9.
++Provide both reviewers the available focused proof and exact test assertions.
++Final full strict proof is due after both approvals, not a prerequisite for
++issuing those approvals. Reviewers still report missing evidence already due,
++untested behavior and unsupported claims. An existing executed regression test
++can cover a restoration without any test-file change. Candidate binding is
++checked before and after each independent inspection; report both observations.
+ For a request limited to processing supplied independent results for the
+ unchanged candidate, apply the decision below and report it; do not restart
+ reviews or run final proof while their outcome blocks further work.
+--- baseline/steps/6_deliver.md
++++ corrected/steps/6_deliver.md
+@@ -32,12 +32,19 @@
+ 1. Confirm that this stage **does not edit the validated candidate**. Inspect
+    the diff and status before publishing. If source, tests, requirements,
+    specs, or knowledge changed after the recorded proof—or must change now—
+-   return to `validate`: set `stage: validate`, replace the checklist with
+-   Validate's "Done when" list, log why, and stop for revalidation. On
+-   resuming validation, read `.agentic/steps/5_validate.md`.
++   persist a return to `validate` before responding: read
++   `.agentic/steps/5_validate.md`, save `stage: validate`, replace the checklist
++   with its complete "Done when" list and append the reason once. Refresh
++   Handoff and Stage report with `current: validate` and the concrete next
++   revalidation action. At a requested stop, save waiting/paused and
++   `needs_user: yes`. Clear stale enabled-review verdicts while retaining the
++   consumed round; disabled verdicts remain `disabled`. Reread the saved
++   sections, run `summary TASK-<id>` and show its actual output. A response
++   proposing this return does not save it. Stop without publishing or running
++   verification outside the user's requested scope.
+ 2. When explicit review is enabled, confirm both current bound verdicts are
+    `approved` for this unchanged candidate. Blank, malformed, stale,
+-   `disabled`, or `changes_required` evidence returns to validate. When
++   `disabled`, or `changes_required` evidence uses the same saved return. When
+    explicit review is disabled, rely on the existing validation evidence and
+    checkpoint; disabled review never skips them.
+ 3. Keep the journal log append-only. Journal-only delivery records are
+--- baseline/steps/adopt.md
++++ corrected/steps/adopt.md
+@@ -76,7 +76,11 @@
+    from the exact source and tests. Add `## Change map` when multiple
+    independent edit-and-test seams would otherwise require broad discovery.
+    The page is an orientation route; the exact source and tests remain the
+-   authority for future changes.
++   authority for future changes. Compare existing active requirements with the
++   implementation before describing the interface. Label a normative interface
++   as the agreed contract when code disagrees, and describe actual behavior
++   separately with source/test evidence. Keep the defect and investigation in
++   the journal; adoption neither fixes it nor changes the active contract.
+ 7. Derive requirements from the behavior you found: `status = "active"`,
+    `affected_paths` = the component's files, `linked_tests` = the
+    existing tests that already verify each behavior. Adoption mostly
+--- baseline/steps/diagrams.md
++++ corrected/steps/diagrams.md
+@@ -15,10 +15,13 @@
+ 
+ **Steps:**
+ 
+-1. Read `[diagrams] types` in `.agentic/aegis.toml`. When the key is missing,
++1. Confirm enabled is the TOML boolean `true` and Design is substantive, then
++   read `[diagrams] types` in `.agentic/aegis.toml`. When the key is missing,
+    use `["structure"]`. A non-list value counts as missing. An empty list draws
+    nothing: write no file and no link. An unknown name is ignored.
+-   A list with no known name counts as an empty list.
++   A list with no known name counts as an empty list. Apply this gate before
++   writing any diagram heading, block, file or link. In particular, `types=[]`
++   is an explicit request for none, never a request for defaults or all types.
+ 2. From the final `## Design` text and the source you already read, draw one
+    Mermaid diagram for each listed type that the design covers:
+ 
+@@ -65,9 +68,12 @@
+ - Name nodes and participants after searchable code names. Give each node a
+   simple id of letters, digits and underscores, with its label in double
+   quotes.
+-- In structure diagrams, mark nodes `:::added`, `:::changed` or `:::removed`
+-  using the three `classDef` lines above. Draw added edges as `==>`, removed
+-  edges as `-.->`, and unchanged edges as `-->`.
++- In structure diagrams, use `:::added`, `:::changed` or `:::removed` only for
++  nodes the Design proposes to add, modify or remove, with the corresponding
++  `classDef` lines above. Leave a reused unchanged node unstyled, even when it
++  receives a new incoming edge. Draw added edges as `==>`, removed edges as
++  `-.->`, and unchanged edges as `-->`. Classify nodes and edges separately
++  against the proposed Design; a new connection alone does not modify its node.
+ - Keep each diagram to about 15 nodes. Split a larger change into one
+   structure diagram per component.
+ - Put one diagram in each fenced block, using only the headers in the table
+@@ -76,7 +82,10 @@
+ **Presentation:** in checkpoint mode, show the file's diagrams after the stage
+ summary and before the design stage-boundary choices. Autopilot writes the
+ file, names its path in the Stage report `changed` field, and adds no display
+-and no stop.
++and no stop. An explicit stop at Design still completes the configured diagram
++artifacts before stopping and leaves the header at Design; it never skips
++generation merely because Build is forbidden. In checkpoint mode, include the
++saved Mermaid blocks themselves; a path or link alone is not their display.
+ 
+ Nothing checks this file. It is not evidence, it is no Done when item, and no
+ later stage or review reads it.
+--- baseline/templates/task.md
++++ corrected/templates/task.md
+@@ -173,6 +173,30 @@
+ disabled. Use the accepted Frame and actual rulings when describing scope;
+ requirement status or missing implementation cannot erase an accepted behavior.
+ After these edits, run summary TASK-<id>; fix malformed fields if it fails.
++Use separate physical lines for the saved snapshot. For example, a bounded
++autopilot transition from Design to Build with no missing human decision uses
++the following Stage report values (substitute actual paths and evidence):
++
++stage: design
++result: completed
++current: build
++changed: .agentic/tasks/TASK-<id>.md
++evidence: <observed Design inspection or command result>
++issues:
++next: Run <focused-test-command> before the implementation change
++needs_user: no
++spec_compliance: disabled
++implementation_quality: disabled
++review_round:
++
++Its header and Handoff current are build; Handoff status is ready, with the
++same next action. This records the completed transition, not completed Build.
++For a checkpoint, requested stop or session end, use waiting/paused/yes as
++specified above instead. A bounded transition request can end before Build
++without requiring a new human decision. Review fields follow the actual config.
++The example is plain saved fields, not a literal backslash-n string, bullet,
++table, or code fence. If summary reports malformed fields, reread the current
++section, repair those fields, reread it and rerun summary before responding.
+ If summary says the Stage report is not recorded, complete the saved snapshot
+ and rerun even when the command exits zero. Do not author a replacement summary.
+ Copy its output unchanged as the first response block, before introductory

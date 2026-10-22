@@ -1,0 +1,384 @@
+[
+  {
+    "variant": "corrected",
+    "scenario": "review_enabled_current",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 17.433,
+    "pid": 2528,
+    "thread_id": "01a162ed-435c-72b1-84b6-a43de6195f48",
+    "usage": [
+      {
+        "input_tokens": 138518,
+        "cached_input_tokens": 108672,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 827,
+        "reasoning_output_tokens": 0
+      }
+    ],
+    "output_tokens": 827,
+    "reasoning_tokens": 0,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-spec-review",
+    "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+      "verdict": "changes_required",
+      "findings": [
+        "The snapshot shows no candidate diff from the stated base (`git diff --stat 804da5c994fefa366eef633847e7ec7c9cd161c4 HEAD` was empty), and `src/normalize.py` already implements `strip().lower()`. However, the task’s accepted scope says this task restores a previously existing contract, while its complete journal has no linked history or requirement-coverage details establishing the prior behavior. The available requirement and test assertions confirm expected trimming and lowercasing, but do not establish that this candidate changed or restored that behavior. Provide the missing linked task/history evidence or clarify the task’s scope before approval.",
+        "The requirement requires verification with `python verify.py`, but the journal only records fixture-preparation runs and marks final verification as not recorded. No execution evidence for the current candidate is available in the read-only review snapshot. Record the actual final verification result before claiming completion."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        "/.agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        "src/normalize.py",
+        "tests/test_normalize.py"
+      ],
+      "limitations": [
+        "Candidate digest matched the supplied digest both before and after inspection. No candidate diff was present against the journal’s base, so there were no changed lines to inspect.",
+        "The complete task journal contains no Rulings, design detail beyond “No design impact,” or links to earlier task history; no linked spec or component knowledge page was identified in the available repository snapshot.",
+        "The read-only evaluation tools do not provide execution records; final `python verify.py` verification could not be independently confirmed."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "src/normalize.py",
+      "tests/test_normalize.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 17.433,
+        "pid": 2528,
+        "thread_id": "01a162ed-435c-72b1-84b6-a43de6195f48",
+        "usage": [
+          {
+            "input_tokens": 138518,
+            "cached_input_tokens": 108672,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 827,
+            "reasoning_output_tokens": 0
+          }
+        ],
+        "output_tokens": 827,
+        "reasoning_tokens": 0,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-spec-review-attempt-1"
+  },
+  {
+    "variant": "corrected",
+    "scenario": "review_enabled_current",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 15.629,
+    "pid": 22560,
+    "thread_id": "01a162ed-fd43-7303-ba6f-fd3231f6798e",
+    "usage": [
+      {
+        "input_tokens": 91855,
+        "cached_input_tokens": 44928,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 729,
+        "reasoning_output_tokens": 0
+      }
+    ],
+    "output_tokens": 729,
+    "reasoning_tokens": 0,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-quality-review",
+    "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+      "verdict": "changes_required",
+      "findings": [
+        "The complete task journal required for an independent review was unavailable. The supplied snapshot `.agentic/tasks/TASK-aaaaaaaa.md` is not the complete journal, and attempting to read `.agentic/tasks/TASK-aaaaaaaa.journal.md` returned a file-not-found error. Without the complete journal and its verification evidence, I cannot confirm the task history or the provenance and status of the claimed fixture-preparation checks."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/knowledge/normalization.md",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        ".agentic/aegis.toml"
+      ],
+      "limitations": [
+        "Candidate digest matched the requested digest before and after inspection.",
+        "Read-only Git diff showed source behavior restored by `strip().lower()` and an unrelated removal of the normalization component’s Architecture diagram; no matching task scope or rationale for removing that documentation was available, so I cannot classify it confidently as authorized or unjustified.",
+        "The review evidence included no execution log from which to verify tests; I did not run tests or start verification. The validate checklist and final strict-run evidence were not completed in the available snapshot."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 15.629,
+        "pid": 22560,
+        "thread_id": "01a162ed-fd43-7303-ba6f-fd3231f6798e",
+        "usage": [
+          {
+            "input_tokens": 91855,
+            "cached_input_tokens": 44928,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 729,
+            "reasoning_output_tokens": 0
+          }
+        ],
+        "output_tokens": 729,
+        "reasoning_tokens": 0,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-quality-review-attempt-1"
+  },
+  {
+    "variant": "corrected",
+    "scenario": "review_detects_missing_behavior",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 39.474,
+    "pid": 25876,
+    "thread_id": "01a162f1-4bbe-7d92-862f-6c903b4d911f",
+    "usage": [
+      {
+        "input_tokens": 180617,
+        "cached_input_tokens": 144768,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1121,
+        "reasoning_output_tokens": 139
+      }
+    ],
+    "output_tokens": 1121,
+    "reasoning_tokens": 139,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-spec-review",
+    "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+      "verdict": "changes_required",
+      "findings": [
+        "**REQ-FUNC-22222222 is not implemented or tested.** The accepted Frame explicitly includes “reject None with ValueError” (.agentic/tasks/TASK-aaaaaaaa.md, Frame), and the linked requirement says None input shall raise ValueError (.agentic/requirements/functional/REQ-FUNC-22222222.toml). The candidate implementation only calls `value.strip().lower()` (src/normalize.py:2), which raises AttributeError for None. The existing tests have no None-input case (tests/test_normalize.py:1-14), and the requirement has no linked test. Implement the specified ValueError behavior and add a focused regression test; update the requirement’s linked tests and verification/path references if needed. This is accepted scope, not an exclusion or optional behavior."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+        ".agentic/steps/3_design.md",
+        ".agentic/steps/5_validate.md",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/knowledge/normalization.md",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md",
+        ".agentic/aegis.toml"
+      ],
+      "limitations": [
+        "Candidate digest matched the supplied value before and after inspection. The actual diff against the task base was inspected; no tests or verification commands were run, consistent with the read-only review restriction.",
+        "The journal has no substantive design note because it records a quick-path design skip; no additional design requirements were available beyond the existing contract. The journal contains fixture-preparation evidence for trim behavior, but not evidence for the required None behavior or final strict validation."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+      ".agentic/steps/3_design.md",
+      ".agentic/steps/5_validate.md",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 39.474,
+        "pid": 25876,
+        "thread_id": "01a162f1-4bbe-7d92-862f-6c903b4d911f",
+        "usage": [
+          {
+            "input_tokens": 180617,
+            "cached_input_tokens": 144768,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1121,
+            "reasoning_output_tokens": 139
+          }
+        ],
+        "output_tokens": 1121,
+        "reasoning_tokens": 139,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-spec-review-attempt-1"
+  },
+  {
+    "variant": "corrected",
+    "scenario": "review_detects_missing_behavior",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 22.716,
+    "pid": 21716,
+    "thread_id": "01a162f2-5bc6-77d0-a084-7297577f6a0f",
+    "usage": [
+      {
+        "input_tokens": 126673,
+        "cached_input_tokens": 85504,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1412,
+        "reasoning_output_tokens": 161
+      }
+    ],
+    "output_tokens": 1412,
+    "reasoning_tokens": 161,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-quality-review",
+    "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+      "verdict": "changes_required",
+      "findings": [
+        "REQ-FUNC-22222222 requires `None` input to raise `ValueError`, and the accepted Frame scope explicitly includes rejecting `None` (TASK-aaaaaaaa.md, Frame; REQ-FUNC-22222222.toml). `src/normalize.py:1-2` calls `.strip()` directly, so `normalize_name(None)` raises `AttributeError` instead. There is no None-input test in `tests/test_normalize.py`, and the requirement has no linked tests. Add the required behavior and focused test, link it to the requirement, and record/execute relevant proof before delivery.",
+        "The implementation-quality checklist is entirely incomplete and the task journal contains no final validation evidence; the only logged test run is labeled fixture preparation and predates this candidate's changes (TASK-aaaaaaaa.md, Log and Stage report). No run evidence was available showing final focused or strict/full verification. Do not claim tests passed; execute and record the required validation after candidate corrections.",
+        "`.agentic/aegis.toml` changes interaction autopilot from false to true and enables optional review with `max_fix_cycles = 0`, although the task scope is limited to normalization behavior and explicitly excludes new interfaces/persistence/dependencies (TASK-aaaaaaaa.md, Frame; `.agentic/aegis.toml`). These are consequential, unrequested workflow-policy changes; revert them unless separately authorized.",
+        "The task's current requirement and source change restoration of trimming, but the verification evidence does not establish this candidate was actually tested. Although `tests/test_normalize.py` contains trim and whitespace-only cases, no current execution result was provided. Run and record focused proof after fixing the missing None behavior."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+        ".agentic/steps/4_build.md",
+        ".agentic/steps/5_validate.md",
+        ".agentic/aegis.toml",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py"
+      ],
+      "limitations": [
+        "Candidate digest matched the supplied digest both before and after review.",
+        "Read-only evaluation tools provided the current source snapshot, Git diff, status, and journal summary. They did not provide actual test-execution evidence; no tests or verification commands were run during this review.",
+        "The final strict/full check, evolution refresh, and broader verification are unverified. The task journal still reports validate in progress and 0/9 checklist items complete."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+      ".agentic/steps/4_build.md",
+      ".agentic/steps/5_validate.md",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 22.716,
+        "pid": 21716,
+        "thread_id": "01a162f2-5bc6-77d0-a084-7297577f6a0f",
+        "usage": [
+          {
+            "input_tokens": 126673,
+            "cached_input_tokens": 85504,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1412,
+            "reasoning_output_tokens": 161
+          }
+        ],
+        "output_tokens": 1412,
+        "reasoning_tokens": 161,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-quality-review-attempt-1"
+  }
+]

@@ -1,0 +1,59 @@
+"""Inspect preserved records and live-review observations without regrading cases."""
+from pathlib import Path
+import hashlib
+import json
+import re
+
+root = Path(__file__).resolve().parents[1]
+out = root / '05_Software/aegis/evaluations/comparisons/2026-10-22-luna-validation-records'
+read = lambda p: json.loads(p.read_text('utf-8'))
+template = (root / '.tmp-codex/validation-records-source/templates/task.md').read_text('utf-8')
+legal = re.match(r'<!--.*?-->', template, re.S).group(0)
+observations = []
+reviewers = []
+for profile in ['core', 'capabilities']:
+    results = read(root / '05_Software/aegis/evaluations/candidates' / ('2026-10-22-luna-validation-records-' + profile) / 'results.json')
+    assert len(results) == (10 if profile == 'core' else 15)
+    work = root / '.tmp-codex' / ('luna-validation-records-' + profile)
+    for result in results:
+        run = work / result['run_directory']
+        tasks = list((run / 'repo/.agentic/tasks').glob('TASK-*.md'))
+        main = next((p for p in tasks if p.name == 'TASK-aaaaaaaa.md'), tasks[0] if tasks else None)
+        text = main.read_text('utf-8') if main else ''
+        events = read(run / 'coordinator/tools.json')
+        proof_indices = [i for i,e in enumerate(events) if e['tool']=='run_command' and '--run' in e['arguments'].get('args',[]) and '--strict' in e['arguments'].get('args',[])]
+        nonjournal_writes = [i for i,e in enumerate(events) if e['tool'] in ['edit_file','write_file'] and not e['arguments'].get('path','').startswith('.agentic/tasks/') and 'error' not in e['result']]
+        diagram = run / 'repo/.agentic/tasks/diagram_TASK-aaaaaaaa.md'
+        content = diagram.read_text('utf-8') if diagram.exists() else ''
+        observations.append({'scenario': result['scenario'], 'status': result['status'],
+            'strict_pass': result['passed'], 'journal_count':len(tasks), 'journals':[p.name for p in tasks], 'full_legal_block_preserved': bool(tasks) and all(p.read_text('utf-8').startswith(legal) for p in tasks),
+            'authoring_pointer_preserved': 'Before editing this journal, read `.agentic/templates/task.md`' in text,
+            'diagram_saved': diagram.exists(),
+            'diagram_types': [h for h in ['flowchart','sequenceDiagram','stateDiagram-v2'] if h in content],
+            'strict_proof_indices': proof_indices, 'nonjournal_write_indices': nonjournal_writes,
+            'writes_after_last_strict_proof': [i for i in nonjournal_writes if proof_indices and i > proof_indices[-1]]})
+        ledger = run / 'coordinator/reviews.json'
+        if ledger.exists():
+            for review in read(ledger):
+                folder = Path(review['directory']) if 'directory' in review else None
+                tools_files = list((run / 'coordinator/reviewers').glob(review['role']+'-attempt-*/tools.json'))
+                files = []
+                for p in tools_files:
+                    events = read(p)
+                    chunks = [e for e in events if e['tool']=='read_file' and e['arguments'].get('path')=='.agentic/AGENTS.md' and 'text' in e['result']]
+                    covered,total=set(),0
+                    for e in chunks:
+                        offset=int(e['arguments'].get('offset',0))
+                        covered.update(range(offset,offset+len(e['result']['text'])))
+                        total=max(total,e['result'].get('total_chars',0))
+                    files.append({'tools_path': str(p.relative_to(root)), 'shared_contract_complete_read':bool(total) and len(covered)>=total})
+                reviewers.append({'scenario':result['scenario'],'role':review['role'],
+                    'thread_id':review['thread_id'],'status':review['status'],'digest_reads':review['digest_reads'],
+                    'snapshot_unchanged':review['snapshot_unchanged'],'contract_observations':files})
+assert len(observations)==25
+artifact={'method':'Read actual saved files and tool events; diagnostic observations do not change frozen grades.',
+    'cases':observations,'reviewers':reviewers,'unique_review_threads':len({v['thread_id'] for v in reviewers}),
+    'full_legal_blocks':sum(v['full_legal_block_preserved'] for v in observations),
+    'authoring_pointers':sum(v['authoring_pointer_preserved'] for v in observations)}
+(out/'record-observations.json').write_text(json.dumps(artifact,indent=2),encoding='utf-8')
+print(json.dumps({k:artifact[k] for k in ['full_legal_blocks','authoring_pointers','unique_review_threads']}))

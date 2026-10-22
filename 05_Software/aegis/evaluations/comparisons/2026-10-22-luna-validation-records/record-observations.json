@@ -1,0 +1,501 @@
+{
+  "method": "Read actual saved files and tool events; diagnostic observations do not change frozen grades.",
+  "cases": [
+    {
+      "scenario": "frame_existing_fix",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-8e48093b.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "frame_ambiguous_retention",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-2f558c69.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "frame_new_interface",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-f7e82329.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "task_stale_handoff",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "task_superseded_ruling",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "task_unrecorded_evidence",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "validate_clean_checkpoint",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [
+        19
+      ],
+      "nonjournal_write_indices": [
+        18
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "validate_failed_verification",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [
+        17
+      ],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "validate_stale_verdicts",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "validate_review_exhausted",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "specify_exact_serialization",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [
+        18,
+        19,
+        20
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "build_existing_contract",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [
+        13
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "deliver_requires_approval",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "deliver_changed_after_proof",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "adopt_existing_component",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [
+        18
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "review_enabled_current",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "review_disabled_no_delegation",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [
+        20
+      ],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "review_detects_missing_behavior",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 2,
+      "journals": [
+        "TASK-aaaaaaaa.md",
+        "TASK-beca4d4c.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "diagrams_enabled_types",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": true,
+      "diagram_types": [
+        "flowchart",
+        "sequenceDiagram",
+        "stateDiagram-v2"
+      ],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [
+        20
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "diagrams_disabled",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "diagrams_empty_types",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [
+        20
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "diagrams_skipped_design",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "autopilot_design_transition",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": true,
+      "diagram_types": [
+        "flowchart",
+        "sequenceDiagram",
+        "stateDiagram-v2"
+      ],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [
+        17
+      ],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "autopilot_explicit_stage_stop",
+      "status": "completed",
+      "strict_pass": true,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": true,
+      "diagram_types": [
+        "flowchart",
+        "sequenceDiagram",
+        "stateDiagram-v2"
+      ],
+      "strict_proof_indices": [],
+      "nonjournal_write_indices": [],
+      "writes_after_last_strict_proof": []
+    },
+    {
+      "scenario": "validate_stale_context",
+      "status": "completed",
+      "strict_pass": false,
+      "journal_count": 1,
+      "journals": [
+        "TASK-aaaaaaaa.md"
+      ],
+      "full_legal_block_preserved": true,
+      "authoring_pointer_preserved": true,
+      "diagram_saved": false,
+      "diagram_types": [],
+      "strict_proof_indices": [
+        17
+      ],
+      "nonjournal_write_indices": [
+        13,
+        14
+      ],
+      "writes_after_last_strict_proof": []
+    }
+  ],
+  "reviewers": [
+    {
+      "scenario": "review_enabled_current",
+      "role": "aegis-spec-review",
+      "thread_id": "01a16279-698d-7b72-bccb-5156066794b9",
+      "status": "completed",
+      "digest_reads": 2,
+      "snapshot_unchanged": true,
+      "contract_observations": [
+        {
+          "tools_path": ".tmp-codex\\luna-validation-records-capabilities\\review_enabled_current-attempt-1\\coordinator\\reviewers\\aegis-spec-review-attempt-1\\tools.json",
+          "shared_contract_complete_read": true
+        }
+      ]
+    },
+    {
+      "scenario": "review_enabled_current",
+      "role": "aegis-quality-review",
+      "thread_id": "01a1627a-5c68-7661-9215-0101ed39abfa",
+      "status": "completed",
+      "digest_reads": 2,
+      "snapshot_unchanged": true,
+      "contract_observations": [
+        {
+          "tools_path": ".tmp-codex\\luna-validation-records-capabilities\\review_enabled_current-attempt-1\\coordinator\\reviewers\\aegis-quality-review-attempt-1\\tools.json",
+          "shared_contract_complete_read": true
+        }
+      ]
+    },
+    {
+      "scenario": "review_detects_missing_behavior",
+      "role": "aegis-spec-review",
+      "thread_id": "01a1627d-ca9b-7ad3-8df4-b709550c2c81",
+      "status": "provider_error",
+      "digest_reads": 0,
+      "snapshot_unchanged": true,
+      "contract_observations": []
+    },
+    {
+      "scenario": "review_detects_missing_behavior",
+      "role": "aegis-quality-review",
+      "thread_id": "01a1627e-4e78-7923-ba2e-8c30cdec2d8c",
+      "status": "completed",
+      "digest_reads": 2,
+      "snapshot_unchanged": true,
+      "contract_observations": [
+        {
+          "tools_path": ".tmp-codex\\luna-validation-records-capabilities\\review_detects_missing_behavior-attempt-1\\coordinator\\reviewers\\aegis-quality-review-attempt-1\\tools.json",
+          "shared_contract_complete_read": true
+        }
+      ]
+    }
+  ],
+  "unique_review_threads": 4,
+  "full_legal_blocks": 25,
+  "authoring_pointers": 25
+}

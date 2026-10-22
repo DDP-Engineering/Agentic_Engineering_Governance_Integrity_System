@@ -1,0 +1,12 @@
+[
+  {
+    "artifact_directory": "candidates/2026-10-22-luna-history-evidence-capabilities",
+    "crc_ok": true,
+    "entries": 812
+  },
+  {
+    "artifact_directory": "candidates/2026-10-22-luna-history-evidence-core",
+    "crc_ok": true,
+    "entries": 450
+  }
+]

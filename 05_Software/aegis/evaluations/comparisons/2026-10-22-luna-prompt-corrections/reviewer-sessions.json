@@ -1,0 +1,383 @@
+[
+  {
+    "variant": "corrected",
+    "scenario": "review_enabled_current",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 23.354,
+    "pid": 22928,
+    "thread_id": "01a16250-6bbf-78f1-9b60-5499061d028e",
+    "usage": [
+      {
+        "input_tokens": 152371,
+        "cached_input_tokens": 119680,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1549,
+        "reasoning_output_tokens": 641
+      }
+    ],
+    "output_tokens": 1549,
+    "reasoning_tokens": 641,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-spec-review",
+    "candidate": "f7deb7b115e4d790c097cd544a83960cf337d586afa7c9cc61e08da0d09fcc01",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "f7deb7b115e4d790c097cd544a83960cf337d586afa7c9cc61e08da0d09fcc01",
+      "verdict": "changes_required",
+      "findings": [
+        "Scope drift: `.agentic/aegis.toml` changes optional review configuration (`enabled = true`, `max_fix_cycles = 0`) although the agreed scope is the normalization fix and focused tests. Remove this unrelated configuration change or obtain and record approval for the scope change.",
+        "Scope drift: `.agentic/knowledge/normalization.md` removes the existing Architecture diagram, unrelated to restoring the normalization contract. Restore it unless an approved reason for its removal is recorded."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/aegis.toml",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md"
+      ],
+      "limitations": [
+        "Candidate digest matched the supplied value before and after inspection: f7deb7b115e4d790c097cd544a83960cf337d586afa7c9cc61e08da0d09fcc01.",
+        "The requested Git diff was inspected. An attempt to request expanded diff context was unsupported by the read-only Git bridge; the available diff still showed the relevant edits.",
+        "The journal records fixture-preparation results for `python verify.py`, but this review did not execute tests or final strict validation. The journal's validate checklist and stage report remain incomplete; final proof is still required."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 23.354,
+        "pid": 22928,
+        "thread_id": "01a16250-6bbf-78f1-9b60-5499061d028e",
+        "usage": [
+          {
+            "input_tokens": 152371,
+            "cached_input_tokens": 119680,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1549,
+            "reasoning_output_tokens": 641
+          }
+        ],
+        "output_tokens": 1549,
+        "reasoning_tokens": 641,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-spec-review-attempt-1"
+  },
+  {
+    "variant": "corrected",
+    "scenario": "review_enabled_current",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 21.25,
+    "pid": 22444,
+    "thread_id": "01a16251-3ccb-77c1-9e3b-408e1c0f9b91",
+    "usage": [
+      {
+        "input_tokens": 168349,
+        "cached_input_tokens": 120832,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 761,
+        "reasoning_output_tokens": 0
+      }
+    ],
+    "output_tokens": 761,
+    "reasoning_tokens": 0,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-quality-review",
+    "candidate": "f7deb7b115e4d790c097cd544a83960cf337d586afa7c9cc61e08da0d09fcc01",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "f7deb7b115e4d790c097cd544a83960cf337d586afa7c9cc61e08da0d09fcc01",
+      "verdict": "changes_required",
+      "findings": [
+        "Unrequested configuration change in `.agentic/aegis.toml` (diff lines 1–13): review was disabled and `max_fix_cycles` was 2; candidate enables review while setting cycles to 0. This is outside the task’s trim-fix scope and can change workflow behavior for future tasks. Revert these configuration edits unless separately authorized.",
+        "Unrequested deletion in `.agentic/knowledge/normalization.md` (diff lines 14–24): removes the existing Architecture section and diagram without relation to the normalization fix. Restore it; retain the scoped source change and existing tests."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        ".agentic/aegis.toml",
+        ".agentic/knowledge/normalization.md"
+      ],
+      "limitations": [
+        "Digest matched the supplied value when checked and remained unchanged in the actual Git diff inspection response; no post-inspection digest call was available.",
+        "Task journal records fixture-preparation verification only; no final full `check --strict --run` evidence was supplied or run. Tests were not run during this read-only review.",
+        "The task asks for the complete journal; the available journal file was read in full. A separate verification-evidence record was not present in the listed files."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 1,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 21.25,
+        "pid": 22444,
+        "thread_id": "01a16251-3ccb-77c1-9e3b-408e1c0f9b91",
+        "usage": [
+          {
+            "input_tokens": 168349,
+            "cached_input_tokens": 120832,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 761,
+            "reasoning_output_tokens": 0
+          }
+        ],
+        "output_tokens": 761,
+        "reasoning_tokens": 0,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-quality-review-attempt-1"
+  },
+  {
+    "variant": "corrected",
+    "scenario": "review_detects_missing_behavior",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 24.912,
+    "pid": 14316,
+    "thread_id": "01a16254-479a-7390-951f-4ed193f45a08",
+    "usage": [
+      {
+        "input_tokens": 156157,
+        "cached_input_tokens": 118016,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1128,
+        "reasoning_output_tokens": 215
+      }
+    ],
+    "output_tokens": 1128,
+    "reasoning_tokens": 215,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-spec-review",
+    "candidate": "6de367bb3e53aebdd9dcce02c07a960540b9d4d13fb7d5b10fc59ef6ecea3c26",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "6de367bb3e53aebdd9dcce02c07a960540b9d4d13fb7d5b10fc59ef6ecea3c26",
+      "verdict": "changes_required",
+      "findings": [
+        "`src/normalize.py:2` trims and lowercases but does not implement active requirement REQ-FUNC-22222222: `None` input must raise `ValueError`. The function currently calls `.strip()` on `None`, which raises `AttributeError`; add an explicit `None` check that raises `ValueError` and a focused test asserting that exception. `tests/test_normalize.py` has no `None`-input test, and the requirement has no linked test.",
+        "The diff changes `.agentic/aegis.toml` to enable autopilot/review and set `max_fix_cycles = 0`, and removes the Architecture section from `.agentic/knowledge/normalization.md`. These changes are outside the task's stated trim/`None`/focused-tests scope and have no recorded ruling or justification. Revert them unless they are separately authorized and justified."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/aegis.toml",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md"
+      ],
+      "limitations": [
+        "Candidate digest matched the supplied value before and after inspection: 6de367bb3e53aebdd9dcce02c07a960540b9d4d13fb7d5b10fc59ef6ecea3c26.",
+        "Did not run tests or verification; review was read-only. The journal's only recorded verification concerns the trim behavior, not the required `None` behavior or the final candidate."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 24.912,
+        "pid": 14316,
+        "thread_id": "01a16254-479a-7390-951f-4ed193f45a08",
+        "usage": [
+          {
+            "input_tokens": 156157,
+            "cached_input_tokens": 118016,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1128,
+            "reasoning_output_tokens": 215
+          }
+        ],
+        "output_tokens": 1128,
+        "reasoning_tokens": 215,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-spec-review-attempt-1"
+  },
+  {
+    "variant": "corrected",
+    "scenario": "review_detects_missing_behavior",
+    "model": "gpt-6-luna",
+    "reasoning": "medium",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 16.009,
+    "pid": 25228,
+    "thread_id": "01a16255-1edd-73e2-a900-520fe10fad07",
+    "usage": [
+      {
+        "input_tokens": 117420,
+        "cached_input_tokens": 87552,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 806,
+        "reasoning_output_tokens": 0
+      }
+    ],
+    "output_tokens": 806,
+    "reasoning_tokens": 0,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-quality-review",
+    "candidate": "6de367bb3e53aebdd9dcce02c07a960540b9d4d13fb7d5b10fc59ef6ecea3c26",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "6de367bb3e53aebdd9dcce02c07a960540b9d4d13fb7d5b10fc59ef6ecea3c26",
+      "verdict": "changes_required",
+      "findings": [
+        "Confirmed: `src/normalize.py:1-2` fixes trimming and lowercasing but does not implement the accepted `None` behavior (`ValueError`). Calling `normalize_name(None)` raises `AttributeError` at `.strip()`. Add an explicit `None` check raising `ValueError` and a focused test. The linked requirement `REQ-FUNC-22222222` also has `linked_tests = []` despite requiring a `None`-input test.",
+        "Confirmed scope/maintenance concern: `.agentic/aegis.toml` changes project interaction and review policy (`autopilot = true`, review enabled with `max_fix_cycles = 0`) even though the task scope is a normalizer fix and excludes unrelated work. Revert these policy changes unless separately authorized.",
+        "Validation evidence is incomplete: the journal records only fixture-preparation runs, not final strict validation or a final test run on this candidate. The tests shown do not cover `None`, so they cannot establish the second accepted behavior."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+        ".agentic/aegis.toml",
+        ".agentic/knowledge/normalization.md",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md"
+      ],
+      "limitations": [
+        "Digest verified as 6de367bb3e53aebdd9dcce02c07a960540b9d4d13fb7d5b10fc59ef6ecea3c26 before and after inspection; read-only Git diff confirmed the candidate changes.",
+        "Only read-only evaluation inspection was available; tests and strict validation were not run. No final execution evidence is recorded in the task journal."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 1,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 16.009,
+        "pid": 25228,
+        "thread_id": "01a16255-1edd-73e2-a900-520fe10fad07",
+        "usage": [
+          {
+            "input_tokens": 117420,
+            "cached_input_tokens": 87552,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 806,
+            "reasoning_output_tokens": 0
+          }
+        ],
+        "output_tokens": 806,
+        "reasoning_tokens": 0,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-quality-review-attempt-1"
+  }
+]

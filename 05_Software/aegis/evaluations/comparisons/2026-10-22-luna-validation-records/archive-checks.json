@@ -1,0 +1,17 @@
+[
+  {
+    "profile": "core",
+    "crc_ok": true,
+    "entries": 450
+  },
+  {
+    "profile": "capabilities",
+    "crc_ok": true,
+    "entries": 812
+  },
+  {
+    "profile": "capacity-diagnostic",
+    "crc_ok": true,
+    "entries": 141
+  }
+]

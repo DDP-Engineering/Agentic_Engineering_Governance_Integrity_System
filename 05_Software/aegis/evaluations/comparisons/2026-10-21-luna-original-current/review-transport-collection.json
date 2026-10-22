@@ -1,0 +1,12 @@
+[
+  {
+    "variant": "original",
+    "output": "D:\\ProjectsDDP\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\evaluations\\baselines\\2026-10-21-luna-original-review-transport",
+    "exit": 0
+  },
+  {
+    "variant": "current",
+    "output": "D:\\ProjectsDDP\\2026_Agentic_Engineering_Governance_Integrity_System\\05_Software\\aegis\\evaluations\\candidates\\2026-10-21-luna-current-review-transport",
+    "exit": 0
+  }
+]

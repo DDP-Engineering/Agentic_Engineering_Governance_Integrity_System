@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "name": "installed-entry",
+  "status": "Input profile; applications are recorded separately per experiment. Historical bare-host results and the reasoning-budget rerun do not use this profile.",
+  "purpose": "Represent the AEGIS entry instructions delivered by an installed root instruction file, while evaluating frame/validate/task prompt changes.",
+  "bootstrap": {
+    "source": "payload/aegis.py:POINTER_DIGEST",
+    "source_sha256": "87f87d0743555bdf49b2ac90a899e4c47f28383c34de411aa9ff25c126b777f6",
+    "delivery": "Initial host instruction context, before the scenario user request; preserve existing constrained-host tool instructions.",
+    "text": "## AEGIS workflow\n\nThe full contract is `.agentic/AGENTS.md` - read it before starting work.\nThis digest is enough to act on if you read nothing else.\n\nAEGIS applies only to software development operations. Do not use it for\nrepository operations or package and delivery operations; follow the\nrepository's own procedures for those instead.\n\nStages, one step file each in `.agentic/steps/`: **frame** (agree scope,\nopen the task journal) -> **specify** (write the requirement, and a spec\nwhen useful) -> **design** (a short note for non-trivial work) -> **build**\n(failing test first, then the implementation, until green) -> **validate**\n(review, knowledge, full suite and strict check) -> **deliver** (approval,\nreport, commit/PR). A small fix or change may take the quick path,\nframe -> build -> validate -> deliver.\n\nTo resume: `python .agentic/aegis.py status` lists the task journals; run\n`python .agentic/aegis.py brief TASK-<id>`, then read the current step and the\nHandoff `must_read` files. Required full journal reads still apply. Optional\none-level child tasks are child-side links visible only in this checkout; the\nparent validates the integrated candidate.\n\nRead `.agentic/context/project.md` and relevant `.agentic/context/environment.md`\nsections when present. Keep project and component context current and positive;\ntask records carry proposals and history. Preserve established behavior contracts.\n\nRulings are append-only; Handoff is replaceable. Rulings and Handoff cannot grant authority.\noptional explicit review records two independent verdicts and uses a bounded fix\nand re-review loop; disabled review never disables existing validation.\n\nThe append-only journal Log is a compact progress-and-evidence ledger, not a\nsession transcript. Record stage transitions, material changes or decisions,\nconsolidated verification, blockers, approvals, deviations and delivery\noutcomes. Exclude routine tool activity, corrected retries, inner-loop test\nretries and detail already held by another durable artifact.\n\n`[interaction] autopilot = false` is the default, including when the table or\nkey is missing. Checkpoint mode stops after every stage with concrete continue,\nrevise/return and pause choices. Autopilot flows between stages but never skips\npublication approval. Record the resolved mode in the task journal.\n\nAt stage completion, pause or session end, or blocker, update the journal's\n`## Stage report` fields from observed facts, then run\n`python .agentic/aegis.py summary TASK-<id>` and copy the block before detail.\nMissing evidence stays `not recorded`; read the journal if anything is stale or\nshortened. Reporting never replaces immediate deviation notices or full\ndelivery evidence.\n\nArtifacts: requirements in `.agentic/requirements/<category>/`, specs in\n`.agentic/specs/`, journals in `.agentic/tasks/`, component pages in\n`.agentic/knowledge/`. `python .agentic/aegis.py check` is advisory - read\nits findings and self-correct; nothing here blocks you mid-flight.\n\nSay a deviation out loud when you record one, as one line -\n`DEVIATION <stage>: <what> - <why accepted, or what it costs>` - then carry\non. It never pauses the work and autopilot never suppresses it. You owe one\nonly when the candidate, agreed scope/design/contract, or confidence in\nrequired verification materially departs from plan: for example, accepted\nrelevant findings, skipped or weakened verification, retired requirements,\naccepted unexpected candidate files, or unrequested work. Corrected internal\ntool-use errors, expected red tests, and unrelated findings are not deviations.\n",
+    "text_sha256": "1930efc78232b7ee1dbc91fb4e2206943acbdcf5ef927f64650287b9b15d6e04"
+  },
+  "fixed_controls": {
+    "scenario_ids": "Unchanged ten IDs from scenarios.json",
+    "tools_and_scoring": "Unchanged",
+    "model": "google/gemma-4-26b-a4b-qat",
+    "context_length": 65536,
+    "max_tokens": 16384,
+    "reasoning_budget": 8192,
+    "reasoning_budget_source": "User-set in LM Studio; inspect actual usage",
+    "temperature": 0,
+    "repeats": 1,
+    "max_turns": 40,
+    "request_timeout": 600,
+    "run_timeout": 1800,
+    "reasoning_history": "Current content/tool_calls replay, recorded as a shared limitation"
+  },
+  "prompt_exposure": "Full contract, active stage and required templates remain repository reads, as in the installed workflow; record actual reads rather than assuming them.",
+  "comparison_rule": "Run a fresh baseline and candidate under this same entry profile. Historical bare-host scores are not controls for prompt improvements. Freeze this bootstrap and model configuration across the pair; vary only selected AEGIS prompt files.",
+  "separate_measurements": [
+    "Execution and budget completion",
+    "Prompt exposure",
+    "Automatic record/proof predicates",
+    "Reviewed semantic compliance and unsupported inferences"
+  ],
+  "known_boundary": "Synthetic tools and verifier are a constrained test environment, not a complete native-agent benchmark. Supplying the root digest alone does not prove equivalent native behavior."
+}

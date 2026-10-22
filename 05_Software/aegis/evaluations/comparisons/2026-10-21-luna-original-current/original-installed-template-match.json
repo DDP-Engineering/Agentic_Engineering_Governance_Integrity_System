@@ -1,0 +1,20 @@
+{
+  "aegis.py": true,
+  "AGENTS.md": true,
+  "CLI.md": true,
+  "LICENSE.txt": true,
+  "steps/1_frame.md": true,
+  "steps/2_specify.md": true,
+  "steps/3_design.md": true,
+  "steps/4_build.md": true,
+  "steps/5_validate.md": true,
+  "steps/6_deliver.md": true,
+  "steps/adopt.md": true,
+  "steps/diagrams.md": true,
+  "templates/component.md": true,
+  "templates/environment.md": true,
+  "templates/project.md": true,
+  "templates/requirement.toml": true,
+  "templates/spec.md": true,
+  "templates/task.md": true
+}

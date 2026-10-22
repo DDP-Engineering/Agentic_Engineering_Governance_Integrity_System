@@ -1,0 +1,67 @@
+[
+  {
+    "path": "steps/6_deliver.md",
+    "control_words": 1181,
+    "candidate_words": 1227
+  },
+  {
+    "path": "steps/diagrams.md",
+    "control_words": 698,
+    "candidate_words": 811
+  },
+  {
+    "path": "templates/task.md",
+    "control_words": 2618,
+    "candidate_words": 2729
+  },
+  {
+    "path": "05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "control_words": 266,
+    "candidate_words": 506
+  },
+  {
+    "path": "05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-spec-review.toml",
+    "control_words": 291,
+    "candidate_words": 531
+  },
+  {
+    "path": "05_Software/aegis/integrations/claude/plugins/aegis/agents/quality-review.md",
+    "control_words": 152,
+    "candidate_words": 394
+  },
+  {
+    "path": "05_Software/aegis/integrations/claude/plugins/aegis/agents/spec-review.md",
+    "control_words": 147,
+    "candidate_words": 389
+  },
+  {
+    "path": "05_Software/aegis/integrations/pi/review-prompts/aegis-quality-review.md",
+    "control_words": 174,
+    "candidate_words": 416
+  },
+  {
+    "path": "05_Software/aegis/integrations/pi/review-prompts/aegis-spec-review.md",
+    "control_words": 175,
+    "candidate_words": 417
+  },
+  {
+    "path": "05_Software/aegis/integrations/opencode/prompts/aegis-quality-review.md",
+    "control_words": 210,
+    "candidate_words": 452
+  },
+  {
+    "path": "05_Software/aegis/integrations/opencode/prompts/aegis-spec-review.md",
+    "control_words": 228,
+    "candidate_words": 470
+  },
+  {
+    "path": "05_Software/aegis/integrations/qwen/agents/aegis-quality-review.md",
+    "control_words": 203,
+    "candidate_words": 445
+  },
+  {
+    "path": "05_Software/aegis/integrations/qwen/agents/aegis-spec-review.md",
+    "control_words": 204,
+    "candidate_words": 446
+  }
+]

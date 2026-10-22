@@ -1,0 +1,24 @@
+{
+  "user_instruction": "ChatGPT capacity is external and must not count against prompt quality.",
+  "rule": "Select the first operationally complete follow-up regardless of semantic grade. Preserve raw grades and independent semantic findings.",
+  "selected": {
+    "attempt": 1,
+    "output": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1",
+    "exit": 0,
+    "coordinator_status": "completed",
+    "strict_pass": false,
+    "role_statuses": {
+      "aegis-spec-review": "completed",
+      "aegis-quality-review": "completed"
+    },
+    "selected_into_main_cohort": true,
+    "initial_plan_selected_into_main_cohort": false
+  },
+  "original_raw_observations_preserved": "observations.json",
+  "canonical_cases_per_variant": 25,
+  "canonical_reviewer_attempts": 4,
+  "canonical_reviewers_completed": 4,
+  "failed_original_role_error": "Selected model is at capacity",
+  "initial_duplicate_journal_finding_retained": true,
+  "user_instruction_supersedes_initial_no_selection_plan": true
+}

@@ -62,6 +62,14 @@ OpenCode tools use its permission API and constrain mutation to the coordinator.
 
 Every Codex bridge call is stateless. Supply the task identifier explicitly for task-scoped operations. A new process or restarted session resumes from the durable journal rather than from an adapter database. OpenCode keeps an in-memory resume pointer and a compaction reminder; branch changes invalidate it.
 
+Reviewers read the full named journal and current linked files, including
+untracked scope. They inspect existing assertions and focused execution evidence
+before approval; final full strict proof follows both approvals. Pending final
+checklist items alone are not defects. Where the role exposes a candidate
+operation, it runs before inspection and after the final read; Git metadata is
+supplementary. Read-only hosts that reserve fingerprints to the coordinator keep
+that existing responsibility. None of these instructions expands permissions.
+
 ## Verification jobs
 
 A detached Node worker runs the actual configured test command or final `check --task ID --strict --run --json`. It stores a job ID, output, process IDs, timestamps, exit code and before/after candidate fingerprints. Another adapter instance returns the existing checkout job instead of starting a duplicate. External manually launched suites are outside that lock; inspect them separately.

@@ -1,0 +1,14 @@
+{
+  "rule": "Replace the whole predefined review subgroup symmetrically in both variants. Retain all initial results. Non-review branches and their model-visible inputs are unchanged.",
+  "review_cases_replaced_for_both_variants": [
+    "review_enabled_current",
+    "review_disabled_no_delegation",
+    "review_detects_missing_behavior"
+  ],
+  "model_visible_inputs_unchanged": true,
+  "unaffected_cases": "Core uses unchanged core.Host; all non-review capability fixtures have review disabled, so the repaired task-reference branch is not reached.",
+  "initial_coordinator_cases_retained": 50,
+  "additional_review_control_cases": 6,
+  "canonical_cases_per_variant": 25,
+  "canonical_reviewer_sessions": 8
+}

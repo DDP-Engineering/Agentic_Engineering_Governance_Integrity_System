@@ -36,6 +36,12 @@ Git and a compatible host installation.
 The repository-root `.agentic/` is this project's installed instance, with its
 own configuration and records. It is separate from the reusable template.
 
+Frame and Validate use the task authoring guide when updating journals.
+Existing-contract quick fixes record their requirement IDs at Frame; resume
+fields name one concrete action or scoped decision and resolve current blockers
+before advancing. Review explanations use the accepted scope, independently
+of a requirement's draft status. Unknown behavior and unobserved proof remain explicit.
+
 ## Install
 
 Copy `template/.agentic/` into the target repository, then run:
@@ -84,6 +90,68 @@ An existing requirement must already cover the behavior being changed. There
 must be no new externally observable behavior, interface, data format or
 dependency, and no security- or data-handling behavior changes. Record the
 eligibility reason in frame; validation and authority limits still apply.
+
+At a checkpoint or explicit stop, the task template provides one boundary
+update recipe: synchronize header/Handoff/report state, record the pause,
+preserve unknown evidence, and show the saved summary before details. Handoff
+paths stay on one comma-separated `must_read:` line. Validation clears both
+current review verdicts when the reviewed candidate changes, retains the
+consumed round, and respects requests limited to inspection or record updates.
+Inferred details remain open decisions until an authoritative source settles
+them. Missing historical execution stays missing; current verification proves
+only the candidate executed now. A limited update does not complete a stage,
+and continuation choices depend on actual proof and current review outcomes.
+Correction returns copy the destination checklist in full. Exhausted review
+requires a specific human scope/policy decision rather than accepting a finding
+as permission to advance; the recorded decision does not replace fresh proof.
+The shared reporting entry point requires the task template's authoring
+guidance before journal edits, including limited updates to an existing task.
+Generated journals retain a short link to that guide, and frame and validate
+request it explicitly. Record edits must succeed before being reported; a
+missing Stage report must be completed even when summary exits zero. Record
+each consolidated outcome once, then update the snapshots and report the pause.
+No new decision leaves Rulings unchanged; pending authority is not a Ruling.
+Resume actions name current execution or a concrete decision; unavailable
+historical red/anchor evidence stays in issues and cannot be recovered by a new
+run. Frame distinguishes current implementation/setup facts from scope and
+policy: an absent component is not automatically excluded, and a verifier using
+the standard library does not prohibit dependencies for a proposed feature.
+Destructive-scope questions must be answered directly, rather than replaced by
+permission to defer them. Journal edits preserve the visible guide pointer;
+summary output retains every line and truncation warning. Unperformed evolution
+reports remain unchecked with an explicit applicability reason or limitation.
+Frame labels each claim by its actual source; projecting an observed test pair
+into a proposed interface remains an inference. Journal edits preserve the
+original copyright/license prologue and verify it before summary.
+Frame distinguishes a requested capability from unverified current conditions.
+Keep the journal returned by creation; repair rejected edits in that same file
+and verify the saved stage checklist before reporting the checkpoint.
+Record updates use actual multiline text and recover exact-match failures from
+the current journal, preserving untouched history. Open Frame questions still
+need saved records. A Problem describes the defect; compare accepted outcomes,
+scope and requirements before claiming a contract conflict during resume.
+See the [prompt evaluations](evaluations/README.md) for measured model behavior
+and the limits of automatic checks.
+Delivery compares like-for-like candidate bindings and saves its approval pause
+before presentation. Design checkpoint responses copy the saved diagram blocks.
+Current-checkout evidence includes untracked records; historical Git absence and
+an added interface alone do not establish missing scope or a contract conflict.
+Log appends use a section-heading insertion point and preserve existing evidence
+including whitespace. Host reviewers distinguish focused evidence due at review
+from final proof due after approvals. Diagram node classes are checked against
+an explicit map of proposed edits; reused unchanged nodes have no change class.
+Deliver persists stale-candidate returns before reporting them and distinguishes
+changes since the Git base from changes after proof. Validate finishes candidate
+edits before final proof, then writes only journal records. Journal guidance
+includes multiline transition records and summary repair. Design honors empty
+diagram type lists and explicit stage stops, and marks reused nodes separately
+from new connections. Explicit review uses evidence due before final full proof;
+existing executed tests can cover a restored contract. Adoption distinguishes
+the active interface contract from a conflicting observed implementation.
+The development harness preserves the original ten scenarios and adds fifteen
+for the remaining stages, real reviewer activation, diagrams, autopilot and
+context updates. Delivery tests stop before publication; coverage limits and
+the fresh original/current subscription comparison are documented there.
 
 Component knowledge pages are concise implementation routes. Their `Routing`
 signals select the owning component and point to its first source and focused

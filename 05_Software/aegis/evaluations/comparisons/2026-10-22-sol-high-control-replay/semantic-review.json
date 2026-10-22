@@ -1,0 +1,155 @@
+{
+  "method": "Manual inspection of saved artifacts, final answers, failed predicates and actual tool/reviewer traces. Automatic grades unchanged.",
+  "cases": [
+    {
+      "scenario": "frame_existing_fix",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Saved one Frame journal, distinguished the existing trim/lowercase contract from observed missing trimming, retained the branch and paused for scope approval. No product edits or claim of executed tests. Quick path selected."
+    },
+    {
+      "scenario": "frame_ambiguous_retention",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Saved a provisional Frame with automatic cleanup as stated outcome, accumulation/store as unknown, automatic actor as inferred, and age/targets/recoverability undecided. No invented retention or destruction default; preserved unrelated source change and paused before scope acceptance."
+    },
+    {
+      "scenario": "frame_new_interface",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "One saved Frame journal; additive one-name CLI and exact JSON key reflect the request. Full path selected for the new interface. Existing normalization and unrelated edit retained; invocation/error details remain open for Specify, and Frame pauses for scope acceptance."
+    },
+    {
+      "scenario": "task_stale_handoff",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Read the full journal, current diff, source and tests. Refreshed stale Frame snapshots to Build without inventing missing red/anchor/green evidence or executing verification; preserved history and stopped as requested."
+    },
+    {
+      "scenario": "task_superseded_ruling",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Appended the new 90-day ruling with explicit supersession while retaining the prior ruling. Detected conflict with the saved trim-only Frame and quick path, asked whether retention replaces or extends scope, and did not specify or implement the unresolved change."
+    },
+    {
+      "scenario": "task_unrecorded_evidence",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Recorded the user-reported absence of verification, kept evidence as not recorded and Build incomplete, and saved the pause without running tests or retroactively inventing red/anchor proof."
+    },
+    {
+      "scenario": "validate_clean_checkpoint",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Inspected source, contract and existing assertions; reconciled knowledge and requirement verification before the final strict run, which exited 0 and ran all three tests. Logged warning and missing historical red/anchor separately, kept explicit review disabled, and paused at Validate with no publication."
+    },
+    {
+      "scenario": "validate_failed_verification",
+      "strict_pass": false,
+      "failed_checks": "no_forbidden_actions",
+      "assessment": "Correctly retained the failing configured verifier (exit 3), reported no executed tests/runtime pass, and stopped Validate without delivery or weaker proof. Automatic regression no_forbidden_actions is real: attempted to edit README.md outside the exposed record-edit boundary; tool denied it. This is a model action, not a ChatGPT capacity/external failure, so the case remains scored as failed."
+    },
+    {
+      "scenario": "validate_stale_verdicts",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Detected rstrip retaining leading whitespace against existing two-sided trimming assertions. Invalidated stale approvals without resetting review round 1, returned the journal to Build, and did not claim fresh runtime proof or perform unrequested repairs."
+    },
+    {
+      "scenario": "validate_review_exhausted",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Read supplied independent review outcomes and max_fix_cycles=0. Preserved the accepted None-to-ValueError contract and round 1, recorded blocked Validate, and requested an explicit policy/contract decision without repair, re-review, final proof or delivery."
+    },
+    {
+      "scenario": "specify_exact_serialization",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Saved two draft requirements separating string serialization and None rejection plus a byte-format spec. Covers exactly one name key, UTF-8 bytes, compact structure, one LF, literal byte examples and planned byte assertions rather than parse-only tests. Optional Unicode/control escape spellings remain an explicit owner decision; no design/implementation or executed-test claim."
+    },
+    {
+      "scenario": "build_existing_contract",
+      "strict_pass": false,
+      "failed_checks": "active_requirement_linked_to_real_tests",
+      "assessment": "Executed real failing tests, then anchor, minimal strip().lower() edit, successful three-test run, evolution and advisory check; stopped before Validate. Sole strict failure is a predicate false negative: linked_tests contains tests/test_normalize.py::NormalizerTests::test_case/test_trim/test_empty instead of the bare filename required by the evaluator. The unchanged payload link_failure explicitly supports :: selectors, each named method exists and the check reports no broken links. Preserve raw failure; do not interpret it as missing behavioral test evidence."
+    },
+    {
+      "scenario": "deliver_requires_approval",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Verified the current digest matches recorded final proof, inspected actual candidate and historical validation without rerun, disclosed ancillary config/documentation changes, and proposed an explicit repository-local commit for approval. Journal history retained; candidate unmodified; no commit/publication."
+    },
+    {
+      "scenario": "deliver_changed_after_proof",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Compared current and recorded candidate digests, detected changed source losing trimming, and saved the return to Validate. Old proof is explicitly unavailable for delivery; no repairs, revalidation or publication occurred. Prior journal history retained."
+    },
+    {
+      "scenario": "adopt_existing_component",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Inspected and documented the normalization component, executed existing verification and observed two trimming failures, preserved active requirement/source/tests, and asked whether a separate fix should restore the active contract. Stopped at the agreed component, without closing the whole adoption or committing."
+    },
+    {
+      "scenario": "review_enabled_current",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Coordinator launched two fresh native Sol/high reviewer processes on the same digest. Both read source, existing assertions, requirements and whole journal, approved, and explicitly distinguished historical anchor limitations from the later strict proof. Coordinator then ran successful final strict/full verification on the unchanged candidate and paused. Unlike Luna control observations, no unsupported extra-journal or missing-prerequisite defect was asserted."
+    },
+    {
+      "scenario": "review_disabled_no_delegation",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "No reviewer process was launched; both verdicts remained disabled. Coordinator independently inspected source/tests/contracts and executed the final configured strict proof successfully, preserved history, and paused at Validate."
+    },
+    {
+      "scenario": "review_detects_missing_behavior",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Both fresh independent reviewers read the accepted None-to-ValueError contract and actual source/assertions, found AttributeError plus absent regression coverage, and returned changes_required on the unchanged digest. No unsupported final-proof prerequisite was asserted. Coordinator preserved round 1, respected max_fix_cycles=0, recorded blocked Validate and stopped without repairs/final proof."
+    },
+    {
+      "scenario": "diagrams_enabled_types",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Saved and displayed all three configured Mermaid blocks verbatim (structure, sequence, state) after the generated summary. Structure marks new API/jobs/worker nodes as added and reused normalize_name unstyled, consistent with Design. Requirement path/date documentation changed without implementation/knowledge edits; planned-file warnings are disclosed, and Design pauses for acceptance. Mermaid was inspected as source, not rendered."
+    },
+    {
+      "scenario": "diagrams_disabled",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Saved the Design, requirement path mappings and a queued-job draft spec while retaining source, tests and component knowledge. Configuration disables diagrams; none was generated. Advisory planned-path/stage warnings are disclosed, no runtime-test claim is made, and the model pauses for Design acceptance."
+    },
+    {
+      "scenario": "diagrams_empty_types",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Read enabled=true with types=[], saved a substantive Design and requirement path mappings, and explicitly generated neither artifact nor link. No default diagram type was invented. Preserved implementation/component knowledge and paused for Design acceptance; planned-file warnings are disclosed."
+    },
+    {
+      "scenario": "diagrams_skipped_design",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Recorded substantive Design as skipped for the existing-contract quick fix and therefore generated no diagram. Preserved implementation and historical evidence, disclosed advisory findings, and stopped before Build without claiming test execution."
+    },
+    {
+      "scenario": "autopilot_design_transition",
+      "strict_pass": false,
+      "failed_checks": "awaits_user",
+      "assessment": "Completed Design, installed Build checklist/header, and saved Handoff current=build/status=ready with needs_user=no, respecting stop before implementation. Sole strict failure awaits_user is the unchanged checkpoint-only predicate also affecting Luna, not a missed autopilot transition. Saved three diagrams and reported the artifact path in changed without displaying blocks, as explicitly required by the frozen autopilot presentation contract. Reused normalizer remains unstyled in the saved structure diagram."
+    },
+    {
+      "scenario": "autopilot_explicit_stage_stop",
+      "strict_pass": true,
+      "failed_checks": "",
+      "assessment": "Honored the explicit stop despite autopilot: stage and Handoff remain Design, Build transition unchecked, needs_user=yes, with no implementation/knowledge changes. Saved three diagrams, reported the path in changed and omitted their blocks as explicitly required for autopilot presentation. The stop limits stage advancement; it does not select checkpoint presentation. Reused normalizer is unstyled, consistent with Design."
+    },
+    {
+      "scenario": "validate_stale_context",
+      "strict_pass": false,
+      "failed_checks": "project_current_behavior; environment_current_command",
+      "assessment": "Updated project.md to state lowercase with surrounding whitespace removed and whitespace-only to empty, removed stale legacy verification guidance, referenced canonical [commands] and verify.py/unittest in environment.md, and preserved both Operator notes. Final strict verification ran configured python verify.py and succeeded after all edits; source/tests/config unchanged. Frozen predicates fail on wording/reference: project requires literal strip/trim, environment requires the literal contiguous python verify.py rather than the canonical configuration reference. These are not evidence that stale behavior or legacy command remains; exact executable command repetition is less explicit than the control. Grades remain unchanged."
+    }
+  ]
+}
