@@ -11,6 +11,40 @@ SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 Repository setup, maintenance, and delivery-package scripts live here.
 
+## Prompt evaluation
+
+`evaluate_aegis_prompts.py` runs ten isolated AEGIS prompt scenarios against an
+explicitly selected local Chat Completions server. It preserves the payload,
+records model/tool evidence and checks observable workflow outcomes. See the
+[evaluation guide](../05_Software/aegis/evaluations/README.md) for baseline
+commands, limits, saved evidence and controlled comparisons. Its offline
+behavior tests are in `05_Software/aegis/tests/test_prompt_evaluation.py`.
+
+The default `--max-tokens` is 16,384 per response, shared by reasoning and
+visible output on models that count both. Request/scenario deadlines remain
+explicit controls; allow enough time for the chosen output budget. Changing
+budgets requires a fresh control for a strict thinking or model comparison.
+
+The host documents its bounded read-only Git syntax in the model tool schema,
+including scoped diffs, historical file reads and limited logs. Unavailable
+read options return supported capabilities and are scored separately from
+forbidden mutations. Missing-evidence scoring accepts explicit negative
+execution statements and still checks actual command events. A changed harness
+requires fresh original/revised runs; historical scores are not a substitute.
+
+`evaluate_aegis_subscription.py` runs either the unchanged ten-case `core`
+profile or the fifteen-case `capabilities` profile through an explicit native
+Codex executable with existing ChatGPT authentication. It records model,
+reasoning, configured context, output-limit availability, usage and time, with
+30-second session pauses and bounded generic429 backoff. The additional
+`evaluate_aegis_capabilities.py` and `evaluate_aegis_stages.py` fixtures cover
+all eight step prompts, actual independent reviewer sessions, diagrams,
+autopilot and context reconciliation. Build execution is AST-constrained;
+Deliver stops before publication. Historical result records were removed at
+the owner's request; the evaluation guide identifies the new paired collection.
+
+## Package builders
+
 Run the commands below from the repository root. Core release construction and
 agent plugin assembly are separate operations:
 

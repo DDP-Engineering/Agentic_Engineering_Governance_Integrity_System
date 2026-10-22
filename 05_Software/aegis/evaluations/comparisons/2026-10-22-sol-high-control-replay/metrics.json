@@ -1,0 +1,29 @@
+{
+  "strict_scores": {
+    "baseline": {
+      "core": 10,
+      "capabilities": 11
+    },
+    "replay": {
+      "core": 9,
+      "capabilities": 12
+    }
+  },
+  "candidate_collection_seconds_including_pauses": 3802.26,
+  "excluded_external_observations": 0,
+  "canonical_cases": 25,
+  "candidate_fresh_reviewer_sessions": 4,
+  "case_totals": {
+    "baseline": {
+      "seconds_including_review": 1635.872,
+      "output_tokens": 72635,
+      "completed": 25
+    },
+    "replay": {
+      "seconds_including_review": 3012.046,
+      "output_tokens": 85518,
+      "completed": 25
+    }
+  },
+  "baseline_collection_seconds_including_pauses": 2432.803
+}

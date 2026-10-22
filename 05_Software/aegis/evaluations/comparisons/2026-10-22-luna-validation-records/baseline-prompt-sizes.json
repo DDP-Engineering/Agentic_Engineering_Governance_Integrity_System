@@ -1,0 +1,42 @@
+[
+  {
+    "path": "AGENTS.md",
+    "before_words": 4070,
+    "candidate_words": 4328
+  },
+  {
+    "path": "steps/2_specify.md",
+    "before_words": 1214,
+    "candidate_words": 1257
+  },
+  {
+    "path": "steps/3_design.md",
+    "before_words": 936,
+    "candidate_words": 1089
+  },
+  {
+    "path": "steps/5_validate.md",
+    "before_words": 2909,
+    "candidate_words": 3057
+  },
+  {
+    "path": "steps/6_deliver.md",
+    "before_words": 839,
+    "candidate_words": 957
+  },
+  {
+    "path": "steps/adopt.md",
+    "before_words": 1312,
+    "candidate_words": 1359
+  },
+  {
+    "path": "steps/diagrams.md",
+    "before_words": 526,
+    "candidate_words": 685
+  },
+  {
+    "path": "templates/task.md",
+    "before_words": 2461,
+    "candidate_words": 2618
+  }
+]

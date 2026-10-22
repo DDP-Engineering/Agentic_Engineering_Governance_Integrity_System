@@ -1,0 +1,32 @@
+[
+  {
+    "variant": "original",
+    "profile": "core",
+    "files_verified": 15
+  },
+  {
+    "variant": "original",
+    "profile": "capabilities",
+    "files_verified": 15
+  },
+  {
+    "variant": "original",
+    "profile": "review-transport",
+    "files_verified": 15
+  },
+  {
+    "variant": "current",
+    "profile": "core",
+    "files_verified": 15
+  },
+  {
+    "variant": "current",
+    "profile": "capabilities",
+    "files_verified": 15
+  },
+  {
+    "variant": "current",
+    "profile": "review-transport",
+    "files_verified": 15
+  }
+]

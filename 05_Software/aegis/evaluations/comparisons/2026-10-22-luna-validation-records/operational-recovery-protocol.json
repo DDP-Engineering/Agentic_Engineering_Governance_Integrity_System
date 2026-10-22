@@ -1,0 +1,13 @@
+{
+  "case": "review_detects_missing_behavior",
+  "reason": "Fresh Spec role returned Selected model is at capacity, without inspection or verdict. This is not reported as HTTP429.",
+  "initial_case_retained": true,
+  "known_independent_semantic_failure": "Coordinator task TASK-aaaaaaaa command created an extra journal before the capacity rejection; retain this as a real failure.",
+  "selection": "Preserve all raw cohort grades. Exclude the provider-contaminated observation from prompt scoring. Select the first operationally complete follow-up for this scenario regardless of semantic grade; do not retry semantic failures. Until valid follow-up exists, compare matched 24-case sets. Preserve the independently observed pre-capacity duplicate journal as a separate semantic finding.",
+  "retry_rule": "Stop after first diagnostic with both role sessions completed, regardless of grade. Retry only operationally unavailable attempts, bounded to at most three diagnostics with 60/120 second waits. No semantic outcome is retried.",
+  "model": "gpt-6-luna",
+  "reasoning": "medium",
+  "context": 131072,
+  "user_steering": "User explicitly clarified that ChatGPT model capacity is an external factor and must not count against prompt evaluation.",
+  "superseded_selection": "Do not replace or regrade the original cohort case or aggregate. Report a separate operational diagnostic after the full cohort, with exact same frozen payload/settings/harness."
+}

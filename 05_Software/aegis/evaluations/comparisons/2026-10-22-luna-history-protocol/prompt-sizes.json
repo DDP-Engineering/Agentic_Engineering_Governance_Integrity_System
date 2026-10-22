@@ -1,0 +1,77 @@
+[
+  {
+    "path": "steps/3_design.md",
+    "control_words": 1173,
+    "candidate_words": 1219
+  },
+  {
+    "path": "steps/5_validate.md",
+    "control_words": 3127,
+    "candidate_words": 3151
+  },
+  {
+    "path": "steps/6_deliver.md",
+    "control_words": 1181,
+    "candidate_words": 1227
+  },
+  {
+    "path": "steps/diagrams.md",
+    "control_words": 698,
+    "candidate_words": 817
+  },
+  {
+    "path": "templates/task.md",
+    "control_words": 2618,
+    "candidate_words": 2729
+  },
+  {
+    "path": "05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "control_words": 266,
+    "candidate_words": 574
+  },
+  {
+    "path": "05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-spec-review.toml",
+    "control_words": 291,
+    "candidate_words": 599
+  },
+  {
+    "path": "05_Software/aegis/integrations/claude/plugins/aegis/agents/quality-review.md",
+    "control_words": 152,
+    "candidate_words": 463
+  },
+  {
+    "path": "05_Software/aegis/integrations/claude/plugins/aegis/agents/spec-review.md",
+    "control_words": 147,
+    "candidate_words": 458
+  },
+  {
+    "path": "05_Software/aegis/integrations/pi/review-prompts/aegis-quality-review.md",
+    "control_words": 174,
+    "candidate_words": 485
+  },
+  {
+    "path": "05_Software/aegis/integrations/pi/review-prompts/aegis-spec-review.md",
+    "control_words": 175,
+    "candidate_words": 486
+  },
+  {
+    "path": "05_Software/aegis/integrations/opencode/prompts/aegis-quality-review.md",
+    "control_words": 210,
+    "candidate_words": 521
+  },
+  {
+    "path": "05_Software/aegis/integrations/opencode/prompts/aegis-spec-review.md",
+    "control_words": 228,
+    "candidate_words": 539
+  },
+  {
+    "path": "05_Software/aegis/integrations/qwen/agents/aegis-quality-review.md",
+    "control_words": 203,
+    "candidate_words": 514
+  },
+  {
+    "path": "05_Software/aegis/integrations/qwen/agents/aegis-spec-review.md",
+    "control_words": 204,
+    "candidate_words": 515
+  }
+]

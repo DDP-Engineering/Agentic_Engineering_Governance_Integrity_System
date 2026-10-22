@@ -1,0 +1,402 @@
+[
+  {
+    "variant": "replay",
+    "scenario": "review_enabled_current",
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 44.521,
+    "pid": 19468,
+    "thread_id": "01a163d8-0ed6-7ba2-b3d1-307847d94a9c",
+    "usage": [
+      {
+        "input_tokens": 176369,
+        "cached_input_tokens": 139264,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 923,
+        "reasoning_output_tokens": 132
+      }
+    ],
+    "output_tokens": 923,
+    "reasoning_tokens": 132,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-spec-review",
+    "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+      "verdict": "approved",
+      "findings": [],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md (complete journal, scope, exclusions, Design and empty Rulings)",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/steps/5_validate.md",
+        ".agentic/aegis.toml",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md",
+        "Git diff against recorded base and working-tree status"
+      ],
+      "limitations": [
+        "Digest matched the supplied candidate before and after inspection.",
+        "Focused execution evidence is the journal's recorded red/green results; reviewer ran no tests. Actual assertions and runner were inspected.",
+        "Final strict proof remains due after both approvals, as prescribed by the review protocol.",
+        "The validate-stage anchor does not establish historical build-start evidence; the journal explicitly preserves this limitation."
+      ]
+    },
+    "verdict": "approved",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/steps/5_validate.md",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 44.521,
+        "pid": 19468,
+        "thread_id": "01a163d8-0ed6-7ba2-b3d1-307847d94a9c",
+        "usage": [
+          {
+            "input_tokens": 176369,
+            "cached_input_tokens": 139264,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 923,
+            "reasoning_output_tokens": 132
+          }
+        ],
+        "output_tokens": 923,
+        "reasoning_tokens": 132,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-spec-review-attempt-1"
+  },
+  {
+    "variant": "replay",
+    "scenario": "review_enabled_current",
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 29.13,
+    "pid": 28608,
+    "thread_id": "01a163d9-32ea-7073-ae26-54be21132f87",
+    "usage": [
+      {
+        "input_tokens": 124982,
+        "cached_input_tokens": 87168,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 973,
+        "reasoning_output_tokens": 208
+      }
+    ],
+    "output_tokens": 973,
+    "reasoning_tokens": 208,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-quality-review",
+    "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "7f70942b5119a495d84c559e472eec5425c2d257673a34bc000bdf2998ed54a4",
+      "verdict": "approved",
+      "findings": [],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md (complete journal and recorded fixture red/green evidence)",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/aegis.toml",
+        ".agentic/steps/5_validate.md",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md",
+        "Git diff against task base, status, branch and diff --check"
+      ],
+      "limitations": [
+        "Digest matched the supplied candidate before and after inspection.",
+        "Tests were not executed by this reviewer. Execution evidence consists of the journal's fixture preparation records; actual assertions and runner were inspected.",
+        "Final full strict verification remains due after review approvals, as prescribed.",
+        "The validate-stage anchor does not establish historical build-start evidence."
+      ]
+    },
+    "verdict": "approved",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/steps/5_validate.md",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 29.13,
+        "pid": 28608,
+        "thread_id": "01a163d9-32ea-7073-ae26-54be21132f87",
+        "usage": [
+          {
+            "input_tokens": 124982,
+            "cached_input_tokens": 87168,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 973,
+            "reasoning_output_tokens": 208
+          }
+        ],
+        "output_tokens": 973,
+        "reasoning_tokens": 208,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-quality-review-attempt-1"
+  },
+  {
+    "variant": "replay",
+    "scenario": "review_detects_missing_behavior",
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 54.839,
+    "pid": 27100,
+    "thread_id": "01a163dd-b2fd-7082-b182-41f87a2b8e58",
+    "usage": [
+      {
+        "input_tokens": 175510,
+        "cached_input_tokens": 121344,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1114,
+        "reasoning_output_tokens": 173
+      }
+    ],
+    "output_tokens": 1114,
+    "reasoning_tokens": 173,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-spec-review",
+    "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+      "verdict": "changes_required",
+      "findings": [
+        "Missing accepted behavior: src/normalize.py:2 calls value.strip() unconditionally, so None raises AttributeError rather than the ValueError required by REQ-FUNC-22222222.toml:5 and the task's Frame scope. Add explicit None rejection while preserving trimming/lowercasing. tests/test_normalize.py:5-13 covers only strings; add a None-input assertion expecting ValueError, link it in REQ-FUNC-22222222.toml:8, and record focused execution evidence. The journal's green result covers case, trim and whitespace-only inputs, not this requirement."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md (complete journal, Frame, Design and empty Rulings)",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+        ".agentic/steps/5_validate.md",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/aegis.toml",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md",
+        "Git status and actual diff against task base 804da5c994fefa366eef633847e7ec7c9cd161c4"
+      ],
+      "limitations": [
+        "Digest matched the supplied candidate before and after inspection.",
+        "Read-only inspection only; no tests run. Available execution evidence consists of journal entries, with no None-input verification recorded.",
+        "Final full strict proof follows independent approvals; its absence at this review point is not a finding."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+      ".agentic/steps/5_validate.md",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 54.839,
+        "pid": 27100,
+        "thread_id": "01a163dd-b2fd-7082-b182-41f87a2b8e58",
+        "usage": [
+          {
+            "input_tokens": 175510,
+            "cached_input_tokens": 121344,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1114,
+            "reasoning_output_tokens": 173
+          }
+        ],
+        "output_tokens": 1114,
+        "reasoning_tokens": 173,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-spec-review-attempt-1"
+  },
+  {
+    "variant": "replay",
+    "scenario": "review_detects_missing_behavior",
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "configured_context_tokens": 131072,
+    "native_output_cap_tokens": null,
+    "status": "completed",
+    "seconds": 59.253,
+    "pid": 24368,
+    "thread_id": "01a163de-ff10-7a22-9710-f75fbd5a36ba",
+    "usage": [
+      {
+        "input_tokens": 142976,
+        "cached_input_tokens": 105728,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1325,
+        "reasoning_output_tokens": 382
+      }
+    ],
+    "output_tokens": 1325,
+    "reasoning_tokens": 382,
+    "native_violations": 0,
+    "error": "",
+    "role": "aegis-quality-review",
+    "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+    "response": {
+      "task": "TASK-aaaaaaaa",
+      "candidate": "991ce60f3cbc0bb0529013307b626d02d50d200c5ea74ebba98c1e37a5f11c53",
+      "verdict": "changes_required",
+      "findings": [
+        "src/normalize.py:2: normalize_name(None) calls None.strip(), raising AttributeError rather than the ValueError required by REQ-FUNC-22222222 and the accepted Frame scope. Callers handling the documented error will therefore fail unexpectedly. Add explicit None rejection and a regression test asserting ValueError. tests/test_normalize.py:6–13 covers only strings, so the journal's recorded green run cannot establish this behavior."
+      ],
+      "inspected_paths": [
+        "AGENTS.md",
+        ".agentic/AGENTS.md",
+        ".agentic/steps/5_validate.md",
+        ".agentic/tasks/TASK-aaaaaaaa.md (complete journal and recorded red/green evidence)",
+        ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+        ".agentic/context/project.md",
+        ".agentic/context/environment.md",
+        ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+        ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+        ".agentic/knowledge/normalization.md",
+        ".agentic/aegis.toml",
+        "src/normalize.py",
+        "tests/test_normalize.py",
+        "verify.py",
+        "README.md",
+        ".gitignore",
+        "Actual Git diff against the task base, working-tree status and branch"
+      ],
+      "limitations": [
+        "Digest matched the supplied candidate before and after inspection.",
+        "No tests were run, as required for this read-only review. Execution evidence available was limited to journal assertions; no raw execution logs or candidate-bound focused results were supplied.",
+        "Final strict verification remains pending after review; its absence at this stage is not itself a finding."
+      ]
+    },
+    "verdict": "changes_required",
+    "observed_reads": [
+      ".agentic/AGENTS.md",
+      ".agentic/aegis.toml",
+      ".agentic/context/environment.md",
+      ".agentic/context/project.md",
+      ".agentic/knowledge/normalization.md",
+      ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+      ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+      ".agentic/steps/5_validate.md",
+      ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+      ".agentic/tasks/TASK-aaaaaaaa.md",
+      ".gitignore",
+      "AGENTS.md",
+      "README.md",
+      "src/normalize.py",
+      "tests/test_normalize.py",
+      "verify.py"
+    ],
+    "digest_reads": 2,
+    "denied_actions": 0,
+    "snapshot_unchanged": true,
+    "attempts": [
+      {
+        "status": "completed",
+        "seconds": 59.253,
+        "pid": 24368,
+        "thread_id": "01a163de-ff10-7a22-9710-f75fbd5a36ba",
+        "usage": [
+          {
+            "input_tokens": 142976,
+            "cached_input_tokens": 105728,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1325,
+            "reasoning_output_tokens": 382
+          }
+        ],
+        "output_tokens": 1325,
+        "reasoning_tokens": 382,
+        "native_violations": 0,
+        "error": ""
+      }
+    ],
+    "run_directory": "reviewers\\aegis-quality-review-attempt-1"
+  }
+]

@@ -1,0 +1,125 @@
+[
+  {
+    "status": "completed",
+    "seconds": 193.042,
+    "pid": 22864,
+    "thread_id": "01a162c3-03b0-7560-8447-29cd98403ff2",
+    "usage": [
+      {
+        "input_tokens": 417172,
+        "cached_input_tokens": 376832,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2105,
+        "reasoning_output_tokens": 0
+      }
+    ],
+    "output_tokens": 2105,
+    "reasoning_tokens": 0,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "review_detects_missing_behavior",
+    "run_directory": "review_detects_missing_behavior-attempt-1",
+    "evaluation": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "two_real_review_sessions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "same_unchanged_candidate",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "independent_read_evidence",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "verdicts_from_actual_reviewers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "missing_behavior_detected",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_policy_respected",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Fresh review identifies accepted None-input ValueError behavior missing from the candidate.",
+        "Autopilot preserves actual verdicts and stops at the blocking decision despite zero remaining fix cycles."
+      ],
+      "limitations": []
+    },
+    "passed": false,
+    "coordinator_tool_calls": 23,
+    "reviewer_sessions": 2,
+    "reviewer_output_tokens": 2177,
+    "reviewer_reasoning_tokens": 67,
+    "wait_before_seconds": 30
+  }
+]

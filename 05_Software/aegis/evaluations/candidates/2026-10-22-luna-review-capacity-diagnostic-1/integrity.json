@@ -1,0 +1,17 @@
+{
+  "attempts.json": "a0c2319a38b744a8c6a8c06d329d185b8ef98affdd385f01e8055d8e1ce6e6e7",
+  "evidence.zip": "ac2234f8341bcc06c666b70fc28f1397a087024e2e49063408a49aa081725833",
+  "manifest.json": "c4ff83ece4f781fa761855af0fa4839924655ffd3486f3c38c101c0f07b5285d",
+  "results.json": "a0c2319a38b744a8c6a8c06d329d185b8ef98affdd385f01e8055d8e1ce6e6e7",
+  "timing.json": "5f95c2ad3b4ecd58a845c726fac0bc4a0c3f2c78cd1a41c6339c3369b6ed6d6f",
+  "sources\\02_Tools\\evaluate_aegis_capabilities.py": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1",
+  "sources\\02_Tools\\evaluate_aegis_prompts.py": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007",
+  "sources\\02_Tools\\evaluate_aegis_stages.py": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163",
+  "sources\\02_Tools\\evaluate_aegis_subscription.py": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7",
+  "sources\\05_Software\\aegis\\evaluations\\capability-scenarios.json": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c",
+  "sources\\05_Software\\aegis\\evaluations\\scenarios.json": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c",
+  "sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-quality-review.toml": "f8c48b7d8eaefc27e6ef828032e43a2fd94e46b5df6d1baddb9139878896fa95",
+  "sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-spec-review.toml": "42c7eedc6bf9eabdd4f55ee29d323cffb6d46929cbf50f3d5106c6d0b43c417e",
+  "sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\skills\\aegis\\SKILL.md": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed",
+  "sources\\05_Software\\aegis\\evaluations\\profiles\\installed-entry.json": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+}

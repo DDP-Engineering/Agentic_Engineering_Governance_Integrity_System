@@ -1,0 +1,48 @@
+{
+  "strict_scores": {
+    "baseline": {
+      "core": 10,
+      "capabilities": 7
+    },
+    "corrected": {
+      "core": 10,
+      "capabilities": 8
+    }
+  },
+  "candidate_collection_seconds": 2383.216,
+  "candidate_coordinator_cases": 25,
+  "candidate_fresh_reviewer_sessions": 4,
+  "case_totals": {
+    "baseline": {
+      "seconds_including_review": 1142.584,
+      "output_tokens": 66642,
+      "completed": 25
+    },
+    "corrected": {
+      "seconds_including_review": 1631.403,
+      "output_tokens": 68504,
+      "completed": 25
+    }
+  },
+  "raw_cohort_strict_scores": {
+    "baseline": {
+      "core": 10,
+      "capabilities": 7
+    },
+    "corrected": {
+      "core": 10,
+      "capabilities": 8
+    }
+  },
+  "physical_second_cohort_and_recovery_seconds": 2608.676,
+  "physical_second_cohort_and_recovery_coordinators": 26,
+  "physical_second_cohort_and_recovery_role_attempts": 6,
+  "canonical_reviewer_statuses": {
+    "completed": 4
+  },
+  "external_capacity_excluded": true,
+  "physical_second_cohort_and_recovery_role_statuses": {
+    "completed": 5,
+    "provider_error": 1
+  }
+}

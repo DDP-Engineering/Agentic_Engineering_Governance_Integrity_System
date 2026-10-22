@@ -1,0 +1,23 @@
+{
+  "candidate_sources_match_frozen_manifest": true,
+  "harness_sources_unchanged_from_control": true,
+  "native_role_prompts_changed_from_control": 0,
+  "current_installed_template_preserved": true,
+  "historical_payload_hashes_verified": true,
+  "current_reviewers_restored": true,
+  "payload_files": 18,
+  "valid_cases": 25,
+  "control_canonical_sha256": "e6455931abe8c05562bc3bb64edf892e1b5712dd84bb58ee3d7ab1d2185f7d93",
+  "excluded_external": 0,
+  "fresh_reviewer_processes": 4,
+  "distinct_reviewer_threads": 4,
+  "reviewer_actual_input_verified": true,
+  "reviewer_full_contract_reads": 4,
+  "reviewer_digest_brackets_inspection": 4,
+  "current_files_restored": 38,
+  "coordinator_full_contract_reads": 25,
+  "exact_journal_license_blocks": 25,
+  "single_journals": 25,
+  "authoring_pointers": 25,
+  "post_proof_candidate_writes": 0
+}

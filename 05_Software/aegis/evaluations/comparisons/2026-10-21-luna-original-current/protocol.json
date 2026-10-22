@@ -1,0 +1,32 @@
+{
+  "model": "gpt-6-luna",
+  "reasoning": "medium",
+  "configured_context_tokens": 131072,
+  "context_caveat": "client configuration; server allocation not independently exposed",
+  "native_output_cap_tokens": null,
+  "tool_output_allowance_tokens": 16000,
+  "sequence": [
+    "original/core",
+    "original/capabilities",
+    "current/core",
+    "current/capabilities"
+  ],
+  "core_cases": 10,
+  "capability_cases": 15,
+  "repeats": 1,
+  "pause_before_each_session_seconds": 30,
+  "generic429_backoff_seconds": [
+    60,
+    120,
+    240
+  ],
+  "semantic_failures_retried": false,
+  "limits": [
+    "bounded synthetic repositories; one repeat",
+    "Deliver stops before publication",
+    "Build allows only one pure function correction; no arbitrary coding execution",
+    "Adopt covers one agreed component, not the full survey/publication lifecycle",
+    "Review fallback uses real separate sessions; installed plugin discovery not exercised",
+    "Mermaid artifact checks require separate semantic/syntax inspection"
+  ]
+}

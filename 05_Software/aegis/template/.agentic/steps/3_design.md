@@ -12,6 +12,16 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 `build` has a sufficiently constrained implementation path, material open
 decisions remain explicit, and a reviewer can see why the shape was chosen.
 
+**Checkpoint response:** assemble it from saved artifacts, in this order:
+
+1. The actual summary stdout inside a plain text fence.
+2. When this stage generated diagrams, read their saved file and copy each
+   diagram's complete Mermaid fence into the response, preserving its content.
+3. The Design boundary choices, including pause.
+
+Finish this assembly before sending; a path or description does not supply
+part 2. Autopilot reports the saved diagram path without displaying diagrams.
+
 **Read first:**
 
 - The task journal `.agentic/tasks/TASK-<id>.md`.
@@ -30,6 +40,10 @@ update the current checklist, minimal Handoff and Stage report, then show
 `summary TASK-<id>`. Read required durable evidence; missing or shortened
 context requires review. This adds no approval stop and never defers a material
 deviation notice. Reuse unchanged instructions already read in this session.
+If a journal edit fails an exact-text match, reread the current section and
+repair that same journal using the task template's fallback. Finish the saved
+Design and pause/transition records before responding; do not abandon a
+permitted record update because one text fragment was stale.
 
 **Steps:**
 
@@ -41,6 +55,10 @@ deviation notice. Reuse unchanged instructions already read in this session.
    exact implementation. **Challenge** contradictions, infeasible constraints,
    implicit coupling, missing failure behavior, and unresolved decisions
    before choosing a shape.
+   Separate a proposed new interface from an existing function it calls:
+   their different invocation styles alone are not conflicting contracts.
+   Resolve component paths from journal links or `components`, then read the
+   owning page; do not infer a missing page from a guessed filename.
 3. Write the note under the journal's existing `## Design` heading. 30 lines is the default,
    not a hard limit: use the shortest record that makes
    the known implementation path sufficiently constrained. Add proportionate
@@ -79,16 +97,27 @@ deviation notice. Reuse unchanged instructions already read in this session.
     behavior, compatibility, verification seams, risks, and open decisions.
     Run `python .agentic/aegis.py check` and fix format errors.
 11. If `.agentic/aegis.toml` sets `[diagrams] enabled = true` (a TOML boolean),
-    read `.agentic/steps/diagrams.md` and draw what it describes. Any other
-    value, or no `[diagrams]` table, means no diagrams.
-12. Append one concise `design` outcome line pointing to `## Design` and any
+    read `.agentic/steps/diagrams.md` and apply its types gate before generating.
+    An empty types list generates no file or link. Any other enabled value,
+    or no `[diagrams]` table, means no diagrams. An explicit stop after Design
+    still includes enabled applicable artifacts, while keeping `stage: design`
+    and its checklist; do not advance to Build.
+12. Preserve the current journal and its existing `## Log` section verbatim.
+    A full rewrite starts from that current file, never a fresh template;
+    verify the old Log prefix is still present and unchanged before summary.
+    Insert the outcome at the following heading without recopying old entries.
+    Append one concise `design` outcome line pointing to `## Design` and any
     linked spec; do not copy decisions into the Log. In checkpoint mode, show
     the summary, then the diagrams of any diagram file this stage wrote, then
     the `design` Stage-boundary choices from `.agentic/AGENTS.md`; refresh the
     waiting Handoff and paused Stage report, then stop before transition. After
-    the user chooses to continue, or immediately in autopilot, tick the
+    the user chooses to continue, or immediately in autopilot when no explicit
+    stop forbids the transition, tick the
     checklist, set `stage: build`, and replace `## Done checklist` with the
-    build stage's Done when list. Before build work, read
+    build stage's Done when list. Save and reread the matching Handoff/Stage
+    report and repair any summary format error before reporting the transition.
+    A bounded autopilot request to transition only stops before Build work with
+    ready/completed/needs_user=no when no human decision is pending. Before build work, read
     `.agentic/steps/4_build.md`. If the user instead returns to Specify, read
     `.agentic/steps/2_specify.md` before Specify work.
 

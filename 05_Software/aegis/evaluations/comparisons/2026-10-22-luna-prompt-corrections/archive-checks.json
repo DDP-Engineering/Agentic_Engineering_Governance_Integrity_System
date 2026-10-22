@@ -1,0 +1,12 @@
+[
+  {
+    "profile": "core",
+    "crc_ok": true,
+    "entries": 450
+  },
+  {
+    "profile": "capabilities",
+    "crc_ok": true,
+    "entries": 811
+  }
+]

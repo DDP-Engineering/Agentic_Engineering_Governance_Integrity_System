@@ -1088,10 +1088,11 @@ def test_task_records_no_commit_without_history(tmp_path, capsys, monkeypatch):
 
 
 def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
-    """The durable template structure survives substitutions and note removal."""
+    """REQ-DATA-71fcf08e: template structure survives deterministic Git substitutions."""
     _agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_branch", lambda: "main")
+    monkeypatch.setattr(aegis, "git_head", lambda: "0123456789abcdef0123")
     capsys.readouterr()
 
     aegis.main(["task", "Keep the shape"])
@@ -1105,8 +1106,8 @@ def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
         if a != b
     ]
     assert len(original.split("\n")) == len(generated.split("\n"))
-    assert len(changed) == 4  # title, type (unchanged text), branch, opened, log
-    assert {b.split(":")[0] for _a, b in changed} >= {"branch", "opened"}
+    assert len(changed) == 5  # title, branch, base, opened, log
+    assert {b.split(":")[0] for _a, b in changed} >= {"branch", "base", "opened"}
 
 
 def test_task_without_parent_remains_a_top_level_task(tmp_path, capsys, monkeypatch):

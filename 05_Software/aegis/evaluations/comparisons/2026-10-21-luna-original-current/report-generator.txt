@@ -1,0 +1,150 @@
+"""Summarize saved paired observations without changing any raw grade."""
+from pathlib import Path
+import hashlib
+import json
+import re
+import shutil
+
+root = Path.cwd()
+base = root / '05_Software/aegis/evaluations'
+pair = base / 'comparisons/2026-10-21-luna-original-current'
+read = lambda p: json.loads(p.read_text('utf-8'))
+canonical = (pair / 'canonical-observations.json').exists()
+rows = read(pair / ('canonical-observations.json' if canonical else 'observations.json'))
+assert len(rows) == 50 and all(r['status'] == 'completed' for r in rows)
+reviews = read(pair / ('canonical-reviewer-sessions.json' if canonical else 'reviewer-sessions.json'))
+assert len(reviews) <= 8
+archives = read(pair / ('all-archive-checks.json' if canonical else 'archive-checks.json'))
+assert len(archives) == (6 if canonical else 4) and all(a['archive_crc_ok'] for a in archives)
+provenance = read(pair / 'provenance.json')
+records, metrics, links, checked, controls = {}, {}, [], [], {}
+for variant, folder in [('original', 'baselines'), ('current', 'candidates')]:
+    metrics[variant] = {'output_tokens': 0, 'reasoning_tokens': 0, 'collection_seconds': 0, 'outer_retries': 0, 'physical_coordinator_cases': 0, 'physical_reviewer_sessions': 0}
+    profiles = [('core', 10), ('capabilities', 15)] + ([('review-transport', 3)] if canonical else [])
+    for profile, count in profiles:
+        directory = base / folder / ('2026-10-21-luna-' + variant + '-' + profile)
+        manifest = read(directory / 'manifest.json')
+        assert (manifest['model'], manifest['reasoning'], manifest['context']) == ('gpt-6-luna', 'medium', 131072)
+        assert manifest['payload_files'] == provenance[variant]
+        control = {k: manifest[k] for k in ['sources', 'system_sha256', 'cli_sha256', 'cli_version']}
+        if profile in controls:
+            assert controls[profile] == control
+        else:
+            controls[profile] = control
+        records[variant, profile] = read(directory / 'results.json')
+        assert len(records[variant, profile]) == count
+        timing = read(directory / 'timing.json')
+        metrics[variant]['collection_seconds'] += timing['collection_wall_seconds']
+        attempts = read(directory / 'attempts.json')
+        metrics[variant]['outer_retries'] += len(attempts) - count
+        for r in attempts:
+            metrics[variant]['physical_coordinator_cases'] += 1
+            metrics[variant]['physical_reviewer_sessions'] += r['reviewer_sessions']
+            metrics[variant]['output_tokens'] += r['output_tokens'] + r['reviewer_output_tokens']
+            metrics[variant]['reasoning_tokens'] += r['reasoning_tokens'] + r['reviewer_reasoning_tokens']
+        integrity = read(directory / 'integrity.json')
+        for filename, expected in integrity.items():
+            assert hashlib.sha256((directory / filename).read_bytes()).hexdigest() == expected, (directory, filename)
+        checked.append({'variant': variant, 'profile': profile, 'files_verified': len(integrity)})
+        relative = '../../' + folder + '/' + directory.name
+        links.append(f'- [{variant}/{profile} manifest]({relative}/manifest.json), [raw results]({relative}/results.json), [evidence archive]({relative}/evidence.zip)')
+    for profile in ['core', 'capabilities']:
+        metrics[variant][profile + '_passes'] = sum(r['automatic_pass'] for r in rows if r['variant']==variant and r['profile']==profile)
+    metrics[variant]['total_passes'] = metrics[variant]['core_passes'] + metrics[variant]['capabilities_passes']
+    metrics[variant]['canonical_output_tokens'] = sum(r['coordinator_output_tokens'] + r['reviewer_output_tokens'] for r in rows if r['variant']==variant)
+    metrics[variant]['canonical_case_wall_seconds'] = round(sum(r['seconds_including_nested_review'] for r in rows if r['variant']==variant), 3)
+
+lines = [
+    '<!-- Copyright (c) 2026 DDP Engineering. LicenseRef-PolyForm-Noncommercial-1.0.0 -->', '',
+    '# Original/current AEGIS prompt comparison', '',
+    f"The paired baseline selects **25 scenarios per variant** and **{len(reviews)} fresh reviewer sessions**. "
+    'Both variants use matched per-case evaluator controls, native runtime, cases and settings. AEGIS prompts stayed fixed.', '',
+    'The initial 50 executions are preserved. An adapter rejected a task ID plus brief despite declaring a generic text reference. '
+    'Internal reference normalization was repaired without changing the model-visible tool schema or instructions (hashes verified). '
+    'The entire three-case review subgroup was then recollected for both variants and selected symmetrically before inspecting outcomes. '
+    'Core uses unchanged core.Host; all other capability fixtures have review disabled, so the repaired branch is unreachable there. '
+    'Their existing observations remain valid. No semantic outcome was selectively retried. '
+    'See [the selection/provenance rule](selection.json), [transport controls](review-transport-protocol.json) and '
+    '[the initial unmodified observations](observations.json).', '',
+    '| Configuration | Value |', '|---|---|',
+    '| Requested model | `gpt-6-luna` |', '| Reasoning | `medium` |',
+    '| Configured context | 131,072 tokens (128K); client setting, server allocation not independently exposed |',
+    '| Native output cap | Unexposed; the 16,000-token MCP output allowance is a tool limit |',
+    '| Native CLI | 0.163.0-alpha.11; exact binary hash in manifests |',
+    '| Pacing | 30 seconds before every coordinator/reviewer CLI session |',
+    '| Returned generic429 policy | 60/120/240-second bounded backoff; no quota/billing or semantic retries |',
+    '| Repeats/order | One per case; original core, original capabilities, current core, current capabilities |', '',
+    f"Original is master commit `{provenance['original_commit']}`. Current is the pre-run local payload. "
+    'Both retain AEGIS 0.14.0 and identical parser bytes. Only `AGENTS.md`, `steps/1_frame.md`, '
+    '`steps/5_validate.md` and `templates/task.md` differ. All eighteen installed current files match the frozen template.', '',
+    '## Observed automatic scores', '', '| Profile | Original | Current |', '|---|---:|---:|']
+for profile, count in [('core', 10), ('capabilities', 15)]:
+    lines.append(f"| {profile} | {metrics['original'][profile + '_passes']}/{count} | {metrics['current'][profile + '_passes']}/{count} |")
+lines.append(f"| Total | {metrics['original']['total_passes']}/25 | {metrics['current']['total_passes']}/25 |")
+lines += ['', '**These are frozen strict predicates, not a complete quality score.** '
+    'The [initial semantic review](semantic-review.json) and [selected review-subgroup assessment](review-transport-semantic-review.json) identify actual prompt/record issues, model capability confusion, '
+    'fixture effects and narrow scoring predicates. Do not count every raw failure as a prompt defect.', '',
+    'Known interpretation limits include `remains pending` not matching the old missing-evidence predicate; '
+    'an initial harmless unsupported `git ls-tree` being classified as denied during otherwise real independent inspection; '
+    'the added autopilot transition case requiring waiting/needs_user=yes even when no decision is missing; '
+    'authorize not matching an approval-keyword predicate; and removes surrounding whitespace not matching strip/trim. '
+    'Raw grades are preserved rather than silently rewritten.', '',
+    'Concrete current improvements include saved Frame requirement IDs/license prologues, coherent paused resume records and '
+    'clearing stale approvals without inventing fresh verdicts. Broader observations remain mixed: stale Deliver returns are '
+    'not persisted, diagram configuration/presentation/change markers are inconsistent, and an autopilot transition leaves '
+    'a malformed report unrepaired. Adopt contract-versus-implementation wording and Specify atomicity rationale need semantic clarification. '
+    'Both context files were correctly updated in both variants; their raw failures have different causes, including a wording false negative. '
+    'See [the bounded next targets](next-targets.md) and [direct feature observations](feature-observations.json).', '',
+    '## Per-scenario observations', '',
+    'Output is the service-reported coordinator plus fresh reviewer output. Case wall time already includes nested reviewers. '
+    'Model/reasoning/context/output-cap and source-collection fields are repeated in [CSV](canonical-observations.csv) and [JSON](canonical-observations.json).', '',
+    '| Scenario | Original | Current | Wall seconds O/C | Output tokens O/C |', '|---|---|---|---:|---:|']
+for original in [r for r in rows if r['variant'] == 'original']:
+    current = next(r for r in rows if r['variant'] == 'current' and r['scenario'] == original['scenario'])
+    state = lambda r: 'pass' if r['automatic_pass'] else 'fail'
+    tokens = lambda r: r['coordinator_output_tokens'] + r['reviewer_output_tokens']
+    lines.append(f"| `{original['scenario']}` | {state(original)} | {state(current)} | {original['seconds_including_nested_review']:.1f} / {current['seconds_including_nested_review']:.1f} | {tokens(original):,} / {tokens(current):,} |")
+lines += ['', '## Time and observed usage', '', f"Canonical case totals exclude the initial superseded review subgroup. Physical collection totals include all 56 coordinator executions, {sum(v['physical_reviewer_sessions'] for v in metrics.values())} fresh reviewer sessions and all pauses.", '', '| Variant | Canonical case seconds including nested review | Canonical output tokens | Physical collection seconds | Physical output tokens | Outer retries |', '|---|---:|---:|---:|---:|---:|']
+for variant, value in metrics.items():
+    lines.append(f"| {variant} | {value['canonical_case_wall_seconds']:.1f} | {value['canonical_output_tokens']:,} | {value['collection_seconds']:.1f} | {value['output_tokens']:,} | {value['outer_retries']} |")
+lines += ['', 'Reasoning and output are reported as exposed by native usage; no inferred combined token budget is claimed. '
+    'Time is observational: one repeat, serial order, native caching/service variation and local software-test load during part of the original collection prevent an isolated speed claim. '
+    'The native service does not expose full per-request pacing or backend model identity.', '',
+    '## Shared contract and preserved records', '', '| Observation | Original | Current |', '|---|---:|---:|']
+for key, label in [('agents_contract_complete_read', 'Full installed AGENTS read by coordinator'), ('journal_license_prologue', 'Saved journal license prologue')]:
+    lines.append('| ' + label + ' | ' + ' | '.join(str(sum(bool(r[key]) for r in rows if r['variant'] == v)) + '/25' for v in ['original', 'current']) + ' |')
+lines += ['', 'Read coverage and actual step paths are recorded per case; reading a file alone is not successful behavioral coverage. '
+    'All eight step prompts have dedicated behavior cases, and the shared AGENTS contract plus task template participate in the pair. '
+    'Because four files change together, this collection cannot attribute effects exclusively to one file. '
+    '[Prompt sizes](prompt-sizes.json) record whitespace-delimited word counts, distinct from model token usage.', '',
+    '## Actual reviewer sessions', '',
+    'Activation is observed independently of the overall scenario grade. Each row is a real fresh native session. '
+    'Full thread IDs, process IDs, candidate digests, observed reads and actual findings are in [the selected reviewer ledger](canonical-reviewer-sessions.json).', '',
+    '| Variant/case | Role | Verdict | Seconds | Output tokens | Digest reads / snapshot unchanged |', '|---|---|---|---:|---:|---|']
+for r in reviews:
+    lines.append(f"| {r['variant']}/{r['scenario']} | {r['role']} | {r['verdict']} | {r['seconds']:.1f} | {r['output_tokens']} | {r['digest_reads']} / {r['snapshot_unchanged']} |")
+lines += ['', 'The same model, medium reasoning and configured 128K apply to every reviewer. '
+    'Roles use unchanged native adapter instructions and independent immutable snapshots; the second role receives neither the first verdict nor coordinator record edits. '
+    'This tests the fresh-agent fallback, not installed-plugin discovery. Some extra scope findings concern configuration/knowledge changes introduced during fixture preparation, not model implementation work. '
+    'Three selected role sessions made only one explicit digest-tool call, despite unchanged snapshot evidence; that protocol-adherence check is separate from activation and functional findings. '
+    'Both roles returned changes_required in every enabled case, so approved-review continuation and the repair/re-review loop were not observed.', '',
+    '## Scope and evidence limits', '',
+    '- Build covers one existing regression with real red/anchor/edit/green/evolution, while an exact AST guard permits only the original or corrected pure function. It does not evaluate arbitrary coding or new-test authoring.',
+    '- Deliver tests pre-publication approval and stale-proof rejection; no commit, push, PR or deployment is attempted.',
+    '- Adopt covers one agreed component and an observed contract mismatch; survey and publication are outside this sample.',
+    '- Diagrams are checked as saved artifacts, links, types and presentation. Semantic inspection found marker inconsistencies; Mermaid syntax/rendering is not certified.',
+    '- Initial Deliver, skipped-Design and disabled-review cases claimed MCP record writes were unavailable because native CLI sandbox metadata is read-only, without attempting the advertised writes. This transport/model confusion must not be attributed to a stage prompt alone.',
+    '- The cases are independent prepared stage sessions, rather than a single uninterrupted Frame-to-Deliver project run. Synthetic fixtures, one repeat and one model configuration provide representative observations, not exhaustive AEGIS certification.', '',
+    '## Verification and reproducibility', '',
+    'Software verification is recorded separately after the transport repair; changed Python files compiled. '
+    '[Verification details](verification.md) include the isolated existing-test repair. '
+    'All six evidence archives pass CRC checks and every recorded integrity hash was verified. '
+    'Historical records were removed as requested; no old result was reused as a control.', '',
+    '[Protocol](protocol.json), [payload provenance](provenance.json), [archive checks](all-archive-checks.json), '
+    '[integrity verification](verified-integrity.json), [installed/template match](installed-template-match.json), '
+    '[initial semantic review](semantic-review.json), [review-subgroup assessment](review-transport-semantic-review.json), [proposed next targets](next-targets.md).', ''] + links
+(pair / 'verified-integrity.json').write_text(json.dumps(checked, indent=2), encoding='utf-8')
+(pair / 'metrics.json').write_text(json.dumps(metrics, indent=2), encoding='utf-8')
+(pair / 'report.md').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
+shutil.copyfile(Path(__file__), pair / 'report-generator.txt')
+print(json.dumps(metrics, indent=2))

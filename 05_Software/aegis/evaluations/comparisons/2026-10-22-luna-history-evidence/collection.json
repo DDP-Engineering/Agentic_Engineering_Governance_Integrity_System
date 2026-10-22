@@ -1,0 +1,12 @@
+[
+  {
+    "profile": "core",
+    "output": "05_Software\\aegis\\evaluations\\candidates\\2026-10-22-luna-history-evidence-core",
+    "exit": 0
+  },
+  {
+    "profile": "capabilities",
+    "output": "05_Software\\aegis\\evaluations\\candidates\\2026-10-22-luna-history-evidence-capabilities",
+    "exit": 0
+  }
+]

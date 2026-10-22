@@ -1,0 +1,42 @@
+[
+  {
+    "path": "AGENTS.md",
+    "baseline_words": 4070,
+    "corrected_words": 4257
+  },
+  {
+    "path": "steps/2_specify.md",
+    "baseline_words": 1214,
+    "corrected_words": 1257
+  },
+  {
+    "path": "steps/3_design.md",
+    "baseline_words": 936,
+    "corrected_words": 1013
+  },
+  {
+    "path": "steps/5_validate.md",
+    "baseline_words": 2909,
+    "corrected_words": 2974
+  },
+  {
+    "path": "steps/6_deliver.md",
+    "baseline_words": 839,
+    "corrected_words": 910
+  },
+  {
+    "path": "steps/adopt.md",
+    "baseline_words": 1312,
+    "corrected_words": 1359
+  },
+  {
+    "path": "steps/diagrams.md",
+    "baseline_words": 526,
+    "corrected_words": 655
+  },
+  {
+    "path": "templates/task.md",
+    "baseline_words": 2461,
+    "corrected_words": 2618
+  }
+]

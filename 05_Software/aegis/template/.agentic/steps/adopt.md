@@ -76,7 +76,11 @@ ones are not.
    from the exact source and tests. Add `## Change map` when multiple
    independent edit-and-test seams would otherwise require broad discovery.
    The page is an orientation route; the exact source and tests remain the
-   authority for future changes.
+   authority for future changes. Compare existing active requirements with the
+   implementation before describing the interface. Label a normative interface
+   as the agreed contract when code disagrees, and describe actual behavior
+   separately with source/test evidence. Keep the defect and investigation in
+   the journal; adoption neither fixes it nor changes the active contract.
 7. Derive requirements from the behavior you found: `status = "active"`,
    `affected_paths` = the component's files, `linked_tests` = the
    existing tests that already verify each behavior. Adoption mostly

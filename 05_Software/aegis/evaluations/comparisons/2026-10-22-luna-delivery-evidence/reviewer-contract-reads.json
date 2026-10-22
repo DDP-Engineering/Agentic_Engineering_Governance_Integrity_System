@@ -1,0 +1,18 @@
+[
+  {
+    "tool_events": ".tmp-codex/luna-delivery-evidence-capabilities/review_detects_missing_behavior-attempt-1/coordinator/reviewers/aegis-quality-review-attempt-1/tools.json",
+    "shared_contract_complete_read": true
+  },
+  {
+    "tool_events": ".tmp-codex/luna-delivery-evidence-capabilities/review_detects_missing_behavior-attempt-1/coordinator/reviewers/aegis-spec-review-attempt-1/tools.json",
+    "shared_contract_complete_read": true
+  },
+  {
+    "tool_events": ".tmp-codex/luna-delivery-evidence-capabilities/review_enabled_current-attempt-1/coordinator/reviewers/aegis-quality-review-attempt-1/tools.json",
+    "shared_contract_complete_read": true
+  },
+  {
+    "tool_events": ".tmp-codex/luna-delivery-evidence-capabilities/review_enabled_current-attempt-1/coordinator/reviewers/aegis-spec-review-attempt-1/tools.json",
+    "shared_contract_complete_read": true
+  }
+]

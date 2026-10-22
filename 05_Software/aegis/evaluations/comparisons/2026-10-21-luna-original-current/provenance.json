@@ -1,0 +1,50 @@
+{
+  "original_commit": "ebdafdbb1e5bbdc5ed86f9ed6dba7673effe9aa1",
+  "remote_master_ref": "ebdafdbb1e5bbdc5ed86f9ed6dba7673effe9aa1",
+  "original": {
+    "aegis.py": "87f87d0743555bdf49b2ac90a899e4c47f28383c34de411aa9ff25c126b777f6",
+    "AGENTS.md": "72f0d320524c7d370236c0bb36c64cf330ec1c2e587d6c240077bffe30dc018b",
+    "CLI.md": "0a384b79848e864c5a159e09eaa644acec72cebc654b060a5a933626f0ff3a4e",
+    "LICENSE.txt": "2494616d0c43cfda4aa0fd8c53f429d615a2e38b50d45c3d9e6db264149e65a6",
+    "steps/1_frame.md": "521fbdf8d7c7a36ac081cd5c492a1e8de53cc75e392d29c4d7b012cafde0e40e",
+    "steps/2_specify.md": "a2af44bfcdd70c6a01bcfe82329c386edac7aee2c9904d5a912b009eab2c0d40",
+    "steps/3_design.md": "d0cd00ef755ee4a78032589b54d0470bd81164c0a56ba0cb812a519a0555efc6",
+    "steps/4_build.md": "d77171fa57f223e1ebbd9d0eaf34ab9e3c3241487cd3f95415a86763a318591b",
+    "steps/5_validate.md": "7fb2686264048884393a9418845ca80d32757b020452d1ee97f1e5d713ffeeba",
+    "steps/6_deliver.md": "12980e101525311961b85849a540146f2ebe04cd0a478ee69cc0c9858b38ce16",
+    "steps/adopt.md": "74d4a091744f9dbed94906e891ad61f1d400c9e00b7724dfa5aaa839f8d56bd7",
+    "steps/diagrams.md": "44849f9d83dd0209d223e72f81aa555993c83c03093b65977b2a9e9f9612edf0",
+    "templates/component.md": "9e15bafec5613dc1f590824930acd4e393bee38e7c442be2516f64311bddadd6",
+    "templates/environment.md": "9b4d3d61e0300839673e72bd6f3d262eb7049859d4012f99228c8f49d1f2c44d",
+    "templates/project.md": "f4d4999554651ac8b41a75fea22502f09f2c0c4e484db1aaa7fb470c7febd767",
+    "templates/requirement.toml": "7e8956131e01d8d5b4d182363f47546a2c5845a99e58515c79548a7be0a593b3",
+    "templates/spec.md": "523a2f32f048a67c48618586275b74895a17805c9f10ccccbde81c2622b0e656",
+    "templates/task.md": "d5fd1e4ead8eacb89ed2b6627c4a47b9f53048df09100a7a79cb5df6bd0ad83d"
+  },
+  "current": {
+    "aegis.py": "87f87d0743555bdf49b2ac90a899e4c47f28383c34de411aa9ff25c126b777f6",
+    "AGENTS.md": "c46dbbf7ffec9ee8f471c8e2764266074aed97d00c6aa98279210dbfdfc1646d",
+    "CLI.md": "0a384b79848e864c5a159e09eaa644acec72cebc654b060a5a933626f0ff3a4e",
+    "LICENSE.txt": "2494616d0c43cfda4aa0fd8c53f429d615a2e38b50d45c3d9e6db264149e65a6",
+    "steps/1_frame.md": "5267d3a29e2a8942bfc9f3eedc6fc90ab8b34fd06866890f51ee27defe7e5245",
+    "steps/2_specify.md": "a2af44bfcdd70c6a01bcfe82329c386edac7aee2c9904d5a912b009eab2c0d40",
+    "steps/3_design.md": "d0cd00ef755ee4a78032589b54d0470bd81164c0a56ba0cb812a519a0555efc6",
+    "steps/4_build.md": "d77171fa57f223e1ebbd9d0eaf34ab9e3c3241487cd3f95415a86763a318591b",
+    "steps/5_validate.md": "038dd71e6d127f76fba87a410bf3a616751396e2dcffab9f8146e8441afd14b4",
+    "steps/6_deliver.md": "12980e101525311961b85849a540146f2ebe04cd0a478ee69cc0c9858b38ce16",
+    "steps/adopt.md": "74d4a091744f9dbed94906e891ad61f1d400c9e00b7724dfa5aaa839f8d56bd7",
+    "steps/diagrams.md": "44849f9d83dd0209d223e72f81aa555993c83c03093b65977b2a9e9f9612edf0",
+    "templates/component.md": "9e15bafec5613dc1f590824930acd4e393bee38e7c442be2516f64311bddadd6",
+    "templates/environment.md": "9b4d3d61e0300839673e72bd6f3d262eb7049859d4012f99228c8f49d1f2c44d",
+    "templates/project.md": "f4d4999554651ac8b41a75fea22502f09f2c0c4e484db1aaa7fb470c7febd767",
+    "templates/requirement.toml": "7e8956131e01d8d5b4d182363f47546a2c5845a99e58515c79548a7be0a593b3",
+    "templates/spec.md": "523a2f32f048a67c48618586275b74895a17805c9f10ccccbde81c2622b0e656",
+    "templates/task.md": "32b4f5b439e3a166ab7d2c01db7819cd5aedee4c00ce7b564f9bfbb3b82dd976"
+  },
+  "changed_payload_files": [
+    "AGENTS.md",
+    "steps/1_frame.md",
+    "steps/5_validate.md",
+    "templates/task.md"
+  ]
+}

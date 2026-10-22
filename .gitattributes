@@ -40,3 +40,6 @@
 *.docx binary
 *.pptx binary
 *.xlsx binary
+
+# Frozen evaluation evidence must retain the bytes recorded by its SHA-256 manifests.
+/05_Software/aegis/evaluations/** -text

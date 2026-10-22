@@ -280,8 +280,9 @@ def test_resume_guidance_is_local_and_preserves_required_evidence():
     for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
         assert "Resume a task" in text, step.name
-        assert "Read required durable evidence" in text, step.name
-        assert "context requires review" in text, step.name
+        assert re.search(r"Read (required|full) durable evidence", text), step.name
+        assert ("context requires review" in text
+                or "when context is missing or shortened" in text), step.name
 
 
 def test_workflow_defines_append_only_rulings_and_supersession():
@@ -306,8 +307,16 @@ def test_every_stage_refreshes_handoff_on_pause_or_transition():
     """REQ-FUNC-7ea14fe4: every stage boundary leaves a usable handoff."""
     for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
-        assert "minimal Handoff" in text, step.name
-        assert "transition" in text and "pause" in text, step.name
+        if step.name in {"1_frame.md", "5_validate.md"}:
+            for field in ("Handoff", "`status: waiting`",
+                          "`result: paused`", "`needs_user: yes`"):
+                assert field in text, step.name
+            assert ("`current: frame`" in text
+                    or "both current fields with the new header" in text), step.name
+            assert "After the user chooses to continue" in text, step.name
+        else:
+            assert "minimal Handoff" in text, step.name
+            assert "transition" in text and "pause" in text, step.name
 
 
 def test_rulings_cannot_expand_user_or_git_authority():
@@ -339,7 +348,10 @@ def test_validate_repeats_both_verdicts_after_any_candidate_change():
     """REQ-FUNC-9514e017: approvals never survive a changed candidate."""
     text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
     assert "Any candidate change invalidates both verdicts" in text
-    assert "perform both reviews again" in text
+    assert "Re-review both roles" in text
+    assert "write blank `spec_compliance:` and `implementation_quality:`" in text
+    assert "retain the consumed `review_round`" in text
+    assert "within the remaining budget" in text
 
 
 def test_fix_loop_uses_one_plus_max_fix_cycles_total_rounds():
@@ -362,7 +374,8 @@ def test_fix_loop_exhaustion_blocks_and_needs_user():
     """REQ-FUNC-cbff6478: a failed last round cannot enter delivery."""
     text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
     assert "result: blocked" in text and "needs_user: yes" in text
-    assert "do not advance to deliver" in text
+    assert "Do not repair, run final proof, or advance to deliver from this state" in text
+    assert "Handoff `status: blocked`" in text
 
 
 def test_scope_ambiguity_uses_existing_human_checkpoint():
@@ -423,8 +436,13 @@ def test_every_pause_refreshes_stage_report_and_handoff():
     """REQ-FUNC-7ea14fe4: user reporting and worker resume state move together."""
     for step in stage_step_files():
         text = " ".join(step.read_text("utf-8").split())
-        assert "Stage reporting" in text and "pauses" in text, step.name
-        assert "minimal Handoff" in text, step.name
+        assert "Stage reporting" in text and "pause" in text, step.name
+        if step.name in {"1_frame.md", "5_validate.md"}:
+            assert "Handoff" in text and "Stage report" in text, step.name
+            assert "summary after these edits" in text, step.name
+            assert "output first" in text, step.name
+        else:
+            assert "minimal Handoff" in text, step.name
 
 
 def test_six_stage_workflow_stops_at_each_stage_when_autopilot_is_off():
@@ -460,8 +478,9 @@ def test_six_stage_workflow_separates_validation_from_publication():
     assert "| 6 | deliver |" in agents
     assert "set `stage: validate`" in build
     assert "Prove the final candidate only after" in validate
-    assert "does not edit the validated candidate" in deliver
-    assert "return to `validate`" in deliver
+    assert "Do not edit the candidate" in deliver
+    assert "For a return to Validate" in deliver
+    assert "save `stage: validate`" in deliver
 
 
 def test_deliver_has_no_default_write_zone(tmp_path):
@@ -522,10 +541,11 @@ def test_frame_captures_evidence_intent_and_ambiguity_before_mechanics():
         assert phrase in agents
     for phrase in ("## Frame card", "Problem:", "Desired outcome:",
                    "Primary scenario:", "Success signals:", "Counterexamples:",
-                   "Assumptions:", "Unknowns:", "yes | no | evidence"):
+                   "Assumptions:", "Unknowns:", "yes/no/unknown | evidence"):
         assert phrase in frame
     assert frame.index("semantic analysis protocol") < frame.index("Establish the branch")
-    assert "scope acceptance, not implementation" in frame
+    assert "pending scope decision" in " ".join(frame.split())
+    assert "Stop before specification or build" in frame
     assert "## Frame" in task
     assert "Evidence:" in task
 
@@ -678,7 +698,7 @@ def test_design_draws_diagrams_only_through_the_enabled_guide():
     assert "`.agentic/steps/diagrams.md`" in design
     # the fail-safe reading: only the exact Boolean turns diagrams on
     assert "(a TOML boolean)" in design
-    assert "Any other value, or no `[diagrams]` table, means no diagrams" in design
+    assert "Any other enabled value, or no `[diagrams]` table, means no diagrams" in design
     for phrase in ("`.agentic/tasks/diagram_TASK-<id>.md`",
                    "Diagrams: [diagram_TASK-<id>.md](diagram_TASK-<id>.md)",
                    "`structure`", "`sequence`", "`state`",
@@ -703,8 +723,10 @@ def test_design_checkpoint_shows_diagrams_before_the_choices():
     sentence = sentence[:sentence.index(". ")]
     assert (sentence.index("summary") < sentence.index("diagram file")
             < sentence.index("Stage-boundary choices"))
-    assert "after the stage summary and before the design stage-boundary choices" in guide
-    assert "adds no display and no stop" in guide
+    presentation = guide[guide.index("**Checkpoint presentation:**"):]
+    assert (presentation.index("actual summary") < presentation.index("Mermaid fence")
+            < presentation.index("Design boundary choices"))
+    assert "omit diagram display and add no stop" in guide
 
 
 def test_no_stage_obligation_depends_on_diagrams():
@@ -729,7 +751,11 @@ def test_only_the_design_guide_directs_drawing_a_diagram():
         if path.name == "diagrams.md":
             continue
         text = path.read_text(encoding="utf-8")
-        assert "mermaid" not in text.lower(), path.name
+        # Presentation may name Mermaid; drawing syntax belongs to the guide.
+        assert not re.search(
+            r"```mermaid\b|\bflowchart\s+(?:LR|TD)\b|\bsequenceDiagram\b|\bstateDiagram-v2\b",
+            text, re.IGNORECASE,
+        ), path.name
         assert "Proposed architecture" not in text, path.name
         if path.name != "5_validate.md":
             assert "## Architecture" not in text, path.name

@@ -1,0 +1,182 @@
+[
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\attempts.json",
+    "sha256": "d4dcb851c72a20867790b927b2ef843f7eaf9d052dca19f8d6eadebdc4c2769f"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\evidence.zip",
+    "sha256": "9131115e9d0bf4cef7ef1658919306bcae3cdda5e09ac21ece31e4a9041ce3a1"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\manifest.json",
+    "sha256": "2d4a2be0d35272d3ae30786865d03b5730fd3f9c3bcf76e4034171717fc056bf"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\results.json",
+    "sha256": "d4dcb851c72a20867790b927b2ef843f7eaf9d052dca19f8d6eadebdc4c2769f"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\timing.json",
+    "sha256": "b26ef1cf6dc7a6dd0c1ffc9ef848a60951ea15c9d2ccdccd926c9e11e5407a08"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\02_Tools\\evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\02_Tools\\evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\02_Tools\\evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\02_Tools\\evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\05_Software\\aegis\\evaluations\\capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\05_Software\\aegis\\evaluations\\scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-quality-review.toml",
+    "sha256": "f8c48b7d8eaefc27e6ef828032e43a2fd94e46b5df6d1baddb9139878896fa95"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-spec-review.toml",
+    "sha256": "42c7eedc6bf9eabdd4f55ee29d323cffb6d46929cbf50f3d5106c6d0b43c417e"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\skills\\aegis\\SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-core\\sources\\05_Software\\aegis\\evaluations\\profiles\\installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\attempts.json",
+    "sha256": "db127e4f326e94adf11e1d39407485a10dd01b4439648ef100ec1001c6bb6b87"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\evidence.zip",
+    "sha256": "c1bb4a35358d0cf989abb391d979ec0f4921419581256f235935dc84a7d0f4e1"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\manifest.json",
+    "sha256": "6a56714072a60a130812aa8ca02ff32f13a8618c27a8d301f80560fe4280b0c0"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\results.json",
+    "sha256": "db127e4f326e94adf11e1d39407485a10dd01b4439648ef100ec1001c6bb6b87"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\timing.json",
+    "sha256": "a68d66e18e109abc52fda4d475fa0d1caca09b9c0eb9902dcbe62299af35a7f9"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\02_Tools\\evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\02_Tools\\evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\02_Tools\\evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\02_Tools\\evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\05_Software\\aegis\\evaluations\\capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\05_Software\\aegis\\evaluations\\scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-quality-review.toml",
+    "sha256": "f8c48b7d8eaefc27e6ef828032e43a2fd94e46b5df6d1baddb9139878896fa95"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-spec-review.toml",
+    "sha256": "42c7eedc6bf9eabdd4f55ee29d323cffb6d46929cbf50f3d5106c6d0b43c417e"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\skills\\aegis\\SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-validation-records-capabilities\\sources\\05_Software\\aegis\\evaluations\\profiles\\installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\attempts.json",
+    "sha256": "a0c2319a38b744a8c6a8c06d329d185b8ef98affdd385f01e8055d8e1ce6e6e7"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\evidence.zip",
+    "sha256": "ac2234f8341bcc06c666b70fc28f1397a087024e2e49063408a49aa081725833"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\manifest.json",
+    "sha256": "c4ff83ece4f781fa761855af0fa4839924655ffd3486f3c38c101c0f07b5285d"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\results.json",
+    "sha256": "a0c2319a38b744a8c6a8c06d329d185b8ef98affdd385f01e8055d8e1ce6e6e7"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\timing.json",
+    "sha256": "5f95c2ad3b4ecd58a845c726fac0bc4a0c3f2c78cd1a41c6339c3369b6ed6d6f"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\02_Tools\\evaluate_aegis_capabilities.py",
+    "sha256": "e6155fb6d59cb60f013a89ff3a44ac3fedbb31880665a24ba4d45daa08e033d1"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\02_Tools\\evaluate_aegis_prompts.py",
+    "sha256": "fdbb67b02a9adcf4621ef278b7024801c912d4adba7729b82d6e5a8a457f2007"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\02_Tools\\evaluate_aegis_stages.py",
+    "sha256": "9280441f0d647f9055822017ed27455ecc7bda31adcf6ebe021770546a021163"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\02_Tools\\evaluate_aegis_subscription.py",
+    "sha256": "96195a09e962a035ea31f039d1d3f8ecfc36673e88e370fbb10a65865353c6c7"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\05_Software\\aegis\\evaluations\\capability-scenarios.json",
+    "sha256": "161bcbb4cacda31144143f19887c43c45b2fc74bc0265e68041a87fe7b14ae7c"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\05_Software\\aegis\\evaluations\\scenarios.json",
+    "sha256": "7d1f8f71539b5b79633a11bcb6b80a8d0584e13883f99d09c478e20470f3822c"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-quality-review.toml",
+    "sha256": "f8c48b7d8eaefc27e6ef828032e43a2fd94e46b5df6d1baddb9139878896fa95"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\agents\\aegis-spec-review.toml",
+    "sha256": "42c7eedc6bf9eabdd4f55ee29d323cffb6d46929cbf50f3d5106c6d0b43c417e"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\05_Software\\aegis\\integrations\\codex\\plugins\\aegis\\skills\\aegis\\SKILL.md",
+    "sha256": "2de2d209f3a5ae3c25664d82a60b728a46b0bc3413795d2d52cb7950a6dadfed"
+  },
+  {
+    "path": "candidates\\2026-10-22-luna-review-capacity-diagnostic-1\\sources\\05_Software\\aegis\\evaluations\\profiles\\installed-entry.json",
+    "sha256": "984ea13c7e63104b12434101d43f557d50921b04032cf75355ebe80cc25dde0d"
+  }
+]
