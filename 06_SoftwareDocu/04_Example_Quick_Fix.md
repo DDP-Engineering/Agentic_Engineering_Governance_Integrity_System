@@ -72,7 +72,9 @@ Review the change and its tests against the existing contract. Reconcile affecte
 project/environment context and component descriptions with the candidate,
 leaving unchanged sections untouched. Current prose states actual behavior;
 the journal carries repair history. Refresh evolution after any
-later candidate edit. Run final configured proof once:
+later candidate edit. If explicit review is enabled, obtain both independent
+verdicts against current files and focused proof before the final full run;
+the review policy below defines the bounded rounds. Run final configured proof once:
 
 ```sh
 python .agentic/aegis.py check --task TASK-c3d1a2b4 --strict --run
@@ -98,7 +100,11 @@ An unresolved final verdict blocks delivery for a human decision.
 
 ## Deliver: show the evidence and request the concrete action
 
-Present the unchanged candidate, validation evidence and every deviation.
+Confirm the candidate against final proof using the same binding and scope.
+Save the approval pause at Deliver before running and presenting `summary`;
+stale proof instead requires a saved return to Validate. Keep earlier Log text
+unchanged and append each outcome once. Present the unchanged candidate,
+validation evidence and every deviation.
 Ask for the precise commit/PR action unless it is already explicitly authorized.
 After approval, generate `report TASK-c3d1a2b4` before committing. For a local
 commit-only outcome, close the journal in that commit; for an outcome that can

@@ -15,57 +15,60 @@ lives in the payload itself, in `.agentic/AGENTS.md`.
 Replace `<angle-bracket>` parts before sending. On Linux distributions
 without a `python` alias, say `python3` in the prompts.
 
-Frame and validate read `.agentic/templates/task.md` before journal edits.
-New journals keep a visible link to this authoring guide. Existing task IDs are
-selectors for `brief` and `summary`; `task "<title>"` creates a new journal.
-At a stop, record the pause and use the actual summary after successful writes.
-Missing records still require repair when summary itself exits zero.
-Deliver saves either the approval pause or a stale-proof return before summary.
-Matching like-for-like candidate bindings establish identity within their scope;
-the Git base is used to describe the change set. Read current linked files even
-when untracked, and discover component paths before declaring missing evidence.
-An additional interface can reuse an existing contract without replacing it.
-At a Design checkpoint, copy the saved diagram blocks into the response after
-the actual fenced summary and before the choices; a link only locates the file.
-Append Log outcomes at the following section heading without retyping earlier
-evidence lines, and verify that their text and spacing remain unchanged.
-Reviewers inspect the current working tree and phase-appropriate proof; a pending
-final Validate checklist does not itself block independent approval. Diagram
-classes follow proposed node edits, independently of new connections.
-It compares against the proved tree; an ordinary diff from the task base can
-include already validated work. Validate saves failed-verification limitations
-before responding and leaves only journal record edits after final proof.
-Design applies diagram enablement and the types list before writing artifacts;
-an explicit Design stop still includes applicable diagrams. Empty types creates
-none. A bounded autopilot transition can report ready/completed without asking
-for a decision that is not pending. Review uses evidence due at that phase;
-final full proof follows approvals, and existing executed tests may cover a fix.
-An existing-contract quick fix records its requirement IDs in the header at
-Frame. Saved `next` fields name one action or scoped decision; checkpoint
-choices belong in the response. Resolve a recorded scope blocker before
-routing to a later stage, and distinguish accepted scope from requirement status.
+## Read the saved state before continuing
 
-Destructive cleanup asks the actual target and recovery-policy questions before
-scope acceptance; permission to defer them does not resolve them. Frame examples
-must not assume an undecided eligibility boundary. Record refreshes preserve the
-journal's authoring-guide pointer and distinguish each Frame clause from Rulings.
-Current verification cannot recover historical red/anchor evidence. Copy every
-summary line, including Details and truncation warnings; shorten saved fields and
-rerun summary when needed. An unperformed evolution report stays unchecked with
-an applicability reason or an unresolved verification limitation.
-Label mixed-source claims separately: user clauses are stated, inspected test
-assertions are observed definitions, and constructed interface examples are
-inferred. Preserve the journal's original legal prologue verbatim, including
-SPDX and license references; it is not a removable authoring note.
-Creating a journal returns the ID/path to retain for subsequent edits. Repair
-that file after rejected edits and verify the saved stage checklist; incomplete
-fields do not justify creating another journal. A feature request establishes
-the desired capability, not an existing store, accumulated data or current defect.
-Save the Frame and pending questions before pausing for scope decisions. For an
-exact-match failure, reread and use actual multiline text; if necessary, rewrite
-the current journal with only authorized sections changed, preserving history.
-During resume, compare accepted outcomes rather than interpreting the Problem's
-original bug description as a commitment to keep that behavior.
+Frame and Validate read `.agentic/templates/task.md` before editing a journal.
+Retain the ID/path returned by `task "<title>"`: that command creates a new
+journal; `brief TASK-<id>` and `summary TASK-<id>` select an existing one.
+Repair the existing file after a rejected edit. Preserve its legal prologue,
+authoring-guide link and historical Log text, including whitespace. Append a
+new Log outcome immediately before the following section heading.
+
+Frame separates user-stated clauses, observed source/test definitions, inferred
+examples and unknowns. A requested capability does not prove an existing defect,
+store or accumulated data. Save the Frame and pending questions before pausing.
+Resolve decision-blocking scope questions before advancing; permission to defer
+a question is not its answer. Existing-contract quick fixes record governing
+requirement IDs at Frame. On resume, compare accepted outcomes with the current
+behavior; the original bug description is not a requirement to retain the bug.
+
+At a boundary, save the checklist, Handoff and Stage report before running
+`summary`. Both `next` fields name one concrete action or scoped decision;
+checkpoint choices belong in the response. Copy the actual fenced summary,
+including Details and truncation warnings. Repair missing records even when
+`summary` exits zero; shorten saved fields and rerun it if necessary.
+
+## Review, proof and delivery
+
+Read current linked files, including untracked files, and discover the relevant
+component paths before declaring evidence absent. Review uses the accepted
+contract, current candidate and proof due at that phase. Focused proof precedes
+independent review; final full strict proof follows approvals. A pending final
+Validate checklist does not itself prevent review approval. Current passing
+tests cannot recreate missing historical red or anchor evidence. Unperformed
+evolution remains unchecked with its applicability reason or verification gap.
+
+Deliver compares the current candidate with the proved candidate using the same
+binding method and scope. A diff from the task base describes the change set;
+it does not identify edits since validation. Save either the approval pause or
+the return to Validate before presenting the summary. Preserve earlier Log
+entries, and clear stale enabled-review verdicts without resetting consumed
+rounds. Record-only work and bounded transitions do not authorize source repairs
+or publication. See the [feature example](03_Example_Feature.md#stage-6---deliver).
+
+## Design diagrams and interaction mode
+
+Generate only when the TOML Boolean `enabled = true`, Design is substantive,
+and the selected types apply. Missing/non-list types default to structure;
+`types = []` creates no file or link, and unknown names are ignored. Classify
+structure nodes from proposed node edits independently of their edges; a reused
+node does not become changed merely because it receives a new connection.
+
+In checkpoint mode, show the actual summary, then every saved diagram heading
+and complete Mermaid block, then the choices. In autopilot, save the diagrams
+and report their path in `changed`, without displaying the blocks or adding a
+stop. An explicit Design stop still completes configured artifacts and retains
+the Design header; it does not change autopilot's diagram presentation.
 
 ## Install on an existing project - via an agent
 

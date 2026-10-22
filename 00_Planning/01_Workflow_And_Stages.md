@@ -35,10 +35,22 @@ unsupported invention and missing coverage. Material claims are classified as
 `STATED`, `OBSERVED`, `INFERRED`, or `UNKNOWN`; observed repository facts cite
 paths. This records evidence and decisions without requesting hidden reasoning.
 
+Classify clauses separately. `STATED` carries user words or a cited authoritative
+clause without added conclusions. An inspected test definition is `OBSERVED`,
+not an executed test. Projecting it into a new interface example is `INFERRED`
+and needs its premises. A feature request proves neither a current defect nor
+existing storage or accumulated data; unsupported current conditions stay unknown.
+
 An unknown becomes a decision-blocking question only when implementation
 cannot proceed safely without an answer. Other unknowns remain explicit in the
 Frame, draft requirement/spec, or task design rather than being silently converted into
 product behavior.
+
+Save the Frame and pending questions before pausing. Unresolved destructive
+targets or recovery policy block scope; permission to defer those questions is
+not their answer. On resume, separate the reported Problem from the accepted
+Desired outcome. Reuse the created journal after failed edits. An existing-contract
+quick fix records governing requirement IDs at Frame.
 
 ## Ordinary lifecycle
 
@@ -73,6 +85,20 @@ tree before implementation, then review evolution after the edits.
 
 If the candidate changes after validation, return to `validate`. Deliver is
 not a place to make unvalidated implementation changes.
+
+Deliver compares current and proved candidates using the same binding method
+and scope. A task-base diff describes the proposed changes, not edits since
+validation. Missing comparable identity evidence requires a precise limitation
+without asserting a change; a mismatch requires a saved return to Validate with
+its checklist, Handoff and Stage report. Clear stale enabled-review verdicts
+without resetting consumed rounds. This journal-only return does not authorize
+source repair or verification beyond the requested scope.
+
+For an unchanged proved candidate, save the approval pause before presentation:
+header and both `current` fields remain Deliver, Handoff is waiting, Stage report
+is paused with `needs_user: yes`, and both `next` fields name the delivery decision.
+Reread records and show actual `summary` output before evidence and choices.
+Preserve earlier Log text, including whitespace.
 
 ## Project-configured verification
 
@@ -115,6 +141,13 @@ changes require fresh proof. Ordinary prose corrections require semantic and
 traceability review rather than an automatic extra runtime run. This scheduling
 is agent guidance, not a CLI execution quota or a cache of reusable test results.
 
+Current proof cannot recreate an unrecorded red result or build-start anchor.
+Do not create an anchor at Validate to conceal that history gap. Leave an
+unperformed evolution item unchecked with its applicability reason or remaining
+limitation. Reading test assertions, finding linked tests and receiving static
+check exit zero are not test passes. Existing executed tests may verify a repair
+when their actual cases and results establish the restored contract.
+
 ## Interaction boundaries
 
 Checkpoint mode is the default. It stops after every stage, presents the stage
@@ -130,6 +163,26 @@ does not suppress external authority or the delivery boundary. New journals
 record the resolved mode; an explicit user instruction may override the
 configured default for that task. Neither child tasks, stage reporting,
 rulings, handoffs, nor review adds a stop beyond these configured boundaries.
+
+An explicit stage stop still applies in autopilot. A bounded transition with no
+pending human decision may finish ready/completed with `needs_user: no`. Save
+pauses or blockers before reporting; saved `next` fields name one action or
+scoped decision, while the checkpoint menu belongs in the response.
+
+### Optional Design diagrams
+
+Require the TOML Boolean `[diagrams] enabled = true` and substantive Design.
+Missing/non-list `types` defaults to `["structure"]`; `types = []` creates no file
+or link. Unknown names are ignored; a list with no known type draws nothing.
+The quick path or skipped Design draws nothing. Classify structure nodes from
+proposed node edits independently of edges: a new connection does not make an
+unchanged reused node changed.
+
+Checkpoint responses show the actual fenced summary, every saved diagram heading
+and complete Mermaid block, then choices. Autopilot saves diagrams and reports
+their path in `changed`, without displaying blocks or adding a stop. An explicit
+Design stop still completes applicable artifacts and keeps the header at Design;
+it does not select checkpoint display.
 
 Record material accepted deviations immediately and say them in the
 conversation:
@@ -172,14 +225,23 @@ max_fix_cycles = 2
 
 When enabled, review records independent `spec_compliance` and
 `implementation_quality` verdicts for the same candidate, using `approved` or
-`changes_required`. An edit invalidates both verdicts. The policy permits one
+`changes_required`. A candidate change invalidates both verdicts while retaining
+the consumed round and historical findings. The policy permits one
 initial review plus up to `max_fix_cycles` fix-and-re-review rounds, then
 requires human direction.
 
-The current repository enables this policy with `max_fix_cycles = 2`.
+This source checkout has no installed policy; the example shows payload defaults.
+An installed project's actual configuration determines whether review runs.
 Disabling it skips only the explicit verdict contract and bounded loop; it
 never skips semantic review, knowledge updates, full validation, strict checks,
 or the delivery checkpoint.
+
+Reviewers inspect current linked files, including untracked scope, and focused
+proof due at that phase. Semantic corrections and current documentation precede
+review; final full strict proof follows both approvals. Its pending checklist is
+not itself a reason to reject a review. With `max_fix_cycles = 0`, only the initial
+round is allowed. An unresolved final round needs the specific human scope/policy
+decision; proposing an exception does not accept it.
 
 ## Durable resume state
 
@@ -196,6 +258,13 @@ Handoff, or the Stage report do not belong there. New journals also support:
   `status`, `next`, `must_read`, and `blockers`.
 - **Stage report:** one replaceable current snapshot of result, changes,
   evidence, issues, next action, and optional review fields.
+
+Read task-template authoring guidance before Frame or Validate journal edits
+unless already read in the intact session. Preserve the original legal prologue
+and visible guide pointer. Append each material Log outcome once at the following
+section heading without retyping prior evidence; compare its saved prefix with
+the original before summary. Use plain one-line header/record values. Repair a
+rejected edit in the same journal rather than creating another task.
 
 Resume safely:
 

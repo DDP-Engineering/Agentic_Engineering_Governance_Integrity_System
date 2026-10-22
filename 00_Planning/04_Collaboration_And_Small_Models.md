@@ -79,9 +79,11 @@ Fresh task, requirement and context scaffolds omit marked authoring notes. Evolu
 return compact paths/statuses/areas while retaining complete fingerprints on disk.
 These reduce text volume; actual end-to-end token savings have not been measured.
 
-The current prompt contract is designed to remain practical with a minimum
-64K context budget. It does this through compact durable records rather than a
-promise that every relevant file will fit at once:
+The prompt contract uses compact records and selective reads for constrained
+context. It guarantees neither a tokenizer-specific 64K budget nor model
+compliance. Recorded evaluations use their explicitly configured windows;
+the recent matched cohorts used 131,072 tokens, which is not independent proof
+of server allocation. The design supports bounded work through these structures:
 
 - **Analyze -> Challenge -> Write -> Audit** gives each stage a stable order.
 - `STATED`, `OBSERVED`, `INFERRED`, and `UNKNOWN` keep evidence separate from
@@ -97,9 +99,10 @@ promise that every relevant file will fit at once:
   consolidated verification, blockers, approvals, deviations, and delivery;
   it links to dedicated detail instead of repeating it.
 
-These structures improve consistency for capable offline models, including
-Qwen-family deployments, but do not prove a particular model will comply. No
-model is bundled, and model-led workflow conformance remains a separate test.
+These structures aim to preserve intent across sessions; their effect on a model
+must be measured. No model is bundled. Representative prompt evaluations now
+exercise actual model/tool behavior, but do not establish universal compliance,
+small-context acceptance or a complete lifecycle in every native host.
 
 ## Recommended session shape
 
@@ -124,7 +127,7 @@ to commit, push, merge, publish, or broaden scope. Handoff is operational
 state, not approval. A Stage report is a current communication snapshot, not
 fresh validation.
 
-The current repository enables explicit review:
+For a downstream project opting into explicit review:
 
 ```toml
 [review]
@@ -136,6 +139,9 @@ This permits one initial pair of independent review verdicts and up to two
 fix-and-re-review rounds. It does not create a review stage or replace
 `validate`; ordinary semantic review, focused/full proof, strict checking,
 and the delivery checkpoint still apply.
+
+The maintainer checkout has no installed `.agentic/aegis.toml`; this example is
+not its active configuration. The payload default keeps explicit review off.
 
 Checkpoint mode stops after every stage and presents concrete continue, revise
 or return, and pause choices. `[interaction] autopilot = false` is the default,
@@ -153,8 +159,18 @@ behavior increment.
 The coordinator supplies the same task, scope, candidate digest, changed-file
 evidence and requirement links to two independent reviewers. Reviewers inspect
 actual files and return `approved` or `changes_required`; the coordinator
-records the verdicts and checks that the candidate stayed unchanged. Any edit
-invalidates both verdicts and requires the next permitted review round.
+records the verdicts and checks that the candidate stayed unchanged. A candidate
+change clears both verdicts while preserving consumed rounds and old findings;
+new approvals require the next permitted review round. Journal-only boundary
+records do not themselves imply a change to the proved source candidate.
+
+Both reviewers receive current linked files, including untracked requirements,
+and focused proof due at that phase. Read test definitions as assertions,
+executed results as proof and missing historical records as separate limits.
+Final full strict verification follows approvals; its pending checklist is not
+itself a missing prerequisite for the reviewers. A review verdict grants no
+publication authority, and an exhausted final round needs a concrete human
+scope/policy decision before further fixes or final proof.
 
 | Host | Implemented review mechanism | Access boundary |
 |---|---|---|
@@ -180,7 +196,8 @@ and provider eligibility remain the host/provider's responsibility.
 Windows and Linux packages use the same workflow and shared runtime. CLI and
 Desktop share resources only when they use the same supported backend and
 configuration. Remote backends and WSL CLI sessions need installation in their
-own environment. Claude Desktop WSL plugin sessions are currently unsupported.
+own environment. Desktop availability depends on host support for that backend;
+a successful CLI installation does not establish GUI plugin support.
 
 Verification reservations are local to the configured shared cache and
 checkout. They survive host restarts but do not lock other machines or detect
@@ -199,8 +216,10 @@ earlier successful run covered the final candidate or its environment.
 The core works offline. Model-driven host sessions use the user's selected
 provider and may require network access. No models are bundled. Package
 verification has exercised backend/native resources without model requests;
-complete model-led workflows and reviewer behavior, including small-model
-compliance, remain unverified. See
+representative development evaluations separately exercise model-led stage work
+and fresh reviewer sessions. They do not test installed plugin discovery, native
+custom-role routing, complete workflows in all hosts or small-model reliability.
+See the [evaluation guide](../05_Software/aegis/evaluations/README.md) and
 [implementation status](05_Implementation_Phases.md) for verification routes
 and the distinction between current guidance and recorded evidence.
 

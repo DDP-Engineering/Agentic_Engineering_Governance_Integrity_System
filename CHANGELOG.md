@@ -11,12 +11,20 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- Remove three test cases that depended on an AEGIS deployment in this
+  repository, following removal of that workspace installation.
+
 ### Added
 
 - Extend development prompt evaluations across all eight step prompts, with
   real reviewer sessions, diagrams, autopilot and context-update cases.
 
 ### Changed
+
+- Align user guides and slide companions with current review/proof ordering,
+  saved delivery state, journal preservation and diagram presentation.
 
 - Preserve delivery log text during appends, clarify review-phase evidence across
   host reviewers, and check diagram node markers against the saved Design.

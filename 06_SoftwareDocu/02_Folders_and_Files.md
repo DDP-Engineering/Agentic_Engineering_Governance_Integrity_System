@@ -169,7 +169,9 @@ hex digits; header values are plain values, without inline comments.
 The header block (`key: value` lines under the title) is machine-read by
 `status`, `check` and `report` - keep it one key per line with no blank
 lines inside. Header lines are edited in place; log lines are only ever
-appended. The Log is a concise progress-and-evidence ledger: retain stage
+appended. Keep the original legal prologue and authoring-guide pointer. Append
+at the following section heading without retyping or normalizing old evidence;
+verify that the saved historical Log prefix is unchanged. The Log is a concise progress-and-evidence ledger: retain stage
 transitions, material changes or decisions, consolidated test results,
 blockers, approvals, deviations and delivery outcomes. Do not copy durable
 artifact content or record routine searches, edits, tool mechanics, or
@@ -231,8 +233,11 @@ journal.
 When `[diagrams] enabled = true`, design also writes `diagram_TASK-<id>.md`
 beside the journal: Mermaid diagrams of the proposed implementation for the
 human, linked once from `## Design` and shown at the design checkpoint. The
-file is committed with the journal. No stage, review or `check` finding depends
-on it, and journal discovery (`TASK-*.md`) never reads it.
+file is committed with the journal. Checkpoint responses include the saved
+blocks after the summary; autopilot reports the path without displaying them.
+`types = []` creates no file or link, and a skipped Design creates none.
+No stage, review or `check` finding depends on it, and journal discovery
+(`TASK-*.md`) never reads it.
 
 `evolution --compact --json` omits before/after hashes from the response while
 retaining changed paths, statuses, areas and counts. Saved evolution reports
@@ -319,7 +324,10 @@ When enabled, each review round needs two independent verdicts: specification
 compliance and implementation quality. One initial round plus at most
 `max_fix_cycles` fix-and-re-review rounds is allowed. Clear both verdicts after
 a candidate change and obtain both approvals for the same candidate. Review
-off never disables ordinary semantic review or validation.
+off never disables ordinary semantic review or validation. Reviewers inspect
+current files and phase-appropriate focused proof; final full strict proof
+follows both approvals. Invalidate verdicts after relevant changes while keeping
+the consumed round and historical findings.
 
 Task headers may include a blank `parent:` or one visible top-level task ID.
 Child journals stay independently governed; the parent file is not rewritten.

@@ -26,22 +26,6 @@ test('resources: native workflow resources expose bounded independent review rol
   assert.ok(await present(path.join(plugin, 'skills/workflow/SKILL.md')));
 });
 
-test('protocol: Claude exposes real checkout operations with validated inputs', async () => {
-  const entry = path.join(plugin, 'server.mjs');
-  assert.ok(await present(entry), 'Claude transport is missing');
-  const { createProtocol } = await import(pathToFileURL(entry));
-  const protocol = createProtocol({ root: repo, version: 'test' });
-  const call = (id, method, params) => protocol.handle({ jsonrpc: '2.0', id, method, params });
-  await call(1, 'initialize', { protocolVersion: '2025-06-18', clientInfo: { name: 'test', version: '1' }, capabilities: {} });
-  await protocol.handle({ jsonrpc: '2.0', method: 'notifications/initialized' });
-  const list = await call(2, 'tools/list', {});
-  assert.equal(list.result.tools.length, 11);
-  const status = await call(3, 'tools/call', { name: 'aegis_status', arguments: {} });
-  assert.equal(JSON.parse(status.result.content[0].text).exit_code, 0);
-  const bad = await call(4, 'tools/call', { name: 'aegis_summary', arguments: { task: '../bad' } });
-  assert.equal(bad.error.code, -32602);
-});
-
 test('hooks: context is bounded, read-only and scoped to governed work', async () => {
   const entry = path.join(plugin, 'hooks.mjs');
   assert.ok(await present(entry), 'AEGIS context hook is missing');

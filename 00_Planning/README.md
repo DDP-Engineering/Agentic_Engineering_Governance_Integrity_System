@@ -19,6 +19,16 @@ assignment, package construction and publication are separate operations.
 Release history belongs in the root changelog; these guides explain current
 behavior and are updated with the implementation.
 
+The maintainer checkout does not contain a root `.agentic/` deployment. Paths
+under `.agentic/` here describe an installed downstream project. Repository
+`AGENTS.md` defines maintenance rules; the template is the canonical core source.
+
+Development evaluations cover all eight step files, shared guidance, actual
+reviewer sessions, diagrams, autopilot and context updates. Coverage does not
+establish universal model compliance or improvement from every prompt revision.
+See [implementation status](05_Implementation_Phases.md#prompt-evaluation-status)
+for comparisons and remaining limits.
+
 - [Overview](00_README.md) — core workflow, host integrations and source boundaries.
 - [Workflow and stages](01_Workflow_And_Stages.md) - semantic analysis protocol,
   lifecycle, quick-path criteria, review policy, resume state and host execution.
@@ -29,8 +39,8 @@ behavior and are updated with the implementation.
 - [Collaboration and small models](04_Collaboration_And_Small_Models.md) -
   bounded semantic records, durable re-entry, independent review, user
   profiles and verification limits.
-- [Implementation status](05_Implementation_Phases.md) — completed capabilities,
-  tested environments, remaining checks, builders and maintenance rules.
+- [Implementation status](05_Implementation_Phases.md) — implemented capabilities,
+  evaluation results, proposed follow-ups, verification limits and builders.
 
 The runnable product is at `05_Software/aegis/`. The managed core source is
 `template/.agentic/`; host implementations are in `integrations/`. When a

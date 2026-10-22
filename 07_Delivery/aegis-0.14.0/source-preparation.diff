@@ -1,0 +1,2020 @@
+diff --git a/00_Planning/00_README.md b/00_Planning/00_README.md
+index f98ebd5..968eedb 100644
+--- a/00_Planning/00_README.md
++++ b/00_Planning/00_README.md
+@@ -26,6 +26,11 @@ implementation or workflow contract changes. Integration behavior is defined
+ by its source, native resources and package guides; it does not add stages or
+ commands to the Python CLI.
+ 
++This source checkout has no root `.agentic/` installation. Installed-path
++examples refer to downstream projects; inspect the canonical payload under
++`05_Software/aegis/template/.agentic/` when maintaining AEGIS itself. Repository
++maintenance follows the root `AGENTS.md` without recreating a workflow deployment.
++
+ ## What AEGIS is
+ 
+ AEGIS is an offline-first, advisory software-development workflow. A small
+@@ -72,6 +77,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
+   **Challenge** gaps and contradictions, **Write** the artifact, then **Audit**
+   it. Material claims are labeled `STATED`, `OBSERVED`, `INFERRED`, or
+   `UNKNOWN`; the protocol asks for reviewable artifacts, not hidden reasoning.
++  Mixed-source clauses are labeled separately: an inspected test assertion is
++  not an executed test, and a requested feature does not prove a current defect.
+ - Six fixed ordinary stages: `frame -> specify -> design -> build -> validate
+   -> deliver`.
+ - An eligible fix or change may use the recorded quick path:
+@@ -86,6 +93,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
+ - A journal Log retains only stage outcomes, material engineering changes,
+   consolidated verification, blockers, approvals, deviations, and delivery;
+   dedicated artifacts hold the detail and routine execution stays out.
++  Edits preserve the original legal prologue and historical Log verbatim;
++  boundary records are saved and reread before the actual summary is shown.
+ - Build uses project-native focused tests or a configured runner that honors
+   impacted references. `--dry-run` previews execution; `--no-fallback` refuses
+   a full-suite fallback. Full strict verification follows final edits and review.
+@@ -97,6 +106,9 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
+ - Explicit review is optional policy, not a stage. When enabled it records
+   specification-compliance and implementation-quality verdicts with a bounded
+   fix-and-re-review loop; ordinary validation remains required either way.
++  Reviewers inspect current files, including untracked scope, and focused proof;
++  final full strict proof follows approvals. Invalidating verdicts retains the
++  consumed round and historical findings.
+ - Project and component documents describe actual positive behavior and setup.
+   Frame/adoption populates known facts, build updates affected facts and validate
+   reconciles them against the candidate and established requirements. Proposed
+@@ -107,6 +119,13 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
+ - `components` is a read-only, no-argument title-and-path catalogue for
+   selecting concise component knowledge before exact source and tests. It
+   creates no metadata registry and does not choose a component automatically.
++- Optional Design diagrams follow the enablement/types gates. Checkpoint mode
++  displays saved blocks between summary and choices; autopilot saves and reports
++  their path without displaying them or adding a stop. An explicit Design stop
++  still completes applicable artifacts.
++- Deliver compares the current candidate with final proof using the same binding
++  method and scope, then saves an approval pause or a return to Validate before
++  reporting. A diff from the task base is not a diff since validation.
+ 
+ AEGIS applies to software development. Repository maintenance, versioning,
+ release construction, package publication, and deployment follow the
+@@ -126,5 +145,6 @@ AEGIS, under the maintainer's scope instruction.
+ 
+ Start with the [user guide index](../06_SoftwareDocu/00_Index.md) or
+ [agent package guide](../06_SoftwareDocu/Agent_Plugins.md) for installation.
+-[Implementation status](05_Implementation_Phases.md) distinguishes verified
+-backend behavior from unverified Desktop UI and model-driven workflows.
++[Implementation status](05_Implementation_Phases.md) distinguishes product tests,
++package/backend checks and representative model-led prompt evaluations from
++Desktop acceptance and complete host workflows that require separate evidence.
+diff --git a/00_Planning/01_Workflow_And_Stages.md b/00_Planning/01_Workflow_And_Stages.md
+index 4199d3a..0b40ed4 100644
+--- a/00_Planning/01_Workflow_And_Stages.md
++++ b/00_Planning/01_Workflow_And_Stages.md
+@@ -35,11 +35,23 @@ unsupported invention and missing coverage. Material claims are classified as
+ `STATED`, `OBSERVED`, `INFERRED`, or `UNKNOWN`; observed repository facts cite
+ paths. This records evidence and decisions without requesting hidden reasoning.
+ 
++Classify clauses separately. `STATED` carries user words or a cited authoritative
++clause without added conclusions. An inspected test definition is `OBSERVED`,
++not an executed test. Projecting it into a new interface example is `INFERRED`
++and needs its premises. A feature request proves neither a current defect nor
++existing storage or accumulated data; unsupported current conditions stay unknown.
++
+ An unknown becomes a decision-blocking question only when implementation
+ cannot proceed safely without an answer. Other unknowns remain explicit in the
+ Frame, draft requirement/spec, or task design rather than being silently converted into
+ product behavior.
+ 
++Save the Frame and pending questions before pausing. Unresolved destructive
++targets or recovery policy block scope; permission to defer those questions is
++not their answer. On resume, separate the reported Problem from the accepted
++Desired outcome. Reuse the created journal after failed edits. An existing-contract
++quick fix records governing requirement IDs at Frame.
++
+ ## Ordinary lifecycle
+ 
+ | Stage | Step file | Implemented responsibility |
+@@ -74,6 +86,20 @@ tree before implementation, then review evolution after the edits.
+ If the candidate changes after validation, return to `validate`. Deliver is
+ not a place to make unvalidated implementation changes.
+ 
++Deliver compares current and proved candidates using the same binding method
++and scope. A task-base diff describes the proposed changes, not edits since
++validation. Missing comparable identity evidence requires a precise limitation
++without asserting a change; a mismatch requires a saved return to Validate with
++its checklist, Handoff and Stage report. Clear stale enabled-review verdicts
++without resetting consumed rounds. This journal-only return does not authorize
++source repair or verification beyond the requested scope.
++
++For an unchanged proved candidate, save the approval pause before presentation:
++header and both `current` fields remain Deliver, Handoff is waiting, Stage report
++is paused with `needs_user: yes`, and both `next` fields name the delivery decision.
++Reread records and show actual `summary` output before evidence and choices.
++Preserve earlier Log text, including whitespace.
++
+ ## Project-configured verification
+ 
+ `.agentic/context/project.md` describes the project's current purpose,
+@@ -115,6 +141,13 @@ changes require fresh proof. Ordinary prose corrections require semantic and
+ traceability review rather than an automatic extra runtime run. This scheduling
+ is agent guidance, not a CLI execution quota or a cache of reusable test results.
+ 
++Current proof cannot recreate an unrecorded red result or build-start anchor.
++Do not create an anchor at Validate to conceal that history gap. Leave an
++unperformed evolution item unchecked with its applicability reason or remaining
++limitation. Reading test assertions, finding linked tests and receiving static
++check exit zero are not test passes. Existing executed tests may verify a repair
++when their actual cases and results establish the restored contract.
++
+ ## Interaction boundaries
+ 
+ Checkpoint mode is the default. It stops after every stage, presents the stage
+@@ -131,6 +164,26 @@ record the resolved mode; an explicit user instruction may override the
+ configured default for that task. Neither child tasks, stage reporting,
+ rulings, handoffs, nor review adds a stop beyond these configured boundaries.
+ 
++An explicit stage stop still applies in autopilot. A bounded transition with no
++pending human decision may finish ready/completed with `needs_user: no`. Save
++pauses or blockers before reporting; saved `next` fields name one action or
++scoped decision, while the checkpoint menu belongs in the response.
++
++### Optional Design diagrams
++
++Require the TOML Boolean `[diagrams] enabled = true` and substantive Design.
++Missing/non-list `types` defaults to `["structure"]`; `types = []` creates no file
++or link. Unknown names are ignored; a list with no known type draws nothing.
++The quick path or skipped Design draws nothing. Classify structure nodes from
++proposed node edits independently of edges: a new connection does not make an
++unchanged reused node changed.
++
++Checkpoint responses show the actual fenced summary, every saved diagram heading
++and complete Mermaid block, then choices. Autopilot saves diagrams and reports
++their path in `changed`, without displaying blocks or adding a stop. An explicit
++Design stop still completes applicable artifacts and keeps the header at Design;
++it does not select checkpoint display.
++
+ Record material accepted deviations immediately and say them in the
+ conversation:
+ 
+@@ -172,15 +225,24 @@ max_fix_cycles = 2
+ 
+ When enabled, review records independent `spec_compliance` and
+ `implementation_quality` verdicts for the same candidate, using `approved` or
+-`changes_required`. An edit invalidates both verdicts. The policy permits one
++`changes_required`. A candidate change invalidates both verdicts while retaining
++the consumed round and historical findings. The policy permits one
+ initial review plus up to `max_fix_cycles` fix-and-re-review rounds, then
+ requires human direction.
+ 
+-The current repository enables this policy with `max_fix_cycles = 2`.
++This source checkout has no installed policy; the example shows payload defaults.
++An installed project's actual configuration determines whether review runs.
+ Disabling it skips only the explicit verdict contract and bounded loop; it
+ never skips semantic review, knowledge updates, full validation, strict checks,
+ or the delivery checkpoint.
+ 
++Reviewers inspect current linked files, including untracked scope, and focused
++proof due at that phase. Semantic corrections and current documentation precede
++review; final full strict proof follows both approvals. Its pending checklist is
++not itself a reason to reject a review. With `max_fix_cycles = 0`, only the initial
++round is allowed. An unresolved final round needs the specific human scope/policy
++decision; proposing an exception does not accept it.
++
+ ## Durable resume state
+ 
+ The task journal is the durable history. Its append-only `## Log` is a compact
+@@ -197,6 +259,13 @@ Handoff, or the Stage report do not belong there. New journals also support:
+ - **Stage report:** one replaceable current snapshot of result, changes,
+   evidence, issues, next action, and optional review fields.
+ 
++Read task-template authoring guidance before Frame or Validate journal edits
++unless already read in the intact session. Preserve the original legal prologue
++and visible guide pointer. Append each material Log outcome once at the following
++section heading without retyping prior evidence; compare its saved prefix with
++the original before summary. Use plain one-line header/record values. Repair a
++rejected edit in the same journal rather than creating another task.
++
+ Resume safely:
+ 
+ 1. Run `python .agentic/aegis.py status` when the task ID is unknown.
+diff --git a/00_Planning/02_Artifacts_And_Formats.md b/00_Planning/02_Artifacts_And_Formats.md
+index cd0b44b..53d3dd2 100644
+--- a/00_Planning/02_Artifacts_And_Formats.md
++++ b/00_Planning/02_Artifacts_And_Formats.md
+@@ -15,6 +15,10 @@ records; those records do not replace the authoritative task journal.
+ 
+ ## Installed layout and ownership
+ 
++This layout belongs to an installed downstream project. The AEGIS source
++checkout has no root deployment; its canonical payload is
++`05_Software/aegis/template/.agentic/`.
++
+ ```text
+ .agentic/
+   AGENTS.md, CLI.md, LICENSE.txt, aegis.py    managed payload
+@@ -120,7 +124,7 @@ thereafter. The implemented configuration surface is:
+ | `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 255 (default 2). |
+ | `[records]` | Exact Boolean `commit_fingerprints` (default `false`). While false, `init` maintains a managed `.gitignore` block that excludes the anchor/evolution sidecars; true removes that block so they are committed with the journal. |
+ | `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; publication authority applies in both modes. |
+-| `[diagrams]` | Exact Boolean `enabled` defaults to `false`, including a missing table/key. `types` lists `structure`, `sequence` or `state` and defaults to `["structure"]`. When enabled, design draws Mermaid diagrams of the proposed implementation for the human; nothing checks them. |
++| `[diagrams]` | Exact Boolean `enabled` defaults to `false`. Missing/non-list `types` defaults to `["structure"]`; an empty list creates no file or link, and unknown names are ignored. Only substantive Design draws selected applicable types. Configuration findings do not certify diagram content. |
+ | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
+ | `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
+ 
+@@ -170,6 +174,11 @@ The complete field guidance stays in the managed templates. Licenses, durable
+ fields and unmarked data are preserved. Existing journals and requirements are
+ not compacted or rewritten, and their data formats are unchanged.
+ 
++Generated journals retain a visible authoring-guide link. Frame and Validate
++read the full task template before edits unless already read in the intact
++session. Preserve the journal's original legal prologue verbatim, including
++SPDX and license references; it is not an instruction-only note.
++
+ ## Requirements and specifications
+ 
+ Active contracts describe the implemented behavior positively, with explicit
+@@ -226,6 +235,9 @@ silently resolving them.
+ A task journal has a machine-readable header followed by a current checklist
+ and append-only log. Its header records `stage`, `type`, `path`,
+ `requirements`, optional `parent`, `branch`, `base`, and `opened`.
++The `interaction` header records checkpoint/autopilot. Existing-contract quick
++fixes name their governing requirements at Frame. Retain the created task ID/path
++and repair that same file after a failed edit; creation is not task selection.
+ 
+ The Log is a compact progress-and-evidence ledger, not an activity transcript.
+ It keeps stage transitions; material scope, implementation, or test changes;
+@@ -235,6 +247,12 @@ mechanics, corrected command retries, and content already held in another
+ durable artifact stay out. Existing entries remain append-only when the
+ logging contract changes.
+ 
++Append at the following section heading without retyping old evidence lines,
++and verify that the historical Log prefix is unchanged, including whitespace.
++Each consolidated outcome appears once; Handoff/Stage report corrections do not
++justify appending that outcome again. An edit recovery carries forward the
++current journal and untouched sections rather than starting from a new template.
++
+ Build normally records one reproducible red result and one final focused green
+ result per meaningful behavior increment, grouping requirements that share a
+ test seam. Inner-loop retries are not journal events. Validate records one
+@@ -253,7 +271,7 @@ Current journals also provide durable semantic sections:
+   verification, and design decision or `no design impact`.
+ - `## Design`: proportionate implementation decisions, traceability, test
+   seams, risks, open decisions, and expected files, plus one link to
+-  `diagram_TASK-<id>.md` when design diagrams are enabled.
++  `diagram_TASK-<id>.md` when the diagram gates produce an artifact.
+ 
+ The journal may additionally hold:
+ 
+@@ -271,6 +289,15 @@ report holds the latest communication snapshot. The Log references those
+ records instead of copying them. Stage report and Handoff refresh at stage
+ transitions, pauses or session ends, and blockers—not after routine work.
+ 
++Save a Frame with its unanswered questions before a scope pause. At an explicit
++stop, both `current` fields match the header, Handoff is waiting and Stage report
++is paused with `needs_user: yes`; a blocking decision uses blocked. Both `next`
++fields name one action or concrete decision, not the checkpoint menu. Save and
++reread the sections before `summary`; copy its actual output including Details
++and truncation notices. Missing records require repair even after exit zero.
++Disabled review records both verdicts as `disabled` with a blank round. Invalidated
++enabled verdicts are cleared while the consumed round and historical Log remain.
++
+ `anchor --task` writes `TASK-<id>.anchor.json`, a SHA-256 starting-point
+ fingerprint. `evolution --task` writes the corresponding
+ `TASK-<id>.evolution.json` comparison. These are durable inspection
+@@ -282,6 +309,13 @@ sidecars are excluded from Git by default through the managed `.gitignore`
+ block `init` maintains, so the journal's recorded evolution line is the shared
+ evidence.
+ 
++Current execution cannot recover missing historical red/anchor evidence.
++Keep that gap separate from current proof. An unperformed evolution report is
++not a completed checklist item; record its applicability reason or limitation.
++Like-for-like candidate bindings compare proof with the present tree within
++their scope. The task's `base` remains the change-set reference, not the proved
++candidate identity. Delivery journal updates are distinct from candidate edits.
++
+ Each component page under `knowledge/` routes matching requests through
+ selection signals to the component's owned source and focused tests. It records
+ purpose and boundaries, public interface, invariants, key behaviors, and files;
+@@ -294,9 +328,15 @@ sections, create metadata, or maintain a separate registry.
+ 
+ Design keeps its proposal in the task and leaves component pages unchanged;
+ validate reconciles them with the built code. When `[diagrams] enabled = true`,
+-design also draws the proposal as Mermaid diagrams in
+-`tasks/diagram_TASK-<id>.md` for the human. Nothing checks or reconciles that
+-file. The knowledge directory remains intentionally navigable without a
++design also draws selected applicable types in `tasks/diagram_TASK-<id>.md` for
++the human. An empty types list, skipped Design or quick path produces no file
++or link. The file records the proposed structure-node classification map;
++reused unchanged nodes stay unstyled independently of new edges. The author
++compares diagram markers with that map and Design; no CLI check certifies them.
++Checkpoint responses copy saved blocks after summary and before choices.
++Autopilot reports the saved path without displaying blocks or adding a stop,
++including when an explicit Design stop bounds the work.
++The knowledge directory remains intentionally navigable without a
+ separate component manifest; `components` is a read-only projection of the
+ pages already present.
+ 
+diff --git a/00_Planning/03_Companion_CLI.md b/00_Planning/03_Companion_CLI.md
+index 4fbe8d4..7243713 100644
+--- a/00_Planning/03_Companion_CLI.md
++++ b/00_Planning/03_Companion_CLI.md
+@@ -10,12 +10,16 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+ 
+ The implemented companion is one standard-library Python file:
+ `.agentic/aegis.py`. It requires Python 3.11 or newer and is invoked from
+-the repository root:
++the target project's root after payload installation:
+ 
+ ```text
+ python .agentic/aegis.py <command>
+ ```
+ 
++The maintainer source checkout has no root `.agentic/` deployment. Its canonical
++CLI is `05_Software/aegis/template/.agentic/aegis.py`; installed-path examples
++here are for downstream projects, not a request to install AEGIS in this checkout.
++
+ It scaffolds files, reads durable records, runs configured project commands,
+ and reports findings. It does not advance a journal stage, infer approval,
+ commit, push, create a pull request, or itself access the network. Configured
+@@ -54,6 +58,13 @@ deduplicate retries. Generated tasks, requirements and context files omit marked
+ authoring notes while retaining licenses and data fields; existing records are
+ never rewritten by scaffolding.
+ 
++`task "<title>"` creates a new journal and returns its ID/path. Select an existing
++task with `brief`/`summary` or its path in file tools; passing an ID as a task
++title creates another task. Retain the created journal and repair its existing
++sections after failed edits. Its legal prologue and authoring-guide pointer
++remain intact. There is no structured CLI command to update Handoff, Stage
++report or stage headers; those edits are currently made through file tools.
++
+ ## Resume commands are complementary
+ 
+ `brief` and `summary` are intentionally different:
+@@ -67,6 +78,12 @@ Both commands are deterministic reads of durable files. Neither runs tests,
+ consults Git, writes state, proves that the candidate is still valid, or grants
+ authority. A truncation/stale marker means read the full journal.
+ 
++Save and reread boundary records before running `summary`, then copy its actual
++fenced output, including Details and truncation warnings. Exit zero does not
++mean every field was present or that a requested pause/return was persisted.
++Record edits, checklist verification and evidence interpretation remain the
++agent's responsibility; these projections do not validate those claims.
++
+ Context lists `.agentic/context/project.md` and `.agentic/context/environment.md`
+ as `present` or `not recorded`. Brief reads neither body and creates nothing.
+ Presence establishes the file's existence, not its accuracy or completeness.
+diff --git a/00_Planning/04_Collaboration_And_Small_Models.md b/00_Planning/04_Collaboration_And_Small_Models.md
+index c895f50..19d5823 100644
+--- a/00_Planning/04_Collaboration_And_Small_Models.md
++++ b/00_Planning/04_Collaboration_And_Small_Models.md
+@@ -79,9 +79,11 @@ Fresh task, requirement and context scaffolds omit marked authoring notes. Evolu
+ return compact paths/statuses/areas while retaining complete fingerprints on disk.
+ These reduce text volume; actual end-to-end token savings have not been measured.
+ 
+-The current prompt contract is designed to remain practical with a minimum
+-64K context budget. It does this through compact durable records rather than a
+-promise that every relevant file will fit at once:
++The prompt contract uses compact records and selective reads for constrained
++context. It guarantees neither a tokenizer-specific 64K budget nor model
++compliance. Recorded evaluations use their explicitly configured windows;
++the recent matched cohorts used 131,072 tokens, which is not independent proof
++of server allocation. The design supports bounded work through these structures:
+ 
+ - **Analyze -> Challenge -> Write -> Audit** gives each stage a stable order.
+ - `STATED`, `OBSERVED`, `INFERRED`, and `UNKNOWN` keep evidence separate from
+@@ -97,9 +99,10 @@ promise that every relevant file will fit at once:
+   consolidated verification, blockers, approvals, deviations, and delivery;
+   it links to dedicated detail instead of repeating it.
+ 
+-These structures improve consistency for capable offline models, including
+-Qwen-family deployments, but do not prove a particular model will comply. No
+-model is bundled, and model-led workflow conformance remains a separate test.
++These structures aim to preserve intent across sessions; their effect on a model
++must be measured. No model is bundled. Representative prompt evaluations now
++exercise actual model/tool behavior, but do not establish universal compliance,
++small-context acceptance or a complete lifecycle in every native host.
+ 
+ ## Recommended session shape
+ 
+@@ -124,7 +127,7 @@ to commit, push, merge, publish, or broaden scope. Handoff is operational
+ state, not approval. A Stage report is a current communication snapshot, not
+ fresh validation.
+ 
+-The current repository enables explicit review:
++For a downstream project opting into explicit review:
+ 
+ ```toml
+ [review]
+@@ -137,6 +140,9 @@ fix-and-re-review rounds. It does not create a review stage or replace
+ `validate`; ordinary semantic review, focused/full proof, strict checking,
+ and the delivery checkpoint still apply.
+ 
++The maintainer checkout has no installed `.agentic/aegis.toml`; this example is
++not its active configuration. The payload default keeps explicit review off.
++
+ Checkpoint mode stops after every stage and presents concrete continue, revise
+ or return, and pause choices. `[interaction] autopilot = false` is the default,
+ including for legacy configurations with no interaction table. Autopilot flows
+@@ -153,8 +159,18 @@ behavior increment.
+ The coordinator supplies the same task, scope, candidate digest, changed-file
+ evidence and requirement links to two independent reviewers. Reviewers inspect
+ actual files and return `approved` or `changes_required`; the coordinator
+-records the verdicts and checks that the candidate stayed unchanged. Any edit
+-invalidates both verdicts and requires the next permitted review round.
++records the verdicts and checks that the candidate stayed unchanged. A candidate
++change clears both verdicts while preserving consumed rounds and old findings;
++new approvals require the next permitted review round. Journal-only boundary
++records do not themselves imply a change to the proved source candidate.
++
++Both reviewers receive current linked files, including untracked requirements,
++and focused proof due at that phase. Read test definitions as assertions,
++executed results as proof and missing historical records as separate limits.
++Final full strict verification follows approvals; its pending checklist is not
++itself a missing prerequisite for the reviewers. A review verdict grants no
++publication authority, and an exhausted final round needs a concrete human
++scope/policy decision before further fixes or final proof.
+ 
+ | Host | Implemented review mechanism | Access boundary |
+ |---|---|---|
+@@ -180,7 +196,8 @@ and provider eligibility remain the host/provider's responsibility.
+ Windows and Linux packages use the same workflow and shared runtime. CLI and
+ Desktop share resources only when they use the same supported backend and
+ configuration. Remote backends and WSL CLI sessions need installation in their
+-own environment. Claude Desktop WSL plugin sessions are currently unsupported.
++own environment. Desktop availability depends on host support for that backend;
++a successful CLI installation does not establish GUI plugin support.
+ 
+ Verification reservations are local to the configured shared cache and
+ checkout. They survive host restarts but do not lock other machines or detect
+@@ -199,8 +216,10 @@ earlier successful run covered the final candidate or its environment.
+ The core works offline. Model-driven host sessions use the user's selected
+ provider and may require network access. No models are bundled. Package
+ verification has exercised backend/native resources without model requests;
+-complete model-led workflows and reviewer behavior, including small-model
+-compliance, remain unverified. See
++representative development evaluations separately exercise model-led stage work
++and fresh reviewer sessions. They do not test installed plugin discovery, native
++custom-role routing, complete workflows in all hosts or small-model reliability.
++See the [evaluation guide](../05_Software/aegis/evaluations/README.md) and
+ [implementation status](05_Implementation_Phases.md) for verification routes
+ and the distinction between current guidance and recorded evidence.
+ 
+diff --git a/00_Planning/05_Implementation_Phases.md b/00_Planning/05_Implementation_Phases.md
+index 695fad2..2a018b5 100644
+--- a/00_Planning/05_Implementation_Phases.md
++++ b/00_Planning/05_Implementation_Phases.md
+@@ -11,7 +11,8 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+ The assigned source version is **AEGIS 0.14.0**. This page describes current
+ capabilities, source ownership and verification methods. Release history is in
+ the [changelog](../CHANGELOG.md); dated build evidence is retained under
+-`07_Delivery/` and implementation evidence in task records.
++`07_Delivery/`, prompt observations under the development evaluation directory,
++and implementation history in Git.
+ 
+ ## Implemented capabilities
+ 
+@@ -23,10 +24,11 @@ the [changelog](../CHANGELOG.md); dated build evidence is retained under
+ | Current documentation | Positive actual responsibilities and behavior in project/component documents and active contracts, with proposals in draft/task records and history in journals/Git. |
+ | Durable artifacts | Frame cards, atomic requirement coverage, task designs, TOML requirements, Markdown specs and knowledge, append-only Log/Rulings, replaceable Handoff/Stage report, and anchor/evolution evidence. |
+ | Companion CLI | Offline-first standard-library Python scaffolding, component discovery, traceability, configured execution and bounded reporting. |
+-| Verification | A 21-check advisory catalog, optional strict CI, focused/impacted test selection, dry-run previews, fallback refusal, timeouts, and complete saved evidence with optional compact presentation. |
++| Verification | A 22-check advisory catalog, optional strict CI, focused/impacted test selection, dry-run previews, fallback refusal, timeouts, and complete saved evidence with optional compact presentation. |
+ | Coordination | Presence-only context pointers in `brief`, stage reporting through `summary`, one-level child tasks, independent review verdicts and bounded correction rounds. |
+ | Integrations | OpenCode, Codex, Pi, Qwen Code and Claude Code entry points backed by eleven shared adapter operations. |
+ | Host lifecycle | Complete package assembly, runtime discovery, owned installation/update/removal, verification jobs, duplicate prevention, cancellation and recovery. |
++| Prompt evaluation | Ten core scenarios plus fifteen capability scenarios, covering all eight step guides, common contract, task records, actual reviewer sessions, diagrams, autopilot and context updates in disposable Git repositories. |
+ 
+ ## Source ownership
+ 
+@@ -39,22 +41,20 @@ the [changelog](../CHANGELOG.md); dated build evidence is retained under
+   integrations/           five host adapters and shared runtime
+     tests/                JavaScript behavior tests
+   tests/                  Python product suite and integration wrappers
++  evaluations/            development scenarios, frozen comparisons and evidence
+   README.md               package overview
+ 
+-.agentic/
+-  context/                this project's current profile and environment
+-  knowledge/              this project's component orientation
+-  requirements/           this project's behavior contracts
+-  tasks/                  this project's progress and evidence
+-
+ 02_Tools/
+   build_aegis_release.py  core archive and build-record builder
+   build_agent_plugins.mjs complete host-package builder
++  evaluate_aegis_*.py     development prompt collection and scoring tools
+ ```
+ 
+ The managed core contains 18 files. Downstream projects own their context,
+-configuration and records. Update the canonical template and installed mirror
+-together, then replace only managed files during upgrades. Each missing context
++configuration and records. This maintainer checkout has no root `.agentic/`
++deployment or installed review configuration. Maintain the canonical template;
++when a downstream installation exists, update only its managed payload during
++upgrade and preserve its project-owned files. Each missing context
+ file is scaffolded independently by `init`; existing project data keeps its bytes.
+ The downstream starter changelog remains empty.
+ 
+@@ -81,18 +81,26 @@ clarification rather than becoming assumed active contracts.
+ ## Verification methods and evidence
+ 
+ Use repository `AGENTS.md` for the validation obligations and
+-`.agentic/aegis.toml` for canonical commands and layout. The product suite covers
++an installed target's `.agentic/aegis.toml` for its commands and layout. This
++checkout's product verification runs directly against `05_Software/aegis/tests`;
++it does not require a root workflow deployment. The product suite covers
+ isolated CLI/scaffolding behavior, context preservation and optional brief
+ pointers, traceability, configured execution, packaging and host integration
+ behavior. Focused tests precede the full product suite for executable changes.
+ 
++The [2026-10-22 build record](../07_Delivery/aegis-0.14.0/BUILD.md) retains the
++last complete product result: 548 passed, 2 skipped. Documentation-only refreshes
++reuse that result only for unchanged software/test sources; it is not a fresh
++test execution and does not establish prompt compliance.
++
+ Host verification has separate scopes:
+ 
+ - Package checks inspect resources, runtime discovery and owned lifecycle.
+ - Backend checks inspect native registration, tool discovery and protocol calls.
+ - Desktop acceptance inspects the visible resources in the selected environment.
+-- Model-led acceptance exercises the workflow and independent reviews with the
+-  user's authorized provider and chosen model.
++- Prompt evaluation exercises selected stages and independent reviews with the
++  authorized model in bounded fixtures; complete native-host acceptance is a
++  separate scope.
+ 
+ A result supports only its recorded candidate and environment. Package/backend
+ checks alone establish neither Desktop nor model-led acceptance. Small-context
+@@ -100,6 +108,69 @@ operation is supported by selective reading and compact records; model complianc
+ requires its own measured evaluation. Consult [agent package guidance](../06_SoftwareDocu/Agent_Plugins.md)
+ for verification routes and links to recorded evidence.
+ 
++## Prompt evaluation status
++
++The development [evaluation guide](../05_Software/aegis/evaluations/README.md)
++defines the fixtures, transport, predicates, provenance and semantic review.
++Ten original cases exercise Frame, Validate and task-record resume. Fifteen
++capability cases add Specify, Design, Build, Deliver, one adoption component,
++enabled/disabled review, diagram settings, autopilot and stale-context repair.
++Common `.agentic/AGENTS.md` guidance and the task template participate in the
++same fixtures; their individual causal contribution is not isolated.
++
++Recorded matched comparisons include:
++
++| Frozen snapshot | Model / reasoning | Configured context | Strict result |
++|---|---|---|---|
++| [Delivery/evidence control](../05_Software/aegis/evaluations/comparisons/2026-10-22-luna-delivery-evidence/report.md) | gpt-6-luna / medium | 131,072 tokens | 21/25 |
++| [Subsequent history/reviewer/node-marker candidate](../05_Software/aegis/evaluations/comparisons/2026-10-22-luna-history-protocol/report.md) | gpt-6-luna / medium | 131,072 tokens | 19/25 |
++| [Exact 21/25 control replay](../05_Software/aegis/evaluations/comparisons/2026-10-22-sol-high-control-replay/report.md) | gpt-6.1-sol / high | 131,072 tokens | 21/25 |
++
++The later candidate improves observed delivery-history preservation, reviewer
++evidence interpretation and reused-node classification, but introduces other
++recording, Build and checkpoint-display failures. It is not a demonstrated
++overall improvement. The Sol replay uses the historical control, not that later
++candidate, and changes model and reasoning together. Neither score is a general
++reliability rate. The current local delivery explicitly carries the experimental
++prompt revisions; a package passing software checks does not promote them to
++proven prompt improvements.
++
++Read strict grades with the semantic assessments. Some predicates are overly
++literal or use checkpoint conventions for bounded autopilot transitions. In
++autopilot, saving diagrams and reporting their path without displaying blocks is
++the contract, not a display defect. Other failures are real model/tool errors;
++do not remove them as infrastructure noise. External provider capacity,
++transport, timeout and output-collection failures are excluded from comparable
++semantic outcomes, while controlled fixture failures remain test stimuli.
++
++Keep model, reasoning, configured context, actual output usage, response-cap
++availability and elapsed time with every observation. The native response cap
++and server context allocation are unexposed; a tool-output allowance is not a
++model response cap. Collection uses pauses and bounded generic-429 backoff;
++semantic failures are not selectively retried. Compare frozen whole cohorts
++with unchanged scenarios/evaluator and report any intentionally changed reviewer
++inputs. No model was invoked for this documentation refresh.
++
++Actual reviewers run in distinct fresh sessions against an immutable snapshot;
++writing two approval fields alone is insufficient. Coverage remains bounded:
++there is no complete uninterrupted lifecycle, adoption survey/close, publication,
++native GUI discovery or every-host role-routing acceptance in these scenarios.
++
++## Proposed follow-up work
++
++Two discussed changes remain proposals, not implemented capabilities:
++
++- A structured journal-update command could validate typed boundary fields and
++  preserve legal text/history mechanically. Current stage changes use file tools;
++  `summary` and `brief` remain read-only projections.
++- Shorter prompts could assign shared rules one canonical owner while retaining
++  stage-specific timing and critical reminders. Any shortening needs the same
++  frozen-scenario comparison; fewer tokens alone does not establish improvement.
++
++Confirmed semantic regressions and proxy limits in the recorded assessments
++remain inputs for the next controlled experiment. No new flow, writer command
++or prompt revision is introduced by updating these planning documents.
++
+ ## Builders and distribution
+ 
+ | Builder | Output |
+diff --git a/00_Planning/README.md b/00_Planning/README.md
+index 40c8abf..737a199 100644
+--- a/00_Planning/README.md
++++ b/00_Planning/README.md
+@@ -19,6 +19,16 @@ assignment, package construction and publication are separate operations.
+ Release history belongs in the root changelog; these guides explain current
+ behavior and are updated with the implementation.
+ 
++The maintainer checkout does not contain a root `.agentic/` deployment. Paths
++under `.agentic/` here describe an installed downstream project. Repository
++`AGENTS.md` defines maintenance rules; the template is the canonical core source.
++
++Development evaluations cover all eight step files, shared guidance, actual
++reviewer sessions, diagrams, autopilot and context updates. Coverage does not
++establish universal model compliance or improvement from every prompt revision.
++See [implementation status](05_Implementation_Phases.md#prompt-evaluation-status)
++for comparisons and remaining limits.
++
+ - [Overview](00_README.md) — core workflow, host integrations and source boundaries.
+ - [Workflow and stages](01_Workflow_And_Stages.md) - semantic analysis protocol,
+   lifecycle, quick-path criteria, review policy, resume state and host execution.
+@@ -29,8 +39,8 @@ behavior and are updated with the implementation.
+ - [Collaboration and small models](04_Collaboration_And_Small_Models.md) -
+   bounded semantic records, durable re-entry, independent review, user
+   profiles and verification limits.
+-- [Implementation status](05_Implementation_Phases.md) — completed capabilities,
+-  tested environments, remaining checks, builders and maintenance rules.
++- [Implementation status](05_Implementation_Phases.md) — implemented capabilities,
++  evaluation results, proposed follow-ups, verification limits and builders.
+ 
+ The runnable product is at `05_Software/aegis/`. The managed core source is
+ `template/.agentic/`; host implementations are in `integrations/`. When a
+diff --git a/05_Software/aegis/integrations/tests/claude.test.mjs b/05_Software/aegis/integrations/tests/claude.test.mjs
+index 390d99b..15c19e6 100644
+--- a/05_Software/aegis/integrations/tests/claude.test.mjs
++++ b/05_Software/aegis/integrations/tests/claude.test.mjs
+@@ -26,22 +26,6 @@ test('resources: native workflow resources expose bounded independent review rol
+   assert.ok(await present(path.join(plugin, 'skills/workflow/SKILL.md')));
+ });
+ 
+-test('protocol: Claude exposes real checkout operations with validated inputs', async () => {
+-  const entry = path.join(plugin, 'server.mjs');
+-  assert.ok(await present(entry), 'Claude transport is missing');
+-  const { createProtocol } = await import(pathToFileURL(entry));
+-  const protocol = createProtocol({ root: repo, version: 'test' });
+-  const call = (id, method, params) => protocol.handle({ jsonrpc: '2.0', id, method, params });
+-  await call(1, 'initialize', { protocolVersion: '2025-06-18', clientInfo: { name: 'test', version: '1' }, capabilities: {} });
+-  await protocol.handle({ jsonrpc: '2.0', method: 'notifications/initialized' });
+-  const list = await call(2, 'tools/list', {});
+-  assert.equal(list.result.tools.length, 11);
+-  const status = await call(3, 'tools/call', { name: 'aegis_status', arguments: {} });
+-  assert.equal(JSON.parse(status.result.content[0].text).exit_code, 0);
+-  const bad = await call(4, 'tools/call', { name: 'aegis_summary', arguments: { task: '../bad' } });
+-  assert.equal(bad.error.code, -32602);
+-});
+-
+ test('hooks: context is bounded, read-only and scoped to governed work', async () => {
+   const entry = path.join(plugin, 'hooks.mjs');
+   assert.ok(await present(entry), 'AEGIS context hook is missing');
+diff --git a/05_Software/aegis/tests/test_claude_integrations.py b/05_Software/aegis/tests/test_claude_integrations.py
+index 9f87327..a4a8620 100644
+--- a/05_Software/aegis/tests/test_claude_integrations.py
++++ b/05_Software/aegis/tests/test_claude_integrations.py
+@@ -38,11 +38,6 @@ def test_resources_behavior():
+     run_group("resources")
+ 
+ 
+-def test_protocol_behavior():
+-    """@brief Verify Claude protocol behavior."""
+-    run_group("protocol")
+-
+-
+ def test_hooks_behavior():
+     """@brief Verify Claude hooks behavior."""
+     run_group("hooks")
+diff --git a/05_Software/aegis/tests/test_structure.py b/05_Software/aegis/tests/test_structure.py
+index 489afe6..d3de3c5 100644
+--- a/05_Software/aegis/tests/test_structure.py
++++ b/05_Software/aegis/tests/test_structure.py
+@@ -182,13 +182,6 @@ def test_component_catalogue_command_guides_every_useful_stage(tmp_path):
+     assert "aegis.py components" not in deliver
+ 
+ 
+-@pytest.mark.parametrize("name", ["aegis.py", "CLI.md"])
+-def test_installed_cli_matches_template(name):
+-    """REQ-TEST-e38913a7: the installed CLI matches the managed payload."""
+-    installed = TREE.parents[1] / ".agentic" / name
+-    assert installed.read_bytes() == (PAYLOAD / name).read_bytes()
+-
+-
+ @pytest.mark.parametrize("command", ["anchor", "evolution", "summary", "brief", "trace"])
+ def test_cli_reference_guard_detects_a_missing_command_section(tmp_path, monkeypatch,
+                                                              command):
+diff --git a/06_SoftwareDocu/00_Index.md b/06_SoftwareDocu/00_Index.md
+index f262d3f..00d8de9 100644
+--- a/06_SoftwareDocu/00_Index.md
++++ b/06_SoftwareDocu/00_Index.md
+@@ -32,7 +32,6 @@ cheatsheet cover focused tests, final proof and minimal handoffs.
+ | [09 - CLI reference](09_CLI_Reference.md) | Looking up core command syntax, options and exit behavior. | - |
+ | [Project context](Project_Context.md) | Maintaining current project/environment facts and positive behavior documentation. | - |
+ | [Agent plugins](Agent_Plugins.md) | Building, distributing, installing and operating all five integrations. | - |
+-| [Prompt evaluations](../05_Software/aegis/evaluations/README.md) | Controlled original/current comparisons across eight step prompts, task records and optional capabilities. | - |
+ | [Plugin installation manual](Plugin_Installation/README.md) | Step-by-step, illustrated installation for OpenCode, Codex, Pi, Qwen Code and Claude Code. | [Combined PDF](Plugin_Installation/pdf/00_AEGIS_Plugin_Installation_Manual.pdf) |
+ 
+ The decks are condensed companions. The Markdown guides contain the detailed
+diff --git a/06_SoftwareDocu/01_Install_and_Setup.md b/06_SoftwareDocu/01_Install_and_Setup.md
+index 042f328..0061e99 100644
+--- a/06_SoftwareDocu/01_Install_and_Setup.md
++++ b/06_SoftwareDocu/01_Install_and_Setup.md
+@@ -237,7 +237,13 @@ that task's journal header, so the choice survives a resume.
+ 
+ With `enabled = true`, design ends by drawing Mermaid diagrams of the proposed
+ implementation into `.agentic/tasks/diagram_TASK-<id>.md`, links the file from
+-the task's `## Design`, and shows the diagrams at the design checkpoint. They
++the task's `## Design`. Checkpoint responses show the saved Mermaid blocks
++after the stage summary and before choices. Autopilot saves the same applicable
++artifacts and reports their path, without displaying blocks or adding a stop.
++An explicit Design stop retains that mode's presentation and the Design header.
++An empty types list creates no file or link; unknown types are ignored. Skipped
++Design and the quick path draw nothing. Node classes describe proposed node
++edits independently of edge changes. The diagrams
+ illustrate the design for you: no stage, review or `check` finding depends on
+ them, and AEGIS bundles no renderer - GitHub, GitLab and many Markdown
+ previews draw Mermaid, and a terminal shows its text.
+diff --git a/06_SoftwareDocu/01_Install_and_Setup.pptx b/06_SoftwareDocu/01_Install_and_Setup.pptx
+index a273edbab983db37817880c4cf0bd8c76ca0c4ee..100e37d797f631947c8991a0d60915cba265f56c 100644
+GIT binary patch
+delta 2199
+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
+Zm%(fS7ndu=0ScFt*Z~j*^~C`I001#YI_dxb
+
+delta 2171
+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
+
+diff --git a/06_SoftwareDocu/02_Folders_and_Files.md b/06_SoftwareDocu/02_Folders_and_Files.md
+index 768d8b5..8c788aa 100644
+--- a/06_SoftwareDocu/02_Folders_and_Files.md
++++ b/06_SoftwareDocu/02_Folders_and_Files.md
+@@ -169,7 +169,9 @@ hex digits; header values are plain values, without inline comments.
+ The header block (`key: value` lines under the title) is machine-read by
+ `status`, `check` and `report` - keep it one key per line with no blank
+ lines inside. Header lines are edited in place; log lines are only ever
+-appended. The Log is a concise progress-and-evidence ledger: retain stage
++appended. Keep the original legal prologue and authoring-guide pointer. Append
++at the following section heading without retyping or normalizing old evidence;
++verify that the saved historical Log prefix is unchanged. The Log is a concise progress-and-evidence ledger: retain stage
+ transitions, material changes or decisions, consolidated test results,
+ blockers, approvals, deviations and delivery outcomes. Do not copy durable
+ artifact content or record routine searches, edits, tool mechanics, or
+@@ -231,8 +233,11 @@ journal.
+ When `[diagrams] enabled = true`, design also writes `diagram_TASK-<id>.md`
+ beside the journal: Mermaid diagrams of the proposed implementation for the
+ human, linked once from `## Design` and shown at the design checkpoint. The
+-file is committed with the journal. No stage, review or `check` finding depends
+-on it, and journal discovery (`TASK-*.md`) never reads it.
++file is committed with the journal. Checkpoint responses include the saved
++blocks after the summary; autopilot reports the path without displaying them.
++`types = []` creates no file or link, and a skipped Design creates none.
++No stage, review or `check` finding depends on it, and journal discovery
++(`TASK-*.md`) never reads it.
+ 
+ `evolution --compact --json` omits before/after hashes from the response while
+ retaining changed paths, statuses, areas and counts. Saved evolution reports
+@@ -319,7 +324,10 @@ When enabled, each review round needs two independent verdicts: specification
+ compliance and implementation quality. One initial round plus at most
+ `max_fix_cycles` fix-and-re-review rounds is allowed. Clear both verdicts after
+ a candidate change and obtain both approvals for the same candidate. Review
+-off never disables ordinary semantic review or validation.
++off never disables ordinary semantic review or validation. Reviewers inspect
++current files and phase-appropriate focused proof; final full strict proof
++follows both approvals. Invalidate verdicts after relevant changes while keeping
++the consumed round and historical findings.
+ 
+ Task headers may include a blank `parent:` or one visible top-level task ID.
+ Child journals stay independently governed; the parent file is not rewritten.
+diff --git a/06_SoftwareDocu/02_Folders_and_Files.pptx b/06_SoftwareDocu/02_Folders_and_Files.pptx
+index 84f32565fe843f82870bb3a82097a36e8f165f63..a782e0ce59db4101318c40f4f786795063bec66b 100644
+GIT binary patch
+delta 2622
+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
+M$ig3}19q7I0^g6OtpET3
+
+delta 2667
+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
+
+diff --git a/06_SoftwareDocu/03_Example_Feature.md b/06_SoftwareDocu/03_Example_Feature.md
+index ab6ba36..ff0a1ea 100644
+--- a/06_SoftwareDocu/03_Example_Feature.md
++++ b/06_SoftwareDocu/03_Example_Feature.md
+@@ -30,7 +30,9 @@ implemented. It
+ records a Frame card that separates what you stated, what it observed in files,
+ what it inferred, and what remains unknown. It then establishes a suitable task
+ branch unless current instructions require the existing branch, creates a
+-journal (`aegis task`), and comes back with the **frame checkpoint**:
++journal (`aegis task`), and saves the Frame before presenting the checkpoint.
++The following scope is illustrative: M3U-only, the new module and path rules
++are proposals to confirm, rather than facts implied by the short request:
+ 
+ > Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
+ > path (new user-facing behavior). One requirement proposed:
+@@ -134,7 +136,10 @@ requirements, project context, and environment guidance. The current documents
+ describe the built positive behavior and actual setup. History and proposals
+ remain in task records; an established contract is preserved when a defect
+ needs correction. If `[review] enabled = true`, obtain both independent verdicts for the
+-same candidate within the configured round limit. Then run final proof once
++same candidate within the configured round limit. Reviewers read current files,
++including untracked records, and the focused proof due at this phase. The
++not-yet-run final strict check is not a reason to withhold a review verdict.
++Then run final proof once
+ through the strict check with its eligible configured commands. Naming the task scopes the
+ diff checks to it and reports a branch mismatch:
+ 
+@@ -184,7 +189,21 @@ not repeat validation, grant delivery approval, or update the journal.
+ 
+ ## Stage 6 - deliver
+ 
+-Then the **delivery checkpoint** - the agent shows you the validation evidence
++Before the **delivery checkpoint**, the agent compares the current candidate
++with the recorded validated candidate using the same binding method and scope.
++A task-base diff describes the proposed changes, not edits since validation.
++If identity is unresolved, it records the missing evidence without claiming a
++change. If proof is stale, it saves the return to Validate and clears stale
++enabled-review verdicts while retaining consumed rounds. These are journal-only
++updates; they do not authorize source repair or another verification run.
++
++For an unchanged proved candidate, it saves the approval pause at `deliver`:
++Handoff is waiting, Stage report is paused with `needs_user: yes`, and both
++`next` fields name the pending delivery decision. It rereads those saved records,
++runs `summary`, and presents its actual output before the delivery evidence.
++Historical Log text stays unchanged; the new outcome is appended once.
++
++At the checkpoint, the agent shows you the validation evidence
+ and final diff and waits for your yes before committing / opening the PR. This
+ stop always happens, even in autopilot: publishing is the outward-facing act.
+ Every deviation you heard along the way is presented again here, in full - the
+diff --git a/06_SoftwareDocu/03_Example_Feature.pptx b/06_SoftwareDocu/03_Example_Feature.pptx
+index 3ffd73eb5ffa9f95c8fc9fa13f21060e427f5c23..5f2988815724a668645f81cfe5fcbe828add9253 100644
+GIT binary patch
+delta 4863
+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
+AW&i*H
+
+delta 4833
+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
+Fe*n|iFpvNM
+
+diff --git a/06_SoftwareDocu/04_Example_Quick_Fix.md b/06_SoftwareDocu/04_Example_Quick_Fix.md
+index 8dafb27..ab4b9cb 100644
+--- a/06_SoftwareDocu/04_Example_Quick_Fix.md
++++ b/06_SoftwareDocu/04_Example_Quick_Fix.md
+@@ -72,7 +72,9 @@ Review the change and its tests against the existing contract. Reconcile affecte
+ project/environment context and component descriptions with the candidate,
+ leaving unchanged sections untouched. Current prose states actual behavior;
+ the journal carries repair history. Refresh evolution after any
+-later candidate edit. Run final configured proof once:
++later candidate edit. If explicit review is enabled, obtain both independent
++verdicts against current files and focused proof before the final full run;
++the review policy below defines the bounded rounds. Run final configured proof once:
+ 
+ ```sh
+ python .agentic/aegis.py check --task TASK-c3d1a2b4 --strict --run
+@@ -98,7 +100,11 @@ An unresolved final verdict blocks delivery for a human decision.
+ 
+ ## Deliver: show the evidence and request the concrete action
+ 
+-Present the unchanged candidate, validation evidence and every deviation.
++Confirm the candidate against final proof using the same binding and scope.
++Save the approval pause at Deliver before running and presenting `summary`;
++stale proof instead requires a saved return to Validate. Keep earlier Log text
++unchanged and append each outcome once. Present the unchanged candidate,
++validation evidence and every deviation.
+ Ask for the precise commit/PR action unless it is already explicitly authorized.
+ After approval, generate `report TASK-c3d1a2b4` before committing. For a local
+ commit-only outcome, close the journal in that commit; for an outcome that can
+diff --git a/06_SoftwareDocu/04_Example_Quick_Fix.pptx b/06_SoftwareDocu/04_Example_Quick_Fix.pptx
+index c8bd2eaf964212d321ee7c75b7adbf722f590da6..0d930d77ef99ea070824903386c44dbd41f7a29c 100644
+GIT binary patch
+delta 2335
+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
+
+delta 2268
+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
+S7JdHPU{H(NzTj%Uz4{*kNPQ6i
+
+diff --git a/06_SoftwareDocu/06_Team_Setup.md b/06_SoftwareDocu/06_Team_Setup.md
+index 3849dd3..73be672 100644
+--- a/06_SoftwareDocu/06_Team_Setup.md
++++ b/06_SoftwareDocu/06_Team_Setup.md
+@@ -149,7 +149,10 @@ max_fix_cycles = 2
+ 
+ Each round requires two independent verdicts for the same candidate:
+ specification compliance and implementation quality. After a candidate fix,
+-clear both verdicts, rerun focused proof and obtain both reviews again. One
++clear both verdicts while retaining the consumed round and historical findings,
++rerun focused proof and obtain both reviews again. Reviewers read current linked
++files even when untracked and judge evidence due at their phase. A pending final
++strict check is not itself a review failure; that check follows approvals. One
+ initial round plus two fix cycles is the default bound when review is enabled.
+ An unresolved final round requires a human decision; it grants no Git authority.
+ Review is disabled by default, while ordinary semantic review remains required.
+diff --git a/06_SoftwareDocu/06_Team_Setup.pptx b/06_SoftwareDocu/06_Team_Setup.pptx
+index 466b9bb56475b128cd661173b29308321c5a1c62..569271a4df70626eef6d8fd90aef79d1e99d01bc 100644
+GIT binary patch
+delta 2223
+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
+
+delta 2203
+zcmY+Fc|6oxAIJS{lP!D1SY})*nHe-=8nUIiC0ll`h-A;wGK#^NFl20F`<1wcWXshc
+zF%5FBrAJ{>w#ZVpR2Yd=mS>9lyk5`w=e*wU^F5z)&i9{_!r@Qg@H0#&gm1<n#|i~`
+zcyNd;llgsMAp#J{@|}<*xfYma-h-Ps^AjGqi<-eK9{%N+>yT`nzfWLIi+FQv$#(5G
+zgMORy1_7DK@!9&`1k0PG#0l7w724anP-iN%;EJuEk4}Gg8HIA4mL1^KO&PJXCX_}K
+zH>&h2S7c24ij68MBWIs|@YgQS!kueheO3ETVA{%}CP}?1`88dN)HIurqK;<$2QsYv
+z-c!;qp>*VQXGCSpfx5K_&9uUflZ4xT0ogMVLpB>3F?N#YVk_L-O}x+R30)@lPDPdD
+zdkQInPuYS&o2_mWKj_%f>R$diO~-s=xq(JIrswkW6?<~6jKs?`lBo4FL3u%!A75S|
+zUK%eIbVGE1zYz5>kCfcu{dAb1!&;<Qk1U4fr4X~&>!;y&|AyG10+}Kuj(03*V)b8b
+z<D(5ylJ<If7swm+ZDuq^#v}HfKOoG&8<*>A7@p=2o$WLqxwSry^^Y}7oTu$?)UP>S
+z%DNlIPl$f%hpfNl6ZImJXcgJ^4xgJ;i!A#bV22c(xtgcmL~7WtrPrkplG?Y4YJFky
+zdU605B34#=WOv<BkX654ySy3lCVZe{Fp9Z0v*?=~2$?jwU*xMe+`(u?c^woz;)`B;
+zh_qClsIgSk3_M7d8iwuDi)_tSuk=?B{FV=jlt`IbaZVU1$P9!;RhN2?I!`2i_sC{>
+z#_yec9OqoULDFq@=&_lU<2;ejX>5pLr3eh2iLvW96Qdx1#J`u$GLn?*YLYQS(9R#o
+zf*U;x!sUXv39Fz1WPb6fU`eW6Pf{IR;J9;_VB^g5+R5g&k=G+ebnDHKa%Q+&SZZ*C
+z%j-3zPYgGg{S2OvgBeX#>uBrP#v4c38t{*0K^uKlq>`;ugY+6pS=v*N^^FTvEf1lb
+zC$&mN#xW<~Ykg@ko8o->@#-%x4%{#mzY!R$+MJ#z`+~h;s)907##E)2doB9(d(zq%
+z-nL_xZ<k4jwqG^YMiel~)ZoB$ms8@lQ#9K)^i3c6-xaY3Vf~$><hbEpSP1l8r{N{O
+zj&GuCB>8t<K)Zu|h>hzo^G>+pt8L^`rr3A~v5R%<gxB;5T1aAAg)}Jtcy67hOl!Ry
+z^$Oy&wzr98P(Qx%QE)!5G+;EF@X#XI*EXC!#<#GAV1{6_F}C+-LwYeac&%;Y$v1UW
+zDWRA@mqosWcLm{3u1c5up3{!cyH_)Pt*&;JB=7Wy=%mb^N>&R(1>hK>zWlWNW}}t|
+z+QSLH@nmard2O~h{V|a~<E~PCaYYxSqi%?}Q|cY7+>#DH_o20n9Kzji*ILjB&fh97
+znujO)dP%A!Klqy9{uZIUJ=c3abx&e0;V_9aFQYo#m#hh9QkRc4n`A{D^5|d~$zLJm
+z)V;JcO$&b6V&ZV7ivs=Ncz8VT%M9UrPvzTwEEuF4o@quuG?RWiADjQeexcLfb(*Oh
+z+??sW(zqE|gVFr(3_E}L?kHhk>e4mz2DHt!;g&I(K2N!*LF{6u%_O7&gkb08x+(9m
+zdNup6MG7^%#*BjZt?cyaxityaj2~&J#wzaOa-CHLl^ElT#Pks7zgd7i=_;EZwcUor
+zI8>+O%j%42hrxm^!m#6)$C_c=UX+L>nl3e}P0`TO1#HEirGp#qoGwMH5$!!geI8Ih
+z75<U1xkAYdS^Ydm`Fe2ACWoAOa$A19Dd_;trcc7WW*XAJt<*2K{9zUCMryW3X5|m@
+z7;W)p_?h|(G>9yb#J@dwVNUB3T~qDJg+!<3%4Vu(GMJEb`k-3F^{H3w^g5W}LbFU<
+zw^)tOq{%g?T)U@<(%6c8U!1L{e)Swv?V?iqq*{k6!F{x(S)pA}1G`1QSKv>T2_gaw
+zzC;FvXT+UjK+#HNxY2nM&TYx)YW#xLjM#_HAlCQ$Qdu+WV*zj$e2n}Ly+>%a#zg2C
+zWu)-QR_Pd?GuTqdPCNYPg;rCsE*QN;lkNFW*ey)!bxx<;W`YU-6(oCFUGu2Fih%af
+zQ$<xsc&RHql*)7NM%>r_dhIhwbIYrytmFY3iTFVIv6AeS&Zjp>AIH9J;5Fu+<>M01
+z?pc9^E@oj#u}i7aIV8^l>snqXF9BPgeUmxVCuFiO^Sj3ood%OblliZ!7v2n)buQK_
+z6Mq>Pw@R&V=B*fv&t785K)Q#bvrg#mXR1=*fgfpNf8#i}<y?xS>~hQp6C6Z-gQev4
+zIF>Ems5MvC$gNcTe1lpUuXCvR!o~O=CzPXNWCiolG5^KmD%%2eqO(3Hh5q+(fsqKn
+z0T2M$2*476flwrH9Iyw^A-NO=R&j~<+d9ZW0v3QQcnk%Y0r$XI6kr9kfxRf;DBm9t
+z0E~eE2yj0ZkN_k001_fRyQ74B0rb)aocR)j0B~7^8~#Qc!0=TH@6wVmAPgGo0GfO~
+zBEQt(oscpeK!I;rbhm0o2SD@5?A;|pT`pn8cPUDon^36BO>mRgRdfli`gIq`5pE1g
+za@XUJa5ol9?NY%{>W~J&d1*j(r<@-RC;)Sy3L0<)mcR(^#H%C^UcvzK;3qVI25=w@
+z16TvjU>F9l;_XoUwUi6}_q25=_xT_70Ab!K=*})>CGHwZ576Z0QQk2I%3Kru(?C^r
+zOpY#~0FLSb3cUKNJ4PG}pm|+jJK+8k2=E<X!2dm~Ozr==oC!{10S&=&b%5LW{{n^T
+B>g50c
+
+diff --git a/06_SoftwareDocu/07_FAQ.md b/06_SoftwareDocu/07_FAQ.md
+index 54bd81d..86c76df 100644
+--- a/06_SoftwareDocu/07_FAQ.md
++++ b/06_SoftwareDocu/07_FAQ.md
+@@ -75,10 +75,10 @@ installed resources and job caches live outside the repository.
+ 
+ The core and five integration packages support Windows/Linux execution.
+ CLI and Desktop share registration when they use the same backend and user
+-profile. Remote or WSL CLI environments need their own install. Claude Desktop
+-WSL plugin sessions are currently unsupported; Linux Desktop is beta on
+-supported Ubuntu/Debian distributions. Recorded backend checks do not prove
+-GUI discovery or an end-to-end model-led workflow. See [Agent_Plugins.md](Agent_Plugins.md).
++profile. Remote or WSL CLI environments need their own install. Desktop plugin
++availability depends on the host's support for that backend and environment;
++a successful CLI installation does not establish Desktop support. Recorded
++backend checks do not prove GUI discovery or an end-to-end model-led workflow. See [Agent_Plugins.md](Agent_Plugins.md).
+ 
+ ## What does `check` actually check?
+ 
+@@ -143,7 +143,18 @@ Yes, when you ask for it. Set `[diagrams] enabled = true` in
+ `.agentic/aegis.toml` and design ends by drawing the proposed implementation
+ as Mermaid diagrams - `structure`, `sequence` or `state`, as listed in
+ `[diagrams] types` - into `.agentic/tasks/diagram_TASK-<id>.md`. In checkpoint
+-mode they are shown before you choose whether build may start. The drawing
++mode the response copies every saved heading and complete Mermaid block after
++the summary and before choices. Autopilot saves the artifacts and reports their
++path without displaying the blocks or adding a stop. An explicit Design stop
++still generates applicable artifacts and leaves the header at Design.
++
++Enablement requires the TOML Boolean `true`. Missing/non-list types default to
++structure; `types = []` creates no file or link, and unknown names are ignored.
++Skipped Design and the quick path draw nothing. Structure node classes follow
++the proposed node edits independently of edges: a new connection does not turn
++an unchanged reused node into a changed node.
++
++The drawing
+ comes from the design, not from a code parser, so it works for every language
+ and can show a shape that does not exist yet. It only illustrates the design:
+ no stage, review or `check` finding depends on it, and the Design text wins
+@@ -236,7 +247,14 @@ for the full journal and current step sources.
+ 
+ Total rounds are `1 + max_fix_cycles`. If either verdict still requires changes
+ on the final round, delivery is blocked with `needs_user: yes`. Only an explicit
+-human ruling that changes scope or policy can reset the counter.
++human ruling that changes scope or policy can reset the counter. Invalidating
++stale verdicts does not reset consumed rounds or erase historical findings.
++
++Reviewers inspect current linked files, including untracked files, and focused
++proof due at that phase. Final full strict verification follows their approvals;
++its pending checklist is not itself missing review evidence. Existing executed
++tests may verify a fix, while a fresh run cannot recreate historical red or
++anchor evidence that was never recorded.
+ 
+ ## How does a new agent resume safely?
+ 
+diff --git a/06_SoftwareDocu/07_FAQ.pptx b/06_SoftwareDocu/07_FAQ.pptx
+index 72d1da1e1b61fda3d926b87f19de597e5461184f..1d635c9184e05e29d2af009edda9c18fd7bb581c 100644
+GIT binary patch
+delta 4123
+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
+
+delta 4125
+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
+
+diff --git a/06_SoftwareDocu/08_Prompt_Cheatsheet.md b/06_SoftwareDocu/08_Prompt_Cheatsheet.md
+index 0821bf5..2aa3761 100644
+--- a/06_SoftwareDocu/08_Prompt_Cheatsheet.md
++++ b/06_SoftwareDocu/08_Prompt_Cheatsheet.md
+@@ -15,57 +15,60 @@ lives in the payload itself, in `.agentic/AGENTS.md`.
+ Replace `<angle-bracket>` parts before sending. On Linux distributions
+ without a `python` alias, say `python3` in the prompts.
+ 
+-Frame and validate read `.agentic/templates/task.md` before journal edits.
+-New journals keep a visible link to this authoring guide. Existing task IDs are
+-selectors for `brief` and `summary`; `task "<title>"` creates a new journal.
+-At a stop, record the pause and use the actual summary after successful writes.
+-Missing records still require repair when summary itself exits zero.
+-Deliver saves either the approval pause or a stale-proof return before summary.
+-Matching like-for-like candidate bindings establish identity within their scope;
+-the Git base is used to describe the change set. Read current linked files even
+-when untracked, and discover component paths before declaring missing evidence.
+-An additional interface can reuse an existing contract without replacing it.
+-At a Design checkpoint, copy the saved diagram blocks into the response after
+-the actual fenced summary and before the choices; a link only locates the file.
+-Append Log outcomes at the following section heading without retyping earlier
+-evidence lines, and verify that their text and spacing remain unchanged.
+-Reviewers inspect the current working tree and phase-appropriate proof; a pending
+-final Validate checklist does not itself block independent approval. Diagram
+-classes follow proposed node edits, independently of new connections.
+-It compares against the proved tree; an ordinary diff from the task base can
+-include already validated work. Validate saves failed-verification limitations
+-before responding and leaves only journal record edits after final proof.
+-Design applies diagram enablement and the types list before writing artifacts;
+-an explicit Design stop still includes applicable diagrams. Empty types creates
+-none. A bounded autopilot transition can report ready/completed without asking
+-for a decision that is not pending. Review uses evidence due at that phase;
+-final full proof follows approvals, and existing executed tests may cover a fix.
+-An existing-contract quick fix records its requirement IDs in the header at
+-Frame. Saved `next` fields name one action or scoped decision; checkpoint
+-choices belong in the response. Resolve a recorded scope blocker before
+-routing to a later stage, and distinguish accepted scope from requirement status.
+-
+-Destructive cleanup asks the actual target and recovery-policy questions before
+-scope acceptance; permission to defer them does not resolve them. Frame examples
+-must not assume an undecided eligibility boundary. Record refreshes preserve the
+-journal's authoring-guide pointer and distinguish each Frame clause from Rulings.
+-Current verification cannot recover historical red/anchor evidence. Copy every
+-summary line, including Details and truncation warnings; shorten saved fields and
+-rerun summary when needed. An unperformed evolution report stays unchecked with
+-an applicability reason or an unresolved verification limitation.
+-Label mixed-source claims separately: user clauses are stated, inspected test
+-assertions are observed definitions, and constructed interface examples are
+-inferred. Preserve the journal's original legal prologue verbatim, including
+-SPDX and license references; it is not a removable authoring note.
+-Creating a journal returns the ID/path to retain for subsequent edits. Repair
+-that file after rejected edits and verify the saved stage checklist; incomplete
+-fields do not justify creating another journal. A feature request establishes
+-the desired capability, not an existing store, accumulated data or current defect.
+-Save the Frame and pending questions before pausing for scope decisions. For an
+-exact-match failure, reread and use actual multiline text; if necessary, rewrite
+-the current journal with only authorized sections changed, preserving history.
+-During resume, compare accepted outcomes rather than interpreting the Problem's
+-original bug description as a commitment to keep that behavior.
++## Read the saved state before continuing
++
++Frame and Validate read `.agentic/templates/task.md` before editing a journal.
++Retain the ID/path returned by `task "<title>"`: that command creates a new
++journal; `brief TASK-<id>` and `summary TASK-<id>` select an existing one.
++Repair the existing file after a rejected edit. Preserve its legal prologue,
++authoring-guide link and historical Log text, including whitespace. Append a
++new Log outcome immediately before the following section heading.
++
++Frame separates user-stated clauses, observed source/test definitions, inferred
++examples and unknowns. A requested capability does not prove an existing defect,
++store or accumulated data. Save the Frame and pending questions before pausing.
++Resolve decision-blocking scope questions before advancing; permission to defer
++a question is not its answer. Existing-contract quick fixes record governing
++requirement IDs at Frame. On resume, compare accepted outcomes with the current
++behavior; the original bug description is not a requirement to retain the bug.
++
++At a boundary, save the checklist, Handoff and Stage report before running
++`summary`. Both `next` fields name one concrete action or scoped decision;
++checkpoint choices belong in the response. Copy the actual fenced summary,
++including Details and truncation warnings. Repair missing records even when
++`summary` exits zero; shorten saved fields and rerun it if necessary.
++
++## Review, proof and delivery
++
++Read current linked files, including untracked files, and discover the relevant
++component paths before declaring evidence absent. Review uses the accepted
++contract, current candidate and proof due at that phase. Focused proof precedes
++independent review; final full strict proof follows approvals. A pending final
++Validate checklist does not itself prevent review approval. Current passing
++tests cannot recreate missing historical red or anchor evidence. Unperformed
++evolution remains unchecked with its applicability reason or verification gap.
++
++Deliver compares the current candidate with the proved candidate using the same
++binding method and scope. A diff from the task base describes the change set;
++it does not identify edits since validation. Save either the approval pause or
++the return to Validate before presenting the summary. Preserve earlier Log
++entries, and clear stale enabled-review verdicts without resetting consumed
++rounds. Record-only work and bounded transitions do not authorize source repairs
++or publication. See the [feature example](03_Example_Feature.md#stage-6---deliver).
++
++## Design diagrams and interaction mode
++
++Generate only when the TOML Boolean `enabled = true`, Design is substantive,
++and the selected types apply. Missing/non-list types default to structure;
++`types = []` creates no file or link, and unknown names are ignored. Classify
++structure nodes from proposed node edits independently of their edges; a reused
++node does not become changed merely because it receives a new connection.
++
++In checkpoint mode, show the actual summary, then every saved diagram heading
++and complete Mermaid block, then the choices. In autopilot, save the diagrams
++and report their path in `changed`, without displaying the blocks or adding a
++stop. An explicit Design stop still completes configured artifacts and retains
++the Design header; it does not change autopilot's diagram presentation.
+ 
+ ## Install on an existing project - via an agent
+ 
+diff --git a/06_SoftwareDocu/08_Prompt_Cheatsheet.pptx b/06_SoftwareDocu/08_Prompt_Cheatsheet.pptx
+index d70332f1085ef9452b5bf99e2fd6841fe8444d70..1a61c1ff4d01e40545ab941edd60bd9d9b35d450 100644
+GIT binary patch
+delta 4396
+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
+
+delta 4301
+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
+afFn!)D%Fn5QKMMD4nTlxryRJvg8u>JPZ1UX
+
+diff --git a/06_SoftwareDocu/Agent_Plugins.md b/06_SoftwareDocu/Agent_Plugins.md
+index 68ad33e..f99645d 100644
+--- a/06_SoftwareDocu/Agent_Plugins.md
++++ b/06_SoftwareDocu/Agent_Plugins.md
+@@ -95,8 +95,9 @@ Each result applies to its recorded candidate and environment. Package/backend
+ checks establish resource and protocol behavior; Desktop and model-led acceptance
+ require their own observations. Keep commands, exits, tested host versions and
+ limitations in task/build records rather than a running history in this guide.
+-Recorded evidence is available in [delivery records](../07_Delivery/README.md)
+-and the [integration task](../.agentic/tasks/TASK-7616551e.md).
++Recorded evidence is retained in the source repository's `07_Delivery/` build
++records and Git history. A distributed host package does not include the
++maintainer checkout's task journals.
+ 
+ ## Current repository context
+ 
+diff --git a/06_SoftwareDocu/README.md b/06_SoftwareDocu/README.md
+index 909211f..ba80381 100644
+--- a/06_SoftwareDocu/README.md
++++ b/06_SoftwareDocu/README.md
+@@ -34,7 +34,11 @@ The installed contract, stage files and CLI define core behavior; integration
+ source and package READMEs define host behavior. Examples are illustrative.
+ Documentation-only updates here are reviewed directly, without AEGIS task
+ journals or development test runs. Update Markdown and slide companions
+-together when their shared content changes.
++together when their shared content changes. The guides distinguish current
++candidate evidence from historical proof, save delivery pauses before reporting,
++and distinguish diagram generation from checkpoint/autopilot display. These
++are prompt instructions; neither the documentation nor the CLI guarantees that
++a model follows them. `summary` reads saved fields and does not write them.
+ 
+ The plugin installation PDFs are generated from their Markdown sources.
+ Installation guides describe current setup and verification procedures using
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7c436e2..36490b4 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,6 +11,11 @@ All notable changes to AEGIS are documented in this file.
+ 
+ ## [Unreleased]
+ 
++### Removed
++
++- Remove three test cases that depended on an AEGIS deployment in this
++  repository, following removal of that workspace installation.
++
+ ### Added
+ 
+ - Extend development prompt evaluations across all eight step prompts, with
+@@ -18,6 +23,9 @@ All notable changes to AEGIS are documented in this file.
+ 
+ ### Changed
+ 
++- Align user guides and slide companions with current review/proof ordering,
++  saved delivery state, journal preservation and diagram presentation.
++
+ - Preserve delivery log text during appends, clarify review-phase evidence across
+   host reviewers, and check diagram node markers against the saved Design.
+ - Clarify delivery identity and saved approval pauses, checkpoint diagram display,

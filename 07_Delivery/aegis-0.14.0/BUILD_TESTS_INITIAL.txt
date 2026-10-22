@@ -1,0 +1,130 @@
+payload verified: 18 files
+running the complete product test suite ...
+........................................................................ [ 13%]
+........................................................................ [ 26%]
+...F.................................................................... [ 39%]
+........................................................................ [ 52%]
+...........................................s............................ [ 65%]
+........................................................................ [ 78%]
+............s........................................................FF. [ 91%]
+.................................................                        [100%]
+================================== FAILURES ===================================
+___________________________ test_protocol_behavior ____________________________
+
+    def test_protocol_behavior():
+        """@brief Verify Claude protocol behavior."""
+>       run_group("protocol")
+
+tests\test_claude_integrations.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+selector = 'protocol'
+
+    def run_group(selector):
+        """@brief Exercise actual model-free Claude integration behavior."""
+        node = shutil.which("node")
+        assert node, "Node.js 22+ is required"
+        result = subprocess.run(
+            [node, "--test", "--test-name-pattern=" + selector + ":",
+             str(REPO / "05_Software/aegis/integrations/tests/claude.test.mjs")],
+            env={**os.environ, "AEGIS_PYTHON": sys.executable}, capture_output=True,
+            text=True, timeout=120, check=False,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: ✖ protocol: Claude exposes real checkout operations with validated inputs (378.4762ms)
+E         ℹ tests 1
+E         ℹ suites 0
+E         ℹ pass 0
+E         ℹ fail 1
+E         ℹ cancelled 0
+E         ℹ skipped 0
+E         ℹ todo 0
+E         ℹ duration_ms 491.7591
+E         
+E         ✖ failing tests:
+E         
+E         test at integrations\tests\claude.test.mjs:29:1
+E         ✖ protocol: Claude exposes real checkout operations with validated inputs (378.4762ms)
+E           SyntaxError: Unexpected token 'A', "AEGIS is n"... is not valid JSON
+E               at JSON.parse (<anonymous>)
+E               at TestContext.<anonymous> (file:///D:/ProjectsDDP/2026_Agentic_Engineering_Governance_Integrity_System/05_Software/aegis/integrations/tests/claude.test.mjs:40:21)
+E               at async Test.run (node:internal/test_runner/test:1208:7)
+E               at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Program Files\\nodejs\\node.EXE', '--test', '--test-name-pattern=protocol:', 'D:\\Projects...runner/test:1208:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)\n', stderr='').returncode
+
+tests\test_claude_integrations.py:33: AssertionError
+________________ test_installed_cli_matches_template[aegis.py] ________________
+
+name = 'aegis.py'
+
+    @pytest.mark.parametrize("name", ["aegis.py", "CLI.md"])
+    def test_installed_cli_matches_template(name):
+        """REQ-TEST-e38913a7: the installed CLI matches the managed payload."""
+        installed = TREE.parents[1] / ".agentic" / name
+>       assert installed.read_bytes() == (PAYLOAD / name).read_bytes()
+               ^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_structure.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+D:\Programms\Python_3_13\Lib\pathlib\_abc.py:625: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('D:/ProjectsDDP/2026_Agentic_Engineering_Governance_Integrity_System/.agentic/aegis.py')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\ProjectsDDP\\2026_Agentic_Engineering_Governance_Integrity_System\\.agentic\\aegis.py'
+
+D:\Programms\Python_3_13\Lib\pathlib\_local.py:537: FileNotFoundError
+_________________ test_installed_cli_matches_template[CLI.md] _________________
+
+name = 'CLI.md'
+
+    @pytest.mark.parametrize("name", ["aegis.py", "CLI.md"])
+    def test_installed_cli_matches_template(name):
+        """REQ-TEST-e38913a7: the installed CLI matches the managed payload."""
+        installed = TREE.parents[1] / ".agentic" / name
+>       assert installed.read_bytes() == (PAYLOAD / name).read_bytes()
+               ^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_structure.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+D:\Programms\Python_3_13\Lib\pathlib\_abc.py:625: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('D:/ProjectsDDP/2026_Agentic_Engineering_Governance_Integrity_System/.agentic/CLI.md')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\ProjectsDDP\\2026_Agentic_Engineering_Governance_Integrity_System\\.agentic\\CLI.md'
+
+D:\Programms\Python_3_13\Lib\pathlib\_local.py:537: FileNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_claude_integrations.py::test_protocol_behavior - AssertionE...
+FAILED tests/test_structure.py::test_installed_cli_matches_template[aegis.py]
+FAILED tests/test_structure.py::test_installed_cli_matches_template[CLI.md]
+3 failed, 548 passed, 2 skipped in 408.02s (0:06:48)

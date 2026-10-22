@@ -32,7 +32,6 @@ cheatsheet cover focused tests, final proof and minimal handoffs.
 | [09 - CLI reference](09_CLI_Reference.md) | Looking up core command syntax, options and exit behavior. | - |
 | [Project context](Project_Context.md) | Maintaining current project/environment facts and positive behavior documentation. | - |
 | [Agent plugins](Agent_Plugins.md) | Building, distributing, installing and operating all five integrations. | - |
-| [Prompt evaluations](../05_Software/aegis/evaluations/README.md) | Controlled original/current comparisons across eight step prompts, task records and optional capabilities. | - |
 | [Plugin installation manual](Plugin_Installation/README.md) | Step-by-step, illustrated installation for OpenCode, Codex, Pi, Qwen Code and Claude Code. | [Combined PDF](Plugin_Installation/pdf/00_AEGIS_Plugin_Installation_Manual.pdf) |
 
 The decks are condensed companions. The Markdown guides contain the detailed

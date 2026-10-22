@@ -182,13 +182,6 @@ def test_component_catalogue_command_guides_every_useful_stage(tmp_path):
     assert "aegis.py components" not in deliver
 
 
-@pytest.mark.parametrize("name", ["aegis.py", "CLI.md"])
-def test_installed_cli_matches_template(name):
-    """REQ-TEST-e38913a7: the installed CLI matches the managed payload."""
-    installed = TREE.parents[1] / ".agentic" / name
-    assert installed.read_bytes() == (PAYLOAD / name).read_bytes()
-
-
 @pytest.mark.parametrize("command", ["anchor", "evolution", "summary", "brief", "trace"])
 def test_cli_reference_guard_detects_a_missing_command_section(tmp_path, monkeypatch,
                                                              command):

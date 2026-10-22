@@ -75,10 +75,10 @@ installed resources and job caches live outside the repository.
 
 The core and five integration packages support Windows/Linux execution.
 CLI and Desktop share registration when they use the same backend and user
-profile. Remote or WSL CLI environments need their own install. Claude Desktop
-WSL plugin sessions are currently unsupported; Linux Desktop is beta on
-supported Ubuntu/Debian distributions. Recorded backend checks do not prove
-GUI discovery or an end-to-end model-led workflow. See [Agent_Plugins.md](Agent_Plugins.md).
+profile. Remote or WSL CLI environments need their own install. Desktop plugin
+availability depends on the host's support for that backend and environment;
+a successful CLI installation does not establish Desktop support. Recorded
+backend checks do not prove GUI discovery or an end-to-end model-led workflow. See [Agent_Plugins.md](Agent_Plugins.md).
 
 ## What does `check` actually check?
 
@@ -143,7 +143,18 @@ Yes, when you ask for it. Set `[diagrams] enabled = true` in
 `.agentic/aegis.toml` and design ends by drawing the proposed implementation
 as Mermaid diagrams - `structure`, `sequence` or `state`, as listed in
 `[diagrams] types` - into `.agentic/tasks/diagram_TASK-<id>.md`. In checkpoint
-mode they are shown before you choose whether build may start. The drawing
+mode the response copies every saved heading and complete Mermaid block after
+the summary and before choices. Autopilot saves the artifacts and reports their
+path without displaying the blocks or adding a stop. An explicit Design stop
+still generates applicable artifacts and leaves the header at Design.
+
+Enablement requires the TOML Boolean `true`. Missing/non-list types default to
+structure; `types = []` creates no file or link, and unknown names are ignored.
+Skipped Design and the quick path draw nothing. Structure node classes follow
+the proposed node edits independently of edges: a new connection does not turn
+an unchanged reused node into a changed node.
+
+The drawing
 comes from the design, not from a code parser, so it works for every language
 and can show a shape that does not exist yet. It only illustrates the design:
 no stage, review or `check` finding depends on it, and the Design text wins
@@ -236,7 +247,14 @@ for the full journal and current step sources.
 
 Total rounds are `1 + max_fix_cycles`. If either verdict still requires changes
 on the final round, delivery is blocked with `needs_user: yes`. Only an explicit
-human ruling that changes scope or policy can reset the counter.
+human ruling that changes scope or policy can reset the counter. Invalidating
+stale verdicts does not reset consumed rounds or erase historical findings.
+
+Reviewers inspect current linked files, including untracked files, and focused
+proof due at that phase. Final full strict verification follows their approvals;
+its pending checklist is not itself missing review evidence. Existing executed
+tests may verify a fix, while a fresh run cannot recreate historical red or
+anchor evidence that was never recorded.
 
 ## How does a new agent resume safely?
 

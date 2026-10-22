@@ -95,8 +95,9 @@ Each result applies to its recorded candidate and environment. Package/backend
 checks establish resource and protocol behavior; Desktop and model-led acceptance
 require their own observations. Keep commands, exits, tested host versions and
 limitations in task/build records rather than a running history in this guide.
-Recorded evidence is available in [delivery records](../07_Delivery/README.md)
-and the [integration task](../.agentic/tasks/TASK-7616551e.md).
+Recorded evidence is retained in the source repository's `07_Delivery/` build
+records and Git history. A distributed host package does not include the
+maintainer checkout's task journals.
 
 ## Current repository context
 

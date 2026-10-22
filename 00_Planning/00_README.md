@@ -26,6 +26,11 @@ implementation or workflow contract changes. Integration behavior is defined
 by its source, native resources and package guides; it does not add stages or
 commands to the Python CLI.
 
+This source checkout has no root `.agentic/` installation. Installed-path
+examples refer to downstream projects; inspect the canonical payload under
+`05_Software/aegis/template/.agentic/` when maintaining AEGIS itself. Repository
+maintenance follows the root `AGENTS.md` without recreating a workflow deployment.
+
 ## What AEGIS is
 
 AEGIS is an offline-first, advisory software-development workflow. A small
@@ -72,6 +77,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   **Challenge** gaps and contradictions, **Write** the artifact, then **Audit**
   it. Material claims are labeled `STATED`, `OBSERVED`, `INFERRED`, or
   `UNKNOWN`; the protocol asks for reviewable artifacts, not hidden reasoning.
+  Mixed-source clauses are labeled separately: an inspected test assertion is
+  not an executed test, and a requested feature does not prove a current defect.
 - Six fixed ordinary stages: `frame -> specify -> design -> build -> validate
   -> deliver`.
 - An eligible fix or change may use the recorded quick path:
@@ -86,6 +93,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 - A journal Log retains only stage outcomes, material engineering changes,
   consolidated verification, blockers, approvals, deviations, and delivery;
   dedicated artifacts hold the detail and routine execution stays out.
+  Edits preserve the original legal prologue and historical Log verbatim;
+  boundary records are saved and reread before the actual summary is shown.
 - Build uses project-native focused tests or a configured runner that honors
   impacted references. `--dry-run` previews execution; `--no-fallback` refuses
   a full-suite fallback. Full strict verification follows final edits and review.
@@ -97,6 +106,9 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 - Explicit review is optional policy, not a stage. When enabled it records
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop; ordinary validation remains required either way.
+  Reviewers inspect current files, including untracked scope, and focused proof;
+  final full strict proof follows approvals. Invalidating verdicts retains the
+  consumed round and historical findings.
 - Project and component documents describe actual positive behavior and setup.
   Frame/adoption populates known facts, build updates affected facts and validate
   reconciles them against the candidate and established requirements. Proposed
@@ -107,6 +119,13 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 - `components` is a read-only, no-argument title-and-path catalogue for
   selecting concise component knowledge before exact source and tests. It
   creates no metadata registry and does not choose a component automatically.
+- Optional Design diagrams follow the enablement/types gates. Checkpoint mode
+  displays saved blocks between summary and choices; autopilot saves and reports
+  their path without displaying them or adding a stop. An explicit Design stop
+  still completes applicable artifacts.
+- Deliver compares the current candidate with final proof using the same binding
+  method and scope, then saves an approval pause or a return to Validate before
+  reporting. A diff from the task base is not a diff since validation.
 
 AEGIS applies to software development. Repository maintenance, versioning,
 release construction, package publication, and deployment follow the
@@ -126,5 +145,6 @@ AEGIS, under the maintainer's scope instruction.
 
 Start with the [user guide index](../06_SoftwareDocu/00_Index.md) or
 [agent package guide](../06_SoftwareDocu/Agent_Plugins.md) for installation.
-[Implementation status](05_Implementation_Phases.md) distinguishes verified
-backend behavior from unverified Desktop UI and model-driven workflows.
+[Implementation status](05_Implementation_Phases.md) distinguishes product tests,
+package/backend checks and representative model-led prompt evaluations from
+Desktop acceptance and complete host workflows that require separate evidence.

@@ -30,7 +30,9 @@ implemented. It
 records a Frame card that separates what you stated, what it observed in files,
 what it inferred, and what remains unknown. It then establishes a suitable task
 branch unless current instructions require the existing branch, creates a
-journal (`aegis task`), and comes back with the **frame checkpoint**:
+journal (`aegis task`), and saves the Frame before presenting the checkpoint.
+The following scope is illustrative: M3U-only, the new module and path rules
+are proposals to confirm, rather than facts implied by the short request:
 
 > Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
 > path (new user-facing behavior). One requirement proposed:
@@ -134,7 +136,10 @@ requirements, project context, and environment guidance. The current documents
 describe the built positive behavior and actual setup. History and proposals
 remain in task records; an established contract is preserved when a defect
 needs correction. If `[review] enabled = true`, obtain both independent verdicts for the
-same candidate within the configured round limit. Then run final proof once
+same candidate within the configured round limit. Reviewers read current files,
+including untracked records, and the focused proof due at this phase. The
+not-yet-run final strict check is not a reason to withhold a review verdict.
+Then run final proof once
 through the strict check with its eligible configured commands. Naming the task scopes the
 diff checks to it and reports a branch mismatch:
 
@@ -184,7 +189,21 @@ not repeat validation, grant delivery approval, or update the journal.
 
 ## Stage 6 - deliver
 
-Then the **delivery checkpoint** - the agent shows you the validation evidence
+Before the **delivery checkpoint**, the agent compares the current candidate
+with the recorded validated candidate using the same binding method and scope.
+A task-base diff describes the proposed changes, not edits since validation.
+If identity is unresolved, it records the missing evidence without claiming a
+change. If proof is stale, it saves the return to Validate and clears stale
+enabled-review verdicts while retaining consumed rounds. These are journal-only
+updates; they do not authorize source repair or another verification run.
+
+For an unchanged proved candidate, it saves the approval pause at `deliver`:
+Handoff is waiting, Stage report is paused with `needs_user: yes`, and both
+`next` fields name the pending delivery decision. It rereads those saved records,
+runs `summary`, and presents its actual output before the delivery evidence.
+Historical Log text stays unchanged; the new outcome is appended once.
+
+At the checkpoint, the agent shows you the validation evidence
 and final diff and waits for your yes before committing / opening the PR. This
 stop always happens, even in autopilot: publishing is the outward-facing act.
 Every deviation you heard along the way is presented again here, in full - the

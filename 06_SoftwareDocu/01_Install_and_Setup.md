@@ -237,7 +237,13 @@ that task's journal header, so the choice survives a resume.
 
 With `enabled = true`, design ends by drawing Mermaid diagrams of the proposed
 implementation into `.agentic/tasks/diagram_TASK-<id>.md`, links the file from
-the task's `## Design`, and shows the diagrams at the design checkpoint. They
+the task's `## Design`. Checkpoint responses show the saved Mermaid blocks
+after the stage summary and before choices. Autopilot saves the same applicable
+artifacts and reports their path, without displaying blocks or adding a stop.
+An explicit Design stop retains that mode's presentation and the Design header.
+An empty types list creates no file or link; unknown types are ignored. Skipped
+Design and the quick path draw nothing. Node classes describe proposed node
+edits independently of edge changes. The diagrams
 illustrate the design for you: no stage, review or `check` finding depends on
 them, and AEGIS bundles no renderer - GitHub, GitLab and many Markdown
 previews draw Mermaid, and a terminal shows its text.

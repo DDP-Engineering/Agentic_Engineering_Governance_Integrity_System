@@ -15,6 +15,10 @@ records; those records do not replace the authoritative task journal.
 
 ## Installed layout and ownership
 
+This layout belongs to an installed downstream project. The AEGIS source
+checkout has no root deployment; its canonical payload is
+`05_Software/aegis/template/.agentic/`.
+
 ```text
 .agentic/
   AGENTS.md, CLI.md, LICENSE.txt, aegis.py    managed payload
@@ -120,7 +124,7 @@ thereafter. The implemented configuration surface is:
 | `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 255 (default 2). |
 | `[records]` | Exact Boolean `commit_fingerprints` (default `false`). While false, `init` maintains a managed `.gitignore` block that excludes the anchor/evolution sidecars; true removes that block so they are committed with the journal. |
 | `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; publication authority applies in both modes. |
-| `[diagrams]` | Exact Boolean `enabled` defaults to `false`, including a missing table/key. `types` lists `structure`, `sequence` or `state` and defaults to `["structure"]`. When enabled, design draws Mermaid diagrams of the proposed implementation for the human; nothing checks them. |
+| `[diagrams]` | Exact Boolean `enabled` defaults to `false`. Missing/non-list `types` defaults to `["structure"]`; an empty list creates no file or link, and unknown names are ignored. Only substantive Design draws selected applicable types. Configuration findings do not certify diagram content. |
 | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
 | `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
 
@@ -169,6 +173,11 @@ requirement templates use `# AEGIS:TEMPLATE-BEGIN` / `# AEGIS:TEMPLATE-END`.
 The complete field guidance stays in the managed templates. Licenses, durable
 fields and unmarked data are preserved. Existing journals and requirements are
 not compacted or rewritten, and their data formats are unchanged.
+
+Generated journals retain a visible authoring-guide link. Frame and Validate
+read the full task template before edits unless already read in the intact
+session. Preserve the journal's original legal prologue verbatim, including
+SPDX and license references; it is not an instruction-only note.
 
 ## Requirements and specifications
 
@@ -226,6 +235,9 @@ silently resolving them.
 A task journal has a machine-readable header followed by a current checklist
 and append-only log. Its header records `stage`, `type`, `path`,
 `requirements`, optional `parent`, `branch`, `base`, and `opened`.
+The `interaction` header records checkpoint/autopilot. Existing-contract quick
+fixes name their governing requirements at Frame. Retain the created task ID/path
+and repair that same file after a failed edit; creation is not task selection.
 
 The Log is a compact progress-and-evidence ledger, not an activity transcript.
 It keeps stage transitions; material scope, implementation, or test changes;
@@ -234,6 +246,12 @@ deviations; and delivery outcomes. Routine searches, reads, edits, tool
 mechanics, corrected command retries, and content already held in another
 durable artifact stay out. Existing entries remain append-only when the
 logging contract changes.
+
+Append at the following section heading without retyping old evidence lines,
+and verify that the historical Log prefix is unchanged, including whitespace.
+Each consolidated outcome appears once; Handoff/Stage report corrections do not
+justify appending that outcome again. An edit recovery carries forward the
+current journal and untouched sections rather than starting from a new template.
 
 Build normally records one reproducible red result and one final focused green
 result per meaningful behavior increment, grouping requirements that share a
@@ -253,7 +271,7 @@ Current journals also provide durable semantic sections:
   verification, and design decision or `no design impact`.
 - `## Design`: proportionate implementation decisions, traceability, test
   seams, risks, open decisions, and expected files, plus one link to
-  `diagram_TASK-<id>.md` when design diagrams are enabled.
+  `diagram_TASK-<id>.md` when the diagram gates produce an artifact.
 
 The journal may additionally hold:
 
@@ -271,6 +289,15 @@ report holds the latest communication snapshot. The Log references those
 records instead of copying them. Stage report and Handoff refresh at stage
 transitions, pauses or session ends, and blockers—not after routine work.
 
+Save a Frame with its unanswered questions before a scope pause. At an explicit
+stop, both `current` fields match the header, Handoff is waiting and Stage report
+is paused with `needs_user: yes`; a blocking decision uses blocked. Both `next`
+fields name one action or concrete decision, not the checkpoint menu. Save and
+reread the sections before `summary`; copy its actual output including Details
+and truncation notices. Missing records require repair even after exit zero.
+Disabled review records both verdicts as `disabled` with a blank round. Invalidated
+enabled verdicts are cleared while the consumed round and historical Log remain.
+
 `anchor --task` writes `TASK-<id>.anchor.json`, a SHA-256 starting-point
 fingerprint. `evolution --task` writes the corresponding
 `TASK-<id>.evolution.json` comparison. These are durable inspection
@@ -281,6 +308,13 @@ existing detail. Anchor coverage and storage have not been narrowed. Both
 sidecars are excluded from Git by default through the managed `.gitignore`
 block `init` maintains, so the journal's recorded evolution line is the shared
 evidence.
+
+Current execution cannot recover missing historical red/anchor evidence.
+Keep that gap separate from current proof. An unperformed evolution report is
+not a completed checklist item; record its applicability reason or limitation.
+Like-for-like candidate bindings compare proof with the present tree within
+their scope. The task's `base` remains the change-set reference, not the proved
+candidate identity. Delivery journal updates are distinct from candidate edits.
 
 Each component page under `knowledge/` routes matching requests through
 selection signals to the component's owned source and focused tests. It records
@@ -294,9 +328,15 @@ sections, create metadata, or maintain a separate registry.
 
 Design keeps its proposal in the task and leaves component pages unchanged;
 validate reconciles them with the built code. When `[diagrams] enabled = true`,
-design also draws the proposal as Mermaid diagrams in
-`tasks/diagram_TASK-<id>.md` for the human. Nothing checks or reconciles that
-file. The knowledge directory remains intentionally navigable without a
+design also draws selected applicable types in `tasks/diagram_TASK-<id>.md` for
+the human. An empty types list, skipped Design or quick path produces no file
+or link. The file records the proposed structure-node classification map;
+reused unchanged nodes stay unstyled independently of new edges. The author
+compares diagram markers with that map and Design; no CLI check certifies them.
+Checkpoint responses copy saved blocks after summary and before choices.
+Autopilot reports the saved path without displaying blocks or adding a stop,
+including when an explicit Design stop bounds the work.
+The knowledge directory remains intentionally navigable without a
 separate component manifest; `components` is a read-only projection of the
 pages already present.
 

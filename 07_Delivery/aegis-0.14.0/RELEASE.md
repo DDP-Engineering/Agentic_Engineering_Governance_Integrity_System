@@ -9,8 +9,12 @@ The `0.14.0` section of `CHANGELOG.md` records what this release changed.
 
 | Platform | Artifact | Bytes | SHA-256 |
 |---|---|---:|---|
-| Linux | `aegis-0.14.0-linux.tar.gz` | 172,267 | `1f45fea88510e77c133f51b64739ddccfa12be9d95f1c0c6d74549e327b49f6b` |
-| Windows | `aegis-0.14.0-windows.zip` | 206,312 | `fcbee7796ce7bab805a538201d93041597c00b1b68d4d0d9cca4264c73080815` |
+| Linux | `aegis-0.14.0-linux.tar.gz` | 194,225 | `4649bec8ff6e816bc923f609a953e396a469f28ba4670dd9f544e902e45d79d8` |
+| Windows | `aegis-0.14.0-windows.zip` | 229,429 | `e58fdaae59a00a4d2d49af0dd16e686104b9c1c9d6ff379adde310835616baff` |
 
 The archives under `../dist/` are ignored build outputs. This folder is the
 tracked publication record used to verify those local artifacts.
+
+Rebuilt locally on 2026-10-22 from 9e3d870 plus the
+listed delivery-preparation changes, including current Unreleased entries.
+See [BUILD.md](BUILD.md) and the complete delivery-manifest.json.

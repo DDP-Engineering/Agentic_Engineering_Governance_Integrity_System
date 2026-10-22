@@ -149,7 +149,10 @@ max_fix_cycles = 2
 
 Each round requires two independent verdicts for the same candidate:
 specification compliance and implementation quality. After a candidate fix,
-clear both verdicts, rerun focused proof and obtain both reviews again. One
+clear both verdicts while retaining the consumed round and historical findings,
+rerun focused proof and obtain both reviews again. Reviewers read current linked
+files even when untracked and judge evidence due at their phase. A pending final
+strict check is not itself a review failure; that check follows approvals. One
 initial round plus two fix cycles is the default bound when review is enabled.
 An unresolved final round requires a human decision; it grants no Git authority.
 Review is disabled by default, while ordinary semantic review remains required.

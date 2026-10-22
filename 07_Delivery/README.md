@@ -8,7 +8,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # Delivery
 
 This folder holds the **AEGIS 0.14.0** delivery archives and build records,
-built on **2026-10-20**. All current download links refer to this version.
+rebuilt locally on **2026-10-22** from `9e3d870` plus the
+delivery-preparation changes recorded in the manifest. All download links refer
+to this local rebuild. It contains the current experimental prompt revisions.
 
 ## Download the latest built packages
 
@@ -25,6 +27,8 @@ The [documentation ZIP](dist/AEGIS-Documentation-0.14.0.zip) contains the
 delivered `06_SoftwareDocu/` guide tree plus the license. Open `00_Index.md`
 after extraction. Maintainer-only files in that folder, such as the workflow
 overhead analysis, are not delivered and are not listed in the index.
+Maintainer planning under `00_Planning/` remains in the source repository; its
+current hashes and local changes are retained in the build records.
 
 ## Install
 
@@ -44,13 +48,18 @@ profiles or `runtime.json`.
 
 ## Verification and checksums
 
-The full product suite passed: **463 passed, 2 skipped** for Windows
-symlink limitations. All 13 archives passed inventory, byte and SHA-256 checks.
-Packaged JavaScript syntax, relative imports and Linux launcher permissions were
-verified. Decks and installation PDFs were verified from their slide XML and
-content streams, not by rendering. No models were called and no real host
-profile was changed. Desktop GUI, native
-host installation and model-driven workflows were not run.
+The final full product suite passed: **548 passed, 2 skipped**.
+The initial repository-deployment-dependent failures and their removal at the
+user's request are retained in the build record. All 13 archives passed
+inventory, byte and SHA-256 checks. The 74 packaged JavaScript modules,
+81 static relative imports and Linux launcher permission bits were verified.
+Documentation was refreshed: seven decks, ten changed slides rendered and
+visually inspected, layout/package checks passed, and 108 local links checked.
+The six installation PDFs remain current and unchanged. Documentation QA and
+the software-suite result are retained from the preceding build after source
+hash comparison; this rebuild reran packaging, syntax and archive checks.
+No models were called or real host profiles changed. Native host installation,
+Desktop acceptance and Linux execution were not run.
 
 Use [SHA256SUMS](dist/SHA256SUMS) to verify all archives. See the
 [build record](aegis-0.14.0/BUILD.md) and

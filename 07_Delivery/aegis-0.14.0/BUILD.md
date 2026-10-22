@@ -1,82 +1,70 @@
-# AEGIS 0.14.0 delivery build - 2026-10-20
+# AEGIS 0.14.0 delivery build - 2026-10-22
 
-Built from the uncommitted `ddp/optional-diagrams` working tree, cut from
-master `52e0772`, with the assigned version 0.14.0. The delivery contains 13
-archives: two core packages, ten host-integration packages and one
-documentation ZIP. No commit, remote publication, model call or real
-host-profile installation was performed.
-
-The release carries the optional `[diagrams]` setting. It is off by default and
-off when missing. When enabled, design draws Mermaid diagrams of the proposed
-implementation into `.agentic/tasks/diagram_TASK-<id>.md` for the human,
-following the new `steps/diagrams.md` guide, and the design checkpoint shows
-them. No stage, review or `check` finding depends on them, and no renderer is
-bundled. The design `### Proposed architecture` diagram and the component-page
-`## Architecture` diagram are no longer required. The managed payload therefore
-has 18 files instead of 17.
-
-This 0.14.0 is unrelated to the 0.14.0 archives built earlier on the CodeGraph
-evaluation branch. Those archives were replaced here and kept in a backup
-outside the repository.
+Local rebuild from `master` commit `9e3d870cd1fe834a93e785008c69506bda954359`,
+plus the delivery-preparation changes listed in delivery-manifest.json. The
+source version remains 0.14.0 and its assigned release date remains 2026-10-20.
+This build includes current Unreleased source changes; no version is assigned.
+source-preparation.diff preserves the local documentation and test changes.
+The build contains the current experimental prompt revisions. No own AEGIS
+workflow was used. Maintainer planning is recorded in source-preparation.diff
+and manifest hashes, and remains outside the downstream delivery archives.
 
 ## Construction
 
-1. Ran `python 02_Tools/build_aegis_release.py --version 0.14.0`. The builder
-   verified the 18-file managed payload, ran the complete product suite, and
-   wrote the core archives and the core publication record.
-2. Ran `node 02_Tools/build_agent_plugins.mjs --output <fresh-staging-directory>`
-   to assemble the five host packages at version 0.14.0.
-3. Added the maintained installation-manual collection under each package's
-   `docs/Plugin_Installation/`, with the project-context and agent-plugin guides
-   under `docs/`. Each `INSTALLATION_GUIDE.md` links to that host's Markdown and
-   PDF.
-4. Archived each host directory under its `aegis-<host>` prefix as a Windows ZIP
-   and a Linux tar.gz. Archived the delivered `06_SoftwareDocu/` tree and the
-   license under `aegis-documentation-0.14.0/`.
-5. Used fixed 1980-01-01 member timestamps, and mode 0755 for Linux `install.sh`
-   launchers. Recorded complete archive and source hashes.
-
-## Repository-only guide-tree file
-
-`06_SoftwareDocu/10_Workflow_Overhead_Analysis.html` is a maintainer study. It
-is not delivered: it is absent from the documentation ZIP and from the
-manifest's source-file set, and `00_Index.md` does not list it.
+1. Verify that all packaged source hashes, the locally changed test hashes and
+   HEAD still match the preceding tested build. Preserve all 13 previous archives
+   and their records in the ignored backup named by the manifest's rebuild block.
+   Use stage_tree, write_zip and write_tar from build_aegis_release.py to build
+   the 18-file payload and current guides into a fresh core pair at 0.14.0.
+2. `node 02_Tools/build_agent_plugins.mjs --output <fresh-staging-directory>`
+   assembles the five host packages. Each receives the existing installation
+   manual collection, Project_Context.md, Agent_Plugins.md and a host-specific
+   INSTALLATION_GUIDE.md linking its Markdown and PDF.
+3. Host trees are archived with their aegis-<host> prefixes, fixed 1980-01-01
+   timestamps and executable install.sh launchers. The documentation ZIP contains
+   the guide tree plus the license; the maintainer-only overhead study and
+   evaluation harness are excluded. The delivered index omits the harness link.
+4. SHA-256 covers all 13 archives; every archived file is compared with staging
+   or current core sources. archive-inventories.json records every member hash.
+5. This rebuild retains the successful software-suite result after the source
+   identity checks above. The official full builder runs that suite for a normal
+   release build; it was not invoked to repeat the unchanged suite in this rebuild.
 
 ## Verification
 
-- Product suite: **463 passed, 2 skipped in 220.28 seconds** on Windows, run by
-  the builder before packaging. The skips concern Windows symlink semantics.
-- The canonical payload verified at 18 files. Both core archives hold 35 members,
-  including `.agentic/steps/diagrams.md`. The packaged CLI compiles and reports
-  `aegis 0.14.0`, and its help works.
-- Host-package inventories match the 0.13.0 layout file for file: OpenCode 54,
-  Codex 56, Pi 54, Qwen Code 58 and Claude Code 63. Every manifest reports
-  0.14.0, and each package contains its shared bridge.
-- All 74 packaged `.mjs` files pass `node --check`, and all 81 relative static
-  imports resolve. Linux `install.sh` launchers carry mode 0755 in both archive
-  formats.
-- The documentation ZIP holds 46 files, with eight PowerPoint decks and six
-  installation PDFs, matching the 0.13.0 member set.
-- Every deck and installation PDF reads 0.14.0.
-  - The decks were edited and verified in their slide XML, not rendered.
-  - In the PDFs, the version text was replaced inside the content streams and
-    the cross-reference table was rebuilt. The digits share one Helvetica
-    width, so the layout is unchanged. The PDFs were not visually rendered.
-- SHA-256 values cover every archive. All 13 were verified against the files on
-  disk, and the core record agrees with the full manifest.
-- Native host installation, Desktop GUI acceptance, model-driven workflows and
-  Linux execution were not run for this build.
+- Final official builder suite: **548 passed, 2 skipped in 420.54s**.
+  This is the prior build result, retained for this identical-source rebuild;
+  no software or test sources changed after that run.
+- Initial suite: 3 failed, 548 passed, 2 skipped. Those tests assumed an AEGIS
+  deployment in this repository, deliberately removed before the build. The user
+  requested deleting those checks. The Claude protocol case and its Python
+  wrapper, plus the two parametrized installed-CLI/reference cases, were removed.
+  An intermediate run was interrupted for that requested change. The final full
+  suite was run again; no failing test is silently excluded from its invocation.
+  BUILD_TESTS_INITIAL.txt and BUILD_TESTS.txt retain both complete results.
+- Core: 18 managed payload files, 35 members in each archive; packaged
+  Python compiles and --help/--version succeed at 0.14.0.
+- Host inventories: OpenCode 54, Codex 56, Pi 54, Qwen Code 58, Claude Code 63.
+  Their manifests report 0.14.0 and the shared bridge is present in each package.
+- 74 packaged JavaScript files pass node --check;
+  81 actual static relative imports resolve, parsed without executing modules.
+- Documentation: 46 files, eight PowerPoint decks and six installation PDFs.
+  The preceding documentation refresh updated seven decks and rendered/inspected
+  all ten changed slides. Package structure, reference fonts, slide counts and
+  layout passed then. Their source hashes are unchanged; that QA is retained,
+  without another render in this rebuild. Other PPTX entries remain byte-identical.
+  Six unchanged PDFs and their unchanged installation sources remain current;
+  all PDF pages have readable text. All 108 local Markdown links resolve.
+- All 13 rebuilt archives preserve the preceding member inventories and bytes;
+  12 archive hashes are identical. The documentation ZIP uses the archive helper
+  metadata with unchanged content. All current SHA-256 checks pass. Linux install.sh
+  permission bits are verified in both ZIP and tar.gz files.
+- No model calls, real host-profile changes, remote publication or installation.
+  Native Desktop acceptance, Linux execution and model-led workflows were not run.
 
-`SHA256SUMS` and `release-manifest.json` describe the core pair.
-`DELIVERY_SHA256SUMS` and `delivery-manifest.json` cover all 13 archives, with
-paths relative to `07_Delivery/dist/`. The full manifest records 146 source-file
-hashes because the source working tree is uncommitted. Rebuilding does not
-install or publish these packages.
-
-## Superseded local delivery
-
-The 0.13.0 core, host and documentation archives and their delivery-record
-directory were removed from `07_Delivery/` after the 0.14.0 replacement was
-verified. They remain recoverable in a temporary backup outside the repository.
-The root changelog retains release history. Current delivery links and checksums
-refer to 0.14.0 only.
+SHA256SUMS and release-manifest.json cover the core pair. DELIVERY_SHA256SUMS
+and delivery-manifest.json cover all 13 archives, relative to ../dist/.
+All build artifacts remain local; dist/ is ignored by Git. Prior tracked build
+records and all 13 archives were copied into an ignored backup before replacement;
+the location is retained in the manifest's rebuild block. Earlier documentation
+QA retains its own original backup reference separately.

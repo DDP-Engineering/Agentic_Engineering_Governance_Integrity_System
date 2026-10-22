@@ -10,11 +10,15 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 The implemented companion is one standard-library Python file:
 `.agentic/aegis.py`. It requires Python 3.11 or newer and is invoked from
-the repository root:
+the target project's root after payload installation:
 
 ```text
 python .agentic/aegis.py <command>
 ```
+
+The maintainer source checkout has no root `.agentic/` deployment. Its canonical
+CLI is `05_Software/aegis/template/.agentic/aegis.py`; installed-path examples
+here are for downstream projects, not a request to install AEGIS in this checkout.
 
 It scaffolds files, reads durable records, runs configured project commands,
 and reports findings. It does not advance a journal stage, infer approval,
@@ -54,6 +58,13 @@ deduplicate retries. Generated tasks, requirements and context files omit marked
 authoring notes while retaining licenses and data fields; existing records are
 never rewritten by scaffolding.
 
+`task "<title>"` creates a new journal and returns its ID/path. Select an existing
+task with `brief`/`summary` or its path in file tools; passing an ID as a task
+title creates another task. Retain the created journal and repair its existing
+sections after failed edits. Its legal prologue and authoring-guide pointer
+remain intact. There is no structured CLI command to update Handoff, Stage
+report or stage headers; those edits are currently made through file tools.
+
 ## Resume commands are complementary
 
 `brief` and `summary` are intentionally different:
@@ -66,6 +77,12 @@ never rewritten by scaffolding.
 Both commands are deterministic reads of durable files. Neither runs tests,
 consults Git, writes state, proves that the candidate is still valid, or grants
 authority. A truncation/stale marker means read the full journal.
+
+Save and reread boundary records before running `summary`, then copy its actual
+fenced output, including Details and truncation warnings. Exit zero does not
+mean every field was present or that a requested pause/return was persisted.
+Record edits, checklist verification and evidence interpretation remain the
+agent's responsibility; these projections do not validate those claims.
 
 Context lists `.agentic/context/project.md` and `.agentic/context/environment.md`
 as `present` or `not recorded`. Brief reads neither body and creates nothing.

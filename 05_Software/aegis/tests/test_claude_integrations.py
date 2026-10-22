@@ -38,11 +38,6 @@ def test_resources_behavior():
     run_group("resources")
 
 
-def test_protocol_behavior():
-    """@brief Verify Claude protocol behavior."""
-    run_group("protocol")
-
-
 def test_hooks_behavior():
     """@brief Verify Claude hooks behavior."""
     run_group("hooks")
