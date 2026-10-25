@@ -80,7 +80,7 @@ From the extracted package directory run:
 node setup.mjs doctor
 ```
 
-`node setup.mjs doctor` reports Qwen Code, five commands, eleven tools, two reviewers and `models_invoked: false`.
+`node setup.mjs doctor` reports Qwen Code, five commands, twelve tools, two reviewers and `models_invoked: false`.
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
 ## 5. Update or remove

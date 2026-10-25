@@ -10,7 +10,7 @@ Extract the complete package. On Windows run `Install-AEGIS.cmd`; on Linux run `
 node setup.mjs install
 ```
 
-The installer writes owned resources under `QWEN_HOME/extensions/aegis` (default `~/.qwen/extensions/aegis`) and preserves the existing settings file. Restart Qwen Code, open the intended Git checkout and use `/aegis-start <software request>`. The five commands are `/aegis-start`, `/aegis-resume TASK-<id>`, `/aegis-status [TASK-<id>]`, `/aegis-check [TASK-<id>]` and `/aegis-validate TASK-<id>`. The AEGIS skill and eleven workflow operations are also available.
+The installer writes owned resources under `QWEN_HOME/extensions/aegis` (default `~/.qwen/extensions/aegis`) and preserves the existing settings file. Restart Qwen Code, open the intended Git checkout and use `/aegis-start <software request>`. The five commands are `/aegis-start`, `/aegis-resume TASK-<id>`, `/aegis-status [TASK-<id>]`, `/aegis-check [TASK-<id>]` and `/aegis-validate TASK-<id>`. The AEGIS skill and twelve workflow operations are also available.
 
 Optional arguments accept absolute executable/configuration paths:
 
@@ -39,7 +39,7 @@ The package uses the user's configured provider/model and does not set authentic
 
 The extension supplies two native agents, `aegis-spec-review` and `aegis-quality-review`, with `approvalMode: plan` and a read/search tool allowlist. The main conversation coordinates AEGIS. The coordinator prepares the review packet/diff and compares candidate fingerprints; the reviewers do not have a shell or mutating MCP tools. No model is specified in the agent definitions.
 
-The local MCP server uses standard input/output only and binds to `${workspacePath}`. The installed manifest pins the discovered Node path. It exposes eleven schema-validated tools and needs no network listener. Respect any host trust or consent prompt. Run `qwen extensions list` to inspect resources and `qwen mcp list` to check connection. Slash commands are native Markdown prompt commands, so executing them normally uses the configured model.
+The local MCP server uses standard input/output only and binds to `${workspacePath}`. The installed manifest pins the discovered Node path. It exposes twelve schema-validated tools and needs no network listener. Respect any host trust or consent prompt. Run `qwen extensions list` to inspect resources and `qwen mcp list` to check connection. Slash commands are native Markdown prompt commands, so executing them normally uses the configured model.
 
 Native discovery and MCP connection were checked with Qwen Code 0.22.3 on Windows and Ubuntu 24.04. Earlier versions and a complete model-driven review workflow have not been verified.
 

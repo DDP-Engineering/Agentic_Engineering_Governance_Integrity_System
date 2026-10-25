@@ -6,9 +6,10 @@ import path from 'node:path';
 import { createAdapter } from './adapter.mjs';
 import { discoverRuntime, readSettings } from './runtime.mjs';
 
-const operations = new Set(['status', 'resume', 'read', 'summary', 'check', 'scaffold', 'evidence', 'candidate', 'diff', 'run', 'job']);
-const values = new Set(['root', 'task', 'document', 'kind', 'title', 'type', 'category', 'parent', 'action', 'base', 'path', 'command', 'id', 'role']);
-const flags = new Set(['all', 'strict', 'impacted', 'no-fallback', 'compact']);
+const operations = new Set(['status', 'resume', 'read', 'summary', 'check', 'scaffold', 'evidence', 'journal', 'candidate', 'diff', 'run', 'job']);
+const values = new Set(['root', 'task', 'document', 'kind', 'title', 'type', 'category', 'parent', 'action', 'base', 'path', 'command', 'id', 'role',
+  'to', 'reason', 'next', 'read', 'changed', 'evidence', 'issues', 'text', 'decision', 'source', 'supersedes', 'spec', 'quality', 'round']);
+const flags = new Set(['all', 'strict', 'impacted', 'no-fallback', 'compact', 'skipped', 'blocked']);
 
 /** Argument-array bridge for Codex skill scripts; role is a guard, not identity authentication. */
 export async function runBridge(argv) {
@@ -24,7 +25,7 @@ export async function runBridge(argv) {
   if (args.role && !['coordinator', 'reviewer'].includes(args.role)) throw new Error('Role must be coordinator or reviewer');
   const root = path.resolve(args.root || process.cwd());
   const reviewer = args.role === 'reviewer';
-  if (reviewer && (['scaffold', 'evidence', 'run'].includes(operation) || operation === 'job' && args.action === 'cancel')) throw new Error('Reviewers can only read workflow evidence.');
+  if (reviewer && (['scaffold', 'evidence', 'journal', 'run'].includes(operation) || operation === 'job' && args.action === 'cancel')) throw new Error('Reviewers can only read workflow evidence.');
   delete args.root; delete args.role;
   const runtime = await discoverRuntime(await readSettings());
   const adapter = createAdapter(runtime);

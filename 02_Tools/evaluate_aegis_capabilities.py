@@ -35,12 +35,19 @@ STAGE_SPEC.loader.exec_module(stages)
 SUITE = ROOT / "05_Software/aegis/evaluations/capability-scenarios.json"
 ROLES = {"aegis-spec-review": "spec_compliance", "aegis-quality-review": "implementation_quality"}
 ROLE_DIR = ROOT / "05_Software/aegis/integrations/codex/plugins/aegis/agents"
-PROFILE = ROOT / "05_Software/aegis/evaluations/profiles/installed-entry.json"
+PROFILE = core.PROFILE
 DIGEST_TOOL = core.tool("candidate_digest", "Read the current evaluation candidate digest; excludes task records.", {}, [])
 REVIEW_TOOL = core.tool("delegate_review", "Launch one fresh read-only Codex reviewer session using the named existing AEGIS role. Returns its actual verdict and execution evidence; never edits the coordinator checkout.",
     {"role": {"type": "string", "enum": list(ROLES)}, "task": {"type": "string"},
      "candidate": {"type": "string"}}, ["role", "task", "candidate"])
 TOOLS = core.TOOLS + [DIGEST_TOOL, REVIEW_TOOL]
+
+
+def tools_for(commands=None):
+    """@brief The coordinator tools, with run_command naming a payload's aegis commands."""
+    return core.tools_for(commands) + [DIGEST_TOOL, REVIEW_TOOL]
+
+
 READ_COMMANDS = {"status", "brief", "summary", "components", "explain"}
 REVIEW_TOOLS = [t for t in core.TOOLS if t["function"]["name"] in {"list_files", "read_file"}] + [
     core.tool("run_command", "Read-only Git inspection or aegis status, brief, summary, components, explain. No tests, anchors or mutations.",
@@ -53,11 +60,12 @@ def role_prompt(role: str) -> str:
     return tomllib.loads((ROLE_DIR / (role + ".toml")).read_text("utf-8"))["developer_instructions"]
 
 
-def instructions() -> str:
-    """@brief Map the native adapter's fresh-agent fallback to bounded test tools."""
+def instructions(entry: str | None = None) -> str:
+    """@brief Map the native adapter's fresh-agent fallback to bounded test tools.
+    @param[in] entry The installed root digest; the current payload's by default."""
     base = core.SYSTEM.replace("network tools, publication and reviewer spawning are unavailable.",
         "network tools and publication are unavailable. Fresh read-only reviewers are available only through delegate_review when configuration enables review.")
-    digest = json.loads(PROFILE.read_text("utf-8"))["bootstrap"]["text"]
+    digest = core.bootstrap_text() if entry is None else entry
     skill = ROOT / "05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/SKILL.md"
     delegation = next(line for line in skill.read_text("utf-8").splitlines() if line.startswith("4. Read `[review]`"))
     return base + ("\nAdditional bounded capabilities: run_command aegis req is available for requirement scaffolds. "
@@ -79,13 +87,13 @@ def prepare(root: Path, payload: Path, case: dict) -> dict:
     """@brief Prepare a real, bounded fixture and retain actual preparation proof."""
     if case["kind"] in stages.KINDS:
         initial = stages.prepare(core, replace_field, root, payload, case, prepare)
-        core.write(root / "AGENTS.md", json.loads(PROFILE.read_text("utf-8"))["bootstrap"]["text"])
+        core.write(root / "AGENTS.md", core.bootstrap_text(payload))
         initial["files"] = core.files(root)
         initial["candidate"] = core.candidate(root)
         return initial
     seed = {"stage": "validate", "setup": "broken" if case["kind"] in {"review", "context"} else "validation"}
     initial = core.prepare(root, payload, seed)
-    core.write(root / "AGENTS.md", json.loads(PROFILE.read_text("utf-8"))["bootstrap"]["text"])
+    core.write(root / "AGENTS.md", core.bootstrap_text(payload))
     config = root / ".agentic/aegis.toml"
     text = config.read_text("utf-8").replace("max_fix_cycles = 2", "max_fix_cycles = 0")
     if case["kind"] == "review" and case["enabled"]:
@@ -153,8 +161,7 @@ def prepare(root: Path, payload: Path, case: dict) -> dict:
                 f'affected_paths = ["src/api.py", "src/worker.py", "src/jobs.py"]\nlinked_tests = []\ncreated = "{core.DATE}"\nupdated = "{core.DATE}"\n')
             text = core.section(text, "Log", f"- {core.DATE} frame: user accepted the queued normalization scope.\n- {core.DATE} specify: requirement prose records the agreed behavior; design is next.")
         text = core.section(text, "Design", "")
-        text = core.section(text, "Handoff", f"current: design\nstatus: ready\nnext: Complete design\nmust_read: {core.TASK}\nblockers:")
-        text = core.section(text, "Stage report", "stage: design\nresult: in_progress\ncurrent: design\nchanged:\nevidence:\nissues:\nnext: Complete design\nneeds_user: no\nspec_compliance: disabled\nimplementation_quality: disabled\nreview_round:")
+        text = core.resume_state(text, payload, "design", "Complete design")
     if case["kind"] == "context":
         notes = "## Operator notes\n\nUse the evaluation branch for experiments.\n"
         core.write(root / ".agentic/context/project.md", "# Project\n\nPurpose: normalize supplied names.\nCurrent behavior: input is returned unchanged, including case and surrounding whitespace.\n\n" + notes)
@@ -184,8 +191,14 @@ class StageHost(core.Host):
             self.initial = {**self.initial, "files": {**self.initial["files"],
                 stages.SOURCE: core.digest(source.encode())}}
         if program == "aegis" and args[:1] == ["req"]:
-            if len(args) != 3 or args[1] not in {"functional", "ux", "nfr", "security", "data", "platform", "reliability", "test"}:
-                raise PermissionError("req requires one category and one literal title")
+            if args[1:] in (["--help"], ["-h"]):
+                return super().command(program, args)
+            if len(args) > 1 and any(mark in str(args[1]) for mark in ("/", "\\", "..")):
+                raise PermissionError("req categories are plain names")
+            if len(args) != 3:
+                # a malformed scaffold is a wrong call, not a forbidden one; the
+                # evaluated CLI decides which category names, aliases included, exist
+                raise core.CapabilityUnavailable("req takes one category and one literal title; see req --help")
             # Keep the core executable/config trust checks, including for this extra command.
             before = self.command("git", ["rev-parse", "HEAD"])
             done = subprocess.run([sys.executable, ".agentic/aegis.py", *args], cwd=self.root,
@@ -264,7 +277,7 @@ def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
     text = (root / core.TASK).read_text("utf-8")
     aegis = core.load_aegis(payload)
     try:
-        report = aegis.parse_stage_report(text)
+        report = core.recorded_state(aegis, text, aegis.parse_journal(text)["header"].get("stage", ""))
     except aegis.UserError as exc:
         add("capability_records_valid", False, str(exc))
         return {**result, "passed": False, "rubric": case["rubric"]}
@@ -324,8 +337,10 @@ def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
                 add("generated_" + diagram_type, any(re.match(header, b.strip()) for b in blocks))
             add("structure_change_markers", all(x in content for x in ["classDef added", "classDef changed", "classDef removed", ":::added"]))
             if not case.get("autopilot"):
-                summaries = [e["result"].get("stdout", "").strip() for e in events if e["tool"] == "run_command"
-                    and e["arguments"].get("program") == "aegis" and e["arguments"].get("args", [])[:1] == ["summary"]]
+                summaries = [core.summary_block(e["result"].get("stdout", "")) for e in events
+                    if e["tool"] == "run_command" and e["arguments"].get("program") == "aegis"
+                    and e["arguments"].get("args", [])[:1] in [[c] for c in core.SUMMARY_COMMANDS]
+                    and e["result"].get("exit_code") == 0]
                 summary = summaries[-1] if summaries else ""
                 add("diagrams_shown_after_summary", bool(blocks) and bool(summary) and summary in final
                     and all(b.strip() in final for b in blocks)

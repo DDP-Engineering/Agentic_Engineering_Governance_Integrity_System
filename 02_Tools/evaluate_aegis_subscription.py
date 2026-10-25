@@ -35,6 +35,10 @@ cap = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(cap)
 core = cap.core
 SELF = Path(__file__).resolve()
+#: the core profile's only transport-specific addition to the shared core instructions
+MCP_ROUTING = ("\n\nThe five documented tools are exposed by the evaluation MCP server. Use "
+               "only those tools; all repository access must go through them. Do not use "
+               "native file, shell, patch, web, app or delegation tools.")
 
 # HELPER FUNCTIONS
 def read(path: Path):
@@ -218,7 +222,8 @@ def serve(path: Path):
     root, payload = Path(config["repo"]), Path(config["payload"])
     host = cap.CapabilityHost(root, config["initial"], core.files(payload), reviewer=config["reviewer"],
         delegate=lambda a: launch_review(config, a)) if config["capability"] else core.Host(root, config["initial"], core.files(payload))
-    tools = cap.TOOLS if config["capability"] else core.TOOLS
+    commands = core.aegis_commands(payload)  # the payload's own CLI, as the local runner names it
+    tools = cap.tools_for(commands) if config["capability"] else core.tools_for(commands)
     if config["reviewer"]:
         tools = cap.REVIEW_TOOLS
     for line in sys.stdin:
@@ -256,7 +261,8 @@ def execute(args):
         raise ValueError("output/work directories must be new and disjoint")
     capability = args.profile == "capabilities"
     cases = read(cap.SUITE if capability else core.SUITE)["scenarios"]
-    system = cap.instructions() if capability else core.SYSTEM + "\n\nProject instructions supplied at session startup:\n\n" + read(cap.PROFILE)["bootstrap"]["text"] + '\n\nThe five documented tools are exposed by the evaluation MCP server. Use only those tools; all repository access must go through them. Do not use native file, shell, patch, web, app or delegation tools.'
+    entry = core.bootstrap_text(args.payload)  # init installs the evaluated payload's digest
+    system = cap.instructions(entry) if capability else core.instructions(entry) + MCP_ROUTING
     if args.cases:
         names = set(args.cases.split(","))
         if names - {c["id"] for c in cases}:
@@ -279,6 +285,8 @@ def execute(args):
         "review_mode": "coordinator-triggered fresh native CLI processes with existing Codex adapter role prompts; not installed-plugin discovery" if capability else "unchanged supplied-review fixtures; no live delegation",
         "pacing": {"before_each_cli_seconds": 30, "operational429_backoff_seconds": [60, 120, 240]},
         "profile": args.profile, "system_sha256": core.digest(system.encode()),
+        "entry_sha256": core.digest(entry.encode()),
+        "aegis_commands": list(core.aegis_commands(payload)),
         "limitations": ["synthetic repositories", "one repeat", "native output cap/backend identity not exposed",
                         "Mermaid rendering not automatically certified", "all prompts fixed; semantic grading separate"]}
     core.dump(out / "manifest.json", manifest)

@@ -24,13 +24,15 @@ wants one.
 ## Highlights
 
 - **Plain, portable records:** requirements in TOML; specifications, journals,
-  rulings, handoffs, and knowledge pages in Markdown; anchors and evolution
-  evidence in JSON.
-- **A practical workflow:** six stages—`frame`, `specify`, `design`, `build`,
-  `validate`, and `deliver`—plus a proportionate quick path for small changes.
+  rulings and knowledge pages in Markdown; anchors and evolution evidence in
+  JSON.
+- **A practical workflow:** five stages—`frame`, `specify`, `design`, `build`
+  and `validate`—plus a proportionate quick path for small changes. Validate
+  closes the task; committing and publishing stay with the developer.
 - **Agent-friendly continuity:** deterministic `brief` and `summary` views,
-  durable handoffs, and optional one-level child tasks support cross-session
-  and multi-agent work.
+  CLI-written journal state (`advance`, `pause`, `log`, `ruling`, `verdict`),
+  and optional one-level child tasks support feature-by-feature work across
+  sessions and developers on separate branches.
 - **Evidence, not theatre:** configured tests, impacted-test selection,
   anchors, evolution reports, and 22 advisory checks keep the work auditable.
 - **Optional explicit review:** repositories can enable independent

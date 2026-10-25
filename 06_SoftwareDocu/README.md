@@ -35,10 +35,11 @@ source and package READMEs define host behavior. Examples are illustrative.
 Documentation-only updates here are reviewed directly, without AEGIS task
 journals or development test runs. Update Markdown and slide companions
 together when their shared content changes. The guides distinguish current
-candidate evidence from historical proof, save delivery pauses before reporting,
-and distinguish diagram generation from checkpoint/autopilot display. These
-are prompt instructions; neither the documentation nor the CLI guarantees that
-a model follows them. `summary` reads saved fields and does not write them.
+candidate evidence from historical proof, record stage boundaries with
+`advance` and `pause`, and distinguish diagram generation from
+checkpoint/autopilot display. These are prompt instructions; neither the
+documentation nor the CLI guarantees that a model follows them. `advance` and
+`pause` write the journal State; `summary` reads it and writes nothing.
 
 The plugin installation PDFs are generated from their Markdown sources.
 Installation guides describe current setup and verification procedures using

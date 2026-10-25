@@ -8,9 +8,10 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 # AEGIS - install and setup
 
 Install the repository core in three steps, then add a host integration if
-you want native agents, skills, commands or tools. The core is advisory: it
-scaffolds files and reports findings. Optional integrations also use host
-permissions and, for Claude Code, bounded advisory hooks.
+you want native agents, skills, commands or tools. The core guides and never
+blocks: it scaffolds files, writes task-journal state and reports advisory
+findings. Optional integrations also use host permissions and, for Claude
+Code, bounded advisory hooks.
 
 ## What you need
 
@@ -39,12 +40,13 @@ This finishes the installation, idempotently:
 - creates the data folders (`requirements/`, `specs/`, `tasks/`,
   `knowledge/`, `context/`),
 - creates each missing `context/project.md` and `context/environment.md` from
-  generic templates, preserving existing files independently,
+  generic templates, without the payload license header or template notes,
+  preserving existing files independently,
 - writes a default `.agentic/aegis.toml` - **only if absent**; an
   existing one is never touched,
 - creates or appends the root pointer files `AGENTS.md`, `CLAUDE.md`,
-  `QWEN.md` (a short digest under markers; your existing content in
-  those files is preserved),
+  `QWEN.md` (a short digest under markers that routes the agent to
+  `.agentic/AGENTS.md`; your existing content in those files is preserved),
 - adds or removes the managed anchor/evolution block in the root
   `.gitignore` to match `[records] commit_fingerprints`, and names any
   sidecars that are still tracked instead of running a Git write,
@@ -147,8 +149,10 @@ for selection and workdir rules.
 
 During build, use focused checks. After final edits and review, run
 `check --task TASK-<id> --strict --run` with the full suite included in its eligible
-commands. Avoid a separate full `test` immediately beforehand. This is workflow
-guidance, not an execution quota or automatic reuse of previous test results.
+commands; `check --task TASK-<id> --dry-run` lists what it would run, with each
+command's limit, and runs none of it. Avoid a separate full `test` immediately
+beforehand. This is workflow guidance, not an execution quota or automatic reuse
+of previous test results.
 
 Everything else in the file is optional tuning and can wait. The full list
 is below.
@@ -217,16 +221,21 @@ branch your work merges into is not the one AEGIS would find on its own.
 | `autopilot` | `false` | `false`. An invalid value resolves to `false` as well, and `check` reports it. |
 
 `false` stops after every completed stage and presents the next choices.
-`true` flows between stages and still requires publication approval. An
-explicit instruction for one task overrides this default and is recorded in
-that task's journal header, so the choice survives a resume.
+`true` flows between stages through validate; a decision-blocking question
+still stops it. AEGIS never commits or publishes in either mode. An explicit
+instruction for one task overrides this default and is recorded in that task's
+journal header, so the choice survives a resume.
 
 ### `[review]` - optional explicit verdicts
 
 | Setting | `init` writes | When absent |
 |---|---|---|
-| `enabled` | `false` | `false`. Ordinary semantic review, the full suite and the strict check are required whichever way this is set. |
+| `enabled` | `false` | `false`. Ordinary semantic review, the full suite and the strict check stay part of validate whichever way this is set. |
 | `max_fix_cycles` | `2` | `2`. A value outside 0 through 255 resolves to 0, and `check` reports it. |
+
+With `enabled = true`, validate follows `.agentic/steps/review.md`: two
+independent reviewers, verdicts recorded with `verdict`, and at most
+`1 + max_fix_cycles` rounds.
 
 ### `[diagrams]` - optional design diagrams
 
@@ -263,7 +272,7 @@ globs that stage may write as well - `"source"`, `"tests"`, or nothing.
 |---|---|
 | `frame`, `specify`, `design`, `survey`, `close` | nothing beyond `.agentic/` |
 | `components` | `["tests"]` |
-| `build`, `validate`, `deliver` | unlisted, so unconstrained |
+| `build`, `validate` | unlisted, so unconstrained |
 
 `init` writes each of these as a commented line. Zones are advisory like
 everything else: `check` reports an edit outside the current stage's zone as
@@ -287,14 +296,18 @@ Tell your agent:
 using aegis workflow, implement feature <what you want>
 ```
 
-The agent reads the workflow from `AGENTS.md`, opens a task journal, and
-walks the stages. Check where things stand at any time with:
+The root `AGENTS.md` digest routes the agent to `.agentic/AGENTS.md`. It opens
+a task journal and walks the stages: frame, specify, design, build and
+validate, then done. A small fix that qualifies takes the quick path: frame,
+build, validate, done. The agent records each stage boundary with `advance` or
+`pause`, and committing stays with you. Check where things stand at any time
+with:
 
 ```bash
 python .agentic/aegis.py status
 ```
 
-`status` lists **open** tasks; delivered ones (`stage: done`) are hidden
+`status` lists **open** tasks; closed ones (`stage: done`) are hidden
 with a count - add `--all` to see them too.
 
 and get the advisory findings report with:
@@ -344,7 +357,7 @@ profile. Remote backends and WSL CLI environments need their own installation.
 Claude Desktop WSL plugin sessions are currently unsupported; native local
 Desktop Code and native CLI use the supported installation path. See
 [Agent_Plugins.md](Agent_Plugins.md) for host versions, profile options, all
-eleven operations and the limits of the recorded verification.
+twelve operations and the limits of the recorded verification.
 
 ## Upgrade, undo, uninstall
 
@@ -352,6 +365,10 @@ eleven operations and the limits of the recorded verification.
   `steps/`, `templates/`, `aegis.py`, `LICENSE.txt`), then run `init` to refresh
   root pointer blocks. Preserve `aegis.toml`, requirements, specs, knowledge,
   journals and task sidecars. Review the diff before any authorized commit.
+  Older journals stay readable: one with `## Handoff` and `## Stage report`
+  keeps them until the first `advance` or `pause` replaces both with a
+  `## State` block, and one left at `stage: deliver` closes through validate
+  with `advance`.
 - **Core undo:** restore only the intended changes or revert an approved commit.
   A Git checkout does not include uncommitted work from another machine.
 - **Core removal:** preserve any records you need, remove `.agentic/` and remove

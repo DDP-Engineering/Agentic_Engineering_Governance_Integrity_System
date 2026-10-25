@@ -35,10 +35,17 @@ item per component with a one-line scope and its file globs:
 - [ ] cli         - command-line frontend  (src/cli.py)
 ```
 
-**Then it stops and shows you the list.** This review is the one that
-matters: merge components, split them, exclude `legacy/`. Answer in
-chat or edit the journal file directly. Record the approved component list;
-committing or publishing still requires explicit Git authority.
+**Then it stops and shows you the list**, in both interaction modes:
+
+```bash
+python .agentic/aegis.py pause TASK-a1b2 --next "Review the component list: split, merge, rename or drop?"
+```
+
+This review is the one that matters: merge components, split them,
+exclude `legacy/`. Answer in chat or edit the journal's `## Components` list
+directly. When the list is agreed, the agent logs the material boundary changes
+and runs `advance` to move the journal from `survey` to `components`.
+Committing stays with you, under the repository's own procedures.
 
 ## Sessions 2..N - one component at a time
 
@@ -69,14 +76,15 @@ disputed behavior; preserve existing contracts while investigating. Requirement
 prose describes the agreed positive behavior, with investigation history in the
 journal. Adoption leaves product changes to their own authorized task.
 
-Each session ends with a ticked checkbox and a small, readable diff.
-Useful properties:
+Each session ends with a ticked checkbox, a `pause` that names the next
+component, and a small, readable diff. Useful properties:
 
 - **Pause anytime.** Between sessions the repo is fully usable; being
   4/9 components done blocks nothing - you can even start normal
   feature work in an adopted area immediately.
-- **Parallelize.** Colleagues on other branches/PCs each take a
-  component; one file per requirement keeps the merges clean.
+- **Parallelize.** Colleagues on other branches/PCs each take a subset of
+  the components, each with their own adoption journal; one file per
+  requirement keeps the merges clean, while one shared journal would not.
 - **Bounded context.** Choose components that a session can read end to end.
   This reduces context load; it does not establish model compliance at a
   particular context size.
@@ -93,12 +101,13 @@ contracts, and keep investigation findings and adoption history in the journal.
 continue adoption TASK-a1b2, close it
 ```
 
-Set `stage: close`, run `aegis check` over the whole tree, resolve mechanical
-errors and review remaining gaps. With explicit delivery authority, generate
-`aegis report`, commit the adoption record and perform the agreed outcome.
-The adoption step records `stage: done` only after the outcome succeeds;
-otherwise leave it at `close`. After the merge, your remaining governance debt is
-not a document - it is the live `check` output:
+When the last component is ticked, `advance` moves the journal to `close` (in
+checkpoint mode the agent pauses first and waits for you). It runs `aegis check`
+over the whole tree, fixes forward what it reports and reviews remaining gaps.
+Then it runs `aegis report`, pauses with `--next "Close the adoption?"`, and
+when you agree, runs `advance` to `done`. Committing and opening a pull request
+follow the repository's procedures, outside AEGIS. After the merge, your
+remaining governance debt is not a document - it is the live `check` output:
 
 ```
 WARN   no-linked-tests  .agentic/requirements/functional/REQ-FUNC-91c0.toml - empty linked_tests
@@ -134,9 +143,10 @@ adoption candidate. Incremental is the intended mode, not a compromise.
 
 OpenCode, Codex, Pi, Qwen Code and Claude Code packages can guide the same
 adoption journal. Installing a plugin does not adopt a repository automatically.
-Resume with `brief TASK-<id>`, read `steps/adopt.md`, the component checklist,
-current Handoff and necessary source. Record `survey`, `components`, `close`
-and `done` according to the adoption step.
+Resume with `brief TASK-<id>` and read what its `Read next` line names -
+`steps/adopt.md`, then the State `must_read` paths - plus the component
+checklist and necessary source. `advance` moves the journal through `survey`,
+`components`, `close` and `done`, and `pause` records each stop.
 
 Independent review requests are bounded review assignments, not child tasks.
 Use child journals only for independently governed development scopes. Keep

@@ -41,6 +41,9 @@ for comparisons and remaining limits.
   profiles and verification limits.
 - [Implementation status](05_Implementation_Phases.md) — implemented capabilities,
   evaluation results, proposed follow-ups, verification limits and builders.
+- [Small-model workflow proposal](06_Small_Model_Workflow_Simplification.md) —
+  diagnosis, harness assessment, a Qwen3.8-27B baseline and a proposed
+  simplification; not implemented.
 
 The runnable product is at `05_Software/aegis/`. The managed core source is
 `template/.agentic/`; host implementations are in `integrations/`. When a

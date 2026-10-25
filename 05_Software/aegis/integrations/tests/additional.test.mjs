@@ -51,7 +51,7 @@ async function fixture() {
 
 test('pi: register bounded tools and dispatch a workflow request without shell interpolation', async () => {
   const pi = fakePi(); await registerPi(pi);
-  assert.equal(pi.tools.size, 11);
+  assert.equal(pi.tools.size, 12);
   assert.equal(pi.commands.size, 5);
   assert.equal(pi.tools.get('aegis_job').parameters.required?.includes('action') || false, false);
   assert.ok(pi.events.has('resources_discover'));
@@ -121,7 +121,7 @@ test('protocol: negotiate tools, reject malformed requests and surface actual mi
   const initialized = await call(1, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'fixture', version: '1' } });
   assert.equal(initialized.result.protocolVersion, '2025-06-18');
   await protocol.handle({ jsonrpc: '2.0', method: 'notifications/initialized' });
-  const result = await call(2, 'tools/list'); assert.equal(result.result.tools.length, 11);
+  const result = await call(2, 'tools/list'); assert.equal(result.result.tools.length, 12);
   assert.equal((await call(3, 'unknown')).error.code, -32601);
   assert.equal((await call(4, 'tools/call', { name: 'aegis_summary', arguments: { task: 'bad' } })).error.code, -32602);
   const status = await call(5, 'tools/call', { name: 'aegis_status', arguments: {} });

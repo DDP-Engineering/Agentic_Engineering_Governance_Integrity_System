@@ -636,9 +636,12 @@ def test_summary_scaffold_and_test_log_remain_independent(tmp_path, monkeypatch,
     code, out = run(aegis, capsys, "task", "fresh session")
     assert code == 0
     path = tmp_path / out.strip()
-    assert "## Stage report" in path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
+    assert "## State" in text and "## Stage report" not in text and "## Handoff" not in text
     code, out = run(aegis, capsys, "summary", path.stem)
-    assert code == 0 and summary_fields(out)["Stage"] == "not recorded"
+    fields = summary_fields(out)
+    assert code == 0 and fields["Stage"] == "frame - in_progress"
+    assert fields["Evidence"] == "not recorded" and fields["Needs user"] == "no"
     config(agentic, f"test = {cmd_exit(0)}")
     assert aegis.main(["test", "--task", path.stem]) == 0
     code, out = run(aegis, capsys, "summary", path.stem)
@@ -693,19 +696,22 @@ def test_summary_literal_comment_markers_do_not_hide_live_report(tmp_path, capsy
 # TESTS - deterministic bounded task brief
 
 
-def write_brief_fixture(agentic: Path) -> Path:
-    """@brief Write one representative current journal plus a visible child."""
-    path = write_task(
-        agentic, "TASK-ab12", stage="validate", reqs="REQ-FUNC-1111",
-        checklist="- [x] build candidate\n- [ ] review candidate",
-    )
-    write(path, path.read_text(encoding="utf-8") + """
+BRIEF_STATE = """
+## State
 
-## Rulings
+status: working
+reported: validate - in_progress
+next: review candidate
+must_read: .agentic/tasks/TASK-ab12.md, .agentic/steps/5_validate.md
+changed: candidate
+evidence: tests passed
+issues: none
+spec_compliance:
+implementation_quality:
+review_round:
+"""
 
-- RULING-001 | date=2026-08-31 | decision=Old | reason=Replaced | source=user | supersedes=none
-- RULING-002 | date=2026-08-31 | decision=Use brief | reason=bounded | source=technical | supersedes=RULING-001
-
+BRIEF_LEGACY = """
 ## Handoff
 
 current: validate
@@ -727,7 +733,23 @@ needs_user: no
 spec_compliance:
 implementation_quality:
 review_round:
-""")
+"""
+
+
+def write_brief_fixture(agentic: Path, legacy: bool = False) -> Path:
+    """@brief Write one representative current journal plus a visible child.
+    @param[in] legacy Record state in the old Handoff and Stage report sections."""
+    path = write_task(
+        agentic, "TASK-ab12", stage="validate", reqs="REQ-FUNC-1111",
+        checklist="- [x] build candidate\n- [ ] review candidate",
+    )
+    write(path, path.read_text(encoding="utf-8") + """
+
+## Rulings
+
+- RULING-001 | date=2026-08-31 | decision=Old | reason=Replaced | source=user | supersedes=none
+- RULING-002 | date=2026-08-31 | decision=Use brief | reason=bounded | source=technical | supersedes=RULING-001
+""" + (BRIEF_LEGACY if legacy else BRIEF_STATE))
     write_task(agentic, "TASK-bb22", stage="done", parent="TASK-ab12")
     return path
 
@@ -749,23 +771,63 @@ def test_brief_has_fixed_section_order_and_no_side_effects(tmp_path, monkeypatch
     assert out == """AEGIS brief
 Task: TASK-ab12 - a task
 Stage: validate
+Path: full
 Branch/base: feature @ not recorded
 Parent: none
 Requirements: REQ-FUNC-1111
 Context: .agentic/context/project.md (present); .agentic/context/environment.md (present)
 Checklist: 1/2 done; next=review candidate
-Stage report: validate - in_progress; changed=candidate; evidence=tests passed; issues=none; next=review; needs_user=no
+State: working; reported=validate - in_progress; next=review candidate; must_read=.agentic/tasks/TASK-ab12.md, .agentic/steps/5_validate.md; needs_user=no
+Outcome: changed=candidate; evidence=tests passed; issues=none
 Interaction: checkpoint
 Review: policy=disabled; max_fix_cycles=2; spec=not recorded; quality=not recorded; round=not recorded
+Diagrams: none (disabled)
 Active rulings:
 - RULING-002 | decision=Use brief | reason=bounded | source=technical | supersedes=RULING-001
-Handoff: ready; current=validate; next=review candidate; must_read=.agentic/steps/5_validate.md; blockers=not recorded
 Visible children:
 - TASK-bb22 | stage=done | title=a task
+Read next: .agentic/steps/5_validate.md, then the State must_read paths
 Details: .agentic/tasks/TASK-ab12.md (durable snapshot; read journal for full history)
 """
     assert path.read_bytes() == (agentic / "tasks" / "TASK-ab12.md").read_bytes()
     assert snapshot(tmp_path) == before
+
+
+def test_brief_reads_legacy_handoff_and_stage_report(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: journals written before the State block keep resuming."""
+    agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    write_brief_fixture(agentic, legacy=True)
+    code, out = run(aegis, capsys, "brief", "ab12")
+    assert code == 0
+    assert ("State: ready; reported=validate - in_progress; next=review; "
+            "must_read=.agentic/steps/5_validate.md; needs_user=no") in out
+    assert "Outcome: changed=candidate; evidence=tests passed; issues=none" in out
+    assert "Handoff:" not in out and "Stage report:" not in out
+
+
+DRAW = "for a substantive design; none for a skipped design"
+
+
+@pytest.mark.parametrize("table,decision", [
+    ("", "none (disabled)"),
+    ("[diagrams]\nenabled = \"true\"", "none (disabled)"),
+    ("[diagrams]\nenabled = true", f"draw structure {DRAW}"),
+    ("[diagrams]\nenabled = true\ntypes = \"sequence\"", f"draw structure {DRAW}"),
+    ("[diagrams]\nenabled = true\ntypes = [\"state\", \"sequence\", \"state\"]",
+     f"draw state, sequence {DRAW}"),
+    ("[diagrams]\nenabled = true\ntypes = []", "none (no known types configured)"),
+    ("[diagrams]\nenabled = true\ntypes = [\"class\"]", "none (no known types configured)"),
+], ids=["absent", "string-true", "default-types", "non-list", "ordered-unique",
+        "empty", "unknown-only"])
+def test_brief_computes_the_diagram_decision(tmp_path, capsys, table, decision):
+    """REQ-FUNC-e55c43d1: design reads one computed line instead of the configuration."""
+    agentic, aegis = make_repo(tmp_path)
+    write_brief_fixture(agentic)
+    config(agentic, 'test = "unused"', extra=table)
+    code, out = run(aegis, capsys, "brief", "ab12")
+    assert code == 0
+    assert f"Diagrams: {decision}" in out.splitlines()
 
 
 def test_brief_reads_only_durable_workspace_files(tmp_path, monkeypatch, capsys):
@@ -827,11 +889,12 @@ opened: 2026-08-31
     code, out = run(aegis, capsys, "brief", "ab12")
     assert code == 0
     assert "Parent: none" in out
-    assert "Stage report: not recorded" in out
+    assert "Path: not recorded" in out
+    assert "State: not recorded\nOutcome: not recorded\n" in out
     assert "Interaction: checkpoint" in out
     assert "Active rulings:\n- none recorded" in out
-    assert "Handoff: not recorded" in out
     assert "Visible children:\n- none visible" in out
+    assert "Read next: .agentic/steps/4_build.md, then the State must_read paths" in out
     assert "approved" not in out
 
 
@@ -858,16 +921,28 @@ def test_brief_lists_active_rulings_and_sorted_visible_children(tmp_path, capsys
     assert out.index("TASK-aa11 |") < out.index("TASK-bb22 |")
 
 
-def test_brief_marks_stale_stage_report_and_handoff(tmp_path, capsys):
-    """REQ-FUNC-e55c43d1: stale bindings cannot be resume authority."""
+def test_brief_marks_a_stale_state(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: a State reported for another stage cannot be resume authority."""
     agentic, aegis = make_repo(tmp_path)
     path = write_brief_fixture(agentic)
+    write(path, path.read_text(encoding="utf-8").replace(
+        "reported: validate - in_progress", "reported: build - in_progress"))
+    code, out = run(aegis, capsys, "brief", path.stem)
+    assert code == 0
+    assert "State: stale state: current stage changed" in out
+    assert "Outcome: not recorded" in out
+    assert "tests passed" not in out and "review candidate;" not in out
+
+
+def test_brief_marks_a_stale_legacy_stage_report(tmp_path, capsys):
+    """REQ-FUNC-e55c43d1: stale legacy bindings cannot be resume authority."""
+    agentic, aegis = make_repo(tmp_path)
+    path = write_brief_fixture(agentic, legacy=True)
     text = path.read_text(encoding="utf-8").replace("current: validate", "current: build")
     write(path, text)
     code, out = run(aegis, capsys, "brief", path.stem)
     assert code == 0
-    assert "Stage report: stale stage report" in out
-    assert "Handoff: stale handoff: current stage changed" in out
+    assert "State: stale stage report: current stage changed" in out
     assert "tests passed" not in out
 
 

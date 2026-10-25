@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "license": "Copyright (c) 2026 DDP Engineering. LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "purpose": "Hold-out pricing domain. Its results gate prompt changes; they are never used to write prompt rules or examples.",
+  "scenarios": [
+    {"id": "holdout_frame_existing_fix", "kind": "frame", "stage": "frame", "setup": "broken",
+     "prompt": "Use AEGIS to frame this bug fix: apply_discount(995, 10) should return 895, because REQ-FUNC-22222222 already requires rounding down to whole cents. Keep the existing branch. Stop after frame; do not implement the fix.",
+     "expect": {"stages": ["frame"], "path": "quick", "requirement": "REQ-FUNC-22222222", "waiting": true},
+     "rubric": ["Scope restores the existing round-down contract only.", "The quick-path decision accounts for all eligibility criteria."]},
+    {"id": "holdout_frame_ambiguous_policy", "kind": "frame", "stage": "frame", "setup": "clean",
+     "prompt": "Use AEGIS to frame a new feature: automatically disable discount codes that customers no longer use. I have not decided how long counts as no longer used, or whether a disabled code can be restored. Keep the existing branch. Stop after frame.",
+     "expect": {"stages": ["frame"], "path": "full", "waiting": true},
+     "rubric": ["The inactivity period and restorability stay unknown, with no invented defaults.", "Questions concern decisions that change the outcome or data handling, not incidental implementation preferences."]},
+    {"id": "holdout_frame_new_format", "kind": "frame", "stage": "frame", "setup": "clean",
+     "prompt": "Use AEGIS to frame a price-list export: export_prices(items) returns CSV text with exactly two columns, sku and price_cents, one row per item. Keep the existing apply_discount behavior and the existing branch. Stop after frame.",
+     "expect": {"stages": ["frame"], "path": "full", "waiting": true},
+     "rubric": ["The new data format selects the full path despite the small implementation.", "Frame captures both columns and leaves header, ordering and invalid-input behavior explicit."]},
+    {"id": "holdout_specify_exact_format", "kind": "specify", "stage": "specify", "setup": "clean",
+     "prompt": "Complete Specify for TASK-aaaaaaaa using its accepted Frame. Capture the new behavior and exact text format in requirements and a spec. Stop at the Specify checkpoint; do not design or implement.",
+     "expect": {"stages": ["specify"], "waiting": true},
+     "rubric": ["Formatting and negative-price rejection have independently verifiable requirements without changing apply_discount.", "The exact format is buildable from the saved spec; no unstated interface or dependency is added."]},
+    {"id": "holdout_design_recalculation", "kind": "design", "stage": "design", "setup": "clean",
+     "prompt": "Complete design for TASK-aaaaaaaa from its accepted Frame and requirement prose. Follow the installed design step and current configuration. Stop at the design checkpoint; do not implement or change component knowledge.",
+     "expect": {"stages": ["design"], "waiting": true},
+     "rubric": ["The design assigns scheduling, recalculation and storage responsibilities, with per-item failure handling.", "Undecided details remain open decisions rather than invented behavior."]},
+    {"id": "holdout_chain_percent_validation", "kind": "chain", "stage": "chain", "setup": "clean",
+     "chain": [
+       {"stage": "frame", "prompt": "Use AEGIS to frame a change: apply_discount must reject a percent below 0 or above 100 by raising ValueError; 0 and 100 stay valid. Keep the existing rounding and the existing branch. Stop after frame."},
+       {"stage": "specify", "prompt": "I accept the framed scope of {task}. Continue it through specify. Stop at the specify checkpoint."},
+       {"stage": "design", "prompt": "Continue {task} through design. Stop at the design checkpoint."},
+       {"stage": "build", "prompt": "Continue {task} through build: failing test first, then the smallest implementation, until green. Use program=verify for the focused suite. Stop at the build checkpoint."},
+       {"stage": "validate", "prompt": "Continue {task} through validate, including the final strict proof. Stop at the validate checkpoint."}
+     ],
+     "expect": {"stages": ["validate"], "path": "full", "waiting": true},
+     "rubric": ["Each session resumes from the records the previous session left, without restating or losing the accepted scope.", "The final candidate rejects out-of-range percents, keeps the rounding contract and is proved after the last edit."]}
+  ]
+}

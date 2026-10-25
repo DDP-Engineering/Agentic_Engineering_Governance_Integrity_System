@@ -114,7 +114,7 @@ def test_selected_preview_rebases_files_without_running(tmp_path, monkeypatch, c
 
 
 def test_requirement_scaffold_omits_notes_without_changing_toml_data(tmp_path, capsys):
-    """@brief Only marked guidance disappears; license and literal text survive."""
+    """@brief Marked guidance and the payload license disappear; literal text survives."""
     agentic, aegis = make_repo(tmp_path)
     template = agentic / "templates/requirement.toml"
     text = template.read_text(encoding="utf-8").replace(
@@ -123,7 +123,8 @@ def test_requirement_scaffold_omits_notes_without_changing_toml_data(tmp_path, c
     assert aegis.main(["req", "functional", "Portable behavior"]) == 0
     result = (tmp_path / capsys.readouterr().out.strip()).read_text(encoding="utf-8")
     assert "AEGIS:TEMPLATE" not in result and "Recommended shape" not in result
-    assert "PolyForm Noncommercial License 1.0.0" in result
+    assert "SPDX-License-Identifier" not in result and result.startswith("schema = 1\n")
+    assert "# A literal requirement line." in result
     original, generated = tomllib.loads(text), tomllib.loads(result)
     for key in set(original) - {"id", "title", "created", "updated"}:
         assert generated[key] == original[key]
@@ -132,13 +133,14 @@ def test_requirement_scaffold_omits_notes_without_changing_toml_data(tmp_path, c
 
 def test_task_scaffold_omits_authoring_notes_but_retains_durable_sections(tmp_path,
                                                                        capsys):
-    """@brief Reduced scaffolds keep resume, review, decisions and license fields."""
+    """@brief Reduced scaffolds keep resume, review and decision sections, not the license."""
     agentic, aegis = make_repo(tmp_path)
     assert aegis.main(["task", "Portable work"]) == 0
     result = (tmp_path / capsys.readouterr().out.strip()).read_text(encoding="utf-8")
     template = (agentic / "templates/task.md").read_text(encoding="utf-8")
-    assert "AEGIS:TEMPLATE" not in result and "Task journal. One file" not in result
-    assert "PolyForm Noncommercial License 1.0.0" in result
+    assert "AEGIS:TEMPLATE" not in result and "Task journal: one per task" not in result
+    assert "SPDX-License-Identifier" not in result and result.startswith("# TASK-")
     assert re.findall(r"^## .*", result, re.MULTILINE) == re.findall(r"^## .*", template, re.MULTILINE)
-    assert aegis.parse_handoff(result) == aegis.parse_handoff(template)
-    assert aegis.parse_stage_report(result) == aegis.parse_stage_report(template)
+    assert set(aegis.parse_state(result)) == set(aegis.parse_state(template)) == set(aegis.STATE_FIELDS)
+    assert not any(aegis.parse_state(template).values())
+    assert aegis.parse_state(result)["status"] == "working"

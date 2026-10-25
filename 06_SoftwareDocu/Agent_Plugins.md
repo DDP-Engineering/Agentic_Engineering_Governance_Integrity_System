@@ -6,8 +6,8 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS agent plugins
 
-The integrations under `05_Software/aegis/integrations/` add host-native entry points to the existing AEGIS workflow. OpenCode has a primary Aegis agent, two read-only review subagents, five commands and eleven typed tools. Codex has the native `aegis` plugin, its namespaced `aegis:aegis` skill, a local command bridge, and two custom review-role definitions. Pi supplies five native commands, eleven tools, a skill and a fresh reviewer-session launcher. Qwen Code supplies a native extension with five commands, the skill, two review agents and eleven local MCP tools. Claude Code supplies five
-namespaced commands, a workflow skill, two read-tool review agents, eleven
+The integrations under `05_Software/aegis/integrations/` add host-native entry points to the existing AEGIS workflow. OpenCode has a primary Aegis agent, two read-only review subagents, five commands and twelve typed tools. Codex has the native `aegis` plugin, its namespaced `aegis:aegis` skill, a local command bridge, and two custom review-role definitions. Pi supplies five native commands, twelve tools, a skill and a fresh reviewer-session launcher. Qwen Code supplies a native extension with five commands, the skill, two review agents and twelve local MCP tools. Claude Code supplies five
+namespaced commands, a workflow skill, two read-tool review agents, twelve
 local MCP operations and bounded advisory hooks.
 
 All five invoke the selected Git checkout's `.agentic/aegis.py`. The checkout's installed contract and task journal remain authoritative. No integration replaces the reusable template, changes Git authority, configures providers, nor copies API keys or the author's model settings.
@@ -60,7 +60,9 @@ The shared adapter resolves the nearest Git checkout, checks that its AEGIS payl
 
 OpenCode tools use its permission API and constrain mutation to the coordinator. Review agents deny arbitrary tools and allow the read operations they need. The Codex command bridge supplies `--role reviewer` to refuse mutation and cancellation, but a role flag is not authenticated identity. Codex review roles request read-only sandbox defaults; the host's effective policy and live overrides still govern access. Prompt instructions do not guarantee compliance or stronger isolation.
 
-Every Codex bridge call is stateless. Supply the task identifier explicitly for task-scoped operations. A new process or restarted session resumes from the durable journal rather than from an adapter database. OpenCode keeps an in-memory resume pointer and a compaction reminder; branch changes invalidate it.
+Every Codex bridge call is stateless. Supply the task identifier explicitly for task-scoped operations. A new process or restarted session resumes from the durable journal rather than from an adapter database: `resume` reads the task's `brief`, and the agent then reads what its `Read next` line names. OpenCode keeps an in-memory resume pointer and a compaction reminder; branch changes invalidate it.
+
+Agents edit Frame, Requirement coverage and Design natively and tick the Done checklist. Everything else in the journal is written through the coordinator-only `journal` operation (`aegis_journal`), which calls the installed CLI: `advance` finishes a stage, `pause` stops for the user, `log` and `ruling` record events and decisions, and `verdict` records explicit review results. `advance` and `pause` print the summary block. The CLI records the agent's decision; it never judges whether a stage's work is done. With the Codex bridge, the same writes use `journal --action advance|pause|log|ruling|verdict`.
 
 Reviewers read the full named journal and current linked files, including
 untracked scope. They inspect existing assertions and focused execution evidence
@@ -68,7 +70,9 @@ before approval; final full strict proof follows both approvals. Pending final
 checklist items alone are not defects. Where the role exposes a candidate
 operation, it runs before inspection and after the final read; Git metadata is
 supplementary. Read-only hosts that reserve fingerprints to the coordinator keep
-that existing responsibility. None of these instructions expands permissions.
+that existing responsibility. The coordinator records both verdicts with the
+`journal` operation's `verdict` action; reviewers return findings and maintain
+no records. None of these instructions expands permissions.
 
 ## Verification jobs
 
@@ -120,7 +124,7 @@ Additional primary references: [Pi extensions](https://github.com/earendil-works
 
 ## Claude Code
 
-The fifth package provides `/aegis:start`, `/aegis:resume`, `/aegis:status`, `/aegis:check` and `/aegis:validate`, a workflow skill, two independent read-tool review agents, eleven local MCP operations and bounded advisory hooks. Each installing user retains their own authentication, model and permissions. It supports Windows/Linux CLI and native local Desktop Code sessions sharing that user configuration; Desktop WSL plugin sessions are currently unsupported. Linux Desktop is beta on supported Ubuntu/Debian distributions.
+The fifth package provides `/aegis:start`, `/aegis:resume`, `/aegis:status`, `/aegis:check` and `/aegis:validate`, a workflow skill, two independent read-tool review agents, twelve local MCP operations and bounded advisory hooks. Each installing user retains their own authentication, model and permissions. It supports Windows/Linux CLI and native local Desktop Code sessions sharing that user configuration; Desktop WSL plugin sessions are currently unsupported. Linux Desktop is beta on supported Ubuntu/Debian distributions.
 
 Install the complete built package with its launcher or `node setup.mjs install`; do not register raw source directories as marketplaces. The installed copy includes `plugins/aegis/lib/bridge.mjs` and all runtime dependencies. Update/uninstall preserve unrelated settings, plugin data and job logs, and refuse changed owned files or active/uncertain jobs. Claude CLI 2.1.259+, Node 22+, Python 3.11+ and Git are required. See the [Claude package guide](../05_Software/aegis/integrations/claude/README.md) for profile options, troubleshooting and verification boundaries.
 
@@ -135,10 +139,13 @@ Install the complete built package with its launcher or `node setup.mjs install`
 | Qwen Code | Same five hyphenated commands via its extension | Two read-oriented agents |
 | Claude Code | `/aegis:start`, `/aegis:resume`, `/aegis:status`, `/aegis:check`, `/aegis:validate`; `aegis:workflow` skill | `aegis:spec-review` and `aegis:quality-review` |
 
-The eleven shared operations are `status`, `resume`, `read`, `summary`, `check`,
-`scaffold`, `evidence`, `candidate`, `diff`, `run` and `job`. They are host
-adapter operations, not extra `aegis.py` subcommands. Review instructions do not
-replace final configured verification or authorize commits, pushes or PRs.
+The twelve shared operations are `status`, `resume`, `read`, `summary`, `check`,
+`scaffold`, `evidence`, `journal`, `candidate`, `diff`, `run` and `job`. They are
+host adapter operations, not extra `aegis.py` subcommands; `journal` and
+`evidence` call the installed CLI's journal writers and evidence commands.
+Review instructions do not replace final configured verification or authorize
+commits, pushes or PRs. AEGIS ends when validate closes the task; Git
+publication follows the repository's procedures and the user's instructions.
 
 Claude's `SessionStart` and `PreToolUse` hooks provide bounded advisory context;
 they do not mutate task journals or implement a general enforcement sandbox.

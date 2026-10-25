@@ -10,7 +10,7 @@ Extract the complete package. On Windows run `Install-AEGIS.cmd`; on Linux run `
 node setup.mjs install
 ```
 
-The installer writes owned resources under `PI_CODING_AGENT_DIR/extensions/aegis` (default `~/.pi/agent/extensions/aegis`) and preserves the existing settings file. Restart Pi, open the intended Git checkout and use `/aegis-start <software request>`. The five commands are `/aegis-start`, `/aegis-resume TASK-<id>`, `/aegis-status [TASK-<id>]`, `/aegis-check [TASK-<id>]` and `/aegis-validate TASK-<id>`. The AEGIS skill and eleven workflow operations are also available.
+The installer writes owned resources under `PI_CODING_AGENT_DIR/extensions/aegis` (default `~/.pi/agent/extensions/aegis`) and preserves the existing settings file. Restart Pi, open the intended Git checkout and use `/aegis-start <software request>`. The five commands are `/aegis-start`, `/aegis-resume TASK-<id>`, `/aegis-status [TASK-<id>]`, `/aegis-check [TASK-<id>]` and `/aegis-validate TASK-<id>`. The AEGIS skill and twelve workflow operations are also available.
 
 Optional arguments accept absolute executable/configuration paths:
 

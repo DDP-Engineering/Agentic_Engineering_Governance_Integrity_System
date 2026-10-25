@@ -18,7 +18,7 @@ durable journal. This page tours both kinds of state.
   CLI.md           complete CLI reference             (payload)
   aegis.py         the CLI                            (payload)
   LICENSE.txt      license text                       (payload)
-  steps/           stage files and the diagram guide  (payload)
+  steps/           stage, review and diagram guides   (payload)
   templates/       scaffolding sources                (payload)
   aegis.toml       your configuration                 (yours)
   requirements/    the durable contracts              (yours)
@@ -35,12 +35,13 @@ are never shipped in a payload and never overwritten.
 
 ## Templates and generated records
 
-Newly scaffolded tasks, requirements, and context files omit explicitly marked
-instruction-only notes. The full guidance remains in the managed templates;
-licenses, durable fields and unmarked data are preserved. Existing records are
-not rewritten or compacted. Markdown templates mark notes with
-`<!-- AEGIS:TEMPLATE` and a standalone `-->`; requirement templates use
-`# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
+Newly scaffolded tasks, requirements, and context files omit the payload
+license header and the explicitly marked instruction-only notes; they belong to
+the project. The full guidance remains in the managed templates; durable fields
+and unmarked data are preserved. Existing records are not rewritten or
+compacted, so older ones keep their license header. Markdown templates mark
+notes with `<!-- AEGIS:TEMPLATE` and a standalone `-->`; requirement templates
+use `# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
 
 ## Project context - `context/`
 
@@ -62,6 +63,8 @@ current-state guides rather than histories or inventories of absent features.
 Draft requirements/specs carry agreed proposed behavior; journals, Git and the
 changelog carry decisions and history. An implementation mismatch calls for
 investigation or an authorized change, not an easier replacement contract.
+After another branch is integrated, re-check these current-state claims against
+the checkout; another branch's plans are not facts here.
 
 ## Requirements - `requirements/<category>/REQ-<CODE>-<id>.toml`
 
@@ -70,7 +73,9 @@ One file per independently verifiable behavior. Eight category folders:
 (codes FUNC, UX, NFR, SEC, DATA, PLAT, REL, TEST). The random 8-hex id
 suffix reduces accidental ID collisions between branches, and
 creation is exclusive - two racing processes cannot silently produce the
-same file. (Examples in these docs use short ids for readability.)
+same file. (Examples in these docs use short ids for readability.) Change an
+existing requirement or spec only within your task's scope, so parallel
+branches merge cleanly.
 
 ```toml
 schema = 1
@@ -124,20 +129,23 @@ a validated rule; a constraint that reads better plainly is better plainly.
 pays off immediately.
 
 **Retiring one.** When a behavior is deliberately removed, never delete
-the file: set `status = "retired"` and keep the id, reason and authorization
-in the retiring task's journal. Preserve the behavior statement as a traceable
-contract rather than appending a retirement narrative. Current project and
-component summaries describe active behavior. `check` applies its status-aware
-rules to retired records. Retiring one is also spoken:
+the file: set `status = "retired"`, append one `Retired <date>: <why>` line to
+its prose, and keep its id on the retiring task's `requirements:` line. Keep
+the behavior statement itself as a traceable contract; the authorization and
+any fuller reasoning stay in the retiring task's journal, and another task's
+journal is never edited. Current project and component summaries describe
+active behavior. `check` applies its status-aware rules to retired records.
+Retiring one is also spoken:
 an agent that retires a requirement states it as a `DEVIATION` line as it
 does so, because a contract being withdrawn is not something to discover
 in a diff afterwards.
 
 ## Task journals - `tasks/TASK-<id>.md`
 
-One journal per task. It is the durable **workflow resume point** for
-any later session, on any machine, with any model - and it stays after
-delivery as the task's historical record.
+One journal per task, on that task's branch. It is the durable **workflow
+resume point** for any later session, on any machine, with any model - and it
+stays after the task closes as its historical record. Edit only your own
+task's journal; a parallel branch carries its own.
 
 ```markdown
 # TASK-8b12 - Export playlist as M3U
@@ -145,72 +153,121 @@ delivery as the task's historical record.
 stage: build
 type: feature
 path: full
+interaction: checkpoint
 requirements: REQ-FUNC-3fa2
+parent:
 branch: feature/m3u-export
+base: 41e9f55
 opened: 2026-08-02
 
 ## Done checklist (current stage)
 
-- [x] exact red command, non-zero exit, and expected failure recorded
-- [ ] implementation green
-- [ ] links updated
+- [x] each automated increment has a red line before its implementation and a
+      green line after; each manual one a logged observation
+- [ ] anchor recorded before implementation; evolution reviewed after
+- [ ] focused tests green, with the command and its scope logged
 
 ## Log
 
-- 2026-08-02 frame: scope agreed - M3U only, no PLS; full path.
-- 2026-08-02 specify: created REQ-FUNC-3fa2.
-- 2026-08-02 build red: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=1; expected missing behavior=no M3U writer exists.
-- 2026-08-02 build green: command=`pytest -q tests/export/test_m3u.py::test_roundtrip`; exit=0; M3U round-trip behavior verified.
+- 2026-08-02 frame: journal opened
+- 2026-08-02 frame: completed; next specify - scope accepted
+- 2026-08-02 specify: completed; next design
+- 2026-08-02 design: completed; next build
+- 2026-08-02 build: red: pytest -q tests/export/test_m3u.py::test_roundtrip exit 1 - no M3U writer (REQ-FUNC-3fa2)
+- 2026-08-02 build: green: pytest -q tests/export/test_m3u.py::test_roundtrip exit 0 (REQ-FUNC-3fa2)
+
+## Rulings
+
+- RULING-001 | date=2026-08-02 | decision=M3U only, no PLS | reason=user answer | source=user | supersedes=none
+
+## State
+
+status: ready
+reported: design - completed
+next: start build: read .agentic/steps/4_build.md
+must_read: .agentic/tasks/TASK-8b12.md, .agentic/steps/4_build.md
+changed: design section written
+evidence: check exit 0
+issues:
+spec_compliance: disabled
+implementation_quality: disabled
+review_round:
 ```
 
-The abbreviated example uses short IDs for readability. Real IDs have eight
-hex digits; header values are plain values, without inline comments.
+The abbreviated example uses short IDs for readability and leaves out the
+Frame, Requirement coverage and Design sections and the rest of the checklist.
+Real IDs have eight hex digits; header values are plain values, without inline
+comments. New journals carry no license header.
 
-The header block (`key: value` lines under the title) is machine-read by
-`status`, `check` and `report` - keep it one key per line with no blank
-lines inside. Header lines are edited in place; log lines are only ever
-appended. Keep the original legal prologue and authoring-guide pointer. Append
-at the following section heading without retyping or normalizing old evidence;
-verify that the saved historical Log prefix is unchanged. The Log is a concise progress-and-evidence ledger: retain stage
-transitions, material changes or decisions, consolidated test results,
-blockers, approvals, deviations and delivery outcomes. Do not copy durable
-artifact content or record routine searches, edits, tool mechanics, or
-corrected command retries.
+The CLI writes the header `stage:` line, the Done checklist, the Log, the
+Rulings and the State:
+
+| When | Command |
+|---|---|
+| A stage is finished | `advance TASK-<id>` (`--path quick` at frame, `--skipped` for a skipped stage) |
+| Work must go back | `advance TASK-<id> --to <stage> --reason "<why>"` |
+| You stop, or need the user | `pause TASK-<id> --next "<one action or question>"` (`--blocked` when a decision blocks) |
+| A durable event happens | `log TASK-<id> "<decision, verification result, discovery or deviation>"` |
+| A question is settled | `ruling TASK-<id> --decision "..." --reason "..." --source user` |
+| Explicit review returns | `verdict TASK-<id> --spec <verdict> --quality <verdict>` |
+
+The agent edits Frame, Requirement coverage and Design directly, ticks Done
+checklist items as they are met, and edits the header lines `type`, `path`,
+`interaction`, `requirements` and `parent` in place - one `key: value` per
+line, no blank lines or comments inside the header block, which `status`,
+`brief`, `summary`, `check` and `report` read. Earlier Log lines and Rulings
+are never edited: `log` and `ruling` only append, and a changed decision is a
+new ruling with `--supersedes RULING-<old-id>`.
+
+The Log is a concise progress-and-evidence ledger: stage transitions (written
+by `advance`), material changes or decisions, consolidated test results (`log`,
+or `test --task`), blockers, approvals and deviations. `log` prefixes each line
+with the date and the current stage. Do not copy durable artifact content or
+record routine searches, edits, tool mechanics, or corrected command retries.
 
 The other journal sections own their detail: Frame owns scope evidence,
 Requirement coverage owns behavior mapping, Design owns implementation choices,
-Rulings own durable decisions, Handoff owns the next bounded action, and Stage
-report owns the latest boundary snapshot. The Log references material outcomes
-from those sections instead of duplicating their contents. During build, retain
-one expected red and one final green per meaningful behavior increment, not
-every edit-run retry. Refresh Handoff and Stage report when completing a stage,
-pausing, blocking, or handing work over rather than after routine tool activity.
+Rulings own durable decisions, and State owns the latest status and next
+action. The Log references material outcomes from those sections instead of
+duplicating their contents. During build, retain one expected red and one final
+green per meaningful behavior increment, not every edit-run retry.
 
-Keep Handoff fields short: current stage, next action, necessary read paths and
-blockers. Refresh them at transitions, pauses, blockers and session ends; do not
-repeat Frame, Design or Log content. In an intact session, reuse unchanged
-instructions already read. After compaction or lost context, follow the required
-resume and full-journal reads again.
+`advance` and `pause` refresh the State when a stage completes, the work pauses
+or blocks, or a session ends, not after routine tool activity. Keep their
+one-line `--changed`, `--evidence` and `--issues` values short; evidence names
+the commands actually run and their exit codes. Do not repeat Frame, Design or
+Log content there. In an intact session, reuse unchanged instructions already
+read. After compaction or lost context, follow the required resume and
+full-journal reads again.
 
 A log line that records a *deviation* - an accepted implementation or evidence
 limitation, weakened or skipped verification, a retired requirement, or
 unrequested work retained in the diff - has a twin in the conversation: the
 agent states it at the same moment as one
-`DEVIATION <stage>: <what> - <why>` line. The journal line is still
-written; the notice does not replace it. It exists because a journal is
+`DEVIATION <stage>: <what> - <why>` line. `log` still writes the journal
+line; the notice does not replace it. It exists because a journal is
 read afterwards, and by then the human has already paid for not knowing.
 Corrected search, quoting, patch, path, and other internal tool-use errors are
 operational details rather than deviations because they do not change the
 candidate, scope, or verification evidence.
 
-A journal can also contain one replaceable `## Stage report` section with
-plain one-line `stage`, `result`, `current`, `changed`, `evidence`, `issues`,
-`next`, and `needs_user` fields. `summary TASK-<id>` reads it without writing.
-The report's stage can be completed while the header already names the next
-stage; `current` binds the report to that header. Blank, stale, or shortened
-information is explicit, never treated as success. The compact Log remains the
-append-only history; the latest report is not independent or fresh proof.
-See the CLI reference for allowed values and output limits.
+The `## State` block is one replaceable section of plain one-line fields:
+`status`, `reported`, `next`, `must_read`, `changed`, `evidence`, `issues`,
+`spec_compliance`, `implementation_quality` and `review_round`. `status` is
+`working`, `waiting`, `blocked`, `ready` or `done`; `waiting` and `blocked`
+mean the user is needed. `reported` names the last reported stage and its
+result (`in_progress`, `completed`, `paused`, `blocked` or `skipped`); the
+current stage is always the header's `stage:` line. `advance`, `pause` and
+`verdict` print it as the summary block, and `summary TASK-<id>` prints it
+again without writing. Blank, stale, or shortened information is explicit,
+never treated as success. The compact Log remains the append-only history; the
+latest State is not independent or fresh proof. At the end of validate,
+`report` appends a dated closing report (`## Delivery report`) to the journal.
+
+Journals written by an earlier version keep their `## Handoff` and
+`## Stage report` sections; `brief`, `summary`, `check` and `report` read
+either format, and the first State write replaces the two old sections. See
+the CLI reference for allowed values and output limits.
 
 Each task can also own two schema-1 JSON sidecars:
 
@@ -262,10 +319,11 @@ interface, Invariants, Key behaviors (citing requirement IDs), and Files. A
 Change map is included when the component has multiple independent
 edit-and-test seams. Routing selects the page and points to owned source and
 focused tests; it narrows discovery but never replaces exact source-and-test
-inspection. Validate updates or creates affected pages against the reviewed
-code and tests, before final independent reviews and proof. Build updates
-component facts earlier when another agent needs them for a handoff. There is
-no manifest and no registry - the folder listing is the component list.
+inspection. Design leaves pages unchanged; validate updates or creates affected
+pages against the reviewed code and tests, before explicit review and the
+final proof. Change a page only within your task's scope, section by section,
+so parallel branches merge cleanly. There is no manifest and no registry - the
+folder listing is the component list, and `components` prints it.
 
 ## Reading the register back
 
@@ -315,27 +373,28 @@ Each key's default value and its behavior when absent are in the
 | `[check] secret_patterns_extra` | Extra regexes for the secret scan. |
 | `[check] strict_promote` | Warning slugs that `check --strict` (CI) treats as errors. |
 | `[check] run` | Restricts which `[commands]` entries `check --run` executes; without it, side-effect-looking names (deploy/migrate/publish/…) are skipped. |
-| `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages and still requires publication approval. |
-| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. |
+| `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages through validate. AEGIS never commits or publishes in either mode. |
+| `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. With `true`, validate follows `steps/review.md`. |
 | `[diagrams] enabled / types` | `enabled = true` has design draw Mermaid diagrams of the proposed implementation into `tasks/diagram_TASK-<id>.md`; it defaults to `false`. `types` lists any of `structure`, `sequence`, `state` and defaults to `["structure"]`. |
 | `[records] commit_fingerprints` | `false` keeps anchor/evolution sidecars out of git through a managed `.gitignore` block that `init` maintains; `true` removes the block so they are committed with the journal. |
 
-When enabled, each review round needs two independent verdicts: specification
-compliance and implementation quality. One initial round plus at most
-`max_fix_cycles` fix-and-re-review rounds is allowed. Clear both verdicts after
-a candidate change and obtain both approvals for the same candidate. Review
-off never disables ordinary semantic review or validation. Reviewers inspect
-current files and phase-appropriate focused proof; final full strict proof
-follows both approvals. Invalidate verdicts after relevant changes while keeping
-the consumed round and historical findings.
+When enabled, each review round needs two independent verdicts, recorded with
+`verdict`: specification compliance and implementation quality. One initial
+round plus at most `max_fix_cycles` fix-and-re-review rounds is allowed. Any
+candidate change invalidates both verdicts; a return with `advance --to build`
+clears them while keeping the consumed round, and historical findings stay in
+the Log. Obtain both approvals for the same candidate. Review off never
+disables ordinary semantic review or validation. Reviewers inspect current
+files and phase-appropriate focused proof; final full strict proof follows both
+approvals.
 
 Task headers may include a blank `parent:` or one visible top-level task ID.
 Child journals stay independently governed; the parent file is not rewritten.
-`## Rulings` contains append-only `RULING-001` records with date, source,
-decision, reason, and optional supersession. `## Handoff` is one replaceable
-stage-bound block with `current`, `next`, `must_read`, `blockers`, and `status`.
-The Stage report carries optional independent review verdicts and a bounded
-round. Legacy journals may omit all of these fields.
+`## Rulings` contains append-only `RULING-001` records with date, decision,
+reason, source, and optional supersession, written by `ruling`. `## State` is
+the one replaceable block, written by `advance`, `pause` and `verdict`; it
+carries the optional review verdicts and a bounded round. Older journals keep
+`## Handoff` and `## Stage report` until the first State write replaces them.
 
 **Integrating another tool?** `check --json`, `status --json`, `anchor --json`,
 and `evolution --json` print one

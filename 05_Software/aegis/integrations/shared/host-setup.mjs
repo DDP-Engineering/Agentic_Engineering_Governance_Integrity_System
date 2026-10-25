@@ -57,7 +57,7 @@ export async function hostSetup(host, source, action, options = {}) {
     { env, windowsHide: true, shell: false, timeout: 30000, maxBuffer: 1024 * 1024 });
   const version = result.stdout.trim();
   const runtime = { ...settings, host, hostCli: cli, hostCliPath: options.hostCli ? path.resolve(options.hostCli) : stored.hostCliPath };
-  if (action === 'doctor') return { host, version, configDir: root, runtime, commands: 5, tools: 11,
+  if (action === 'doctor') return { host, version, configDir: root, runtime, commands: 5, tools: 12,
     reviews: host === 'pi' ? 'separate read-tool processes' : 'two native review agents', models_invoked: false };
   const content = await collectFiles(source);
   const files = Object.fromEntries(Object.entries(content).map(([name, bytes]) => [prefix + name, bytes]));

@@ -7,9 +7,11 @@
 # -----------------------------------------------------------------------------
 """
 @file    evaluate_aegis_stages.py
-@brief   Bounded behavior fixtures for Specify, Build, Deliver and Adopt.
+@brief   Bounded behavior fixtures for Specify, Build, closing and Adopt.
 @details Build executes only an AST-constrained normalizer. Publication remains
-         unavailable; Deliver covers presentation and stale-proof rejection.
+         unavailable; the closing cases cover presentation and stale-proof
+         rejection at the stage where each payload closes a task: deliver for a
+         payload that still has one, the end of validate otherwise.
 """
 
 # IMPORTS
@@ -36,6 +38,16 @@ def safe_source(text):
         return False
 
 
+def closing_stage(payload):
+    """@brief Where a payload presents a validated task: deliver, or the end of validate."""
+    return "deliver" if (payload / "steps/6_deliver.md").is_file() else "validate"
+
+
+def step_file(core, payload, stage):
+    """@brief The step file a payload names for a stage."""
+    return core.load_aegis(payload).STAGE_STEP_FILES[stage]
+
+
 def prepare(core, replace_field, root, payload, case, base_prepare):
     """@brief Use actual fixture verification; never fabricate delivery proof."""
     if case["kind"] == "deliver":
@@ -51,17 +63,17 @@ def prepare(core, replace_field, root, payload, case, base_prepare):
             + core.candidate(root) + "; " + proof.stdout.strip().replace("\n", "; "))
         if case.get("stale"):
             core.write(root / SOURCE, "def normalize_name(value):\n    return value.lower()\n")
-        stage = "deliver"
+        stage = closing_stage(payload)
     else:
         initial = core.prepare(root, payload, {"stage": "build", "setup": "broken"})
         text = (root / core.TASK).read_text("utf-8")
         stage = "components" if case["kind"] == "adopt" else case["kind"]
+    initial["fixture_stage"] = stage
     text = replace_field(text, "stage", stage)
     if stage == "components":
         checklist = "- [ ] inspect normalization source and tests\n- [ ] record component and preserve disputed contracts"
     else:
-        number = {"specify": 2, "build": 4, "deliver": 6}[stage]
-        step = (payload / f"steps/{number}_{stage}.md").read_text("utf-8")
+        step = (payload / "steps" / step_file(core, payload, stage)).read_text("utf-8")
         checklist = step.split("**Done when:**", 1)[1].split("**Skip when:**", 1)[0].strip()
     text = core.section(text, "Done checklist (current stage)", checklist)
     if case["kind"] == "specify":
@@ -80,8 +92,7 @@ def prepare(core, replace_field, root, payload, case, base_prepare):
         text = core.section(text, "Log", initial["initial_log"] + "\n- Owner accepted the normalization component boundary; continue its adoption only. Existing active contracts remain authoritative; suspected mismatches need owner clarification.")
         (root / ".agentic/knowledge/normalization.md").unlink()
         initial["requirement_text"] = (root / f".agentic/requirements/functional/{core.REQUIREMENT}.toml").read_text("utf-8")
-    text = core.section(text, "Handoff", f"current: {stage}\nstatus: ready\nnext: Complete {stage}\nmust_read: {core.TASK}\nblockers:")
-    text = core.section(text, "Stage report", f"stage: {stage}\nresult: in_progress\ncurrent: {stage}\nchanged:\nevidence:\nissues:\nnext: Complete {stage}\nneeds_user: no\nspec_compliance: disabled\nimplementation_quality: disabled\nreview_round:")
+    text = core.resume_state(text, payload, stage, f"Complete {stage}")
     core.write(root / core.TASK, text)
     initial.update(files=core.files(root), candidate=core.candidate(root),
         kind=case["kind"], initial_log=text.split("## Log\n", 1)[1].split("\n## ", 1)[0].strip())
@@ -91,7 +102,8 @@ def prepare(core, replace_field, root, payload, case, base_prepare):
 def score(core, root, payload, case, initial, events, final):
     """@brief Check real file changes, ordered observations and durable outcomes."""
     kind = case["kind"]
-    expected_stage = "validate" if case.get("stale") else "components" if kind == "adopt" else kind
+    fixture_stage = initial.get("fixture_stage", kind)
+    expected_stage = "validate" if case.get("stale") else fixture_stage
     bounded_initial = copy.deepcopy(initial)
     if kind == "build":
         bounded_initial["files"].pop(SOURCE)
@@ -103,8 +115,7 @@ def score(core, root, payload, case, initial, events, final):
 
     text = (root / core.TASK).read_text("utf-8")
     reads = {e["arguments"].get("path") for e in events if e["tool"] == "read_file" and "text" in e["result"]}
-    step = {"specify": "2_specify.md", "build": "4_build.md", "deliver": "6_deliver.md", "adopt": "adopt.md"}[kind]
-    add("stage_prompt_read", ".agentic/steps/" + step in reads)
+    add("stage_prompt_read", ".agentic/steps/" + step_file(core, payload, fixture_stage) in reads)
     commands = [(i, e) for i, e in enumerate(events) if e["tool"] == "run_command" and "exit_code" in e["result"]]
     if kind == "build":
         edits = [i for i, e in enumerate(events) if e["tool"] in {"write_file", "edit_file"}
@@ -147,7 +158,8 @@ def score(core, root, payload, case, initial, events, final):
             add("stale_proof_rejected", bool(re.search(r"revalidat|stale|changed.*proof|proof.*changed", text + final, re.I)))
         else:
             add("delivery_evidence_presented", "verify.py" in final or "--strict" in final)
-            add("delivery_approval_requested", bool(re.search(r"approv|confirm|choose|choice", final, re.I)))
+            add("delivery_approval_requested",
+                bool(re.search(r"approv|confirm|choose|choice|decid|close the task", final, re.I)))
             add("diff_inspected", any(e["arguments"].get("program") == "git" and e["arguments"].get("args", [])[:1] == ["diff"] for _, e in commands))
     result.update(passed=all(c["passed"] for c in checks), rubric=case["rubric"])
     return result

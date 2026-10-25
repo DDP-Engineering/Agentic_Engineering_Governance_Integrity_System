@@ -67,7 +67,7 @@ Executable and profile paths may contain spaces; quote them in the active shell.
 
 ## 3. Restart and find AEGIS
 
-Restart Pi in the target repository. Use `/aegis-status`, `/aegis-start <software request>`, `/aegis-resume TASK-<id>`, `/aegis-check` and `/aegis-validate TASK-<id>`. Pi supplies a skill and eleven workflow operations; it does not add an OpenCode-style primary-agent selector.
+Restart Pi in the target repository. Use `/aegis-status`, `/aegis-start <software request>`, `/aegis-resume TASK-<id>`, `/aegis-check` and `/aegis-validate TASK-<id>`. Pi supplies a skill and twelve workflow operations; it does not add an OpenCode-style primary-agent selector.
 
 Pi is a terminal harness. Install separately in Windows, Linux, WSL, SSH or other environments because each has its own configuration and executable paths.
 
@@ -80,7 +80,7 @@ From the extracted package directory run:
 node setup.mjs doctor
 ```
 
-`node setup.mjs doctor` reports Pi, five commands, eleven tools and `models_invoked: false`.
+`node setup.mjs doctor` reports Pi, five commands, twelve tools and `models_invoked: false`.
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
 ## 5. Update or remove

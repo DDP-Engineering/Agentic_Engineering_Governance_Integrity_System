@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "license": "Copyright (c) 2026 DDP Engineering. LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "purpose": "Deterministic semantic predicates reported beside the strict checks. They never change a strict pass and do not replace the reviewed rubric.",
+  "checks": {
+    "frame_existing_fix": [
+      {"id": "restored_requirement_named", "type": "frame_mentions", "all": ["REQ-FUNC-11111111"]}
+    ],
+    "frame_ambiguous_retention": [
+      {"id": "age_threshold_open", "type": "frame_open", "any": ["old", "age", "how long", "threshold", "duration", "period"]},
+      {"id": "reversibility_open", "type": "frame_open", "any": ["revers", "recover", "restor", "undo", "soft"]},
+      {"id": "no_invented_period", "type": "frame_no_quantity",
+       "units": ["second", "minute", "hour", "day", "week", "month", "year"],
+       "fields": ["Desired outcome", "In scope", "Constraints", "Success signals", "Examples"]}
+    ],
+    "frame_new_interface": [
+      {"id": "output_contract_captured", "type": "frame_mentions", "all": ["--json", "normalized_name"]},
+      {"id": "error_behavior_open", "type": "frame_open", "any": ["error", "invalid", "missing", "exit code", "zero", "two names", "more than one"]}
+    ],
+    "specify_exact_serialization": [
+      {"id": "error_response_has_own_requirement", "type": "requirements_split", "error": "ValueError"}
+    ],
+    "diagrams_enabled_types": [
+      {"id": "design_cites_requirements", "type": "design_cites_requirements"},
+      {"id": "design_proportionate", "type": "design_max_lines", "lines": 60}
+    ],
+    "holdout_frame_existing_fix": [
+      {"id": "restored_requirement_named", "type": "frame_mentions", "all": ["REQ-FUNC-22222222"]}
+    ],
+    "holdout_frame_ambiguous_policy": [
+      {"id": "inactivity_period_open", "type": "frame_open", "any": ["how long", "period", "duration", "threshold", "inactiv", "no longer used", "unused"]},
+      {"id": "restorability_open", "type": "frame_open", "any": ["restor", "revers", "re-enable", "reenable", "reactivat", "undo"]},
+      {"id": "no_invented_period", "type": "frame_no_quantity",
+       "units": ["second", "minute", "hour", "day", "week", "month", "year"],
+       "fields": ["Desired outcome", "In scope", "Constraints", "Success signals", "Examples"]}
+    ],
+    "holdout_frame_new_format": [
+      {"id": "columns_captured", "type": "frame_mentions", "all": ["sku", "price_cents"]},
+      {"id": "format_details_open", "type": "frame_open", "any": ["header", "order", "sort", "invalid", "negative", "empty", "line ending", "newline", "quot", "escap", "delimit"]}
+    ],
+    "holdout_specify_exact_format": [
+      {"id": "error_response_has_own_requirement", "type": "requirements_split", "error": "ValueError"}
+    ],
+    "holdout_design_recalculation": [
+      {"id": "design_cites_requirements", "type": "design_cites_requirements"},
+      {"id": "design_names_modules", "type": "design_mentions", "all": ["src/scheduler.py", "src/recalc.py", "src/store.py"]},
+      {"id": "design_proportionate", "type": "design_max_lines", "lines": 60}
+    ],
+    "holdout_chain_percent_validation": [
+      {"id": "error_requirement_written", "type": "requirements_mention", "all": ["ValueError"]},
+      {"id": "design_disposition_recorded", "type": "design_present"}
+    ]
+  }
+}

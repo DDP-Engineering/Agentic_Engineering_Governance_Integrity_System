@@ -19,10 +19,11 @@ Use `python3` instead of `python` on systems where that is the available
 Python 3.11-or-newer command. Paths and examples below are relative to the
 repository root.
 
-The CLI scaffolds artifacts, runs configured project commands, and reports
-advisory findings. It does not replace the workflow in
-`.agentic/AGENTS.md`, edit task stages for you, commit or push. The core
-itself makes no network requests; configured project commands may do so.
+The CLI scaffolds artifacts, writes task-journal state, runs configured
+project commands, and reports advisory findings. It does not replace the
+workflow in `.agentic/AGENTS.md`: it never decides whether a stage's work is
+done, and it does not commit, push, merge or read tickets. The core itself
+makes no network requests; configured project commands may do so.
 
 ## Command summary
 
@@ -30,6 +31,11 @@ itself makes no network requests; configured project commands may do so.
 |---|---|---|
 | `init` | Complete installation after copying the payload. | Once during installation, and safely after a payload upgrade. |
 | `task` | Create a task journal with a unique ID. | At the start of governed feature, fix, change, or adoption work. |
+| `advance` | Move a task to its next stage and record the State. | When a stage's work is finished, skipped, or must return to an earlier stage. |
+| `pause` | Record a stop or a blocker in the State. | At a checkpoint, a blocking question, or the end of a session. |
+| `log` | Append one dated line to the journal Log. | When a durable event happens: a decision, a verification result, a discovery, a deviation. |
+| `ruling` | Append one decision to the journal Rulings. | When the user, a requirement, the repository, or a technical constraint settles a question. |
+| `verdict` | Record explicit review verdicts and the review round. | In validate, when explicit review is enabled. |
 | `req` | Create a requirement TOML file with a unique ID. | When work needs a new durable requirement. |
 | `anchor` | Fingerprint Git-visible repository files for a task. | After the expected red failure and before implementation. |
 | `evolution` | Compare the repository with its active task anchor. | After implementation and after any later validation edit. |
@@ -38,8 +44,8 @@ itself makes no network requests; configured project commands may do so.
 | `components` | List component knowledge titles and page paths. | Before choosing which component page to read. |
 | `check` | Run the heuristic governance catalog. | During work for feedback; with `--strict --run` at the validation or CI boundary. |
 | `test` | Run a command configured in `.agentic/aegis.toml`. | During build and validation; add `--task` only for a result that belongs in the durable Log. |
-| `summary` | Print a compact recorded stage snapshot without writes. | After recording a stage completion, pause, blocker, or handoff; use `brief` first to resume. |
-| `report` | Append a delivery summary to a task journal. | After validation and explicit delivery approval, before the delivery commit or PR. |
+| `summary` | Print a compact recorded stage snapshot without writes. | When you need the recorded State again; `advance`, `pause` and `verdict` already print it. Use `brief` first to resume. |
+| `report` | Append a delivery summary to a task journal. | At the end of validate, once the evidence is final. |
 | `diagram` | Draw the requirement register as a Mermaid coverage map. | In review or handover, when the question is where verification is thin. |
 | `trace` | Export the requirement register as a traceability matrix. | In audit, review or handover, when the whole register has to leave the repository. |
 | `explain` | Show which requirements and tasks govern one path. | Reading unfamiliar code, or before changing a file you did not write. |
@@ -87,8 +93,9 @@ python .agentic/aegis.py init [--git]
 - scaffolds `context/project.md` and `context/environment.md` independently
   when absent, preserving existing bytes and stripping marked authoring notes;
 - creates a default `.agentic/aegis.toml` only when absent;
-- adds or refreshes the managed AEGIS digest in root
-  `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
+- adds or refreshes the managed AEGIS digest, a short pointer that routes the
+  agent to `.agentic/AGENTS.md`, in root `AGENTS.md`, `CLAUDE.md`, and
+  `QWEN.md`;
 - adds or removes the managed anchor/evolution block in the root `.gitignore`
   according to `[records] commit_fingerprints`, and names sidecars that are
   still tracked so a human can untrack them (it never runs `git rm`);
@@ -130,8 +137,10 @@ python .agentic/aegis.py task "<title>" [--type {feature,fix,change,adopt}] [--p
 
 **Description:** Create `.agentic/tasks/TASK-<id>.md` from the task
 template. The journal receives a collision-resistant ID, the current date,
-the current Git branch when available, `stage: frame`, and the interaction mode
-resolved from `aegis.toml`. The new path is printed on stdout.
+the current Git branch and commit when available, `stage: frame` (`survey` for
+`adopt`), the interaction mode resolved from `aegis.toml`, the stage's "Done
+when" list as its Done checklist, and an initial `## State`. The new path is
+printed on stdout.
 
 The default type is `feature`. Accepted types are:
 
@@ -153,18 +162,177 @@ python .agentic/aegis.py task "Handle empty configuration" --type fix
 python .agentic/aegis.py task "Adopt inventory service" --type adopt
 ```
 
-The CLI creates the journal but does not advance its stage. Follow the
-relevant step file and edit the journal as instructed.
+Then follow the step file the journal names; `advance` moves the stage when
+its work is finished.
 
 `--parent` creates only a child-side link to an existing top-level task.
 Nested children are rejected, the parent journal is unchanged, and every child
-keeps independent branch/base, requirements, validation, and delivery state.
+keeps independent branch/base, requirements, stages and validation.
 Reverse lookup reports children visible in the current checkout only. Parent
 validation owns the integrated candidate.
 
-New task and requirement records omit explicitly marked template-only authoring
-notes while retaining their license and data fields. Existing records are never
-rewritten. Inspect the templates when their full field guidance is needed.
+New project records - journals, requirements and context pages - omit the
+payload license block and the template-only authoring notes, retaining their
+data fields; they belong to the project. Existing records are never rewritten.
+Inspect the templates when their full field guidance is needed.
+
+## Journal state commands
+
+`advance`, `pause`, `log`, `ruling` and `verdict` write the parts of a journal
+that must stay machine-readable: the header stage, the Done checklist, the
+Log, the Rulings and the `## State` block. Frame, Requirement coverage and
+Design stay ordinary edits. The commands record what the agent decided; none
+of them checks whether a stage's work is done, and none of them blocks.
+Free-text values are stored on one line; `pause` and `advance` keep a
+previously recorded `changed`, `evidence` or `issues` value unless a new one is
+given, and both print the `summary` block.
+
+The State block, one `key: value` per line:
+
+```text
+status: ready
+reported: design - completed
+next: start build: read .agentic/steps/4_build.md
+must_read: .agentic/tasks/TASK-8b12.md, .agentic/steps/4_build.md
+changed: design section written
+evidence: check exit 0
+issues:
+spec_compliance: disabled
+implementation_quality: disabled
+review_round:
+```
+
+`status` is `working`, `waiting`, `blocked`, `ready` or `done`; `waiting` and
+`blocked` mean the user is needed. `reported` names the last reported stage and
+its result: `in_progress`, `completed`, `paused`, `blocked` or `skipped`. The
+current stage is always the header's `stage:` line. Journals written before
+this block keep their `## Handoff` and `## Stage report`; `brief`, `summary`,
+`check` and `report` read either format, and the first State write replaces
+the two old sections.
+
+## `advance`
+
+```text
+python .agentic/aegis.py advance <TASK-id|id> [--to STAGE] [--path {full,quick}] [--skipped]
+                                 [--reason TEXT] [--next TEXT] [--read PATH]
+                                 [--changed TEXT] [--evidence TEXT] [--issues TEXT]
+```
+
+**Description:** Record a stage transition. Without `--to`, the next stage is
+the one after the current stage on the journal's path: full is frame, specify,
+design, build, validate, done; quick is frame, build, validate, done. An
+adoption journal walks survey, components, close, done. The header stage
+changes, the Done checklist becomes the destination step's "Done when" list,
+one Log line records the transition, and the State says what to do next.
+`--path` records the chosen path before the next stage is worked out. `--to`
+an earlier stage records a return: the State waits for the user and enabled
+review verdicts are cleared while the consumed round is kept. `--skipped`
+records a skipped stage. `--read` adds a path the next session must read
+(repeatable or comma-separated). Reaching `done` closes the implementation
+guidance; commit, push and integration belong to the developer. A legacy
+journal at `deliver` advances to `done`.
+
+Unticked Done checklist items and, with explicit review enabled, verdicts
+that are not both approved at `done` are noted in the Log line and on
+stdout. They never stop the transition.
+
+**When to use:** When the current stage's work is finished, when the user
+accepts a stage boundary in checkpoint mode, or when a later stage finds that
+an earlier one must change.
+
+**Examples:**
+
+```text
+python .agentic/aegis.py advance TASK-8b12
+python .agentic/aegis.py advance TASK-8b12 --path quick --reason "one function, existing tests"
+python .agentic/aegis.py advance TASK-8b12 --to specify --reason "a missing error case"
+python .agentic/aegis.py advance TASK-8b12 --skipped --reason "one file, no new interface"
+python .agentic/aegis.py advance TASK-8b12 --evidence "check --strict --run exit 0"
+```
+
+## `pause`
+
+```text
+python .agentic/aegis.py pause <TASK-id|id> --next TEXT [--blocked] [--read PATH]
+                               [--changed TEXT] [--evidence TEXT] [--issues TEXT]
+```
+
+**Description:** Record that the work stops here, with the one action or
+question that resumes it. The State becomes `waiting` (or `blocked` with
+`--blocked`), the header stage stays, and `must_read` lists the journal, the
+current step file and any `--read` paths.
+
+**When to use:** At a checkpoint stop, when a decision-blocking question goes
+to the user, and at the end of a session.
+
+**Examples:**
+
+```text
+python .agentic/aegis.py pause TASK-8b12 --next "Accept the framed scope?"
+python .agentic/aegis.py pause TASK-8b12 --blocked --next "Which retention period applies?"
+```
+
+## `log`
+
+```text
+python .agentic/aegis.py log <TASK-id|id> <text>
+```
+
+**Description:** Append one dated line, prefixed with the current stage, to
+the end of the journal Log. Earlier lines are never changed. The words after
+the task ID are joined, so quoting is optional.
+
+**When to use:** For durable events only: decisions, verification results,
+discoveries, blockers, approvals and deviations. `advance` already logs
+transitions and `test --task` logs test results.
+
+**Example:**
+
+```text
+python .agentic/aegis.py log TASK-8b12 "red: tests/test_export.py fails on the missing field"
+```
+
+## `ruling`
+
+```text
+python .agentic/aegis.py ruling <TASK-id|id> --decision TEXT --reason TEXT
+                                --source {user,repository,requirement,technical}
+                                [--supersedes RULING-NNN]
+```
+
+**Description:** Append the next numbered Ruling, dated today. Decision and
+reason are single lines without `|`. A changed decision is a new ruling that
+names the one it supersedes; earlier lines stay as written.
+
+**When to use:** When a scope, behavior or technical question is settled and
+later sessions must not reopen it.
+
+**Example:**
+
+```text
+python .agentic/aegis.py ruling TASK-8b12 --decision "keep 30 days of history" --reason "user answer" --source user
+```
+
+## `verdict`
+
+```text
+python .agentic/aegis.py verdict <TASK-id|id> [--spec {approved,changes_required}]
+                                 [--quality {approved,changes_required}] [--round N]
+```
+
+**Description:** Record the independent reviewers' verdicts and the review
+round in the State. It refuses while `[review] enabled` is not `true`, where
+both verdicts stay `disabled`. The round must lie within
+`1 + max_fix_cycles`; without `--round` the recorded round is kept, or 1.
+
+**When to use:** In validate with explicit review enabled, after each review
+round, as `.agentic/steps/review.md` describes.
+
+**Example:**
+
+```text
+python .agentic/aegis.py verdict TASK-8b12 --spec approved --quality changes_required --round 1
+```
 
 ## `anchor`
 
@@ -289,30 +457,15 @@ python .agentic/aegis.py summary <TASK-id|id>
 **Description:** Print a compact recorded stage snapshot without writing files,
 running checks/tests, consulting Git, or changing workflow state. Existing
 `status` output and JSON are unchanged; `report` remains the journal-writing
-delivery command. Use `summary` after updating a stage report; use `brief` first
-when resuming.
+delivery summary. `advance`, `pause` and `verdict` print this block after
+writing; use `brief` first when resuming.
 
-The journal may contain one optional `## Stage report` section with plain
-one-line fields (no bullets or code fences inside the actual section):
-
-```text
-stage: specify
-result: completed
-current: design
-changed: requirements created; IDs are on the journal header
-evidence: check exit 0; tests not run at this stage
-issues: none recorded
-next: follow 3_design.md
-needs_user: no
-```
-
-`stage` is the reported stage; `current` must equal the journal header after
-any transition. Use canonical ordinary/adoption stages, not display aliases.
-`result` accepts `in_progress`, `completed`, `paused`, `blocked`, or `skipped`.
-The other fields contain the agent's recorded observations and decisions;
-blank values print `not recorded`. Add a concise Log line only when the boundary
-or outcome is durable; do not duplicate the whole Stage report. Replace only
-this latest-view section.
+The snapshot comes from the journal's `## State` block (see
+[Journal state commands](#journal-state-commands)), or from the legacy
+`## Stage report` and `## Handoff` sections of a journal written before it.
+Needs user is derived: yes while the State is `waiting` or `blocked`. The
+fields contain the agent's recorded observations and decisions; blank values
+print `not recorded`.
 
 Output fields, in order: **Stage, Task, Current, Requirements, Changed,
 Evidence, Issues, Next, Needs user, Spec compliance, Implementation quality,
@@ -324,8 +477,9 @@ If any value is shortened, Needs user directs full-journal review before
 proceeding, even if the record said no. This is a character bound, not a
 model-specific token guarantee.
 
-Missing records and incomplete or mismatched stage bindings suppress recorded
-outcomes and next-action claims and direct journal review. Unknown stages or
+A missing or incomplete State, or one that reports another stage while still
+`working`, `waiting` or `blocked`, suppresses recorded outcomes and
+next-action claims and directs journal review. Unknown stages, statuses or
 results, duplicate sections/fields, unknown keys, and malformed record lines
 exit 1 with an error and no partial stdout. Old journals need no migration.
 Commented and fenced examples outside the live section do not supply report
@@ -335,7 +489,7 @@ The output is an agent-authored snapshot, **not fresh proof or an approval**.
 A matching stage cannot detect subsequent source edits: refresh the record
 after new work, evidence, deviations, or decisions even within one stage.
 Read omitted details and unresolved issues before acting. Normal checkpoints,
-full validation/delivery reads, and immediate deviation notices still apply.
+full validation reads, and immediate deviation notices still apply.
 
 ## `brief`
 
@@ -343,13 +497,22 @@ full validation/delivery reads, and immediate deviation notices still apply.
 python .agentic/aegis.py brief <TASK-id|id>
 ```
 
-`brief` is a read-only deterministic resume view built only from durable
-workspace files. It never calls Git, runs commands, writes state, advances a
-stage, or infers approval. Its fixed order is Task, Stage, Branch/base, Parent,
-Requirements, Context, Checklist, Stage report, Interaction, Review, Active rulings, Handoff,
-Visible children, and Details. Scalars are limited to 240 characters, active
-rulings to eight, and visible children to twenty, with explicit omission and
-stale-data markers. Two calls against unchanged files are byte-identical.
+`brief` is a read-only deterministic resume view built only from the task
+journal, visible task journals, `.agentic/aegis.toml`, and the presence of the
+two project context files. It never calls Git, runs commands, writes state,
+advances a stage, or infers approval. Its fixed output order is `AEGIS brief`,
+Task, Stage, Path, Branch/base, Parent, Requirements, Context, Checklist,
+State, Outcome, Interaction, Review, Diagrams, Active rulings, Visible
+children, Read next, and Details. Scalars are limited to 240 characters, active
+rulings to eight, and visible children to twenty, with explicit omission
+markers. Missing fields print `not recorded` or `none`; a stale State is
+labelled stale. Two calls against unchanged files are byte-identical.
+
+Diagrams is computed from `[diagrams]` as `.agentic/steps/diagrams.md` defines
+it, so design needs no configuration reading of its own: `none (disabled)`,
+`none (no known types configured)`, or the types to draw for a substantive
+design. Read next names the current step file, then the State `must_read`
+paths.
 
 Context lists the project profile and environment guide paths as `present` or
 `not recorded`; it reads neither body and creates nothing. Missing files are
@@ -357,9 +520,8 @@ supported. Read the profile and relevant environment sections before following
 their selected references; presence alone establishes neither accuracy nor
 completeness.
 
-Resume with `brief`, then read the current step and handoff `must_read` paths.
-Use `summary` for the latest bound stage-report projection and the full journal
-for complete history and evidence.
+Resume with `brief`, then read what Read next names. Use `summary` for the
+latest recorded State and the full journal for complete history and evidence.
 
 ## `components`
 
@@ -383,17 +545,17 @@ replace Routing, exact source, or focused tests.
 
 ## Coordinated workflow records
 
-Optional child links, Rulings, Handoff, and review fields are backward
-compatible. Rulings use this append-only form:
+Journals carry append-only Rulings, written by `ruling`, and one replaceable
+`## State` block, written by `advance`, `pause` and `verdict`. Optional child
+links and review fields are backward compatible; older journals and configs
+remain valid without migration. Rulings use this append-only form:
 
 ```text
 - RULING-001 | date=2026-08-31 | decision=<decision> | reason=<reason> | source=user | supersedes=none
 ```
 
 `source` is `user`, `repository`, `requirement`, or `technical`. Supersession appends a new ruling;
-it never rewrites history or expands authority. Handoff is one replaceable
-stage-bound block with `current`, `next`, `must_read`, `blockers`, and a
-`ready`, `waiting`, or `blocked` status.
+it never rewrites history or expands authority.
 
 ```toml
 [interaction]
@@ -402,9 +564,10 @@ autopilot = false
 
 Missing or invalid `autopilot` values mean off. Checkpoint mode stops after
 every stage and presents the applicable choices. Autopilot flows between
-intermediate stages but does not bypass publication approval. New journals
-record the resolved `interaction: checkpoint|autopilot` mode; an explicit user
-instruction may override the configured default for that task.
+stages through validate; decision-blocking questions still stop it, and AEGIS
+never commits or publishes in either mode. New journals record the resolved
+`interaction: checkpoint|autopilot` mode; an explicit user instruction may
+override the configured default for that task.
 
 ```toml
 [review]
@@ -412,12 +575,15 @@ enabled = false
 max_fix_cycles = 2
 ```
 
-Review is optional; validation and delivery approval are not. When enabled,
-`spec_compliance` and `implementation_quality` are independent current-
-candidate verdicts (`approved` or `changes_required`) and `review_round` is
-bounded by `1 + max_fix_cycles`. Any candidate change invalidates both
-verdicts. Exhaustion blocks with `needs_user: yes`. `max_fix_cycles` accepts
-integers 0 through 255; invalid types or values warn and fail safe.
+Review is optional; validation is not. When enabled, validate follows
+`.agentic/steps/review.md`, and `verdict` records `spec_compliance` and
+`implementation_quality` as independent current-candidate verdicts
+(`approved` or `changes_required`), with `review_round` bounded by
+`1 + max_fix_cycles`. Any candidate change invalidates both verdicts. At
+exhaustion the task pauses as `blocked` for the user. `max_fix_cycles` accepts
+integers 0 through 255; invalid types or values warn and fail safe. Review
+disabled skips only these optional verdicts and their fix loop; semantic
+review, full validation, the strict check and evidence stay part of validate.
 
 ```toml
 [diagrams]
@@ -447,7 +613,8 @@ AEGIS never untracks files; `init` prints the `git rm --cached` command.
 ## `check`
 
 ```text
-python .agentic/aegis.py check [--task TASK-<id>] [--strict] [--run] [--full] [--json]
+python .agentic/aegis.py check [--task TASK-<id>] [--strict] [--run] [--dry-run]
+                               [--full] [--json]
 ```
 
 **Description:** Run the advisory check catalog over requirements, journals,
@@ -462,8 +629,8 @@ for example `docs = ["docs/", "README.md", "CHANGELOG.md"]`. These paths
 remain in secret scanning and the diff; they do not count as source, tests,
 or stage write zones. Existing source/tests matches still apply if globs
 overlap. The default empty list preserves existing layout checks.
-An unticked delivery checklist remains a warning even when delivery is
-intentionally on hold; a pause is not evidence that its items are complete.
+A legacy journal held at `deliver` with unticked checklist items still warns;
+a pause is not evidence that its items are complete.
 
 Options:
 
@@ -472,6 +639,7 @@ Options:
 | `--task TASK-<id>` | Scope diff-based checks to the named task. |
 | `--strict` | Exit 1 for errors, failed `--run` commands, and warnings promoted in `aegis.toml`; also implies `--full`. |
 | `--run` | Also execute eligible `[commands]` entries from `aegis.toml`. |
+| `--dry-run` | List what `--run` would execute, with each command's limit, and run none of it. |
 | `--full` | Print every finding instead of capping human-readable output at 40. |
 | `--json` | Emit one complete schema-versioned JSON document on stdout; `--run` progress goes to stderr. |
 
@@ -480,6 +648,9 @@ Options:
 - use plain `check` during specification, design, and build for inexpensive
   feedback;
 - use `--task` when a shared branch contains unrelated changes;
+- use `--dry-run` before committing to `--run` when you need to know what
+  the proof costs - it reports the commands and their limits without
+  starting any of them, and is never itself evidence;
 - use `--strict --run` after the final candidate is stable or in CI;
 - use `--json` only when a script needs structured results.
 
@@ -488,6 +659,7 @@ Options:
 ```text
 python .agentic/aegis.py check
 python .agentic/aegis.py check --task TASK-8b12
+python .agentic/aegis.py check --dry-run
 python .agentic/aegis.py check --task TASK-8b12 --strict --run
 python .agentic/aegis.py check --strict --full
 python .agentic/aegis.py check --json
@@ -631,10 +803,9 @@ checklist completion, review policy, and bound current verdicts. Missing,
 malformed, or stale verdict evidence is never approval. Repeated runs do not replace
 history.
 
-**When to use:** In the delivery stage after validation evidence is final and
-the concrete delivery action is explicitly authorized, before committing or
-opening the pull request. Read the appended report before
-delivery; it is a snapshot, so rerun it if the candidate or checklist changes.
+**When to use:** At the end of validate, once the evidence is final and before
+`advance` to `done`. The developer reads it before committing; it is a
+snapshot, so rerun it if the candidate or checklist changes.
 
 The diff is measured from the commit the journal's `base:` header records -
 the commit that was checked out when the task was created - and the report
@@ -821,7 +992,7 @@ python .agentic/aegis.py explain C:\repo\src\export\m3u.py
 
 | Situation | Exit behavior |
 |---|---|
-| `init`, `task`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `components`, `report`, `diagram`, `trace`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
+| `init`, `task`, `advance`, `pause`, `log`, `ruling`, `verdict`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `components`, `report`, `diagram`, `trace`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
 | Usage, missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
 | Plain `check` finds errors or warnings | Exit 0; it remains advisory. |
 | `check --strict` finds a strict failure | Exit 1. |
@@ -835,32 +1006,34 @@ stderr; consumers must treat empty stdout as failure, not as an empty result.
 
 ## Commands intentionally not provided
 
-AEGIS has no command for stage transitions, approvals, waivers, evidence
-forms, commits, pushes, upgrades, or uninstalling. Those actions remain visible
+AEGIS has no command for approvals, waivers, evidence forms, commits, pushes,
+merges, tickets, upgrades, or uninstalling. `advance` records a transition the
+agent decided on; it does not approve it. The other actions remain visible
 plain-file or Git operations:
 
-- edit the task journal to advance a stage according to its step file;
 - upgrade by copying the newer payload, running `init`, and reviewing the
   diff;
 - uninstall by removing the payload and its managed root pointer blocks;
-- commit and publish only through the repository's normal Git workflow.
+- commit, push, merge and publish only through the repository's normal Git
+  workflow, outside AEGIS.
 
 ## Optional integration operations are a separate interface
 
 The OpenCode, Codex, Pi, Qwen Code and Claude Code packages call the installed
-core and provide the following shared operations. These are **not additional
-`aegis.py` subcommands**; host wrappers expose them as native tools, MCP tools
-or the Codex command bridge.
+core and provide the following twelve shared operations. These are **not
+additional `aegis.py` subcommands**; host wrappers expose them as native tools,
+MCP tools or the Codex command bridge.
 
 | Operation | Purpose |
 |---|---|
 | `status` | Inspect the checkout's workflow state. |
 | `resume` | Resolve a task and read its bounded re-entry context. |
 | `read` | Read allowed workflow artifacts. |
-| `summary` | Read the recorded stage report. |
+| `summary` | Read the recorded State summary. |
 | `check` | Run advisory/static governance inspection. |
 | `scaffold` | Create supported task/requirement artifacts as coordinator. |
-| `evidence` | Work with core anchor/evolution records. |
+| `evidence` | Record anchor and evolution, or append the closing report, as coordinator. |
+| `journal` | Write journal state through `advance`, `pause`, `log`, `ruling` or `verdict`, as coordinator. |
 | `candidate` | Fingerprint the review candidate. |
 | `diff` | Inspect candidate changes. |
 | `run` | Start or recover a tracked verification job. |

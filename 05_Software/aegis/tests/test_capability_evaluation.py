@@ -43,8 +43,8 @@ def records(root, stage="validate", verdict="disabled"):
     """@brief Supply valid report syntax without claiming any executed proof."""
     p = root / core.TASK
     text = cap.replace_field(p.read_text("utf-8"), "stage", stage)
-    text = core.section(text, "Handoff", f"current: {stage}\nstatus: waiting\nnext: Continue the scoped operation\nmust_read: {core.TASK}\nblockers:")
-    text = core.section(text, "Stage report", f"stage: {stage}\nresult: paused\ncurrent: {stage}\nchanged: {core.TASK}\nevidence:\nissues:\nnext: Continue the scoped operation\nneeds_user: yes\nspec_compliance: {verdict}\nimplementation_quality: {verdict}\nreview_round:")
+    text = core.resume_state(text, core.PAYLOAD, stage, "Continue the scoped operation",
+                             verdict=verdict, waiting=True, changed=core.TASK)
     core.write(p, text)
 
 
@@ -214,7 +214,10 @@ def test_stage_fixtures_prepare_without_claimed_model_execution(tmp_path, name):
     root = tmp_path / "repo"
     initial = cap.prepare(root, core.PAYLOAD, selected)
     parsed = core.load_aegis(core.PAYLOAD).parse_journal((root / core.TASK).read_text("utf-8"))
-    assert parsed["header"]["stage"] == selected["stage"]
+    # a payload without a deliver stage presents the validated task at the end of validate
+    expected = (cap.stages.closing_stage(core.PAYLOAD) if selected["kind"] == "deliver"
+                else selected["stage"])
+    assert parsed["header"]["stage"] == expected == initial["fixture_stage"]
     grade = cap.score(root, selected, initial, [], core.PAYLOAD, [], "")
     assert not grade["passed"]
 
@@ -240,6 +243,11 @@ def test_requirement_scaffold_command_is_literal_and_bounded(tmp_path):
     host = cap.CapabilityHost(root, initial, core.files(core.PAYLOAD))
     assert host.call("run_command", {"program": "aegis", "args": ["req", "functional", "Serialize names"]})["exit_code"] == 0
     assert host.call("run_command", {"program": "aegis", "args": ["req", "../escape", "Invalid"]})["denied"]
+    assert host.call("run_command", {"program": "aegis", "args": ["req", "--help"]})["exit_code"] == 0
+    lookup = host.call("run_command", {"program": "aegis", "args": ["req", "func", "REQ-FUNC-1", "extra"]})
+    assert lookup.get("capability_unavailable") is True and lookup.get("denied") is False
+    # the evaluated CLI, not the host, decides which category names it accepts
+    assert host.call("run_command", {"program": "aegis", "args": ["req", "func", "Trim names"]})["exit_code"] == 0
 
 def test_review_reference_accepts_brief_and_keeps_identity_guards(tmp_path):
     """REQ-FUNC-cbff6478: text references select one canonical task without weakening binding."""

@@ -13,17 +13,30 @@ Repository setup, maintenance, and delivery-package scripts live here.
 
 ## Prompt evaluation
 
-`evaluate_aegis_prompts.py` runs ten isolated AEGIS prompt scenarios against an
-explicitly selected local Chat Completions server. It preserves the payload,
-records model/tool evidence and checks observable workflow outcomes. See the
+`evaluate_aegis_prompts.py` runs isolated AEGIS prompt scenarios against an
+explicitly selected local Chat Completions server: `--profile core` for the ten
+original cases, `--profile capabilities` for the fifteen capability cases with
+fresh local reviewer sessions, and `--profile holdout` for a pricing domain that
+never motivates prompt rules, including a chained five-session lifecycle whose
+code writes `evaluate_aegis_holdout.py` restricts to a Python subset. It
+preserves the payload, records model/tool evidence and context use per run and
+per file read, reports configured semantic checks and per-case pass rates
+beside the strict checks, and checks observable workflow outcomes. See the
 [evaluation guide](../05_Software/aegis/evaluations/README.md) for baseline
 commands, limits, saved evidence and controlled comparisons. Its offline
-behavior tests are in `05_Software/aegis/tests/test_prompt_evaluation.py`.
+behavior tests are in `05_Software/aegis/tests/test_prompt_evaluation.py` and
+`test_holdout_evaluation.py`.
 
 The default `--max-tokens` is 16,384 per response, shared by reasoning and
-visible output on models that count both. Request/scenario deadlines remain
-explicit controls; allow enough time for the chosen output budget. Changing
-budgets requires a fresh control for a strict thinking or model comparison.
+visible output on models that count both. Deadlines default to 2,400 seconds
+per case and 900 per request or reviewer session, suited to a local 27B model.
+`--top-p`, `--top-k` and `--presence-penalty` are sent only when set. Repeated
+identical tool calls, or text repeated until the output limit, end a session as
+`loop`; finished responses with repeated text are counted as degenerate.
+Changing budgets, sampling or the loaded context window requires a fresh
+control for a strict thinking or model comparison. Each evaluated payload
+supplies its own root digest, journal record format and CLI commands, so an
+original and a revised payload stay comparable under one host contract.
 
 The host documents its bounded read-only Git syntax in the model tool schema,
 including scoped diffs, historical file reads and limited logs. Unavailable
