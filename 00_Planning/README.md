@@ -9,9 +9,9 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 These documents describe the implemented **AEGIS 0.15.0** source: the core
 workflow, five host integrations, artifact contracts and verification routes.
-The core provides stage-by-stage user choices, configurable autopilot with
-publication approval, focused verification, compact records and bounded resume
-views. Project/environment context and component pages describe current positive
+The core provides stage-by-stage user choices, configurable autopilot, focused
+verification, CLI-written journal records and bounded resume views; it never
+commits or publishes. Project/environment context and component pages describe current positive
 facts; draft/task records hold proposals and journals/Git retain history.
 
 Delivery packages and their build records live under `07_Delivery/`. Version
@@ -27,7 +27,7 @@ Development evaluations cover all eight step files, shared guidance, actual
 reviewer sessions, diagrams, autopilot and context updates. Coverage does not
 establish universal model compliance or improvement from every prompt revision.
 See [implementation status](05_Implementation_Phases.md#prompt-evaluation-status)
-for comparisons and remaining limits.
+for coverage and remaining limits.
 
 - [Overview](00_README.md) — core workflow, host integrations and source boundaries.
 - [Workflow and stages](01_Workflow_And_Stages.md) - semantic analysis protocol,
@@ -40,10 +40,7 @@ for comparisons and remaining limits.
   bounded semantic records, durable re-entry, independent review, user
   profiles and verification limits.
 - [Implementation status](05_Implementation_Phases.md) — implemented capabilities,
-  evaluation results, proposed follow-ups, verification limits and builders.
-- [Small-model workflow proposal](06_Small_Model_Workflow_Simplification.md) —
-  diagnosis, harness assessment, a Qwen3.8-27B baseline and a proposed
-  simplification; not implemented.
+  evaluation coverage, verification limits and builders.
 
 The runnable product is at `05_Software/aegis/`. The managed core source is
 `template/.agentic/`; host implementations are in `integrations/`. When a

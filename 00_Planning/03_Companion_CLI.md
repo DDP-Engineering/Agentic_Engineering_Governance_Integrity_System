@@ -20,28 +20,34 @@ The maintainer source checkout has no root `.agentic/` deployment. Its canonical
 CLI is `05_Software/aegis/template/.agentic/aegis.py`; installed-path examples
 here are for downstream projects, not a request to install AEGIS in this checkout.
 
-It scaffolds files, reads durable records, runs configured project commands,
-and reports findings. It does not advance a journal stage, infer approval,
-commit, push, create a pull request, or itself access the network. Configured
-project commands may have side effects or require services; their execution
-semantics remain those of the target repository.
+It scaffolds files, writes the journal state the agent decides, reads durable
+records, runs configured project commands, and reports findings. It never
+judges whether a stage's work is done, infers approval, commits, pushes,
+creates a pull request, or itself accesses the network. Configured project
+commands may have side effects or require services; their execution semantics
+remain those of the target repository.
 
 ## Implemented commands
 
 | Command | Read/write boundary | Use |
 |---|---|---|
 | `init [--git]` | Creates missing data folders/config and each missing context scaffold, preserves existing project files, refreshes managed root digests, and maintains the managed anchor/evolution block in the root `.gitignore`. | Finish installation or upgrade. |
-| `task <title> [--type] [--parent]` | Writes a new journal. | Start governed feature, fix, change, or adoption work. |
+| `task <title> [--type] [--parent]` | Writes a new journal; a bare task ID as the title is refused. | Start governed feature, fix, change, or adoption work. |
+| `advance <task> [--to] [--path] [--skipped]` | Writes the header stage, Done checklist, one Log line and the State, then prints the summary block and any notes. | A stage's work is finished, skipped, or must return to an earlier stage. |
+| `pause <task> --next [--blocked]` | Writes the State as waiting or blocked, then prints the summary block and any notes. | A checkpoint, a blocking question, or the end of a session. |
+| `log <task> <text>` | Appends one dated, stage-prefixed Log line. | A durable decision, verification result, discovery, blocker or deviation. |
+| `ruling <task> --decision --reason --source [--supersedes]` | Appends the next numbered Ruling. | A settled scope, behavior or technical question that later sessions must not reopen. |
+| `verdict <task> [--spec] [--quality] [--round]` | Writes the review verdicts and round into the State; refused while explicit review is disabled. | Validate, after each explicit review round. |
 | `req <category> <title>` | Writes a new requirement scaffold. | Add a durable behavior contract. |
 | `anchor --task` | Writes/replaces the active anchor JSON. | Capture the known starting point before implementation. |
 | `evolution --task [--json] [--compact]` | Writes the matching evolution JSON. | Compare current repository state with the active anchor. |
 | `status [task] [--all] [--json]` | Read-only. | List journals or inspect one task. |
 | `brief <task>` | Read-only deterministic bounded resume view. | First when resuming a task. |
-| `summary <task>` | Read-only latest stage-report projection. | After recording a stage completion, pause or session end, or blocker. |
+| `summary <task>` | Read-only print of the recorded State. | When the current snapshot is needed; `advance`, `pause` and `verdict` print it after writing. |
 | `components` | Read-only title-and-path catalogue of component knowledge pages. | Choose which concise component page to inspect. |
 | `check [--task] [--strict] [--run] [--full] [--json]` | Read-only unless `--run` executes configured commands. | Advisory governance feedback or CI proof. |
 | `test [name] [--impacted] [--no-fallback] [--dry-run] [--base] [--task]` | Runs one configured command; `--task` appends its result. A preview or fallback refusal runs no command and writes no test evidence. | Inspect selection, run focused build checks, or retain consolidated verification evidence. |
-| `report <task>` | Appends a delivery report to the journal. | After validation, before a granted delivery action. |
+| `report <task>` | Appends a dated delivery report to the journal. | At the end of validate, once the evidence is final and before `advance` to `done`. |
 | `diagram [--component] [--task] [--out]` | Read-only unless `--out` writes the Mermaid text. | Inspect requirement coverage. |
 | `trace [--format {md,csv}] [--out PATH]` | Read-only unless `--out` writes the export. | Export the requirement register with coverage and ownership. |
 | `explain <path>` | Read-only. | Find requirements and journals governing a file or folder. |
@@ -54,16 +60,20 @@ Use `test` without `--task` for ordinary inner-loop retries. Supply `--task`
 only when that individual run is the durable consolidated red, focused green,
 or final verification result the journal should retain. The option records
 every invocation it receives; it does not decide whether a run is material or
-deduplicate retries. Generated tasks, requirements and context files omit marked template-only
-authoring notes while retaining licenses and data fields; existing records are
-never rewritten by scaffolding.
+deduplicate retries. Generated tasks, requirements and context files omit the
+payload license header and marked template-only authoring notes while retaining
+their data fields; existing records are never rewritten by scaffolding.
 
-`task "<title>"` creates a new journal and returns its ID/path. Select an existing
-task with `brief`/`summary` or its path in file tools; passing an ID as a task
-title creates another task. Retain the created journal and repair its existing
-sections after failed edits. Its legal prologue and authoring-guide pointer
-remain intact. There is no structured CLI command to update Handoff, Stage
-report or stage headers; those edits are currently made through file tools.
+`task "<title>"` creates a new journal and returns its ID/path. A bare task ID
+as the title is refused with a pointer to `brief`, so resuming never opens a
+second journal. The journal writers own the header stage, Done checklist, Log,
+Rulings and `## State`; the agent edits Frame, Requirement coverage and Design
+with file tools. The writers record the agent's decision and never judge
+whether a stage's work is done: unticked checklist items, review verdicts not
+both approved at `done`, an empty stage section at a stop, a Log line that
+belongs to a later stage and a record an edit put out of shape print notes,
+never refusals. Malformed input, such as an unknown stage or an empty `--next`,
+exits 1 and writes nothing.
 
 ## Resume commands are complementary
 
@@ -71,18 +81,18 @@ report or stage headers; those edits are currently made through file tools.
 
 | Command | Output | What it is for |
 |---|---|---|
-| `brief TASK-<id>` | Task identity, stage, branch/base, parent, requirements, context paths/presence, checklist, bound stage report, interaction mode, review policy, rulings, handoff, visible children, and details pointer. | Bounded re-entry before reading current context, the step and handoff sources. |
-| `summary TASK-<id>` | The latest bound stage report: result, current stage, changes, evidence, issues, next action, user need, review fields, and details pointer. | Compact reporting after a stage completion, pause or session end, or blocker. |
+| `brief TASK-<id>` | Task identity, stage, path, branch/base, parent, requirements, context paths/presence, checklist, State, outcome, interaction mode, review policy, diagrams, active rulings, visible children, Read next and details pointer. | Bounded re-entry, then reading what Read next names. |
+| `summary TASK-<id>` | The recorded State: reported stage and result, current stage, requirements, changes, evidence, issues, next action, user need, review fields and details pointer. | The current snapshot; `advance`, `pause` and `verdict` print it after writing. |
 
 Both commands are deterministic reads of durable files. Neither runs tests,
 consults Git, writes state, proves that the candidate is still valid, or grants
 authority. A truncation/stale marker means read the full journal.
 
-Save and reread boundary records before running `summary`, then copy its actual
-fenced output, including Details and truncation warnings. Exit zero does not
-mean every field was present or that a requested pause/return was persisted.
-Record edits, checklist verification and evidence interpretation remain the
-agent's responsibility; these projections do not validate those claims.
+Every session ends with `advance` or `pause`. The reply starts with the block
+they print, copied in a text fence with its Details and truncation markers and
+never written by hand. Exit zero does not mean every field was present.
+Checklist verification and evidence interpretation remain the agent's
+responsibility; these views do not validate those claims.
 
 Context lists `.agentic/context/project.md` and `.agentic/context/environment.md`
 as `present` or `not recorded`. Brief reads neither body and creates nothing.
@@ -142,7 +152,8 @@ timed-out command proves nothing; a command that completes unsuccessfully is a
 - path coverage, linked tests, stale paths, scope drift, and source/test
   relationship;
 - secrets in added diff lines, self-contained requirement prose, unticked
-  delivery checklists, layout, stage zones, and configuration shapes;
+  items left at the former `deliver` stage, layout, stage zones, and
+  configuration shapes;
 - anchor/evolution evidence, configured-command completion, timeouts, and
   empty `--run` execution;
 - manual verification declarations, enabled explicit-review evidence, and
@@ -186,7 +197,7 @@ the saved evidence remains complete. Ordinary JSON output is unchanged.
 
 ## Separate host operations
 
-The integrations expose eleven shared operations. These are adapter interfaces,
+The integrations expose twelve shared operations. These are adapter interfaces,
 not additional Python CLI subcommands. OpenCode and Pi register native
 `aegis_*` tools; Qwen and Claude expose them through local stdio MCP; Codex uses
 a command bridge.
@@ -196,10 +207,11 @@ a command bridge.
 | `status` | Read task state and tracked verification state. |
 | `resume` | Read `brief`, check branch alignment and remember a session-local task pointer. |
 | `read` | Read the installed contract, CLI reference, configuration, step or journal. |
-| `summary` | Read the recorded stage report; no fresh proof. |
+| `summary` | Read the recorded State; no fresh proof. |
 | `check` | Run static checks, optionally strict, without configured tests. |
 | `scaffold` | Coordinator creates a task or requirement scaffold. |
 | `evidence` | Coordinator invokes `anchor`, `evolution` or `report`. |
+| `journal` | Coordinator records `advance`, `pause`, `log`, `ruling` or `verdict` through the installed CLI, which never judges whether a stage is done. |
 | `candidate` | Fingerprint the Git-visible candidate for comparison. |
 | `diff` | Read Git status/diff and untracked paths; inspect untracked contents separately. |
 | `run` | Coordinator starts tracked final validation or a named configured test command. |

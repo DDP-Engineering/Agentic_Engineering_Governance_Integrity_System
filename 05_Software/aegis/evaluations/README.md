@@ -28,8 +28,7 @@ No Sol or local-model baseline on that payload exists. Older transcripts were
 removed on 2026-10-21, and the candidate runs and paired comparisons of the
 0.14.0 prompt work on 2026-10-25, both at the owner's request; Git history
 keeps the latter. Later local and subscription measurements keep their raw
-evidence in the ignored `.tmp-codex-eval/` folder and are summarized in the
-[small-model workflow proposal](../../../00_Planning/06_Small_Model_Workflow_Simplification.md).
+evidence in the ignored `.tmp-codex-eval/` folder.
 
 ## Profiles and coverage
 
@@ -197,10 +196,6 @@ number of lines, and each result gives `total_lines`, `eof` and the
 may lead with a label, as in `unavailable: no tests run` or
 `not recorded - no checks run`.
 
-A first local baseline with `qwen/qwen3.8-27b` at 65,536 tokens is summarized
-in the [small-model workflow proposal](../../../00_Planning/06_Small_Model_Workflow_Simplification.md);
-its raw evidence is not stored in this repository.
-
 ## Hold-out domain and chained lifecycle
 
 `holdout-scenarios.json` uses a pricing module (`apply_discount` in integer
@@ -239,7 +234,3 @@ not replace the reviewed rubric. The report lists strict and semantic pass
 rates per case across repeats, and `compare` adds them for both runs. Use at
 least three repeats before accepting a prompt change, and require it to keep or
 improve the hold-out rates.
-
-Offline behavior tests are in `tests/test_prompt_evaluation.py` and
-`tests/test_capability_evaluation.py`; they never call a model. The latter uses
-clearly synthetic reviewer backends only to test isolation and rejection rules.

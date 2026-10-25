@@ -9,8 +9,9 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # 01 - Workflow and stages
 
 The workflow contract is the installed `.agentic/AGENTS.md` plus one step
-file per stage. A task journal records the current stage and evidence; the
-CLI does not advance stages on anyone's behalf.
+file per stage. A task journal records the current stage and evidence. The CLI
+writes it when the agent decides (`advance`, `pause`, `log`, `ruling`,
+`verdict`); it never advances a stage on its own.
 
 ## Scope and operating rule
 
@@ -60,13 +61,12 @@ quick fix records governing requirement IDs at Frame.
 | `specify` | `steps/2_specify.md` | Build a behavior inventory and coverage table; map every atomic behavior to exactly one requirement; derive concrete positive, boundary and failure verification; add a spec for exact contracts that do not fit safely in requirement prose. |
 | `design` | `steps/3_design.md` | Record the shortest sufficiently constrained, requirement-linked implementation path; scale depth with interface, state, trust, concurrency, migration and operational risk; preserve material open decisions in the task; draw optional diagrams for the human when `[diagrams] enabled = true`. |
 | `build` | `steps/4_build.md` | Write and observe the expected failing test before implementation; carry out declared manual/inspection methods after the change; update traceability and affected context as implementation or setup changes. |
-| `validate` | `steps/5_validate.md` | Reconcile project/environment context, component knowledge and active contracts with the candidate and authorized intent; retain proposals in task history; complete final strict verification after edits and review. |
-| `deliver` | `steps/6_deliver.md` | Present the unchanged validated candidate, append the delivery report, and act only within granted Git/PR authority. |
+| `validate` | `steps/5_validate.md` | Reconcile project/environment context, component knowledge and active contracts with the candidate and authorized intent; retain proposals in task history; complete final strict verification after edits and review; append the report and close the task to `done`. |
 
 A fix or change may take the quick path only when all frame criteria hold:
 
 ```text
-frame -> build -> validate -> deliver
+frame -> build -> validate -> done
 ```
 
 - No new externally observable behavior, interface, data format or dependency.
@@ -74,8 +74,7 @@ frame -> build -> validate -> deliver
 - No security- or data-handling behavior is touched; those take the full path.
 
 `frame` records `path: quick` and the eligibility reason. A small diff alone
-does not qualify. The quick path does not remove validation, delivery proof,
-or approval limits.
+does not qualify. The quick path does not remove validation or its final proof.
 
 For automated requirements, build records the actual failing selector/command,
 non-zero exit and expected missing-behavior reason before implementation.
@@ -83,22 +82,19 @@ An existing `Manual:` or `Inspection:` verification instead needs a recorded
 observation after the change. For governed software work, anchor the starting
 tree before implementation, then review evolution after the edits.
 
-If the candidate changes after validation, return to `validate`. Deliver is
-not a place to make unvalidated implementation changes.
+Validate corrects first and proves last. Every candidate edit, knowledge and
+context pages included, comes before the single final proof; after it only
+journal records change, and any other edit needs fresh review and proof. A
+wrong assumption goes back with `advance TASK-<id> --to <stage> --reason
+"<why>"`, which waits for the user and clears enabled review verdicts while
+keeping the consumed round.
 
-Deliver compares current and proved candidates using the same binding method
-and scope. A task-base diff describes the proposed changes, not edits since
-validation. Missing comparable identity evidence requires a precise limitation
-without asserting a change; a mismatch requires a saved return to Validate with
-its checklist, Handoff and Stage report. Clear stale enabled-review verdicts
-without resetting consumed rounds. This journal-only return does not authorize
-source repair or verification beyond the requested scope.
-
-For an unchanged proved candidate, save the approval pause before presentation:
-header and both `current` fields remain Deliver, Handoff is waiting, Stage report
-is paused with `needs_user: yes`, and both `next` fields name the delivery decision.
-Reread records and show actual `summary` output before evidence and choices.
-Preserve earlier Log text, including whitespace.
+Validate then logs the final result, appends the `report` and closes the task.
+In checkpoint mode it pauses with "Close the task?" and advances to `done` when
+the user closes; in autopilot it advances to `done` when the proof passed and
+otherwise pauses as blocked. Committing, pushing and pull requests follow the
+repository's procedures. A journal left at the former `deliver` stage closes
+through validate with `advance`.
 
 ## Project-configured verification
 
@@ -150,24 +146,24 @@ when their actual cases and results establish the restored contract.
 
 ## Interaction boundaries
 
-Checkpoint mode is the default. It stops after every stage, presents the stage
-report and three or four concrete choices, and waits before advancing. Choices
-name the next stage, a specific revision or earlier-stage route, and pausing the
-workflow. The delivery boundary separately requires explicit authority for the
-stated commit or pull request.
+Checkpoint mode is the default. It records a `pause` after every stage, shows
+the printed summary block and three or four concrete choices, and waits; when
+the user continues, `advance` moves the journal on. Choices name the next stage,
+a specific revision or earlier-stage route, and pausing the workflow.
 
 The optional `[interaction] autopilot` Boolean in `.agentic/aegis.toml`
 defaults to `false`, including when the table or key is missing. An invalid
-value also fails safe to off. Autopilot flows between intermediate stages but
-does not suppress external authority or the delivery boundary. New journals
-record the resolved mode; an explicit user instruction may override the
-configured default for that task. Neither child tasks, stage reporting,
-rulings, handoffs, nor review adds a stop beyond these configured boundaries.
+value also fails safe to off. Autopilot advances between stages; a
+decision-blocking question still stops it with `pause --blocked`. Neither mode
+commits, pushes or opens pull requests. New journals record the resolved mode;
+an explicit user instruction may override the configured default for that
+task. Neither child tasks, rulings nor review adds a stop beyond these
+configured boundaries.
 
-An explicit stage stop still applies in autopilot. A bounded transition with no
-pending human decision may finish ready/completed with `needs_user: no`. Save
-pauses or blockers before reporting; saved `next` fields name one action or
-scoped decision, while the checkpoint menu belongs in the response.
+An explicit stage stop still applies in autopilot and is recorded with
+`pause`. An `advance` with no pending decision leaves the State `ready`.
+`pause` and `advance` save the State before the reply; its `next` names one
+action or scoped decision, while the checkpoint menu belongs in the response.
 
 ### Optional Design diagrams
 
@@ -223,8 +219,9 @@ enabled = false
 max_fix_cycles = 2
 ```
 
-When enabled, review records independent `spec_compliance` and
-`implementation_quality` verdicts for the same candidate, using `approved` or
+When enabled, validate follows `steps/review.md`: two independent reviewers
+judge the same candidate, and the coordinator records their `spec_compliance`
+and `implementation_quality` verdicts with `verdict`, using `approved` or
 `changes_required`. A candidate change invalidates both verdicts while retaining
 the consumed round and historical findings. The policy permits one
 initial review plus up to `max_fix_cycles` fix-and-re-review rounds, then
@@ -234,7 +231,7 @@ This source checkout has no installed policy; the example shows payload defaults
 An installed project's actual configuration determines whether review runs.
 Disabling it skips only the explicit verdict contract and bounded loop; it
 never skips semantic review, knowledge updates, full validation, strict checks,
-or the delivery checkpoint.
+or the closing checkpoint.
 
 Reviewers inspect current linked files, including untracked scope, and focused
 proof due at that phase. Semantic corrections and current documentation precede
@@ -245,45 +242,48 @@ decision; proposing an exception does not accept it.
 
 ## Durable resume state
 
-The task journal is the durable history. Its append-only `## Log` is a compact
-progress-and-evidence ledger, not an execution transcript. It records stage
-transitions, material engineering or scope changes, consolidated verification,
-blockers, approvals, deviations, and delivery outcomes. Routine tool use,
-corrected retries, and detail already held by requirements, designs, Rulings,
-Handoff, or the Stage report do not belong there. New journals also support:
+The task journal is the durable history. The agent edits its Frame,
+Requirement coverage and Design; the CLI writes the rest:
 
-- **Rulings:** append-only durable decisions; a later ruling supersedes an
-  earlier ruling by ID instead of rewriting history.
-- **Handoff:** one replaceable, stage-bound resume snapshot with `current`,
-  `status`, `next`, `must_read`, and `blockers`.
-- **Stage report:** one replaceable current snapshot of result, changes,
-  evidence, issues, next action, and optional review fields.
+- **Log:** a compact append-only progress-and-evidence ledger, not an execution
+  transcript. `advance` writes stage transitions and `log` adds material
+  engineering or scope changes, consolidated verification, blockers, approvals
+  and deviations, each prefixed with the date and stage. Routine tool use,
+  corrected retries and detail already held elsewhere do not belong there.
+- **Rulings:** append-only durable decisions written by `ruling`; a later
+  ruling supersedes an earlier one by ID, and earlier lines are never edited.
+- **State:** one replaceable resume snapshot written by `advance` and `pause`,
+  with `status`, `reported`, `next`, `must_read`, `changed`, `evidence`,
+  `issues` and the review fields `verdict` records. It is never edited by hand.
 
-Read task-template authoring guidance before Frame or Validate journal edits
-unless already read in the intact session. Preserve the original legal prologue
-and visible guide pointer. Append each material Log outcome once at the following
-section heading without retyping prior evidence; compare its saved prefix with
-the original before summary. Use plain one-line header/record values. Repair a
-rejected edit in the same journal rather than creating another task.
+Every session ends with `advance` when the stage is finished, otherwise
+`pause`, also after a record-only update or an explicit stop. Both commands
+print a summary block that opens the reply. They also print notes, never
+refusals, for a record an edit put out of shape: a stage section still empty, a
+repeated header key, a quick path without requirement IDs, or Rulings lines that
+`ruling` did not write. Repair a rejected edit in the same journal rather than
+creating another task; `task` refuses a bare task ID as a title.
+
+Older journals stay readable: one with `## Handoff` and `## Stage report`
+keeps them until the first `advance` or `pause` replaces both with a State.
 
 Resume safely:
 
 1. Run `python .agentic/aegis.py status` when the task ID is unknown.
 2. Run `python .agentic/aegis.py brief TASK-<id>`.
 3. Read the project profile and relevant environment sections when present,
-   then the current step file and Handoff `must_read` paths. Confirm relevant
+   then what `Read next` names: the current step file and the State
+   `must_read` paths. While the State waits on the user, `Read next` also
+   names the `advance` that moves on when they continue. Confirm relevant
    claims against this checkout; context-file presence alone is not evidence.
 4. Read the full journal wherever detail is omitted, stale, unresolved, or
-   required by the current stage; then continue at the first unticked item.
+   required by the current stage; then continue at the first open item.
 
-`brief` never proves the recorded state is still true. `summary` is useful
-after a stage report is written, but it is narrower still and never replaces
-required journal, source, or evidence reads. In an intact session, reuse
-unchanged instructions and documents already read. After compaction or lost
-context, follow the resume procedure and required full reads. Step files point
-to the shared reporting/resume contract. Handoffs still refresh at transitions,
-pauses, blockers and session ends; update their short fields without repeating
-the Frame, Design or Log.
+`brief` never proves the recorded state is still true. `summary` prints the
+recorded State and never replaces required journal, source, or evidence reads.
+In an intact session, reuse unchanged instructions and documents already read.
+After compaction or lost context, follow the resume procedure and required full
+reads.
 
 ## Executing through a host integration
 
@@ -322,7 +322,7 @@ requirement and preserve existing contracts while investigating. Close reconcile
 the context, knowledge pages and register. Adoption keeps its own lifecycle.
 
 Large work may use optional one-level child tasks. A child keeps its own
-journal, branch/base, requirements, evidence, validation, and delivery
+journal, branch/base, requirements, evidence, validation and closing
 checkpoint. The child has the only `parent:` link; creating it never rewrites
 the parent. The parent validates the integrated candidate, and visibility is
 limited to child journals present in the current checkout. A reviewer session

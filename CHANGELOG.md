@@ -11,33 +11,6 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
-### Added
-
-- Add `--reasoning-effort` to the local evaluation runner. It is sent only when
-  set, recorded in the manifest and compared as a control; a turn's reasoning
-  is never sent back with the history.
-
-### Changed
-
-- Write the component and requirement templates and the build card with
-  language-neutral `<source file>` and `<test file>` placeholders; link a test
-  as `<test file>::<test name>` only where the test runner accepts that
-  selector.
-- Have adoption create requirements with `req`, and name the State among its
-  resume records. `CLI.md` notes that `task TASK-<id>` is refused.
-
-### Fixed
-
-- Stop `brief` from suggesting `advance` to close between adoption components:
-  adoption pauses after each component inside the same stage.
-- Score two capability predicates by the behavior, not one spelling (harness
-  13): linked tests may be `file::test` node ids, the documented form, as long
-  as each names a test the file defines; project context may state the trim
-  in any words, such as "surrounding whitespace removed". Every model failed
-  the first and Qwen the second while doing the right thing.
-- Accept "no verification evidence available" as a missing-evidence report
-  (harness 14); Qwen wrote it after correctly running nothing.
-
 ## [0.15.0] - 2026-10-25
 
 ### Removed
@@ -48,6 +21,9 @@ All notable changes to AEGIS are documented in this file.
   task with the final proof, `report` and `advance` to `done`; commits, pushes,
   pull requests and merges follow the repository's own procedures. A journal
   still at `stage: deliver` closes through validate.
+- Remove the September workflow-overhead study
+  (`10_Workflow_Overhead_Analysis.html`) and six unused evidence images from
+  the plugin installation guides.
 
 ### Added
 
@@ -62,7 +38,8 @@ All notable changes to AEGIS are documented in this file.
 - Make `brief` print the path, the computed diagram decision and a `Read next`
   line naming the step file and the State `must_read` paths. While the State
   waits on the user, `Read next` also names the `advance` that moves on when
-  they continue to the next stage, or close the task from validate.
+  they continue to the next stage, or close the task from validate. Adoption,
+  which pauses after each component inside one stage, gets no such hint.
 - Make `log` note a line that records a later stage's work, such as `final:`
   while the journal is still at build; the line is logged either way.
 - Add `steps/review.md`, read only when explicit review is enabled.
@@ -73,13 +50,15 @@ All notable changes to AEGIS are documented in this file.
   model, with fresh local reviewer sessions on one immutable snapshot.
 - Record prompt tokens per run and per file read in local evaluations, flag
   runs above half or three quarters of the loaded window, and compare medians.
-- Add a small-model workflow proposal with a local Qwen3.8-27B baseline.
 - Add a hold-out pricing evaluation domain that gates prompt changes and never
   shapes prompt rules, with frame, specify and design cases.
 - Add a chained evaluation that runs five fresh stage sessions on one repository;
   its Build code is limited to two files and a restricted Python subset.
 - Report configured semantic checks beside strict checks, and strict and
   semantic pass rates per case across repeats, in reports and comparisons.
+- Add `--reasoning-effort` to the local evaluation runner. It is sent only when
+  set, recorded in the manifest and compared as a control; a turn's reasoning
+  is never sent back with the history.
 
 ### Changed
 
@@ -93,16 +72,27 @@ All notable changes to AEGIS are documented in this file.
   header; the journal template's authoring notes shrink from 220 to 40 lines.
 - Give specify one deterministic atomicity rule and a five-column coverage
   table, and design about 30 lines under five headings.
+- Have design compare every structure-node class in a diagram with the saved
+  Design and classify each edge on its own; a mismatch is fixed in the
+  diagram, never by changing the Design.
 - Make the root digest route to `.agentic/AGENTS.md` instead of standing in for it.
 - Have a frame example name a value the user has not given, such as `N days`,
   instead of choosing a number; models filled "at least one example" with
   invented periods. Start the reply with the printed summary block, never one
   written by hand.
+- Have frame keep unverified conditions UNKNOWN: a request for new behavior
+  does not establish a current defect or existing data.
 - Leave branch creation to the developer, like commits: frame works on the
   current branch, which the journal records, and notes when that is the
   default branch.
 - Make `task` refuse a bare task ID as its title and point to `brief`; such a
   call meant to resume a task and opened a second journal instead.
+- Write the component and requirement templates and the build card with
+  language-neutral `<source file>` and `<test file>` placeholders; link a test
+  as `<test file>::<test name>` only where the test runner accepts that
+  selector.
+- Have adoption create requirements with `req`, and name the State among its
+  resume records.
 - Give each evaluated payload its own fixture-state format, root digest and CLI
   commands, keep the compared host contract payload-independent, and score
   either record format; scenario prompts no longer name Handoff or Stage report.
@@ -111,33 +101,19 @@ All notable changes to AEGIS are documented in this file.
 - Default local evaluation deadlines to 2,400 s per case and 900 s per request;
   add optional top-p, top-k and presence-penalty sampling, a `loop` outcome for
   repeated tool calls or text, and a count of degenerate responses.
-- Align user guides and slide companions with current review/proof ordering,
-  saved delivery state, journal preservation and diagram presentation.
-
-- Preserve delivery log text during appends, clarify review-phase evidence across
-  host reviewers, and check diagram node markers against the saved Design.
-- Clarify delivery identity and saved approval pauses, checkpoint diagram display,
-  and interpretation of current-checkout and review-phase evidence.
-- Clarify proof ordering, durable stage returns, diagram gates and markers,
-  review-time evidence and contract-versus-implementation documentation.
-- Link generated journals to their authoring guide and clarify Frame path decisions,
-  missing validation history and checkpoint reporting.
-- Clarify requirement headers, claim provenance, scoped resume decisions and
-  accepted-scope review in Frame, Validate and task-record guidance.
-- Clarify destructive-scope questions, append-only rulings, exact summaries,
-  existing test coverage and unperformed evidence in the three evaluated prompts.
-- Distinguish stated clauses from derived examples and preserve the original
-  journal copyright/license prologue during edits and rewrites.
-- Reuse the created journal when repairing edits, verify saved checklists, and
-  keep requested capabilities separate from unverified current conditions.
-- Clarify journal write recovery and pending Frame persistence; distinguish
-  reported defects from accepted outcomes during resume.
+- Align the user guides and slide decks with the State, the CLI journal
+  writers, closing in validate, review/proof ordering and diagram presentation.
+- Keep the planning record to the current implementation, and align it and
+  the product, tools and root READMEs with the journal writers, the State,
+  twelve adapter operations and the absence of a repository-root `.agentic/`.
 
 ### Fixed
 
 - Read a journal header key written twice by its first written value, the line
   the writers update. An agent's inserted `requirements:` line was hidden by
   the template's empty one.
+- Point the arrows in the five plugin installation flow figures, and in the
+  PDFs that embed them, from step 1 to step 5; they pointed backwards.
 - Count an evaluation `read_file` on a directory as an unavailable capability,
   not a forbidden action; Windows previously failed such cases.
 - Reject non-string evaluation tool paths as tool errors instead of stopping
@@ -158,6 +134,13 @@ All notable changes to AEGIS are documented in this file.
   It counted characters, and a model that read the numbers as lines paged a
   7 KB journal 60-400 characters at a time until the turn limit. Harness 12
   results are not comparable with harness 11 where sessions page through files.
+- Score two capability predicates by the behavior, not one spelling (harness
+  13): linked tests may be `file::test` node ids, the documented form, as long
+  as each names a test the file defines; project context may state the trim
+  in any words, such as "surrounding whitespace removed". Every model failed
+  the first and Qwen the second while doing the right thing.
+- Accept "no verification evidence available" as a missing-evidence report
+  (harness 14); Qwen wrote it after correctly running nothing.
 
 ## [0.14.0] - 2026-10-20
 

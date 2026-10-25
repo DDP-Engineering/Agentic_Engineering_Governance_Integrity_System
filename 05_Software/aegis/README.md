@@ -33,14 +33,14 @@ Git and a compatible host installation.
 | `integrations/` | Five host adapters, shared runtime and JavaScript behavior tests. |
 | `tests/` | Python product suite, including wrappers that run integration tests. |
 
-The repository-root `.agentic/` is this project's installed instance, with its
-own configuration and records. It is separate from the reusable template.
+This source checkout has no repository-root `.agentic/` installation; the
+template is maintained directly.
 
-Frame and Validate use the task authoring guide when updating journals.
-Existing-contract quick fixes record their requirement IDs at Frame; resume
-fields name one concrete action or scoped decision and resolve current blockers
-before advancing. Review explanations use the accepted scope, independently
-of a requirement's draft status. Unknown behavior and unobserved proof remain explicit.
+The CLI journal writers record the stage, Done checklist, Log, Rulings and
+State; the agent edits Frame, Requirement coverage and Design. Existing-contract
+quick fixes record their requirement IDs at Frame, and the State's next action
+names one concrete action or question. New requirements start as drafts and
+build activates them. Unknown behavior and unobserved proof remain explicit.
 
 ## Install
 
@@ -225,14 +225,15 @@ python .agentic/aegis.py summary TASK-<id>
 
 `brief` is the first re-entry view: deterministic, read-only, and bounded to
 240-character values, eight active rulings, and twenty visible children. It
-includes the parent, checklist, bound report, resolved interaction mode,
-configured review state, active rulings, stage-bound handoff, and visible
-children. Read its current step and
-handoff `must_read` files next, then the full journal wherever required.
+includes the path, parent, checklist, State, resolved interaction mode,
+configured review state, diagram decision, active rulings and visible
+children, and ends with a `Read next` line naming the current step file and
+the State `must_read` paths. Read those next, then the full journal wherever
+required.
 
-The agent records one fixed report at stage completion or pause, then copies
-the read-only `summary` output into chat before detailed explanation.
-Reported stage/result and current journal stage are separate. Missing evidence
+Every session ends with `advance` or `pause`, which write the State and print
+the `summary` block; the reply starts with that block before detailed
+explanation. Reported stage/result and current journal stage are separate. Missing evidence
 stays `not recorded`; stale or shortened records require journal review.
 With autopilot off, every completed stage ends at a user choice checkpoint.
 
@@ -243,8 +244,8 @@ Interaction defaults are project configuration:
 autopilot = false
 ```
 
-Missing or invalid values mean off. Checkpoint mode presents three or four
-stage-specific choices: continue, revise or return, and pause. Autopilot flows
+Missing or invalid values mean off. Checkpoint mode presents stage-specific
+choices: continue, revise, go back or stop. Autopilot flows
 between stages through validate; a decision-blocking question still stops it,
 and AEGIS never commits or publishes. New
 task journals record the resolved mode so it remains stable across resumes;
@@ -309,11 +310,11 @@ renderer.
 
 | Host | AEGIS resources |
 |---|---|
-| OpenCode | Primary Aegis agent, two review subagents, five commands and eleven native tools. |
-| Codex | Native plugin, `aegis:aegis` skill, two review-role definitions and an eleven-operation command bridge. |
-| Pi | Extension, skill, five commands, eleven tools and a launcher for fresh reviewer processes. |
-| Qwen Code | Extension, skill, five commands, two review agents and eleven local MCP tools. |
-| Claude Code | Plugin, workflow skill, five namespaced commands, two review agents, eleven local MCP tools and bounded advisory hooks. |
+| OpenCode | Primary Aegis agent, two review subagents, five commands and twelve native tools. |
+| Codex | Native plugin, `aegis:aegis` skill, two review-role definitions and a twelve-operation command bridge. |
+| Pi | Extension, skill, five commands, twelve tools and a launcher for fresh reviewer processes. |
+| Qwen Code | Extension, skill, five commands, two review agents and twelve local MCP tools. |
+| Claude Code | Plugin, workflow skill, five namespaced commands, two review agents, twelve local MCP tools and bounded advisory hooks. |
 
 Entry points differ by host: Codex does not receive OpenCode's primary-agent
 selector or the five slash commands. Pi's reviewer launcher uses separate

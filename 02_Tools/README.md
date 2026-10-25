@@ -9,7 +9,7 @@ SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 # Tools
 
-Repository setup, maintenance, and delivery-package scripts live here.
+Delivery-package builders and development prompt-evaluation tools live here.
 
 ## Prompt evaluation
 
@@ -23,9 +23,8 @@ preserves the payload, records model/tool evidence and context use per run and
 per file read, reports configured semantic checks and per-case pass rates
 beside the strict checks, and checks observable workflow outcomes. See the
 [evaluation guide](../05_Software/aegis/evaluations/README.md) for baseline
-commands, limits, saved evidence and controlled comparisons. Its offline
-behavior tests are in `05_Software/aegis/tests/test_prompt_evaluation.py` and
-`test_holdout_evaluation.py`.
+commands, limits, saved evidence and controlled comparisons. The evaluation
+tools have no unit tests of their own; running them is their check.
 
 The default `--max-tokens` is 16,384 per response, shared by reasoning and
 visible output on models that count both. Deadlines default to 2,400 seconds
@@ -46,18 +45,19 @@ including scoped diffs, historical file reads and limited logs. Unavailable
 read options return supported capabilities and are scored separately from
 forbidden mutations. Missing-evidence scoring accepts explicit negative
 execution statements and still checks actual command events. A changed harness
-requires fresh original/revised runs; historical scores are not a substitute.
+requires fresh runs; scores from an earlier harness are not a substitute.
 
 `evaluate_aegis_subscription.py` runs either the unchanged ten-case `core`
 profile or the fifteen-case `capabilities` profile through an explicit native
 Codex executable with existing ChatGPT authentication. It records model,
 reasoning, configured context, output-limit availability, usage and time, with
-30-second session pauses and bounded generic429 backoff. The additional
+30-second session pauses and bounded generic-429 backoff. The additional
 `evaluate_aegis_capabilities.py` and `evaluate_aegis_stages.py` fixtures cover
 all eight step prompts, actual independent reviewer sessions, diagrams,
-autopilot and context reconciliation. Build execution is AST-constrained;
-Deliver stops before publication. Historical result records were removed at
-the owner's request; the evaluation guide identifies the new paired collection.
+autopilot and context reconciliation. Build execution is AST-constrained; the
+closing cases present a validated task and never publish it. The evaluation
+folder keeps the 0.14.0 `gpt-6-luna` baselines; other runs keep their raw
+evidence in the ignored `.tmp-codex-eval/` folder.
 
 ## Package builders
 

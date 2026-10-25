@@ -27,5 +27,4 @@ operations.
 The manuals cover repository core setup, project/environment context, per-user
 host installation and verification. Current procedures live here; dated package
 and host evidence lives in [delivery records](../../07_Delivery/README.md) and
-task records. Historical evidence assets remain preserved separately from the
-current installation instructions.
+task records.

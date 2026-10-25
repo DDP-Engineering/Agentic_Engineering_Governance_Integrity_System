@@ -47,8 +47,9 @@ models:
 1. Run `status` if the task identifier is unknown.
 2. Run `brief TASK-<id>`.
 3. Read `.agentic/context/project.md` and relevant
-   `.agentic/context/environment.md` sections when present, then the current
-   step file and Handoff `must_read` paths.
+   `.agentic/context/environment.md` sections when present, then what the
+   brief's Read next names: the current step file and the State `must_read`
+   paths.
 4. Load only linked requirements, specifications, knowledge, source, and tests
    that the current step needs.
 5. Read the full journal whenever the brief is shortened, stale, incomplete,
@@ -72,18 +73,20 @@ or full-journal reads. Within an intact session, reuse unchanged documents
 already read and inspect changed sections with their relevant earlier decisions
 and evidence. Compaction or lost context requires durable re-entry again.
 Step files reference the shared reporting/resume instructions instead of copying
-them; Handoff remains required and should contain only the next action and
-necessary paths, rather than repeated Frame, Design or Log content.
+them. The State, written by `advance` and `pause`, holds the next action, the
+paths to read and short outcome fields, never repeated Frame, Design or Log
+content.
 
-Fresh task, requirement and context scaffolds omit marked authoring notes. Evolution can
+Fresh task, requirement and context scaffolds omit the payload license header
+and marked authoring notes. Evolution can
 return compact paths/statuses/areas while retaining complete fingerprints on disk.
 These reduce text volume; actual end-to-end token savings have not been measured.
 
 The prompt contract uses compact records and selective reads for constrained
 context. It guarantees neither a tokenizer-specific 64K budget nor model
-compliance. Recorded evaluations use their explicitly configured windows;
-the recent matched cohorts used 131,072 tokens, which is not independent proof
-of server allocation. The design supports bounded work through these structures:
+compliance. Each evaluation records its configured context window, which is
+not independent proof of server allocation. The design supports bounded work
+through these structures:
 
 - **Analyze -> Challenge -> Write -> Audit** gives each stage a stable order.
 - `STATED`, `OBSERVED`, `INFERRED`, and `UNKNOWN` keep evidence separate from
@@ -95,12 +98,12 @@ of server allocation. The design supports bounded work through these structures:
 - Design uses 30 lines as a default, not a hard cap, and expands only for
   material interface, state, trust, concurrency, compatibility, migration or
   operational risk.
-- The journal Log keeps only stage outcomes, material engineering changes,
-  consolidated verification, blockers, approvals, deviations, and delivery;
-  it links to dedicated detail instead of repeating it.
+- The journal Log keeps only stage transitions, material engineering changes,
+  consolidated verification, blockers, approvals and deviations; it links to
+  dedicated detail instead of repeating it.
 
 These structures aim to preserve intent across sessions; their effect on a model
-must be measured. No model is bundled. Representative prompt evaluations now
+must be measured. No model is bundled. Representative prompt evaluations
 exercise actual model/tool behavior, but do not establish universal compliance,
 small-context acceptance or a complete lifecycle in every native host.
 
@@ -110,22 +113,22 @@ For a constrained model, one stage per session is a practical operating
 pattern:
 
 ```text
-brief -> current context -> current step -> handoff must_read -> first unticked action
--> update Log, Handoff, and Stage report -> summary -> stop
+brief -> current context -> Read next (step file, State must_read) -> first unticked action
+-> log durable events -> advance or pause (prints the summary block) -> stop
 ```
 
 The prompt cheatsheet in `.agentic/AGENTS.md` and
 `06_SoftwareDocu/08_Prompt_Cheatsheet.md` provides stage-scoped prompts.
 Checkpoint mode uses this shape by default for every model. Configured
-autopilot may continue through several stages, but the same durable records
-must be updated at each pause or transition.
+autopilot may continue through several stages, but `advance` still records
+each transition and `pause` each stop.
 
 ## Decisions, authority, and review
 
 Rulings capture durable decisions already made; they cannot create permission
-to commit, push, merge, publish, or broaden scope. Handoff is operational
-state, not approval. A Stage report is a current communication snapshot, not
-fresh validation.
+to commit, push, merge, publish, or broaden scope. The State is operational
+state and a current communication snapshot: neither approval nor fresh
+validation.
 
 For a downstream project opting into explicit review:
 
@@ -138,19 +141,20 @@ max_fix_cycles = 2
 This permits one initial pair of independent review verdicts and up to two
 fix-and-re-review rounds. It does not create a review stage or replace
 `validate`; ordinary semantic review, focused/full proof, strict checking,
-and the delivery checkpoint still apply.
+and the closing checkpoint still apply.
 
 The maintainer checkout has no installed `.agentic/aegis.toml`; this example is
 not its active configuration. The payload default keeps explicit review off.
 
-Checkpoint mode stops after every stage and presents concrete continue, revise
-or return, and pause choices. `[interaction] autopilot = false` is the default,
-including for legacy configurations with no interaction table. Autopilot flows
-between intermediate stages when configured or explicitly requested. Immediate
-`DEVIATION` notices for material scope, implementation, contract, or
-verification departures and pre-publication approval remain visible in either
-mode. Corrected internal tool
-errors are operational detail—neither deviations nor journal events. Expected
+Checkpoint mode stops after every stage with `pause` and presents concrete
+continue, revise, go back and stop choices; when the user continues, `advance`
+moves on. `[interaction] autopilot = false` is the default, including for
+legacy configurations with no interaction table. Autopilot advances between
+stages when configured or explicitly requested; a decision-blocking question
+still stops it with `pause --blocked`, and an explicit user instruction always
+wins. Immediate `DEVIATION` notices for material scope, implementation,
+contract, or verification departures remain visible in either mode. Corrected
+internal tool errors are operational detail—neither deviations nor journal events. Expected
 red tests are ordinary test-first evidence and are consolidated by meaningful
 behavior increment.
 
@@ -169,7 +173,7 @@ and focused proof due at that phase. Read test definitions as assertions,
 executed results as proof and missing historical records as separate limits.
 Final full strict verification follows approvals; its pending checklist is not
 itself a missing prerequisite for the reviewers. A review verdict grants no
-publication authority, and an exhausted final round needs a concrete human
+authority to commit, push or merge, and an exhausted final round needs a concrete human
 scope/policy decision before further fixes or final proof.
 
 | Host | Implemented review mechanism | Access boundary |
@@ -206,7 +210,7 @@ verification. Retain one consolidated material outcome in the journal so
 another machine has durable evidence; keep polling detail, retries, and raw
 output in the local job cache. Poll at useful intervals, reusing the same job,
 rather than repeatedly reopening its unchanged output. Record fresh proof for
-the candidate being delivered.
+the final candidate.
 
 Prepare the project's documented environment before verification, use focused
 build tests, and run full strict verification after final edits and review.
