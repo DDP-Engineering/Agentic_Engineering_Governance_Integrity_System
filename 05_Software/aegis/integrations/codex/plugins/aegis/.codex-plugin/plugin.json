@@ -1,6 +1,6 @@
 {
   "name": "aegis",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "AEGIS software governance, durable tasks, independent review and tracked verification.",
   "author": {
     "name": "DDP Engineering"

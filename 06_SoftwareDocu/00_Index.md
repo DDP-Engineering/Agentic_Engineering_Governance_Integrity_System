@@ -7,17 +7,20 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS - user documentation
 
-Guides for the assigned **AEGIS 0.14.0** source, including the OpenCode,
+Guides for the assigned **AEGIS 0.15.0** source, including the OpenCode,
 Codex, Pi, Qwen Code and Claude Code integrations. Existing delivery archives
 and their build records are under `07_Delivery/`. Assigning a source version
 does not build or publish those packages.
 
 Start with installation and folders, then choose the relevant worked example.
 Examples illustrate the workflow; sample output is not evidence of a test run.
-For 0.14.0 verification setup, start with
+The workflow has five stages - frame, specify, design, build, validate - and
+then the task is done; the quick path is frame, build, validate, done. The CLI
+writes the journal state with `advance`, `pause`, `log`, `ruling` and `verdict`.
+For 0.15.0 verification setup, start with
 [focused routing](01_Install_and_Setup.md#verify-focused-routing-before-using-it).
-The folder guide explains lean records and saved evidence; the FAQ and prompt
-cheatsheet cover focused tests, final proof and minimal handoffs.
+The folder guide explains the task journal and saved evidence; the FAQ and
+prompt cheatsheet cover focused tests, final proof and resuming with `brief`.
 
 | Guide | Read when | Slides |
 |---|---|---|
@@ -35,8 +38,9 @@ cheatsheet cover focused tests, final proof and minimal handoffs.
 | [Plugin installation manual](Plugin_Installation/README.md) | Step-by-step, illustrated installation for OpenCode, Codex, Pi, Qwen Code and Claude Code. | [Combined PDF](Plugin_Installation/pdf/00_AEGIS_Plugin_Installation_Manual.pdf) |
 
 The decks are condensed companions. The Markdown guides contain the detailed
-commands and limitations. The plugin installation folder also provides five
-standalone PDFs, a combined manual and installation illustrations.
+commands and limitations; where a deck and its guide differ, follow the guide.
+The plugin installation folder also provides five standalone PDFs, a combined
+manual and installation illustrations.
 The manuals describe current procedures; release and verification history stays
 in linked task/build records rather than their setup instructions.
 The installed `.agentic/AGENTS.md`, stage files and CLI define the repository
@@ -45,5 +49,7 @@ A host plugin does not replace the core payload.
 
 This repository excludes documentation-only updates from AEGIS task governance.
 Edit and review documentation directly; use AEGIS for software-development work.
+Commits, pull requests, merges, releases and packaging follow the repository's
+own procedures, outside AEGIS.
 Backend registration checks do not establish Desktop GUI or model-led workflow
 acceptance; see the plugin guide for the recorded verification boundary.

@@ -6,7 +6,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Install AEGIS for Claude Code
 
-**Source version:** AEGIS 0.14.0
+**Source version:** AEGIS 0.15.0
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
@@ -67,7 +67,7 @@ Executable and profile paths may contain spaces; quote them in the active shell.
 
 ## 3. Restart and find AEGIS
 
-Restart Claude Code. In CLI or a supported local Desktop **Code** session, use `/aegis:start <software request>`, `/aegis:status`, `/aegis:resume TASK-<id>`, `/aegis:check` and `/aegis:validate TASK-<id>`. The plugin also supplies `aegis:workflow`, two review agents, eleven MCP operations and two advisory hooks.
+Restart Claude Code. In CLI or a supported local Desktop **Code** session, use `/aegis:start <software request>`, `/aegis:status`, `/aegis:resume TASK-<id>`, `/aegis:check` and `/aegis:validate TASK-<id>`. The plugin also supplies `aegis:workflow`, two review agents, twelve MCP operations and two advisory hooks.
 
 Claude Desktop local Code sessions can manage installed plugins through **+ → Plugins** and use slash commands through the prompt controls. Use a native local Desktop Code session for the desktop plugin, and a separate Claude Code CLI installation for WSL. Remote support depends on the current Claude environment.
 

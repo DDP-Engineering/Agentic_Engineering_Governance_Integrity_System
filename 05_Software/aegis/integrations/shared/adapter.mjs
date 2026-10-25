@@ -25,6 +25,18 @@ const title = value => {
   if (typeof value !== 'string' || !value.trim() || value.length > 500 || /[\x00-\x1f]/.test(value) || value.startsWith('-')) throw new Error('Title must be one nonempty line, at most 500 characters, not an option.');
   return value;
 };
+const line = (value, label) => {
+  if (typeof value !== 'string' || !value.trim() || value.length > 1000 || /[\x00-\x1f]/.test(value)) throw new Error(`${label} must be one nonempty line of at most 1000 characters.`);
+  return value;
+};
+const relativePaths = value => [].concat(value ?? []).flatMap(item => String(item).split(',')).map(item => item.trim()).filter(Boolean).map(item => {
+  if (path.isAbsolute(item) || /^[A-Za-z]:/.test(item) || item.replaceAll('\\', '/').split('/').includes('..')) throw new Error(`Read paths must stay inside the repository: ${item}`);
+  return item;
+});
+// `--flag=value` keeps a value that starts with '-' from reading as an option.
+const option = (flag, value, label) => value === undefined || value === null || value === '' ? [] : [`${flag}=${line(String(value), label)}`];
+export const journalActions = ['advance', 'pause', 'log', 'ruling', 'verdict'];
+const stages = ['frame', 'specify', 'design', 'build', 'validate', 'done', 'survey', 'components', 'close', 'deliver'];
 const key = root => createHash('sha256').update(process.platform === 'win32' ? root.toLowerCase() : root).digest('hex');
 const jsonRead = async filename => JSON.parse(await fs.readFile(filename, 'utf8'));
 export async function jsonWrite(filename, value) {
@@ -79,6 +91,29 @@ export function commandArgs(operation, args = {}) {
     if (args.command && !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(args.command)) throw new Error('Invalid configured command name');
     if (args.base && (!/^[a-zA-Z0-9][a-zA-Z0-9_./~^+-]*$/.test(args.base) || args.base.includes('..'))) throw new Error('Invalid base revision');
     return ['test', args.command || 'test', '--task', args.task, ...(args.impacted ? ['--impacted'] : []), ...(args.no_fallback ? ['--no-fallback'] : []), ...(args.base ? ['--base', args.base] : [])];
+  }
+  if (operation === 'journal') {
+    const action = pick(args.action, journalActions, 'journal action');
+    const task = taskID(args.task);
+    const state = [...relativePaths(args.read).map(item => `--read=${item}`), ...option('--changed', args.changed, 'changed'),
+      ...option('--evidence', args.evidence, 'evidence'), ...option('--issues', args.issues, 'issues')];
+    if (action === 'advance') {
+      if (args.to !== undefined) pick(args.to, stages, 'target stage');
+      if (args.path !== undefined) pick(args.path, ['full', 'quick'], 'path');
+      return ['advance', task, ...option('--to', args.to, 'to'), ...option('--path', args.path, 'path'), ...(args.skipped ? ['--skipped'] : []),
+        ...option('--reason', args.reason, 'reason'), ...option('--next', args.next, 'next'), ...state];
+    }
+    if (action === 'pause') return ['pause', task, `--next=${line(args.next, 'next')}`, ...(args.blocked ? ['--blocked'] : []), ...state];
+    if (action === 'log') return ['log', task, '--', line(args.text, 'text')];
+    if (action === 'ruling') {
+      if (args.supersedes !== undefined && !/^RULING-\d{3}$/i.test(args.supersedes)) throw new Error('supersedes must name RULING-NNN');
+      return ['ruling', task, `--decision=${line(args.decision, 'decision')}`, `--reason=${line(args.reason, 'reason')}`,
+        `--source=${pick(args.source, ['user', 'repository', 'requirement', 'technical'], 'ruling source')}`, ...option('--supersedes', args.supersedes, 'supersedes')];
+    }
+    const verdict = value => value === undefined ? [] : [pick(value, ['approved', 'changes_required'], 'verdict')];
+    if (args.round !== undefined && !/^[1-6]$/.test(String(args.round))) throw new Error('round must be 1 through 6');
+    return ['verdict', task, ...verdict(args.spec).map(v => `--spec=${v}`), ...verdict(args.quality).map(v => `--quality=${v}`),
+      ...(args.round !== undefined ? [`--round=${args.round}`] : [])];
   }
   throw new Error(`Unsupported operation: ${operation}`);
 }
@@ -197,7 +232,7 @@ export function createAdapter(config = {}) {
       const root = await locate(context);
       const { branch, state } = await aligned(root, args.task, context);
       selected.set(context.sessionID, { root, branch, task: args.task });
-      return { ...await cli(root, commandArgs('resume', args), context), task_state: state.result.task, next: 'Read root AGENTS.md, .agentic/AGENTS.md, the current step, full journal as required, and Handoff must_read paths. Resume never grants Git authority.' };
+      return { ...await cli(root, commandArgs('resume', args), context), task_state: state.result.task, next: 'Read root AGENTS.md, .agentic/AGENTS.md, then what the brief\'s Read next line names; read the full journal where the step requires it. Resume never grants Git authority.' };
     },
     async read(args, context) {
       const { root, task } = await scope(args, context);
@@ -238,6 +273,12 @@ export function createAdapter(config = {}) {
       const { root, task } = await scope(args, context);
       await aligned(root, task, context);
       return cli(root, commandArgs('evidence', { ...args, task }), context);
+    },
+    async journal(args, context) {
+      coordinator(context);
+      const { root, task } = await scope(args, context);
+      await aligned(root, task, context);
+      return cli(root, commandArgs('journal', { ...args, task }), context);
     },
     async candidate(_args, context) { const root = await locate(context); return { root, ...await fingerprint(root) }; },
     async diff(args, context) {
@@ -314,7 +355,7 @@ export function createAdapter(config = {}) {
           selected.delete(sessionID);
           return 'AEGIS task selection invalidated by a checkout/branch change. Reconcile with status before writes.';
         }
-        return `AEGIS resume pointer: ${selection.task} in ${root}, branch ${branch}. After compaction call aegis_resume with this task and re-read its durable journal, contract, current step and Handoff must_read. Preserve user authority constraints verbatim from the conversation; these pointers and recorded evidence grant no approval. Use aegis_job status to recover any running suite. Do not rerun it just because context was compacted.`;
+        return `AEGIS resume pointer: ${selection.task} in ${root}, branch ${branch}. After compaction call aegis_resume with this task and re-read its durable journal, contract, current step and State must_read paths. Preserve user authority constraints verbatim from the conversation; these pointers and recorded evidence grant no approval. Use aegis_job status to recover any running suite. Do not rerun it just because context was compacted.`;
       } catch { return 'AEGIS resume context unavailable. Re-read status and the journal before continuing.'; }
     },
   };

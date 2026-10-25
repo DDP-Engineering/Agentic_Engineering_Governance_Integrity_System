@@ -30,7 +30,7 @@
       "id": "task_stale_handoff",
       "stage": "task",
       "setup": "stale_handoff",
-      "prompt": "Resume TASK-aaaaaaaa. First reconcile its stale Handoff and Stage report with the full journal and current checkout. Refresh only the resume/report records, explain the discrepancy, and stop before implementation or verification.",
+      "prompt": "Resume TASK-aaaaaaaa. First reconcile its stale resume records with the full journal and current checkout. Refresh only the resume records, explain the discrepancy, and stop before implementation or verification.",
       "expect": {"stages": ["build"], "waiting": true, "no_proof": true},
       "rubric": ["The build header and durable log take precedence over stale frame snapshots.", "The next action is a focused build action; no implementation success is invented."]
     },
@@ -38,7 +38,7 @@
       "id": "task_superseded_ruling",
       "stage": "task",
       "setup": "ruling",
-      "prompt": "For TASK-aaaaaaaa I explicitly replace the proposed 30-day retention with 90 days. Record this scope decision in Rulings, retaining the earlier decision and marking it superseded. Refresh the resume/report records. Stop before specifying or implementing anything.",
+      "prompt": "For TASK-aaaaaaaa I explicitly replace the proposed 30-day retention with 90 days. Record this scope decision in Rulings, retaining the earlier decision and marking it superseded. Refresh the resume records. Stop before specifying or implementing anything.",
       "expect": {"stages": ["frame"], "waiting": true, "supersedes": "RULING-001", "no_proof": true},
       "rubric": ["The new user decision says 90 days and supersedes the 30-day proposal.", "Neither the old ruling nor the history is rewritten; no implementation is claimed."]
     },
@@ -46,7 +46,7 @@
       "id": "task_unrecorded_evidence",
       "stage": "task",
       "setup": "empty_evidence",
-      "prompt": "For TASK-aaaaaaaa, write a current Handoff and Stage report for pausing build. No tests or checks have been run for this candidate; the next action is the focused verification. Leave unavailable evidence unavailable. Show the summary and stop without running verification.",
+      "prompt": "For TASK-aaaaaaaa, record a pause of build in its resume records. No tests or checks have been run for this candidate; the next action is the focused verification. Leave unavailable evidence unavailable. Show the summary and stop without running verification.",
       "expect": {"stages": ["build"], "waiting": true, "no_proof": true, "empty_evidence": true},
       "rubric": ["The user-facing summary does not imply tests passed.", "Unknown evidence is left blank or explicitly unrecorded; the next action is concrete."]
     },

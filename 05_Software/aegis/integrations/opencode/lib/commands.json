@@ -5,7 +5,7 @@
   ],
   "aegis-resume": [
     "Resume an AEGIS task from its durable journal",
-    "Resume the named task using aegis_resume, then read its current step, required journal content and Handoff must_read paths. Reconcile branch mismatch before writes. Continue its next incomplete item under existing authority; this command grants no Git authority. Task and instructions: $ARGUMENTS"
+    "Resume the named task using aegis_resume, then read its current step, required journal content and State must_read paths. Reconcile branch mismatch before writes. Continue its next incomplete item under existing authority; this command grants no Git authority. Task and instructions: $ARGUMENTS"
   ],
   "aegis-status": [
     "Show recorded AEGIS task state without starting work",
@@ -17,6 +17,6 @@
   ],
   "aegis-validate": [
     "Review and prove an AEGIS candidate with tracked verification",
-    "Resume the named task and read the complete validation step, journal, requirements and knowledge. Confirm it is ready for validation; do not skip unfinished earlier stages. Reconcile the candidate, run independent reviews when configured, then start final proof with aegis_run kind=validate. Track the job to completion without duplicate suites; record actual results and show the stage report. Preserve delivery approval and Git limits. Task and instructions: $ARGUMENTS"
+    "Resume the named task and read the complete validation step, journal, requirements and knowledge. Confirm it is ready for validation; do not skip unfinished earlier stages. Reconcile the candidate, run independent reviews when configured, then start final proof with aegis_run kind=validate. Track the job to completion without duplicate suites; record actual results and show the summary. Commits and publication stay with the user. Task and instructions: $ARGUMENTS"
   ]
 }

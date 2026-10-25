@@ -17,11 +17,15 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.14.0 source combines staged instructions, evidence-led idea capture,
-requirements, linked tests, journals, repository evolution, review policy and
-a Python CLI. Its five host integrations add native entry points and shared
-verification jobs. Core records live in Git; installed host resources and job
-caches also have local state outside the repository.
+The 0.15.0 source combines five stage instructions (frame, specify, design,
+build, validate), evidence-led idea capture, requirements, linked tests,
+journals whose state the CLI writes, repository evolution, review policy and
+a Python CLI. It guides and never blocks: `check` is an advisory report. It
+covers software implementation; commits, pushes, pull requests, merges,
+tickets, releases and packaging follow the repository's own procedures. Its
+five host integrations add native entry points and shared verification jobs.
+Core records live in Git; installed host resources and job caches also have
+local state outside the repository.
 
 ## Which agents and models work?
 
@@ -35,8 +39,9 @@ particular model or at a specific context limit.
 
 Yes. Transfer committed records using separately authorized Git operations.
 Find the task with `status` if necessary, then run `brief TASK-<id>`. Confirm
-the branch, read the current step, Handoff paths and required full journal,
-and continue the first unticked action. Missing/stale/shortened state means
+the branch, read what its `Read next` line names - the current step file, then
+the State `must_read` paths - and the full journal where the stage requires
+it, and continue the first unticked action. Missing/stale/shortened state means
 read more. A `summary` is recorded information, not fresh proof or approval.
 Local verification jobs and uncommitted files do not travel with Git.
 
@@ -50,19 +55,20 @@ See [project context](Project_Context.md) for examples and ownership.
 
 Only durable progress and evidence: stage transitions, material changes or
 decisions, consolidated test results, blockers, approvals, deviations, and the
-delivery outcome. Frame, Requirement coverage, Design, Rulings, Handoff, and
-Stage report own their detailed information; the Log does not duplicate them.
-Routine searches, edits, tool mechanics, corrected retries, and repeated test
-attempts stay out. During build, retain one expected red and one final green per
-meaningful behavior increment.
+final validation result. `advance` writes the transitions, `test --task` a test
+result, and `log` any other durable event. Frame, Requirement coverage, Design,
+Rulings and State own their detailed information; the Log does not duplicate
+them. Routine searches, edits, tool mechanics, corrected retries, and repeated
+test attempts stay out. During build, retain one expected red and one final
+green per meaningful behavior increment.
 
 ## Does it work without Git?
 
 The core can install and inspect artifacts without Git, with degraded
 diff-related functionality. Anchors, evolution and impacted selection need
 Git. The host adapters require a Git checkout. A remote is not required:
-local branches can supply the comparison base and a local commit can be the
-explicitly agreed delivery outcome.
+local branches can supply the comparison base, and what you do with the
+finished work - a local commit, a push, a pull request - is your own procedure.
 
 ## Does it need the network?
 
@@ -95,7 +101,7 @@ an operational error is separate from an advisory finding.
 Human output shows the first 40 findings unless `--full` is used; `--strict`
 implies the full list. JSON output is complete. A `DEVIATION` is the agent's
 spoken explanation of an accepted limitation or departure, not a tool finding
-or delivery approval.
+or an approval.
 
 ## What about a requirement no test can verify?
 Say so in the requirement. Start its `verification` with `Manual:` or
@@ -162,17 +168,16 @@ where the two disagree. AEGIS bundles no renderer; GitHub, GitLab and many
 Markdown previews draw Mermaid, and a terminal shows its text.
 
 ## Can it stop the agent writing code before the scope is agreed?
-The core has no write interceptor. It can report stage-zone findings. Each stage has a write
+The core has no write interceptor; AEGIS guides and never blocks. It can
+report stage-zone findings. Each stage has a write
 zone: `frame`, `specify` and `design` write only under `.agentic/`, while
-`build`, `validate`, and `deliver` are mechanically unrestricted. Source edited under a documentation
+`build` and `validate` are mechanically unrestricted. Source edited under a documentation
 stage shows up as a `stage-zone` warning naming the file and the stage.
 Most hits mean the journal's `stage:` line is stale rather than that the
 edit was wrong - which is itself worth knowing, because a stale stage
-breaks resume. `deliver` is publish-only by instruction and returns to
-`validate` if the candidate changes, but it deliberately has no default zone:
-the merge-base diff cannot determine which stage introduced an edit. Adjust
-the zones per stage in `[zones]` in `aegis.toml` only when that limitation is
-acceptable for your workflow.
+breaks resume. `advance` keeps that line current at each transition. Adjust
+the zones per stage in `[zones]` in `aegis.toml` when your workflow needs a
+different boundary; a zone stays advisory either way.
 
 ## Do I have to write requirements for everything?
 No. Adopt incrementally (doc 05), or not at all for areas you never
@@ -182,14 +187,16 @@ punishment.
 
 ## What are the pauses? Can I turn them off?
 By default, the workflow stops after every stage and presents concrete choices
-to continue, revise or return, or pause. Set `[interaction] autopilot = true`
+to continue, revise or return, or pause; the agent records each stop with
+`pause` and each continuation with `advance`. Set `[interaction] autopilot = true`
 in `.agentic/aegis.toml`, or explicitly request autopilot for one task, to flow
-between intermediate stages. Missing or invalid settings mean autopilot is off.
-The pre-publication stop always remains. These pauses are conversational
+between stages through validate. Missing or invalid settings mean autopilot is off.
+A decision-blocking question still stops autopilot (`pause --blocked`), and
+AEGIS never commits or publishes in either mode. These pauses are conversational
 instructions, not mechanisms; your agent CLI's permission system is unchanged.
 Autopilot suppresses intermediate stops, not the agent's voice: deviation
-notices still arrive mid-run, and delivery still presents every one of
-them in full.
+notices still arrive mid-run, and the validate close presents every one of
+them again in full.
 
 ## What is a `DEVIATION` line?
 A one-line notification the agent speaks the moment it records a
@@ -232,23 +239,28 @@ retained in the cache; removal does not erase that evidence automatically.
 ## When should I create a child task?
 
 Use one only when a large parent contains a non-overlapping scope that can own
-its requirements, branch/base, tests, validation, and delivery independently.
+its requirements, branch/base, tests and validation independently.
 Do not split small or tightly coupled work. Children are opt-in and limited to
 one level. Parent integration sees only children visible in its checkout.
 
 ## What is the difference between `brief` and `summary`?
 
-`brief` is the first bounded re-entry view: task identity, checklist, bound
-report, review policy, active rulings, handoff, and visible children. `summary`
-projects only the latest bound Stage report. Neither is approval or a substitute
-for the full journal and current step sources.
+`brief` is the first bounded re-entry view: task identity, stage and path,
+branch and base, parent, requirements, context presence, checklist, State,
+outcome, interaction mode, review policy, the computed diagram decision, active
+rulings, visible children, and a `Read next` line naming what to read. `summary`
+prints only the recorded State as a short block - the same block `advance` and
+`pause` print after writing. Neither is approval or a substitute for the full
+journal and current step sources.
 
 ## What happens when the review fix limit is reached?
 
 Total rounds are `1 + max_fix_cycles`. If either verdict still requires changes
-on the final round, delivery is blocked with `needs_user: yes`. Only an explicit
-human ruling that changes scope or policy can reset the counter. Invalidating
-stale verdicts does not reset consumed rounds or erase historical findings.
+on the final round, the agent pauses the task as blocked (`pause --blocked`),
+so `summary` shows Needs user: yes. Only a decision by the user, recorded with
+`ruling --source user`, changes the scope or the bound. Invalidating stale
+verdicts does not reset consumed rounds or erase historical findings. The
+protocol is in `.agentic/steps/review.md`, read only when review is enabled.
 
 Reviewers inspect current linked files, including untracked files, and focused
 proof due at that phase. Final full strict verification follows their approvals;
@@ -258,10 +270,20 @@ anchor evidence that was never recorded.
 
 ## How does a new agent resume safely?
 
-Run `brief TASK-<id>`, read the current step and Handoff `must_read` paths,
-confirm the branch matches the journal, then read the full journal wherever the
-stage requires it. Missing, stale, or omitted state means read more; it never
-means approval.
+Run `brief TASK-<id>`, read what its `Read next` line names - the current step
+file, then the State `must_read` paths - confirm the branch matches the
+journal, then read the full journal wherever the stage requires it. Missing,
+stale, or omitted state means read more; it never means approval.
+
+## My journal was written by an earlier version. What happens to it?
+
+It stays readable without migration. A journal with `## Handoff` and
+`## Stage report` sections keeps them until the first `advance` or `pause`
+replaces both with one `## State` block. The former deliver stage is folded
+into validate, so a journal left at `stage: deliver` closes through validate:
+confirm that its recorded proof still describes the checkout, then run
+`advance TASK-<id>` to reach `done`. Its license header and older Log lines
+stay as written.
 
 ## Where do I report a gap between these docs and the behavior?
 The behavior is defined by the payload (`AGENTS.md`, the step files,
@@ -308,12 +330,13 @@ unavailable selection; without it, the full command remains the fallback. The
 runner must honor the selected references. A preview, refusal or cancelled job
 is not passing evidence, and later candidate changes still require fresh proof.
 
-## Can I remove handoffs and saved metadata to save tokens?
+## Can I remove the State and saved metadata to save tokens?
 
-Keep the required handoffs and evidence. New records omit marked template-only
-notes, and stage files refer to shared instructions. Record consolidated outcomes
-instead of tool transcripts; keep handoffs short and refresh them at boundaries,
-pauses, blockers and session ends. `evolution --compact --json` reduces response
+Keep the State and evidence. New records omit the payload license header and
+marked template-only notes, and stage files refer to shared instructions.
+Record consolidated outcomes instead of tool transcripts; keep the one-line
+State values short - `advance` and `pause` refresh them at boundaries, pauses,
+blockers and session ends. `evolution --compact --json` reduces response
 text while keeping full saved fingerprints. Existing journals are not compacted,
 and actual end-to-end token savings have not been measured.
 
@@ -327,5 +350,7 @@ Configure and verify focused routing during [setup](01_Install_and_Setup.md#veri
 
 No. This repository uses AEGIS for software-development work. Documentation-only
 updates, packaging, release, deployment and repository-maintenance-only work
-are outside that scope unless explicitly requested. This documentation refresh
-does not require a task journal, development test suite or a model call.
+are outside that scope unless explicitly requested. Commits, pushes, pull
+requests and merges follow the repository's own procedures in every case. This
+documentation refresh does not require a task journal, development test suite
+or a model call.

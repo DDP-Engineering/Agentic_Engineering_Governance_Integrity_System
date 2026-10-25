@@ -6,7 +6,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # Install AEGIS for OpenCode
 
-**Source version:** AEGIS 0.14.0
+**Source version:** AEGIS 0.15.0
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
@@ -80,7 +80,7 @@ From the extracted package directory run:
 node setup.mjs doctor
 ```
 
-`node setup.mjs doctor` reports the runtime, three agents, five commands, eleven tools and `models_invoked: false`.
+`node setup.mjs doctor` reports the runtime, three agents, five commands, twelve tools and `models_invoked: false`.
 `doctor` checks runtime and registration metadata. It does not prove that Desktop has rendered the plugin or that a model-led workflow is correct. For acceptance, open a fresh session in a disposable governed repository, confirm the AEGIS resources are visible, and perform only a user-authorized workflow with the user’s selected provider.
 
 ## 5. Update or remove

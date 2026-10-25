@@ -63,7 +63,7 @@ async function setup(action, options, configDir) {
   if (found.some(item => item.scope !== 'user')) throw new Error('AEGIS has a project/local installation; preserve that separate scope before user lifecycle changes.');
   if (found.length && !previous.owner) throw new Error('Unowned Claude AEGIS registration exists.');
   if (action === 'doctor') return { host: 'claude', version, configDir, installed: found.length === 1,
-    commands: 5, tools: 11, reviewers: 2, hooks: 2, runtime, models_invoked: false };
+    commands: 5, tools: 12, reviewers: 2, hooks: 2, runtime, models_invoked: false };
 
   const files = {};
   if (action !== 'uninstall') {

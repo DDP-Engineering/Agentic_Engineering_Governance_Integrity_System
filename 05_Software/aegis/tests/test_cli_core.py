@@ -166,20 +166,19 @@ def test_legacy_journal_without_new_sections_still_parses(tmp_path):
     assert aegis.parse_handoff(text) == {}
 
 
-def test_new_task_template_has_parent_rulings_handoff_and_review_fields(tmp_path):
+def test_new_task_template_has_parent_rulings_state_and_review_fields(tmp_path):
     """REQ-FUNC-b8f0efc5: the canonical task scaffold carries additive fields."""
     agentic, aegis = make_repo(tmp_path)
     text = (agentic / "templates" / "task.md").read_text(encoding="utf-8")
     data = aegis.parse_journal(text)
 
     assert data["header"]["parent"] == ""
-    assert text.index("## Rulings") < text.index("## Handoff") < text.index("## Stage report")
+    assert text.index("## Rulings") < text.index("## State")
+    assert "## Handoff" not in text and "## Stage report" not in text
     assert aegis.parse_rulings(text) == ([], [])
-    assert aegis.parse_handoff(text) == {
-        "current": "", "status": "", "next": "", "must_read": "", "blockers": ""
-    }
-    report = aegis.parse_stage_report(text)
-    assert list(report)[-3:] == [
+    state = aegis.parse_state(text)
+    assert tuple(state) == aegis.STATE_FIELDS and not any(state.values())
+    assert list(state)[-3:] == [
         "spec_compliance", "implementation_quality", "review_round"
     ]
 
@@ -980,8 +979,11 @@ def test_task_then_status_round_trip(tmp_path, capsys, monkeypatch):
     assert aegis.main(["status", data["id"]]) == 0
     detail = capsys.readouterr().out
     assert "branch: feature/m3u-export" in detail
-    assert "checklist: 0/1 done" in detail
+    frame_items = aegis.done_when("frame").count("- [ ]")
+    assert frame_items > 1
+    assert f"checklist: 0/{frame_items} done" in detail
     assert "log (last 1 of 1)" in detail
+    assert "state: working (reported frame - in_progress)" in detail
 
 
 def test_status_accepts_a_bare_id_and_shows_only_the_last_five_log_lines(tmp_path,
@@ -1024,14 +1026,14 @@ def test_status_never_lists_a_diagram_file_as_a_journal(tmp_path, capsys):
 
 
 def test_status_resolves_validate_and_deliver_step_files(tmp_path, capsys):
-    """REQ-FUNC-24ea4f73: both post-build stages are resumable."""
+    """REQ-FUNC-24ea4f73: validate and a legacy deliver journal are resumable."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     capsys.readouterr()
 
     for suffix, stage, step in (
         ("aaaa", "validate", "5_validate.md"),
-        ("bbbb", "deliver", "6_deliver.md"),
+        ("bbbb", "deliver", "5_validate.md"),
     ):
         (agentic / "tasks" / f"TASK-{suffix}.md").write_text(
             f"# TASK-{suffix} - stage\n\nstage: {stage}\ntype: change\n"
@@ -1099,15 +1101,28 @@ def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
     generated = (tmp_path / capsys.readouterr().out.strip()).read_text("utf-8")
     original = aegis.scaffold_template("task.md")
 
+    def headings(text):
+        return [line for line in text.split("\n") if line.startswith("## ")]
+
+    def header_keys(text):
+        return [line.split(":")[0] for line in text.split("\n\n")[1].split("\n")]
+
+    def section(text, name):
+        start, end = aegis.section_bounds(text, name)
+        return text.split("\n")[start:end]
+
     assert "Keep the shape\n\nstage: frame\n" in generated
-    changed = [
-        (a, b)
-        for a, b in zip(original.split("\n"), generated.split("\n"))
-        if a != b
-    ]
-    assert len(original.split("\n")) == len(generated.split("\n"))
-    assert len(changed) == 5  # title, branch, base, opened, log
-    assert {b.split(":")[0] for _a, b in changed} >= {"branch", "base", "opened"}
+    assert headings(generated) == headings(original)
+    assert header_keys(generated) == header_keys(original)
+    assert {"branch: main", "base: 0123456789abcdef0123",
+            f"opened: {aegis.today()}"} <= set(generated.split("\n"))
+    for name in ("Frame", "Requirement coverage", "Design", "Rulings"):
+        assert section(generated, name) == section(original, name), name
+    # the CLI fills what the template leaves blank
+    assert "\n".join(section(generated, "Done checklist")).strip() == aegis.done_when("frame")
+    assert section(generated, "Log") == ["", f"- {aegis.today()} frame: journal opened", ""]
+    state = aegis.parse_state(generated)
+    assert (state["status"], state["reported"]) == ("working", "frame - in_progress")
 
 
 def test_task_without_parent_remains_a_top_level_task(tmp_path, capsys, monkeypatch):

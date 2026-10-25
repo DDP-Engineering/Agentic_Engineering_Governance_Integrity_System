@@ -6,7 +6,7 @@ See the LICENSE.txt file for full license details.
 SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -->
 
-# AEGIS 0.14.0
+# AEGIS 0.15.0
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,7 +16,7 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The project version is **0.14.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+The project version is **0.15.0**. Optional OpenCode, Codex, Pi, Qwen Code and
 Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 
@@ -33,14 +33,14 @@ Git and a compatible host installation.
 | `integrations/` | Five host adapters, shared runtime and JavaScript behavior tests. |
 | `tests/` | Python product suite, including wrappers that run integration tests. |
 
-The repository-root `.agentic/` is this project's installed instance, with its
-own configuration and records. It is separate from the reusable template.
+This source checkout has no repository-root `.agentic/` installation; the
+template is maintained directly.
 
-Frame and Validate use the task authoring guide when updating journals.
-Existing-contract quick fixes record their requirement IDs at Frame; resume
-fields name one concrete action or scoped decision and resolve current blockers
-before advancing. Review explanations use the accepted scope, independently
-of a requirement's draft status. Unknown behavior and unobserved proof remain explicit.
+The CLI journal writers record the stage, Done checklist, Log, Rulings and
+State; the agent edits Frame, Requirement coverage and Design. Existing-contract
+quick fixes record their requirement IDs at Frame, and the State's next action
+names one concrete action or question. New requirements start as drafts and
+build activates them. Unknown behavior and unobserved proof remain explicit.
 
 ## Install
 
@@ -81,77 +81,35 @@ formats, lifecycle, and examples.
 using aegis workflow, implement feature X
 ```
 
-The stages are frame, specify, design, build, validate, and deliver. The quick
-path is frame, build, validate, deliver, but size alone does not qualify a change.
-Each step file names the repo-relative file to read before work in the next
-stage, including the quick-path jump and returns for correction. Workflow
-instructions and host prompts name installed files relative to the checkout root.
-An existing requirement must already cover the behavior being changed. There
-must be no new externally observable behavior, interface, data format or
-dependency, and no security- or data-handling behavior changes. Record the
-eligibility reason in frame; validation and authority limits still apply.
+The stages are frame, specify, design, build and validate, ending at done. The
+quick path is frame, build, validate, but size alone does not qualify a change:
+an existing requirement must already cover the behavior, and there must be no
+new externally observable behavior, interface, data format or dependency, and
+no security- or data-handling change. Frame records that criteria table.
 
-At a checkpoint or explicit stop, the task template provides one boundary
-update recipe: synchronize header/Handoff/report state, record the pause,
-preserve unknown evidence, and show the saved summary before details. Handoff
-paths stay on one comma-separated `must_read:` line. Validation clears both
-current review verdicts when the reviewed candidate changes, retains the
-consumed round, and respects requests limited to inspection or record updates.
-Inferred details remain open decisions until an authoritative source settles
-them. Missing historical execution stays missing; current verification proves
-only the candidate executed now. A limited update does not complete a stage,
-and continuation choices depend on actual proof and current review outcomes.
-Correction returns copy the destination checklist in full. Exhausted review
-requires a specific human scope/policy decision rather than accepting a finding
-as permission to advance; the recorded decision does not replace fresh proof.
-The shared reporting entry point requires the task template's authoring
-guidance before journal edits, including limited updates to an existing task.
-Generated journals retain a short link to that guide, and frame and validate
-request it explicitly. Record edits must succeed before being reported; a
-missing Stage report must be completed even when summary exits zero. Record
-each consolidated outcome once, then update the snapshots and report the pause.
-No new decision leaves Rulings unchanged; pending authority is not a Ruling.
-Resume actions name current execution or a concrete decision; unavailable
-historical red/anchor evidence stays in issues and cannot be recovered by a new
-run. Frame distinguishes current implementation/setup facts from scope and
-policy: an absent component is not automatically excluded, and a verifier using
-the standard library does not prohibit dependencies for a proposed feature.
-Destructive-scope questions must be answered directly, rather than replaced by
-permission to defer them. Journal edits preserve the visible guide pointer;
-summary output retains every line and truncation warning. Unperformed evolution
-reports remain unchecked with an explicit applicability reason or limitation.
-Frame labels each claim by its actual source; projecting an observed test pair
-into a proposed interface remains an inference. Journal edits preserve the
-original copyright/license prologue and verify it before summary.
-Frame distinguishes a requested capability from unverified current conditions.
-Keep the journal returned by creation; repair rejected edits in that same file
-and verify the saved stage checklist before reporting the checkpoint.
-Record updates use actual multiline text and recover exact-match failures from
-the current journal, preserving untouched history. Open Frame questions still
-need saved records. A Problem describes the defect; compare accepted outcomes,
-scope and requirements before claiming a contract conflict during resume.
+Each stage has one step file: what to read, the steps, a Finish block naming
+the exact commands for checkpoint and autopilot, and a Done when list that the
+CLI copies into the journal. The agent edits the Frame, Requirement coverage
+and Design sections; the CLI writes the rest. `advance` moves to the next stage
+on the path, or back with `--to`; `pause` stops for the user with one named
+question or action; `log` and `ruling` append events and decisions; `verdict`
+records explicit review results. They record the agent's decision and never
+refuse it, and each prints the summary block that the agent shows first. A
+journal keeps one `## State` block: status, the reported stage and result, next
+action, must-read paths, changed files, evidence, issues and review fields.
+Journals written before it keep their Handoff and Stage report until the first
+State write replaces them. `brief` resumes a task: it prints the State, the
+computed diagram decision and a `Read next` line naming the step file and the
+must-read paths.
+
+Validate reviews and reconciles the candidate, updates component knowledge and
+project context, runs the final proof once after the last edit, appends
+`report` and closes the task with `advance` to `done`. Commits, pushes, pull
+requests and merges follow the repository's own procedures, outside AEGIS.
 See the [prompt evaluations](evaluations/README.md) for measured model behavior
-and the limits of automatic checks.
-Delivery compares like-for-like candidate bindings and saves its approval pause
-before presentation. Design checkpoint responses copy the saved diagram blocks.
-Current-checkout evidence includes untracked records; historical Git absence and
-an added interface alone do not establish missing scope or a contract conflict.
-Log appends use a section-heading insertion point and preserve existing evidence
-including whitespace. Host reviewers distinguish focused evidence due at review
-from final proof due after approvals. Diagram node classes are checked against
-an explicit map of proposed edits; reused unchanged nodes have no change class.
-Deliver persists stale-candidate returns before reporting them and distinguishes
-changes since the Git base from changes after proof. Validate finishes candidate
-edits before final proof, then writes only journal records. Journal guidance
-includes multiline transition records and summary repair. Design honors empty
-diagram type lists and explicit stage stops, and marks reused nodes separately
-from new connections. Explicit review uses evidence due before final full proof;
-existing executed tests can cover a restored contract. Adoption distinguishes
-the active interface contract from a conflicting observed implementation.
-The development harness preserves the original ten scenarios and adds fifteen
-for the remaining stages, real reviewer activation, diagrams, autopilot and
-context updates. Delivery tests stop before publication; coverage limits and
-the fresh original/current subscription comparison are documented there.
+and the limits of automatic checks; the harness covers every step file, real
+reviewer activation, diagrams, autopilot, context updates, a hold-out domain
+and a chained lifecycle.
 
 Component knowledge pages are concise implementation routes. Their `Routing`
 signals select the owning component and point to its first source and focused
@@ -267,14 +225,15 @@ python .agentic/aegis.py summary TASK-<id>
 
 `brief` is the first re-entry view: deterministic, read-only, and bounded to
 240-character values, eight active rulings, and twenty visible children. It
-includes the parent, checklist, bound report, resolved interaction mode,
-configured review state, active rulings, stage-bound handoff, and visible
-children. Read its current step and
-handoff `must_read` files next, then the full journal wherever required.
+includes the path, parent, checklist, State, resolved interaction mode,
+configured review state, diagram decision, active rulings and visible
+children, and ends with a `Read next` line naming the current step file and
+the State `must_read` paths. Read those next, then the full journal wherever
+required.
 
-The agent records one fixed report at stage completion or pause, then copies
-the read-only `summary` output into chat before detailed explanation.
-Reported stage/result and current journal stage are separate. Missing evidence
+Every session ends with `advance` or `pause`, which write the State and print
+the `summary` block; the reply starts with that block before detailed
+explanation. Reported stage/result and current journal stage are separate. Missing evidence
 stays `not recorded`; stale or shortened records require journal review.
 With autopilot off, every completed stage ends at a user choice checkpoint.
 
@@ -285,21 +244,21 @@ Interaction defaults are project configuration:
 autopilot = false
 ```
 
-Missing or invalid values mean off. Checkpoint mode presents three or four
-stage-specific choices: continue, revise or return, and pause. Autopilot flows
-through intermediate stages, but never bypasses pre-publication approval. New
+Missing or invalid values mean off. Checkpoint mode presents stage-specific
+choices: continue, revise, go back or stop. Autopilot flows
+between stages through validate; a decision-blocking question still stops it,
+and AEGIS never commits or publishes. New
 task journals record the resolved mode so it remains stable across resumes;
 an explicit user instruction can override the configured default for that task.
 
 The append-only task Log is deliberately narrower than a session transcript.
 It keeps stage transitions, material engineering changes, consolidated
-verification, blockers, approvals, deviations, and delivery outcomes. Routine
+verification, blockers, approvals, deviations, and the closing outcome. Routine
 tool activity, corrected retries, and detail already held in another durable
 artifact stay out of it.
 
-For models with limited context, start with `brief`, current-stage
-instructions, and handoff sources. Required full validation and delivery reads
-still apply.
+For models with limited context, start with `brief` and read what its
+`Read next` line names; validate still reads the whole journal.
 Frame, Specify, and Design also share a compact semantic-analysis cycle:
 analyze selected evidence, challenge gaps and contradictions, write the durable
 artifact, then audit it. Material claims are labelled stated, observed,
@@ -311,14 +270,12 @@ and setup instructions. Validate updates component knowledge after
 implementation corrections and before final review and proof. Earlier
 component updates are appropriate when another agent needs current facts for a
 handoff.
-The payload's prompt cheatsheet includes explicit one-stage sessions; actual
-model compliance and 64K-context performance require separate model runs.
-See `template/.agentic/CLI.md` for the optional journal record and output limits.
+The [prompt cheatsheet](../../06_SoftwareDocu/08_Prompt_Cheatsheet.md) gives
+one-stage sessions for small models; actual model compliance requires model
+runs. See `template/.agentic/CLI.md` for the journal commands and output limits.
 
 New journals also carry their `interaction: checkpoint|autopilot` mode,
-append-only supersedable Rulings, one replaceable
-Handoff (`current`, `next`, `must_read`, `blockers`, `status`), and compatible
-review fields. Optional explicit review defaults off:
+append-only supersedable Rulings, and the State block with its review fields. Optional explicit review defaults off:
 
 ```toml
 [review]
@@ -329,10 +286,10 @@ max_fix_cycles = 2
 When enabled, specification compliance and implementation quality are judged
 independently for the same candidate, using `approved` or `changes_required`.
 A candidate edit invalidates both verdicts. The workflow allows
-`1 + max_fix_cycles` total rounds, then blocks for a human if changes remain
-required.
-Review disabled does not skip semantic review, full validation, strict checks,
-or the delivery checkpoint.
+`1 + max_fix_cycles` total rounds, then pauses as blocked for the user if
+changes remain required. The protocol is `steps/review.md`, read only when
+review is enabled; disabled review does not skip semantic review, full
+validation or the strict check.
 
 Design diagrams for the human are optional and default off:
 
@@ -353,11 +310,11 @@ renderer.
 
 | Host | AEGIS resources |
 |---|---|
-| OpenCode | Primary Aegis agent, two review subagents, five commands and eleven native tools. |
-| Codex | Native plugin, `aegis:aegis` skill, two review-role definitions and an eleven-operation command bridge. |
-| Pi | Extension, skill, five commands, eleven tools and a launcher for fresh reviewer processes. |
-| Qwen Code | Extension, skill, five commands, two review agents and eleven local MCP tools. |
-| Claude Code | Plugin, workflow skill, five namespaced commands, two review agents, eleven local MCP tools and bounded advisory hooks. |
+| OpenCode | Primary Aegis agent, two review subagents, five commands and twelve native tools. |
+| Codex | Native plugin, `aegis:aegis` skill, two review-role definitions and a twelve-operation command bridge. |
+| Pi | Extension, skill, five commands, twelve tools and a launcher for fresh reviewer processes. |
+| Qwen Code | Extension, skill, five commands, two review agents and twelve local MCP tools. |
+| Claude Code | Plugin, workflow skill, five namespaced commands, two review agents, twelve local MCP tools and bounded advisory hooks. |
 
 Entry points differ by host: Codex does not receive OpenCode's primary-agent
 selector or the five slash commands. Pi's reviewer launcher uses separate

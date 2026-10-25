@@ -9,20 +9,21 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 Copy-paste prompts for the operations you actually perform, one box each.
 These are *operator* prompts - what a human types to start an operation.
-The *agent-facing* cheatsheet (per-stage one-liners for small models)
-lives in the payload itself, in `.agentic/AGENTS.md`.
+The *agent-facing* instructions live in the payload itself: the root digest
+routes the agent to `.agentic/AGENTS.md`, which routes it to one step file per
+stage.
 
 Replace `<angle-bracket>` parts before sending. On Linux distributions
 without a `python` alias, say `python3` in the prompts.
 
 ## Read the saved state before continuing
 
-Frame and Validate read `.agentic/templates/task.md` before editing a journal.
 Retain the ID/path returned by `task "<title>"`: that command creates a new
 journal; `brief TASK-<id>` and `summary TASK-<id>` select an existing one.
-Repair the existing file after a rejected edit. Preserve its legal prologue,
-authoring-guide link and historical Log text, including whitespace. Append a
-new Log outcome immediately before the following section heading.
+Edit Frame, Requirement coverage and Design directly and tick Done checklist
+items as they are met. Write the stage, Log lines, Rulings and State only with
+`advance`, `pause`, `log`, `ruling` and `verdict`; earlier Log lines and
+Rulings are never edited.
 
 Frame separates user-stated clauses, observed source/test definitions, inferred
 examples and unknowns. A requested capability does not prove an existing defect,
@@ -32,13 +33,15 @@ a question is not its answer. Existing-contract quick fixes record governing
 requirement IDs at Frame. On resume, compare accepted outcomes with the current
 behavior; the original bug description is not a requirement to retain the bug.
 
-At a boundary, save the checklist, Handoff and Stage report before running
-`summary`. Both `next` fields name one concrete action or scoped decision;
-checkpoint choices belong in the response. Copy the actual fenced summary,
-including Details and truncation warnings. Repair missing records even when
-`summary` exits zero; shorten saved fields and rerun it if necessary.
+At a boundary, tick the checklist, then run `advance` when the stage is
+finished or `pause --next "<one action or question>"` to stop for the user
+(`--blocked` when a decision blocks). `--next` names one concrete action or
+scoped decision; checkpoint choices belong in the response. Both commands print
+the summary block: copy it in a text fence before the explanation, including
+Details and truncation warnings. Keep `--changed`, `--evidence` and `--issues`
+to one short line each; a truncated value sends the next reader to the journal.
 
-## Review, proof and delivery
+## Review, proof and close
 
 Read current linked files, including untracked files, and discover the relevant
 component paths before declaring evidence absent. Review uses the accepted
@@ -48,13 +51,14 @@ Validate checklist does not itself prevent review approval. Current passing
 tests cannot recreate missing historical red or anchor evidence. Unperformed
 evolution remains unchecked with its applicability reason or verification gap.
 
-Deliver compares the current candidate with the proved candidate using the same
-binding method and scope. A diff from the task base describes the change set;
-it does not identify edits since validation. Save either the approval pause or
-the return to Validate before presenting the summary. Preserve earlier Log
-entries, and clear stale enabled-review verdicts without resetting consumed
-rounds. Record-only work and bounded transitions do not authorize source repairs
-or publication. See the [feature example](03_Example_Feature.md#stage-6---deliver).
+Validate closes the task. After the final proof, `log` its result once, run
+`report` and read it, then `pause --next "Close the task?"` in checkpoint mode,
+or `advance` to `done` in autopilot when the proof passed; a failed proof
+pauses as blocked. An edit after the proof needs fresh review and proof. A
+return with `advance --to <stage>` clears enabled-review verdicts and keeps
+the consumed round. Record-only work and bounded transitions do not authorize
+source repairs or publication; committing and opening a pull request follow the
+repository's procedures. See the [feature example](03_Example_Feature.md#stage-5---validate).
 
 ## Design diagrams and interaction mode
 
@@ -64,10 +68,10 @@ and the selected types apply. Missing/non-list types default to structure;
 structure nodes from proposed node edits independently of their edges; a reused
 node does not become changed merely because it receives a new connection.
 
-In checkpoint mode, show the actual summary, then every saved diagram heading
-and complete Mermaid block, then the choices. In autopilot, save the diagrams
-and report their path in `changed`, without displaying the blocks or adding a
-stop. An explicit Design stop still completes configured artifacts and retains
+In checkpoint mode, show the summary `pause` printed, then every saved diagram
+heading and complete Mermaid block, then the choices. In autopilot, save the
+diagrams and report their path with `--changed`, without displaying the blocks
+or adding a stop. An explicit Design stop still completes configured artifacts and retains
 the Design header; it does not change autopilot's diagram presentation.
 
 ## Install on an existing project - via an agent
@@ -127,7 +131,7 @@ using aegis workflow, continue adoption TASK-<id>, close it
 
 *What happens:* survey → owner-reviewed component checklist → one
 knowledge page + requirements per component (linking *existing* tests) →
-close with a full `check` and a report.
+close with a full `check` and a report → `advance` to done.
 *Check afterwards (survey):* the component list is yours to edit before
 anything else happens - that review is the alignment moment.
 
@@ -139,11 +143,13 @@ using aegis workflow, implement: <what, for whom, and why>
 
 By default, the agent stops after every stage, reports the result, and offers
 three or four choices: continue to the named next stage, revise or return to a
-specific artifact, or pause the workflow. The delivery commit/PR always needs
-explicit approval. To flow through intermediate stages, request autopilot:
+specific artifact, or pause the workflow. AEGIS ends when validate closes the
+task at `done`; the commit and pull request stay with you. One feature per
+task: ask for the next feature afterwards, often in a later session, and it
+becomes a new task. To flow through intermediate stages, request autopilot:
 
 ```
-using aegis workflow, autopilot to deliver: implement <what>
+using aegis workflow, autopilot through validate: implement <what>
 ```
 
 A record-only update or unfinished stage reports its pending action rather
@@ -153,15 +159,16 @@ verification or exhausted review names the concrete missing action/decision;
 proposing an exception does not accept it. Frame keeps inferred details as
 open questions rather than silently adding them to scope. Missing historical
 test or anchor evidence cannot be recreated by a new run.
-Before editing an existing journal, read the task template's authoring guidance
-if it is not already in the session. Generated journals omit those notes.
-No new human decision leaves Rulings unchanged; pending authority is not a Ruling.
-In both saved next fields, current verification names its command and current
-candidate; past red/anchor gaps remain in issues. Frame keeps feature scope and
-dependency choices open when evidence describes only what is implemented today.
+Generated journals omit the template's authoring notes; `.agentic/templates/task.md`
+keeps them for reference. No new human decision leaves Rulings unchanged;
+pending authority is not a Ruling. In `--next`, current verification names its
+command and current candidate; past red/anchor gaps remain in `--issues`.
+Frame keeps feature scope and dependency choices open when evidence describes
+only what is implemented today.
 
-Autopilot suppresses intermediate stage-choice stops, not the agent's voice or
-publication approval: anything it
+Autopilot suppresses intermediate stage-choice stops, not the agent's voice;
+a decision-blocking question still stops it, and AEGIS never commits or
+publishes in either mode. Anything it
 deviates on still arrives mid-run as a one-line `DEVIATION <stage>: ...`
 notice you do not have to answer.
 
@@ -170,7 +177,8 @@ anomaly, while it is still cheap to say something.
 *Check afterwards:* the task-owned records retain the durable milestones -
 accepted scope, one meaningful red and final green per behavior increment,
 pre-implementation `anchor`, final `evolution`, material findings, validation
-evidence, and report. Routine tool activity and corrected retries are omitted.
+evidence, and the closing report. Routine tool activity and corrected retries
+are omitted.
 
 Frame now records a compact idea card: problem, desired outcome, actors,
 scenario, examples and counterexamples, boundaries, constraints, success
@@ -191,51 +199,54 @@ current facts; task records carry progress and unanswered questions. See
 
 ```text
 Read .agentic/AGENTS.md. Continue TASK-<id> using the current stage file.
-Start with python .agentic/aegis.py brief TASK-<id>, then read the header,
-checklist, relevant decisions, unresolved issues, and required evidence.
-Read the project profile and relevant environment sections when present;
-confirm their claims against the current checkout and canonical references.
-Record and show the stage report. Stop after this stage.
-Do not commit or push.
+Start with python .agentic/aegis.py brief TASK-<id>, then read what its
+Read next line names, plus relevant decisions, unresolved issues, and
+required evidence. Read the project profile and relevant environment sections
+when present; confirm their claims against the current checkout and canonical
+references. At the end of the stage, run pause and show its summary. Stop
+after this stage. Do not commit or push.
 ```
 
 This explicitly bounds an autopilot session to one stage and matches ordinary
 checkpoint behavior. Load source and linked requirements as
 needed. A missing/stale snapshot or shortened output requires the full journal
-information before acting, and required full validation/delivery reads are
-never skipped. `summary` does not run checks or prove the recorded claims.
+information before acting, and required full validation reads are never
+skipped. `summary` does not run checks or prove the recorded claims.
 These prompts reduce unnecessary context; they do not establish model
 compliance or proof that the recorded work succeeded.
 
-At an explicit stop, check the saved records as well as the response:
-Handoff `current` and Stage report `current` must match the header, Handoff
-must be waiting, and the report must say `result: paused`, `needs_user: yes`.
-A blocking decision uses blocked instead. Each field occupies one plain line;
-multiple `must_read` paths are comma-separated. The agent updates these
-records before running and showing `summary`.
+At an explicit stop, check the saved State as well as the response:
+`status: waiting`, `reported: <header stage> - paused`, and a `next` line
+naming the one action or question. A blocking decision shows `blocked` in both
+places instead. `pause` writes these one-line fields - multiple `must_read`
+paths are comma-separated - and prints the summary; nobody edits them by hand.
 
-If the candidate changed after review, both current verdict fields must be
-cleared while the consumed review round and historical Log remain intact.
-Saying that approvals are stale in the response is insufficient. A request to
-inspect, reconcile records, or return to build and stop does not authorize
-repairing source/tests. When supplied review results exhaust the correction
-budget, record the blocking decision before attempting further work.
+If the candidate changed after review, the recorded verdicts no longer apply:
+a return with `advance --to build` clears both while the consumed review round
+and historical Log remain intact, and the next review records new ones with
+`verdict`. Saying that approvals are stale in the response is insufficient. A
+request to inspect, reconcile records, or return to build and stop does not
+authorize repairing source/tests. When supplied review results exhaust the
+correction budget, record the blocking decision with `pause --blocked` before
+attempting further work.
 
 ## Work on a quick fix
 
 ```
-using aegis workflow, autopilot to deliver: fix <symptom, file if known,
+using aegis workflow, autopilot through validate: fix <symptom, file if known,
 how to reproduce>
 ```
 
 *What happens:* `frame` decides quick vs full path (a "fix" that changes
 intended behavior or touches security/data handling takes the full path - the journal says
 which and why), then reproduce-first build, anchor after the expected failure,
-record evolution after the fix, validate the final candidate, then deliver it.
-One confirmation, at the PR - plus a `DEVIATION` line whenever the agent
-accepts a warning, skips a verification, or does anything else it judged
-worth saying. Those are notifications, not questions: read them, keep
-working, and they are all repeated at the delivery stop anyway.
+record evolution after the fix, validate the final candidate, `report`, and
+`advance` to done. No stage-choice stops - a decision-blocking question still
+stops it - plus a `DEVIATION` line whenever the agent accepts a warning, skips
+a verification, or does anything else it judged worth saying. Those are
+notifications, not questions: read them, keep working, and they are all
+repeated when validate closes the task. The commit and pull request stay with
+you.
 
 ## Review the AEGIS artifacts for drift (maintenance sweep)
 
@@ -249,7 +260,7 @@ linked tests check it? For any requirement whose verification starts
 unautomatable, or could a test be written now? Do the knowledge pages
 still describe their
 components truthfully? Are there draft requirements nobody finished,
-journals stuck in an early stage for weeks, or delivered work with no
+journals stuck in an early stage for weeks, or merged work with no
 journal? Produce a findings list ordered by severity, each with a
 one-line proposed fix. Change nothing yet.
 ```
@@ -308,25 +319,27 @@ local verification caches do not. Confirm the recorded branch before editing.
 For a bounded resume session:
 
 ```
-Using AEGIS, run brief TASK-<id>. Read the current step and Handoff must_read
-paths first. Continue the first unticked action. Read the full journal wherever
-the stage requires it. Do not infer approval or Git authority.
+Using AEGIS, run brief TASK-<id>. Read what its Read next line names first.
+Continue the first unticked action. Read the full journal wherever the stage
+requires it. Do not infer approval or Git authority.
 ```
 
 For a deliberately split feature:
 
 ```
 Using AEGIS, create one child under TASK-<parent-id> for this exact
-non-overlapping scope: <scope>. Keep its requirements, validation, and delivery
+non-overlapping scope: <scope>. Keep its requirements and validation
 independent. Do not edit the parent or claim children outside this checkout.
 ```
 
 For an enabled-review return:
 
 ```
-Fix only the recorded review findings for TASK-<id>. Clear both old verdicts,
-rerun focused proof, increment the bounded round, and re-review specification
-compliance and implementation quality against the same candidate.
+Return TASK-<id> to build with advance --to build, which clears both old
+verdicts and keeps the round. Fix only the recorded review findings, rerun
+focused proof, return to validate, and re-review specification compliance and
+implementation quality against the same candidate, recording the next round
+with verdict --round <n+1>.
 ```
 
 ## Reconcile after a merge
@@ -337,9 +350,9 @@ every error it reports - duplicate requirement ids, dangling journal
 references, stale affected_paths, unresolved specs - re-running until no
 errors remain. List the warnings but fix only the mechanically obvious
 ones. Reconcile affected project/environment context and component pages
-against the merged implementation and established active contracts; flag
-disputed behavior for a human. Summarize what you changed and what you left
-for a human.
+against the merged implementation and established active contracts; another
+branch's plans are not facts until its code is here. Flag disputed behavior
+for a human. Summarize what you changed and what you left for a human.
 ```
 
 *Check afterwards:* `check` shows `errors=0`; anything the agent left is
@@ -368,13 +381,14 @@ fallback with --no-fallback. Neither a preview nor a refusal is passing proof.
 Run full strict verification after final edits and review, without a duplicate
 full test immediately before it. Later candidate changes require fresh proof.
 Keep consolidated red/green outcomes, findings and decisions in the journal.
-Refresh minimal Handoff and Stage report fields at transitions, pauses, blockers
-and session ends. Reuse unchanged instructions in an intact session; preserve
-required full reads after compaction or resumption. Do not delete saved evidence.
+Record transitions, pauses, blockers and session ends with advance and pause,
+keeping their one-line fields short. Reuse unchanged instructions in an intact
+session; preserve required full reads after compaction or resumption. Do not
+delete saved evidence.
 ```
 
-These are 0.14.0 workflow and CLI options. They do not create a result-reuse cache,
-remove review requirements or change existing delivery authority.
+These are 0.15.0 workflow and CLI options. They do not create a result-reuse cache,
+remove review requirements or grant commit or publication authority.
 
 ## Resume a tracked verification job
 

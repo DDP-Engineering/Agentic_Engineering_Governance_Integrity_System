@@ -22,7 +22,7 @@ test('opencode: register native agents/commands/tools without changing existing 
   assert.deepEqual(config.agent.build, before.agent.build);
   assert.deepEqual(config.command.mine, before.command.mine);
   assert.equal(config.model, before.model);
-  assert.equal(Object.keys(hooks.tool).length, 11);
+  assert.equal(Object.keys(hooks.tool).length, 12);
   assert.equal(Object.keys(config.command).length, 6);
   await hooks.config(config); // Same-object repeat is idempotent.
   await assert.rejects(hooks.config({ agent: { aegis: {} } }), /conflict/);

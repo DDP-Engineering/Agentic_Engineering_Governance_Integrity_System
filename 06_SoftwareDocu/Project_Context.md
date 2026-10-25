@@ -28,8 +28,9 @@ not a metadata schema. Stable headings make selective reading straightforward.
 There is no per-task timestamp, version ledger, or history section to maintain.
 Empty sections are valid when evidence is not yet available.
 
-`init` scaffolds each absent context file independently and strips marked
-authoring notes. Existing bytes, including an empty file, are preserved.
+`init` scaffolds each absent context file independently and strips the payload
+license header and marked authoring notes. Existing bytes, including an empty
+file, are preserved.
 Upgrades replace managed templates and leave project context owned by the team.
 Only generic templates ship to downstream projects; this repository's populated
 context stays in its installed `.agentic/context/`.
@@ -43,8 +44,8 @@ context stays in its installed `.agentic/context/`.
 | Specify / design | Keep proposed behavior in task records and draft requirements/specs; use current context to identify existing constraints. |
 | Build | Update affected facts when implementation or setup actually changes. |
 | Validate / adoption close | Reconcile affected context, component pages, and active contracts against the candidate and authorized intent before final proof. |
-| Pause / resume | Keep progress and next actions in the journal/Handoff; read the profile and relevant environment sections against the current checkout. |
-| Delivery | Present the validated candidate under existing authority. |
+| Pause / resume | Keep progress in the journal; `pause` records the next action in its State. On resume, read the profile and relevant environment sections against the current checkout. |
+| After another branch is integrated | Recheck affected claims against the combined tree; another branch's plans are not facts in this checkout. |
 
 For a new project, start with confirmed purpose and available setup, and add
 implemented responsibilities incrementally. For an existing project, inspect
@@ -52,10 +53,11 @@ the relevant source, tests, configuration and established documentation first.
 Partial adoption is useful: missing context adds no gate or automated warning
 that requires inventing content to proceed.
 
-Each branch updates only the facts its implementation changes. Ordinary review
-and merge handle these shared files alongside code. After integrating branches,
-recheck affected claims against the combined tree. Avoid rewriting whole files
-or touching unchanged sections merely to record that they were read.
+Each branch updates only the facts its implementation changes, section by
+section, within its task's scope. Ordinary review and merge handle these shared
+files alongside code. After integrating branches, recheck affected claims
+against the combined tree. Avoid rewriting whole files or touching unchanged
+sections merely to record that they were read.
 
 ## Writing current positive facts
 

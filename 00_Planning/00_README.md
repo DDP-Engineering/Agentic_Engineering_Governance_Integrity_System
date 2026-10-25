@@ -8,11 +8,12 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS implementation overview
 
-The assigned source version is **AEGIS 0.14.0**. It includes the core and five
+The assigned source version is **AEGIS 0.15.0**. It includes the core and five
 optional host integrations, evidence-led stage artifacts, focused verification,
 compact progress records, current project/environment context and bounded
 component discovery. Checkpoint mode presents user choices after every stage;
-configured autopilot continues between stages while publication approval remains.
+configured autopilot continues between stages. AEGIS never commits, pushes or
+publishes.
 Delivery packages and build records live under `07_Delivery/`. Source version
 assignment and delivery construction are separate operations.
 The runnable product is at `05_Software/aegis/`; the reusable core payload is
@@ -49,16 +50,17 @@ for the repository journal. Claude Code also has bounded advisory hooks.
 The host provides the model session and its existing permission system. The
 AEGIS adapter reads the nearest Git checkout's installed contract, runs its
 local CLI, and returns results for the coordinator to assess. The coordinator
-records only the durable material outcome, maintains the journal, and follows
-user authority; no adapter advances stages or grants Git permission.
+records the durable material outcome through the CLI journal writers, which the
+adapters' `journal` operation runs, and follows user authority; no adapter
+decides a stage transition or grants Git permission.
 
 | Host | Implemented entry points | Independent review support |
 |---|---|---|
-| OpenCode | Aegis primary agent, five commands, eleven native tools. | Two read-oriented subagents. |
-| Codex | Native plugin, `aegis:aegis` skill and local bridge with eleven operations. | Two custom review-role definitions and bundled review prompts. |
-| Pi | Extension, skill, five commands and eleven native tools. | Launcher for separate nonpersistent review processes. |
-| Qwen Code | Extension, skill, five commands and eleven local MCP tools. | Two native read-oriented agents. |
-| Claude Code | Plugin, workflow skill, five namespaced commands, eleven local MCP tools and two hook event types. | Two native read-tool agents. |
+| OpenCode | Aegis primary agent, five commands, twelve native tools. | Two read-oriented subagents. |
+| Codex | Native plugin, `aegis:aegis` skill and local bridge with twelve operations. | Two custom review-role definitions and bundled review prompts. |
+| Pi | Extension, skill, five commands and twelve native tools. | Launcher for separate nonpersistent review processes. |
+| Qwen Code | Extension, skill, five commands and twelve local MCP tools. | Two native read-oriented agents. |
+| Claude Code | Plugin, workflow skill, five namespaced commands, twelve local MCP tools and two hook event types. | Two native read-tool agents. |
 
 Codex does not receive the five slash commands or an OpenCode-style primary
 agent selector. Pi has no built-in subagent facility; its launcher creates
@@ -79,10 +81,11 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   `UNKNOWN`; the protocol asks for reviewable artifacts, not hidden reasoning.
   Mixed-source clauses are labeled separately: an inspected test assertion is
   not an executed test, and a requested feature does not prove a current defect.
-- Six fixed ordinary stages: `frame -> specify -> design -> build -> validate
-  -> deliver`.
+- Five fixed working stages that end in `done`: `frame -> specify -> design ->
+  build -> validate -> done`. Validate closes the task; a journal left at the
+  former `deliver` stage closes through validate.
 - An eligible fix or change may use the recorded quick path:
-  `frame -> build -> validate -> deliver`; size alone does not establish
+  `frame -> build -> validate -> done`; size alone does not establish
   eligibility. The full criteria are in [workflow](01_Workflow_And_Stages.md).
 - Existing-repository adoption is a separate `survey -> components -> close
   -> done` flow, not a seventh ordinary stage.
@@ -90,16 +93,19 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   specifications, journals, current project/environment context, knowledge pages,
   anchors, and evolution reports
   are plain files below `.agentic/`.
-- A journal Log retains only stage outcomes, material engineering changes,
-  consolidated verification, blockers, approvals, deviations, and delivery;
-  dedicated artifacts hold the detail and routine execution stays out.
-  Edits preserve the original legal prologue and historical Log verbatim;
-  boundary records are saved and reread before the actual summary is shown.
+- The CLI writes the journal's stage, Done checklist, Log, Rulings and State
+  through `advance`, `pause`, `log`, `ruling` and `verdict`; the agent edits
+  Frame, Requirement coverage and Design. Every session ends with `advance` or
+  `pause`, and the summary block they print opens the reply. The Log retains
+  only stage transitions, material engineering changes, consolidated
+  verification, blockers, approvals and deviations; earlier lines are never
+  edited.
 - Build uses project-native focused tests or a configured runner that honors
   impacted references. `--dry-run` previews execution; `--no-fallback` refuses
   a full-suite fallback. Full strict verification follows final edits and review.
-- New task/requirement/context records omit marked template-only notes; existing records
-  and full saved fingerprints remain intact. Compact output is a presentation
+- New task, requirement and context records omit the payload license header and
+  marked template-only notes; they belong to the project. Existing records and
+  full saved fingerprints remain intact. Compact output is a presentation
   choice, not evidence deletion or automatic test-result reuse.
 - `check` is advisory by default. `check --strict` is the optional CI
   boundary that fails on errors and configured promoted warnings.
@@ -114,8 +120,9 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   reconciles them against the candidate and established requirements. Proposed
   capabilities remain in draft/task records.
 - `brief` is the bounded resume view, including current-context paths and
-  presence without reading their bodies. `summary` projects the latest recorded
-  stage report.
+  presence without reading their bodies; its `Read next` line names the step
+  file and the State `must_read` paths, and, while the State waits on the user,
+  the `advance` that moves on. `summary` prints the recorded State.
 - `components` is a read-only, no-argument title-and-path catalogue for
   selecting concise component knowledge before exact source and tests. It
   creates no metadata registry and does not choose a component automatically.
@@ -123,9 +130,11 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   displays saved blocks between summary and choices; autopilot saves and reports
   their path without displaying them or adding a stop. An explicit Design stop
   still completes applicable artifacts.
-- Deliver compares the current candidate with final proof using the same binding
-  method and scope, then saves an approval pause or a return to Validate before
-  reporting. A diff from the task base is not a diff since validation.
+- Validate corrects first and proves last: after review and record
+  reconciliation, one final `check --strict --run` proves the candidate, and any
+  later candidate edit needs fresh review and proof. Validate then appends the
+  report and closes the task to `done`; committing, pushing and merging follow
+  the repository's procedures.
 
 AEGIS applies to software development. Repository maintenance, versioning,
 release construction, package publication, and deployment follow the

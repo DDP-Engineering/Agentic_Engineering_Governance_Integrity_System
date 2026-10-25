@@ -24,20 +24,22 @@ wants one.
 ## Highlights
 
 - **Plain, portable records:** requirements in TOML; specifications, journals,
-  rulings, handoffs, and knowledge pages in Markdown; anchors and evolution
-  evidence in JSON.
-- **A practical workflow:** six stages—`frame`, `specify`, `design`, `build`,
-  `validate`, and `deliver`—plus a proportionate quick path for small changes.
+  rulings and knowledge pages in Markdown; anchors and evolution evidence in
+  JSON.
+- **A practical workflow:** five stages—`frame`, `specify`, `design`, `build`
+  and `validate`—plus a proportionate quick path for small changes. Validate
+  closes the task; committing and publishing stay with the developer.
 - **Agent-friendly continuity:** deterministic `brief` and `summary` views,
-  durable handoffs, and optional one-level child tasks support cross-session
-  and multi-agent work.
+  CLI-written journal state (`advance`, `pause`, `log`, `ruling`, `verdict`),
+  and optional one-level child tasks support feature-by-feature work across
+  sessions and developers on separate branches.
 - **Evidence, not theatre:** configured tests, impacted-test selection,
   anchors, evolution reports, and 22 advisory checks keep the work auditable.
 - **Optional explicit review:** repositories can enable independent
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop. Review never replaces ordinary validation.
 
-Current project version: **0.14.0**. It includes the core workflow, the five
+Current project version: **0.15.0**. It includes the core workflow, the five
 host integrations, strengthened stage contracts, and configurable checkpoint
 or autopilot interaction. No host package has been published to a package registry.
 See the [changelog](CHANGELOG.md) for changes.
@@ -106,8 +108,8 @@ python .agentic/aegis.py trace --format md
 python .agentic/aegis.py test --impacted --task TASK-<id>
 ```
 
-`brief` is the richer bounded resume view; `summary` is the compact projection
-of the most recently recorded stage report. The authoritative command syntax
+`brief` is the richer bounded resume view; `summary` prints the recorded State
+that `advance` and `pause` write. The authoritative command syntax
 is always available through `python .agentic/aegis.py --help`.
 
 ## Repository layout
@@ -116,19 +118,17 @@ is always available through `python .agentic/aegis.py --help`.
 |---|---|
 | [`00_Planning/`](00_Planning/) | Implemented design record and maintenance boundaries. |
 | [`01_Documentation/`](01_Documentation/) | Repository standards, including code style. |
-| [`02_Tools/`](02_Tools/) | Workspace-maintenance and release-building scripts. |
+| [`02_Tools/`](02_Tools/) | Release-building scripts and development prompt-evaluation tools. |
 | [`03_Hardware/`](03_Hardware/) and [`04_HardwareDocu/`](04_HardwareDocu/) | Hardware-related material and supporting documentation. |
 | [`05_Software/aegis/`](05_Software/aegis/) | AEGIS product source, template payload, tests, and product README. |
 | [`06_SoftwareDocu/`](06_SoftwareDocu/) | User guides, examples, team setup, FAQ, prompt cheatsheet, and CLI reference. |
 | [`07_Delivery/`](07_Delivery/) | Versioned archives, checksums, manifests, and publication records. |
-| [`.agentic/`](.agentic/) | This repository's installed AEGIS instance and its durable governance records. |
 
 The reusable product payload is
 [`05_Software/aegis/template/.agentic/`](05_Software/aegis/template/.agentic/).
-It is the source of truth for managed AEGIS files. The root [`.agentic/`](.agentic/)
-is an installed copy used to govern this repository; it also contains
-repository-owned configuration and records that must not be overwritten during
-an upgrade.
+It is the source of truth for managed AEGIS files. This checkout has no root
+`.agentic/` installation: repository maintenance follows the root `AGENTS.md`,
+and `.agentic/` paths in these guides describe an installed downstream project.
 
 ## Environment and development setup
 

@@ -6,7 +6,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # AEGIS for OpenCode
 
-This package registers Aegis, its two review subagents, five workflow commands and eleven bounded tools in the OpenCode backend. CLI/TUI and Desktop use that backend registration. Each target repository must already have its own standard AEGIS `.agentic` installation.
+This package registers Aegis, its two review subagents, five workflow commands and twelve bounded tools in the OpenCode backend. CLI/TUI and Desktop use that backend registration. Each target repository must already have its own standard AEGIS `.agentic` installation.
 
 ## Install
 

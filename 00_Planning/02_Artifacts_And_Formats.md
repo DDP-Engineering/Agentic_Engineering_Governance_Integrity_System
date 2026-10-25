@@ -55,7 +55,7 @@ documents remain canonical for commands and values.
 
 Frame/adoption populates confirmed facts. Build updates affected facts as changes
 become real; validate reconciles current context, component pages and active
-contracts. Pause/resume state stays in the journal/Handoff. Brief exposes file
+contracts. Pause/resume state stays in the journal's State. Brief exposes file
 presence only. Shared current documents retain one positive behavior statement,
 including meaningful error/security responses, rather than alternatives or
 change history. Suspected defects belong in task findings pending clarification.
@@ -123,7 +123,7 @@ thereafter. The implemented configuration surface is:
 | `[layout]` | `source`, `tests`, and optional `docs` globs drive traceability/layout checks. `default_branch` can select the diff base. |
 | `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 255 (default 2). |
 | `[records]` | Exact Boolean `commit_fingerprints` (default `false`). While false, `init` maintains a managed `.gitignore` block that excludes the anchor/evolution sidecars; true removes that block so they are committed with the journal. |
-| `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; publication authority applies in both modes. |
+| `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; autopilot advances between stages, and a decision-blocking question stops either mode. |
 | `[diagrams]` | Exact Boolean `enabled` defaults to `false`. Missing/non-list `types` defaults to `["structure"]`; an empty list creates no file or link, and unknown names are ignored. Only substantive Design draws selected applicable types. Configuration findings do not certify diagram content. |
 | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
 | `[check]` | `ignore`, `secret_patterns_extra`, `strict_promote`, and optional `run` command allow-list. |
@@ -167,17 +167,17 @@ unsafe file paths still require a project-native command.
 
 ## Lean generated records
 
-`task`, `req` and context scaffolding in `init` omit marked authoring notes.
-Markdown templates use `<!-- AEGIS:TEMPLATE` blocks with a standalone closing `-->`;
+`task`, `req` and context scaffolding in `init` omit the payload license header
+and the marked authoring notes; the records belong to the project. Markdown
+templates use `<!-- AEGIS:TEMPLATE` blocks with a standalone closing `-->`;
 requirement templates use `# AEGIS:TEMPLATE-BEGIN` / `# AEGIS:TEMPLATE-END`.
-The complete field guidance stays in the managed templates. Licenses, durable
-fields and unmarked data are preserved. Existing journals and requirements are
-not compacted or rewritten, and their data formats are unchanged.
+The complete field guidance stays in the managed templates. Durable fields and
+unmarked data are preserved. Existing journals and requirements are not
+compacted or rewritten, so older ones keep their license header.
 
-Generated journals retain a visible authoring-guide link. Frame and Validate
-read the full task template before edits unless already read in the intact
-session. Preserve the journal's original legal prologue verbatim, including
-SPDX and license references; it is not an instruction-only note.
+A generated journal keeps one visible line on who writes what: the agent edits
+Frame, Requirement coverage and Design, the CLI writes State, Log and Rulings,
+and every session ends with `advance` or `pause`.
 
 ## Requirements and specifications
 
@@ -232,26 +232,30 @@ silently resolving them.
 
 ## Journals, evidence, and knowledge
 
-A task journal has a machine-readable header followed by a current checklist
-and append-only log. Its header records `stage`, `type`, `path`,
+A task journal has a machine-readable header, the Done checklist of the current
+stage, durable semantic sections, an append-only Log and Rulings, and one
+replaceable State. Its header records `stage`, `type`, `path`,
 `requirements`, optional `parent`, `branch`, `base`, and `opened`.
-The `interaction` header records checkpoint/autopilot. Existing-contract quick
-fixes name their governing requirements at Frame. Retain the created task ID/path
-and repair that same file after a failed edit; creation is not task selection.
+The `interaction` header records checkpoint/autopilot. The CLI writes the
+header stage, the Done checklist, the Log, the Rulings and the State; the agent
+edits Frame, Requirement coverage and Design and the header lines `type`,
+`path`, `interaction`, `requirements` and `parent`. A header key written twice
+keeps its first written value. Existing-contract quick fixes name their
+governing requirements at Frame. Retain the created task ID/path and repair
+that same file after a failed edit; creation is not task selection.
 
 The Log is a compact progress-and-evidence ledger, not an activity transcript.
 It keeps stage transitions; material scope, implementation, or test changes;
-consolidated automated or manual verification; blockers; approvals;
-deviations; and delivery outcomes. Routine searches, reads, edits, tool
-mechanics, corrected command retries, and content already held in another
-durable artifact stay out. Existing entries remain append-only when the
-logging contract changes.
+consolidated automated or manual verification; blockers; approvals; and
+deviations. Routine searches, reads, edits, tool mechanics, corrected command
+retries, and content already held in another durable artifact stay out.
+Existing entries remain append-only when the logging contract changes.
 
-Append at the following section heading without retyping old evidence lines,
-and verify that the historical Log prefix is unchanged, including whitespace.
-Each consolidated outcome appears once; Handoff/Stage report corrections do not
-justify appending that outcome again. An edit recovery carries forward the
-current journal and untouched sections rather than starting from a new template.
+`advance` writes stage transitions and `log` appends the rest at the end of the
+Log, prefixed with the date and stage; earlier lines never change. Each
+consolidated outcome appears once; a corrected State does not justify logging
+that outcome again. An edit recovery carries forward the current journal and
+untouched sections rather than starting from a new template.
 
 Build normally records one reproducible red result and one final focused green
 result per meaningful behavior increment, grouping requirements that share a
@@ -273,30 +277,34 @@ Current journals also provide durable semantic sections:
   seams, risks, open decisions, and expected files, plus one link to
   `diagram_TASK-<id>.md` when the diagram gates produce an artifact.
 
-The journal may additionally hold:
+The CLI also writes:
 
 - `## Rulings`: append-only `RULING-001` records with date, decision,
-  reason, source, and optional `supersedes`.
-- `## Handoff`: replaceable resume fields `current`, `status`, `next`,
-  `must_read`, and `blockers`.
-- `## Stage report`: replaceable latest result with changes, evidence,
-  issues, next action, user need, and review fields.
+  reason, source, and optional `supersedes`, written by `ruling`; the
+  `supersedes` link marks the earlier ruling, which stays as written.
+- `## State`: one replaceable resume snapshot written by `advance` and `pause`,
+  with `status` (`working`, `waiting`, `blocked`, `ready` or `done`),
+  `reported`, `next`, `must_read`, `changed`, `evidence`, `issues`,
+  `spec_compliance`, `implementation_quality` and `review_round`. It is never
+  edited by hand.
 
 These sections divide ownership deliberately: Frame holds detailed scope,
 Requirement coverage holds behavior mapping, Design and specs hold technical
-choices, Rulings hold durable decisions, Handoff holds resume state, and Stage
-report holds the latest communication snapshot. The Log references those
-records instead of copying them. Stage report and Handoff refresh at stage
-transitions, pauses or session ends, and blockers—not after routine work.
+choices, Rulings hold durable decisions, and the State holds the latest resume
+snapshot. The Log references those records instead of copying them. `advance`
+and `pause` refresh the State at stage transitions, pauses, blockers and
+session ends, not after routine work. Journals written before the State keep
+their `## Handoff` and `## Stage report` until the first State write replaces
+both.
 
-Save a Frame with its unanswered questions before a scope pause. At an explicit
-stop, both `current` fields match the header, Handoff is waiting and Stage report
-is paused with `needs_user: yes`; a blocking decision uses blocked. Both `next`
-fields name one action or concrete decision, not the checkpoint menu. Save and
-reread the sections before `summary`; copy its actual output including Details
-and truncation notices. Missing records require repair even after exit zero.
-Disabled review records both verdicts as `disabled` with a blank round. Invalidated
-enabled verdicts are cleared while the consumed round and historical Log remain.
+Save a Frame with its unanswered questions before a scope pause. An explicit
+stop is a `pause` (status `waiting`); a blocking decision uses `pause
+--blocked`. The State's `next` names one action or concrete decision, not the
+checkpoint menu. The reply opens with the summary block the command printed,
+including Details and truncation notices; a block written by hand is not a
+record. Disabled review records both verdicts as `disabled` with a blank round;
+a return clears enabled verdicts while the consumed round and historical Log
+remain.
 
 `anchor --task` writes `TASK-<id>.anchor.json`, a SHA-256 starting-point
 fingerprint. `evolution --task` writes the corresponding
@@ -314,7 +322,8 @@ Keep that gap separate from current proof. An unperformed evolution report is
 not a completed checklist item; record its applicability reason or limitation.
 Like-for-like candidate bindings compare proof with the present tree within
 their scope. The task's `base` remains the change-set reference, not the proved
-candidate identity. Delivery journal updates are distinct from candidate edits.
+candidate identity. Journal record updates after the final proof are distinct
+from candidate edits.
 
 Each component page under `knowledge/` routes matching requests through
 selection signals to the component's owned source and focused tests. It records

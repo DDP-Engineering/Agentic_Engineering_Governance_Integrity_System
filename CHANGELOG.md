@@ -11,39 +11,136 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-25
+
 ### Removed
 
 - Remove three test cases that depended on an AEGIS deployment in this
   repository, following removal of that workspace installation.
+- Remove the deliver stage and `steps/6_deliver.md`. Validate now closes the
+  task with the final proof, `report` and `advance` to `done`; commits, pushes,
+  pull requests and merges follow the repository's own procedures. A journal
+  still at `stage: deliver` closes through validate.
+- Remove the September workflow-overhead study
+  (`10_Workflow_Overhead_Analysis.html`) and six unused evidence images from
+  the plugin installation guides.
 
 ### Added
 
+- Add CLI journal writers: `advance`, `pause`, `log`, `ruling` and `verdict`
+  write the header stage, Done checklist, Log, Rulings and State. They record
+  the agent's decision and never refuse it; `advance` notes unticked checklist
+  items, and unapproved explicit review at `done`, in the Log. Both print notes
+  when frame, specify or design stops with its own journal section empty, and
+  for a repeated header key, a quick-path journal without the requirement IDs
+  it restores, and Rulings lines that `ruling` did not write.
+- Add the `journal` operation (`aegis_journal`) to every agent adapter.
+- Make `brief` print the path, the computed diagram decision and a `Read next`
+  line naming the step file and the State `must_read` paths. While the State
+  waits on the user, `Read next` also names the `advance` that moves on when
+  they continue to the next stage, or close the task from validate. Adoption,
+  which pauses after each component inside one stage, gets no such hint.
+- Make `log` note a line that records a later stage's work, such as `final:`
+  while the journal is still at build; the line is logged either way.
+- Add `steps/review.md`, read only when explicit review is enabled.
+
 - Extend development prompt evaluations across all eight step prompts, with
   real reviewer sessions, diagrams, autopilot and context-update cases.
+- Run the fifteen capability evaluation cases against a local Chat Completions
+  model, with fresh local reviewer sessions on one immutable snapshot.
+- Record prompt tokens per run and per file read in local evaluations, flag
+  runs above half or three quarters of the loaded window, and compare medians.
+- Add a hold-out pricing evaluation domain that gates prompt changes and never
+  shapes prompt rules, with frame, specify and design cases.
+- Add a chained evaluation that runs five fresh stage sessions on one repository;
+  its Build code is limited to two files and a restricted Python subset.
+- Report configured semantic checks beside strict checks, and strict and
+  semantic pass rates per case across repeats, in reports and comparisons.
+- Add `--reasoning-effort` to the local evaluation runner. It is sent only when
+  set, recorded in the manifest and compared as a control; a turn's reasoning
+  is never sent back with the history.
 
 ### Changed
 
-- Align user guides and slide companions with current review/proof ordering,
-  saved delivery state, journal preservation and diagram presentation.
+- **Breaking:** journals keep one CLI-written `## State` block instead of
+  `## Handoff` and `## Stage report`. `brief`, `summary`, `status`, `check` and
+  `report` read both formats; the first State write replaces the old sections.
+- Rewrite `AGENTS.md` (31 KB to 9 KB) and the stage cards around the CLI
+  writers, feature-by-feature work and concurrent branches. A stage session
+  reads about 14 KB of workflow text instead of 58-75 KB.
+- Generate journals, requirements and context pages without the payload license
+  header; the journal template's authoring notes shrink from 220 to 40 lines.
+- Give specify one deterministic atomicity rule and a five-column coverage
+  table, and design about 30 lines under five headings.
+- Have design compare every structure-node class in a diagram with the saved
+  Design and classify each edge on its own; a mismatch is fixed in the
+  diagram, never by changing the Design.
+- Make the root digest route to `.agentic/AGENTS.md` instead of standing in for it.
+- Have a frame example name a value the user has not given, such as `N days`,
+  instead of choosing a number; models filled "at least one example" with
+  invented periods. Start the reply with the printed summary block, never one
+  written by hand.
+- Have frame keep unverified conditions UNKNOWN: a request for new behavior
+  does not establish a current defect or existing data.
+- Leave branch creation to the developer, like commits: frame works on the
+  current branch, which the journal records, and notes when that is the
+  default branch.
+- Make `task` refuse a bare task ID as its title and point to `brief`; such a
+  call meant to resume a task and opened a second journal instead.
+- Write the component and requirement templates and the build card with
+  language-neutral `<source file>` and `<test file>` placeholders; link a test
+  as `<test file>::<test name>` only where the test runner accepts that
+  selector.
+- Have adoption create requirements with `req`, and name the State among its
+  resume records.
+- Give each evaluated payload its own fixture-state format, root digest and CLI
+  commands, keep the compared host contract payload-independent, and score
+  either record format; scenario prompts no longer name Handoff or Stage report.
+- Give local core evaluations the installed root digest that the native core
+  profile already supplies, so both transports start from one instruction text.
+- Default local evaluation deadlines to 2,400 s per case and 900 s per request;
+  add optional top-p, top-k and presence-penalty sampling, a `loop` outcome for
+  repeated tool calls or text, and a count of degenerate responses.
+- Align the user guides and slide decks with the State, the CLI journal
+  writers, closing in validate, review/proof ordering and diagram presentation.
+- Keep the planning record to the current implementation, and align it and
+  the product, tools and root READMEs with the journal writers, the State,
+  twelve adapter operations and the absence of a repository-root `.agentic/`.
 
-- Preserve delivery log text during appends, clarify review-phase evidence across
-  host reviewers, and check diagram node markers against the saved Design.
-- Clarify delivery identity and saved approval pauses, checkpoint diagram display,
-  and interpretation of current-checkout and review-phase evidence.
-- Clarify proof ordering, durable stage returns, diagram gates and markers,
-  review-time evidence and contract-versus-implementation documentation.
-- Link generated journals to their authoring guide and clarify Frame path decisions,
-  missing validation history and checkpoint reporting.
-- Clarify requirement headers, claim provenance, scoped resume decisions and
-  accepted-scope review in Frame, Validate and task-record guidance.
-- Clarify destructive-scope questions, append-only rulings, exact summaries,
-  existing test coverage and unperformed evidence in the three evaluated prompts.
-- Distinguish stated clauses from derived examples and preserve the original
-  journal copyright/license prologue during edits and rewrites.
-- Reuse the created journal when repairing edits, verify saved checklists, and
-  keep requested capabilities separate from unverified current conditions.
-- Clarify journal write recovery and pending Frame persistence; distinguish
-  reported defects from accepted outcomes during resume.
+### Fixed
+
+- Read a journal header key written twice by its first written value, the line
+  the writers update. An agent's inserted `requirements:` line was hidden by
+  the template's empty one.
+- Point the arrows in the five plugin installation flow figures, and in the
+  PDFs that embed them, from step 1 to step 5; they pointed backwards.
+- Count an evaluation `read_file` on a directory as an unavailable capability,
+  not a forbidden action; Windows previously failed such cases.
+- Reject non-string evaluation tool paths as tool errors instead of stopping
+  the evaluation host.
+- Read the loaded context window after each evaluation case, because LM Studio
+  loads idle models on demand, and ignore server load state in comparisons.
+- Count a tool name passed as a `run_command` program, a CLI command the
+  evaluated payload lacks, or a malformed `req` scaffold as an unavailable
+  capability rather than a forbidden action; let `req --help` run; and accept
+  labelled missing-evidence reports such as `unavailable: no tests run`.
+- Let the evaluated CLI decide which `req` categories exist (harness 11). The
+  hold-out and capability hosts refused aliases such as `func` that the CLI
+  accepts, with a message about argument shape, and a model retried the call
+  until the loop limit. A `git` program repeated as its first argument is now
+  a wrong call too, unless what follows is a write.
+- Make the evaluation `read_file` read whole lines from a 1-based `offset` for
+  `limit` lines and report `total_lines`, `eof` and `next_offset` (harness 12).
+  It counted characters, and a model that read the numbers as lines paged a
+  7 KB journal 60-400 characters at a time until the turn limit. Harness 12
+  results are not comparable with harness 11 where sessions page through files.
+- Score two capability predicates by the behavior, not one spelling (harness
+  13): linked tests may be `file::test` node ids, the documented form, as long
+  as each names a test the file defines; project context may state the trim
+  in any words, such as "surrounding whitespace removed". Every model failed
+  the first and Qwen the second while doing the right thing.
+- Accept "no verification evidence available" as a missing-evidence report
+  (harness 14); Qwen wrote it after correctly running nothing.
 
 ## [0.14.0] - 2026-10-20
 

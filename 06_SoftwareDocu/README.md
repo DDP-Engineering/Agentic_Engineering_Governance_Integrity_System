@@ -11,7 +11,7 @@ Start at [00_Index.md](00_Index.md) for the installation guide, worked examples,
 team guidance, FAQ and prompt cheatsheet. Guides 01-08 each have a matching
 PowerPoint deck; decks summarize the detailed Markdown rather than replace it.
 
-These documents describe the assigned **AEGIS 0.14.0** source at
+These documents describe the assigned **AEGIS 0.15.0** source at
 `05_Software/aegis/` and its five host integrations:
 OpenCode, Codex, Pi, Qwen Code and Claude Code. See
 [Agent_Plugins.md](Agent_Plugins.md) for distribution and installation and
@@ -35,10 +35,11 @@ source and package READMEs define host behavior. Examples are illustrative.
 Documentation-only updates here are reviewed directly, without AEGIS task
 journals or development test runs. Update Markdown and slide companions
 together when their shared content changes. The guides distinguish current
-candidate evidence from historical proof, save delivery pauses before reporting,
-and distinguish diagram generation from checkpoint/autopilot display. These
-are prompt instructions; neither the documentation nor the CLI guarantees that
-a model follows them. `summary` reads saved fields and does not write them.
+candidate evidence from historical proof, record stage boundaries with
+`advance` and `pause`, and distinguish diagram generation from
+checkpoint/autopilot display. These are prompt instructions; neither the
+documentation nor the CLI guarantees that a model follows them. `advance` and
+`pause` write the journal State; `summary` reads it and writes nothing.
 
 The plugin installation PDFs are generated from their Markdown sources.
 Installation guides describe current setup and verification procedures using

@@ -72,9 +72,9 @@ EXPECTED_FILES = (
     "steps/3_design.md",
     "steps/4_build.md",
     "steps/5_validate.md",
-    "steps/6_deliver.md",
     "steps/adopt.md",
     "steps/diagrams.md",
+    "steps/review.md",
     "templates/component.md",
     "templates/environment.md",
     "templates/project.md",
@@ -89,11 +89,11 @@ IGNORED_DIR_PARTS = {"__pycache__", ".pytest_cache"}
 def stage_step_files() -> list[Path]:
     """
     @brief The step files that run a stage or the adoption procedure.
-    @details The optional diagram guide runs inside design and carries no
-             stage reporting of its own.
+    @details The optional diagram and review guides run inside design and
+             validate and finish nothing of their own.
     """
     return [path for path in sorted((PAYLOAD / "steps").glob("*.md"))
-            if path.name != "diagrams.md"]
+            if path.name not in {"diagrams.md", "review.md"}]
 
 
 # GUARD PREDICATES (plain functions so they can be self-tested on bad input)
@@ -178,8 +178,6 @@ def test_component_catalogue_command_guides_every_useful_stage(tmp_path):
     for step in ("4_build.md", "5_validate.md"):
         text = (PAYLOAD / "steps" / step).read_text(encoding="utf-8")
         assert "aegis.py components" in text and "additional" in text, step
-    deliver = (PAYLOAD / "steps" / "6_deliver.md").read_text(encoding="utf-8")
-    assert "aegis.py components" not in deliver
 
 
 @pytest.mark.parametrize("command", ["anchor", "evolution", "summary", "brief", "trace"])
@@ -199,11 +197,11 @@ def test_cli_reference_guard_detects_a_missing_command_section(tmp_path, monkeyp
 
 def test_build_stage_records_reproducible_red_evidence_without_git_witness():
     """REQ-TEST-a67ee43e: red evidence is precise prose, not Git ceremony."""
-    text = (PAYLOAD / "steps" / "4_build.md").read_text(encoding="utf-8")
-    assert "exact test selector or command" in text
-    assert "non-zero exit code" in text
-    assert "expected missing-behavior failure reason" in text
-    assert "manual observation" in text
+    text = " ".join((PAYLOAD / "steps" / "4_build.md").read_text(encoding="utf-8").split())
+    assert ('log TASK-<id> "red: <command> exit <code> - <expected missing behavior> '
+            '(<REQ-ids>)"') in text
+    assert "fails for the expected reason" in text
+    assert "log the method, the action and the observed result" in text
     assert "test-only commit" not in text
     assert "red-witness" not in text
 
@@ -218,98 +216,91 @@ def test_deviation_notices_are_stated_when_recorded_not_only_at_delivery():
     agents = flat("AGENTS.md")
     build = flat("steps", "4_build.md")
     validate = flat("steps", "5_validate.md")
-    deliver = flat("steps", "6_deliver.md")
 
     # the notice sits beside the two interaction modes, being neither of them
-    assert "Deviation notices" in agents
+    assert "## Deviations" in agents
     assert "DEVIATION <stage>:" in agents
-    assert "never pauses the work" in agents
-    assert "Autopilot does not suppress" in agents
-    assert "materially differs" in agents
-    assert "recoverable internal tool-use errors" in agents
-    assert "expected failing test" in agents
+    assert "it never waits for a reply" in agents
+    assert "autopilot never suppresses it" in agents
+    assert "departs from plan" in agents
+    assert ("Corrected tool errors, expected red tests and unrelated findings "
+            "are not deviations") in agents
     assert "when a command exits non-zero" not in agents
 
     # every stage that records an anomaly states it at the same moment
-    assert "state it as a deviation notice" in build
-    assert "state it as a deviation notice" in validate
-    assert "materially limits" in build
-    assert "operational detail, not a deviation" in validate
-
-    # delivery still presents the aggregate; notices never stand in for it
-    assert "notices supplement this presentation" in deliver
+    assert "limits the candidate or its verification is a deviation" in build
+    assert "say it as a deviation" in validate
+    # the closing checkpoint repeats them with the evidence
+    assert "accepted warnings, deviations" in validate
 
 
 def test_stage_report_instructions_define_stage_choice_boundaries():
     """REQ-UX-84868466: checkpoint reports end with explicit next choices."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
     scaffold = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
-    assert "## Stage reporting" in agents
-    assert "before any detailed explanation" in agents
-    assert "stop after every completed stage" in agents
-    assert "Stage-boundary choices" in agents
+    assert "## Checkpoint or autopilot" in agents
+    assert ("start your reply with that printed block in a text fence, then explain; "
+            "never write the block yourself") in agents
+    assert "continue, revise, go back, or stop" in agents
     assert "DEVIATION <stage>:" in agents
-    assert "## Stage report" in scaffold
-    for key in ("stage", "result", "current", "changed", "evidence", "issues",
-                "next", "needs_user"):
+    assert "## State" in scaffold and "## Stage report" not in scaffold
+    for key in ("status", "reported", "next", "must_read", "changed", "evidence",
+                "issues"):
         assert re.search(rf"^{key}:\s*$", scaffold, re.MULTILINE)
     for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
-        assert "**Reporting and resume:**" in text, step.name
-        assert "summary TASK-<id>" in text, step.name
-        assert "completed stage" in agents and "current" in agents
-        assert "pause" in text and "Stage reporting" in text, step.name
+        if step.name == "adopt.md":
+            assert "pause TASK-<id>" in text and "advance TASK-<id>" in text
+            continue
+        finish = text.split("**Finish:**", 1)[1].split("**Done when:**", 1)[0]
+        assert "Checkpoint:" in finish and "Autopilot:" in finish, step.name
+        assert "pause TASK-<id>" in finish and "advance TASK-<id>" in finish, step.name
+        assert "the choices" in finish, step.name
+
+
+def resume_section() -> str:
+    """@brief The flattened `## Start or resume` section of the agent contract."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    return agents.split("## Start or resume", 1)[1].split("## The task journal", 1)[0]
 
 
 def test_resume_guidance_is_local_and_preserves_required_evidence():
     """REQ-UX-94a33d75: small-context resume is explicit without skipping proof."""
-    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
-    assert "summary TASK-<id>" in agents
-    assert "relevant log entries" in agents
-    assert "unresolved issues" in agents
-    assert "Full journal reads required by validate and deliver still apply" in agents
-    prompts = agents.split("For a small local model", 1)[1]
-    assert prompts.count("Stop after this stage.") == 6
-    for step in stage_step_files():
-        text = " ".join(step.read_text(encoding="utf-8").split())
-        assert "Resume a task" in text, step.name
-        assert re.search(r"Read (required|full) durable evidence", text), step.name
-        assert ("context requires review" in text
-                or "when context is missing or shortened" in text), step.name
+    resume = resume_section()
+    assert resume.index("aegis.py status") < resume.index("1_frame.md")
+    assert resume.index("brief TASK-<id>") < resume.index("Read next")
+    assert "git branch --show-current" in resume and "stop and say so" in resume
+    assert "not the whole repository" in resume
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "The whole task journal" in validate
+    assert "This step file again" in validate
 
 
 def test_workflow_defines_append_only_rulings_and_supersession():
     """REQ-FUNC-7ea14fe4: durable decisions retain history and provenance."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
-    assert "## Rulings and handoffs" in agents
+    template = " ".join((PAYLOAD / "templates" / "task.md").read_text("utf-8").split())
     assert "Rulings are append-only" in agents
-    assert "Never edit or delete" in agents
-    assert "supersedes" in agents and "RULING-" in agents
+    assert "that link is what marks the old one superseded" in agents
+    assert "never edit or annotate an earlier line" in agents
+    assert "earlier lines are never edited" in template
+    assert "--supersedes RULING-<old-id>" in template
 
 
-def test_workflow_defines_replaceable_handoff_and_freshness():
-    """REQ-FUNC-7ea14fe4: one current resume snapshot is stage-bound."""
+def test_state_is_written_by_the_cli_through_named_writers():
+    """REQ-FUNC-7ea14fe4: one current resume snapshot, written by commands."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
-    assert "Handoff is one replaceable" in agents
-    assert "current must match" in agents
-    for trigger in ("stage transition", "pause", "blocker", "session end"):
-        assert trigger in agents
+    assert "The CLI writes the rest" in agents
+    for command in ("advance TASK-<id>", "pause TASK-<id>", "log TASK-<id>",
+                    "ruling TASK-<id>", "verdict TASK-<id>"):
+        assert command in agents, command
 
 
-def test_every_stage_refreshes_handoff_on_pause_or_transition():
-    """REQ-FUNC-7ea14fe4: every stage boundary leaves a usable handoff."""
+def test_every_stage_finishes_through_the_journal_writers():
+    """REQ-FUNC-7ea14fe4: every stage boundary leaves a usable resume state."""
     for step in stage_step_files():
         text = " ".join(step.read_text(encoding="utf-8").split())
-        if step.name in {"1_frame.md", "5_validate.md"}:
-            for field in ("Handoff", "`status: waiting`",
-                          "`result: paused`", "`needs_user: yes`"):
-                assert field in text, step.name
-            assert ("`current: frame`" in text
-                    or "both current fields with the new header" in text), step.name
-            assert "After the user chooses to continue" in text, step.name
-        else:
-            assert "minimal Handoff" in text, step.name
-            assert "transition" in text and "pause" in text, step.name
+        assert "pause TASK-<id>" in text and "advance TASK-<id>" in text, step.name
 
 
 def test_rulings_cannot_expand_user_or_git_authority():
@@ -317,83 +308,81 @@ def test_rulings_cannot_expand_user_or_git_authority():
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
     assert "cannot grant authority" in agents
     assert "newer user instructions" in agents
-    assert "repository rules" in agents and "Git authority" in agents
+    assert "repository rules" in agents and "Git permissions" in agents
 
 
-def test_small_model_prompts_start_with_brief_then_required_files():
+def test_small_context_entry_starts_with_brief_then_read_next():
     """REQ-UX-94a33d75: limited-context workers start from durable resume state."""
-    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
-    prompts = agents.split("For a small local model", 1)[1]
-    assert "brief TASK-<id>" in prompts
-    assert "current step file" in prompts and "must_read" in prompts
-    assert prompts.index("brief TASK-<id>") < prompts.index("current step file")
+    source = AEGIS_PY.read_text(encoding="utf-8")
+    digest = " ".join(source.split('POINTER_DIGEST = """\\\n', 1)[1].split('"""', 1)[0].split())
+    for text in (resume_section(), digest):
+        assert text.index("brief TASK-<id>") < text.index("Read next")
+
+
+def review_flat() -> str:
+    """@brief The optional explicit-review guide, whitespace collapsed."""
+    return " ".join((PAYLOAD / "steps" / "review.md").read_text("utf-8").split())
 
 
 def test_validate_defines_two_independent_review_questions():
     """REQ-FUNC-9514e017: validation asks both explicit questions separately."""
-    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "Specification compliance" in text
-    assert "Implementation quality" in text
-    assert "independent verdicts" in text
+    text = review_flat()
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "Specification compliance" in text and "Implementation quality" in text
+    assert "two independent reviewers" in text
+    assert "Review: policy=enabled" in validate and "`.agentic/steps/review.md`" in validate
 
 
 def test_validate_repeats_both_verdicts_after_any_candidate_change():
     """REQ-FUNC-9514e017: approvals never survive a changed candidate."""
-    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "Any candidate change invalidates both verdicts" in text
-    assert "Re-review both roles" in text
-    assert "write blank `spec_compliance:` and `implementation_quality:`" in text
-    assert "retain the consumed `review_round`" in text
-    assert "within the remaining budget" in text
+    text = review_flat()
+    assert "Any candidate edit invalidates both verdicts" in text
+    assert "review both roles again" in text
 
 
 def test_fix_loop_uses_one_plus_max_fix_cycles_total_rounds():
     """REQ-FUNC-cbff6478: the initial review plus fixes has a finite bound."""
-    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    text = review_flat()
     assert "1 + max_fix_cycles" in text
-    assert "two fix cycles means three total review rounds" in text
+    assert "two fix cycles allow three rounds" in text
 
 
 def test_fix_loop_routes_findings_without_expanding_scope():
     """REQ-FUNC-cbff6478: autonomous fixes consume only recorded findings."""
     build = " ".join((PAYLOAD / "steps" / "4_build.md").read_text("utf-8").split())
-    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "Fix only recorded review findings" in build
-    assert "Do not expand scope" in build
-    assert "route to the appropriate existing stage" in validate
+    assert "fix only the recorded findings, without expanding scope" in build
+    assert "advance TASK-<id> --to build" in review_flat()
+    assert "fix only those findings" in review_flat()
 
 
 def test_fix_loop_exhaustion_blocks_and_needs_user():
-    """REQ-FUNC-cbff6478: a failed last round cannot enter delivery."""
-    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "result: blocked" in text and "needs_user: yes" in text
-    assert "Do not repair, run final proof, or advance to deliver from this state" in text
-    assert "Handoff `status: blocked`" in text
+    """REQ-FUNC-cbff6478: a failed last round cannot close the task."""
+    text = review_flat()
+    assert "pause TASK-<id> --blocked" in text
+    assert "Do not repair, prove or close from here" in text
 
 
 def test_scope_ambiguity_uses_existing_human_checkpoint():
     """REQ-FUNC-cbff6478: the loop cannot guess a changed contract."""
-    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "specification ambiguity or scope change" in text
-    assert "existing human checkpoint" in text
+    assert ("specification ambiguity a reviewer finds is a question for the user"
+            in review_flat())
 
 
 def test_disabled_review_keeps_existing_validation_and_has_no_fix_loop():
     """REQ-FUNC-9514e017: the opt-in switch controls no mandatory proof."""
-    text = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "When review is disabled" in text
-    assert "skip only explicit verdicts and their fix loop" in text
-    for proof in ("semantic review", "full suite", "strict check", "evidence"):
-        assert proof in text
+    assert ("with review disabled, validate skips only these verdicts and keeps every "
+            "other step") in review_flat()
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    for proof in ("Review the diff", "**Prove last:**", "--strict --run",
+                  "Log the result once"):
+        assert proof in validate
 
 
-def test_deliver_requires_current_approved_verdicts_only_when_enabled():
-    """REQ-FUNC-9514e017: delivery respects policy and current bound evidence."""
-    text = " ".join((PAYLOAD / "steps" / "6_deliver.md").read_text("utf-8").split())
-    assert "When explicit review is enabled" in text
-    assert "both current bound verdicts are `approved`" in text
-    assert "When explicit review is disabled" in text
-    assert "existing validation evidence" in text
+def test_closing_records_review_approval_only_when_enabled():
+    """REQ-FUNC-9514e017: closing respects the policy and current verdicts."""
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert "explicit review approved, when enabled" in validate
+    assert "Both approved: continue with validate's next step" in review_flat()
 
 
 def test_large_work_may_split_only_into_optional_one_level_children():
@@ -401,79 +390,64 @@ def test_large_work_may_split_only_into_optional_one_level_children():
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
     frame = " ".join((PAYLOAD / "steps" / "1_frame.md").read_text("utf-8").split())
     design = " ".join((PAYLOAD / "steps" / "3_design.md").read_text("utf-8").split())
-    assert "## Optional child tasks" in agents
-    assert "opt-in" in agents and "one level" in agents
-    assert "large enough for optional children" in frame
-    assert "non-overlapping child scopes" in design and "requirement links" in design
+    assert "child tasks, one level deep" in agents and "--parent TASK-<id>" in agents
+    assert "Decide whether the work needs child tasks" in frame
+    assert "non-overlapping scope and its requirements" in design
 
 
 def test_parent_validates_integrated_visible_child_work():
     """REQ-FUNC-3bc8597c: the parent owns proof of the combined candidate."""
     validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
-    assert "Parent validation" in validate
-    assert "integrated candidate" in validate
-    assert "children visible in this checkout" in validate
+    assert "A parent task validates the integrated candidate" in validate
+    assert "child tasks visible in this checkout" in validate
     assert "independently validated" in validate
 
 
 def test_resume_starts_with_brief_but_requires_current_stage_sources():
     """REQ-UX-94a33d75: compact re-entry preserves authoritative source reads."""
-    agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
-    resume = agents.split("## Resume a task", 1)[1].split("## Interaction modes", 1)[0]
-    assert resume.index("brief TASK-<id>") < resume.index("current step file")
-    assert "must_read" in resume
-    assert "Full journal reads required by validate and deliver still apply" in resume
+    resume = resume_section()
+    assert resume.index("brief TASK-<id>") < resume.index("Read next")
+    assert "relevant sections of `.agentic/context/environment.md`" in resume
 
 
-def test_every_pause_refreshes_stage_report_and_handoff():
-    """REQ-FUNC-7ea14fe4: user reporting and worker resume state move together."""
-    for step in stage_step_files():
-        text = " ".join(step.read_text("utf-8").split())
-        assert "Stage reporting" in text and "pause" in text, step.name
-        if step.name in {"1_frame.md", "5_validate.md"}:
-            assert "Handoff" in text and "Stage report" in text, step.name
-            assert "summary after these edits" in text, step.name
-            assert "output first" in text, step.name
-        else:
-            assert "minimal Handoff" in text, step.name
-
-
-def test_six_stage_workflow_stops_at_each_stage_when_autopilot_is_off():
+def test_five_stage_workflow_stops_at_each_stage_when_autopilot_is_off():
     """REQ-FUNC-d60b322b: stage order is unchanged while control is explicit."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text("utf-8").split())
-    assert all(f"| {number} | {stage} |" in agents for number, stage in enumerate(
-        ("frame", "specify", "design", "build", "validate", "deliver"), 1))
-    assert "autopilot = false" in agents
-    assert "Missing table or key means `false`" in agents
-    assert "pre-publication approval" in agents
+    rows = [f"| {stage} | `.agentic/steps/{number}_{stage}.md` |" for number, stage in
+            enumerate(("frame", "specify", "design", "build", "validate"), 1)]
+    positions = [agents.index(row) for row in rows]
+    assert positions == sorted(positions)
+    assert "| deliver |" not in agents
+    assert "(default `false`)" in agents and "**checkpoint** (default)" in agents
+    assert "An explicit user instruction" in agents and "always wins" in agents
 
 
-def test_pointer_digest_is_sufficient_for_offline_resume():
-    """REQ-PLAT-e675406e: generated pointers carry the survival contract."""
+def test_pointer_digest_routes_to_the_contract_without_replacing_it():
+    """REQ-PLAT-e675406e: generated pointers carry the entry routes, not the contract."""
     source = AEGIS_PY.read_text(encoding="utf-8")
-    digest = source.split('POINTER_DIGEST = """\\\n', 1)[1].split('"""', 1)[0]
-    for phrase in ("brief TASK-<id>", "one-level child", "Rulings are append-only",
-                   "Handoff is replaceable", "optional explicit review",
-                   "bounded fix", "cannot grant authority",
-                   "autopilot = false", "stops after every stage",
-                   "publication approval"):
-        assert phrase in digest
+    digest = " ".join(source.split('POINTER_DIGEST = """\\\n', 1)[1].split('"""', 1)[0].split())
+    for phrase in ("read `.agentic/AGENTS.md`", "aegis.py status", "steps/1_frame.md",
+                   "brief TASK-<id>", "Read next",
+                   "frame -> specify -> design -> build -> validate -> done",
+                   "frame -> build -> validate -> done", "`advance`", "`pause`",
+                   "never blocks", "follow the repository's own procedures",
+                   "DEVIATION <stage>:"):
+        assert phrase in digest, phrase
+    assert "enough to act on" not in digest
 
 
-def test_six_stage_workflow_separates_validation_from_publication():
-    """REQ-FUNC-24ea4f73: proof may mutate; publication may not."""
-    agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")
-    build = (PAYLOAD / "steps" / "4_build.md").read_text(encoding="utf-8")
-    validate = (PAYLOAD / "steps" / "5_validate.md").read_text(encoding="utf-8")
-    deliver = (PAYLOAD / "steps" / "6_deliver.md").read_text(encoding="utf-8")
-
-    assert "| 5 | validate |" in agents
-    assert "| 6 | deliver |" in agents
-    assert "set `stage: validate`" in build
-    assert "Prove the final candidate only after" in validate
-    assert "Do not edit the candidate" in deliver
-    assert "For a return to Validate" in deliver
-    assert "save `stage: validate`" in deliver
+def test_validation_closes_the_task_and_publication_stays_outside(tmp_path):
+    """REQ-FUNC-24ea4f73: proof may mutate; publication is the developer's."""
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    validate = " ".join((PAYLOAD / "steps" / "5_validate.md").read_text("utf-8").split())
+    assert ("Commits, pushes, pull requests, merges, tickets, releases and packaging "
+            "are outside it") in agents
+    assert "**Prove last:**" in validate and "they are not AEGIS steps" in validate
+    assert "A legacy journal at `deliver`" in validate
+    _agentic, aegis = make_repo(tmp_path)
+    assert aegis.PATH_STAGES["full"][-2:] == ("validate", "done")
+    assert aegis.PATH_STAGES["quick"][-2:] == ("validate", "done")
+    assert aegis.STAGE_STEP_FILES["deliver"] == "5_validate.md"
 
 
 def test_deliver_has_no_default_write_zone(tmp_path):
@@ -483,15 +457,12 @@ def test_deliver_has_no_default_write_zone(tmp_path):
     assert "deliver" not in aegis.DEFAULT_ZONES
 
 
-def test_deliver_folds_close_out_into_a_local_only_delivery():
-    """REQ-FUNC-dcb42072: a second commit only where publication can fail."""
-    deliver = " ".join(
-        (PAYLOAD / "steps" / "6_deliver.md").read_text(encoding="utf-8").split())
-    assert "nothing can fail after it" in deliver
-    assert "let the same commit carry them" in deliver
-    # the separate close-out survives wherever the outcome can still fail
-    assert "can still fail after the delivery commit" in deliver
-    assert "close-out commit pushed to the same PR" in deliver
+def test_no_step_commits_pushes_or_publishes():
+    """REQ-FUNC-dcb42072: Git publication follows the repository's procedures."""
+    for path in sorted((PAYLOAD / "steps").glob("*.md")):
+        text = " ".join(path.read_text(encoding="utf-8").split())
+        for action in ("git commit", "git push", "open the PR", "close-out commit"):
+            assert action not in text, (path.name, action)
 
 
 def test_check_help_makes_no_unconditional_zero_exit_promise(tmp_path, capsys):
@@ -524,23 +495,31 @@ def test_payload_never_references_external_documents():
 
 
 def test_frame_captures_evidence_intent_and_ambiguity_before_mechanics():
-    """REQ-UX-81840102: framing preserves understanding before administration."""
+    """REQ-UX-81840102: framing preserves understanding before scope is accepted.
+    @details The journal's skeleton holds the Frame fields, so creating it comes
+             first; analysis, challenge and the path all precede any acceptance.
+    """
     agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")
-    frame = (PAYLOAD / "steps" / "1_frame.md").read_text(encoding="utf-8")
+    frame = " ".join((PAYLOAD / "steps" / "1_frame.md").read_text(encoding="utf-8").split())
     task = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
 
-    for phrase in ("## Semantic analysis protocol", "STATED", "OBSERVED",
-                   "INFERRED", "UNKNOWN", "decision-blocking"):
+    for phrase in ("## Evidence", "STATED", "OBSERVED", "INFERRED", "UNKNOWN"):
         assert phrase in agents
-    for phrase in ("## Frame card", "Problem:", "Desired outcome:",
-                   "Primary scenario:", "Success signals:", "Counterexamples:",
-                   "Assumptions:", "Unknowns:", "yes/no/unknown | evidence"):
-        assert phrase in frame
-    assert frame.index("semantic analysis protocol") < frame.index("Establish the branch")
-    assert "pending scope decision" in " ".join(frame.split())
-    assert "Stop before specification or build" in frame
-    assert "## Frame" in task
-    assert "Evidence:" in task
+    for phrase in ("**Analyze.**", "**Challenge.**", "**Audit.**", "decision-blocking",
+                   "`Decision-blocking questions`", "`Proposed behaviors`",
+                   "yes / no / unknown", "| no new interface or data format |",
+                   "Do not settle open behavior by convention",
+                   "an example that needs a value the user has not given names it, such "
+                   "as `N days`, instead of choosing a number"):
+        assert phrase in frame, phrase
+    assert (frame.index("Create the journal") < frame.index("**Analyze.**")
+            < frame.index("**Challenge.**") < frame.index("Choose the path")
+            < frame.index("**Audit.**") < frame.index("**Finish:**"))
+    assert "the first decision-blocking question" in frame
+    for field in ("Problem:", "Desired outcome:", "Primary scenario:", "Success signals:",
+                  "Counterexamples:", "Assumptions:", "Unknowns:", "Evidence:",
+                  "Path and reason:"):
+        assert field in task, field
 
 
 def test_specify_proves_behavior_coverage_and_verification_quality():
@@ -552,13 +531,14 @@ def test_specify_proves_behavior_coverage_and_verification_quality():
     task = (PAYLOAD / "templates" / "task.md").read_text(encoding="utf-8")
     specify = " ".join(specify.split())
 
-    for phrase in ("Behavior inventory", "Frame outcome", "Atomic behavior",
-                   "broad Frame outcome", "Boundary or failure",
-                   "vary, fail, change, or be verified independently",
-                   "Setup", "Observable oracle", "semantic conflict",
-                   "state machine", "migration"):
-        assert phrase in specify
-    assert "every atomic behavior maps to exactly one requirement" in specify
+    for phrase in ("## Requirement coverage", "one trigger or state and one observable response",
+                   "every error response included", "its own requirement", "EARS",
+                   'one "shall"', "setup, trigger, observable oracle", "boundary",
+                   "**Challenge.**", "conflicts with existing requirements",
+                   "state machines", "migrations"):
+        assert phrase in specify, phrase
+    assert "Each atomic behavior maps to exactly one requirement" in " ".join(task.split())
+    assert "| Frame outcome | Atomic behavior | Requirement | Verification |" in task
     assert "independently verifiable responses" in requirement
     assert "## Assumptions and open decisions" in spec
     assert "## Requirement coverage" in task
@@ -571,16 +551,15 @@ def test_design_scales_depth_and_keeps_proposals_out_of_current_knowledge():
     design = " ".join(design.split())
     validate = " ".join(validate.split())
 
-    for phrase in ("30 lines is the default", "Requirements coverage",
-                   "sufficiently constrained implementation path",
-                   "Component responsibilities", "Interfaces and contracts",
-                   "Data ownership and state transitions", "Failure recovery",
-                   "Security and trust boundaries", "Compatibility and migration",
-                   "Observability", "Open decisions"):
-        assert phrase in design
+    for phrase in ("about 30 lines", "**Approach**", "**Interfaces and data**",
+                   "**Files and test seams**", "**Risks and open decisions**",
+                   "**Requirement map**", "primary flow", "failure recovery",
+                   "security, concurrency, compatibility or migration",
+                   "An open product decision stays open", "one skip rule"):
+        assert phrase in design, phrase
     assert "decision-free" not in design
     # the proposal lives in the task; current pages change only after build
-    assert "unchanged during design" in design
+    assert "Leave knowledge pages unchanged" in design
     assert "reviewed code and tests" in validate
 
 
@@ -687,20 +666,20 @@ def test_design_draws_diagrams_only_through_the_enabled_guide():
     """REQ-FUNC-ee1d2096, REQ-FUNC-f7220cb2: one pointer, one guide, one file."""
     design = payload_flat("steps", "3_design.md")
     guide = payload_flat("steps", "diagrams.md")
-    assert "`[diagrams] enabled = true`" in design
+    # brief computes the configuration gate once; design reads its line
+    assert "The `Diagrams:` line of `python .agentic/aegis.py brief TASK-<id>`" in design
+    assert "When `brief` shows `Diagrams: draw ...`" in design
     assert "`.agentic/steps/diagrams.md`" in design
-    # the fail-safe reading: only the exact Boolean turns diagrams on
-    assert "(a TOML boolean)" in design
-    assert "Any other enabled value, or no `[diagrams]` table, means no diagrams" in design
     for phrase in ("`.agentic/tasks/diagram_TASK-<id>.md`",
                    "Diagrams: [diagram_TASK-<id>.md](diagram_TASK-<id>.md)",
                    "`structure`", "`sequence`", "`state`",
                    "flowchart", "sequenceDiagram", "stateDiagram-v2",
                    "Mermaid", "The Design text is authoritative",
                    "Not drawn:", "no design note",
-                   "A non-list value counts as missing",
-                   "An empty list draws nothing: write no file and no link",
-                   "A list with no known name counts as an empty list"):
+                   "Draw exactly the types the `Diagrams:` line names",
+                   "only `enabled = true` draws",
+                   "a missing or non-list `types` means `structure`",
+                   "an empty or unknown-only list draws nothing, with no file and no link"):
         assert phrase in guide, phrase
     # the worked example shows every edge mark it asks for
     example = guide[guide.index("```mermaid"):guide.index("## Sequence")]
@@ -712,14 +691,15 @@ def test_design_checkpoint_shows_diagrams_before_the_choices():
     """REQ-UX-b0bd0225: summary, then the diagrams, then the design choices."""
     design = payload_flat("steps", "3_design.md")
     guide = payload_flat("steps", "diagrams.md")
-    sentence = design[design.index("In checkpoint mode, show the summary"):]
+    finish = design[design.index("**Finish:**"):]
+    sentence = finish[finish.index("show the summary"):]
     sentence = sentence[:sentence.index(". ")]
-    assert (sentence.index("summary") < sentence.index("diagram file")
-            < sentence.index("Stage-boundary choices"))
+    assert (sentence.index("summary") < sentence.index("diagrams")
+            < sentence.index("the choices"))
     presentation = guide[guide.index("**Checkpoint presentation:**"):]
-    assert (presentation.index("actual summary") < presentation.index("Mermaid fence")
-            < presentation.index("Design boundary choices"))
-    assert "omit diagram display and add no stop" in guide
+    assert (presentation.index("the summary `pause` printed")
+            < presentation.index("Mermaid fence") < presentation.index("the design choices"))
+    assert "omit the diagram display and add no stop" in guide
 
 
 def test_no_stage_obligation_depends_on_diagrams():
@@ -730,7 +710,7 @@ def test_no_stage_obligation_depends_on_diagrams():
             done = text[text.index("**Done when:**"):]
             done = done.split("**Skip when:**")[0]
             assert "diagram" not in done.lower(), path.name
-    for name in ("4_build.md", "5_validate.md", "6_deliver.md"):
+    for name in ("4_build.md", "5_validate.md", "review.md"):
         text = (PAYLOAD / "steps" / name).read_text(encoding="utf-8")
         assert "diagram" not in text.lower(), name
     assert "Nothing checks this file" in payload_flat("steps", "diagrams.md")
@@ -796,7 +776,7 @@ def test_component_knowledge_routes_implementation_work():
                     "Change map"):
         assert heading in validate_flat
     assert "touched legacy page" in validate_flat
-    assert "migrate it to the current template" in validate_flat
+    assert "Migrate a touched legacy page to the current template" in validate_flat
     assert "retired `## Architecture` section" in validate_flat
     assert ("remove a retired `## Architecture` section and keep any still-true "
             "constraint from it in Purpose and boundaries or Invariants") in validate_flat

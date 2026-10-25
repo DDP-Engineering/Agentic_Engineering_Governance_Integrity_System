@@ -48,6 +48,40 @@ test('focused refusal and compact evolution are explicit portable options', () =
   assert.throws(() => commandArgs('evidence', { action: 'anchor', task: 'TASK-aabb', compact: true }), /requires evolution/);
 });
 
+test('journal writers become validated argument arrays for the installed CLI', () => {
+  assert.deepEqual(commandArgs('journal', { action: 'advance', task: 'TASK-aabb', path: 'quick', reason: '-one function', read: ['src/a.py, docs/b.md'] }),
+    ['advance', 'TASK-aabb', '--path=quick', '--reason=-one function', '--read=src/a.py', '--read=docs/b.md']);
+  assert.deepEqual(commandArgs('journal', { action: 'pause', task: 'TASK-aabb', next: 'Accept the scope?', blocked: true, evidence: 'verify exit 1' }),
+    ['pause', 'TASK-aabb', '--next=Accept the scope?', '--blocked', '--evidence=verify exit 1']);
+  assert.deepEqual(commandArgs('journal', { action: 'log', task: 'TASK-aabb', text: '-red: exit 1' }), ['log', 'TASK-aabb', '--', '-red: exit 1']);
+  assert.deepEqual(commandArgs('journal', { action: 'ruling', task: 'TASK-aabb', decision: 'keep 30 days', reason: 'user', source: 'user', supersedes: 'RULING-001' }),
+    ['ruling', 'TASK-aabb', '--decision=keep 30 days', '--reason=user', '--source=user', '--supersedes=RULING-001']);
+  assert.deepEqual(commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', spec: 'approved', quality: 'changes_required', round: 2 }),
+    ['verdict', 'TASK-aabb', '--spec=approved', '--quality=changes_required', '--round=2']);
+  assert.throws(() => commandArgs('journal', { action: 'commit', task: 'TASK-aabb' }), /action/i);
+  assert.throws(() => commandArgs('journal', { action: 'pause', task: 'TASK-aabb' }), /next/);
+  assert.throws(() => commandArgs('journal', { action: 'pause', task: 'TASK-aabb', next: 'two\nlines' }), /one nonempty line/);
+  assert.throws(() => commandArgs('journal', { action: 'advance', task: 'TASK-aabb', to: 'release' }), /target stage/);
+  assert.throws(() => commandArgs('journal', { action: 'advance', task: 'TASK-aabb', read: ['../secret'] }), /inside the repository/);
+  assert.throws(() => commandArgs('journal', { action: 'ruling', task: 'TASK-aabb', decision: 'x', reason: 'y', source: 'me' }), /source/);
+  assert.throws(() => commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 9 }), /round/);
+});
+
+test('journal writes reach the installed CLI and its State through the adapter', async () => {
+  const { root, task } = await fixture('journal writers');
+  const adapter = createAdapter(settings);
+  const paused = await adapter.journal({ action: 'pause', task, next: 'Accept the framed scope?' }, context(root));
+  assert.equal(paused.exit_code, 0, paused.stderr);
+  assert.match(paused.stdout, /Needs user:\s+yes/);
+  const advanced = await adapter.journal({ action: 'advance', task, path: 'quick', reason: 'scope accepted' }, context(root));
+  assert.equal(advanced.exit_code, 0, advanced.stderr);
+  const journal = await fs.readFile(path.join(root, '.agentic/tasks', `${task}.md`), 'utf8');
+  assert.match(journal, /^stage: build$/m);
+  assert.match(journal, /^status: ready$/m);
+  assert.match(journal, /frame: completed; next build - scope accepted/);
+  await assert.rejects(adapter.journal({ action: 'log', task, text: 'x' }, { ...context(root), agent: 'aegis-spec-review' }), /coordinator/i);
+});
+
 test('resolves the actual checkout from a subdirectory; rejects uninstalled nested Git repos', async () => {
   const { root } = await fixture('root with spaces');
   const sub = path.join(root, 'src');
