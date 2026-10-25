@@ -35,6 +35,8 @@ All notable changes to AEGIS are documented in this file.
   as each names a test the file defines; project context may state the trim
   in any words, such as "surrounding whitespace removed". Every model failed
   the first and Qwen the second while doing the right thing.
+- Accept "no verification evidence available" as a missing-evidence report
+  (harness 14); Qwen wrote it after correctly running nothing.
 
 ## [0.15.0] - 2026-10-25
 

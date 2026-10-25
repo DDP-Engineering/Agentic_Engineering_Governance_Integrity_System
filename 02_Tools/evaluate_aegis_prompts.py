@@ -58,7 +58,7 @@ TASK = ".agentic/tasks/TASK-aaaaaaaa.md"
 REQUIREMENT = "REQ-FUNC-11111111"
 DATE = "2026-10-20"
 IGNORED = {".git", "__pycache__", ".pytest_cache"}
-HARNESS_VERSION = 13
+HARNESS_VERSION = 14
 #: the most text one read_file result returns, in whole lines where they fit
 READ_CHARS = 40000
 #: stands for the evaluated payload's root digest in the payload-independent host contract
@@ -232,8 +232,9 @@ def unavailable_evidence(value: str) -> bool:
         rf"no {subject} {auxiliaries}(?:run|executed|performed|recorded){suffix}",
         rf"{subject} {auxiliaries}not (?:run|executed|performed|recorded){suffix}",
         r"(?:focused )?(?:verification|tests?|checks?) (?:is |are |remains? )?(?:still )?pending",
-        r"(?:unavailable |missing )?evidence (?:is |remains |stays )?(?:still )?"
-        r"(?:unavailable|missing|not recorded)",
+        r"(?:unavailable |missing )?(?:verification |test )?evidence (?:is |remains |stays )?"
+        r"(?:still )?(?:unavailable|missing|not recorded|not available)",
+        r"no (?:verification |test )?evidence(?: is)?(?: available| recorded)?(?: yet)?",
     )
     return all(any(re.fullmatch(pattern, clause.strip(" .")) for pattern in patterns)
                for clause in clauses)
