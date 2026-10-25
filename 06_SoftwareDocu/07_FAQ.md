@@ -17,7 +17,7 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.14.0 source combines five stage instructions (frame, specify, design,
+The 0.15.0 source combines five stage instructions (frame, specify, design,
 build, validate), evidence-led idea capture, requirements, linked tests,
 journals whose state the CLI writes, repository evolution, review policy and
 a Python CLI. It guides and never blocks: `check` is an advisory report. It

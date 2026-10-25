@@ -11,7 +11,7 @@ Start at [00_Index.md](00_Index.md) for the installation guide, worked examples,
 team guidance, FAQ and prompt cheatsheet. Guides 01-08 each have a matching
 PowerPoint deck; decks summarize the detailed Markdown rather than replace it.
 
-These documents describe the assigned **AEGIS 0.14.0** source at
+These documents describe the assigned **AEGIS 0.15.0** source at
 `05_Software/aegis/` and its five host integrations:
 OpenCode, Codex, Pi, Qwen Code and Claude Code. See
 [Agent_Plugins.md](Agent_Plugins.md) for distribution and installation and

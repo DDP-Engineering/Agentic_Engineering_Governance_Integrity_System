@@ -8,7 +8,7 @@ SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
 # 05 - Current implementation
 
-The assigned source version is **AEGIS 0.14.0**. This page describes current
+The assigned source version is **AEGIS 0.15.0**. This page describes current
 capabilities, source ownership and verification methods. Release history is in
 the [changelog](../CHANGELOG.md); dated build evidence is retained under
 `07_Delivery/`, prompt observations under the development evaluation directory,

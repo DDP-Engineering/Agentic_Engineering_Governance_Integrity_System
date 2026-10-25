@@ -17,7 +17,7 @@ checkouts were removed at the owner's request on 2026-10-21. Their scores no
 longer serve as controls. The new [paired collection](comparisons/2026-10-21-luna-original-current/protocol.json)
 uses the original 0.14.0 payload from master and a frozen copy of the current
 payload, with the same parser. Provenance records every payload hash and the
-four changed files. The payload version remains 0.14.0.
+four changed files. The payload version remained 0.14.0.
 
 Read the [paired results](comparisons/2026-10-21-luna-original-current/report.md)
 with their per-case source collections and semantic review. An internal task

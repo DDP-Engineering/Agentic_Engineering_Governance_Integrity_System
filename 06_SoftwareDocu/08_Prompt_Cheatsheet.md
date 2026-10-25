@@ -387,7 +387,7 @@ session; preserve required full reads after compaction or resumption. Do not
 delete saved evidence.
 ```
 
-These are 0.14.0 workflow and CLI options. They do not create a result-reuse cache,
+These are 0.15.0 workflow and CLI options. They do not create a result-reuse cache,
 remove review requirements or grant commit or publication authority.
 
 ## Resume a tracked verification job

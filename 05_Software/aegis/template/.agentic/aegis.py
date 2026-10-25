@@ -42,7 +42,7 @@ from pathlib import Path
 
 import tomllib
 
-VERSION = "0.14.0"
+VERSION = "0.15.0"
 SCHEMA = 1
 
 AGENTIC = Path(__file__).resolve().parent

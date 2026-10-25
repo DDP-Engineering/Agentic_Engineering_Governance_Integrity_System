@@ -8,6 +8,9 @@
 Thumbs.db
 Desktop.ini
 
+# Office lock files, present while a document is open
+~$*
+
 # Python caches and virtual environments
 __pycache__/
 *.py[cod]

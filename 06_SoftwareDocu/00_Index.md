@@ -7,7 +7,7 @@ See the LICENSE.txt file for full license details. SPDX-License-Identifier: Lice
 
 # AEGIS - user documentation
 
-Guides for the assigned **AEGIS 0.14.0** source, including the OpenCode,
+Guides for the assigned **AEGIS 0.15.0** source, including the OpenCode,
 Codex, Pi, Qwen Code and Claude Code integrations. Existing delivery archives
 and their build records are under `07_Delivery/`. Assigning a source version
 does not build or publish those packages.
@@ -17,7 +17,7 @@ Examples illustrate the workflow; sample output is not evidence of a test run.
 The workflow has five stages - frame, specify, design, build, validate - and
 then the task is done; the quick path is frame, build, validate, done. The CLI
 writes the journal state with `advance`, `pause`, `log`, `ruling` and `verdict`.
-For 0.14.0 verification setup, start with
+For 0.15.0 verification setup, start with
 [focused routing](01_Install_and_Setup.md#verify-focused-routing-before-using-it).
 The folder guide explains the task journal and saved evidence; the FAQ and
 prompt cheatsheet cover focused tests, final proof and resuming with `brief`.
