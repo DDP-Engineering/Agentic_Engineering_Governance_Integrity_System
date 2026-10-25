@@ -2000,8 +2000,11 @@ def checkpoint_hint(header: dict, stage: str, task: str) -> str:
     """
     @brief How a stage waiting on the user resumes when they move on: the
            `advance` that records it. The hint is conditional; it infers no
-           approval.
+           approval. Adoption pauses after each component inside `components`,
+           where continuing means the next component, so that stage gets none.
     """
+    if stage == "components":
+        return ""
     try:
         following = next_stage(header, stage)
     except UserError:

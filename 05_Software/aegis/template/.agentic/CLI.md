@@ -152,6 +152,8 @@ The default type is `feature`. Accepted types are:
 
 **When to use:** At the beginning of a new governed unit of work, after first
 using `status` to ensure an existing open journal does not already cover it.
+A bare task ID as the title, such as `task TASK-8b12`, is refused with a
+pointer to `brief`: resuming a task never opens a second journal.
 
 **Examples:**
 

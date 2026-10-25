@@ -544,6 +544,19 @@ def test_brief_names_the_advance_that_resumes_a_waiting_checkpoint(tmp_path, mon
     assert "waits on the user" not in run(aegis, capsys, "brief", path.stem)[1]  # a blocker
 
 
+def test_brief_names_no_advance_between_adoption_components(tmp_path, monkeypatch, capsys):
+    """Adoption pauses after each component inside one stage; continuing means the next
+    component, so brief must not suggest moving on to close."""
+    _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys,
+                                     "Adopt the service", "--type", "adopt")
+    assert run(aegis, capsys, "pause", path.stem, "--next", "Review the component list?")[0] == 0
+    assert "when they continue to components" in run(aegis, capsys, "brief", path.stem)[1]
+    assert run(aegis, capsys, "advance", path.stem)[0] == 0
+    assert run(aegis, capsys, "pause", path.stem, "--next", "Continue with the cli component?")[0] == 0
+    brief = run(aegis, capsys, "brief", path.stem)[1]
+    assert "Stage: components" in brief and "waits on the user" not in brief
+
+
 def test_check_warns_on_a_stale_state_and_on_legacy_sections_beside_it(tmp_path, monkeypatch,
                                                                        capsys):
     """check names a State that no longer matches the header, and ignored old sections."""

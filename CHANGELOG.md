@@ -17,8 +17,19 @@ All notable changes to AEGIS are documented in this file.
   set, recorded in the manifest and compared as a control; a turn's reasoning
   is never sent back with the history.
 
+### Changed
+
+- Write the component and requirement templates and the build card with
+  language-neutral `<source file>` and `<test file>` placeholders; link a test
+  as `<test file>::<test name>` only where the test runner accepts that
+  selector.
+- Have adoption create requirements with `req`, and name the State among its
+  resume records. `CLI.md` notes that `task TASK-<id>` is refused.
+
 ### Fixed
 
+- Stop `brief` from suggesting `advance` to close between adoption components:
+  adoption pauses after each component inside the same stage.
 - Score two capability predicates by the behavior, not one spelling (harness
   13): linked tests may be `file::test` node ids, the documented form, as long
   as each names a test the file defines; project context may state the trim

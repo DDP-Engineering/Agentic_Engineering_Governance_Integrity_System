@@ -30,8 +30,8 @@ Three phases: survey, one component per session, close.
 
 The adoption journal walks `survey` → `components` → `close` → `done`.
 `python .agentic/aegis.py advance TASK-<id>` moves it, `pause` records a stop,
-and `brief` shows where it stands. The `## Components` checklist plus the
-stage are the complete resume state.
+and `brief` shows where it stands. The stage, the State and the
+`## Components` checklist carry the resume state.
 
 *Phase 1 — survey (one session).*
 
@@ -72,10 +72,11 @@ components): one shared journal is a merge hotspot, separate ones are not.
    agreed contract and describe the actual behavior separately, with
    source and test evidence. Keep the defect and its investigation in the
    journal; adoption neither fixes it nor changes the contract.
-7. Derive requirements from the behavior you found: `status = "active"`,
-   `affected_paths` = the component's files, `linked_tests` = the existing
-   tests that already verify each behavior. Adoption mostly *links* tests;
-   it does not write them.
+7. Derive requirements from the behavior you found: create each with
+   `python .agentic/aegis.py req functional "<title>"` (or another category),
+   then set `status = "active"`, `affected_paths` = the component's files and
+   `linked_tests` = the existing tests that already verify each behavior.
+   Adoption mostly *links* tests; it does not write them.
 8. Add a spec only where a requirement alone would not be buildable.
 9. Real behavior with no test: write a characterization test now if the
    behavior is load-bearing; otherwise leave `linked_tests` empty. `check`

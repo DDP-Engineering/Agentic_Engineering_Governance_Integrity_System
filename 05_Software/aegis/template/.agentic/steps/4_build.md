@@ -40,8 +40,9 @@ Take one requirement at a time and finish it before starting the next:
 4. Implement the smallest change that makes the test pass, adding no
    behavior that no requirement asks for.
 5. Update the requirement: add the changed source to `affected_paths` and the
-   test to `linked_tests` as `tests/path.py::test_name`, set
-   `status = "active"`, and refresh `updated`.
+   test to `linked_tests` as `<test file>`, or `<test file>::<test name>`
+   where the test runner accepts that selector, set `status = "active"`, and
+   refresh `updated`.
 6. Run the smallest command that proves the increment:
    `python .agentic/aegis.py test --impacted --base HEAD --no-fallback` when
    the configured runner honors selectors, otherwise a focused native command.
