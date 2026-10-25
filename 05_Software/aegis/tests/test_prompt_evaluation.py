@@ -511,7 +511,8 @@ def test_alternating_tool_calls_end_the_session_as_a_loop(prepared, tmp_path, mo
 
 
 @pytest.mark.parametrize("sampling", [{}, {"top_p": 0.8, "top_k": 20},
-                                      {"presence_penalty": 1.0}])
+                                      {"presence_penalty": 1.0},
+                                      {"reasoning_effort": "medium"}])
 def test_sampling_options_are_sent_only_when_configured(prepared, tmp_path, monkeypatch,
                                                         sampling):
     root, case, initial, _host = prepared
@@ -523,6 +524,29 @@ def test_sampling_options_are_sent_only_when_configured(prepared, tmp_path, monk
     evaluation.run_case(root, case, initial, run_args(**sampling), run_dir)
     sent = {key: requests[0][key] for key in evaluation.SAMPLING if key in requests[0]}
     assert sent == sampling
+
+
+def test_a_turn_reasoning_is_not_sent_back_with_the_history(prepared, tmp_path, monkeypatch):
+    """Thinking output is the model's own scratch space; the next turn sees the content
+    and the tool calls only, as the model's chat template expects."""
+    root, case, initial, _host = prepared
+    requests = []
+    answers = iter([reply(calls=[tool_call("c1", "list_files", {"path": "src"})]),
+                    reply(content="Stopping.")])
+
+    def fake(url, data, timeout):
+        requests.append(json.loads(json.dumps(data)))
+        answer = next(answers)
+        answer["choices"][0]["message"]["reasoning_content"] = "private scratch"
+        return answer
+
+    monkeypatch.setattr(evaluation, "request_json", fake)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    evaluation.run_case(root, case, initial, run_args(reasoning_effort="medium"), run_dir)
+    history = requests[1]["messages"]
+    assert [m["role"] for m in history][-2:] == ["assistant", "tool"]
+    assert "private scratch" not in json.dumps(history)
 
 
 @pytest.mark.parametrize("text,degenerate", [
@@ -738,11 +762,12 @@ def test_execute_records_profile_sampling_window_and_sources(tmp_path, monkeypat
     monkeypatch.setattr(evaluation, "request_json", fake_request)
     args = run_args(cases="frame_existing_fix", output=tmp_path / "out", work_dir=tmp_path / "work",
                     profile="core", repeats=1, top_p=0.8, top_k=20, context_window=None,
-                    review_timeout=60)
+                    review_timeout=60, reasoning_effort="medium")
     assert evaluation.execute(args) == 1
     manifest = json.loads((args.output / "manifest.json").read_text("utf-8"))
     assert (manifest["profile"], manifest["top_p"], manifest["top_k"],
             manifest["context_window"]) == ("core", 0.8, 20, 4096)
+    assert manifest["reasoning_effort"] == "medium"
     assert manifest["system_sha256"] == evaluation.digest(evaluation.instructions().encode())
     assert "05_Software/aegis/evaluations/profiles/installed-entry.json" in manifest["sources"]
     results = json.loads((args.output / "results.json").read_text("utf-8"))

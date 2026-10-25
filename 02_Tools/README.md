@@ -30,7 +30,10 @@ behavior tests are in `05_Software/aegis/tests/test_prompt_evaluation.py` and
 The default `--max-tokens` is 16,384 per response, shared by reasoning and
 visible output on models that count both. Deadlines default to 2,400 seconds
 per case and 900 per request or reviewer session, suited to a local 27B model.
-`--top-p`, `--top-k` and `--presence-penalty` are sent only when set. Repeated
+`--top-p`, `--top-k`, `--presence-penalty` and `--reasoning-effort` are sent
+only when set; `--reasoning-effort` turns on thinking where the server supports
+it (LM Studio: `reasoning_effort`), and the reasoning is never sent back with
+the history. Repeated
 identical tool calls, or text repeated until the output limit, end a session as
 `loop`; finished responses with repeated text are counted as degenerate.
 Changing budgets, sampling or the loaded context window requires a fresh

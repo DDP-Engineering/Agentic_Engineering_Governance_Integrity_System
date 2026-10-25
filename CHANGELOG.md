@@ -11,6 +11,12 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add `--reasoning-effort` to the local evaluation runner. It is sent only when
+  set, recorded in the manifest and compared as a control; a turn's reasoning
+  is never sent back with the history.
+
 ## [0.15.0] - 2026-10-25
 
 ### Removed

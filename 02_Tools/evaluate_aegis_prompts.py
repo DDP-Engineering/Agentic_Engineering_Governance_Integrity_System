@@ -72,7 +72,7 @@ WINDOW_THRESHOLDS = (0.5, 0.75)
 REPETITION_CHARS = 1000
 REPEATED_TEXT = re.compile(r"(.{1,40}?)\1{49,}", re.DOTALL)
 #: optional sampling fields sent only when configured
-SAMPLING = ("top_p", "top_k", "presence_penalty")
+SAMPLING = ("top_p", "top_k", "presence_penalty", "reasoning_effort")
 #: Frame card fields; any other `Name:` line continues the current field
 FRAME_FIELDS = {"problem", "desired outcome", "actors", "primary scenario", "examples",
                 "counterexamples", "in scope", "out of scope", "constraints",
@@ -1841,6 +1841,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--top-k", type=int, default=None, help="Sent only when set")
     run.add_argument("--presence-penalty", type=float, default=None,
                      help="Sent only when set; -2 to 2, positive values discourage repetition")
+    run.add_argument("--reasoning-effort", choices=["low", "medium", "high"], default=None,
+                     help="Sent only when set; turns on the model's thinking where the server "
+                          "supports it. The reasoning is never sent back with the history")
     run.add_argument("--context-window", type=int, default=None,
                      help="Loaded context in tokens when the server does not report it")
     run.add_argument("--request-timeout", type=float, default=900)
