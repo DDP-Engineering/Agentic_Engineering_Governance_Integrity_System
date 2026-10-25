@@ -38,6 +38,24 @@ def safe_source(text):
         return False
 
 
+def linked_to_real_tests(root, linked, required):
+    """@brief Whether `linked_tests` names real tests and includes the required test file.
+    @details Each entry is a test file or a `file::test` node id, the documented form;
+             the file must exist, and a node id's last part must be a test the file
+             defines, so an invented test name does not count.
+    """
+    if not isinstance(linked, list) or not linked:
+        return False
+    for entry in linked:
+        path, _, node = str(entry).partition("::")
+        target = root / path
+        if not path.startswith("tests/") or not target.is_file():
+            return False
+        if node and f"def {node.split('::')[-1]}(" not in target.read_text("utf-8"):
+            return False
+    return any(str(entry).partition("::")[0] == required for entry in linked)
+
+
 def closing_stage(payload):
     """@brief Where a payload presents a validated task: deliver, or the end of validate."""
     return "deliver" if (payload / "steps/6_deliver.md").is_file() else "validate"
@@ -130,7 +148,8 @@ def score(core, root, payload, case, initial, events, final):
         source = (root / SOURCE).read_text("utf-8")
         add("intended_safe_source_change", safe_source(source) and "strip" in source and core.files(root)[SOURCE] != initial["files"][SOURCE])
         req = tomllib.loads((root / f".agentic/requirements/functional/{core.REQUIREMENT}.toml").read_text("utf-8"))
-        add("active_requirement_linked_to_real_tests", req["status"] == "active" and "tests/test_normalize.py" in req["linked_tests"])
+        add("active_requirement_linked_to_real_tests", req["status"] == "active"
+            and linked_to_real_tests(root, req.get("linked_tests"), "tests/test_normalize.py"))
         add("red_and_green_recorded", bool(re.search(r"red|fail", text, re.I)) and bool(re.search(r"green|pass", text, re.I)) and core.REQUIREMENT in text)
     elif kind == "specify":
         paths = list((root / ".agentic/requirements").rglob("*.toml"))

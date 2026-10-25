@@ -17,6 +17,14 @@ All notable changes to AEGIS are documented in this file.
   set, recorded in the manifest and compared as a control; a turn's reasoning
   is never sent back with the history.
 
+### Fixed
+
+- Score two capability predicates by the behavior, not one spelling (harness
+  13): linked tests may be `file::test` node ids, the documented form, as long
+  as each names a test the file defines; project context may state the trim
+  in any words, such as "surrounding whitespace removed". Every model failed
+  the first and Qwen the second while doing the right thing.
+
 ## [0.15.0] - 2026-10-25
 
 ### Removed

@@ -58,7 +58,7 @@ TASK = ".agentic/tasks/TASK-aaaaaaaa.md"
 REQUIREMENT = "REQ-FUNC-11111111"
 DATE = "2026-10-20"
 IGNORED = {".git", "__pycache__", ".pytest_cache"}
-HARNESS_VERSION = 12
+HARNESS_VERSION = 13
 #: the most text one read_file result returns, in whole lines where they fit
 READ_CHARS = 40000
 #: stands for the evaluated payload's root digest in the payload-independent host contract

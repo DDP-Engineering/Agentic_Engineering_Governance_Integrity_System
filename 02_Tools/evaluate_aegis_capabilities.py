@@ -259,6 +259,22 @@ class CapabilityHost:
         return result
 
 
+#: a statement that whitespace is trimmed, in code or in prose
+TRIMMED = re.compile(r"strip|trim|whitespace[^.]{0,40}\b(?:removed|stripped|trimmed|dropped)\b"
+                     r"|\b(?:remov|drop)\w*[^.]{0,40}whitespace")
+
+
+def describes_trim_and_lower(text: str) -> bool:
+    """@brief Whether context prose states the current trim-and-lowercase behavior.
+    @details Any wording counts - `value.strip().lower()`, "trims" or "surrounding
+             whitespace removed" - while the stale claim that input is returned
+             unchanged does not.
+    """
+    lowered = text.lower()
+    return ("input is returned unchanged" not in lowered and "lower" in lowered
+            and bool(TRIMMED.search(lowered)))
+
+
 def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
           reviews: list, final: str) -> dict:
     """@brief Check observed sessions and artifacts, separately from semantic grading."""
@@ -316,8 +332,7 @@ def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
             add(filename + "_unrelated_notes_preserved", initial["context_notes"] in content)
         project = (root / ".agentic/context/project.md").read_text("utf-8").lower()
         environment = (root / ".agentic/context/environment.md").read_text("utf-8").lower()
-        add("project_current_behavior", ("strip" in project or "trim" in project) and "lower" in project
-            and "input is returned unchanged" not in project)
+        add("project_current_behavior", describes_trim_and_lower(project))
         add("environment_current_command", "python verify.py" in environment and "legacy_verify.py" not in environment)
     else:
         add("component_knowledge_unchanged", all(core.files(root).get(p) == value
