@@ -12,61 +12,24 @@ to improve prompts through controlled comparisons, with real tool observations
 and a separate semantic review. Developing this harness does not use the AEGIS
 workflow; the fixture sessions exercise that workflow as their subject.
 
-The historical model transcripts, result directories and temporary model
-checkouts were removed at the owner's request on 2026-10-21. Their scores no
-longer serve as controls. The new [paired collection](comparisons/2026-10-21-luna-original-current/protocol.json)
-uses the original 0.14.0 payload from master and a frozen copy of the current
-payload, with the same parser. Provenance records every payload hash and the
-four changed files. The payload version remained 0.14.0.
+## Stored records
 
-Read the [paired results](comparisons/2026-10-21-luna-original-current/report.md)
-with their per-case source collections and semantic review. An internal task
-reference rejection was repaired without changing model-visible tools or
-instructions; all three review cases were recollected for both variants.
-The complete corrected subgroup is selected symmetrically. Initial observations
-remain preserved; non-review cases do not reach the repaired branch.
+This folder keeps only baselines on the released 0.14.0 payload (`75508bc`),
+collected through the subscription runner with `gpt-6-luna` at medium
+reasoning and 131,072 configured tokens:
 
-The [prompt-correction comparison](comparisons/2026-10-22-luna-prompt-corrections/report.md)
-uses that selected current payload as the control and reruns the same 25 cases
-with Luna/medium/131072. Its harness, scenarios, native role definitions and
-runtime hashes remain fixed. Read strict scores together with the semantic
-assessment; no failed outcome is selectively retried or silently regraded.
+| Baseline | Profile |
+|---|---|
+| [`2026-10-21-luna-original-core`](baselines/2026-10-21-luna-original-core/) | core |
+| [`2026-10-21-luna-original-capabilities`](baselines/2026-10-21-luna-original-capabilities/) | capabilities |
+| [`2026-10-21-luna-original-review-transport`](baselines/2026-10-21-luna-original-review-transport/) | capabilities, review transport |
 
-The [validation/record correction](comparisons/2026-10-22-luna-validation-records/report.md)
-retains both full candidates and compares 25 valid observations with the same
-current control. ChatGPT capacity is external: its contaminated observation is
-excluded, and the first operationally complete follow-up is selected regardless
-of semantic grade. All raw records and the independently observed duplicate
-journal remain available. The final strict score is 18/25 versus 17/25; semantic
-regressions mean the full batch remains experimental.
-
-The [delivery/evidence comparison](comparisons/2026-10-22-luna-delivery-evidence/report.md)
-uses that selected 18/25 cohort as its control. The same Luna/medium/128K suite
-scores 21/25, with three automatic gains and no automatic regressions. No
-external error occurred in this cohort. Delivery saves its pause/return records,
-but still changes whitespace in old log evidence; diagram display improves while
-node classification and review-evidence interpretation remain inconsistent.
-Read the semantic assessment as well as the strict score.
-
-The subsequent history/reviewer/node-marker experiment retains an
-[initial 20/25 cohort](comparisons/2026-10-22-luna-history-evidence/report.md)
-and a [final 19/25 cohort](comparisons/2026-10-22-luna-history-protocol/report.md),
-both compared with that 21/25 control. Deliver history, phase-appropriate review
-and reused-node classification improve in observed cases, but new recording,
-Build and presentation failures prevent a demonstrated global upgrade. No
-external model failures occurred. Native reviewer prompts are declared changed
-experimental inputs; the evaluator and predicates remain fixed. These candidates
-remain experimental and are not selected case by case.
-
-The [Sol high replay](comparisons/2026-10-22-sol-high-control-replay/report.md)
-uses the exact historical 21/25 payload and native reviewer prompts with
-gpt-6.1-sol/high/128K. It also scores 21/25, with both Deliver cases passing,
-supported independent review verdicts, and correct reused-node classification.
-Read the semantic findings alongside the unchanged automatic grades: denied
-tool use, overly literal test-link/context checks and the autopilot pause
-predicate have different implications. Autopilot correctly saves diagrams and
-reports their paths without displaying their blocks. No external errors
-occurred; current installed/template prompts and reviewer sources were preserved.
+No Sol or local-model baseline on that payload exists. Older transcripts were
+removed on 2026-10-21, and the candidate runs and paired comparisons of the
+0.14.0 prompt work on 2026-10-25, both at the owner's request; Git history
+keeps the latter. Later local and subscription measurements keep their raw
+evidence in the ignored `.tmp-codex-eval/` folder and are summarized in the
+[small-model workflow proposal](../../../00_Planning/06_Small_Model_Workflow_Simplification.md).
 
 ## Profiles and coverage
 

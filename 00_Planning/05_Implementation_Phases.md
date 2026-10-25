@@ -118,22 +118,11 @@ enabled/disabled review, diagram settings, autopilot and stale-context repair.
 Common `.agentic/AGENTS.md` guidance and the task template participate in the
 same fixtures; their individual causal contribution is not isolated.
 
-Recorded matched comparisons include:
-
-| Frozen snapshot | Model / reasoning | Configured context | Strict result |
-|---|---|---|---|
-| [Delivery/evidence control](../05_Software/aegis/evaluations/comparisons/2026-10-22-luna-delivery-evidence/report.md) | gpt-6-luna / medium | 131,072 tokens | 21/25 |
-| [Subsequent history/reviewer/node-marker candidate](../05_Software/aegis/evaluations/comparisons/2026-10-22-luna-history-protocol/report.md) | gpt-6-luna / medium | 131,072 tokens | 19/25 |
-| [Exact 21/25 control replay](../05_Software/aegis/evaluations/comparisons/2026-10-22-sol-high-control-replay/report.md) | gpt-6.1-sol / high | 131,072 tokens | 21/25 |
-
-The later candidate improves observed delivery-history preservation, reviewer
-evidence interpretation and reused-node classification, but introduces other
-recording, Build and checkpoint-display failures. It is not a demonstrated
-overall improvement. The Sol replay uses the historical control, not that later
-candidate, and changes model and reasoning together. Neither score is a general
-reliability rate. The current local delivery explicitly carries the experimental
-prompt revisions; a package passing software checks does not promote them to
-proven prompt improvements.
+The matched comparisons recorded during the 0.14.0 prompt work were removed
+at the owner's request on 2026-10-25; Git history keeps them. The evaluation
+folder keeps the `gpt-6-luna` baselines on the released 0.14.0 payload, and the
+[small-model workflow proposal](06_Small_Model_Workflow_Simplification.md)
+records the later measurements.
 
 Read strict grades with the semantic assessments. Some predicates are overly
 literal or use checkpoint conventions for bounded autopilot transitions. In
