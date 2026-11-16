@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import { operations, createDispatcher } from './operations.mjs';
 
 const failure = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });

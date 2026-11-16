@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS for Codex
 
 A native Codex plugin containing the AEGIS skill, local workflow bridge and independent specification/quality review definitions. It works with local Codex CLI and Desktop hosts that support plugins, skills and custom agents. It does not add an OpenCode-style primary-agent menu.

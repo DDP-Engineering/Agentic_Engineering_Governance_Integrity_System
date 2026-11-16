@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS - folders and files
 
 The core stores workflow records as plain files on your branch. One artifact
@@ -204,7 +197,7 @@ Rulings and the State:
 
 | When | Command |
 |---|---|
-| A stage is finished | `advance TASK-<id>` (`--path quick` at frame, `--skipped` for a skipped stage) |
+| A stage is finished | `advance TASK-<id>` (`--skipped` for a skipped stage) |
 | Work must go back | `advance TASK-<id> --to <stage> --reason "<why>"` |
 | You stop, or need the user | `pause TASK-<id> --next "<one action or question>"` (`--blocked` when a decision blocks) |
 | A durable event happens | `log TASK-<id> "<decision, verification result, discovery or deviation>"` |

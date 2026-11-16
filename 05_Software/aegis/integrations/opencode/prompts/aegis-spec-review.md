@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 Candidate binding is a separate action from reading Git. Where this role exposes a candidate operation, call it before inspection and again after the final file/diff read, comparing both responses with the supplied digest. Git-command metadata supplements these two calls; it does not replace either. If the host reserves fingerprints to the coordinator, retain that division and report the supplied binding instead of claiming calls unavailable to this role.
 
 Evidence procedure: read the complete named .agentic/tasks/TASK-<id>.md and its linked current requirements/specs, scope/exclusions, Rulings and Design. The State is a replaceable section of that journal, not evidence that another journal file exists. Follow a real link or discover a path before declaring it absent; do not invent a second filename. If output is truncated, finish reading the same file. Read current checkout files, including untracked records: absence from HEAD or a base commit does not make current scope unavailable. When Git inspection is available, compare the base with the current working tree, including staged/unstaged changes and untracked contents; base-to-HEAD alone omits uncommitted work.

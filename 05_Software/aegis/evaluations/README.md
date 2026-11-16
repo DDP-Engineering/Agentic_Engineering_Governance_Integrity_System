@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Prompt evaluations
 
 These development-only evaluations measure AEGIS prompt behavior in disposable
@@ -14,21 +8,27 @@ workflow; the fixture sessions exercise that workflow as their subject.
 
 ## Stored records
 
-This folder keeps only baselines on the released 0.14.0 payload (`75508bc`),
-collected through the subscription runner with `gpt-6-luna` at medium
-reasoning and 131,072 configured tokens:
+This folder keeps only the baselines on the 0.16.0 payload, collected on
+2026-11-16 through the subscription runner with `gpt-6-luna`, 131,072
+configured tokens and Codex CLI 0.169.0. Each manifest pins the payload by
+file hash:
 
-| Baseline | Profile |
-|---|---|
-| [`2026-10-21-luna-original-core`](baselines/2026-10-21-luna-original-core/) | core |
-| [`2026-10-21-luna-original-capabilities`](baselines/2026-10-21-luna-original-capabilities/) | capabilities |
-| [`2026-10-21-luna-original-review-transport`](baselines/2026-10-21-luna-original-review-transport/) | capabilities, review transport |
+| Baseline | Profile | Reasoning | Strict passes |
+|---|---|---|---|
+| [`2026-11-16-luna-0.16.0-core`](baselines/2026-11-16-luna-0.16.0-core/) | core | medium | 10/10 |
+| [`2026-11-16-luna-0.16.0-capabilities`](baselines/2026-11-16-luna-0.16.0-capabilities/) | capabilities | medium | 10/15 |
+| [`2026-11-16-luna-high-0.16.0-rerun`](baselines/2026-11-16-luna-high-0.16.0-rerun/) | capabilities, three cases | high | 3/3 |
 
-No Sol or local-model baseline on that payload exists. Older transcripts were
-removed on 2026-10-21, and the candidate runs and paired comparisons of the
-0.14.0 prompt work on 2026-10-25, both at the owner's request; Git history
-keeps the latter. Later local and subscription measurements keep their raw
-evidence in the ignored `.tmp-codex-eval/` folder.
+At medium, `review_detects_missing_behavior`, `diagrams_enabled_types`,
+`validate_stale_context` and both autopilot cases failed. The high rerun
+repeats the first three once and passes them; the two autopilot cases failed
+the same checks on the 0.15.0 payload at high.
+
+The 0.14.0 baselines (core 6/10, capabilities 6/15 at medium) were replaced on
+2026-11-16, and older transcripts and the 0.14.0 paired comparisons were
+removed earlier, all at the owner's request; Git history keeps them. No Sol or
+local-model baseline is stored. Other local and subscription measurements keep
+their raw evidence in the ignored `.tmp-codex-eval/` folder.
 
 ## Profiles and coverage
 

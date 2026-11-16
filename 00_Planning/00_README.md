@@ -1,14 +1,6 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS implementation overview
 
-The assigned source version is **AEGIS 0.15.0**. It includes the core and five
+The current AEGIS source (`aegis.py --version` prints its version) includes the core and five
 optional host integrations, evidence-led stage artifacts, focused verification,
 compact progress records, current project/environment context and bounded
 component discovery. Checkpoint mode presents user choices after every stage;
@@ -84,9 +76,12 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
 - Five fixed working stages that end in `done`: `frame -> specify -> design ->
   build -> validate -> done`. Validate closes the task; a journal left at the
   former `deliver` stage closes through validate.
-- An eligible fix or change may use the recorded quick path:
-  `frame -> build -> validate -> done`; size alone does not establish
-  eligibility. The full criteria are in [workflow](01_Workflow_And_Stages.md).
+- AEGIS admits only changes that add or change a durable product rule: logic,
+  data, security, performance, integrations or a product-wide UI rule. Bug
+  fixes that restore intended behavior, local UI adjustments, refactors and
+  test, docs or tooling fixes are made directly, with no journal or
+  requirement. The admission rule is in [workflow](01_Workflow_And_Stages.md).
+  Specify and design have skip rules; there is one stage order.
 - Existing-repository adoption is a separate `survey -> components -> close
   -> done` flow, not a seventh ordinary stage.
 - Frame cards, requirement-coverage tables, designs, requirements,
@@ -109,6 +104,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   choice, not evidence deletion or automatic test-result reuse.
 - `check` is advisory by default. `check --strict` is the optional CI
   boundary that fails on errors and configured promoted warnings.
+  `uncovered-source` looks only at a scoped task's own diff; `context-size` and
+  `duplicate-heading` keep current-state pages short and edited in place.
 - Explicit review is optional policy, not a stage. When enabled it records
   specification-compliance and implementation-quality verdicts with a bounded
   fix-and-re-review loop; ordinary validation remains required either way.
@@ -117,7 +114,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   consumed round and historical findings.
 - Project and component documents describe actual positive behavior and setup.
   Frame/adoption populates known facts, build updates affected facts and validate
-  reconciles them against the candidate and established requirements. Proposed
+  reconciles them against the candidate and established requirements, editing
+  existing sections in place within `[context] page_kb`. Proposed
   capabilities remain in draft/task records.
 - `brief` is the bounded resume view, including current-context paths and
   presence without reading their bodies; its `Read next` line names the step
@@ -136,7 +134,8 @@ settings. See [artifacts](02_Artifacts_And_Formats.md) for ownership and
   report and closes the task to `done`; committing, pushing and merging follow
   the repository's procedures.
 
-AEGIS applies to software development. Repository maintenance, versioning,
+AEGIS applies to changes that add or change a durable product rule; other
+software changes are made directly. Repository maintenance, versioning,
 release construction, package publication, and deployment follow the
 repository's own procedures rather than opening an AEGIS journal.
 Documentation-only updates in this repository are reviewed directly, outside
@@ -146,7 +145,7 @@ AEGIS, under the maintainer's scope instruction.
 
 | Document | Current purpose |
 |---|---|
-| [01_Workflow_And_Stages.md](01_Workflow_And_Stages.md) | Lifecycle, interaction boundaries, review policy, and resume behavior. |
+| [01_Workflow_And_Stages.md](01_Workflow_And_Stages.md) | Admission rule, lifecycle, interaction boundaries, review policy, and resume behavior. |
 | [02_Artifacts_And_Formats.md](02_Artifacts_And_Formats.md) | Ownership split, directory layout, configuration, and durable formats. |
 | [03_Companion_CLI.md](03_Companion_CLI.md) | Core CLI commands, separate host operations, and execution boundaries. |
 | [04_Collaboration_And_Small_Models.md](04_Collaboration_And_Small_Models.md) | Branch-based collaboration and bounded re-entry for constrained models. |

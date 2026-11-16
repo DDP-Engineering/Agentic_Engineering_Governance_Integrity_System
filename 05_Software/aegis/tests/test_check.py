@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_check.py
-@brief P3 tests for `aegis check`: every catalog check firing and silent.
-@details Non-git tests monkeypatch `run_git` to None so the five diff-based
-         checks degrade to deterministic NOTE lines regardless of the host.
-         Diff tests build a real repo with `git init` (skipped cleanly when
-         git is absent): one commit on master, then a `feature` branch whose
-         worktree changes are the diff against the merge base.
+P3 tests for `aegis check`: every catalog check firing and silent.
+
+Non-git tests monkeypatch `run_git` to None so the five diff-based
+checks degrade to deterministic NOTE lines regardless of the host.
+Diff tests build a real repo with `git init` (skipped cleanly when
+git is absent): one commit on master, then a `feature` branch whose
+worktree changes are the diff against the merge base.
 """
 
-# IMPORTS
 
 from __future__ import annotations
 
@@ -28,19 +20,15 @@ from pathlib import Path
 
 import pytest
 
-# CONSTANTS
-
 PAYLOAD = Path(__file__).resolve().parents[1] / "template" / ".agentic"
 _COUNTER = itertools.count(1000)
 
 HAS_GIT = shutil.which("git") is not None
 needs_git = pytest.mark.skipif(not HAS_GIT, reason="git executable not available")
 
-# HELPERS
-
 
 def make_repo(tmp_path: Path) -> tuple[Path, object]:
-    """@brief Copy the payload into tmp_path and import that copy's aegis.py."""
+    """Copy the payload into tmp_path and import that copy's aegis.py."""
     agentic = tmp_path / ".agentic"
     shutil.copytree(PAYLOAD, agentic)
     spec = importlib.util.spec_from_file_location(
@@ -53,7 +41,7 @@ def make_repo(tmp_path: Path) -> tuple[Path, object]:
 
 @pytest.fixture
 def nogit_repo(tmp_path, monkeypatch):
-    """@brief An initialised repo where git is simulated as missing."""
+    """An initialised repo where git is simulated as missing."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "run_git", lambda *_a: None)
@@ -61,7 +49,7 @@ def nogit_repo(tmp_path, monkeypatch):
 
 
 def write(path: Path, text: str) -> Path:
-    """@brief Write LF text creating parents; returns the path."""
+    """Write LF text creating parents; returns the path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
     return path
@@ -71,7 +59,7 @@ def req_toml(rid: str, status: str = "active", prose: str = "One behavior.",
              paths: str = "[]", tests: str = "[]", spec: str = "",
              title: str = "A behavior",
              verification: str = "Run the linked test.") -> str:
-    """@brief A minimal valid requirement body with the six required fields."""
+    """A minimal valid requirement body with the six required fields."""
     return (
         "schema = 1\n"
         f'id = "{rid}"\n'
@@ -86,14 +74,14 @@ def req_toml(rid: str, status: str = "active", prose: str = "One behavior.",
 
 
 def write_req(agentic: Path, rid: str, folder: str = "functional", **kw) -> Path:
-    """@brief Write a requirement file named after its id."""
+    """Write a requirement file named after its id."""
     return write(agentic / "requirements" / folder / f"{rid}.toml",
                  req_toml(rid, **kw))
 
 
 def write_task(agentic: Path, tid: str, stage: str = "build", reqs: str = "",
                checklist: str = "- [x] done", base: str = "", parent: str = "") -> Path:
-    """@brief Write a parseable task journal."""
+    """Write a parseable task journal."""
     return write(
         agentic / "tasks" / f"{tid}.md",
         f"# {tid} — a task\n\nstage: {stage}\ntype: feature\npath: full\n"
@@ -105,19 +93,19 @@ def write_task(agentic: Path, tid: str, stage: str = "build", reqs: str = "",
 
 
 def run_check(aegis, capsys, *argv: str) -> str:
-    """@brief Run `aegis check`, assert exit 0, return the captured output."""
+    """Run `aegis check`, assert exit 0, return the captured output."""
     capsys.readouterr()
     assert aegis.main(["check", *argv]) == 0
     return capsys.readouterr().out
 
 
 def lines_for(out: str, slug: str) -> list[str]:
-    """@brief The finding lines of one check slug."""
+    """The finding lines of one check slug."""
     return [line for line in out.splitlines() if f"  {slug}  " in line]
 
 
 def git(repo: Path, *args: str) -> str:
-    """@brief Run git with a fixed identity and signing off; fail loudly.
+    """Run git with a fixed identity and signing off; fail loudly.
     Returns stdout, so a test can ask for a commit id."""
     done = subprocess.run(
         ["git", "-c", "user.email=t@example.com", "-c", "user.name=T",
@@ -128,7 +116,7 @@ def git(repo: Path, *args: str) -> str:
 
 
 def make_git_repo(tmp_path: Path) -> tuple[Path, object]:
-    """@brief Initialised repo with one commit on master, working on feature."""
+    """Initialised repo with one commit on master, working on feature."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     write(tmp_path / "src" / "app.py", "def app():\n    return 1\n")
@@ -139,9 +127,6 @@ def make_git_repo(tmp_path: Path) -> tuple[Path, object]:
     git(tmp_path, "commit", "-m", "base")
     git(tmp_path, "checkout", "-b", "feature")
     return agentic, aegis
-
-
-# TESTS - check 1: req-parse
 
 
 def test_req_parse_fires_on_bad_toml_and_missing_fields(nogit_repo, capsys):
@@ -160,9 +145,6 @@ def test_req_parse_silent_on_a_valid_requirement(nogit_repo, capsys):
     agentic, aegis = nogit_repo
     write_req(agentic, "REQ-FUNC-1111", status="draft")
     assert not lines_for(run_check(aegis, capsys), "req-parse")
-
-
-# TESTS - check 2: dup-id
 
 
 def test_dup_id_fires_on_mismatch_wrong_folder_and_duplicates(nogit_repo, capsys):
@@ -187,9 +169,6 @@ def test_dup_id_silent_on_a_well_placed_unique_id(nogit_repo, capsys):
     agentic, aegis = nogit_repo
     write_req(agentic, "REQ-SEC-4444", folder="security", status="draft")
     assert not lines_for(run_check(aegis, capsys), "dup-id")
-
-
-# TESTS - check 3: journal-header
 
 
 def test_journal_header_fires_on_garbage_and_unknown_requirement(nogit_repo, capsys):
@@ -313,9 +292,6 @@ blockers:
     assert any("invalid Handoff status" in line for line in hits)
 
 
-# TESTS - check 4: spec-missing
-
-
 def test_spec_missing_fires_and_resolves(nogit_repo, capsys):
     agentic, aegis = nogit_repo
     write_req(agentic, "REQ-FUNC-1111", status="draft",
@@ -326,9 +302,6 @@ def test_spec_missing_fires_and_resolves(nogit_repo, capsys):
 
     write(agentic / "specs" / "REQ-FUNC-1111.md", "# spec\n")
     assert not lines_for(run_check(aegis, capsys), "spec-missing")
-
-
-# TESTS - check 6: no-linked-tests
 
 
 def test_no_linked_tests_fires_on_empty_and_missing_file(nogit_repo, capsys):
@@ -351,9 +324,6 @@ def test_no_linked_tests_silent_for_draft_or_existing_file(nogit_repo, capsys):
     assert not lines_for(run_check(aegis, capsys), "no-linked-tests")
 
 
-# TESTS - check 7: stale-paths
-
-
 def test_stale_paths_fires_on_a_gone_file_and_not_on_an_existing_one(nogit_repo,
                                                                      capsys):
     agentic, aegis = nogit_repo
@@ -365,9 +335,6 @@ def test_stale_paths_fires_on_a_gone_file_and_not_on_an_existing_one(nogit_repo,
     hits = lines_for(out, "stale-paths")
     assert len(hits) == 1
     assert "src/gone.py" in hits[0]
-
-
-# TESTS - check 10: ticket-ref
 
 
 def test_ticket_ref_fires_on_ticket_patterns_in_prose(nogit_repo, capsys):
@@ -404,9 +371,6 @@ def test_ticket_ref_silent_on_self_contained_prose(nogit_repo, capsys):
     assert not lines_for(run_check(aegis, capsys), "ticket-ref")
 
 
-# TESTS - check 11: unticked-deliver
-
-
 def test_unticked_deliver_fires_only_in_deliver(nogit_repo, capsys):
     agentic, aegis = nogit_repo
     write_task(agentic, "TASK-aaaa", stage="deliver",
@@ -424,31 +388,34 @@ def test_unticked_deliver_silent_when_all_ticked(nogit_repo, capsys):
     assert not lines_for(run_check(aegis, capsys), "unticked-deliver")
 
 
-# TESTS - diff-based checks against a real git repo
-
-
 @needs_git
-def test_uncovered_source_fires_then_covered_is_silent(tmp_path, capsys):
+def test_uncovered_source_needs_a_task_then_fires_until_covered(tmp_path, capsys):
+    """Changes made outside AEGIS need no requirement; a task's own diff does."""
     agentic, aegis = make_git_repo(tmp_path)
     write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
-    out = run_check(aegis, capsys)
+    assert not lines_for(run_check(aegis, capsys), "uncovered-source")
+
+    write_task(agentic, "TASK-aa11", reqs="REQ-FUNC-1111")
+    out = run_check(aegis, capsys, "--task", "TASK-aa11")
     hits = lines_for(out, "uncovered-source")
     assert len(hits) == 1 and "src/app.py" in hits[0]
 
     write_req(agentic, "REQ-FUNC-1111", paths='["src/app.py"]',
               tests='["tests/test_app.py::test_app"]')
-    assert not lines_for(run_check(aegis, capsys), "uncovered-source")
+    assert not lines_for(run_check(aegis, capsys, "--task", "TASK-aa11"),
+                         "uncovered-source")
 
 
 @needs_git
 def test_uncovered_source_ignores_deleted_files(tmp_path, capsys):
     """A deleted file stays in the diff, but no requirement can cover a file
     that no longer exists - found in a real repository after a refactor."""
-    _agentic, aegis = make_git_repo(tmp_path)
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-aa11")
     (tmp_path / "src" / "app.py").unlink()          # remove a covered file
     write(tmp_path / "src" / "kept.py", "y = 1\n")  # and add an uncovered one
     git(tmp_path, "add", "-A")
-    out = run_check(aegis, capsys)
+    out = run_check(aegis, capsys, "--task", "TASK-aa11")
     hits = lines_for(out, "uncovered-source")
     assert not any("src/app.py" in line for line in hits)  # deleted: silent
     assert any("src/kept.py" in line for line in hits)     # present: flagged
@@ -527,7 +494,7 @@ def test_outside_layout_fires_for_a_stray_file_only(tmp_path, capsys):
 
 @needs_git
 def test_documentation_layout_keeps_security_and_source_checks(tmp_path, capsys):
-    """@brief Declared documentation is in layout, still scanned, not source."""
+    """Declared documentation is in layout, still scanned, not source."""
     agentic, aegis = make_git_repo(tmp_path)
     write(agentic / "aegis.toml",
           'schema = 1\n[layout]\nsource = ["src/"]\ntests = ["tests/"]\n'
@@ -536,7 +503,8 @@ def test_documentation_layout_keeps_security_and_source_checks(tmp_path, capsys)
     write(tmp_path / "docs" / "guide.md", "EXAMPLE_SECRET_123456\n")
     write(tmp_path / "CHANGELOG.md", "Documented behavior.\n")
     write(tmp_path / "stray.md", "Undeclared documentation.\n")
-    out = run_check(aegis, capsys)
+    write_task(agentic, "TASK-aa11")
+    out = run_check(aegis, capsys, "--task", "TASK-aa11")
     hits = lines_for(out, "outside-layout")
     assert len(hits) == 1 and "stray.md" in hits[0]
     assert any("docs/guide.md" in line
@@ -544,13 +512,13 @@ def test_documentation_layout_keeps_security_and_source_checks(tmp_path, capsys)
     assert not lines_for(out, "uncovered-source")
     assert not lines_for(out, "source-no-test-changes")
     write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")
-    out = run_check(aegis, capsys)
+    out = run_check(aegis, capsys, "--task", "TASK-aa11")
     assert lines_for(out, "uncovered-source")
     assert lines_for(out, "source-no-test-changes")
 
 
 def test_documentation_layout_reports_invalid_type(nogit_repo, capsys):
-    """@brief Malformed documentation globs produce an actionable finding."""
+    """Malformed documentation globs produce an actionable finding."""
     agentic, aegis = nogit_repo
     write(agentic / "aegis.toml", 'schema = 1\n[layout]\ndocs = "docs/"\n')
     assert any("[layout] docs should be list" in line for line in
@@ -570,16 +538,14 @@ def test_source_no_test_changes_fires_then_a_test_change_silences_it(tmp_path,
     assert not lines_for(run_check(aegis, capsys), "source-no-test-changes")
 
 
-# TESTS - untracked work-in-progress is visible
-
-
 @needs_git
 def test_untracked_source_file_fires_uncovered_and_secret_checks(tmp_path,
                                                                  capsys):
-    _agentic, aegis = make_git_repo(tmp_path)
+    agentic, aegis = make_git_repo(tmp_path)
+    write_task(agentic, "TASK-aa11")
     write(tmp_path / "src" / "brand_new.py",
           'AWS_KEY = "AKIAABCDEFGHIJKLMNOP"\n')  # never staged, never added
-    out = run_check(aegis, capsys)
+    out = run_check(aegis, capsys, "--task", "TASK-aa11")
     assert any("src/brand_new.py" in line
                for line in lines_for(out, "uncovered-source"))
     assert any("src/brand_new.py" in line for line in lines_for(out, "secret-in-diff"))
@@ -600,7 +566,7 @@ QUOTED_PATCH = (
 
 
 def stub_git(patch: str, names: list[str]):
-    """@brief A run_git stand-in serving one crafted diff, no real repo."""
+    """A run_git stand-in serving one crafted diff, no real repo."""
     def fake(*args):
         if args[:1] == ("rev-parse",) and args[1:2] == ("--git-dir",):
             return 0, ".git"
@@ -724,9 +690,6 @@ def test_ignored_unscanned_file_does_not_fail_promoted_secret_check(
     capsys.readouterr()
     assert aegis.main(["check", "--strict"]) == 0
     assert "added lines not scanned" not in capsys.readouterr().out
-
-
-# TESTS - stricter artifact validation
 
 
 def test_req_parse_fires_on_bad_status_schema_and_id_format(nogit_repo, capsys):
@@ -890,9 +853,6 @@ def test_check_findings_ignore_a_diagram_file_in_the_git_diff(tmp_path, capsys):
     assert run_check(aegis, capsys, "--full") == without
 
 
-# TESTS - check 22: fingerprints-tracked
-
-
 def test_fingerprints_tracked_silent_when_sidecars_are_local(tmp_path, capsys):
     """Untracked sidecars behind the managed ignore block raise nothing."""
     agentic, aegis = make_git_repo(tmp_path)
@@ -936,7 +896,7 @@ def test_fingerprints_tracked_warns_when_block_outlives_the_setting(tmp_path, ca
 
 
 def review_config(agentic: Path, enabled: bool = True, cycles: int = 2) -> None:
-    """@brief Write one valid explicit-review policy for advisory-check tests."""
+    """Write one valid explicit-review policy for advisory-check tests."""
     write(agentic / "aegis.toml",
           f"schema = 1\n\n[review]\nenabled = {'true' if enabled else 'false'}\n"
           f"max_fix_cycles = {cycles}\n")
@@ -944,7 +904,7 @@ def review_config(agentic: Path, enabled: bool = True, cycles: int = 2) -> None:
 
 def append_review_record(path: Path, *, current: str, spec: str, quality: str,
                          round_: str) -> None:
-    """@brief Append one bound Stage report with review fields."""
+    """Append one bound Stage report with review fields."""
     write(path, path.read_text(encoding="utf-8") + f"""
 
 ## Stage report
@@ -1026,15 +986,12 @@ def test_enabled_review_does_not_require_verdicts_outside_validation(
     assert not lines_for(run_check(aegis, capsys), "review-state")
 
 
-# TESTS - check 19: manual-verification
-
-
 #: requirement id code -> the folder that id must live in.
 MANUAL_FOLDERS = {"FUNC": "functional", "UX": "ux", "NFR": "nfr"}
 
 
 def manual_req(agentic, rid: str, verification: str):
-    """@brief An active requirement with no linked tests and a chosen wording."""
+    """An active requirement with no linked tests and a chosen wording."""
     body = req_toml(rid).replace('verification = "Run the linked test."',
                                  f'verification = "{verification}"')
     folder = MANUAL_FOLDERS[rid.split("-")[1]]
@@ -1099,9 +1056,6 @@ def test_manual_method_is_ignored_once_tests_are_linked(nogit_repo, capsys):
     out = run_check(aegis, capsys)
     assert not lines_for(out, "manual-verification")
     assert not lines_for(out, "no-linked-tests")
-
-
-# TESTS - check 20: stage-zone
 
 
 @needs_git
@@ -1199,16 +1153,17 @@ def test_an_unknown_zone_name_is_reported_as_a_config_warning(nogit_repo, capsys
     assert any("unknown zone 'sources'" in line for line in lines_for(out, "config"))
 
 
-# TESTS - degraded modes
-
-
 def test_missing_git_degrades_every_diff_check_to_a_note(nogit_repo, capsys):
-    _agentic, aegis = nogit_repo
+    agentic, aegis = nogit_repo
     out = run_check(aegis, capsys)
     notes = [line for line in out.splitlines() if line.startswith("NOTE")]
-    assert len(notes) == 6
+    assert len(notes) == 5  # uncovered-source runs only for a scoped task
     assert all("(diff) - skipped: git executable not found" in line for line in notes)
     assert "result: NOTE" in out
+    write_task(agentic, "TASK-aa11")
+    out = run_check(aegis, capsys, "--task", "TASK-aa11")
+    assert lines_for(out, "uncovered-source") == [
+        "NOTE   uncovered-source  (diff) - skipped: git executable not found"]
 
 
 def test_not_a_repository_degrades_with_its_own_reason(tmp_path, monkeypatch,
@@ -1218,7 +1173,7 @@ def test_not_a_repository_degrades_with_its_own_reason(tmp_path, monkeypatch,
     monkeypatch.setattr(aegis, "run_git", lambda *_a: (128, ""))
     out = run_check(aegis, capsys)
     assert sum("skipped: not a git repository" in line
-               for line in out.splitlines()) == 6
+               for line in out.splitlines()) == 5
 
 
 @needs_git
@@ -1227,10 +1182,7 @@ def test_no_merge_base_degrades_with_a_note(tmp_path, capsys):
     aegis.main(["init"])
     git(tmp_path, "init")  # a repo with no commit has no default branch yet
     out = run_check(aegis, capsys)
-    assert sum("skipped: no default branch" in line for line in out.splitlines()) == 6
-
-
-# TESTS - ignore globs and --task scoping
+    assert sum("skipped: no default branch" in line for line in out.splitlines()) == 5
 
 
 def test_ignore_globs_exclude_files_from_every_check(nogit_repo, capsys):
@@ -1274,14 +1226,62 @@ def test_task_scoping_narrows_coverage_and_drift(tmp_path, capsys):
     assert any("src/app.py" in line for line in lines_for(out, "uncovered-source"))
 
 
+def test_context_size_reports_a_page_above_the_budget(nogit_repo, capsys):
+    """Context and knowledge pages above `[context] page_kb` are reported."""
+    agentic, aegis = nogit_repo
+    assert not lines_for(run_check(aegis, capsys), "context-size")  # fresh init
+    write(agentic / "knowledge" / "web.md", "# Web\n\n" + "x" * 30 * 1024 + "\n")
+    write(agentic / "context" / "project.md", "# Project profile\n\n" + "y" * 2048 + "\n")
+    hits = lines_for(run_check(aegis, capsys), "context-size")
+    assert len(hits) == 1 and ".agentic/knowledge/web.md - 31 KB > page_kb 24" in hits[0]
+
+    config = agentic / "aegis.toml"
+    write(config, config.read_text(encoding="utf-8").replace("page_kb = 24", "page_kb = 1"))
+    hits = lines_for(run_check(aegis, capsys), "context-size")
+    assert [line.split("  ")[2].split(" - ")[0] for line in hits] == [
+        ".agentic/context/project.md", ".agentic/knowledge/web.md"]
+
+    write(config, config.read_text(encoding="utf-8").replace("page_kb = 1", "page_kb = 0"))
+    assert not lines_for(run_check(aegis, capsys), "context-size")  # 0 turns it off
+
+
+def test_context_size_has_no_budget_unless_set_and_is_ignorable(nogit_repo, capsys):
+    """No `page_kb`, or a negative one that warns, means no budget; `[check] ignore` silences a page."""
+    agentic, aegis = nogit_repo
+    write(agentic / "knowledge" / "web.md", "# Web\n\n" + "x" * 30 * 1024 + "\n")
+    write(agentic / "aegis.toml", "schema = 1\n")
+    assert not lines_for(run_check(aegis, capsys), "context-size")
+
+    write(agentic / "aegis.toml", 'schema = 1\n[context]\npage_kb = -1\n')
+    out = run_check(aegis, capsys)
+    assert any("[context] page_kb should be 0 or more" in line
+               for line in lines_for(out, "config"))
+    assert not lines_for(out, "context-size")
+
+    write(agentic / "aegis.toml", 'schema = 1\n[context]\npage_kb = 24\n'
+          '[check]\nignore = [".agentic/knowledge/web.md"]\n')
+    assert not lines_for(run_check(aegis, capsys), "context-size")
+
+
+def test_duplicate_heading_reports_an_appended_section(nogit_repo, capsys):
+    """A level-two heading written twice is reported; fenced and deeper ones are not."""
+    agentic, aegis = nogit_repo
+    write(agentic / "knowledge" / "web.md",
+          "# Web\n\n## Routing\n\nfirst\n\n### Errors\n\n## Files\n\n### Errors\n\n"
+          "```markdown\n## Files\n```\n")
+    assert not lines_for(run_check(aegis, capsys), "duplicate-heading")
+    write(agentic / "knowledge" / "web.md",
+          "# Web\n\n## Routing\n\nfirst\n\n## Files\n\n## Routing\n\nappended\n")
+    hits = lines_for(run_check(aegis, capsys), "duplicate-heading")
+    assert len(hits) == 1
+    assert ".agentic/knowledge/web.md - '## Routing' appears 2 times" in hits[0]
+
+
 def test_task_scoping_rejects_an_unknown_task(nogit_repo, capsys):
     _agentic, aegis = nogit_repo
     capsys.readouterr()
     assert aegis.main(["check", "--task", "TASK-dead"]) == 1
     assert capsys.readouterr().err.startswith("error: no such task journal")
-
-
-# TESTS - output contract
 
 
 def test_golden_output_is_stable(nogit_repo, capsys):
@@ -1295,12 +1295,11 @@ def test_golden_output_is_stable(nogit_repo, capsys):
         "NOTE   secret-in-diff  (diff) - skipped: git executable not found\n"
         "NOTE   source-no-test-changes  (diff) - skipped: git executable not found\n"
         "NOTE   stage-zone  (diff) - skipped: git executable not found\n"
-        "NOTE   uncovered-source  (diff) - skipped: git executable not found\n"
         "WARN   no-linked-tests  .agentic/requirements/functional/REQ-FUNC-aaaa.toml"
         " - empty linked_tests\n"
         "WARN   unticked-deliver  .agentic/tasks/TASK-bbbb.md"
         " - 1 unticked item(s) in deliver\n"
-        "summary: errors=0 warnings=2 notes=6\n"
+        "summary: errors=0 warnings=2 notes=5\n"
         "result: WARN\n"
     )
 
@@ -1335,7 +1334,7 @@ def test_help_lists_every_slug_and_the_diff_basis(nogit_repo, capsys):
     out = capsys.readouterr().out
     for slug, _desc in aegis.CHECKS:
         assert slug in out
-    assert len(aegis.CHECKS) == 22
+    assert len(aegis.CHECKS) == 24
     # the count the help announces must be the count it lists
     assert f"the {len(aegis.CHECKS)} checks" in out
     assert "merge-base" in out and "origin/HEAD" in out

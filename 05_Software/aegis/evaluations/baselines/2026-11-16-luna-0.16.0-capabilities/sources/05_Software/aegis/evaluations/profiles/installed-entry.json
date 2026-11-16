@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "name": "installed-entry",
+  "status": "Input profile; applications are recorded separately per experiment. Historical bare-host results and the reasoning-budget rerun do not use this profile.",
+  "purpose": "Represent the AEGIS entry instructions delivered by an installed root instruction file, while evaluating frame/validate/task prompt changes.",
+  "bootstrap": {
+    "source": "aegis.py:POINTER_DIGEST of the evaluated payload",
+    "delivery": "Initial host instruction context, before the scenario user request; preserve existing constrained-host tool instructions.",
+    "recorded_as": "entry_sha256 in each run manifest"
+  },
+  "fixed_controls": {
+    "scenario_ids": "Unchanged ten IDs from scenarios.json",
+    "tools_and_scoring": "Unchanged",
+    "model": "google/gemma-4-26b-a4b-qat",
+    "context_length": 65536,
+    "max_tokens": 16384,
+    "reasoning_budget": 8192,
+    "reasoning_budget_source": "User-set in LM Studio; inspect actual usage",
+    "temperature": 0,
+    "repeats": 1,
+    "max_turns": 40,
+    "request_timeout": 600,
+    "run_timeout": 1800,
+    "reasoning_history": "Current content/tool_calls replay, recorded as a shared limitation"
+  },
+  "prompt_exposure": "Full contract, active stage and required templates remain repository reads, as in the installed workflow; record actual reads rather than assuming them.",
+  "comparison_rule": "Run a fresh baseline and candidate under this same entry profile. Historical bare-host scores are not controls for prompt improvements. Each payload supplies its own root digest, as init installs it from that payload, so the digest varies with the payload under test and is recorded, not compared; freeze the model configuration and the host contract across the pair.",
+  "separate_measurements": [
+    "Execution and budget completion",
+    "Prompt exposure",
+    "Automatic record/proof predicates",
+    "Reviewed semantic compliance and unsupported inferences"
+  ],
+  "known_boundary": "Synthetic tools and verifier are a constrained test environment, not a complete native-agent benchmark. Supplying the root digest alone does not prove equivalent native behavior."
+}

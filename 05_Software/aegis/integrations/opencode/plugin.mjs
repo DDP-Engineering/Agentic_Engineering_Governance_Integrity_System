@@ -1,7 +1,3 @@
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-
 import { tool } from '../shared/vendor/opencode-tool.mjs';
 import { configure } from './lib/config.mjs';
 import { discoverRuntime, readSettings } from '../shared/runtime.mjs';
@@ -34,10 +30,10 @@ export default async ({ directory }) => {
       aegis_check: define('aegis_check', 'check', 'Run advisory or strict static AEGIS checks, without tests. Exit zero in advisory mode does not imply passing verification.', { task: optionalTask, strict: s.boolean().optional() }),
       aegis_scaffold: define('aegis_scaffold', 'scaffold', 'Coordinator only: create a task or requirement scaffold using the installed CLI. Inspect existing tasks/requirements first. Requirements need a named or resumed task. Fill in the generated record afterwards.', { kind: s.enum(['task', 'requirement']), task: optionalTask, title: s.string().min(1).max(500), type: s.enum(['feature', 'fix', 'change', 'adopt']).optional(), category: s.enum(['functional', 'ux', 'nfr', 'security', 'data', 'platform', 'reliability', 'test']).optional(), parent: optionalTask }),
       aegis_evidence: define('aegis_evidence', 'evidence', 'Coordinator only: record anchor after red test, refresh evolution after edits, or append the closing report at the end of validate. Does not fabricate observations or Git authority.', { action: s.enum(['anchor', 'evolution', 'report']), task: optionalTask }),
-      aegis_journal: define('aegis_journal', 'journal', 'Coordinator only: write task-journal state through the installed CLI. advance finishes a stage (to, path, skipped, reason, next); pause stops for the user (next, blocked); log appends one durable event (text); ruling appends a decision (decision, reason, source, supersedes); verdict records explicit review results (spec, quality, round). advance and pause also take read, changed, evidence and issues. Records your decision; never judges whether a stage is done.', {
+      aegis_journal: define('aegis_journal', 'journal', 'Coordinator only: write task-journal state through the installed CLI. advance finishes a stage (to, skipped, reason, next); pause stops for the user (next, blocked); log appends one durable event (text); ruling appends a decision (decision, reason, source, supersedes); verdict records explicit review results (spec, quality, round). advance and pause also take read, changed, evidence and issues. Records your decision; never judges whether a stage is done.', {
         action: s.enum(['advance', 'pause', 'log', 'ruling', 'verdict']), task: optionalTask,
         to: s.enum(['frame', 'specify', 'design', 'build', 'validate', 'done', 'survey', 'components', 'close', 'deliver']).optional(),
-        path: s.enum(['full', 'quick']).optional(), skipped: s.boolean().optional(), reason: s.string().max(1000).optional(),
+        skipped: s.boolean().optional(), reason: s.string().max(1000).optional(),
         next: s.string().max(1000).optional(), blocked: s.boolean().optional(), read: s.array(s.string().max(500)).max(20).optional(),
         changed: s.string().max(1000).optional(), evidence: s.string().max(1000).optional(), issues: s.string().max(1000).optional(),
         text: s.string().max(1000).optional(), decision: s.string().max(1000).optional(),

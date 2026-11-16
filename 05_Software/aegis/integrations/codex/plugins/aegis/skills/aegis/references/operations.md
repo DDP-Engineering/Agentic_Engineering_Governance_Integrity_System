@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Local bridge operations
 
 Invoke `node <absolute-plugin-path>/scripts/aegis.mjs <operation> --root <checkout>` with these arguments:
@@ -18,7 +12,7 @@ Invoke `node <absolute-plugin-path>/scripts/aegis.mjs <operation> --root <checko
 | scaffold | `--kind task --title TEXT --type feature\|fix\|change`, optional `--parent ID` | New task record |
 | scaffold | `--kind requirement --task ID --category functional\|ux\|nfr\|security\|data\|platform\|reliability\|test --title TEXT` | New requirement record |
 | evidence | `--action anchor\|evolution\|report --task ID` | Evidence through the installed CLI |
-| journal | `--action advance --task ID`, optional `--to STAGE`, `--path full\|quick`, `--skipped`, `--reason TEXT`, `--next TEXT` | Stage transition, Done checklist, Log line and State |
+| journal | `--action advance --task ID`, optional `--to STAGE`, `--skipped`, `--reason TEXT`, `--next TEXT` | Stage transition, Done checklist, Log line and State |
 | journal | `--action pause --task ID --next TEXT`, optional `--blocked` | Stop for the user in the State |
 | journal | `--action log --task ID --text TEXT` | One dated Log line |
 | journal | `--action ruling --task ID --decision TEXT --reason TEXT --source user\|repository\|requirement\|technical`, optional `--supersedes RULING-NNN` | One appended Ruling |

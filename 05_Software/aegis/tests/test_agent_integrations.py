@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ruff: noqa: UP009
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
-"""@file test_agent_integrations.py
-@brief Execute portable plugin behavior tests through the existing pytest suite.
-@details Uses temporary package outputs and actual managed AEGIS fixtures;
-         no model requests, personal installations or repository Git writes.
+"""
+Execute portable plugin behavior tests through the existing pytest suite.
+
+Uses temporary package outputs and actual managed AEGIS fixtures;
+no model requests, personal installations or repository Git writes.
 """
 
 import os
@@ -26,7 +20,7 @@ TESTS = REPO / "05_Software/aegis/integrations/tests"
 
 @pytest.fixture(scope="module")
 def integration_env(tmp_path_factory):
-    """@brief Build isolated packages with the installed Node runtime."""
+    """Build isolated packages with the installed Node runtime."""
     node = shutil.which("node")
     assert node, "Node.js 22+ is required for the plugin verification suite"
     output = tmp_path_factory.mktemp("agent-plugins")
@@ -42,7 +36,7 @@ def integration_env(tmp_path_factory):
 
 
 def run_group(integration_env, filename, pattern=None):
-    """@brief Run one behavioral group and surface its real exit status."""
+    """Run one behavioral group and surface its real exit status."""
     node, env = integration_env
     command = [node, "--test"]
     if pattern:
@@ -54,30 +48,30 @@ def run_group(integration_env, filename, pattern=None):
 
 
 def test_opencode_behavior(integration_env):
-    """@brief REQ-FUNC-ffc5802a, REQ-FUNC-1ca0ff21: native registration."""
+    """REQ-FUNC-ffc5802a, REQ-FUNC-1ca0ff21: native registration."""
     run_group(integration_env, "interfaces.test.mjs", "opencode:")
 
 
 def test_codex_behavior(integration_env):
-    """@brief REQ-FUNC-92f78e33: packaged bridge resolves installed governance."""
+    """REQ-FUNC-92f78e33: packaged bridge resolves installed governance."""
     run_group(integration_env, "interfaces.test.mjs", "codex:")
 
 
 def test_review_behavior(integration_env):
-    """@brief REQ-SEC-16e8890a: reviewers cannot request adapter mutations."""
+    """REQ-SEC-16e8890a: reviewers cannot request adapter mutations."""
     run_group(integration_env, "interfaces.test.mjs", "review:")
 
 
 def test_adapter_behavior(integration_env):
-    """@brief REQ-DATA-5e4bf048, REQ-REL-0ef6add6: actual CLI and job lifecycle."""
+    """REQ-DATA-5e4bf048, REQ-REL-0ef6add6: actual CLI and job lifecycle."""
     run_group(integration_env, "adapter.test.mjs")
 
 
 def test_install_behavior(integration_env):
-    """@brief REQ-PLAT-a3ae118a, REQ-REL-7a97428b: owned-file lifecycle."""
+    """REQ-PLAT-a3ae118a, REQ-REL-7a97428b: owned-file lifecycle."""
     run_group(integration_env, "lifecycle.test.mjs")
 
 
 def test_runtime_behavior(integration_env):
-    """@brief REQ-PLAT-af657d59: executable discovery without models."""
+    """REQ-PLAT-af657d59: executable discovery without models."""
     run_group(integration_env, "interfaces.test.mjs", "runtime:")

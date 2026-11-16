@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Example - a feature, full workflow
 
 The everyday case: a new user-facing behavior in checkpoint mode. This is the
@@ -78,8 +71,8 @@ seams. Each stage ends with its own `pause`, summary and choices before the
 next `advance`.
 
 `advance` names the next step file to read, such as
-`.agentic/steps/3_design.md` after specify. The quick path and correction
-returns name their destination files too. The Log records each transition:
+`.agentic/steps/3_design.md` after specify. Skips and correction returns name
+their destination files too. The Log records each transition:
 
 ```
 - 2026-08-02 frame: journal opened

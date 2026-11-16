@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_journal_state.py
-@brief The CLI journal writers: `advance`, `pause`, `log`, `ruling`, `verdict`.
-@details The writers record what the agent decided and never refuse a
-         transition because work looks unfinished; they keep legacy journals
-         readable and replace the old Handoff and Stage report on first write.
+The CLI journal writers: `advance`, `pause`, `log`, `ruling`, `verdict`.
+
+The writers record what the agent decided and never refuse a
+transition because work looks unfinished; they keep legacy journals
+readable and replace the old Handoff and Stage report on first write.
 """
 
-# IMPORTS
 
 from __future__ import annotations
 
@@ -25,11 +17,9 @@ import pytest
 from test_check import make_repo, run_check, write, write_task
 from test_run_report import config, run, summary_fields
 
-# HELPERS
-
 
 def new_task(tmp_path: Path, monkeypatch, capsys, *argv: str):
-    """@brief An initialised repo with one fresh journal; returns (agentic, aegis, path)."""
+    """An initialised repo with one fresh journal; returns (agentic, aegis, path)."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     monkeypatch.setattr(aegis, "git_branch", lambda: "feature/state")
@@ -40,19 +30,19 @@ def new_task(tmp_path: Path, monkeypatch, capsys, *argv: str):
 
 
 def journal(aegis, path: Path) -> tuple[str, dict, dict]:
-    """@brief The journal text, its parsed form and its State fields."""
+    """The journal text, its parsed form and its State fields."""
     text = path.read_text(encoding="utf-8")
     return text, aegis.parse_journal(text), aegis.parse_state(text)
 
 
 def section(aegis, text: str, name: str) -> str:
-    """@brief One section's body, stripped."""
+    """One section's body, stripped."""
     start, end = aegis.section_bounds(text, name)
     return "\n".join(text.split("\n")[start:end]).strip()
 
 
 def enable_review(agentic: Path, cycles: int = 2) -> None:
-    """@brief Turn explicit review on with the given fix-cycle bound."""
+    """Turn explicit review on with the given fix-cycle bound."""
     config(agentic, 'test = "unused"',
            extra=f"[review]\nenabled = true\nmax_fix_cycles = {cycles}")
 
@@ -82,9 +72,6 @@ review_round:
 """
 
 
-# TESTS - advance
-
-
 def test_advance_follows_the_full_path_and_prints_the_next_card(tmp_path, monkeypatch, capsys):
     """Without --to the next stage comes from the journal's path."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
@@ -104,31 +91,44 @@ def test_advance_follows_the_full_path_and_prints_the_next_card(tmp_path, monkey
     assert out.rstrip().endswith("Next: read .agentic/steps/2_specify.md and continue specify")
 
 
-def test_advance_records_the_quick_path_before_choosing_the_stage(tmp_path, monkeypatch, capsys):
-    """--path quick sends frame straight to build."""
+def test_new_journals_carry_no_path_and_advance_has_no_path_option(tmp_path, monkeypatch,
+                                                                    capsys):
+    """Every task walks one stage order; the retired quick path left no option behind."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
-    code, _out = run(aegis, capsys, "advance", path.stem, "--path", "quick",
-                     "--reason", "one function, existing tests")
-    assert code == 0
-    _text, data, state = journal(aegis, path)
-    assert (data["header"]["path"], data["header"]["stage"]) == ("quick", "build")
-    assert state["next"] == "start build: read .agentic/steps/4_build.md"
-    assert "frame: completed; next build - one function, existing tests" in data["log"][-1]
+    _text, data, _state = journal(aegis, path)
+    assert "path" not in data["header"]
+    with pytest.raises(SystemExit) as exc:
+        aegis.main(["advance", path.stem, "--path", "quick"])
+    assert exc.value.code == 2
+    assert journal(aegis, path)[1]["header"]["stage"] == "frame"
 
 
-def test_advance_adds_a_missing_path_line_inside_the_header_block(tmp_path, capsys):
-    """An older journal without `path:` keeps its whole header when --path is set."""
+def test_a_legacy_quick_journal_follows_the_one_stage_order(tmp_path, capsys):
+    """An older `path: quick` line is kept and no longer changes the next stage."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     path = write(agentic / "tasks" / "TASK-ab12.md",
-                 "# TASK-ab12 - legacy\n\nstage: frame\ntype: fix\nbranch: feature\n\n"
+                 "# TASK-ab12 - legacy\n\nstage: frame\ntype: fix\npath: quick\n"
+                 "requirements:\nbranch: feature\n\n"
                  "## Done checklist (current stage)\n\n- [x] done\n\n## Log\n\n- 2026-08-02 frame: opened\n"
                  "\n## Stage report\n\nstage: frame\nresult: in_progress\ncurrent: frame\n")
-    assert run(aegis, capsys, "advance", "ab12", "--path", "quick")[0] == 0
-    text = path.read_text(encoding="utf-8")
-    header = aegis.parse_journal(text)["header"]
-    assert header == {"stage": "build", "type": "fix", "branch": "feature", "path": "quick"}
-    assert text.startswith("# TASK-ab12 - legacy\n\nstage: build\ntype: fix\nbranch: feature\npath: quick\n\n")
+    code, out = run(aegis, capsys, "advance", "ab12")
+    assert code == 0 and "add them" not in out  # no quick-path reminder remains
+    header = aegis.parse_journal(path.read_text(encoding="utf-8"))["header"]
+    assert (header["stage"], header["path"]) == ("specify", "quick")
+    write(path, path.read_text(encoding="utf-8").replace("stage: specify", "stage: build", 1))
+    assert run(aegis, capsys, "advance", "ab12")[0] == 0
+    assert aegis.parse_journal(path.read_text(encoding="utf-8"))["header"]["stage"] == "validate"
+
+
+def test_header_writer_adds_a_missing_line_inside_the_header_block(tmp_path):
+    """An older journal without a header key gains it at the end of the header block."""
+    _agentic, aegis = make_repo(tmp_path)
+    text = ("# TASK-ab12 - legacy\n\nstage: frame\ntype: fix\nbranch: feature\n\n"
+            "## Log\n\n- 2026-08-02 frame: opened\n")
+    updated = aegis.header_with(text, "interaction", "autopilot")
+    assert updated.startswith("# TASK-ab12 - legacy\n\nstage: frame\ntype: fix\n"
+                              "branch: feature\ninteraction: autopilot\n\n## Log\n")
 
 
 def test_header_writer_never_touches_a_same_named_field_outside_the_header(tmp_path):
@@ -139,18 +139,6 @@ def test_header_writer_never_touches_a_same_named_field_outside_the_header(tmp_p
     assert updated == "# TASK-ab12 - x\n\ntype: fix\nstage: build\n\n## Notes\n\nstage: frame\n"
     assert aegis.header_with("# TASK-ab12 - x\n\n## Log\n", "stage", "frame") == (
         "# TASK-ab12 - x\n\nstage: frame\n\n## Log\n")
-
-
-def test_pause_reminds_a_quick_path_without_requirement_ids(tmp_path, monkeypatch, capsys):
-    """A reminder at the moment of action, never a refusal."""
-    _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
-    write(path, path.read_text(encoding="utf-8").replace("path: full", "path: quick", 1))
-    code, out = run(aegis, capsys, "pause", path.stem, "--next", "Accept the scope?")
-    assert code == 0 and "requirements: line; add them" in out
-    assert journal(aegis, path)[2]["status"] == "waiting"  # the pause still happened
-    write(path, path.read_text(encoding="utf-8").replace("requirements:", "requirements: REQ-FUNC-1111", 1))
-    code, out = run(aegis, capsys, "pause", path.stem, "--next", "Accept the scope?")
-    assert code == 0 and "add them" not in out
 
 
 @pytest.mark.parametrize("lines,value", [
@@ -210,7 +198,7 @@ def test_pause_names_a_repeated_header_line(tmp_path, monkeypatch, capsys):
     """An inserted second `requirements:` line still counts and is pointed out."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
     write(path, path.read_text(encoding="utf-8").replace(
-        "path: full", "path: quick\nrequirements: REQ-FUNC-1111", 1))
+        "type: feature", "type: feature\nrequirements: REQ-FUNC-1111", 1))
     code, out = run(aegis, capsys, "pause", path.stem, "--next", "Accept the scope?")
     assert code == 0 and summary_fields(out)["Requirements"] == "REQ-FUNC-1111"
     assert "Note: the header has more than one requirements: line; keep the one with " \
@@ -242,11 +230,15 @@ def test_log_text_may_start_with_a_dash_after_the_separator(tmp_path, monkeypatc
     assert journal(aegis, path)[1]["log"][-1].endswith("frame: -red: exit 1")
 
 
-def test_advance_walks_a_quick_task_to_done_without_a_deliver_stage(tmp_path, monkeypatch, capsys):
+def test_advance_walks_a_task_to_done_without_a_deliver_stage(tmp_path, monkeypatch, capsys):
     """validate closes to done; commit and push stay with the developer."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
-    for _ in range(3):
-        assert run(aegis, capsys, "advance", path.stem, "--path", "quick")[0] == 0
+    assert run(aegis, capsys, "advance", path.stem)[0] == 0
+    for _ in range(2):  # existing requirements cover it: specify and design skipped
+        assert run(aegis, capsys, "advance", path.stem, "--skipped",
+                   "--reason", "REQ-FUNC-1111 covers it")[0] == 0
+    for _ in range(2):
+        assert run(aegis, capsys, "advance", path.stem)[0] == 0
     code, out = run(aegis, capsys, "advance", path.stem)
     assert code == 1  # nothing follows done
     _text, data, state = journal(aegis, path)
@@ -254,7 +246,8 @@ def test_advance_walks_a_quick_task_to_done_without_a_deliver_stage(tmp_path, mo
     assert (state["status"], state["reported"]) == ("done", "validate - completed")
     assert "commit, push and integration belong to the developer" in state["next"]
     assert [line.split(" ", 1)[1].split(";")[0] for line in data["log"][1:]] == [
-        "frame: completed", "build: completed", "validate: completed"]
+        "frame: completed", "specify: skipped", "design: skipped",
+        "build: completed", "validate: completed"]
 
 
 def test_advance_to_an_earlier_stage_is_a_return_that_waits(tmp_path, monkeypatch, capsys):
@@ -361,9 +354,6 @@ def test_advance_rejects_unknown_or_unchanged_targets(tmp_path, monkeypatch, cap
     assert path.read_bytes() == before
 
 
-# TESTS - pause
-
-
 def test_pause_records_a_waiting_state_and_prints_the_summary(tmp_path, monkeypatch, capsys):
     """A checkpoint stop waits for the user on one named question."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
@@ -408,9 +398,6 @@ def test_pause_rejects_must_read_paths_outside_the_repository(tmp_path, monkeypa
     capsys.readouterr()
     assert aegis.main(["pause", path.stem, "--next", "x", "--read", "../secrets.txt"]) == 1
     assert "inside the repository" in capsys.readouterr().err
-
-
-# TESTS - log and ruling
 
 
 def test_log_appends_at_the_end_of_the_log_section(tmp_path, monkeypatch, capsys):
@@ -482,9 +469,6 @@ def test_ruling_rejects_ambiguous_records(tmp_path, monkeypatch, capsys, argv, m
     assert message in capsys.readouterr().err
 
 
-# TESTS - verdict
-
-
 def test_verdict_refuses_while_review_is_disabled(tmp_path, monkeypatch, capsys):
     """Disabled review keeps both verdicts disabled."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
@@ -509,9 +493,6 @@ def test_verdict_records_both_verdicts_within_the_round_bound(tmp_path, monkeypa
     assert (state["spec_compliance"], state["implementation_quality"],
             state["review_round"]) == ("approved", "approved", "2")
     assert summary_fields(out)["Specification compliance"] == "approved"
-
-
-# TESTS - readers
 
 
 def test_status_and_brief_show_the_recorded_state(tmp_path, monkeypatch, capsys):

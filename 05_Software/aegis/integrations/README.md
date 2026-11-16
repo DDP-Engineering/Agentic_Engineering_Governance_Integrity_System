@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Agent integrations
 
 Host-specific packages for OpenCode, Codex, Pi, Qwen Code and Claude Code share the installed-AEGIS adapter, tracked verification worker, runtime discovery and owned-file installation logic.

@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS agent plugins
 
 The integrations under `05_Software/aegis/integrations/` add host-native entry points to the existing AEGIS workflow. OpenCode has a primary Aegis agent, two read-only review subagents, five commands and twelve typed tools. Codex has the native `aegis` plugin, its namespaced `aegis:aegis` skill, a local command bridge, and two custom review-role definitions. Pi supplies five native commands, twelve tools, a skill and a fresh reviewer-session launcher. Qwen Code supplies a native extension with five commands, the skill, two review agents and twelve local MCP tools. Claude Code supplies five
@@ -152,7 +146,7 @@ they do not mutate task journals or implement a general enforcement sandbox.
 Each user's chosen host/provider remains responsible for authentication and
 model access. No recipient needs the package author's sign-in.
 
-This guide describes the assigned **0.15.0** source. Complete packages are built
+This guide describes the current source. Complete packages are built
 separately under `07_Delivery/`; use the manifest and README of the package
 actually supplied. Source changes take effect in an installed host through its
 normal package update procedure.

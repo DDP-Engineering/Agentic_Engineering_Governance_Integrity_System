@@ -1,11 +1,11 @@
 ---
 name: aegis
-description: Follow an installed AEGIS software-development workflow, resume its task journal, arrange independent reviews, and track verification. Use for software work in repositories with .agentic/aegis.py or when AEGIS is requested. Excludes packaging, release, deployment and repository-maintenance-only work.
+description: Follow an installed AEGIS software-development workflow, resume its task journal, arrange independent reviews, and track verification. Use in repositories with .agentic/aegis.py for changes that add or change a durable product rule (logic, data, security, performance, integrations, product-wide UI), or when AEGIS is requested. Not for bug fixes that restore intended behavior, local UI adjustments, refactors, or packaging, release, deployment and repository-maintenance-only work.
 ---
 
 # AEGIS software workflow
 
-Use the current Git checkout's `AGENTS.md`, `.agentic/AGENTS.md`, installed step files and task journal. They define the workflow. User instructions and existing authorization remain authoritative. The plugin supplies a local bridge; it does not replace those records or initialize missing governance.
+Use the current Git checkout's `AGENTS.md`, `.agentic/AGENTS.md`, installed step files and task journal. They define the workflow. User instructions and existing authorization remain authoritative. The installed contract's Scope decides which changes AEGIS governs; make the others directly. The plugin supplies a local bridge; it does not replace those records or initialize missing governance.
 
 Locate this plugin's `scripts/aegis.mjs` from the loaded skill path: it is `../../scripts/aegis.mjs` relative to this skill directory. Resolve it to an absolute path before running it; do not assume the current working directory is the plugin directory. Run with Node.js 22 or later. The bridge discovers Python 3.11 or later and Git; the installer pins runtime paths for Desktop.
 

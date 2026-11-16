@@ -1,13 +1,6 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Planning
 
-These documents describe the implemented **AEGIS 0.15.0** source: the core
+These documents describe the implemented AEGIS source: the core
 workflow, five host integrations, artifact contracts and verification routes.
 The core provides stage-by-stage user choices, configurable autopilot, focused
 verification, CLI-written journal records and bounded resume views; it never
@@ -31,7 +24,7 @@ for coverage and remaining limits.
 
 - [Overview](00_README.md) — core workflow, host integrations and source boundaries.
 - [Workflow and stages](01_Workflow_And_Stages.md) - semantic analysis protocol,
-  lifecycle, quick-path criteria, review policy, resume state and host execution.
+  admission rule, lifecycle, review policy, resume state and host execution.
 - [Artifacts and formats](02_Artifacts_And_Formats.md) — repository records,
   managed payload, host installations, job cache and derived exports.
 - [Companion CLI](03_Companion_CLI.md) — Python commands, separate adapter

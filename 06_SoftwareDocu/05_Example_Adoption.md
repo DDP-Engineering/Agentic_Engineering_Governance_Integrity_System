@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Example - adopting an existing repository
 
 Adoption gives a legacy repo its requirement register, knowledge pages
@@ -135,9 +128,10 @@ backlog item; a manual method is a decision.
 ## Adopt only what you need
 
 Total coverage is not required. Adopt the components you actively
-change and leave the rest; when a task later touches an unadopted area,
-`check` warns (`uncovered-source`) and that component becomes the next
-adoption candidate. Incremental is the intended mode, not a compromise.
+change and leave the rest; when an AEGIS task later touches an unadopted
+area, `check --task` warns (`uncovered-source`) and that component becomes the
+next adoption candidate. Direct changes outside AEGIS raise no such warning.
+Incremental is the intended mode, not a compromise.
 
 ## Native hosts and interrupted adoption
 

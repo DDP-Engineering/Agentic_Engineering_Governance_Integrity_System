@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS - FAQ
 
 ## What if the agent ignores the workflow?
@@ -17,7 +10,7 @@ host integrations also apply their own bounded tool permissions and guards.
 
 ## What is AEGIS's operating model?
 
-The 0.15.0 source combines five stage instructions (frame, specify, design,
+The current source combines five stage instructions (frame, specify, design,
 build, validate), evidence-led idea capture, requirements, linked tests,
 journals whose state the CLI writes, repository evolution, review policy and
 a Python CLI. It guides and never blocks: `check` is an advisory report. It
@@ -88,9 +81,10 @@ backend checks do not prove GUI discovery or an end-to-end model-led workflow. S
 
 ## What does `check` actually check?
 
-The current catalog has 22 checks, including artifact/link integrity, scope and
+The current catalog has 24 checks, including artifact/link integrity, scope and
 layout, secrets in added diff lines, repository evolution, enabled review state,
-stage zones, command failures/timeouts and the case where no command ran.
+stage zones, context page size and repeated headings, command failures/timeouts
+and the case where no command ran.
 `check --help` lists the installed catalog; the [CLI reference](09_CLI_Reference.md)
 describes the output and configuration.
 
@@ -156,7 +150,7 @@ still generates applicable artifacts and leaves the header at Design.
 
 Enablement requires the TOML Boolean `true`. Missing/non-list types default to
 structure; `types = []` creates no file or link, and unknown names are ignored.
-Skipped Design and the quick path draw nothing. Structure node classes follow
+A skipped Design draws nothing. Structure node classes follow
 the proposed node edits independently of edges: a new connection does not turn
 an unchanged reused node into a changed node.
 
@@ -180,10 +174,12 @@ the zones per stage in `[zones]` in `aegis.toml` when your workflow needs a
 different boundary; a zone stays advisory either way.
 
 ## Do I have to write requirements for everything?
-No. Adopt incrementally (doc 05), or not at all for areas you never
-touch. The `uncovered-source` warning tells you when a change lands in
-an area with no requirement - that's a signal to add one, not a
-punishment.
+No. Only changes that add or change a durable product rule go through
+AEGIS; bug fixes, local UI adjustments and refactors are made directly and
+leave no requirement (doc 04). Adopt existing behavior incrementally (doc
+05), or not at all for areas you never touch. `uncovered-source` looks only
+at an AEGIS task's own diff (`check --task`): it says the task changed code
+its requirements do not cover.
 
 ## What are the pauses? Can I turn them off?
 By default, the workflow stops after every stage and presents concrete choices

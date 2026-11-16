@@ -1,11 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # 04 - Collaboration and small-model support
 
 AEGIS uses ordinary Git collaboration for durable workflow records. Branches
@@ -24,7 +16,8 @@ tracking; they do not synchronize uncommitted work between machines.
 - `anchor` and `evolution` make the task's observed change boundary
   reviewable. They are evidence files, not locks.
 - `check` after merge is the reconciliation tool: it can expose duplicate
-  IDs, dangling references, uncovered paths, stale links, and scope drift.
+  IDs, dangling references, stale links, scope drift, and oversized or appended
+  context pages; `check --task` adds uncovered paths in that task's own diff.
 - Project/environment context and component pages are shared current-state
   documents. Each branch edits only affected facts. After integration, reconcile
   those facts with the combined implementation and established requirements.

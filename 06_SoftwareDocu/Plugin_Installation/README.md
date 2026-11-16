@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Plugin installation guides
 
 Start with the combined [Markdown manual](00_AEGIS_Plugin_Installation_Manual.md)
@@ -18,7 +12,7 @@ host-specific format:
 | Qwen Code | [Guide](04_Qwen_Code_Installation.md) | [PDF](pdf/04_Qwen_Code_Installation.pdf) |
 | Claude Code | [Guide](05_Claude_Code_Installation.md) | [PDF](pdf/05_Claude_Code_Installation.pdf) |
 
-Markdown is the maintained source for the current AEGIS 0.15.0 installation
+Markdown is the maintained source for the current AEGIS installation
 guidance. Generated PDFs live under `pdf/`; generic installation-flow figures
 live under `assets/`. Choose the actual supplied package by its manifest and
 checksum record. Source version assignment and archive construction are separate

@@ -1,17 +1,10 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Software documentation
 
 Start at [00_Index.md](00_Index.md) for the installation guide, worked examples,
 team guidance, FAQ and prompt cheatsheet. Guides 01-08 each have a matching
 PowerPoint deck; decks summarize the detailed Markdown rather than replace it.
 
-These documents describe the assigned **AEGIS 0.15.0** source at
+These documents describe the current AEGIS source at
 `05_Software/aegis/` and its five host integrations:
 OpenCode, Codex, Pi, Qwen Code and Claude Code. See
 [Agent_Plugins.md](Agent_Plugins.md) for distribution and installation and

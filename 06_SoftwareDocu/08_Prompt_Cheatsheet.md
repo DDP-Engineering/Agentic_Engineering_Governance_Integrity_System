@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS - operator prompt cheatsheet
 
 Copy-paste prompts for the operations you actually perform, one box each.
@@ -29,8 +22,8 @@ Frame separates user-stated clauses, observed source/test definitions, inferred
 examples and unknowns. A requested capability does not prove an existing defect,
 store or accumulated data. Save the Frame and pending questions before pausing.
 Resolve decision-blocking scope questions before advancing; permission to defer
-a question is not its answer. Existing-contract quick fixes record governing
-requirement IDs at Frame. On resume, compare accepted outcomes with the current
+a question is not its answer. Frame records the existing requirements that
+already cover the work on the `requirements:` line. On resume, compare accepted outcomes with the current
 behavior; the original bug description is not a requirement to retain the bug.
 
 At a boundary, tick the checklist, then run `advance` when the stage is
@@ -230,18 +223,32 @@ authorize repairing source/tests. When supplied review results exhaust the
 correction budget, record the blocking decision with `pause --blocked` before
 attempting further work.
 
-## Work on a quick fix
+## Fix a bug or adjust the UI directly
+
+```
+fix <symptom, file if known, how to reproduce>
+move <element> to <place>
+```
+
+*What happens:* the agent names its lane in one line, such as
+`LANE: direct - restores intended behavior`, and makes the change without a
+task journal or requirement, adding a regression test for a logic bug. A fix
+that contradicts an active requirement, adds behavior, or touches security or
+data handling uses AEGIS instead; say "using aegis" or "without aegis" to
+decide it yourself. See [Direct changes](04_Example_Direct_Change.md).
+
+## Govern a fix with AEGIS
 
 ```
 using aegis workflow, autopilot through validate: fix <symptom, file if known,
 how to reproduce>
 ```
 
-*What happens:* `frame` decides quick vs full path (a "fix" that changes
-intended behavior or touches security/data handling takes the full path - the journal says
-which and why), then reproduce-first build, anchor after the expected failure,
-record evolution after the fix, validate the final candidate, `report`, and
-`advance` to done. No stage-choice stops - a decision-blocking question still
+*What happens:* `frame` records the existing requirements that cover the fix,
+specify and design are recorded as skipped when nothing new is needed, then
+reproduce-first build, anchor after the expected failure, record evolution
+after the fix, validate the final candidate, `report`, and `advance` to done.
+No stage-choice stops - a decision-blocking question still
 stops it - plus a `DEVIATION` line whenever the agent accepts a warning, skips
 a verification, or does anything else it judged worth saying. Those are
 notifications, not questions: read them, keep working, and they are all
@@ -387,7 +394,7 @@ session; preserve required full reads after compaction or resumption. Do not
 delete saved evidence.
 ```
 
-These are 0.15.0 workflow and CLI options. They do not create a result-reuse cache,
+These are the current workflow and CLI options. They do not create a result-reuse cache,
 remove review requirements or grant commit or publication authority.
 
 ## Resume a tracked verification job

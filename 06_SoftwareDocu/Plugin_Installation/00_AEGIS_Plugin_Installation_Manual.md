@@ -1,12 +1,6 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS plugin installation manual
 
-**Source version:** AEGIS 0.15.0
+**Source version:** named in the supplied package manifest
 **Applies to:** complete packages assembled from the matching source
 **Hosts:** OpenCode, Codex, Pi, Qwen Code and Claude Code
 
@@ -30,7 +24,7 @@ Select the actual supplied package for the host and operating system, verify its
 
 # Install AEGIS for OpenCode
 
-**Source version:** AEGIS 0.15.0
+**Source version:** named in the supplied package manifest
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
@@ -144,7 +138,7 @@ For AEGIS-specific behavior, use the supplied package's `README.md`, the install
 
 # Install AEGIS for Codex
 
-**Source version:** AEGIS 0.15.0
+**Source version:** named in the supplied package manifest
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
@@ -258,7 +252,7 @@ For AEGIS-specific behavior, use the supplied package's `README.md`, the install
 
 # Install AEGIS for Pi
 
-**Source version:** AEGIS 0.15.0
+**Source version:** named in the supplied package manifest
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
@@ -372,7 +366,7 @@ For AEGIS-specific behavior, use the supplied package's `README.md`, the install
 
 # Install AEGIS for Qwen Code
 
-**Source version:** AEGIS 0.15.0
+**Source version:** named in the supplied package manifest
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile
@@ -486,7 +480,7 @@ For AEGIS-specific behavior, use the supplied package's `README.md`, the install
 
 # Install AEGIS for Claude Code
 
-**Source version:** AEGIS 0.15.0
+**Source version:** named in the supplied package manifest
 **Applies to:** complete packages assembled from the matching source
 **Platforms:** Windows and Linux; environment limits are called out below
 **Audience:** each person installing AEGIS in their own host profile

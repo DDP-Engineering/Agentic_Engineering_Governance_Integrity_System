@@ -1,0 +1,25 @@
+version = 1
+SPDX-PackageName = "AEGIS - Agentic Engineering Governance & Integrity System"
+SPDX-PackageSupplier = "DDP Engineering"
+
+# One declaration for the whole repository instead of a header in every file.
+# The payload under 05_Software/aegis/template/.agentic/ keeps a short SPDX tag
+# because it is copied into other repositories; LICENSE.txt holds the terms.
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 DDP Engineering"
+SPDX-License-Identifier = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+
+# Bundled third-party modules; LICENSES.txt beside them holds their notices.
+[[annotations]]
+path = "05_Software/aegis/integrations/shared/vendor/jsonc.mjs"
+precedence = "override"
+SPDX-FileCopyrightText = "Microsoft"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "05_Software/aegis/integrations/shared/vendor/opencode-tool.mjs"
+precedence = "override"
+SPDX-FileCopyrightText = ["2025 opencode", "2025 Colin McDonnell"]
+SPDX-License-Identifier = "MIT"

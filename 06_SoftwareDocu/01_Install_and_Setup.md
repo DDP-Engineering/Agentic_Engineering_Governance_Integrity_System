@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS - install and setup
 
 Install the repository core in three steps, then add a host integration if
@@ -250,8 +243,8 @@ the task's `## Design`. Checkpoint responses show the saved Mermaid blocks
 after the stage summary and before choices. Autopilot saves the same applicable
 artifacts and reports their path, without displaying blocks or adding a stop.
 An explicit Design stop retains that mode's presentation and the Design header.
-An empty types list creates no file or link; unknown types are ignored. Skipped
-Design and the quick path draw nothing. Node classes describe proposed node
+An empty types list creates no file or link; unknown types are ignored. A
+skipped Design draws nothing. Node classes describe proposed node
 edits independently of edge changes. The diagrams
 illustrate the design for you: no stage, review or `check` finding depends on
 them, and AEGIS bundles no renderer - GitHub, GitLab and many Markdown
@@ -298,8 +291,10 @@ using aegis workflow, implement feature <what you want>
 
 The root `AGENTS.md` digest routes the agent to `.agentic/AGENTS.md`. It opens
 a task journal and walks the stages: frame, specify, design, build and
-validate, then done. A small fix that qualifies takes the quick path: frame,
-build, validate, done. The agent records each stage boundary with `advance` or
+validate, then done. Only changes that add or change a durable product rule
+use AEGIS: a bug fix that restores intended behavior or a local UI adjustment
+is made directly, as [Direct changes](04_Example_Direct_Change.md) explains.
+The agent records each stage boundary with `advance` or
 `pause`, and committing stays with you. Check where things stand at any time
 with:
 

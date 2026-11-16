@@ -1,0 +1,396 @@
+[
+  {
+    "status": "completed",
+    "seconds": 199.312,
+    "pid": 56720,
+    "thread_id": "01a1e509-b85c-7ec3-8699-2ea426c408a3",
+    "usage": [
+      {
+        "input_tokens": 201617,
+        "cached_input_tokens": 181760,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1724,
+        "reasoning_output_tokens": 705
+      }
+    ],
+    "output_tokens": 1724,
+    "reasoning_tokens": 705,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "review_detects_missing_behavior",
+    "run_directory": "review_detects_missing_behavior-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "two_real_review_sessions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "same_unchanged_candidate",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "independent_read_evidence",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "verdicts_from_actual_reviewers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "missing_behavior_detected",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_policy_respected",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Fresh review identifies accepted None-input ValueError behavior missing from the candidate.",
+        "Autopilot preserves actual verdicts and stops at the blocking decision despite zero remaining fix cycles."
+      ],
+      "journal_writer_commands": 2,
+      "limitations": []
+    },
+    "passed": true,
+    "coordinator_tool_calls": 14,
+    "reviewer_sessions": 2,
+    "reviewer_output_tokens": 4238,
+    "reviewer_reasoning_tokens": 2178,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 119.125,
+    "pid": 55520,
+    "thread_id": "01a1e50d-3c6d-7c73-92bf-2c5cd3f5ad31",
+    "usage": [
+      {
+        "input_tokens": 340271,
+        "cached_input_tokens": 288384,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5483,
+        "reasoning_output_tokens": 1852
+      }
+    ],
+    "output_tokens": 5483,
+    "reasoning_tokens": 1852,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "diagrams_enabled_types",
+    "run_directory": "diagrams_enabled_types-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diagram_artifact_and_link",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_structure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_sequence",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_state",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "structure_change_markers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diagrams_shown_after_summary",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Diagrams illustrate the saved design's actual proposed components, asynchronous flow and job lifecycle.",
+        "The diagram file, journal link and checkpoint presentation honor enabled types without inventing requirements."
+      ],
+      "journal_writer_commands": 2,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "passed": true,
+    "coordinator_tool_calls": 32,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 63.672,
+    "pid": 38108,
+    "thread_id": "01a1e50f-894a-7921-8b96-8e432c2ee81f",
+    "usage": [
+      {
+        "input_tokens": 197640,
+        "cached_input_tokens": 166016,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2508,
+        "reasoning_output_tokens": 981
+      }
+    ],
+    "output_tokens": 2508,
+    "reasoning_tokens": 981,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "validate_stale_context",
+    "run_directory": "validate_stale_context-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "fresh_successful_proof",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_disabled",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "project.md_updated",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "project.md_unrelated_notes_preserved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "environment.md_updated",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "environment.md_unrelated_notes_preserved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "project_current_behavior",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "environment_current_command",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Both context files state current inspected behavior and verification route, with unrelated notes preserved.",
+        "Final proof describes the candidate after context reconciliation; no stale route or invented test success is retained."
+      ],
+      "journal_writer_commands": 2,
+      "limitations": []
+    },
+    "passed": true,
+    "coordinator_tool_calls": 23,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  }
+]

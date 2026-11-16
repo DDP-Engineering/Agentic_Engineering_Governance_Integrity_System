@@ -1,14 +1,6 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # 05 - Current implementation
 
-The assigned source version is **AEGIS 0.15.0**. This page describes current
+This page describes current
 capabilities, source ownership and verification methods. Release history is in
 the [changelog](../CHANGELOG.md); dated build evidence is retained under
 `07_Delivery/`, prompt observations under the development evaluation directory,
@@ -18,13 +10,13 @@ and implementation history in Git.
 
 | Area | Current behavior |
 |---|---|
-| Workflow | Five working stages that end in `done`, a quick path for eligible repairs, and a separate component-by-component adoption flow. Validate closes the task. |
+| Workflow | Five working stages that end in `done`, an admission rule that sends bug fixes and local UI adjustments outside AEGIS, and a separate component-by-component adoption flow. Validate closes the task. |
 | Interaction | Stage checkpoints by default, optional project-configured autopilot and immediate material deviation notices. AEGIS never commits, pushes or publishes; those stay with the developer. |
 | Project context | Project-owned `context/project.md` and `context/environment.md`, scaffolded independently by `init` when absent and preserved byte-for-byte when present. |
 | Current documentation | Positive actual responsibilities and behavior in project/component documents and active contracts, with proposals in draft/task records and history in journals/Git. |
 | Durable artifacts | Frame cards, atomic requirement coverage, task designs, TOML requirements, Markdown specs and knowledge, append-only Log/Rulings, one CLI-written `## State` block, and anchor/evolution evidence. |
 | Companion CLI | Offline-first standard-library Python scaffolding, journal writers (`advance`, `pause`, `log`, `ruling`, `verdict`) that record the agent's decisions and turn unfinished work into notes, never refusals, component discovery, traceability, configured execution and bounded reporting. |
-| Verification | A 22-check advisory catalog, optional strict CI, focused/impacted test selection, dry-run previews, fallback refusal, timeouts, and complete saved evidence with optional compact presentation. |
+| Verification | A 24-check advisory catalog, optional strict CI, focused/impacted test selection, dry-run previews, fallback refusal, timeouts, and complete saved evidence with optional compact presentation. |
 | Coordination | Presence-only context pointers and a `Read next` line in `brief`, the recorded State through `summary`, one-level child tasks, independent review verdicts and bounded correction rounds. |
 | Integrations | OpenCode, Codex, Pi, Qwen Code and Claude Code entry points backed by twelve shared adapter operations, including `journal`. |
 | Host lifecycle | Complete package assembly, runtime discovery, owned installation/update/removal, verification jobs, duplicate prevention, cancellation and recovery. |
@@ -41,7 +33,7 @@ and implementation history in Git.
   integrations/           five host adapters and shared runtime
     tests/                JavaScript behavior tests
   tests/                  Python product suite and integration wrappers
-  evaluations/            development scenarios and the 0.14.0 baselines
+  evaluations/            development scenarios and subscription baselines
   README.md               package overview
 
 02_Tools/
@@ -69,7 +61,8 @@ Populate confirmed purpose, implementation and setup facts during frame or
 adoption. New projects add responsibilities as they are implemented. Build
 updates affected facts as changes become real; validate reconciles current
 context, component pages and active contracts against the candidate and
-authorized intent. Preserve unrelated sections and established requirements.
+authorized intent, editing existing sections in place; `check` reports a page
+above `[context] page_kb` or a repeated level-two heading. Preserve unrelated sections and established requirements.
 Missing or partial context is compatible with ordinary work.
 
 Current documents contain one positive description of each actual behavior,
@@ -123,8 +116,8 @@ fixtures; their individual causal contribution is not isolated.
 
 A local runner drives an OpenAI-compatible Chat Completions server, with
 optional reasoning effort; a subscription runner drives a native Codex CLI.
-The evaluation folder keeps the `gpt-6-luna` baselines on the released 0.14.0
-payload; other runs keep their raw evidence outside the repository.
+The evaluation folder keeps the latest `gpt-6-luna` subscription baselines;
+other runs keep their raw evidence outside the repository.
 
 Read strict grades with the semantic assessments. Some predicates are overly
 literal or use checkpoint conventions for bounded autopilot transitions. In

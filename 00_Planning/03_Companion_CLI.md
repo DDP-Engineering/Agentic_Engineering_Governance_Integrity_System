@@ -1,11 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # 03 - The companion CLI
 
 The implemented companion is one standard-library Python file:
@@ -33,7 +25,7 @@ remain those of the target repository.
 |---|---|---|
 | `init [--git]` | Creates missing data folders/config and each missing context scaffold, preserves existing project files, refreshes managed root digests, and maintains the managed anchor/evolution block in the root `.gitignore`. | Finish installation or upgrade. |
 | `task <title> [--type] [--parent]` | Writes a new journal; a bare task ID as the title is refused. | Start governed feature, fix, change, or adoption work. |
-| `advance <task> [--to] [--path] [--skipped]` | Writes the header stage, Done checklist, one Log line and the State, then prints the summary block and any notes. | A stage's work is finished, skipped, or must return to an earlier stage. |
+| `advance <task> [--to] [--skipped]` | Writes the header stage, Done checklist, one Log line and the State, then prints the summary block and any notes. | A stage's work is finished, skipped, or must return to an earlier stage. |
 | `pause <task> --next [--blocked]` | Writes the State as waiting or blocked, then prints the summary block and any notes. | A checkpoint, a blocking question, or the end of a session. |
 | `log <task> <text>` | Appends one dated, stage-prefixed Log line. | A durable decision, verification result, discovery, blocker or deviation. |
 | `ruling <task> --decision --reason --source [--supersedes]` | Appends the next numbered Ruling. | A settled scope, behavior or technical question that later sessions must not reopen. |
@@ -81,7 +73,7 @@ exits 1 and writes nothing.
 
 | Command | Output | What it is for |
 |---|---|---|
-| `brief TASK-<id>` | Task identity, stage, path, branch/base, parent, requirements, context paths/presence, checklist, State, outcome, interaction mode, review policy, diagrams, active rulings, visible children, Read next and details pointer. | Bounded re-entry, then reading what Read next names. |
+| `brief TASK-<id>` | Task identity, stage, branch/base, parent, requirements, context paths/presence, checklist, State, outcome, interaction mode, review policy, diagrams, active rulings, visible children, Read next and details pointer. | Bounded re-entry, then reading what Read next names. |
 | `summary TASK-<id>` | The recorded State: reported stage and result, current stage, requirements, changes, evidence, issues, next action, user need, review fields and details pointer. | The current snapshot; `advance`, `pause` and `verdict` print it after writing. |
 
 Both commands are deterministic reads of durable files. Neither runs tests,
@@ -146,18 +138,21 @@ timed-out command proves nothing; a command that completes unsuccessfully is a
 
 ## Governance checks
 
-`check` currently implements 22 checks. They cover:
+`check` currently implements 24 checks. They cover:
 
 - requirement parsing, IDs, journal headers, and specification references;
-- path coverage, linked tests, stale paths, scope drift, and source/test
-  relationship;
+- path coverage of a scoped task's diff (`uncovered-source`, with `--task`
+  only, since direct changes need no requirement), linked tests, stale paths,
+  scope drift, and source/test relationship;
 - secrets in added diff lines, self-contained requirement prose, unticked
   items left at the former `deliver` stage, layout, stage zones, and
   configuration shapes;
 - anchor/evolution evidence, configured-command completion, timeouts, and
   empty `--run` execution;
 - manual verification declarations, enabled explicit-review evidence, and
-  anchor/evolution sidecar tracking against `[records] commit_fingerprints`.
+  anchor/evolution sidecar tracking against `[records] commit_fingerprints`;
+- current-state page size against `[context] page_kb` and level-two headings
+  repeated within one context or knowledge page.
 
 The default diff base is the configured `[layout] default_branch`, then
 `origin/HEAD`, then local `master` or `main`. Without Git or a merge base,

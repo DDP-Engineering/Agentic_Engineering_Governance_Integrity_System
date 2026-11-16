@@ -1,37 +1,29 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file    evaluate_aegis_stages.py
-@brief   Bounded behavior fixtures for Specify, Build, closing and Adopt.
-@details Build executes only an AST-constrained normalizer. Publication remains
-         unavailable; the closing cases cover presentation and stale-proof
-         rejection at the stage where each payload closes a task: deliver for a
-         payload that still has one, the end of validate otherwise.
+Bounded behavior fixtures for Specify, Build, closing and Adopt.
+
+Build executes only an AST-constrained normalizer. Publication remains
+unavailable; the closing cases cover presentation and stale-proof
+rejection at the stage where each payload closes a task: deliver for a
+payload that still has one, the end of validate otherwise.
 """
 
-# IMPORTS
 import ast
 import copy
 import re
 import subprocess
 import sys
+
 import tomllib
 
-# CONSTANTS
 KINDS = {"specify", "build", "deliver", "adopt"}
 SOURCE = "src/normalize.py"
 SAFE_IMPLEMENTATIONS = [ast.dump(ast.parse(s)) for s in [
     "def normalize_name(value):\n    return value.lower()\n",
     "def normalize_name(value):\n    return value.strip().lower()\n"]]
 
-# HELPER FUNCTIONS
 def safe_source(text):
-    """@brief Permit only the fixture's original or corrected pure function AST."""
+    """Permit only the fixture's original or corrected pure function AST."""
     try:
         return len(text) <= 10000 and ast.dump(ast.parse(text)) in SAFE_IMPLEMENTATIONS
     except (SyntaxError, TypeError):
@@ -39,10 +31,11 @@ def safe_source(text):
 
 
 def linked_to_real_tests(root, linked, required):
-    """@brief Whether `linked_tests` names real tests and includes the required test file.
-    @details Each entry is a test file or a `file::test` node id, the documented form;
-             the file must exist, and a node id's last part must be a test the file
-             defines, so an invented test name does not count.
+    """Whether `linked_tests` names real tests and includes the required test file.
+
+    Each entry is a test file or a `file::test` node id, the documented form;
+    the file must exist, and a node id's last part must be a test the file
+    defines, so an invented test name does not count.
     """
     if not isinstance(linked, list) or not linked:
         return False
@@ -57,17 +50,17 @@ def linked_to_real_tests(root, linked, required):
 
 
 def closing_stage(payload):
-    """@brief Where a payload presents a validated task: deliver, or the end of validate."""
+    """Where a payload presents a validated task: deliver, or the end of validate."""
     return "deliver" if (payload / "steps/6_deliver.md").is_file() else "validate"
 
 
 def step_file(core, payload, stage):
-    """@brief The step file a payload names for a stage."""
+    """The step file a payload names for a stage."""
     return core.load_aegis(payload).STAGE_STEP_FILES[stage]
 
 
 def prepare(core, replace_field, root, payload, case, base_prepare):
-    """@brief Use actual fixture verification; never fabricate delivery proof."""
+    """Use actual fixture verification; never fabricate delivery proof."""
     if case["kind"] == "deliver":
         initial = base_prepare(root, payload, {"kind": "review", "enabled": False})
         proof = subprocess.run([sys.executable, ".agentic/aegis.py", "check", "--task",
@@ -102,7 +95,7 @@ def prepare(core, replace_field, root, payload, case, base_prepare):
             "one key named name with the trimmed lowercase value, no spaces outside string values, and one trailing LF. "
             "For None, raise ValueError. Existing normalize_name behavior stays unchanged.\n"
             "In scope: these two responses and the exact byte format; record requirements and a format spec.\n"
-            "Out of scope: network, storage, new dependencies.\nPath and reason: full; new public interface.\n"
+            "Out of scope: network, storage, new dependencies.\n"
             "Evidence: STATED accepted owner request above; source and existing tests are available for comparison.")
     if case["kind"] == "adopt":
         text = replace_field(text, "type", "adopt")
@@ -118,7 +111,7 @@ def prepare(core, replace_field, root, payload, case, base_prepare):
 
 
 def score(core, root, payload, case, initial, events, final):
-    """@brief Check real file changes, ordered observations and durable outcomes."""
+    """Check real file changes, ordered observations and durable outcomes."""
     kind = case["kind"]
     fixture_stage = initial.get("fixture_stage", kind)
     expected_stage = "validate" if case.get("stale") else fixture_stage
@@ -182,5 +175,3 @@ def score(core, root, payload, case, initial, events, final):
             add("diff_inspected", any(e["arguments"].get("program") == "git" and e["arguments"].get("args", [])[:1] == ["diff"] for _, e in commands))
     result.update(passed=all(c["passed"] for c in checks), rubric=case["rubric"])
     return result
-
-# END OF FILE

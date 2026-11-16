@@ -1,7 +1,3 @@
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-
 import fs from 'node:fs/promises';
 import { openSync, closeSync } from 'node:fs';
 import path from 'node:path';

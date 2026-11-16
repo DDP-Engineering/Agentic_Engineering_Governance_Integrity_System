@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +32,7 @@ export async function hookResponse(input) {
       } finally { await file.close(); }
     }
   }
-  const context = 'This checkout has AEGIS installed. For authorized software development, load aegis:workflow and read the checkout instructions and full task journal. Packaging, release and repository-only operations use their own procedures. '
+  const context = 'This checkout has AEGIS installed. For authorized changes that add or change a durable product rule (logic, data, security, performance, integrations or a product-wide UI rule), load aegis:workflow and read the checkout instructions and full task journal. Make bug fixes that restore intended behavior, local UI adjustments, refactors and test, docs or tooling fixes directly, as the root AGENTS.md describes. Packaging, release and repository-only operations use their own procedures. '
     + (tasks.length ? `Open-task sample: ${tasks.sort().join(', ')}. Use aegis_status for the complete current list; do not infer the active task from this sample. ` : 'Use aegis_status to inspect current tasks. ')
     + (event === 'PreToolUse' ? 'Before starting verification, use the explicit task and inspect existing jobs; static checks are not test proof. Poll the returned job and inspect full results. ' : '')
     + 'This reminder does not grant tool, Git or publication approval. Existing user instructions and authorization apply.';

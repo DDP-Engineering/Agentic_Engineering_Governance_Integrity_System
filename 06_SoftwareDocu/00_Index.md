@@ -1,13 +1,6 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AEGIS - user documentation
 
-Guides for the assigned **AEGIS 0.15.0** source, including the OpenCode,
+Guides for the current AEGIS source, including the OpenCode,
 Codex, Pi, Qwen Code and Claude Code integrations. Existing delivery archives
 and their build records are under `07_Delivery/`. Assigning a source version
 does not build or publish those packages.
@@ -15,9 +8,10 @@ does not build or publish those packages.
 Start with installation and folders, then choose the relevant worked example.
 Examples illustrate the workflow; sample output is not evidence of a test run.
 The workflow has five stages - frame, specify, design, build, validate - and
-then the task is done; the quick path is frame, build, validate, done. The CLI
-writes the journal state with `advance`, `pause`, `log`, `ruling` and `verdict`.
-For 0.15.0 verification setup, start with
+then the task is done; specify and design have skip rules. Only changes that
+add or change a durable product rule use AEGIS; bug fixes and local UI
+adjustments are made directly. The CLI writes the journal state with `advance`, `pause`, `log`, `ruling` and `verdict`.
+For verification setup, start with
 [focused routing](01_Install_and_Setup.md#verify-focused-routing-before-using-it).
 The folder guide explains the task journal and saved evidence; the FAQ and
 prompt cheatsheet cover focused tests, final proof and resuming with `brief`.
@@ -27,7 +21,7 @@ prompt cheatsheet cover focused tests, final proof and resuming with `brief`.
 | [01 - Install and setup](01_Install_and_Setup.md) | Installing the repository core and an optional host package. | [PPTX](01_Install_and_Setup.pptx) |
 | [02 - Folders and files](02_Folders_and_Files.md) | Understanding durable records, configuration and local integration state. | [PPTX](02_Folders_and_Files.pptx) |
 | [03 - Feature](03_Example_Feature.md) | Taking new behavior through the full workflow. | [PPTX](03_Example_Feature.pptx) |
-| [04 - Quick fix](04_Example_Quick_Fix.md) | Restoring an existing requirement with a small, eligible fix. | [PPTX](04_Example_Quick_Fix.pptx) |
+| [04 - Direct changes](04_Example_Direct_Change.md) | Deciding which changes skip AEGIS: bug fixes, local UI adjustments, refactors. | [PPTX](04_Example_Direct_Change.pptx) |
 | [05 - Adoption](05_Example_Adoption.md) | Bringing existing behavior under governance, component by component. | [PPTX](05_Example_Adoption.pptx) |
 | [06 - Team setup](06_Team_Setup.md) | Sharing records, configuring CI and reviewing combined work. | [PPTX](06_Team_Setup.pptx) |
 | [07 - FAQ](07_FAQ.md) | Understanding capabilities and limits. | [PPTX](07_FAQ.pptx) |

@@ -1,35 +1,28 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file    evaluate_aegis_holdout.py
-@brief   Hold-out pricing fixtures, a bounded code host and scorers for prompt evaluations.
-@details A second domain that never motivates prompt rules. Its frame, specify and
-         design cases mirror the core intents with different vocabulary, and one
-         chained case runs five fresh stage sessions on one repository. Model code
-         is limited to two files and a restricted Python subset before anything
-         executes; this bounds accidental damage and is not a security sandbox.
+Hold-out pricing fixtures, a bounded code host and scorers for prompt evaluations.
+
+A second domain that never motivates prompt rules. Its frame, specify and
+design cases mirror the core intents with different vocabulary, and one
+chained case runs five fresh stage sessions on one repository. Model code
+is limited to two files and a restricted Python subset before anything
+executes; this bounds accidental damage and is not a security sandbox.
 """
 
-# IMPORTS
 from __future__ import annotations
 
 import ast
 import importlib.util
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
+
 import tomllib
 
-# CONSTANTS
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("aegis_eval_core_for_holdout",
                                               ROOT / "02_Tools/evaluate_aegis_prompts.py")
@@ -99,14 +92,12 @@ FRAMES = {
                 "In scope: these two responses and the exact text format; record requirements "
                 "and a format spec.\n"
                 "Out of scope: currency conversion, localization, storage and new dependencies.\n"
-                "Path and reason: full; new public interface.\n"
                 "Evidence: STATED accepted owner request above; source and existing tests are "
                 "available for comparison."),
     "design": ("Problem: discounted prices are recalculated by hand.\n"
                f"Desired outcome: {RECALCULATION}\n"
                f"In scope: {RECALCULATION}\n"
-               "Out of scope: persistence, networking and external dependencies.\n"
-               "Path and reason: full; new job interface and run lifecycle."),
+               "Out of scope: persistence, networking and external dependencies."),
 }
 ACCEPTANCE = """from src.pricing import apply_discount
 assert apply_discount(995, 10) == 895
@@ -140,16 +131,17 @@ ALLOWED_NODES = (
 RAISES = {"self.assertRaises", "self.assertRaisesRegex"}
 
 
-# HELPER FUNCTIONS
 def safe_code(text: str, path: str) -> bool:
-    """@brief Accept only the restricted Python subset allowed for model-written code.
-    @param[in] text Proposed file content.
-    @param[in] path SOURCE or TESTS; only tests may import unittest and the pricing module.
-    @details Refuses other imports, names or attributes starting with an underscore
-             (except `__name__`), dangerous builtins, exponentiation, decorators,
-             classes other than unittest cases, and context managers other than
-             assertRaises. It bounds accidents in a synthetic repository; it is not
-             a security sandbox.
+    """Accept only the restricted Python subset allowed for model-written code.
+
+    text: Proposed file content.
+    path: SOURCE or TESTS; only tests may import unittest and the pricing module.
+
+    Refuses other imports, names or attributes starting with an underscore
+    (except `__name__`), dangerous builtins, exponentiation, decorators,
+    classes other than unittest cases, and context managers other than
+    assertRaises. It bounds accidents in a synthetic repository; it is not
+    a security sandbox.
     """
     if not isinstance(text, str) or len(text) > 20000:
         return False
@@ -189,8 +181,9 @@ def safe_code(text: str, path: str) -> bool:
 
 
 def instructions(entry: str | None = None) -> str:
-    """@brief Shared core instructions plus this profile's two bounded capabilities.
-    @param[in] entry The installed root digest; the current payload's by default."""
+    """Shared core instructions plus this profile's two bounded capabilities.
+
+    entry: The installed root digest; the current payload's by default."""
     return core.instructions(entry) + (
         "\n\nAdditional bounded capabilities: run_command aegis req is available for "
         f"requirement scaffolds. In a Build session, write_file and edit_file may also change "
@@ -200,7 +193,7 @@ def instructions(entry: str | None = None) -> str:
 
 
 def journal(root: Path, payload: Path, aegis, stage: str) -> str:
-    """@brief Write TASK-aaaaaaaa at `stage` with its accepted Frame; return its Log."""
+    """Write TASK-aaaaaaaa at `stage` with its accepted Frame; return its Log."""
     text = aegis.scaffold_template("task.md")
     requirements = (REQUIREMENT if stage == "specify"
                     else f"{REQUIREMENT}, {RECALCULATION_REQUIREMENT}")
@@ -232,7 +225,7 @@ def journal(root: Path, payload: Path, aegis, stage: str) -> str:
 
 
 def acceptance(root: Path) -> bool:
-    """@brief Run the harness-owned acceptance check on the final pricing source."""
+    """Run the harness-owned acceptance check on the final pricing source."""
     source = root / SOURCE
     if not source.is_file() or not safe_code(source.read_text("utf-8"), SOURCE):
         return False
@@ -242,10 +235,10 @@ def acceptance(root: Path) -> bool:
     return done.returncode == 0 and "HOLDOUT_ACCEPTANCE: ok" in done.stdout
 
 
-# PUBLIC API
 def prepare(root: Path, payload: Path, case: dict) -> dict:
-    """@brief Create one pricing repository for a hold-out case; never reuse a checkout.
-    @return Initial file hashes, journal log, immutable Git head and candidate digest.
+    """Create one pricing repository for a hold-out case; never reuse a checkout.
+
+    Returns: Initial file hashes, journal log, immutable Git head and candidate digest.
     """
     root.mkdir(parents=True, exist_ok=False)
     shutil.copytree(payload, root / ".agentic",
@@ -304,21 +297,21 @@ updated = "{core.DATE}"
 
 
 class HoldoutHost(core.Host):
-    """@brief Core host plus requirement scaffolds and AST-bounded Build code writes."""
+    """Core host plus requirement scaffolds and AST-bounded Build code writes."""
 
     def __init__(self, root: Path, initial: dict, payload: dict, phase: str | None = None):
         super().__init__(root, initial, payload)
         self.phase = phase
 
     def path(self, name: object, writable: bool = False) -> Path:
-        """@brief Allow the two code files to be written only during a Build session."""
+        """Allow the two code files to be written only during a Build session."""
         target = super().path(name)
         if writable and self.phase == "build" and target.relative_to(self.root).as_posix() in CODE:
             return target
         return super().path(name, writable)
 
     def call(self, name: str, arguments: dict) -> dict:
-        """@brief Refuse a Build code write outside the restricted subset before writing."""
+        """Refuse a Build code write outside the restricted subset before writing."""
         if self.phase == "build" and name in {"write_file", "edit_file"}:
             try:
                 target = super().path(arguments["path"])
@@ -338,7 +331,7 @@ class HoldoutHost(core.Host):
         return super().call(name, arguments)
 
     def command(self, program: str, args: list[str]) -> dict:
-        """@brief Check model-written code before anything executes; add requirement scaffolds."""
+        """Check model-written code before anything executes; add requirement scaffolds."""
         trusted = dict(self.initial["files"])
         for relative in CODE:
             target = self.root / relative
@@ -371,7 +364,7 @@ class HoldoutHost(core.Host):
 
 def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
           reviews: list, final: str) -> dict:
-    """@brief Grade one hold-out frame, specify or design case from events and files."""
+    """Grade one hold-out frame, specify or design case from events and files."""
     result = core.score(root, case, initial, events, payload)
     if result.get("rubric") is None:
         return {**result, "rubric": case["rubric"]}
@@ -412,9 +405,10 @@ def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
 
 def score_chain(root: Path, case: dict, initial: dict, events: list, payload: Path,
                 sessions: list, final: str) -> dict:
-    """@brief Grade a chained case on the integrated result that all sessions left.
-    @details Build may change the two code files, so they leave the protected set;
-             everything else follows the core checks across every session's events.
+    """Grade a chained case on the integrated result that all sessions left.
+
+    Build may change the two code files, so they leave the protected set;
+    everything else follows the core checks across every session's events.
     """
     bounded = {**initial, "files": {p: h for p, h in initial["files"].items() if p not in CODE}}
     result = core.score(root, case, bounded, events, payload)
@@ -463,5 +457,3 @@ def score_chain(root: Path, case: dict, initial: dict, events: list, payload: Pa
         bool(proofs) and proofs[-1]["result"].get("candidate_after") == core.candidate(root))
     result.update(passed=all(c["passed"] for c in checks), rubric=case["rubric"])
     return result
-
-# END OF FILE

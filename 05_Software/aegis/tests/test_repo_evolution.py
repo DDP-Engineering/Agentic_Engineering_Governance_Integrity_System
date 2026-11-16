@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_repo_evolution.py
-@brief Regression tests for repository anchor and evolution records.
-@details Throwaway Git repositories exercise visible-file selection, stable
-         fingerprints, compact history, machine output, and advisory checks.
+Regression tests for repository anchor and evolution records.
+
+Throwaway Git repositories exercise visible-file selection, stable
+fingerprints, compact history, machine output, and advisory checks.
 """
 
-# IMPORTS
 
 from __future__ import annotations
 
@@ -27,25 +19,21 @@ from pathlib import Path
 
 import pytest
 
-# CONSTANTS
-
 PAYLOAD = Path(__file__).resolve().parents[1] / "template" / ".agentic"
 _COUNTER = itertools.count()
 HAS_GIT = shutil.which("git") is not None
 needs_git = pytest.mark.skipif(not HAS_GIT, reason="git executable not available")
 
-# HELPERS
-
 
 def write(path: Path, text: str) -> Path:
-    """@brief Write one LF-normalized fixture file."""
+    """Write one LF-normalized fixture file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
     return path
 
 
 def git(repo: Path, *args: str) -> str:
-    """@brief Run Git with deterministic test identity and return stdout."""
+    """Run Git with deterministic test identity and return stdout."""
     done = subprocess.run(
         ["git", "-c", "user.email=t@example.com", "-c", "user.name=T",
          "-c", "commit.gpgsign=false", *args],
@@ -55,7 +43,7 @@ def git(repo: Path, *args: str) -> str:
 
 
 def make_repo(tmp_path: Path) -> tuple[Path, object]:
-    """@brief Create an initialized AEGIS fixture on a feature branch."""
+    """Create an initialized AEGIS fixture on a feature branch."""
     agentic = tmp_path / ".agentic"
     shutil.copytree(PAYLOAD, agentic)
     spec = importlib.util.spec_from_file_location(
@@ -86,16 +74,13 @@ def make_repo(tmp_path: Path) -> tuple[Path, object]:
 
 
 def load(path: Path) -> dict:
-    """@brief Read one generated JSON record."""
+    """Read one generated JSON record."""
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-# TESTS
 
 
 @needs_git
 def test_compact_evolution_retains_complete_saved_fingerprints(tmp_path, capsys):
-    """@brief Compact presentation preserves the durable comparison evidence."""
+    """Compact presentation preserves the durable comparison evidence."""
     agentic, aegis = make_repo(tmp_path)
     assert aegis.main(["anchor", "--task", "TASK-abcd"]) == 0
     write(tmp_path / "src/app.py", "VALUE = 2\n")

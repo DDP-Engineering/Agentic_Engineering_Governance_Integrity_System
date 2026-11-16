@@ -1,12 +1,4 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
-# AEGIS 0.15.0
+# AEGIS
 
 AEGIS is an advisory governance workflow for agent-driven software development.
 It keeps requirements, specifications, task journals, and component knowledge
@@ -16,7 +8,7 @@ heuristic check to find issues that need correction.
 `check --strict` provides an optional CI boundary for errors and configured
 promoted warnings; ordinary `check` remains advisory.
 
-The project version is **0.15.0**. Optional OpenCode, Codex, Pi, Qwen Code and
+`python .agentic/aegis.py --version` prints the version. Optional OpenCode, Codex, Pi, Qwen Code and
 Claude Code integrations are included in this version. They invoke the target checkout's installed AEGIS workflow;
 they do not replace its contract or grant Git publication authority.
 
@@ -37,9 +29,9 @@ This source checkout has no repository-root `.agentic/` installation; the
 template is maintained directly.
 
 The CLI journal writers record the stage, Done checklist, Log, Rulings and
-State; the agent edits Frame, Requirement coverage and Design. Existing-contract
-quick fixes record their requirement IDs at Frame, and the State's next action
-names one concrete action or question. New requirements start as drafts and
+State; the agent edits Frame, Requirement coverage and Design. Frame records the
+existing requirements that cover the work, and the State's next action names
+one concrete action or question. New requirements start as drafts and
 build activates them. Unknown behavior and unobserved proof remain explicit.
 
 ## Install
@@ -81,11 +73,17 @@ formats, lifecycle, and examples.
 using aegis workflow, implement feature X
 ```
 
-The stages are frame, specify, design, build and validate, ending at done. The
-quick path is frame, build, validate, but size alone does not qualify a change:
-an existing requirement must already cover the behavior, and there must be no
-new externally observable behavior, interface, data format or dependency, and
-no security- or data-handling change. Frame records that criteria table.
+AEGIS admits only changes that add or change a durable product rule: logic,
+data, security, performance, integrations, or a product-wide UI rule such as a
+theme or accessibility convention. A bug fix that restores intended behavior, a
+local UI adjustment, a refactor, or a test, docs or tooling fix is made
+directly, with no journal or requirement; a fix that contradicts an active
+requirement, adds behavior, or touches security or data handling uses AEGIS.
+The user's explicit choice wins, and the agent names its choice in one
+`LANE: direct|aegis - <why>` line.
+
+The stages are frame, specify, design, build and validate, ending at done.
+Specify and design have skip rules; frame, build and validate always run.
 
 Each stage has one step file: what to read, the steps, a Finish block naming
 the exact commands for checkpoint and autopilot, and a Done when list that the

@@ -1,11 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # 02 - Artifacts and formats
 
 AEGIS stores its durable workflow state as ordinary UTF-8 Markdown, TOML,
@@ -33,8 +25,12 @@ checkout has no root deployment; its canonical payload is
 ```
 
 Exactly 18 files are managed by the payload: `AGENTS.md`, `CLI.md`,
-`LICENSE.txt`, `aegis.py`, eight step files (six stages, adoption and the
-optional design diagram guide), and six templates. A payload
+`LICENSE.txt`, `aegis.py`, eight step files (five stages, the explicit-review
+guide, adoption and the optional design diagram guide), and six templates.
+Every managed file except `LICENSE.txt` starts with a short SPDX tag, because
+the payload is copied into repositories whose own licensing does not cover it;
+scaffolded records omit the tag. The source repository itself declares its
+licensing once, in `REUSE.toml`. A payload
 upgrade replaces only those managed files. It preserves `aegis.toml`,
 requirements, specs, tasks, anchors, evolution reports, knowledge pages, and
 current project/environment context. `init` scaffolds each missing context
@@ -55,7 +51,8 @@ documents remain canonical for commands and values.
 
 Frame/adoption populates confirmed facts. Build updates affected facts as changes
 become real; validate reconciles current context, component pages and active
-contracts. Pause/resume state stays in the journal's State. Brief exposes file
+contracts, editing existing sections in place. `[context] page_kb` bounds each
+page. Pause/resume state stays in the journal's State. Brief exposes file
 presence only. Shared current documents retain one positive behavior statement,
 including meaningful error/security responses, rather than alternatives or
 change history. Suspected defects belong in task findings pending clarification.
@@ -123,6 +120,7 @@ thereafter. The implemented configuration surface is:
 | `[layout]` | `source`, `tests`, and optional `docs` globs drive traceability/layout checks. `default_branch` can select the diff base. |
 | `[review]` | Exact Boolean `enabled` (default `false`) and integer `max_fix_cycles` from 0 through 255 (default 2). |
 | `[records]` | Exact Boolean `commit_fingerprints` (default `false`). While false, `init` maintains a managed `.gitignore` block that excludes the anchor/evolution sidecars; true removes that block so they are committed with the journal. |
+| `[context]` | Integer `page_kb` (`init` writes 24; a missing value or `0` means no budget) is the size budget for `context/project.md`, `context/environment.md` and each knowledge page. `check` warns `context-size` above it and `duplicate-heading` for a level-two heading written twice in one page. |
 | `[interaction]` | Boolean `autopilot` defaults to `false`, including a missing table/key. Checkpoint mode presents choices after every stage; autopilot advances between stages, and a decision-blocking question stops either mode. |
 | `[diagrams]` | Exact Boolean `enabled` defaults to `false`. Missing/non-list `types` defaults to `["structure"]`; an empty list creates no file or link, and unknown names are ignored. Only substantive Design draws selected applicable types. Configuration findings do not certify diagram content. |
 | `[zones]` | Optional per-stage source/test write allowances beyond `.agentic/`; findings are advisory. |
@@ -181,6 +179,8 @@ and every session ends with `advance` or `pause`.
 
 ## Requirements and specifications
 
+Only work AEGIS admits writes requirements: durable product rules, not a layout
+value, wording or one element's style, which change directly.
 Active contracts describe the implemented behavior positively, with explicit
 triggers and responses for important error/security cases. Draft records hold
 agreed proposals. Resolve spec open decisions before activation and retain their
@@ -234,14 +234,15 @@ silently resolving them.
 
 A task journal has a machine-readable header, the Done checklist of the current
 stage, durable semantic sections, an append-only Log and Rulings, and one
-replaceable State. Its header records `stage`, `type`, `path`,
-`requirements`, optional `parent`, `branch`, `base`, and `opened`.
+replaceable State. Its header records `stage`, `type`, `interaction`,
+`requirements`, optional `parent`, `branch`, `base`, and `opened`; an older
+journal's `path:` line is kept and ignored.
 The `interaction` header records checkpoint/autopilot. The CLI writes the
 header stage, the Done checklist, the Log, the Rulings and the State; the agent
 edits Frame, Requirement coverage and Design and the header lines `type`,
-`path`, `interaction`, `requirements` and `parent`. A header key written twice
-keeps its first written value. Existing-contract quick fixes name their
-governing requirements at Frame. Retain the created task ID/path and repair
+`interaction`, `requirements` and `parent`. A header key written twice
+keeps its first written value. Frame names the existing requirements that
+already cover the work. Retain the created task ID/path and repair
 that same file after a failed edit; creation is not task selection.
 
 The Log is a compact progress-and-evidence ledger, not an activity transcript.
@@ -336,10 +337,9 @@ stem fallback, and lexical repository-relative path. It does not parse body
 sections, create metadata, or maintain a separate registry.
 
 Design keeps its proposal in the task and leaves component pages unchanged;
-validate reconciles them with the built code. When `[diagrams] enabled = true`,
+validate reconciles them with the built code, editing existing sections in place. When `[diagrams] enabled = true`,
 design also draws selected applicable types in `tasks/diagram_TASK-<id>.md` for
-the human. An empty types list, skipped Design or quick path produces no file
-or link. The file records the proposed structure-node classification map;
+the human. An empty types list or a skipped Design produces no file or link. The file records the proposed structure-node classification map;
 reused unchanged nodes stay unstyled independently of new edges. The author
 compares diagram markers with that map and Design; no CLI check certifies them.
 Checkpoint responses copy saved blocks after summary and before choices.
@@ -360,8 +360,10 @@ task journal -> requirements -> requirements/specs/knowledge
 ```
 
 The mapping supports `check`, `diagram`, `explain`, `trace`, and
-`test --impacted`. Missing coverage is reported as a finding; it does not
-silently create a replacement requirement or test.
+`test --impacted`. `check --task` reports source in the task's own diff that its
+requirements do not cover; code that only direct changes touched has no
+requirement, and `explain` says so plainly. Neither silently creates a
+replacement requirement or test.
 
 `trace --format md` and `trace --format csv` export the requirement register,
 including coverage, verification, tests, affected paths and ownership.

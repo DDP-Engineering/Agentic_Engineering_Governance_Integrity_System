@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_run_report.py
-@brief P4 tests: `check --strict`/`--run`, `aegis test [--impacted]`, `report`.
-@details Configured commands are built on `sys.executable` so they run
-         identically on Windows and Linux under `shell=True`. Diff-based
-         impacted-set tests reuse the real-git fixture from test_check and
-         skip cleanly when git is absent.
+P4 tests: `check --strict`/`--run`, `aegis test [--impacted]`, `report`.
+
+Configured commands are built on `sys.executable` so they run
+identically on Windows and Linux under `shell=True`. Diff-based
+impacted-set tests reuse the real-git fixture from test_check and
+skip cleanly when git is absent.
 """
 
-# IMPORTS
 
 from __future__ import annotations
 
@@ -41,18 +33,13 @@ from test_check import (
 )
 from test_cli_core import snapshot
 
-# CONSTANTS
-
 PY = f'"{sys.executable}"'
-
-
-# HELPERS
 
 
 def config(agentic: Path, commands: str, check: str = "",
            source: str = '["src/"]', tests: str = '["tests/"]',
            extra: str = "") -> None:
-    """@brief Write an aegis.toml with the given [commands] and [check] bodies."""
+    """Write an aegis.toml with the given [commands] and [check] bodies."""
     write(
         agentic / "aegis.toml",
         f"schema = 1\n\n[commands]\n{commands}\n\n"
@@ -62,18 +49,15 @@ def config(agentic: Path, commands: str, check: str = "",
 
 
 def cmd_exit(code: int) -> str:
-    """@brief A cross-platform command exiting with `code`, as a TOML value."""
+    """A cross-platform command exiting with `code`, as a TOML value."""
     return f"'{PY} -c \"import sys; sys.exit({code})\"'"
 
 
 def run(aegis, capsys, *argv: str) -> tuple[int, str]:
-    """@brief Run one CLI invocation; return (exit code, stdout)."""
+    """Run one CLI invocation; return (exit code, stdout)."""
     capsys.readouterr()
     code = aegis.main(list(argv))
     return code, capsys.readouterr().out
-
-
-# TESTS - check --strict exit codes
 
 
 def test_strict_ok_on_a_clean_repo(tmp_path, monkeypatch, capsys):
@@ -121,9 +105,6 @@ def test_strict_promote_turns_a_warning_into_a_failure(tmp_path, monkeypatch,
 
     code, _out = run(aegis, capsys, "check")  # without --strict: advisory
     assert code == 0
-
-
-# TESTS - check --run
 
 
 def test_run_reports_ok_and_fail_and_feeds_strict(tmp_path, monkeypatch, capsys):
@@ -178,9 +159,6 @@ def test_run_stops_a_command_at_its_configured_limit(tmp_path, monkeypatch,
                for line in out.splitlines())
 
 
-# TESTS - aegis test
-
-
 def test_test_runs_the_configured_command_and_mirrors_its_exit(tmp_path, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
@@ -232,9 +210,6 @@ def test_test_task_appends_a_dated_log_line(tmp_path, capsys):
     text = (agentic / "tasks" / "TASK-ab12.md").read_text(encoding="utf-8")
     last = [line for line in text.splitlines() if line.strip()][-1]
     assert last.startswith("- ") and " test: test exit 0 (" in last
-
-
-# TESTS - aegis test --impacted
 
 
 def test_impacted_falls_back_without_a_template(tmp_path, capsys):
@@ -365,11 +340,8 @@ def test_pointer_update_preserves_crlf_and_following_bytes(tmp_path):
     assert mine.encode() in refreshed
 
 
-# TESTS - compact recorded stage summaries
-
-
 def stage_record(path: Path, **overrides: str) -> None:
-    """@brief Append a complete reporting record to an existing fixture journal."""
+    """Append a complete reporting record to an existing fixture journal."""
     fields = {"stage": "specify", "result": "completed", "current": "design",
               "changed": "REQ-FUNC-1111 created", "evidence": "check exit 0; tests not run",
               "issues": "none recorded", "next": "follow 3_design.md", "needs_user": "no",
@@ -380,7 +352,7 @@ def stage_record(path: Path, **overrides: str) -> None:
 
 
 def summary_fields(out: str) -> dict[str, str]:
-    """@brief Decode the human-readable summary without depending on padding."""
+    """Decode the human-readable summary without depending on padding."""
     return {key: value.strip() for key, value in
             (line.split(":", 1) for line in out.splitlines())}
 
@@ -693,9 +665,6 @@ def test_summary_literal_comment_markers_do_not_hide_live_report(tmp_path, capsy
     assert summary_fields(out)["Stage"] == "specify - completed"
 
 
-# TESTS - deterministic bounded task brief
-
-
 BRIEF_STATE = """
 ## State
 
@@ -737,8 +706,9 @@ review_round:
 
 
 def write_brief_fixture(agentic: Path, legacy: bool = False) -> Path:
-    """@brief Write one representative current journal plus a visible child.
-    @param[in] legacy Record state in the old Handoff and Stage report sections."""
+    """Write one representative current journal plus a visible child.
+
+    legacy: Record state in the old Handoff and Stage report sections."""
     path = write_task(
         agentic, "TASK-ab12", stage="validate", reqs="REQ-FUNC-1111",
         checklist="- [x] build candidate\n- [ ] review candidate",
@@ -771,7 +741,6 @@ def test_brief_has_fixed_section_order_and_no_side_effects(tmp_path, monkeypatch
     assert out == """AEGIS brief
 Task: TASK-ab12 - a task
 Stage: validate
-Path: full
 Branch/base: feature @ not recorded
 Parent: none
 Requirements: REQ-FUNC-1111
@@ -889,7 +858,7 @@ opened: 2026-08-31
     code, out = run(aegis, capsys, "brief", "ab12")
     assert code == 0
     assert "Parent: none" in out
-    assert "Path: not recorded" in out
+    assert "Path:" not in out
     assert "State: not recorded\nOutcome: not recorded\n" in out
     assert "Interaction: checkpoint" in out
     assert "Active rulings:\n- none recorded" in out
@@ -985,9 +954,6 @@ def test_brief_rejects_unknown_task_with_one_line_error(tmp_path, capsys):
     assert captured.err.startswith("error: no such task journal")
 
 
-# TESTS - aegis report
-
-
 def test_report_appends_the_delivery_section(tmp_path, monkeypatch, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
@@ -1004,7 +970,7 @@ def test_report_appends_the_delivery_section(tmp_path, monkeypatch, capsys):
 
     text = (agentic / "tasks" / "TASK-ab12.md").read_text(encoding="utf-8")
     assert "## Delivery report (" in text
-    assert "- stage: deliver; type: feature; path: full; branch: feature" in text
+    assert "- stage: deliver; type: feature; branch: feature" in text
     assert "  - REQ-FUNC-1111 - A behavior" in text
     assert "- diff vs merge base: unavailable (git executable not found)" in text
     assert "- checks: errors=0 warnings=1 notes=7" in text
@@ -1109,9 +1075,6 @@ def test_brief_combines_workspace_review_policy_with_recorded_verdicts(tmp_path,
     assert code == 0
     assert ("Review: policy=enabled; max_fix_cycles=2; spec=approved; "
             "quality=changes_required; round=2" in out)
-
-
-# TESTS - review-hardening regressions
 
 
 def test_crafted_task_ids_cannot_escape_the_tasks_folder(tmp_path, capsys):
@@ -1266,11 +1229,8 @@ def test_captured_output_is_bounded_by_a_temp_file(tmp_path, monkeypatch,
         assert len(line) < 5000  # the tail is a slice, never the whole stream
 
 
-# TESTS - --json output contract
-
-
 def json_out(aegis, capsys, *argv: str) -> tuple[int, dict, str]:
-    """@brief Run a command with --json; parse stdout, return stderr too."""
+    """Run a command with --json; parse stdout, return stderr too."""
     capsys.readouterr()
     code = aegis.main(list(argv))
     captured = capsys.readouterr()
@@ -1289,7 +1249,7 @@ def test_check_json_is_a_parseable_document_with_a_schema(tmp_path,
     assert doc["schema"] == aegis.JSON_SCHEMA
     assert doc["command"] == "check"
     assert doc["result"] == "WARN"
-    assert doc["summary"] == {"errors": 0, "warnings": 1, "notes": 6}
+    assert doc["summary"] == {"errors": 0, "warnings": 1, "notes": 5}
     assert doc["strict"] is None and doc["run"] == []
     finding = next(f for f in doc["findings"] if f["check"] == "no-linked-tests")
     assert set(finding) == {"level", "check", "path", "message"}
@@ -1535,11 +1495,8 @@ def test_check_task_notes_a_branch_mismatch(tmp_path, capsys):
     assert "journal branch 'task/somewhere-else' != current 'feature'" in out
 
 
-# TESTS - [commands] workdir
-
-
 def argdump(path: Path) -> None:
-    """@brief A script recording its argv and its working directory."""
+    """A script recording its argv and its working directory."""
     write(path,
           "import pathlib, sys\n"
           "pathlib.Path('args.txt').write_text(' '.join(sys.argv[1:]))\n")
@@ -1565,9 +1522,6 @@ def test_workdir_is_not_executed_as_a_command(tmp_path, capsys):
     _code, out = run(aegis, capsys, "check", "--run")
     assert "run: test ok" in out
     assert "workdir" not in out
-
-
-# TESTS - impacted references are rebased onto the workdir
 
 
 @needs_git
@@ -1605,9 +1559,6 @@ def test_impacted_falls_back_when_a_reference_is_outside_the_workdir(tmp_path,
     _code, out = run(aegis, capsys, "test", "--impacted")
     assert "impacted: test reference is outside the command working directory" \
         in out
-
-
-# TESTS - an oversized impacted set degrades instead of failing to launch
 
 
 @needs_git
@@ -1656,9 +1607,6 @@ def test_impacted_falls_back_when_even_the_files_are_too_long(tmp_path,
     assert "impacted: still too long to launch after reduction" in out
 
 
-# TESTS - the impacted diff basis is selectable
-
-
 @needs_git
 def test_impacted_base_option_narrows_the_diff_basis(tmp_path, capsys):
     """REQ-TEST-db8d4d31: --base selects against a revision, not the fork."""
@@ -1687,9 +1635,6 @@ def test_impacted_base_option_narrows_the_diff_basis(tmp_path, capsys):
     assert "test --impacted (1 test ref(s)): exit 0" in out
     assert (tmp_path / "args.txt").read_text() == \
         "tests/test_app.py::test_app"
-
-
-# TESTS - command time limits
 
 
 def test_no_time_limit_is_imposed_by_default(tmp_path):
@@ -1739,9 +1684,6 @@ def test_a_stopped_command_is_reported_as_unproven(tmp_path, monkeypatch,
     assert not any("command-failed" in line for line in out.splitlines())
 
 
-# TESTS - the recorded task base
-
-
 @needs_git
 def test_report_diffs_against_the_recorded_task_base(tmp_path, capsys):
     """REQ-FUNC-791ebe07: a report must describe this task, not the branch."""
@@ -1775,11 +1717,8 @@ def test_report_diffs_against_the_recorded_task_base(tmp_path, capsys):
     assert scoped < whole, (scoped, whole)
 
 
-# TESTS - diagram
-
-
 def knowledge(agentic: Path, stem: str, name: str, *rids: str) -> Path:
-    """@brief A component page claiming `rids` under its Key behaviors."""
+    """A component page claiming `rids` under its Key behaviors."""
     behaviors = "".join(f"- `{rid}` - one line.\n" for rid in rids)
     return write(agentic / "knowledge" / f"{stem}.md",
                  f"# {name}\n\n## Purpose\n\nA component.\n\n"
@@ -1787,7 +1726,7 @@ def knowledge(agentic: Path, stem: str, name: str, *rids: str) -> Path:
 
 
 def register(agentic: Path, tmp_path: Path) -> None:
-    """@brief One requirement of every coverage class, most of them claimed."""
+    """One requirement of every coverage class, most of them claimed."""
     write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
     write_req(agentic, "REQ-FUNC-1111", title="Covered behavior",
               tests='["tests/test_app.py::test_app"]')
@@ -1938,16 +1877,13 @@ def test_diagram_rejects_a_scope_that_does_not_exist(tmp_path, capsys):
     assert len([line for line in err.splitlines() if line]) == 1
 
 
-# TESTS - trace
-
-
 def csv_rows(text: str) -> list[list[str]]:
-    """@brief The emitted comma-separated record, parsed back."""
+    """The emitted comma-separated record, parsed back."""
     return list(csv.reader(io.StringIO(text)))
 
 
 def md_rows(text: str) -> list[list[str]]:
-    """@brief The emitted Markdown table's body rows, split on unescaped bars."""
+    """The emitted Markdown table's body rows, split on unescaped bars."""
     rows = []
     for line in text.splitlines():
         if not line.startswith("| REQ-"):
@@ -2298,11 +2234,8 @@ def test_trace_csv_preserves_line_breaks_inside_list_entries(tmp_path, capsys):
     assert rows[0]["linked_tests"] == tests[0]
 
 
-# TESTS - report leads with judgement
-
-
 def journal_with_log(agentic: Path, tid: str, log: str) -> Path:
-    """@brief A journal whose Log section is exactly `log`."""
+    """A journal whose Log section is exactly `log`."""
     return write(
         agentic / "tasks" / f"{tid}.md",
         f"# {tid} — a task\n\nstage: deliver\ntype: feature\npath: full\n"
@@ -2403,11 +2336,8 @@ def test_report_does_not_re_list_the_deviations_an_earlier_report_carried(
     assert "- deviations: 4 recorded" not in text
 
 
-# TESTS - explain
-
-
 def governed_repo(agentic: Path, tmp_path: Path) -> None:
-    """@brief Two components, one shared file, and one file nobody claims."""
+    """Two components, one shared file, and one file nobody claims."""
     write(tmp_path / "src" / "export" / "m3u.py", "def write():\n    pass\n")
     write(tmp_path / "src" / "orphan.py", "def nobody():\n    pass\n")
     write(tmp_path / "tests" / "test_app.py", "def test_app():\n    pass\n")
@@ -2445,7 +2375,7 @@ def test_explain_traces_a_path_to_its_requirements_and_tasks(tmp_path, capsys):
 
 
 def test_explain_reports_an_ungoverned_path_plainly(tmp_path, capsys):
-    """REQ-FUNC-0f4eb4c5: ungoverned code is a finding, not an empty page."""
+    """REQ-FUNC-0f4eb4c5: an uncovered path is stated plainly, not called a defect."""
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
     governed_repo(agentic, tmp_path)
@@ -2454,6 +2384,7 @@ def test_explain_reports_an_ungoverned_path_plainly(tmp_path, capsys):
     assert code == 0
     assert "no requirement" in out.lower()
     assert "REQ-FUNC-1111" not in out
+    assert "finding" not in out
 
 
 def test_explain_accepts_native_and_absolute_paths(tmp_path, capsys):

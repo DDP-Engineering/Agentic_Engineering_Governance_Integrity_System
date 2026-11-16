@@ -1,7 +1,3 @@
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-
 import fs from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
@@ -99,8 +95,7 @@ export function commandArgs(operation, args = {}) {
       ...option('--evidence', args.evidence, 'evidence'), ...option('--issues', args.issues, 'issues')];
     if (action === 'advance') {
       if (args.to !== undefined) pick(args.to, stages, 'target stage');
-      if (args.path !== undefined) pick(args.path, ['full', 'quick'], 'path');
-      return ['advance', task, ...option('--to', args.to, 'to'), ...option('--path', args.path, 'path'), ...(args.skipped ? ['--skipped'] : []),
+      return ['advance', task, ...option('--to', args.to, 'to'), ...(args.skipped ? ['--skipped'] : []),
         ...option('--reason', args.reason, 'reason'), ...option('--next', args.next, 'next'), ...state];
     }
     if (action === 'pause') return ['pause', task, `--next=${line(args.next, 'next')}`, ...(args.blocked ? ['--blocked'] : []), ...state];

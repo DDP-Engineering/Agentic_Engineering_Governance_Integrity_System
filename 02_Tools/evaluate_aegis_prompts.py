@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See LICENSE.txt for full details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file    evaluate_aegis_prompts.py
-@brief   Evaluate AEGIS prompts against disposable repositories and a local model.
-@details Uses the standard library and an explicitly selected Chat Completions
-         endpoint. Scores observed tool execution and artifacts, never a model's
-         self-assessment. The core profile runs ten cases; the capabilities
-         profile runs fifteen more, with fresh local reviewer sessions; the
-         hold-out profile runs a second domain, including a chained five-session
-         lifecycle. Results record prompt growth per read and configured semantic
-         checks beside the strict ones. The constrained host is not a
-         native-host benchmark.
+Evaluate AEGIS prompts against disposable repositories and a local model.
+
+Uses the standard library and an explicitly selected Chat Completions
+endpoint. Scores observed tool execution and artifacts, never a model's
+self-assessment. The core profile runs ten cases; the capabilities
+profile runs fifteen more, with fresh local reviewer sessions; the
+hold-out profile runs a second domain, including a chained five-session
+lifecycle. Results record prompt growth per read and configured semantic
+checks beside the strict ones. The constrained host is not a
+native-host benchmark.
 """
 
-# IMPORTS
 from __future__ import annotations
 
 import argparse
@@ -30,7 +21,6 @@ import hashlib
 import importlib.util
 import json
 import os
-from pathlib import Path
 import platform
 import re
 import shutil
@@ -38,14 +28,15 @@ import statistics
 import subprocess
 import sys
 import time
-import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 import zipfile
+from pathlib import Path
 
-# CONSTANTS
+import tomllib
+
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD = ROOT / "05_Software/aegis/template/.agentic"
 SUITE = ROOT / "05_Software/aegis/evaluations/scenarios.json"
@@ -125,7 +116,7 @@ and limitations."""
 
 
 def tool(name: str, description: str, properties: dict, required: list) -> dict:
-    """@brief Build one provider-neutral function definition."""
+    """Build one provider-neutral function definition."""
     return {"type": "function", "function": {
         "name": name, "description": description,
         "parameters": {"type": "object", "properties": properties,
@@ -133,9 +124,10 @@ def tool(name: str, description: str, properties: dict, required: list) -> dict:
 
 
 def tools_for(commands: tuple[str, ...] | None = None) -> list:
-    """@brief The tool schema, with run_command naming a payload's aegis commands.
-    @param[in] commands The payload's allowed CLI commands; None keeps the generic
-                        description that the compared host contract uses.
+    """The tool schema, with run_command naming a payload's aegis commands.
+
+    commands: The payload's allowed CLI commands; None keeps the generic
+             description that the compared host contract uses.
     """
     capabilities = dict(COMMAND_CAPABILITIES)
     if commands:
@@ -174,22 +166,22 @@ AEGIS_COMMANDS = ("status", "brief", "summary", "components", "task", "req", "ch
 #: commands that print the recorded summary block after their work
 SUMMARY_COMMANDS = {"summary", "advance", "pause", "verdict"}
 
-# HELPER FUNCTIONS
-
 
 class CapabilityUnavailable(ValueError):
-    """@brief A read request outside the documented host capabilities."""
+    """A read request outside the documented host capabilities."""
 
 
 def read_slice(text: str, offset: int | float | str | None,
                limit: int | float | str | None) -> dict:
-    """@brief One read_file result: whole lines from a 1-based line offset.
-    @details An offset below 1 reads from the top, and a missing or non-positive
-             limit reads to the end. The slice stops before the line that would
-             pass READ_CHARS; one longer line is cut at that size. `eof` says
-             the file's last line is included, and `next_offset` names the line
-             to continue from.
-    @exception ValueError An offset or limit that is not a number.
+    """One read_file result: whole lines from a 1-based line offset.
+
+    An offset below 1 reads from the top, and a missing or non-positive
+    limit reads to the end. The slice stops before the line that would
+    pass READ_CHARS; one longer line is cut at that size. `eof` says
+    the file's last line is included, and `next_offset` names the line
+    to continue from.
+
+    Raises ValueError: An offset or limit that is not a number.
     """
     lines = text.splitlines(keepends=True)
     first = max(1, int(offset)) if offset is not None else 1
@@ -208,16 +200,17 @@ def read_slice(text: str, offset: int | float | str | None,
 
 
 def git_revision(value: str) -> bool:
-    """@brief Recognize fixture-local revision syntax without accepting Git options."""
+    """Recognize fixture-local revision syntax without accepting Git options."""
     atom = r"(?:HEAD|master|evaluation|[0-9a-fA-F]{7,40})(?:[~^][0-9]*)?"
     return re.fullmatch(rf"{atom}(?:\.{{2,3}}{atom})?", value) is not None
 
 
 def unavailable_evidence(value: str) -> bool:
-    """@brief Recognize explicit non-execution reports, not authored test results.
-    @details Conservative English clauses cover missing evidence and pending
-             verification. Other prose remains for semantic review; an execution
-             event is checked separately and cannot be negated by this text.
+    """Recognize explicit non-execution reports, not authored test results.
+
+    Conservative English clauses cover missing evidence and pending
+    verification. Other prose remains for semantic review; an execution
+    event is checked separately and cannot be negated by this text.
     """
     text = " ".join(value.lower().replace("`", "").split()).strip()
     if not text:
@@ -241,12 +234,12 @@ def unavailable_evidence(value: str) -> bool:
 
 
 def dump(path: Path, value: object) -> None:
-    """@brief Save a UTF-8 JSON artifact with a trailing newline."""
+    """Save a UTF-8 JSON artifact with a trailing newline."""
     write(path, json.dumps(value, indent=2, ensure_ascii=False) + "\n")
 
 
 def write(path: Path, text: str) -> None:
-    """@brief Write LF text, creating its parent directories."""
+    """Write LF text, creating its parent directories."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
 
@@ -256,7 +249,7 @@ def digest(value: bytes) -> str:
 
 
 def files(root: Path) -> dict[str, str]:
-    """@brief Hash all ordinary files, excluding Git and bytecode caches."""
+    """Hash all ordinary files, excluding Git and bytecode caches."""
     return {p.relative_to(root).as_posix(): digest(p.read_bytes())
             for p in sorted(root.rglob("*"))
             if p.is_file() and not (IGNORED & set(p.relative_to(root).parts))
@@ -264,14 +257,14 @@ def files(root: Path) -> dict[str, str]:
 
 
 def candidate(root: Path) -> str:
-    """@brief Bind executable and contract files, excluding mutable task records."""
+    """Bind executable and contract files, excluding mutable task records."""
     selected = {p: h for p, h in files(root).items()
                 if not p.startswith(".agentic/tasks/")}
     return digest(json.dumps(selected, sort_keys=True).encode())
 
 
 def load_aegis(payload: Path):
-    """@brief Import a selected payload's actual parsers without invoking workflow."""
+    """Import a selected payload's actual parsers without invoking workflow."""
     spec = importlib.util.spec_from_file_location("prompt_eval_aegis",
                                                  payload / "aegis.py")
     module = importlib.util.module_from_spec(spec)
@@ -280,38 +273,41 @@ def load_aegis(payload: Path):
 
 
 def bootstrap_text(payload: Path | None = None) -> str:
-    """@brief The root digest an installed project supplies at startup.
-    @details `init` installs the digest of the payload it comes from, so each
-             evaluated payload supplies its own; the default is the current payload.
+    """The root digest an installed project supplies at startup.
+
+    `init` installs the digest of the payload it comes from, so each
+    evaluated payload supplies its own; the default is the current payload.
     """
     return load_aegis(payload or PAYLOAD).POINTER_DIGEST
 
 
 def instructions(entry: str | None = None) -> str:
-    """@brief Core-profile system text shared by the local and subscription transports.
-    @param[in] entry The installed root digest; the current payload's by default.
-    @details The subscription transport appends only its MCP tool-routing note, so
-             local and native core observations start from the same instructions.
+    """Core-profile system text shared by the local and subscription transports.
+
+    entry: The installed root digest; the current payload's by default.
+
+    The subscription transport appends only its MCP tool-routing note, so
+    local and native core observations start from the same instructions.
     """
     return (SYSTEM + "\n\nProject instructions supplied at session startup:\n\n"
             + (bootstrap_text() if entry is None else entry))
 
 
 def parser_commands(agentic: Path) -> tuple[str, ...]:
-    """@brief Every subcommand that a payload's own parser defines."""
+    """Every subcommand that a payload's own parser defines."""
     parser = load_aegis(agentic).build_parser()
     return tuple(next(action.choices for action in parser._actions
                       if isinstance(action, argparse._SubParsersAction)))
 
 
 def aegis_commands(agentic: Path) -> tuple[str, ...]:
-    """@brief The allowed CLI commands that a payload's own parser defines."""
+    """The allowed CLI commands that a payload's own parser defines."""
     defined = parser_commands(agentic)
     return tuple(command for command in AEGIS_COMMANDS if command in defined)
 
 
 def state_block(payload: Path) -> bool:
-    """@brief Whether a payload keeps journal state in one CLI-written `## State` block."""
+    """Whether a payload keeps journal state in one CLI-written `## State` block."""
     return "\n## State\n" in (payload / "templates/task.md").read_text("utf-8")
 
 
@@ -319,13 +315,15 @@ def resume_state(text: str, payload: Path, stage: str, next_action: str,
                  verdict: str = "disabled", review_round: str = "",
                  report_next: str | None = None, waiting: bool = False,
                  changed: str = "", evidence: str = "") -> str:
-    """@brief Record a fixture's resume state in the payload's own format.
-    @details A payload with a `## State` block reads that block; an older payload
-             reads Handoff and Stage report. Both receive the same facts in the
-             format their own instructions describe, so paired fixtures stay
-             equivalent.
-    @param[in] report_next The older Stage report's next action, where it differs.
-    @param[in] waiting     A pause for the user instead of work in progress.
+    """Record a fixture's resume state in the payload's own format.
+
+    A payload with a `## State` block reads that block; an older payload
+    reads Handoff and Stage report. Both receive the same facts in the
+    format their own instructions describe, so paired fixtures stay
+    equivalent.
+
+    report_next: The older Stage report's next action, where it differs.
+    waiting: A pause for the user instead of work in progress.
     """
     result = "paused" if waiting else "in_progress"
     if state_block(payload):
@@ -347,7 +345,7 @@ def resume_state(text: str, payload: Path, stage: str, next_action: str,
 
 
 def summary_block(stdout: str) -> str:
-    """@brief The summary lines a command printed, through its Details line."""
+    """The summary lines a command printed, through its Details line."""
     lines = stdout.strip().splitlines()
     end = next((index for index, line in enumerate(lines) if line.startswith("Details:")),
                len(lines) - 1)
@@ -355,12 +353,14 @@ def summary_block(stdout: str) -> str:
 
 
 def recorded_state(aegis, text: str, stage: str) -> dict:
-    """@brief A journal's recorded resume state in one shape, from either format.
-    @details Keys follow the older Stage report (`result`, `needs_user`, the review
-             fields, `changed`, `evidence`, `issues`) plus `status`, `next`,
-             `must_read` and `synchronized`, which says whether the record is bound
-             to the header stage `stage`.
-    @exception aegis.UserError A malformed record.
+    """A journal's recorded resume state in one shape, from either format.
+
+    Keys follow the older Stage report (`result`, `needs_user`, the review
+    fields, `changed`, `evidence`, `issues`) plus `status`, `next`,
+    `must_read` and `synchronized`, which says whether the record is bound
+    to the header stage `stage`.
+
+    Raises aegis.UserError: A malformed record.
     """
     if "\n## State\n" in text and hasattr(aegis, "parse_state"):
         state = aegis.parse_state(text)
@@ -379,10 +379,11 @@ def recorded_state(aegis, text: str, stage: str) -> dict:
 
 @functools.lru_cache(maxsize=1)
 def load_capabilities():
-    """@brief Import the capability fixtures, hosts and scorer on first use.
-    @details That module imports this file under its own name; importing it lazily
-             avoids a cycle. Both copies share only pure helpers, while the model
-             transport and its `request_json` stay in this module.
+    """Import the capability fixtures, hosts and scorer on first use.
+
+    That module imports this file under its own name; importing it lazily
+    avoids a cycle. Both copies share only pure helpers, while the model
+    transport and its `request_json` stay in this module.
     """
     spec = importlib.util.spec_from_file_location("aegis_eval_capabilities", CAPABILITIES)
     module = importlib.util.module_from_spec(spec)
@@ -391,7 +392,7 @@ def load_capabilities():
 
 
 def call_signature(call: dict) -> str:
-    """@brief Canonical name-and-arguments identity of one requested tool call."""
+    """Canonical name-and-arguments identity of one requested tool call."""
     function = call.get("function", {}) if isinstance(call, dict) else {}
     try:
         arguments = json.loads(function.get("arguments", ""))
@@ -401,14 +402,15 @@ def call_signature(call: dict) -> str:
 
 
 def repetition_loop(signatures: list[str], calls: int = LOOP_CALLS) -> bool:
-    """@brief Recognize one call repeated, or two calls alternating, `calls` times in a row."""
+    """Recognize one call repeated, or two calls alternating, `calls` times in a row."""
     tail = signatures[-calls:]
     return len(tail) == calls and all(tail[i] == tail[i % 2] for i in range(calls))
 
 
 def repetition_run(text: str) -> int:
-    """@brief Length of the longest run of one short unit repeated at least 50 times.
-    @return Characters in that run, or 0 below REPETITION_CHARS.
+    """Length of the longest run of one short unit repeated at least 50 times.
+
+    Returns: Characters in that run, or 0 below REPETITION_CHARS.
     """
     if not isinstance(text, str) or len(text) < REPETITION_CHARS:
         return 0
@@ -417,18 +419,21 @@ def repetition_run(text: str) -> int:
 
 
 def context_metrics(usage: list, turns: list, events: list, window: int | None) -> dict:
-    """@brief Summarize prompt growth and attribute it to the file reads that caused it.
-    @param[in] usage  Reported usage per request; entries may be missing.
-    @param[in] turns  Per request, the tool events and result sizes appended after it.
-    @param[in] events Tool events of the session, indexed by `turns`.
-    @param[in] window Loaded context window in tokens, when known.
-    @details The prompt of request n+1 minus the prompt and completion of request n
-             is the cost of the tool results appended between them. That growth is
-             shared among those results by character length. Reads without a
-             following measured request keep their characters and are marked
-             unmeasured.
-    @return First, peak and total prompt tokens, completion tokens, window use and
-            per-path read costs, most expensive first.
+    """Summarize prompt growth and attribute it to the file reads that caused it.
+
+    usage: Reported usage per request; entries may be missing.
+    turns: Per request, the tool events and result sizes appended after it.
+    events: Tool events of the session, indexed by `turns`.
+    window: Loaded context window in tokens, when known.
+
+    The prompt of request n+1 minus the prompt and completion of request n
+    is the cost of the tool results appended between them. That growth is
+    shared among those results by character length. Reads without a
+    following measured request keep their characters and are marked
+    unmeasured.
+
+    Returns: First, peak and total prompt tokens, completion tokens, window use and
+    per-path read costs, most expensive first.
     """
     def count(record, key):
         value = record.get(key) if isinstance(record, dict) else None
@@ -469,7 +474,7 @@ def context_metrics(usage: list, turns: list, events: list, window: int | None) 
 
 
 def with_window(context: dict, window: int | None) -> dict:
-    """@brief Add the loaded window and the peak prompt's share of it to a summary."""
+    """Add the loaded window and the peak prompt's share of it to a summary."""
     peak = context.get("peak_prompt_tokens")
     fraction = round(peak / window, 3) if peak and window else None
     return {**context, "context_window": window, "peak_window_fraction": fraction,
@@ -478,7 +483,7 @@ def with_window(context: dict, window: int | None) -> dict:
 
 
 def server_model(base_url: str, model: str) -> dict | None:
-    """@brief The requested model's record from the LM Studio REST API, when available."""
+    """The requested model's record from the LM Studio REST API, when available."""
     parsed = urllib.parse.urlparse(base_url)
     try:
         server = request_json(f"{parsed.scheme}://{parsed.netloc}/api/v0/models", None, 15)
@@ -488,15 +493,16 @@ def server_model(base_url: str, model: str) -> dict | None:
 
 
 def loaded_window(record: dict | None) -> int | None:
-    """@brief Loaded context length of a server model record; absent while unloaded."""
+    """Loaded context length of a server model record; absent while unloaded."""
     value = (record or {}).get("loaded_context_length")
     return value if isinstance(value, int) and value > 0 else None
 
 
 def server_identity(record):
-    """@brief Comparable server model fields, without load state or loaded length.
-    @details A just-in-time server can report one model unloaded before a run and
-             loaded after it; the loaded length is compared as `context_window`.
+    """Comparable server model fields, without load state or loaded length.
+
+    A just-in-time server can report one model unloaded before a run and
+    loaded after it; the loaded length is compared as `context_window`.
     """
     if not isinstance(record, dict):
         return record
@@ -504,8 +510,9 @@ def server_identity(record):
 
 
 def review_response(text: str) -> dict:
-    """@brief Parse a reviewer's final JSON object, allowing one surrounding fence.
-    @exception ValueError The text holds no single JSON object.
+    """Parse a reviewer's final JSON object, allowing one surrounding fence.
+
+    Raises ValueError: The text holds no single JSON object.
     """
     body = text.strip()
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", body, re.DOTALL)
@@ -522,7 +529,7 @@ def review_response(text: str) -> dict:
 
 @functools.lru_cache(maxsize=1)
 def load_holdout():
-    """@brief Import the hold-out pricing fixtures, host and scorers on first use."""
+    """Import the hold-out pricing fixtures, host and scorers on first use."""
     spec = importlib.util.spec_from_file_location("aegis_eval_holdout", HOLDOUT)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -530,19 +537,19 @@ def load_holdout():
 
 
 def journal_text(root: Path) -> str:
-    """@brief The fixture's single task journal, or empty text when there is not exactly one."""
+    """The fixture's single task journal, or empty text when there is not exactly one."""
     journals = sorted((root / ".agentic/tasks").glob("TASK-*.md"))
     return journals[0].read_text("utf-8") if len(journals) == 1 else ""
 
 
 def section_text(text: str, heading: str) -> str:
-    """@brief Body of a level-two section without authoring comments, stripped."""
+    """Body of a level-two section without authoring comments, stripped."""
     match = re.search(rf"(?ms)^## {re.escape(heading)}[ \t]*\n(.*?)(?=^## |\Z)", text)
     return re.sub(r"(?s)<!--.*?-->", "", match.group(1)).strip() if match else ""
 
 
 def frame_fields(text: str) -> dict[str, str]:
-    """@brief Split the Frame section into its card fields, keyed in lower case."""
+    """Split the Frame section into its card fields, keyed in lower case."""
     fields: dict[str, str] = {}
     current = None
     for line in section_text(text, "Frame").splitlines():
@@ -556,7 +563,7 @@ def frame_fields(text: str) -> dict[str, str]:
 
 
 def new_requirements(root: Path, initial: dict) -> list[dict]:
-    """@brief Requirement records created during the run; unparseable files count as empty."""
+    """Requirement records created during the run; unparseable files count as empty."""
     records = []
     for path in sorted((root / ".agentic/requirements").rglob("*.toml")):
         if path.relative_to(root).as_posix() in initial["files"]:
@@ -569,7 +576,7 @@ def new_requirements(root: Path, initial: dict) -> list[dict]:
 
 
 def frame_open(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief At least one listed term appears among the Frame's unknowns or questions."""
+    """At least one listed term appears among the Frame's unknowns or questions."""
     fields = record["frame"]
     text = (fields.get("unknowns", "") + "\n"
             + fields.get("decision-blocking questions", "")).lower()
@@ -578,14 +585,14 @@ def frame_open(record: dict, spec: dict) -> tuple[bool, str]:
 
 
 def frame_mentions(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief Every listed term appears somewhere in the Frame."""
+    """Every listed term appears somewhere in the Frame."""
     frame = section_text(record["journal"], "Frame").lower()
     missing = [term for term in spec["all"] if term.lower() not in frame]
     return not missing, ("missing " + ", ".join(missing)) if missing else ""
 
 
 def frame_no_quantity(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief The named Frame fields state no number with one of the listed units."""
+    """The named Frame fields state no number with one of the listed units."""
     units = "|".join(re.escape(unit) for unit in spec["units"])
     pattern = re.compile(rf"\b\d+(?:[.,]\d+)?\s*(?:{units})s?\b", re.IGNORECASE)
     found = [f"{name}: {m.group(0)}" for name in spec["fields"]
@@ -594,7 +601,7 @@ def frame_no_quantity(record: dict, spec: dict) -> tuple[bool, str]:
 
 
 def requirements_split(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief At least two new requirements, with the error response in some but not all."""
+    """At least two new requirements, with the error response in some but not all."""
     prose = [str(r.get("requirement", "")) for r in record["new"]]
     errors = sum(spec["error"] in text for text in prose)
     return (len(prose) >= 2 and 0 < errors < len(prose),
@@ -602,13 +609,13 @@ def requirements_split(record: dict, spec: dict) -> tuple[bool, str]:
 
 
 def requirements_mention(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief Some new requirement's prose contains every listed term."""
+    """Some new requirement's prose contains every listed term."""
     return (any(all(term in str(r.get("requirement", "")) for term in spec["all"])
                 for r in record["new"]), f"{len(record['new'])} new requirement(s)")
 
 
 def design_cites_requirements(record: dict, _spec: dict) -> tuple[bool, str]:
-    """@brief The Design section names every requirement on the journal header."""
+    """The Design section names every requirement on the journal header."""
     ids = [value.strip() for value in record["requirements"].split(",") if value.strip()]
     missing = [value for value in ids if value not in record["design"]]
     return (bool(record["design"]) and bool(ids) and not missing,
@@ -616,19 +623,19 @@ def design_cites_requirements(record: dict, _spec: dict) -> tuple[bool, str]:
 
 
 def design_mentions(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief Every listed term appears in the Design section."""
+    """Every listed term appears in the Design section."""
     missing = [term for term in spec["all"] if term not in record["design"]]
     return not missing, ("missing " + ", ".join(missing)) if missing else ""
 
 
 def design_max_lines(record: dict, spec: dict) -> tuple[bool, str]:
-    """@brief The Design section exists and has at most the listed number of lines."""
+    """The Design section exists and has at most the listed number of lines."""
     lines = [line for line in record["design"].splitlines() if line.strip()]
     return 0 < len(lines) <= spec["lines"], f"{len(lines)} lines"
 
 
 def design_present(record: dict, _spec: dict) -> tuple[bool, str]:
-    """@brief The Design section records a note or a skip reason."""
+    """The Design section records a note or a skip reason."""
     return bool(record["design"]), ""
 
 
@@ -641,10 +648,12 @@ PREDICATES = {"frame_open": frame_open, "frame_mentions": frame_mentions,
 
 
 def semantic_checks(root: Path, case: dict, initial: dict) -> list[dict]:
-    """@brief Evaluate the scenario's configured semantic predicates on the saved records.
-    @details Predicates come from semantic-checks.json by scenario id. They are reported
-             beside the strict checks and never change a strict pass.
-    @exception ValueError A configured predicate type is unknown.
+    """Evaluate the scenario's configured semantic predicates on the saved records.
+
+    Predicates come from semantic-checks.json by scenario id. They are reported
+    beside the strict checks and never change a strict pass.
+
+    Raises ValueError: A configured predicate type is unknown.
     """
     specs = json.loads(SEMANTIC.read_text("utf-8"))["checks"].get(case["id"], [])
     if not specs:
@@ -665,7 +674,7 @@ def semantic_checks(root: Path, case: dict, initial: dict) -> list[dict]:
 
 
 def section(text: str, heading: str, body: str) -> str:
-    """@brief Replace the body of an existing level-two section."""
+    """Replace the body of an existing level-two section."""
     pattern = rf"(?m)(^## {re.escape(heading)}\n).*?(?=^## |\Z)"
     updated, count = re.subn(pattern, lambda m: m[1] + "\n" + body.rstrip() + "\n\n",
                              text, flags=re.DOTALL)
@@ -675,7 +684,7 @@ def section(text: str, heading: str, body: str) -> str:
 
 
 def git(root: Path, *args: str) -> str:
-    """@brief Operate only on the disposable fixture, with local test identity."""
+    """Operate only on the disposable fixture, with local test identity."""
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("GIT_")}
     env.update(GIT_AUTHOR_DATE=f"{DATE}T00:00:00Z",
@@ -690,15 +699,16 @@ def git(root: Path, *args: str) -> str:
 
 
 def checklist(payload: Path, stage: str) -> str:
-    """@brief Use the selected prompt's own checklist without rewriting it."""
+    """Use the selected prompt's own checklist without rewriting it."""
     number = {"frame": 1, "build": 4, "validate": 5}[stage]
     text = (payload / f"steps/{number}_{stage}.md").read_text("utf-8")
     return text.split("**Done when:**", 1)[1].split("**Skip when:**", 1)[0].strip()
 
 
 def prepare(root: Path, payload: Path, case: dict) -> dict:
-    """@brief Create one deterministic tiny repository; never reuse a checkout.
-    @return Initial file hashes, journal and immutable Git head for scoring.
+    """Create one deterministic tiny repository; never reuse a checkout.
+
+    Returns: Initial file hashes, journal and immutable Git head for scoring.
     """
     root.mkdir(parents=True, exist_ok=False)
     shutil.copytree(payload, root / ".agentic",
@@ -808,7 +818,7 @@ class NormalizerTests(unittest.TestCase):
         if setup == "ruling":
             stage = "frame"
         text = aegis.scaffold_template("task.md")
-        for key, value in {"stage": stage, "type": "fix", "path": "quick",
+        for key, value in {"stage": stage, "type": "fix",
                            "branch": "evaluation", "base": head,
                            "requirements": REQUIREMENT, "opened": DATE}.items():
             text = re.sub(rf"(?m)^{key}:.*$", f"{key}: {value}", text, count=1)
@@ -819,8 +829,7 @@ class NormalizerTests(unittest.TestCase):
                        "Desired outcome: restore the existing normalization contract.\n"
                        "In scope: trim fix and focused tests.\n"
                        "Out of scope: new interfaces, persistence, dependencies.\n"
-                       "Evidence: OBSERVED src/normalize.py and tests/test_normalize.py.\n"
-                       "Path and reason: quick; existing behavior and interface.")
+                       "Evidence: OBSERVED src/normalize.py and tests/test_normalize.py.")
         text = section(text, "Design", "No design impact; existing contract.")
         initial_log = f"- {DATE} frame: scope accepted; restore {REQUIREMENT}.\n"
         if stage == "validate" and setup != "unavailable_verification":
@@ -871,7 +880,7 @@ Both reviewer roles inspected this same candidate. No fixes have occurred.
 
 
 class Host:
-    """@brief Confine file access and executable commands to one trusted fixture."""
+    """Confine file access and executable commands to one trusted fixture."""
 
     def __init__(self, root: Path, initial: dict, payload: dict):
         self.root = root.resolve()
@@ -883,8 +892,9 @@ class Host:
         self.aegis = tuple(command for command in AEGIS_COMMANDS if command in self.cli)
 
     def path(self, name: object, writable: bool = False) -> Path:
-        """@brief Reject traversal, absolute paths, Git internals and payload edits.
-        @param[in] name A model-supplied value; anything but a string is rejected.
+        """Reject traversal, absolute paths, Git internals and payload edits.
+
+        name: A model-supplied value; anything but a string is rejected.
         """
         if not isinstance(name, str):
             raise ValueError("path must be a repository-relative string")
@@ -906,7 +916,7 @@ class Host:
         return target
 
     def command(self, program: str, args: list[str]) -> dict:
-        """@brief Execute a fixed command capability; reject shell interpolation."""
+        """Execute a fixed command capability; reject shell interpolation."""
         if not isinstance(args, list) or any(not isinstance(x, str) for x in args):
             raise ValueError("args must be a string array")
         if program == "aegis" and args and (args[0] in self.aegis
@@ -953,9 +963,10 @@ class Host:
                 "candidate_before": before, "candidate_after": candidate(self.root)}
 
     def git_command(self, args: list[str]) -> list[str]:
-        """@brief Build bounded read-only Git argv with fixture-confined paths.
-        @exception PermissionError Mutation, executable options or escaping paths.
-        @exception CapabilityUnavailable An unsupported read-only argument form.
+        """Build bounded read-only Git argv with fixture-confined paths.
+
+        Raises PermissionError: Mutation, executable options or escaping paths.
+        Raises CapabilityUnavailable: An unsupported read-only argument form.
         """
         if not args or args[0] not in {*GIT_FLAGS, "branch", "rev-parse"}:
             raise PermissionError("only documented read-only Git operations are allowed")
@@ -975,7 +986,7 @@ class Host:
             return [*prefix, operation, *rest]
 
         def relative_path(value: str) -> str:
-            """@brief Resolve a literal repository path without Git pathspec magic."""
+            """Resolve a literal repository path without Git pathspec magic."""
             if value.startswith(":"):
                 raise PermissionError("Git pathspec magic is unavailable")
             return self.path(value).relative_to(self.root).as_posix()
@@ -1029,7 +1040,7 @@ class Host:
         return [*prefix, operation, *flags, *revisions, *(["--", *paths] if paths else [])]
 
     def call(self, name: str, arguments: dict) -> dict:
-        """@brief Execute a model tool request and retain observed evidence."""
+        """Execute a model tool request and retain observed evidence."""
         started = time.monotonic()
         try:
             if name == "list_files":
@@ -1073,7 +1084,7 @@ class Host:
 
 def score(root: Path, case: dict, initial: dict, events: list[dict],
           payload: Path) -> dict:
-    """@brief Grade observed artifacts and commands; leave semantic judgments open."""
+    """Grade observed artifacts and commands; leave semantic judgments open."""
     checks: list[dict] = []
 
     def add(name: str, passed: bool, detail: str = "") -> None:
@@ -1177,7 +1188,7 @@ def score(root: Path, case: dict, initial: dict, events: list[dict],
 
 
 def request_json(url: str, data: dict | None, timeout: float) -> dict:
-    """@brief Perform one explicit endpoint request, without SDKs or retries."""
+    """Perform one explicit endpoint request, without SDKs or retries."""
     body = None if data is None else json.dumps(data).encode()
     request = urllib.request.Request(url, data=body,
                                      headers={"Content-Type": "application/json"})
@@ -1187,15 +1198,16 @@ def request_json(url: str, data: dict | None, timeout: float) -> dict:
 
 def chat_session(host, system: str, prompt: str, tools: list, args, run_dir: Path,
                  run_timeout: float) -> dict:
-    """@brief Run one bounded model/tool loop and save its evidence after every request.
-    @param[in] host        Tool host exposing `call` and the shared `events` list.
-    @param[in] run_timeout Wall-clock bound for this session, in seconds.
-    @return Status, error, final text, usage, per-request tool results, returned
-            model identities, degenerate responses and elapsed seconds.
-    @note A session that repeats one call, or alternates two, LOOP_CALLS times in
-          a row ends with status `loop`, as does a response cut at the output
-          limit inside repeated text; only `completed` can ever pass. A response
-          that repeats text but still finishes is counted, not failed.
+    """Run one bounded model/tool loop and save its evidence after every request.
+
+    host: Tool host exposing `call` and the shared `events` list.
+    run_timeout: Wall-clock bound for this session, in seconds.
+    Returns: Status, error, final text, usage, per-request tool results, returned
+    model identities, degenerate responses and elapsed seconds.
+    Note: A session that repeats one call, or alternates two, LOOP_CALLS times in
+    a row ends with status `loop`, as does a response cut at the output
+    limit inside repeated text; only `completed` can ever pass. A response
+    that repeats text but still finishes is counted, not failed.
     """
     messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
     write(run_dir / "request.txt", prompt)
@@ -1277,16 +1289,19 @@ def chat_session(host, system: str, prompt: str, tools: list, args, run_dir: Pat
 
 def local_reviewer(cap, args, run_dir: Path, repo: Path, initial: dict,
                    payload_files: dict, ledger: list):
-    """@brief Build the delegate that runs each review role once in a fresh local session.
-    @param[in]     cap    The capability module: role prompts, reviewer host and tools.
-    @param[in,out] ledger Completed review observations, in launch order.
-    @details Both roles inspect one immutable snapshot copied at the first request,
-             through the read-only reviewer tool set and their unchanged native role
-             prompts. Neither receives the coordinator conversation or the other
-             verdict. A repeated role returns its recorded observation while the
-             candidate is unchanged; a changed candidate has consumed the round, as
-             in the subscription transport.
-    @return Callable taking `delegate_review` arguments and returning the observation.
+    """Build the delegate that runs each review role once in a fresh local session.
+
+    cap: The capability module: role prompts, reviewer host and tools.
+    ledger: Completed review observations, in launch order.
+
+    Both roles inspect one immutable snapshot copied at the first request,
+    through the read-only reviewer tool set and their unchanged native role
+    prompts. Neither receives the coordinator conversation or the other
+    verdict. A repeated role returns its recorded observation while the
+    candidate is unchanged; a changed candidate has consumed the round, as
+    in the subscription transport.
+
+    Returns: Callable taking `delegate_review` arguments and returning the observation.
     """
     snapshot = run_dir / "review-snapshot"
     baseline: dict[str, str] = {}
@@ -1354,9 +1369,10 @@ def local_reviewer(cap, args, run_dir: Path, repo: Path, initial: dict,
 
 
 def core_profile(payload: Path = PAYLOAD) -> dict:
-    """@brief The ten-case core profile: its fixtures, host, tools, system text and scorer.
-    @details `system` carries the payload's own root digest; `contract` replaces it with a
-             placeholder, so the host contract compared across payloads stays fixed.
+    """The ten-case core profile: its fixtures, host, tools, system text and scorer.
+
+    `system` carries the payload's own root digest; `contract` replaces it with a
+    placeholder, so the host contract compared across payloads stays fixed.
     """
     return {
         "name": "core", "suite": SUITE, "system": instructions(bootstrap_text(payload)),
@@ -1371,7 +1387,7 @@ def core_profile(payload: Path = PAYLOAD) -> dict:
 
 
 def capability_profile(payload: Path = PAYLOAD) -> dict:
-    """@brief The fifteen-case capability profile, with fresh local reviewer sessions."""
+    """The fifteen-case capability profile, with fresh local reviewer sessions."""
     cap = load_capabilities()
 
     def host(root, initial, payload_files, run_dir, args, _phase=None):
@@ -1391,7 +1407,7 @@ def capability_profile(payload: Path = PAYLOAD) -> dict:
 
 
 def holdout_profile(payload: Path = PAYLOAD) -> dict:
-    """@brief The hold-out pricing profile, including the chained lifecycle case."""
+    """The hold-out pricing profile, including the chained lifecycle case."""
     holdout = load_holdout()
     return {
         "name": "holdout", "suite": holdout.SUITE,
@@ -1411,11 +1427,12 @@ PROFILES = {"core": core_profile, "capabilities": capability_profile,
 
 def run_case(root: Path, case: dict, initial: dict, args, run_dir: Path,
              profile: dict | None = None, window: int | None = None) -> dict:
-    """@brief Run one scenario session and grade it from observed events and files.
-    @param[in] profile Fixtures, host, tools, system text and scorer; core by default.
-    @param[in] window  Loaded context window in tokens, when known.
-    @return The saved run result, including context metrics, reviewer sessions and
-            semantic checks; a chained case delegates to run_chain.
+    """Run one scenario session and grade it from observed events and files.
+
+    profile: Fixtures, host, tools, system text and scorer; core by default.
+    window: Loaded context window in tokens, when known.
+    Returns: The saved run result, including context metrics, reviewer sessions and
+    semantic checks; a chained case delegates to run_chain.
     """
     profile = profile or core_profile(args.payload)
     if case.get("chain"):
@@ -1453,7 +1470,7 @@ def run_case(root: Path, case: dict, initial: dict, args, run_dir: Path,
 
 
 def merged_context(contexts: list[dict], window: int | None) -> dict:
-    """@brief Combine per-session context summaries of one chained case."""
+    """Combine per-session context summaries of one chained case."""
     peaks = [c["peak_prompt_tokens"] for c in contexts if c.get("peak_prompt_tokens")]
     totals = [c["total_prompt_tokens"] for c in contexts if c.get("total_prompt_tokens")]
     reads: dict[str, dict] = {}
@@ -1475,12 +1492,14 @@ def merged_context(contexts: list[dict], window: int | None) -> dict:
 
 def run_chain(root: Path, case: dict, initial: dict, args, run_dir: Path, profile: dict,
               window: int | None = None) -> dict:
-    """@brief Run each stage of a chained case as a fresh session on one repository.
-    @details Every session starts a new conversation with only its stage request; the
-             files and journal earlier sessions left are the whole handoff. The first
-             session must leave exactly one journal, whose ID replaces `{task}` in later
-             requests. A session that does not complete ends the chain.
-    @exception ValueError The profile cannot grade chained cases.
+    """Run each stage of a chained case as a fresh session on one repository.
+
+    Every session starts a new conversation with only its stage request; the
+    files and journal earlier sessions left are the whole handoff. The first
+    session must leave exactly one journal, whose ID replaces `{task}` in later
+    requests. A session that does not complete ends the chain.
+
+    Raises ValueError: The profile cannot grade chained cases.
     """
     if "score_chain" not in profile:
         raise ValueError(f"profile {profile['name']} has no chained-case scorer")
@@ -1540,7 +1559,7 @@ def run_chain(root: Path, case: dict, initial: dict, args, run_dir: Path, profil
 
 
 def pass_rates(results: list[dict]) -> dict[str, dict[str, str]]:
-    """@brief Strict and semantic passes per scenario across repeats, in first-seen order."""
+    """Strict and semantic passes per scenario across repeats, in first-seen order."""
     rates: dict[str, dict[str, list[int]]] = {}
     for result in results:
         entry = rates.setdefault(result["scenario"], {"strict": [0, 0], "semantic": [0, 0]})
@@ -1555,7 +1574,7 @@ def pass_rates(results: list[dict]) -> dict[str, dict[str, str]]:
 
 
 def report(results: list[dict], metadata: dict) -> str:
-    """@brief Render a measured pilot summary, keeping semantic review separate."""
+    """Render a measured pilot summary, keeping semantic review separate."""
     def cell(value, pattern="{:,}"):
         return "-" if value is None else pattern.format(value)
 
@@ -1644,11 +1663,12 @@ def report(results: list[dict], metadata: dict) -> str:
 
 def archive(output: Path, work: Path, payload: Path,
             sources: list[Path] | None = None) -> None:
-    """@brief Preserve replayable evidence, omitting Git internals and caches.
-    @param[in] sources Harness, scenario, profile and role files the run depended on,
-                       stored under their repository paths. Without them the archive
-                       keeps the original two-file harness layout used by the
-                       subscription transport.
+    """Preserve replayable evidence, omitting Git internals and caches.
+
+    sources: Harness, scenario, profile and role files the run depended on,
+            stored under their repository paths. Without them the archive
+            keeps the original two-file harness layout used by the
+            subscription transport.
     """
     with zipfile.ZipFile(output / "evidence.zip", "w", zipfile.ZIP_DEFLATED) as bundle:
         for base, prefix in ((work, "runs"), (payload, "payload")):
@@ -1663,7 +1683,7 @@ def archive(output: Path, work: Path, payload: Path,
 
 
 def execute(args) -> int:
-    """@brief Establish a live baseline only after verifying the requested model."""
+    """Establish a live baseline only after verifying the requested model."""
     profile = PROFILES[getattr(args, "profile", "core")](args.payload)
     cases = json.loads(profile["suite"].read_text("utf-8"))["scenarios"]
     if args.cases:
@@ -1759,7 +1779,7 @@ def execute(args) -> int:
 
 
 def compare(left: Path, right: Path) -> dict:
-    """@brief Refuse unlike experiments before comparing automated outcomes."""
+    """Refuse unlike experiments before comparing automated outcomes."""
     old = json.loads((left / "manifest.json").read_text("utf-8"))
     new = json.loads((right / "manifest.json").read_text("utf-8"))
     controls = ("harness_version", "profile", "model", "temperature", *SAMPLING,
@@ -1814,9 +1834,8 @@ def compare(left: Path, right: Path) -> dict:
         "semantic_acceptance": "requires reviewed rubric; not inferred"}
 
 
-# PUBLIC API
 def main(argv: list[str] | None = None) -> int:
-    """@brief Run/list scenarios or compare two compatible saved experiments."""
+    """Run/list scenarios or compare two compatible saved experiments."""
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     listing = sub.add_parser("list")
@@ -1886,5 +1905,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-# END OF FILE

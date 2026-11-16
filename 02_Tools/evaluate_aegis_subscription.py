@@ -1,18 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file    evaluate_aegis_subscription.py
-@brief   Run real subscription CLI sessions for optional AEGIS capabilities.
-@details Fresh reviewer sessions use existing native role prompts, immutable
-         snapshots and read-only MCP tools. No API keys or global setup changes.
+Run real subscription CLI sessions for optional AEGIS capabilities.
+
+Fresh reviewer sessions use existing native role prompts, immutable
+snapshots and read-only MCP tools. No API keys or global setup changes.
 """
 
-# IMPORTS
 from __future__ import annotations
 
 import argparse
@@ -20,15 +13,14 @@ import datetime as dt
 import importlib.util
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-# CONSTANTS
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("aegis_capabilities", ROOT / "02_Tools/evaluate_aegis_capabilities.py")
 cap = importlib.util.module_from_spec(SPEC)
@@ -40,13 +32,12 @@ MCP_ROUTING = ("\n\nThe five documented tools are exposed by the evaluation MCP 
                "only those tools; all repository access must go through them. Do not use "
                "native file, shell, patch, web, app or delegation tools.")
 
-# HELPER FUNCTIONS
 def read(path: Path):
     return json.loads(path.read_text("utf-8"))
 
 
 def retry_delay(status, error, retry):
-    """@brief Retry only generic operational429 failures, with bounded backoff."""
+    """Retry only generic operational429 failures, with bounded backoff."""
     if (status != "provider_error" or retry >= 3 or not re.search(r"\b429\b|Too Many Requests", error, re.I)
             or re.search(r"insufficient_quota|credit_balance|usage[ _]limit|weekly[ _]limit|billing", error, re.I)):
         return None
@@ -55,7 +46,7 @@ def retry_delay(status, error, retry):
 
 
 def terminate_tree(process):
-    """@brief End only this launched CLI process tree after its deadline."""
+    """End only this launched CLI process tree after its deadline."""
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=15)
     else:
@@ -68,7 +59,7 @@ def terminate_tree(process):
 
 def run_cli(folder: Path, repo: Path, payload: Path, initial: dict, settings: dict,
             prompt: str, system: str, reviewer=False, schema=None, capability=True, timeout=None) -> dict:
-    """@brief Preserve CLI observations; never infer successful execution from prose."""
+    """Preserve CLI observations; never infer successful execution from prose."""
     folder.mkdir(parents=True, exist_ok=False)
     client = folder / "client"
     client.mkdir()
@@ -145,7 +136,7 @@ def run_cli(folder: Path, repo: Path, payload: Path, initial: dict, settings: di
 
 
 def review_schema():
-    """@brief Constrain serialization only; verdicts and findings remain model-produced."""
+    """Constrain serialization only; verdicts and findings remain model-produced."""
     props = {"task": {"type": "string"}, "candidate": {"type": "string"},
         "verdict": {"type": "string", "enum": ["approved", "changes_required"]},
         "findings": {"type": "array", "items": {"type": "string"}},
@@ -155,7 +146,7 @@ def review_schema():
 
 
 def launch_review(config: dict, arguments: dict) -> dict:
-    """@brief Execute a requested role once; hide its verdict from the other role."""
+    """Execute a requested role once; hide its verdict from the other role."""
     folder, repo, payload = (Path(config[k]) for k in ("folder", "repo", "payload"))
     ledger_path = folder / "reviews.json"
     ledger = read(ledger_path) if ledger_path.exists() else []
@@ -215,7 +206,7 @@ def launch_review(config: dict, arguments: dict) -> dict:
 
 
 def serve(path: Path):
-    """@brief Serve one fixture; reviewer identity is set by the launcher, never tool args."""
+    """Serve one fixture; reviewer identity is set by the launcher, never tool args."""
     sys.stdin.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
     config = read(path)
@@ -255,7 +246,7 @@ def serve(path: Path):
 
 
 def execute(args):
-    """@brief Freeze sources and collect complete baseline cases with all failures."""
+    """Freeze sources and collect complete baseline cases with all failures."""
     out, work = args.output.resolve(), args.work_dir.resolve()
     if out.exists() or work.exists() or out.is_relative_to(work) or work.is_relative_to(out):
         raise ValueError("output/work directories must be new and disjoint")
@@ -340,7 +331,7 @@ def execute(args):
 
 
 def main():
-    """@brief Require explicit native runtime, model and fresh artifact destinations."""
+    """Require explicit native runtime, model and fresh artifact destinations."""
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="operation", required=True)
     server = sub.add_parser("serve")
@@ -366,5 +357,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# END OF FILE

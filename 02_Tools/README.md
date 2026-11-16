@@ -1,12 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This project is licensed under the PolyForm Noncommercial License 1.0.0.
-Noncommercial use is permitted under the license terms.
-Commercial use requires a separate commercial license.
-See LICENSE.txt for full terms.
-SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
--->
-
 # Tools
 
 Delivery-package builders and development prompt-evaluation tools live here.
@@ -56,8 +47,8 @@ reasoning, configured context, output-limit availability, usage and time, with
 all eight step prompts, actual independent reviewer sessions, diagrams,
 autopilot and context reconciliation. Build execution is AST-constrained; the
 closing cases present a validated task and never publish it. The evaluation
-folder keeps the 0.14.0 `gpt-6-luna` baselines; other runs keep their raw
-evidence in the ignored `.tmp-codex-eval/` folder.
+folder keeps the latest `gpt-6-luna` subscription baselines; other runs keep
+their raw evidence in the ignored `.tmp-codex-eval/` folder.
 
 ## Package builders
 
@@ -71,10 +62,11 @@ agent plugin assembly are separate operations:
 
 ## Core release archives
 
-Build the current AEGIS release archives and tracked publication record with:
+Build the current AEGIS release archives and tracked publication record with
+the `VERSION` from `template/.agentic/aegis.py`:
 
 ```text
-py -3.12 02_Tools/build_aegis_release.py --version 0.15.0
+py -3.12 02_Tools/build_aegis_release.py --version <VERSION>
 ```
 
 On Linux, use `python3` in place of `py -3.12`. The build environment needs

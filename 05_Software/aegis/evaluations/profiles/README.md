@@ -1,5 +1,3 @@
-<!-- Copyright (c) 2026 DDP Engineering. LicenseRef-PolyForm-Noncommercial-1.0.0 -->
-
 # Evaluation input profiles
 
 Input profiles describe the startup instructions and fixed model configuration

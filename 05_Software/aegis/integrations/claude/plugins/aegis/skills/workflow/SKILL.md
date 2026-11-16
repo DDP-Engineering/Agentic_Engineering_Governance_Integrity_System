@@ -1,11 +1,11 @@
 ---
 name: workflow
-description: Follow the installed AEGIS software workflow, resume task journals, arrange independent reviews and track verification. Use for software work in repositories with .agentic/aegis.py or when AEGIS is requested; excludes packaging, release and deployment-only work.
+description: Follow the installed AEGIS software workflow, resume task journals, arrange independent reviews and track verification. Use in repositories with .agentic/aegis.py for changes that add or change a durable product rule (logic, data, security, performance, integrations, product-wide UI), or when AEGIS is requested; not for bug fixes that restore intended behavior, local UI adjustments, refactors, or packaging, release and deployment-only work.
 ---
 
 # AEGIS software workflow
 
-Use this checkout's root `AGENTS.md`, `.agentic/AGENTS.md`, installed step files and task journal as the workflow authority. User instructions and existing authorization remain authoritative. This package does not initialize or upgrade missing governance. Packaging, release, deployment and repository-maintenance-only work follow their own procedures.
+Use this checkout's root `AGENTS.md`, `.agentic/AGENTS.md`, installed step files and task journal as the workflow authority. User instructions and existing authorization remain authoritative. This package does not initialize or upgrade missing governance. The installed contract's Scope decides which changes AEGIS governs; make the others directly. Packaging, release, deployment and repository-maintenance-only work follow their own procedures.
 
 1. Inspect dirty changes and open tasks with `aegis_status`. Resume the matching task with `aegis_resume`; do not silently choose among several plausible tasks. Read the full journal, the State `must_read` files and the current step with `aegis_read`. Resolve checkpoint or autopilot from the journal and `[interaction]` configuration, defaulting missing or invalid autopilot to off. In checkpoint mode stop after every stage and present the installed choices. Preserve unrelated changes. A request to continue does not grant staging, commit, push or publication authority; AEGIS ends when validate closes the task, and Git publication follows the repository's procedures and the user's instructions.
 2. Edit Frame, Requirement coverage and Design natively and tick the Done checklist; write everything else with `aegis_journal`: `advance` finishes a stage, `pause` stops for the user, `log` and `ruling` record events and decisions, `verdict` records explicit review results. After context loss, reread the durable journal. A summary is recorded state, not fresh proof.

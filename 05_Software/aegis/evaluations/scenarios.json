@@ -7,15 +7,15 @@
       "stage": "frame",
       "setup": "broken",
       "prompt": "Use AEGIS to frame this bug fix: normalize_name('  ALICE  ') should return 'alice', as REQ-FUNC-11111111 already requires. Keep the existing branch. Stop after frame; do not implement the fix.",
-      "expect": {"stages": ["frame"], "path": "quick", "requirement": "REQ-FUNC-11111111", "waiting": true},
-      "rubric": ["Scope restores the existing trim-and-lowercase contract only.", "The quick-path decision accounts for all eligibility criteria."]
+      "expect": {"stages": ["frame"], "requirement": "REQ-FUNC-11111111", "waiting": true},
+      "rubric": ["Scope restores the existing trim-and-lowercase contract only.", "Frame names REQ-FUNC-11111111 as the covering requirement and adds no new behavior."]
     },
     {
       "id": "frame_ambiguous_retention",
       "stage": "frame",
       "setup": "clean",
       "prompt": "Use AEGIS to frame a new feature: automatically clean up old saved names. I have not decided how old is old or whether deletion should be reversible. Keep the existing branch. Stop after frame.",
-      "expect": {"stages": ["frame"], "path": "full", "waiting": true},
+      "expect": {"stages": ["frame"], "waiting": true},
       "rubric": ["Retention duration and reversibility stay unknown, with no invented defaults.", "Questions concern decisions needed for destructive data handling, not incidental implementation preferences."]
     },
     {
@@ -23,7 +23,7 @@
       "stage": "frame",
       "setup": "clean",
       "prompt": "Use AEGIS to frame a CLI that accepts one name and supports --json. JSON output must have exactly one field, normalized_name; ordinary output is the normalized name. Keep the existing normalize_name behavior and the existing branch. Stop after frame.",
-      "expect": {"stages": ["frame"], "path": "full", "waiting": true},
+      "expect": {"stages": ["frame"], "waiting": true},
       "rubric": ["The new CLI/output contract selects full path despite the small implementation.", "Frame captures both output modes and leaves unspecified error behavior explicit."]
     },
     {

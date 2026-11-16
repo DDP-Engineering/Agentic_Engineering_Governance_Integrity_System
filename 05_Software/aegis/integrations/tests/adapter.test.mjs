@@ -1,7 +1,3 @@
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -49,8 +45,8 @@ test('focused refusal and compact evolution are explicit portable options', () =
 });
 
 test('journal writers become validated argument arrays for the installed CLI', () => {
-  assert.deepEqual(commandArgs('journal', { action: 'advance', task: 'TASK-aabb', path: 'quick', reason: '-one function', read: ['src/a.py, docs/b.md'] }),
-    ['advance', 'TASK-aabb', '--path=quick', '--reason=-one function', '--read=src/a.py', '--read=docs/b.md']);
+  assert.deepEqual(commandArgs('journal', { action: 'advance', task: 'TASK-aabb', skipped: true, reason: '-one function', read: ['src/a.py, docs/b.md'] }),
+    ['advance', 'TASK-aabb', '--skipped', '--reason=-one function', '--read=src/a.py', '--read=docs/b.md']);
   assert.deepEqual(commandArgs('journal', { action: 'pause', task: 'TASK-aabb', next: 'Accept the scope?', blocked: true, evidence: 'verify exit 1' }),
     ['pause', 'TASK-aabb', '--next=Accept the scope?', '--blocked', '--evidence=verify exit 1']);
   assert.deepEqual(commandArgs('journal', { action: 'log', task: 'TASK-aabb', text: '-red: exit 1' }), ['log', 'TASK-aabb', '--', '-red: exit 1']);
@@ -73,12 +69,12 @@ test('journal writes reach the installed CLI and its State through the adapter',
   const paused = await adapter.journal({ action: 'pause', task, next: 'Accept the framed scope?' }, context(root));
   assert.equal(paused.exit_code, 0, paused.stderr);
   assert.match(paused.stdout, /Needs user:\s+yes/);
-  const advanced = await adapter.journal({ action: 'advance', task, path: 'quick', reason: 'scope accepted' }, context(root));
+  const advanced = await adapter.journal({ action: 'advance', task, reason: 'scope accepted' }, context(root));
   assert.equal(advanced.exit_code, 0, advanced.stderr);
   const journal = await fs.readFile(path.join(root, '.agentic/tasks', `${task}.md`), 'utf8');
-  assert.match(journal, /^stage: build$/m);
+  assert.match(journal, /^stage: specify$/m);
   assert.match(journal, /^status: ready$/m);
-  assert.match(journal, /frame: completed; next build - scope accepted/);
+  assert.match(journal, /frame: completed; next specify - scope accepted/);
   await assert.rejects(adapter.journal({ action: 'log', task, text: 'x' }, { ...context(root), agent: 'aegis-spec-review' }), /coordinator/i);
 });
 

@@ -1,30 +1,23 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file    evaluate_aegis_capabilities.py
-@brief   Fixtures and observed checks for live review delegation and design diagrams.
-@details Adds a separate capability profile without changing the ten-case core.
-         Reviewer processes are supplied by the subscription runner, never scripted.
+Fixtures and observed checks for live review delegation and design diagrams.
+
+Adds a separate capability profile without changing the ten-case core.
+Reviewer processes are supplied by the subscription runner, never scripted.
 """
 
-# IMPORTS
 from __future__ import annotations
 
 import importlib.util
 import json
-from pathlib import Path
 import re
 import subprocess
 import sys
 import time
+from pathlib import Path
+
 import tomllib
 
-# CONSTANTS
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("aegis_eval_core", ROOT / "02_Tools/evaluate_aegis_prompts.py")
 core = importlib.util.module_from_spec(SPEC)
@@ -44,7 +37,7 @@ TOOLS = core.TOOLS + [DIGEST_TOOL, REVIEW_TOOL]
 
 
 def tools_for(commands=None):
-    """@brief The coordinator tools, with run_command naming a payload's aegis commands."""
+    """The coordinator tools, with run_command naming a payload's aegis commands."""
     return core.tools_for(commands) + [DIGEST_TOOL, REVIEW_TOOL]
 
 
@@ -54,15 +47,15 @@ REVIEW_TOOLS = [t for t in core.TOOLS if t["function"]["name"] in {"list_files",
         {"program": {"type": "string", "enum": ["git", "aegis"]},
          "args": {"type": "array", "items": {"type": "string"}}}, ["program", "args"]), DIGEST_TOOL]
 
-# HELPER FUNCTIONS
 def role_prompt(role: str) -> str:
-    """@brief Read an existing native role without changing its review criteria."""
+    """Read an existing native role without changing its review criteria."""
     return tomllib.loads((ROLE_DIR / (role + ".toml")).read_text("utf-8"))["developer_instructions"]
 
 
 def instructions(entry: str | None = None) -> str:
-    """@brief Map the native adapter's fresh-agent fallback to bounded test tools.
-    @param[in] entry The installed root digest; the current payload's by default."""
+    """Map the native adapter's fresh-agent fallback to bounded test tools.
+
+    entry: The installed root digest; the current payload's by default."""
     base = core.SYSTEM.replace("network tools, publication and reviewer spawning are unavailable.",
         "network tools and publication are unavailable. Fresh read-only reviewers are available only through delegate_review when configuration enables review.")
     digest = core.bootstrap_text() if entry is None else entry
@@ -84,7 +77,7 @@ def replace_field(text: str, name: str, value: str) -> str:
 
 
 def prepare(root: Path, payload: Path, case: dict) -> dict:
-    """@brief Prepare a real, bounded fixture and retain actual preparation proof."""
+    """Prepare a real, bounded fixture and retain actual preparation proof."""
     if case["kind"] in stages.KINDS:
         initial = stages.prepare(core, replace_field, root, payload, case, prepare)
         core.write(root / "AGENTS.md", core.bootstrap_text(payload))
@@ -140,7 +133,6 @@ def prepare(root: Path, payload: Path, case: dict) -> dict:
     else:
         text = replace_field(text, "stage", "design")
         text = replace_field(text, "type", "feature")
-        text = replace_field(text, "path", "quick" if case.get("skip") else "full")
         design = (payload / "steps/3_design.md").read_text("utf-8")
         done = design.split("**Done when:**", 1)[1].split("**Skip when:**", 1)[0].strip()
         text = core.section(text, "Done checklist (current stage)", done)
@@ -154,7 +146,7 @@ def prepare(root: Path, payload: Path, case: dict) -> dict:
                 "A successful job stores the normalized result; a failed job stores its error. "
                 "No persistence, network interface or external dependency is requested.")
             text = core.section(text, "Frame", "Problem: callers need asynchronous normalization jobs.\nDesired outcome: " + outcome
-                + "\nIn scope: " + outcome + "\nOut of scope: persistence, networking and external dependencies.\nPath and reason: full; new job interface and lifecycle.")
+                + "\nIn scope: " + outcome + "\nOut of scope: persistence, networking and external dependencies.")
             core.write(root / f".agentic/requirements/functional/{requirement}.toml",
                 f'schema = 1\nid = "{requirement}"\ntitle = "Queued normalization"\nstatus = "draft"\n'
                 f'requirement = {json.dumps(outcome)}\nverification = "Inspect design coverage for submit, worker, result, failure and lifecycle."\n'
@@ -174,7 +166,7 @@ def prepare(root: Path, payload: Path, case: dict) -> dict:
 
 
 class StageHost(core.Host):
-    """@brief Extend writes only for a statically constrained Build function."""
+    """Extend writes only for a statically constrained Build function."""
 
     def path(self, name, writable=False):
         target = super().path(name)
@@ -209,7 +201,7 @@ class StageHost(core.Host):
 
 
 class CapabilityHost:
-    """@brief Preserve core access rules and add role-bound read-only delegation."""
+    """Preserve core access rules and add role-bound read-only delegation."""
 
     def __init__(self, root: Path, initial: dict, payload: dict, reviewer=False, delegate=None):
         self.base = StageHost(root, initial, payload)
@@ -217,7 +209,7 @@ class CapabilityHost:
         self.events = self.base.events
 
     def call(self, name: str, arguments: dict) -> dict:
-        """@brief Enforce role limits before executing or dispatching any operation."""
+        """Enforce role limits before executing or dispatching any operation."""
         started = time.monotonic()
         try:
             if name in {"write_file", "edit_file"} and self.base.initial.get("kind") == "build":
@@ -265,10 +257,11 @@ TRIMMED = re.compile(r"strip|trim|whitespace[^.]{0,40}\b(?:removed|stripped|trim
 
 
 def describes_trim_and_lower(text: str) -> bool:
-    """@brief Whether context prose states the current trim-and-lowercase behavior.
-    @details Any wording counts - `value.strip().lower()`, "trims" or "surrounding
-             whitespace removed" - while the stale claim that input is returned
-             unchanged does not.
+    """Whether context prose states the current trim-and-lowercase behavior.
+
+    Any wording counts - `value.strip().lower()`, "trims" or "surrounding
+    whitespace removed" - while the stale claim that input is returned
+    unchanged does not.
     """
     lowered = text.lower()
     return ("input is returned unchanged" not in lowered and "lower" in lowered
@@ -277,7 +270,7 @@ def describes_trim_and_lower(text: str) -> bool:
 
 def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
           reviews: list, final: str) -> dict:
-    """@brief Check observed sessions and artifacts, separately from semantic grading."""
+    """Check observed sessions and artifacts, separately from semantic grading."""
     if case["kind"] in stages.KINDS:
         return stages.score(core, root, payload, case, initial, events, final)
     expected = {"stages": ["validate"] if case["kind"] in {"review", "context"} else
@@ -369,5 +362,3 @@ def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
     result["rubric"] = case["rubric"]
     result["limitations"] = ["Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."] if case["kind"] == "diagram" else []
     return result
-
-# END OF FILE

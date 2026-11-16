@@ -1,89 +1,47 @@
-﻿<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
+# Code style
 
-# Code Style
+Only the rules no tool checks. Write code that a reader, human or agent, can
+follow in as few lines as possible.
 
-## Purpose
+## All code
 
-This document defines the code style, documentation style, and related
-implementation readability rules for AEGIS.
+- Simple, direct code; no speculative abstraction, wrapper layers or options
+  nobody uses. Preserve public interfaces unless a change is requested.
+- One responsibility per file. The payload CLI stays one standard-library file,
+  `template/.agentic/aegis.py`; elsewhere, split a file that grows past about
+  400 lines.
+- Explicit names over comments. A comment says why, never what; no
+  commented-out code.
+- No file banners, license headers, section markers or end-of-file markers.
+  Licensing is in `REUSE.toml`; only payload files under
+  `05_Software/aegis/template/.agentic/` carry the short SPDX tag.
+- No authorship, date or version tags in comments or docstrings.
+- Fail closed at trust boundaries (command arguments, files, configuration,
+  host tool input, subprocess output): validate, report a clear error, never
+  guess or continue with partial data.
+- Deterministic local paths and configuration; no host-specific assumptions in
+  shared code.
+- English for identifiers, comments, messages and test names.
 
-## General Code Style
+## Python
 
-- Code must be clear, simple, and easily maintainable by a human developer.
-- Prefer small, composable modules.
-- Avoid unnecessary abstraction, wrapper classes, and speculative architecture.
-- Keep implementation sufficiently documented so intent, contracts, and
-  non-obvious logic remain understandable during maintenance.
-- Keep responsibilities separated across parsing, processing, orchestration,
-  export, and UI.
-- Avoid host-specific assumptions in reusable code.
-- Prefer deterministic local configuration and storage paths.
-- Preserve public interfaces unless change is explicitly requested.
+- Python 3.11 or newer; the payload uses the standard library only.
+- A one-line module docstring. A one-line docstring on public functions and
+  classes whose purpose the name does not make obvious; a longer one, in plain
+  sentences, only for a non-obvious contract. No `@` tags.
+- Type hints on function signatures.
+- Read and write text as UTF-8 with LF line endings.
 
-## Python Documentation Style
+## JavaScript (integrations)
 
-For Python source and test files, use a consistent engineering-style header and
-Doxygen-like documentation pattern.
+- ES modules (`.mjs`) for Node.js 22 or newer, using built-in modules, plus the
+  bundled files under `integrations/shared/vendor/`.
+- A one-line `/** ... */` on exported functions whose purpose the name does not
+  make obvious.
+- Pass child-process arguments as arrays, never as shell text.
 
-Required file prologue:
+## Tests
 
-1. shebang: `#!/usr/bin/env python3`
-2. encoding line: `# -*- coding: utf-8 -*-`
-3. copyright/license banner using dashed separator lines
-4. module docstring with aligned tags. The following are required:
-   - `@file`
-   - `@brief`
-   - `@details`
-   Optional only when relevant:
-   - `@example`
-
-Docstrings carry no authorship or version tags (no `@author`, `@date`, or
-`@version`) at module, function, method, class, or nested-helper level. The
-file-top copyright/license banner is the sole in-file attribution. Versioning
-is project-level only, tracked in the AEGIS payload version and the existing
-changelog.
-
-Required section markers where meaningful:
-
-- `IMPORTS`
-- `CONSTANTS`
-- `DATA MODELS / TYPEDEFINITIONS`
-- `HELPER FUNCTIONS` or `LOCAL HELPERS`
-- `PUBLIC API` or `EXPORTED FUNCTIONS / PUBLIC API`
-- `END OF FILE`
-
-Function, method, class, and nested-helper docstrings should use Doxygen-like
-tags whenever the callable or type is non-trivial, part of the public API,
-implements important logic, or benefits from an explicit contract.
-
-Required when applicable:
-
-- `@brief`
-- `@param[in]`
-- `@param[out]`
-- `@param[in,out]`
-- `@return`
-
-Use when applicable:
-
-- `@exception`
-- `@note`
-- `@todo`
-- `@retval`
-- `@example`
-
-Guidance:
-
-- trivial one-line helpers may omit docstrings if the intent is already obvious
-- public API functions should normally have docstrings
-- classes should have a class-level docstring
-- nested wrappers and decorator helpers should be documented when they carry
-  non-obvious behavior
-
-Keep these comments concise and engineering-focused. Avoid placeholder prose or
-casual commentary.
+- Name a test after the behavior it proves; cover the clear path and the
+  failure cases at each trust boundary.
+- Mention the governing requirement ID in the test docstring when one exists.

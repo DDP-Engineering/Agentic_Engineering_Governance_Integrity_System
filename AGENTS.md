@@ -1,10 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details. SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # AGENTS.md - Agentic Engineering Governance & Integrity System
 
 ## Scope
@@ -49,8 +42,7 @@ A deeper `AGENTS.md` overrides this file for its subtree.
 
 ## Style Rules
 
-Code style and Python documentation style are defined in:
-`01_Documentation/Code_Style.md`
+Code style is defined in `01_Documentation/Code_Style.md`.
 
 Follow that file for implementation and documentation conventions.
 
@@ -63,8 +55,10 @@ required. Prefer self-contained names that remain accurate if planning
 documents are renamed, reorganized, or removed. Requirement IDs remain valid
 where the traceability rules below call for them.
 
-Docstrings carry no authorship or version tags. The file-top copyright/license
-comment block is the sole in-file attribution. Versioning is project-level
+Docstrings carry no authorship or version tags. Licensing is declared once in
+`REUSE.toml`: files carry no license header, except the payload under
+`05_Software/aegis/template/.agentic/`, which keeps a short SPDX tag because it
+is copied into other repositories. Versioning is project-level
 only, tracked in the AEGIS payload version and the existing changelog.
 
 ## Requirements Traceability Rules
@@ -97,34 +91,8 @@ When behavior changes:
 
 ## Versioning and Changelog Rules
 
-- Assigning a version and building a release are repository operations, not
-  AEGIS work: do not open a task journal for them and do not run the stages
-  over them. Only software implementation goes through the AEGIS workflow.
-  The implementation a release carries is journaled; the release itself is not.
-- The repository-root `CHANGELOG.md` is the canonical record of all template
-  project updates. Accrue changes under `## [Unreleased]` using Keep a Changelog
-  sections (Added, Changed, Fixed, Removed).
-- Keep changelog entries short. One or two lines each: what changed, and why
-  only when the why is not obvious from the what. No rationale essays, no
-  design discussion, no restating the implementation - those belong in the
-  task journal and the knowledge page. A reader scans a changelog; they do not
-  study it.
-- When the user gives a command such as "assign a version to the changelog", in
-  the same change:
-  1. roll `## [Unreleased]` into a new dated `## [x.y.z] - YYYY-MM-DD` section in
-     the root `CHANGELOG.md`;
-  2. bump the version to that same `x.y.z` at its single declaration, the
-     `VERSION` literal in `template/.agentic/aegis.py`, and mirror the file
-     into the installed `.agentic/` payload. That literal is what
-     `02_Tools/build_aegis_release.py` parses, so it is the version, and a
-     release refuses to build unless `CHANGELOG.md` carries a matching dated
-     section. Update every document that states the version in prose -
-     currently `05_Software/aegis/README.md`, `06_SoftwareDocu/00_Index.md`
-     and the example in `02_Tools/README.md`;
-  3. leave the downstream starter `template/CHANGELOG.md` empty.
-- Use Semantic Versioning: MAJOR for breaking workflow-contract, CLI, hook
-  protocol, or `.agentic/` layout changes; MINOR for backward-compatible
-  capabilities; PATCH for fixes with no contract change.
+Versions, the changelog and version assignment follow
+`01_Documentation/Releases.md`. They are repository operations, not AEGIS work.
 
 ## Documentation Rules
 

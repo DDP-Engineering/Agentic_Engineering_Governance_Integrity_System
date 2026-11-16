@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_cli_core.py
-@brief P2 tests for the AEGIS CLI: ids, header parsing, init, scaffolding.
-@details Every test copies `template/.agentic` into a tmp_path repo and imports
-         `aegis.py` from that copy, so the module's `__file__`-derived paths
-         point at the throwaway tree and the real payload is never written to.
-@details No network and no git: `git_branch` is monkeypatched wherever a
-         generated branch value matters.
+P2 tests for the AEGIS CLI: ids, header parsing, init, scaffolding.
+
+Every test copies `template/.agentic` into a tmp_path repo and imports
+`aegis.py` from that copy, so the module's `__file__`-derived paths
+point at the throwaway tree and the real payload is never written to.
+
+No network and no git: `git_branch` is monkeypatched wherever a
+generated branch value matters.
 """
 
-# IMPORTS
 
 from __future__ import annotations
 
@@ -28,16 +21,12 @@ from pathlib import Path
 
 import pytest
 
-# CONSTANTS
-
 PAYLOAD = Path(__file__).resolve().parents[1] / "template" / ".agentic"
 _COUNTER = itertools.count()
 
-# HELPERS
-
 
 def make_repo(tmp_path: Path) -> tuple[Path, object]:
-    """@brief Copy the payload into tmp_path and import that copy's aegis.py."""
+    """Copy the payload into tmp_path and import that copy's aegis.py."""
     agentic = tmp_path / ".agentic"
     shutil.copytree(PAYLOAD, agentic)
     spec = importlib.util.spec_from_file_location(
@@ -50,7 +39,7 @@ def make_repo(tmp_path: Path) -> tuple[Path, object]:
 
 
 def snapshot(root: Path) -> dict[str, bytes]:
-    """@brief Every file under root as {posix relative path: exact bytes}."""
+    """Every file under root as {posix relative path: exact bytes}."""
     return {
         path.relative_to(root).as_posix(): path.read_bytes()
         for path in sorted(root.rglob("*"))
@@ -59,7 +48,7 @@ def snapshot(root: Path) -> dict[str, bytes]:
 
 
 def config_sections(text: str) -> dict[str, list[str]]:
-    """@brief The generated aegis.toml split into {table name: its lines}."""
+    """The generated aegis.toml split into {table name: its lines}."""
     sections: dict[str, list[str]] = {}
     current: list[str] | None = None
     for line in text.splitlines():
@@ -72,12 +61,9 @@ def config_sections(text: str) -> dict[str, list[str]]:
 
 
 def declares(lines: list[str], key: str) -> bool:
-    """@brief True when the table assigns `key`, live or commented out."""
+    """True when the table assigns `key`, live or commented out."""
     pattern = re.compile(rf"^\s*(?:#\s*)?{re.escape(key)}\s*=")
     return any(pattern.match(line) for line in lines)
-
-
-# TESTS - id generation
 
 
 def test_new_id_is_eight_lowercase_hex_chars(tmp_path):
@@ -121,9 +107,6 @@ def test_ids_are_collision_checked_against_existing_files(tmp_path, monkeypatch)
     assert (agentic / "requirements" / "functional" / "REQ-FUNC-1e1e.toml").is_file()
 
 
-# TESTS - journal header parsing
-
-
 def test_header_parser_round_trip_against_the_template(tmp_path):
     agentic, aegis = make_repo(tmp_path)
     data = aegis.parse_journal((agentic / "templates" / "task.md").read_text("utf-8"))
@@ -133,7 +116,6 @@ def test_header_parser_round_trip_against_the_template(tmp_path):
     assert data["header"] == {
             "stage": "frame",
             "type": "feature",
-            "path": "full",
             "interaction": "checkpoint",
             "requirements": "",
         "parent": "",
@@ -268,9 +250,6 @@ blockers:
     }
     with pytest.raises(aegis.UserError, match="unknown Handoff field"):
         aegis.parse_handoff(blank + "surprise: value\n")
-
-
-# TESTS - init
 
 
 def test_init_creates_folders_config_and_pointers(tmp_path, capsys):
@@ -648,9 +627,6 @@ def test_init_git_option_fails_cleanly_without_git(tmp_path, monkeypatch, capsys
     assert "git is not installed or unavailable" in capsys.readouterr().err
 
 
-# TESTS - req
-
-
 def test_req_writes_the_category_folder_and_id(tmp_path, capsys):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
@@ -759,9 +735,6 @@ def test_nested_new_forms_are_not_accepted(tmp_path, argv):
     _, aegis = make_repo(tmp_path)
     with pytest.raises(SystemExit):
         aegis.build_parser().parse_args(argv)
-
-
-# TESTS - component catalogue
 
 
 def test_components_lists_titles_paths_and_stem_fallback_without_writes(
@@ -943,9 +916,6 @@ def test_components_rejects_unreadable_utf8_without_partial_output(tmp_path,
     assert captured.err.startswith(
         "error: .agentic/knowledge/broken.md is not valid UTF-8:")
     assert snapshot(tmp_path) == before
-
-
-# TESTS - task and status round trip
 
 
 def test_task_then_status_round_trip(tmp_path, capsys, monkeypatch):
@@ -1226,9 +1196,6 @@ def test_visible_children_are_sorted_and_ignore_unrelated_tasks(tmp_path):
 
     children = aegis.visible_children("TASK-aa11")
     assert [data["id"] for _path, data in children] == ["TASK-bb22", "TASK-cc33"]
-
-
-# TESTS - git branch lookup
 
 
 def test_git_branch_falls_back_when_git_is_absent(tmp_path, monkeypatch):

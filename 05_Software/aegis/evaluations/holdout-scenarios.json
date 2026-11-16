@@ -5,15 +5,15 @@
   "scenarios": [
     {"id": "holdout_frame_existing_fix", "kind": "frame", "stage": "frame", "setup": "broken",
      "prompt": "Use AEGIS to frame this bug fix: apply_discount(995, 10) should return 895, because REQ-FUNC-22222222 already requires rounding down to whole cents. Keep the existing branch. Stop after frame; do not implement the fix.",
-     "expect": {"stages": ["frame"], "path": "quick", "requirement": "REQ-FUNC-22222222", "waiting": true},
-     "rubric": ["Scope restores the existing round-down contract only.", "The quick-path decision accounts for all eligibility criteria."]},
+     "expect": {"stages": ["frame"], "requirement": "REQ-FUNC-22222222", "waiting": true},
+     "rubric": ["Scope restores the existing round-down contract only.", "Frame names REQ-FUNC-22222222 as the covering requirement and adds no new behavior."]},
     {"id": "holdout_frame_ambiguous_policy", "kind": "frame", "stage": "frame", "setup": "clean",
      "prompt": "Use AEGIS to frame a new feature: automatically disable discount codes that customers no longer use. I have not decided how long counts as no longer used, or whether a disabled code can be restored. Keep the existing branch. Stop after frame.",
-     "expect": {"stages": ["frame"], "path": "full", "waiting": true},
+     "expect": {"stages": ["frame"], "waiting": true},
      "rubric": ["The inactivity period and restorability stay unknown, with no invented defaults.", "Questions concern decisions that change the outcome or data handling, not incidental implementation preferences."]},
     {"id": "holdout_frame_new_format", "kind": "frame", "stage": "frame", "setup": "clean",
      "prompt": "Use AEGIS to frame a price-list export: export_prices(items) returns CSV text with exactly two columns, sku and price_cents, one row per item. Keep the existing apply_discount behavior and the existing branch. Stop after frame.",
-     "expect": {"stages": ["frame"], "path": "full", "waiting": true},
+     "expect": {"stages": ["frame"], "waiting": true},
      "rubric": ["The new data format selects the full path despite the small implementation.", "Frame captures both columns and leaves header, ordering and invalid-input behavior explicit."]},
     {"id": "holdout_specify_exact_format", "kind": "specify", "stage": "specify", "setup": "clean",
      "prompt": "Complete Specify for TASK-aaaaaaaa using its accepted Frame. Capture the new behavior and exact text format in requirements and a spec. Stop at the Specify checkpoint; do not design or implement.",
@@ -31,7 +31,7 @@
        {"stage": "build", "prompt": "Continue {task} through build: failing test first, then the smallest implementation, until green. Use program=verify for the focused suite. Stop at the build checkpoint."},
        {"stage": "validate", "prompt": "Continue {task} through validate, including the final strict proof. Stop at the validate checkpoint."}
      ],
-     "expect": {"stages": ["validate"], "path": "full", "waiting": true},
+     "expect": {"stages": ["validate"], "waiting": true},
      "rubric": ["Each session resumes from the records the previous session left, without restating or losing the accepted scope.", "The final candidate rejects out-of-range percents, keeps the rounding contract and is proved after the last edit."]}
   ]
 }

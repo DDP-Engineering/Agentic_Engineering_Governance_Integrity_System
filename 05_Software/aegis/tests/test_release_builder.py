@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_release_builder.py
-@brief Characterization tests for the isolated AEGIS release builder.
-@details Redirects generated archives and publication records to pytest-managed
-         temporary paths, leaving the repository's tracked delivery records
-         untouched while exercising deterministic packaging behavior.
+Characterization tests for the isolated AEGIS release builder.
+
+Redirects generated archives and publication records to pytest-managed
+temporary paths, leaving the repository's tracked delivery records
+untouched while exercising deterministic packaging behavior.
 """
 
 from __future__ import annotations
@@ -24,14 +17,10 @@ from pathlib import Path
 
 import pytest
 
-# CONSTANTS
-
 ROOT = Path(__file__).resolve().parents[3]
 BUILDER_PATH = ROOT / "02_Tools" / "build_aegis_release.py"
 COUNTER = itertools.count()
 
-
-# HELPER FUNCTIONS
 
 def load_builder():
     """Load a fresh builder module so each test can redirect its globals."""
@@ -58,8 +47,6 @@ def digest(path: Path) -> str:
     """Return a SHA-256 digest for deterministic-archive assertions."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
-
-# TESTS
 
 def test_build_writes_deterministic_archives_and_publication_records(
         tmp_path, monkeypatch):

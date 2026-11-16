@@ -1,11 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-This software is licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use requires a separate commercial license.
-See the LICENSE.txt file for full license details.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # 01 - Workflow and stages
 
 The workflow contract is the installed `.agentic/AGENTS.md` plus one step
@@ -15,8 +7,10 @@ writes it when the agent decides (`advance`, `pause`, `log`, `ruling`,
 
 ## Scope and operating rule
 
-Use AEGIS for software development that changes the product or tests;
-documentation accompanying that implementation stays with the change.
+Use AEGIS for changes that add or change a durable product rule, as
+[Admission](#admission) defines; documentation accompanying that implementation
+stays with the change. Bug fixes that restore intended behavior, local UI
+adjustments, refactors and test, docs or tooling fixes are made directly.
 Documentation-only updates in this repository are reviewed directly, outside
 AEGIS, under the maintainer's scope instruction. Do not use it for repository-only work,
 version assignment, delivery/package construction, publication, or deployment.
@@ -50,8 +44,8 @@ product behavior.
 Save the Frame and pending questions before pausing. Unresolved destructive
 targets or recovery policy block scope; permission to defer those questions is
 not their answer. On resume, separate the reported Problem from the accepted
-Desired outcome. Reuse the created journal after failed edits. An existing-contract
-quick fix records governing requirement IDs at Frame.
+Desired outcome. Reuse the created journal after failed edits. Frame records the
+existing requirements that already cover the work on the `requirements:` line.
 
 ## Ordinary lifecycle
 
@@ -61,20 +55,31 @@ quick fix records governing requirement IDs at Frame.
 | `specify` | `steps/2_specify.md` | Build a behavior inventory and coverage table; map every atomic behavior to exactly one requirement; derive concrete positive, boundary and failure verification; add a spec for exact contracts that do not fit safely in requirement prose. |
 | `design` | `steps/3_design.md` | Record the shortest sufficiently constrained, requirement-linked implementation path; scale depth with interface, state, trust, concurrency, migration and operational risk; preserve material open decisions in the task; draw optional diagrams for the human when `[diagrams] enabled = true`. |
 | `build` | `steps/4_build.md` | Write and observe the expected failing test before implementation; carry out declared manual/inspection methods after the change; update traceability and affected context as implementation or setup changes. |
-| `validate` | `steps/5_validate.md` | Reconcile project/environment context, component knowledge and active contracts with the candidate and authorized intent; retain proposals in task history; complete final strict verification after edits and review; append the report and close the task to `done`. |
+| `validate` | `steps/5_validate.md` | Reconcile project/environment context, component knowledge and active contracts with the candidate and authorized intent, editing existing sections in place; retain proposals in task history; complete final strict verification after edits and review; append the report and close the task to `done`. |
 
-A fix or change may take the quick path only when all frame criteria hold:
+## Admission
 
-```text
-frame -> build -> validate -> done
-```
+AEGIS governs changes that add or change a durable product rule: logic, data,
+security, performance, integrations, or a product-wide UI rule such as a
+theme, layout system, accessibility or interaction convention. A rule applies
+to a class of things and a later change could break it, so a test should catch
+that. Other changes are made directly, with no journal or requirement: a bug
+fix that restores intended behavior, a local UI adjustment (one element's
+position, spacing, wording or style), a refactor with no behavior change, or a
+test, docs or tooling fix. A fix that contradicts an active requirement, adds
+behavior, or touches security or data handling uses AEGIS. The user's explicit
+choice wins; otherwise the agent states `LANE: direct|aegis - <why>` in one
+line and carries on.
 
-- No new externally observable behavior, interface, data format or dependency.
-- An existing requirement already covers the behavior being changed.
-- No security- or data-handling behavior is touched; those take the full path.
+The rule sits where the agent decides to enter: the managed root digest that
+`init` writes, the contract's `## Scope`, the Claude session hook and the host
+skill descriptions. Requirements therefore accumulate only for rules, and
+project context is not loaded for direct changes.
 
-`frame` records `path: quick` and the eligibility reason. A small diff alone
-does not qualify. The quick path does not remove validation or its final proof.
+Every task walks one stage order. Specify is skipped when the requirements
+frame recorded already cover the change and it adds nothing they do not say;
+design has its own skip rule. Frame, build and validate are never skipped. An
+older journal's `path:` header line is kept and no longer changes the order.
 
 For automated requirements, build records the actual failing selector/command,
 non-zero exit and expected missing-behavior reason before implementation.
@@ -102,7 +107,9 @@ through validate with `advance`.
 responsibilities, constraints and implementation entry points.
 `.agentic/context/environment.md` links current setup and verification guidance.
 Populate verified facts during frame or adoption, update affected sections when
-facts change, and reconcile at validate. For a new project, add responsibilities
+facts change, and reconcile at validate. Sections are edited in place, never
+added per task; `check` reports a page above `[context] page_kb`
+(`context-size`) or a level-two heading written twice (`duplicate-heading`). For a new project, add responsibilities
 as they are implemented; draft/task records hold planned behavior.
 
 Project documents, component pages and active requirements/specs state current
@@ -170,7 +177,7 @@ action or scoped decision, while the checkpoint menu belongs in the response.
 Require the TOML Boolean `[diagrams] enabled = true` and substantive Design.
 Missing/non-list `types` defaults to `["structure"]`; `types = []` creates no file
 or link. Unknown names are ignored; a list with no known type draws nothing.
-The quick path or skipped Design draws nothing. Classify structure nodes from
+A skipped Design draws nothing. Classify structure nodes from
 proposed node edits independently of edges: a new connection does not make an
 unchanged reused node changed.
 
@@ -260,8 +267,7 @@ Every session ends with `advance` when the stage is finished, otherwise
 `pause`, also after a record-only update or an explicit stop. Both commands
 print a summary block that opens the reply. They also print notes, never
 refusals, for a record an edit put out of shape: a stage section still empty, a
-repeated header key, a quick path without requirement IDs, or Rulings lines that
-`ruling` did not write. Repair a rejected edit in the same journal rather than
+repeated header key, or Rulings lines that `ruling` did not write. Repair a rejected edit in the same journal rather than
 creating another task; `task` refuses a bare task ID as a title.
 
 Older journals stay readable: one with `## Handoff` and `## Stage report`
@@ -302,7 +308,7 @@ Cancellation and interrupted-worker recovery retain enough state to inspect
 uncertain processes before another run is allowed.
 
 Claude's `SessionStart` and AEGIS-run `PreToolUse` hooks supply bounded context
-and reminders. They do not write journal state, approve tools, run tests or
+and reminders, including the admission rule. They do not write journal state, approve tools, run tests or
 advance the task. Host review agents return evidence to the coordinator;
 their verdicts do not substitute for final configured verification.
 

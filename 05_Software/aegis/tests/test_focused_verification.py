@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ruff: noqa: UP009
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
-"""@file test_focused_verification.py
-@brief Verify portable selection, non-executing previews, and lean scaffolds.
-@details Uses isolated Git fixtures and argument-recording commands; no real
-         project test runner or host-specific selector grammar is assumed.
+"""
+Verify portable selection, non-executing previews, and lean scaffolds.
+
+Uses isolated Git fixtures and argument-recording commands; no real
+project test runner or host-specific selector grammar is assumed.
 """
 
 import json
@@ -27,7 +21,7 @@ from test_run_report import PY, cmd_exit, config, run
                                    "résultat attendu", "name; echo injected",
                                    "$(echo injected)", 'name"quoted'])
 def test_selector_suffix_is_discarded_and_file_is_run_once(tmp_path, capsys, suffix):
-    """@brief Unsupported names never reach the shell, even beside exact refs."""
+    """Unsupported names never reach the shell, even beside exact refs."""
     agentic, aegis = make_git_repo(tmp_path)
     write(tmp_path / "argdump.py",
           "import json,pathlib,sys\n"
@@ -51,7 +45,7 @@ def test_selector_suffix_is_discarded_and_file_is_run_once(tmp_path, capsys, suf
                                        "--collect-only::a name"])
 def test_invalid_paths_cannot_be_rescued_by_discarding_selectors(
         tmp_path, monkeypatch, capsys, reference):
-    """@brief Path hygiene and containment remain prerequisites to execution."""
+    """Path hygiene and containment remain prerequisites to execution."""
     agentic, aegis = make_git_repo(tmp_path)
     config(agentic, f"test = {cmd_exit(0)}\ntest_impacted = 'unused {{tests}}'")
     write_req(agentic, "REQ-FUNC-1111", paths='["src/app.py"]',
@@ -65,7 +59,7 @@ def test_invalid_paths_cannot_be_rescued_by_discarding_selectors(
 @pytest.mark.parametrize("arguments", [[], ["--impacted"]])
 def test_dry_run_does_not_execute_or_append_evidence(tmp_path, monkeypatch,
                                                    capsys, arguments):
-    """@brief A preview names its working directory and cannot become test proof."""
+    """A preview names its working directory and cannot become test proof."""
     agentic, aegis = make_repo(tmp_path)
     config(agentic, f"test = {cmd_exit(9)}", extra='')
     write_task(agentic, "TASK-ab12")
@@ -81,7 +75,7 @@ def test_dry_run_does_not_execute_or_append_evidence(tmp_path, monkeypatch,
 
 def test_missing_impacted_configuration_refuses_without_writing(tmp_path,
                                                               monkeypatch, capsys):
-    """@brief Refusing a fallback does not run or log a successful test."""
+    """Refusing a fallback does not run or log a successful test."""
     agentic, aegis = make_repo(tmp_path)
     config(agentic, f"test = {cmd_exit(0)}")
     write_task(agentic, "TASK-ab12")
@@ -95,7 +89,7 @@ def test_missing_impacted_configuration_refuses_without_writing(tmp_path,
 
 @needs_git
 def test_selected_preview_rebases_files_without_running(tmp_path, monkeypatch, capsys):
-    """@brief Preview uses the execution selector path and configured workdir."""
+    """Preview uses the execution selector path and configured workdir."""
     agentic, aegis = make_git_repo(tmp_path)
     config(agentic, f"test = {cmd_exit(9)}\n"
            "test_impacted = 'unused {tests}'\nworkdir = 'app'",
@@ -114,7 +108,7 @@ def test_selected_preview_rebases_files_without_running(tmp_path, monkeypatch, c
 
 
 def test_requirement_scaffold_omits_notes_without_changing_toml_data(tmp_path, capsys):
-    """@brief Marked guidance and the payload license disappear; literal text survives."""
+    """Marked guidance and the payload license disappear; literal text survives."""
     agentic, aegis = make_repo(tmp_path)
     template = agentic / "templates/requirement.toml"
     text = template.read_text(encoding="utf-8").replace(
@@ -133,7 +127,7 @@ def test_requirement_scaffold_omits_notes_without_changing_toml_data(tmp_path, c
 
 def test_task_scaffold_omits_authoring_notes_but_retains_durable_sections(tmp_path,
                                                                        capsys):
-    """@brief Reduced scaffolds keep resume, review and decision sections, not the license."""
+    """Reduced scaffolds keep resume, review and decision sections, not the license."""
     agentic, aegis = make_repo(tmp_path)
     assert aegis.main(["task", "Portable work"]) == 0
     result = (tmp_path / capsys.readouterr().out.strip()).read_text(encoding="utf-8")

@@ -1,9 +1,3 @@
-<!--
-Copyright (c) 2026 DDP Engineering
-Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
--->
-
 # Independent review instructions
 
 Use these prompts in separate fresh subagents when the host does not expose the installed custom role names. Pass the same task, scope and candidate digest to each.

@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 DDP Engineering
-# This software is licensed under the PolyForm Noncommercial License 1.0.0.
-# Commercial use requires a separate commercial license.
-# See the LICENSE.txt file for full license details.
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# -----------------------------------------------------------------------------
 """
-@file test_structure.py
-@brief P5 structural guards: the philosophy is enforced, size is not.
-@details Anti-regrowth tests. Deliberately no size policing - there is
-         no line-count test, by product decision. Guarded invariants:
-         no hook/waiver/transaction machinery ever grows back into the
-         payload, the CLI stays standard-library-only, `check` stays
-         advisory without --strict, and every payload file carries the
-         license header. The guard predicates are plain functions over
-         source text, self-tested here against deliberately bad input -
-         the "verify by mutation" of the P5 acceptance, without touching
-         the real file.
+P5 structural guards: the philosophy is enforced, size is not.
+
+Anti-regrowth tests. Deliberately no size policing - there is
+no line-count test, by product decision. Guarded invariants:
+no hook/waiver/transaction machinery ever grows back into the
+payload, the CLI stays standard-library-only, `check` stays
+advisory without --strict, and every payload file carries the
+SPDX tag. The guard predicates are plain functions over
+source text, self-tested here against deliberately bad input -
+the "verify by mutation" of the P5 acceptance, without touching
+the real file.
 """
 
-# IMPORTS
 
 from __future__ import annotations
 
@@ -33,11 +25,10 @@ from pathlib import Path
 import pytest
 from test_check import make_repo, write
 
-# CONSTANTS
-
 TREE = Path(__file__).resolve().parents[1]
 PAYLOAD = TREE / "template" / ".agentic"
 AEGIS_PY = PAYLOAD / "aegis.py"
+INTEGRATIONS = TREE / "integrations"
 
 #: identifiers of the heavy-AEGIS machinery that must never grow back.
 FORBIDDEN_IDENTIFIERS = (
@@ -58,8 +49,9 @@ FORBIDDEN_FILE_NAMES = (
     "components.toml",
 )
 
-#: every text file the payload ships must carry the license marker.
-LICENSE_MARK = "PolyForm Noncommercial License 1.0.0"
+#: every text file the payload ships carries this SPDX tag, because the payload
+#: is copied into repositories whose own licensing declarations do not cover it.
+LICENSE_MARK = "SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0"
 
 #: the complete expected payload inventory (relative to .agentic/).
 EXPECTED_FILES = (
@@ -88,25 +80,23 @@ IGNORED_DIR_PARTS = {"__pycache__", ".pytest_cache"}
 
 def stage_step_files() -> list[Path]:
     """
-    @brief The step files that run a stage or the adoption procedure.
-    @details The optional diagram and review guides run inside design and
-             validate and finish nothing of their own.
+    The step files that run a stage or the adoption procedure.
+
+    The optional diagram and review guides run inside design and
+    validate and finish nothing of their own.
     """
     return [path for path in sorted((PAYLOAD / "steps").glob("*.md"))
             if path.name not in {"diagrams.md", "review.md"}]
 
 
-# GUARD PREDICATES (plain functions so they can be self-tested on bad input)
-
-
 def forbidden_identifier_hits(source: str) -> list[str]:
-    """@brief The forbidden identifiers present in `source`, case-insensitive."""
+    """The forbidden identifiers present in `source`, case-insensitive."""
     return [word for word in FORBIDDEN_IDENTIFIERS
             if re.search(word, source, re.IGNORECASE)]
 
 
 def non_stdlib_imports(source: str) -> list[str]:
-    """@brief Top-level module names imported by `source` outside the stdlib."""
+    """Top-level module names imported by `source` outside the stdlib."""
     modules: set[str] = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
@@ -117,14 +107,11 @@ def non_stdlib_imports(source: str) -> list[str]:
 
 
 def payload_files() -> list[Path]:
-    """@brief Every real payload file, ignoring caches."""
+    """Every real payload file, ignoring caches."""
     return [
         path for path in sorted(PAYLOAD.rglob("*"))
         if path.is_file() and not (IGNORED_DIR_PARTS & set(path.parts))
     ]
-
-
-# TESTS - the machinery must not grow back
 
 
 def test_aegis_py_contains_no_forbidden_identifier():
@@ -259,7 +246,7 @@ def test_stage_report_instructions_define_stage_choice_boundaries():
 
 
 def resume_section() -> str:
-    """@brief The flattened `## Start or resume` section of the agent contract."""
+    """The flattened `## Start or resume` section of the agent contract."""
     agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
     return agents.split("## Start or resume", 1)[1].split("## The task journal", 1)[0]
 
@@ -320,7 +307,7 @@ def test_small_context_entry_starts_with_brief_then_read_next():
 
 
 def review_flat() -> str:
-    """@brief The optional explicit-review guide, whitespace collapsed."""
+    """The optional explicit-review guide, whitespace collapsed."""
     return " ".join((PAYLOAD / "steps" / "review.md").read_text("utf-8").split())
 
 
@@ -429,11 +416,38 @@ def test_pointer_digest_routes_to_the_contract_without_replacing_it():
     for phrase in ("read `.agentic/AGENTS.md`", "aegis.py status", "steps/1_frame.md",
                    "brief TASK-<id>", "Read next",
                    "frame -> specify -> design -> build -> validate -> done",
-                   "frame -> build -> validate -> done", "`advance`", "`pause`",
+                   "specify and design have skip rules", "`advance`", "`pause`",
                    "never blocks", "follow the repository's own procedures",
                    "DEVIATION <stage>:"):
         assert phrase in digest, phrase
     assert "enough to act on" not in digest
+    assert "quick" not in digest
+
+
+def test_the_admission_rule_sits_at_every_gate():
+    """Only durable product rules enter AEGIS; bug fixes and local UI edits go direct."""
+    source = AEGIS_PY.read_text(encoding="utf-8")
+    digest = " ".join(source.split('POINTER_DIGEST = """\\\n', 1)[1].split('"""', 1)[0].split())
+    agents = " ".join((PAYLOAD / "AGENTS.md").read_text(encoding="utf-8").split())
+    for text in (digest, agents):
+        for phrase in ("durable product rule", "product-wide UI rule",
+                       "a bug fix that restores intended behavior",
+                       "a local UI adjustment (one element's position, spacing, wording or style)",
+                       "contradicts an active requirement", "security or data handling",
+                       "The user's explicit choice wins", "`LANE: direct|aegis - <why>`"):
+            assert phrase in text, phrase
+    assert "add a regression test for a logic bug" in agents
+    gates = [INTEGRATIONS / "claude" / "plugins" / "aegis" / "hooks.mjs",
+             INTEGRATIONS / "qwen" / "AEGIS.md",
+             INTEGRATIONS / "opencode" / "prompts" / "aegis.md",
+             INTEGRATIONS / "claude" / "plugins" / "aegis" / "skills" / "workflow" / "SKILL.md",
+             INTEGRATIONS / "codex" / "plugins" / "aegis" / "skills" / "aegis" / "SKILL.md",
+             INTEGRATIONS / "pi" / "skills" / "aegis" / "SKILL.md",
+             INTEGRATIONS / "qwen" / "skills" / "aegis" / "SKILL.md"]
+    for gate in gates:
+        text = " ".join(gate.read_text(encoding="utf-8").split())
+        assert "durable product rule" in text, gate
+        assert "bug fixes that restore intended behavior" in text, gate
 
 
 def test_validation_closes_the_task_and_publication_stays_outside(tmp_path):
@@ -445,8 +459,7 @@ def test_validation_closes_the_task_and_publication_stays_outside(tmp_path):
     assert "**Prove last:**" in validate and "they are not AEGIS steps" in validate
     assert "A legacy journal at `deliver`" in validate
     _agentic, aegis = make_repo(tmp_path)
-    assert aegis.PATH_STAGES["full"][-2:] == ("validate", "done")
-    assert aegis.PATH_STAGES["quick"][-2:] == ("validate", "done")
+    assert aegis.WORK_STAGES[-2:] == ("validate", "done")
     assert aegis.STAGE_STEP_FILES["deliver"] == "5_validate.md"
 
 
@@ -482,9 +495,6 @@ def test_check_help_makes_no_unconditional_zero_exit_promise(tmp_path, capsys):
     assert aegis.main(["check", "--task", "TASK-nope"]) == 1
 
 
-# TESTS - the payload is self-contained prose
-
-
 def test_payload_never_references_external_documents():
     """The payload must stand alone: no plan docs, no sibling products."""
     banned = re.compile(r"plan doc|doc[ -]0\d|00_Planning", re.IGNORECASE)
@@ -496,8 +506,9 @@ def test_payload_never_references_external_documents():
 
 def test_frame_captures_evidence_intent_and_ambiguity_before_mechanics():
     """REQ-UX-81840102: framing preserves understanding before scope is accepted.
-    @details The journal's skeleton holds the Frame fields, so creating it comes
-             first; analysis, challenge and the path all precede any acceptance.
+
+    The journal's skeleton holds the Frame fields, so creating it comes
+    first; analysis, challenge and the path all precede any acceptance.
     """
     agents = (PAYLOAD / "AGENTS.md").read_text(encoding="utf-8")
     frame = " ".join((PAYLOAD / "steps" / "1_frame.md").read_text(encoding="utf-8").split())
@@ -507,18 +518,17 @@ def test_frame_captures_evidence_intent_and_ambiguity_before_mechanics():
         assert phrase in agents
     for phrase in ("**Analyze.**", "**Challenge.**", "**Audit.**", "decision-blocking",
                    "`Decision-blocking questions`", "`Proposed behaviors`",
-                   "yes / no / unknown", "| no new interface or data format |",
                    "Do not settle open behavior by convention",
                    "an example that needs a value the user has not given names it, such "
                    "as `N days`, instead of choosing a number"):
         assert phrase in frame, phrase
     assert (frame.index("Create the journal") < frame.index("**Analyze.**")
-            < frame.index("**Challenge.**") < frame.index("Choose the path")
+            < frame.index("**Challenge.**") < frame.index("When existing requirements")
             < frame.index("**Audit.**") < frame.index("**Finish:**"))
+    assert "quick" not in frame.lower() and "path:" not in task
     assert "the first decision-blocking question" in frame
     for field in ("Problem:", "Desired outcome:", "Primary scenario:", "Success signals:",
-                  "Counterexamples:", "Assumptions:", "Unknowns:", "Evidence:",
-                  "Path and reason:"):
+                  "Counterexamples:", "Assumptions:", "Unknowns:", "Evidence:"):
         assert field in task, field
 
 
@@ -563,9 +573,6 @@ def test_design_scales_depth_and_keeps_proposals_out_of_current_knowledge():
     assert "reviewed code and tests" in validate
 
 
-# TESTS - Python 3.11 compatibility
-
-
 #: an f-string whose braces contain a double-quoted string needs the
 #: flexible f-string grammar of Python 3.12 (PEP 701) - the promise is 3.11.
 NESTED_FSTRING_RE = re.compile(r'f"[^"\n]*\{[^{}\n]*"')
@@ -581,9 +588,6 @@ def test_the_nested_fstring_guard_actually_fires():
     assert NESTED_FSTRING_RE.search('x = f"TASK-{new_id(taken("a", "b"))}"')
 
 
-# TESTS - the CLI stays standard-library-only
-
-
 def test_aegis_py_imports_only_the_standard_library():
     assert non_stdlib_imports(AEGIS_PY.read_text(encoding="utf-8")) == []
 
@@ -591,9 +595,6 @@ def test_aegis_py_imports_only_the_standard_library():
 def test_the_stdlib_import_guard_actually_fires():
     bad = "import requests\nfrom yaml import safe_load\nimport os\n"
     assert non_stdlib_imports(bad) == ["requests", "yaml"]
-
-
-# TESTS - check stays advisory without --strict
 
 
 def test_check_exits_zero_without_strict_even_on_errors(tmp_path, monkeypatch,
@@ -642,23 +643,16 @@ def test_strict_is_an_explicit_opt_in_flag_not_a_default():
     assert match, "--strict must be a store_true opt-in flag"
 
 
-# TESTS - license headers everywhere
-
-
-def test_every_payload_file_carries_the_license_header():
+def test_every_payload_file_carries_the_spdx_tag():
     for path in payload_files():
-        head = path.read_text(encoding="utf-8")[:600]
-        assert LICENSE_MARK in head, f"missing license header: {path.name}"
-
-
-def test_every_test_file_carries_the_license_header():
-    for path in sorted(TREE.glob("tests/test_*.py")):
-        head = path.read_text(encoding="utf-8")[:600]
-        assert LICENSE_MARK in head, f"missing license header: {path.name}"
+        if path.name == "LICENSE.txt":
+            continue  # the license text itself
+        head = path.read_text(encoding="utf-8")[:300]
+        assert LICENSE_MARK in head, f"missing SPDX tag: {path.name}"
 
 
 def payload_flat(*parts: str) -> str:
-    """@brief One payload file with its whitespace collapsed to single spaces."""
+    """One payload file with its whitespace collapsed to single spaces."""
     return " ".join(PAYLOAD.joinpath(*parts).read_text(encoding="utf-8").split())
 
 

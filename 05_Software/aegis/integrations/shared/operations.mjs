@@ -1,7 +1,3 @@
-// Copyright (c) 2026 DDP Engineering
-// Licensed under the PolyForm Noncommercial License 1.0.0; see LICENSE.txt.
-// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-
 import { tool } from './vendor/opencode-tool.mjs';
 import { discoverRuntime, readSettings } from './runtime.mjs';
 import { createAdapter } from './adapter.mjs';
@@ -24,10 +20,9 @@ export const operations = [
   define('check', 'Run static AEGIS checks without tests. Advisory exit zero does not imply passing verification.', { task: optionalTask, strict: s.boolean().optional() }),
   define('scaffold', 'Coordinator only: create a task or requirement scaffold. Inspect existing records first and fill the generated record afterwards.', { kind: s.enum(['task', 'requirement']), task: optionalTask, title: s.string().min(1).max(500), type: s.enum(['feature', 'fix', 'change', 'adopt']).optional(), category: s.enum(['functional', 'ux', 'nfr', 'security', 'data', 'platform', 'reliability', 'test']).optional(), parent: optionalTask }, false),
   define('evidence', 'Coordinator only: record an anchor after a real red test, refresh evolution after edits or append the closing report at the end of validate. Never fabricate observations.', { action: s.enum(['anchor', 'evolution', 'report']), task: optionalTask, compact: s.boolean().optional().describe('Evolution only: omit hashes from the response, preserving saved evidence.') }, false),
-  define('journal', 'Coordinator only: write task-journal state through the installed CLI. advance finishes a stage (to, path, skipped, reason, next); pause stops for the user (next, blocked); log appends one durable event (text); ruling appends a decision (decision, reason, source, supersedes); verdict records explicit review results (spec, quality, round). advance and pause also take read, changed, evidence and issues. The CLI records your decision; it never judges whether a stage is done.', {
+  define('journal', 'Coordinator only: write task-journal state through the installed CLI. advance finishes a stage (to, skipped, reason, next); pause stops for the user (next, blocked); log appends one durable event (text); ruling appends a decision (decision, reason, source, supersedes); verdict records explicit review results (spec, quality, round). advance and pause also take read, changed, evidence and issues. The CLI records your decision; it never judges whether a stage is done.', {
     action: s.enum(['advance', 'pause', 'log', 'ruling', 'verdict']), task: optionalTask,
     to: s.enum(['frame', 'specify', 'design', 'build', 'validate', 'done', 'survey', 'components', 'close', 'deliver']).optional(),
-    path: s.enum(['full', 'quick']).optional().describe('advance at frame: the chosen path'),
     skipped: s.boolean().optional(), reason: s.string().max(1000).optional(), next: s.string().max(1000).optional(),
     blocked: s.boolean().optional(), read: s.array(s.string().max(500)).max(20).optional().describe('Repository paths the next session must read'),
     changed: s.string().max(1000).optional(), evidence: s.string().max(1000).optional(), issues: s.string().max(1000).optional(),
