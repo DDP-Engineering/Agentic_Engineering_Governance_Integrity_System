@@ -47,8 +47,9 @@ reasoning, configured context, output-limit availability, usage and time, with
 all eight step prompts, actual independent reviewer sessions, diagrams,
 autopilot and context reconciliation. Build execution is AST-constrained; the
 closing cases present a validated task and never publish it. The evaluation
-folder keeps the latest `gpt-6-luna` subscription baselines; other runs keep
-their raw evidence in the ignored `.tmp-codex-eval/` folder.
+folder keeps the latest `gpt-6-luna` and `gpt-6.1-sol` subscription baselines
+and local Qwen baselines with and without reasoning; other runs keep their raw
+evidence in the ignored `.tmp-codex-eval/` folder.
 
 `report_aegis_evaluations.py` renders the output folders of either runner as
 one self-contained HTML report, with `report_aegis_evaluations_page.py` holding

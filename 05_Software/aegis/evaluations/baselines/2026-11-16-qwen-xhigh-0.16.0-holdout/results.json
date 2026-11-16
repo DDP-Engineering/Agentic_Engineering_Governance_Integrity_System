@@ -1,0 +1,2827 @@
+[
+  {
+    "scenario": "holdout_frame_existing_fix",
+    "profile": "holdout",
+    "status": "completed",
+    "error": "",
+    "seconds": 286.14,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 15,
+    "tool_calls": 23,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 1754,
+        "completion_tokens": 91,
+        "total_tokens": 1845,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 4714,
+        "completion_tokens": 123,
+        "total_tokens": 4837,
+        "completion_tokens_details": {
+          "reasoning_tokens": 59
+        }
+      },
+      {
+        "prompt_tokens": 5995,
+        "completion_tokens": 172,
+        "total_tokens": 6167,
+        "completion_tokens_details": {
+          "reasoning_tokens": 43
+        }
+      },
+      {
+        "prompt_tokens": 6543,
+        "completion_tokens": 140,
+        "total_tokens": 6683,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 7206,
+        "completion_tokens": 989,
+        "total_tokens": 8195,
+        "completion_tokens_details": {
+          "reasoning_tokens": 883
+        }
+      },
+      {
+        "prompt_tokens": 7758,
+        "completion_tokens": 283,
+        "total_tokens": 8041,
+        "completion_tokens_details": {
+          "reasoning_tokens": 125
+        }
+      },
+      {
+        "prompt_tokens": 9197,
+        "completion_tokens": 107,
+        "total_tokens": 9304,
+        "completion_tokens_details": {
+          "reasoning_tokens": 41
+        }
+      },
+      {
+        "prompt_tokens": 9777,
+        "completion_tokens": 2052,
+        "total_tokens": 11829,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1960
+        }
+      },
+      {
+        "prompt_tokens": 10017,
+        "completion_tokens": 3143,
+        "total_tokens": 13160,
+        "completion_tokens_details": {
+          "reasoning_tokens": 3001
+        }
+      },
+      {
+        "prompt_tokens": 10164,
+        "completion_tokens": 1515,
+        "total_tokens": 11679,
+        "completion_tokens_details": {
+          "reasoning_tokens": 37
+        }
+      },
+      {
+        "prompt_tokens": 11666,
+        "completion_tokens": 212,
+        "total_tokens": 11878,
+        "completion_tokens_details": {
+          "reasoning_tokens": 30
+        }
+      },
+      {
+        "prompt_tokens": 11872,
+        "completion_tokens": 203,
+        "total_tokens": 12075,
+        "completion_tokens_details": {
+          "reasoning_tokens": 25
+        }
+      },
+      {
+        "prompt_tokens": 12251,
+        "completion_tokens": 206,
+        "total_tokens": 12457,
+        "completion_tokens_details": {
+          "reasoning_tokens": 72
+        }
+      },
+      {
+        "prompt_tokens": 12579,
+        "completion_tokens": 348,
+        "total_tokens": 12927,
+        "completion_tokens_details": {
+          "reasoning_tokens": 130
+        }
+      },
+      {
+        "prompt_tokens": 13222,
+        "completion_tokens": 773,
+        "total_tokens": 13995,
+        "completion_tokens_details": {
+          "reasoning_tokens": 34
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 1754,
+      "peak_prompt_tokens": 13222,
+      "total_prompt_tokens": 134715,
+      "completion_tokens": 10357,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2787,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/1_frame.md",
+          "reads": 1,
+          "chars": 4704,
+          "tokens": 1102,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/task.md",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1082,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-960985db.md",
+          "reads": 1,
+          "chars": 1741,
+          "tokens": 473,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/pricing.md",
+          "reads": 1,
+          "chars": 657,
+          "tokens": 231,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+          "reads": 1,
+          "chars": 568,
+          "tokens": 200,
+          "measured": true
+        },
+        {
+          "path": "tests/test_pricing.py",
+          "reads": 1,
+          "chars": 441,
+          "tokens": 172,
+          "measured": true
+        },
+        {
+          "path": "src/pricing.py",
+          "reads": 1,
+          "chars": 162,
+          "tokens": 63,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 239,
+          "tokens": 56,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.202,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "reuses_requirement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Scope restores the existing round-down contract only.",
+        "Frame names REQ-FUNC-22222222 as the covering requirement and adds no new behavior."
+      ],
+      "journal_writer_commands": 3
+    },
+    "semantic_checks": [
+      {
+        "id": "restored_requirement_named",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "holdout_frame_ambiguous_policy",
+    "profile": "holdout",
+    "status": "completed",
+    "error": "",
+    "seconds": 277.828,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 11,
+    "tool_calls": 19,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 1740,
+        "completion_tokens": 93,
+        "total_tokens": 1833,
+        "completion_tokens_details": {
+          "reasoning_tokens": 19
+        }
+      },
+      {
+        "prompt_tokens": 4700,
+        "completion_tokens": 164,
+        "total_tokens": 4864,
+        "completion_tokens_details": {
+          "reasoning_tokens": 56
+        }
+      },
+      {
+        "prompt_tokens": 6194,
+        "completion_tokens": 320,
+        "total_tokens": 6514,
+        "completion_tokens_details": {
+          "reasoning_tokens": 214
+        }
+      },
+      {
+        "prompt_tokens": 6751,
+        "completion_tokens": 145,
+        "total_tokens": 6896,
+        "completion_tokens_details": {
+          "reasoning_tokens": 37
+        }
+      },
+      {
+        "prompt_tokens": 7371,
+        "completion_tokens": 126,
+        "total_tokens": 7497,
+        "completion_tokens_details": {
+          "reasoning_tokens": 35
+        }
+      },
+      {
+        "prompt_tokens": 8743,
+        "completion_tokens": 3714,
+        "total_tokens": 12457,
+        "completion_tokens_details": {
+          "reasoning_tokens": 3460
+        }
+      },
+      {
+        "prompt_tokens": 9143,
+        "completion_tokens": 2033,
+        "total_tokens": 11176,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1951
+        }
+      },
+      {
+        "prompt_tokens": 9707,
+        "completion_tokens": 2006,
+        "total_tokens": 11713,
+        "completion_tokens_details": {
+          "reasoning_tokens": 527
+        }
+      },
+      {
+        "prompt_tokens": 11210,
+        "completion_tokens": 365,
+        "total_tokens": 11575,
+        "completion_tokens_details": {
+          "reasoning_tokens": 298
+        }
+      },
+      {
+        "prompt_tokens": 11487,
+        "completion_tokens": 125,
+        "total_tokens": 11612,
+        "completion_tokens_details": {
+          "reasoning_tokens": 27
+        }
+      },
+      {
+        "prompt_tokens": 11902,
+        "completion_tokens": 467,
+        "total_tokens": 12369,
+        "completion_tokens_details": {
+          "reasoning_tokens": 31
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 1740,
+      "peak_prompt_tokens": 11902,
+      "total_prompt_tokens": 88948,
+      "completion_tokens": 9558,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2785,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/1_frame.md",
+          "reads": 1,
+          "chars": 4704,
+          "tokens": 1202,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/task.md",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1102,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/pricing.md",
+          "reads": 1,
+          "chars": 657,
+          "tokens": 187,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+          "reads": 1,
+          "chars": 568,
+          "tokens": 162,
+          "measured": true
+        },
+        {
+          "path": "tests/test_pricing.py",
+          "reads": 1,
+          "chars": 441,
+          "tokens": 126,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 334,
+          "tokens": 88,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 239,
+          "tokens": 61,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 56,
+          "measured": true
+        },
+        {
+          "path": "src/pricing.py",
+          "reads": 1,
+          "chars": 156,
+          "tokens": 32,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-e4f9a8d0.md",
+          "reads": 1,
+          "chars": 1732,
+          "tokens": 0,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.182,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The inactivity period and restorability stay unknown, with no invented defaults.",
+        "Questions concern decisions that change the outcome or data handling, not incidental implementation preferences."
+      ],
+      "journal_writer_commands": 1
+    },
+    "semantic_checks": [
+      {
+        "id": "inactivity_period_open",
+        "passed": true,
+        "detail": "matched how long, duration, inactiv, no longer used"
+      },
+      {
+        "id": "restorability_open",
+        "passed": true,
+        "detail": "matched restor, re-enable"
+      },
+      {
+        "id": "no_invented_period",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "holdout_frame_new_format",
+    "profile": "holdout",
+    "status": "completed",
+    "error": "",
+    "seconds": 243.093,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 11,
+    "tool_calls": 18,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 1739,
+        "completion_tokens": 90,
+        "total_tokens": 1829,
+        "completion_tokens_details": {
+          "reasoning_tokens": 16
+        }
+      },
+      {
+        "prompt_tokens": 4699,
+        "completion_tokens": 103,
+        "total_tokens": 4802,
+        "completion_tokens_details": {
+          "reasoning_tokens": 39
+        }
+      },
+      {
+        "prompt_tokens": 5980,
+        "completion_tokens": 161,
+        "total_tokens": 6141,
+        "completion_tokens_details": {
+          "reasoning_tokens": 16
+        }
+      },
+      {
+        "prompt_tokens": 6680,
+        "completion_tokens": 111,
+        "total_tokens": 6791,
+        "completion_tokens_details": {
+          "reasoning_tokens": 20
+        }
+      },
+      {
+        "prompt_tokens": 7047,
+        "completion_tokens": 63,
+        "total_tokens": 7110,
+        "completion_tokens_details": {
+          "reasoning_tokens": 15
+        }
+      },
+      {
+        "prompt_tokens": 7294,
+        "completion_tokens": 282,
+        "total_tokens": 7576,
+        "completion_tokens_details": {
+          "reasoning_tokens": 177
+        }
+      },
+      {
+        "prompt_tokens": 7761,
+        "completion_tokens": 73,
+        "total_tokens": 7834,
+        "completion_tokens_details": {
+          "reasoning_tokens": 33
+        }
+      },
+      {
+        "prompt_tokens": 8300,
+        "completion_tokens": 7421,
+        "total_tokens": 15721,
+        "completion_tokens_details": {
+          "reasoning_tokens": 5767
+        }
+      },
+      {
+        "prompt_tokens": 9883,
+        "completion_tokens": 132,
+        "total_tokens": 10015,
+        "completion_tokens_details": {
+          "reasoning_tokens": 54
+        }
+      },
+      {
+        "prompt_tokens": 10154,
+        "completion_tokens": 176,
+        "total_tokens": 10330,
+        "completion_tokens_details": {
+          "reasoning_tokens": 76
+        }
+      },
+      {
+        "prompt_tokens": 10567,
+        "completion_tokens": 583,
+        "total_tokens": 11150,
+        "completion_tokens_details": {
+          "reasoning_tokens": 33
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 1739,
+      "peak_prompt_tokens": 10567,
+      "total_prompt_tokens": 80104,
+      "completion_tokens": 9195,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2788,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/1_frame.md",
+          "reads": 1,
+          "chars": 4704,
+          "tokens": 1121,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-2dc7b0cf.md",
+          "reads": 1,
+          "chars": 1727,
+          "tokens": 466,
+          "measured": true
+        },
+        {
+          "path": "tests/test_pricing.py",
+          "reads": 1,
+          "chars": 441,
+          "tokens": 206,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+          "reads": 1,
+          "chars": 568,
+          "tokens": 184,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/pricing.md",
+          "reads": 1,
+          "chars": 657,
+          "tokens": 179,
+          "measured": true
+        },
+        {
+          "path": "src/pricing.py",
+          "reads": 1,
+          "chars": 156,
+          "tokens": 73,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 58,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 239,
+          "tokens": 57,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.161,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The new data format selects the full path despite the small implementation.",
+        "Frame captures both columns and leaves header, ordering and invalid-input behavior explicit."
+      ],
+      "journal_writer_commands": 2
+    },
+    "semantic_checks": [
+      {
+        "id": "columns_captured",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "id": "format_details_open",
+        "passed": true,
+        "detail": "matched header, empty, newline"
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "holdout_specify_exact_format",
+    "profile": "holdout",
+    "status": "completed",
+    "error": "",
+    "seconds": 291.094,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 16,
+    "tool_calls": 34,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 1727,
+        "completion_tokens": 91,
+        "total_tokens": 1818,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 4714,
+        "completion_tokens": 105,
+        "total_tokens": 4819,
+        "completion_tokens_details": {
+          "reasoning_tokens": 23
+        }
+      },
+      {
+        "prompt_tokens": 6372,
+        "completion_tokens": 78,
+        "total_tokens": 6450,
+        "completion_tokens_details": {
+          "reasoning_tokens": 14
+        }
+      },
+      {
+        "prompt_tokens": 7064,
+        "completion_tokens": 220,
+        "total_tokens": 7284,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 8020,
+        "completion_tokens": 155,
+        "total_tokens": 8175,
+        "completion_tokens_details": {
+          "reasoning_tokens": 15
+        }
+      },
+      {
+        "prompt_tokens": 10058,
+        "completion_tokens": 2098,
+        "total_tokens": 12156,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1987
+        }
+      },
+      {
+        "prompt_tokens": 11482,
+        "completion_tokens": 2977,
+        "total_tokens": 14459,
+        "completion_tokens_details": {
+          "reasoning_tokens": 2771
+        }
+      },
+      {
+        "prompt_tokens": 11998,
+        "completion_tokens": 103,
+        "total_tokens": 12101,
+        "completion_tokens_details": {
+          "reasoning_tokens": 12
+        }
+      },
+      {
+        "prompt_tokens": 12473,
+        "completion_tokens": 1352,
+        "total_tokens": 13825,
+        "completion_tokens_details": {
+          "reasoning_tokens": 22
+        }
+      },
+      {
+        "prompt_tokens": 13855,
+        "completion_tokens": 525,
+        "total_tokens": 14380,
+        "completion_tokens_details": {
+          "reasoning_tokens": 75
+        }
+      },
+      {
+        "prompt_tokens": 14342,
+        "completion_tokens": 122,
+        "total_tokens": 14464,
+        "completion_tokens_details": {
+          "reasoning_tokens": 46
+        }
+      },
+      {
+        "prompt_tokens": 15477,
+        "completion_tokens": 1438,
+        "total_tokens": 16915,
+        "completion_tokens_details": {
+          "reasoning_tokens": 899
+        }
+      },
+      {
+        "prompt_tokens": 16046,
+        "completion_tokens": 150,
+        "total_tokens": 16196,
+        "completion_tokens_details": {
+          "reasoning_tokens": 14
+        }
+      },
+      {
+        "prompt_tokens": 16366,
+        "completion_tokens": 65,
+        "total_tokens": 16431,
+        "completion_tokens_details": {
+          "reasoning_tokens": 21
+        }
+      },
+      {
+        "prompt_tokens": 16617,
+        "completion_tokens": 211,
+        "total_tokens": 16828,
+        "completion_tokens_details": {
+          "reasoning_tokens": 38
+        }
+      },
+      {
+        "prompt_tokens": 17171,
+        "completion_tokens": 681,
+        "total_tokens": 17852,
+        "completion_tokens_details": {
+          "reasoning_tokens": 16
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 1727,
+      "peak_prompt_tokens": 17171,
+      "total_prompt_tokens": 183782,
+      "completion_tokens": 10371,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2790,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 2,
+          "chars": 5007,
+          "tokens": 1446,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/2_specify.md",
+          "reads": 1,
+          "chars": 4526,
+          "tokens": 1225,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/requirement.toml",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1089,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/spec.md",
+          "reads": 1,
+          "chars": 1812,
+          "tokens": 474,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-5d9a3a9f.toml",
+          "reads": 1,
+          "chars": 547,
+          "tokens": 186,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-b539a6bc.toml",
+          "reads": 1,
+          "chars": 545,
+          "tokens": 186,
+          "measured": true
+        },
+        {
+          "path": "tests/test_pricing.py",
+          "reads": 1,
+          "chars": 441,
+          "tokens": 185,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/pricing.md",
+          "reads": 1,
+          "chars": 657,
+          "tokens": 172,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+          "reads": 1,
+          "chars": 568,
+          "tokens": 148,
+          "measured": true
+        },
+        {
+          "path": "src/pricing.py",
+          "reads": 1,
+          "chars": 156,
+          "tokens": 66,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 239,
+          "tokens": 63,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/task.md",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 0,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.262,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "specify"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "new_draft_requirements",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "requirements_linked_in_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "exact_format_spec_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "existing_contract_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "check_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Formatting and negative-price rejection have independently verifiable requirements without changing apply_discount.",
+        "The exact format is buildable from the saved spec; no unstated interface or dependency is added."
+      ],
+      "journal_writer_commands": 2
+    },
+    "semantic_checks": [
+      {
+        "id": "error_response_has_own_requirement",
+        "passed": true,
+        "detail": "2 new requirement(s), 1 naming ValueError"
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "holdout_design_recalculation",
+    "profile": "holdout",
+    "status": "completed",
+    "error": "",
+    "seconds": 242.063,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 13,
+    "tool_calls": 26,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 1727,
+        "completion_tokens": 92,
+        "total_tokens": 1819,
+        "completion_tokens_details": {
+          "reasoning_tokens": 18
+        }
+      },
+      {
+        "prompt_tokens": 4720,
+        "completion_tokens": 116,
+        "total_tokens": 4836,
+        "completion_tokens_details": {
+          "reasoning_tokens": 23
+        }
+      },
+      {
+        "prompt_tokens": 5457,
+        "completion_tokens": 111,
+        "total_tokens": 5568,
+        "completion_tokens_details": {
+          "reasoning_tokens": 44
+        }
+      },
+      {
+        "prompt_tokens": 7046,
+        "completion_tokens": 115,
+        "total_tokens": 7161,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 7640,
+        "completion_tokens": 177,
+        "total_tokens": 7817,
+        "completion_tokens_details": {
+          "reasoning_tokens": 28
+        }
+      },
+      {
+        "prompt_tokens": 8412,
+        "completion_tokens": 684,
+        "total_tokens": 9096,
+        "completion_tokens_details": {
+          "reasoning_tokens": 522
+        }
+      },
+      {
+        "prompt_tokens": 11002,
+        "completion_tokens": 396,
+        "total_tokens": 11398,
+        "completion_tokens_details": {
+          "reasoning_tokens": 306
+        }
+      },
+      {
+        "prompt_tokens": 12304,
+        "completion_tokens": 3724,
+        "total_tokens": 16028,
+        "completion_tokens_details": {
+          "reasoning_tokens": 3170
+        }
+      },
+      {
+        "prompt_tokens": 12882,
+        "completion_tokens": 195,
+        "total_tokens": 13077,
+        "completion_tokens_details": {
+          "reasoning_tokens": 156
+        }
+      },
+      {
+        "prompt_tokens": 14035,
+        "completion_tokens": 1570,
+        "total_tokens": 15605,
+        "completion_tokens_details": {
+          "reasoning_tokens": 783
+        }
+      },
+      {
+        "prompt_tokens": 14837,
+        "completion_tokens": 196,
+        "total_tokens": 15033,
+        "completion_tokens_details": {
+          "reasoning_tokens": 92
+        }
+      },
+      {
+        "prompt_tokens": 15267,
+        "completion_tokens": 213,
+        "total_tokens": 15480,
+        "completion_tokens_details": {
+          "reasoning_tokens": 83
+        }
+      },
+      {
+        "prompt_tokens": 15747,
+        "completion_tokens": 629,
+        "total_tokens": 16376,
+        "completion_tokens_details": {
+          "reasoning_tokens": 27
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 1727,
+      "peak_prompt_tokens": 15747,
+      "total_prompt_tokens": 131076,
+      "completion_tokens": 8218,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2795,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 2,
+          "chars": 6698,
+          "tokens": 1554,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 882,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/requirement.toml",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 876,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/task.md",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 876,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/2_specify.md",
+          "reads": 1,
+          "chars": 4526,
+          "tokens": 859,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-44444444.toml",
+          "reads": 1,
+          "chars": 860,
+          "tokens": 242,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/pricing.md",
+          "reads": 1,
+          "chars": 657,
+          "tokens": 185,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+          "reads": 1,
+          "chars": 568,
+          "tokens": 160,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 334,
+          "tokens": 70,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 239,
+          "tokens": 50,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 40,
+          "measured": true
+        },
+        {
+          "path": "src/pricing.py",
+          "reads": 1,
+          "chars": 156,
+          "tokens": 33,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.24,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_unrequested_diagrams",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The design assigns scheduling, recalculation and storage responsibilities, with per-item failure handling.",
+        "Undecided details remain open decisions rather than invented behavior."
+      ],
+      "journal_writer_commands": 1
+    },
+    "semantic_checks": [
+      {
+        "id": "design_cites_requirements",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "id": "design_names_modules",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "id": "design_proportionate",
+        "passed": true,
+        "detail": "5 lines"
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "holdout_chain_percent_validation",
+    "profile": "holdout",
+    "status": "completed",
+    "error": "",
+    "seconds": 837.827,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 67,
+    "tool_calls": 117,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "sessions": [
+      {
+        "stage": "frame",
+        "status": "completed",
+        "error": "",
+        "seconds": 105.266,
+        "requests": 11,
+        "tool_calls": 17,
+        "degenerate_responses": 0,
+        "task": "TASK-149cd5fd",
+        "context": {
+          "first_prompt_tokens": 1741,
+          "peak_prompt_tokens": 10259,
+          "total_prompt_tokens": 76951,
+          "completion_tokens": 3872,
+          "reads": [
+            {
+              "path": ".agentic/AGENTS.md",
+              "reads": 1,
+              "chars": 10786,
+              "tokens": 2784,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/1_frame.md",
+              "reads": 1,
+              "chars": 4704,
+              "tokens": 1136,
+              "measured": true
+            },
+            {
+              "path": ".agentic/tasks/TASK-149cd5fd.md",
+              "reads": 1,
+              "chars": 1733,
+              "tokens": 472,
+              "measured": true
+            },
+            {
+              "path": ".agentic/knowledge/pricing.md",
+              "reads": 1,
+              "chars": 657,
+              "tokens": 243,
+              "measured": true
+            },
+            {
+              "path": "tests/test_pricing.py",
+              "reads": 1,
+              "chars": 441,
+              "tokens": 171,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+              "reads": 1,
+              "chars": 568,
+              "tokens": 162,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/environment.md",
+              "reads": 1,
+              "chars": 212,
+              "tokens": 82,
+              "measured": true
+            },
+            {
+              "path": "src/pricing.py",
+              "reads": 1,
+              "chars": 156,
+              "tokens": 61,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/project.md",
+              "reads": 1,
+              "chars": 239,
+              "tokens": 58,
+              "measured": true
+            }
+          ],
+          "context_window": 65536,
+          "peak_window_fraction": 0.157,
+          "above_window_thresholds": []
+        }
+      },
+      {
+        "stage": "specify",
+        "status": "completed",
+        "error": "",
+        "seconds": 175.547,
+        "requests": 11,
+        "tool_calls": 23,
+        "degenerate_responses": 0,
+        "task": "TASK-149cd5fd",
+        "context": {
+          "first_prompt_tokens": 1716,
+          "peak_prompt_tokens": 14483,
+          "total_prompt_tokens": 118630,
+          "completion_tokens": 6746,
+          "reads": [
+            {
+              "path": ".agentic/AGENTS.md",
+              "reads": 1,
+              "chars": 10786,
+              "tokens": 2784,
+              "measured": true
+            },
+            {
+              "path": ".agentic/tasks/TASK-149cd5fd.md",
+              "reads": 1,
+              "chars": 6211,
+              "tokens": 1596,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/2_specify.md",
+              "reads": 1,
+              "chars": 4526,
+              "tokens": 1163,
+              "measured": true
+            },
+            {
+              "path": ".agentic/templates/requirement.toml",
+              "reads": 1,
+              "chars": 4167,
+              "tokens": 1091,
+              "measured": true
+            },
+            {
+              "path": ".agentic/templates/spec.md",
+              "reads": 1,
+              "chars": 1812,
+              "tokens": 475,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-69f2cc0e.toml",
+              "reads": 1,
+              "chars": 553,
+              "tokens": 185,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-46fcfa51.toml",
+              "reads": 1,
+              "chars": 546,
+              "tokens": 183,
+              "measured": true
+            },
+            {
+              "path": ".agentic/knowledge/pricing.md",
+              "reads": 1,
+              "chars": 657,
+              "tokens": 172,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+              "reads": 1,
+              "chars": 568,
+              "tokens": 149,
+              "measured": true
+            },
+            {
+              "path": "tests/test_pricing.py",
+              "reads": 1,
+              "chars": 441,
+              "tokens": 115,
+              "measured": true
+            },
+            {
+              "path": "src/pricing.py",
+              "reads": 1,
+              "chars": 156,
+              "tokens": 41,
+              "measured": true
+            }
+          ],
+          "context_window": 65536,
+          "peak_window_fraction": 0.221,
+          "above_window_thresholds": []
+        }
+      },
+      {
+        "stage": "design",
+        "status": "completed",
+        "error": "",
+        "seconds": 209.765,
+        "requests": 10,
+        "tool_calls": 18,
+        "degenerate_responses": 0,
+        "task": "TASK-149cd5fd",
+        "context": {
+          "first_prompt_tokens": 1708,
+          "peak_prompt_tokens": 13595,
+          "total_prompt_tokens": 93167,
+          "completion_tokens": 7957,
+          "reads": [
+            {
+              "path": ".agentic/AGENTS.md",
+              "reads": 1,
+              "chars": 10786,
+              "tokens": 2789,
+              "measured": true
+            },
+            {
+              "path": ".agentic/tasks/TASK-149cd5fd.md",
+              "reads": 1,
+              "chars": 7074,
+              "tokens": 1833,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/2_specify.md",
+              "reads": 1,
+              "chars": 4526,
+              "tokens": 1173,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/3_design.md",
+              "reads": 1,
+              "chars": 3518,
+              "tokens": 964,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-69f2cc0e.toml",
+              "reads": 1,
+              "chars": 878,
+              "tokens": 241,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-46fcfa51.toml",
+              "reads": 1,
+              "chars": 865,
+              "tokens": 237,
+              "measured": true
+            },
+            {
+              "path": ".agentic/knowledge/pricing.md",
+              "reads": 1,
+              "chars": 657,
+              "tokens": 173,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+              "reads": 1,
+              "chars": 568,
+              "tokens": 156,
+              "measured": true
+            },
+            {
+              "path": "tests/test_pricing.py",
+              "reads": 1,
+              "chars": 441,
+              "tokens": 116,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/project.md",
+              "reads": 1,
+              "chars": 239,
+              "tokens": 62,
+              "measured": true
+            },
+            {
+              "path": "src/pricing.py",
+              "reads": 1,
+              "chars": 156,
+              "tokens": 41,
+              "measured": true
+            }
+          ],
+          "context_window": 65536,
+          "peak_window_fraction": 0.207,
+          "above_window_thresholds": []
+        }
+      },
+      {
+        "stage": "build",
+        "status": "completed",
+        "error": "",
+        "seconds": 182.937,
+        "requests": 19,
+        "tool_calls": 32,
+        "degenerate_responses": 0,
+        "task": "TASK-149cd5fd",
+        "context": {
+          "first_prompt_tokens": 1729,
+          "peak_prompt_tokens": 16569,
+          "total_prompt_tokens": 235420,
+          "completion_tokens": 6506,
+          "reads": [
+            {
+              "path": ".agentic/AGENTS.md",
+              "reads": 1,
+              "chars": 10786,
+              "tokens": 2855,
+              "measured": true
+            },
+            {
+              "path": ".agentic/tasks/TASK-149cd5fd.md",
+              "reads": 2,
+              "chars": 10801,
+              "tokens": 2821,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/4_build.md",
+              "reads": 1,
+              "chars": 4273,
+              "tokens": 1161,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-69f2cc0e.toml",
+              "reads": 1,
+              "chars": 878,
+              "tokens": 254,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-46fcfa51.toml",
+              "reads": 1,
+              "chars": 865,
+              "tokens": 251,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+              "reads": 1,
+              "chars": 568,
+              "tokens": 165,
+              "measured": true
+            },
+            {
+              "path": "tests/test_pricing.py",
+              "reads": 1,
+              "chars": 441,
+              "tokens": 128,
+              "measured": true
+            },
+            {
+              "path": ".agentic/aegis.toml",
+              "reads": 1,
+              "chars": 334,
+              "tokens": 97,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/project.md",
+              "reads": 1,
+              "chars": 239,
+              "tokens": 65,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/environment.md",
+              "reads": 1,
+              "chars": 212,
+              "tokens": 58,
+              "measured": true
+            },
+            {
+              "path": "src/pricing.py",
+              "reads": 1,
+              "chars": 156,
+              "tokens": 45,
+              "measured": true
+            },
+            {
+              "path": "verify.py",
+              "reads": 1,
+              "chars": 300,
+              "tokens": 0,
+              "measured": true
+            },
+            {
+              "path": "README.md",
+              "reads": 1,
+              "chars": 243,
+              "tokens": 0,
+              "measured": true
+            }
+          ],
+          "context_window": 65536,
+          "peak_window_fraction": 0.253,
+          "above_window_thresholds": []
+        }
+      },
+      {
+        "stage": "validate",
+        "status": "completed",
+        "error": "",
+        "seconds": 164.312,
+        "requests": 16,
+        "tool_calls": 27,
+        "degenerate_responses": 0,
+        "task": "TASK-149cd5fd",
+        "context": {
+          "first_prompt_tokens": 1714,
+          "peak_prompt_tokens": 18299,
+          "total_prompt_tokens": 211006,
+          "completion_tokens": 5885,
+          "reads": [
+            {
+              "path": ".agentic/tasks/TASK-149cd5fd.md",
+              "reads": 3,
+              "chars": 14223,
+              "tokens": 3581,
+              "measured": true
+            },
+            {
+              "path": ".agentic/AGENTS.md",
+              "reads": 1,
+              "chars": 10786,
+              "tokens": 2796,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/5_validate.md",
+              "reads": 1,
+              "chars": 6441,
+              "tokens": 1722,
+              "measured": true
+            },
+            {
+              "path": ".agentic/steps/4_build.md",
+              "reads": 1,
+              "chars": 4273,
+              "tokens": 1178,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-69f2cc0e.toml",
+              "reads": 1,
+              "chars": 939,
+              "tokens": 282,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-46fcfa51.toml",
+              "reads": 1,
+              "chars": 921,
+              "tokens": 276,
+              "measured": true
+            },
+            {
+              "path": "tests/test_pricing.py",
+              "reads": 1,
+              "chars": 803,
+              "tokens": 241,
+              "measured": true
+            },
+            {
+              "path": ".agentic/knowledge/pricing.md",
+              "reads": 1,
+              "chars": 657,
+              "tokens": 197,
+              "measured": true
+            },
+            {
+              "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+              "reads": 1,
+              "chars": 568,
+              "tokens": 170,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/project.md",
+              "reads": 1,
+              "chars": 239,
+              "tokens": 84,
+              "measured": true
+            },
+            {
+              "path": "src/pricing.py",
+              "reads": 1,
+              "chars": 259,
+              "tokens": 78,
+              "measured": true
+            },
+            {
+              "path": ".agentic/context/environment.md",
+              "reads": 1,
+              "chars": 212,
+              "tokens": 75,
+              "measured": true
+            }
+          ],
+          "context_window": 65536,
+          "peak_window_fraction": 0.279,
+          "above_window_thresholds": []
+        }
+      }
+    ],
+    "usage": [
+      {
+        "prompt_tokens": 1741,
+        "completion_tokens": 94,
+        "total_tokens": 1835,
+        "completion_tokens_details": {
+          "reasoning_tokens": 20
+        }
+      },
+      {
+        "prompt_tokens": 4701,
+        "completion_tokens": 87,
+        "total_tokens": 4788,
+        "completion_tokens_details": {
+          "reasoning_tokens": 23
+        }
+      },
+      {
+        "prompt_tokens": 5982,
+        "completion_tokens": 151,
+        "total_tokens": 6133,
+        "completion_tokens_details": {
+          "reasoning_tokens": 21
+        }
+      },
+      {
+        "prompt_tokens": 6560,
+        "completion_tokens": 122,
+        "total_tokens": 6682,
+        "completion_tokens_details": {
+          "reasoning_tokens": 16
+        }
+      },
+      {
+        "prompt_tokens": 7048,
+        "completion_tokens": 85,
+        "total_tokens": 7133,
+        "completion_tokens_details": {
+          "reasoning_tokens": 37
+        }
+      },
+      {
+        "prompt_tokens": 7295,
+        "completion_tokens": 200,
+        "total_tokens": 7495,
+        "completion_tokens_details": {
+          "reasoning_tokens": 154
+        }
+      },
+      {
+        "prompt_tokens": 7522,
+        "completion_tokens": 128,
+        "total_tokens": 7650,
+        "completion_tokens_details": {
+          "reasoning_tokens": 67
+        }
+      },
+      {
+        "prompt_tokens": 7772,
+        "completion_tokens": 66,
+        "total_tokens": 7838,
+        "completion_tokens_details": {
+          "reasoning_tokens": 26
+        }
+      },
+      {
+        "prompt_tokens": 8310,
+        "completion_tokens": 2233,
+        "total_tokens": 10543,
+        "completion_tokens_details": {
+          "reasoning_tokens": 793
+        }
+      },
+      {
+        "prompt_tokens": 9761,
+        "completion_tokens": 233,
+        "total_tokens": 9994,
+        "completion_tokens_details": {
+          "reasoning_tokens": 73
+        }
+      },
+      {
+        "prompt_tokens": 10259,
+        "completion_tokens": 473,
+        "total_tokens": 10732,
+        "completion_tokens_details": {
+          "reasoning_tokens": 58
+        }
+      },
+      {
+        "prompt_tokens": 1716,
+        "completion_tokens": 144,
+        "total_tokens": 1860,
+        "completion_tokens_details": {
+          "reasoning_tokens": 60
+        }
+      },
+      {
+        "prompt_tokens": 5075,
+        "completion_tokens": 437,
+        "total_tokens": 5512,
+        "completion_tokens_details": {
+          "reasoning_tokens": 279
+        }
+      },
+      {
+        "prompt_tokens": 8530,
+        "completion_tokens": 430,
+        "total_tokens": 8960,
+        "completion_tokens_details": {
+          "reasoning_tokens": 161
+        }
+      },
+      {
+        "prompt_tokens": 11144,
+        "completion_tokens": 1425,
+        "total_tokens": 12569,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1208
+        }
+      },
+      {
+        "prompt_tokens": 11679,
+        "completion_tokens": 101,
+        "total_tokens": 11780,
+        "completion_tokens_details": {
+          "reasoning_tokens": 11
+        }
+      },
+      {
+        "prompt_tokens": 12148,
+        "completion_tokens": 1150,
+        "total_tokens": 13298,
+        "completion_tokens_details": {
+          "reasoning_tokens": 576
+        }
+      },
+      {
+        "prompt_tokens": 12759,
+        "completion_tokens": 710,
+        "total_tokens": 13469,
+        "completion_tokens_details": {
+          "reasoning_tokens": 108
+        }
+      },
+      {
+        "prompt_tokens": 13400,
+        "completion_tokens": 652,
+        "total_tokens": 14052,
+        "completion_tokens_details": {
+          "reasoning_tokens": 585
+        }
+      },
+      {
+        "prompt_tokens": 13667,
+        "completion_tokens": 1015,
+        "total_tokens": 14682,
+        "completion_tokens_details": {
+          "reasoning_tokens": 665
+        }
+      },
+      {
+        "prompt_tokens": 14029,
+        "completion_tokens": 138,
+        "total_tokens": 14167,
+        "completion_tokens_details": {
+          "reasoning_tokens": 51
+        }
+      },
+      {
+        "prompt_tokens": 14483,
+        "completion_tokens": 544,
+        "total_tokens": 15027,
+        "completion_tokens_details": {
+          "reasoning_tokens": 9
+        }
+      },
+      {
+        "prompt_tokens": 1708,
+        "completion_tokens": 92,
+        "total_tokens": 1800,
+        "completion_tokens_details": {
+          "reasoning_tokens": 18
+        }
+      },
+      {
+        "prompt_tokens": 4706,
+        "completion_tokens": 168,
+        "total_tokens": 4874,
+        "completion_tokens_details": {
+          "reasoning_tokens": 70
+        }
+      },
+      {
+        "prompt_tokens": 5568,
+        "completion_tokens": 389,
+        "total_tokens": 5957,
+        "completion_tokens_details": {
+          "reasoning_tokens": 238
+        }
+      },
+      {
+        "prompt_tokens": 9025,
+        "completion_tokens": 434,
+        "total_tokens": 9459,
+        "completion_tokens_details": {
+          "reasoning_tokens": 268
+        }
+      },
+      {
+        "prompt_tokens": 9598,
+        "completion_tokens": 221,
+        "total_tokens": 9819,
+        "completion_tokens_details": {
+          "reasoning_tokens": 32
+        }
+      },
+      {
+        "prompt_tokens": 11417,
+        "completion_tokens": 163,
+        "total_tokens": 11580,
+        "completion_tokens_details": {
+          "reasoning_tokens": 48
+        }
+      },
+      {
+        "prompt_tokens": 11911,
+        "completion_tokens": 5001,
+        "total_tokens": 16912,
+        "completion_tokens_details": {
+          "reasoning_tokens": 4171
+        }
+      },
+      {
+        "prompt_tokens": 12691,
+        "completion_tokens": 69,
+        "total_tokens": 12760,
+        "completion_tokens_details": {
+          "reasoning_tokens": 25
+        }
+      },
+      {
+        "prompt_tokens": 12948,
+        "completion_tokens": 826,
+        "total_tokens": 13774,
+        "completion_tokens_details": {
+          "reasoning_tokens": 567
+        }
+      },
+      {
+        "prompt_tokens": 13595,
+        "completion_tokens": 594,
+        "total_tokens": 14189,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 1729,
+        "completion_tokens": 99,
+        "total_tokens": 1828,
+        "completion_tokens_details": {
+          "reasoning_tokens": 15
+        }
+      },
+      {
+        "prompt_tokens": 5122,
+        "completion_tokens": 466,
+        "total_tokens": 5588,
+        "completion_tokens_details": {
+          "reasoning_tokens": 288
+        }
+      },
+      {
+        "prompt_tokens": 9384,
+        "completion_tokens": 562,
+        "total_tokens": 9946,
+        "completion_tokens_details": {
+          "reasoning_tokens": 204
+        }
+      },
+      {
+        "prompt_tokens": 11164,
+        "completion_tokens": 773,
+        "total_tokens": 11937,
+        "completion_tokens_details": {
+          "reasoning_tokens": 711
+        }
+      },
+      {
+        "prompt_tokens": 11312,
+        "completion_tokens": 752,
+        "total_tokens": 12064,
+        "completion_tokens_details": {
+          "reasoning_tokens": 505
+        }
+      },
+      {
+        "prompt_tokens": 11582,
+        "completion_tokens": 128,
+        "total_tokens": 11710,
+        "completion_tokens_details": {
+          "reasoning_tokens": 87
+        }
+      },
+      {
+        "prompt_tokens": 12233,
+        "completion_tokens": 213,
+        "total_tokens": 12446,
+        "completion_tokens_details": {
+          "reasoning_tokens": 56
+        }
+      },
+      {
+        "prompt_tokens": 12589,
+        "completion_tokens": 73,
+        "total_tokens": 12662,
+        "completion_tokens_details": {
+          "reasoning_tokens": 16
+        }
+      },
+      {
+        "prompt_tokens": 12899,
+        "completion_tokens": 183,
+        "total_tokens": 13082,
+        "completion_tokens_details": {
+          "reasoning_tokens": 24
+        }
+      },
+      {
+        "prompt_tokens": 13081,
+        "completion_tokens": 88,
+        "total_tokens": 13169,
+        "completion_tokens_details": {
+          "reasoning_tokens": 47
+        }
+      },
+      {
+        "prompt_tokens": 13414,
+        "completion_tokens": 445,
+        "total_tokens": 13859,
+        "completion_tokens_details": {
+          "reasoning_tokens": 152
+        }
+      },
+      {
+        "prompt_tokens": 13926,
+        "completion_tokens": 203,
+        "total_tokens": 14129,
+        "completion_tokens_details": {
+          "reasoning_tokens": 29
+        }
+      },
+      {
+        "prompt_tokens": 14137,
+        "completion_tokens": 220,
+        "total_tokens": 14357,
+        "completion_tokens_details": {
+          "reasoning_tokens": 121
+        }
+      },
+      {
+        "prompt_tokens": 14510,
+        "completion_tokens": 163,
+        "total_tokens": 14673,
+        "completion_tokens_details": {
+          "reasoning_tokens": 82
+        }
+      },
+      {
+        "prompt_tokens": 14812,
+        "completion_tokens": 268,
+        "total_tokens": 15080,
+        "completion_tokens_details": {
+          "reasoning_tokens": 156
+        }
+      },
+      {
+        "prompt_tokens": 15460,
+        "completion_tokens": 265,
+        "total_tokens": 15725,
+        "completion_tokens_details": {
+          "reasoning_tokens": 230
+        }
+      },
+      {
+        "prompt_tokens": 15562,
+        "completion_tokens": 807,
+        "total_tokens": 16369,
+        "completion_tokens_details": {
+          "reasoning_tokens": 458
+        }
+      },
+      {
+        "prompt_tokens": 15935,
+        "completion_tokens": 218,
+        "total_tokens": 16153,
+        "completion_tokens_details": {
+          "reasoning_tokens": 21
+        }
+      },
+      {
+        "prompt_tokens": 16569,
+        "completion_tokens": 580,
+        "total_tokens": 17149,
+        "completion_tokens_details": {
+          "reasoning_tokens": 20
+        }
+      },
+      {
+        "prompt_tokens": 1714,
+        "completion_tokens": 93,
+        "total_tokens": 1807,
+        "completion_tokens_details": {
+          "reasoning_tokens": 19
+        }
+      },
+      {
+        "prompt_tokens": 4720,
+        "completion_tokens": 155,
+        "total_tokens": 4875,
+        "completion_tokens_details": {
+          "reasoning_tokens": 69
+        }
+      },
+      {
+        "prompt_tokens": 6491,
+        "completion_tokens": 313,
+        "total_tokens": 6804,
+        "completion_tokens_details": {
+          "reasoning_tokens": 206
+        }
+      },
+      {
+        "prompt_tokens": 11146,
+        "completion_tokens": 687,
+        "total_tokens": 11833,
+        "completion_tokens_details": {
+          "reasoning_tokens": 552
+        }
+      },
+      {
+        "prompt_tokens": 11909,
+        "completion_tokens": 272,
+        "total_tokens": 12181,
+        "completion_tokens_details": {
+          "reasoning_tokens": 25
+        }
+      },
+      {
+        "prompt_tokens": 13425,
+        "completion_tokens": 383,
+        "total_tokens": 13808,
+        "completion_tokens_details": {
+          "reasoning_tokens": 137
+        }
+      },
+      {
+        "prompt_tokens": 14539,
+        "completion_tokens": 1069,
+        "total_tokens": 15608,
+        "completion_tokens_details": {
+          "reasoning_tokens": 810
+        }
+      },
+      {
+        "prompt_tokens": 14812,
+        "completion_tokens": 170,
+        "total_tokens": 14982,
+        "completion_tokens_details": {
+          "reasoning_tokens": 60
+        }
+      },
+      {
+        "prompt_tokens": 14945,
+        "completion_tokens": 735,
+        "total_tokens": 15680,
+        "completion_tokens_details": {
+          "reasoning_tokens": 565
+        }
+      },
+      {
+        "prompt_tokens": 15332,
+        "completion_tokens": 219,
+        "total_tokens": 15551,
+        "completion_tokens_details": {
+          "reasoning_tokens": 56
+        }
+      },
+      {
+        "prompt_tokens": 15690,
+        "completion_tokens": 62,
+        "total_tokens": 15752,
+        "completion_tokens_details": {
+          "reasoning_tokens": 8
+        }
+      },
+      {
+        "prompt_tokens": 15938,
+        "completion_tokens": 84,
+        "total_tokens": 16022,
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      {
+        "prompt_tokens": 16800,
+        "completion_tokens": 455,
+        "total_tokens": 17255,
+        "completion_tokens_details": {
+          "reasoning_tokens": 340
+        }
+      },
+      {
+        "prompt_tokens": 17438,
+        "completion_tokens": 388,
+        "total_tokens": 17826,
+        "completion_tokens_details": {
+          "reasoning_tokens": 43
+        }
+      },
+      {
+        "prompt_tokens": 17808,
+        "completion_tokens": 174,
+        "total_tokens": 17982,
+        "completion_tokens_details": {
+          "reasoning_tokens": 67
+        }
+      },
+      {
+        "prompt_tokens": 18299,
+        "completion_tokens": 626,
+        "total_tokens": 18925,
+        "completion_tokens_details": {
+          "reasoning_tokens": 49
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 1741,
+      "peak_prompt_tokens": 18299,
+      "total_prompt_tokens": 735174,
+      "completion_tokens": 30966,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 5,
+          "chars": 53930,
+          "tokens": 14008,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-149cd5fd.md",
+          "reads": 8,
+          "chars": 40042,
+          "tokens": 10303,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/4_build.md",
+          "reads": 2,
+          "chars": 8546,
+          "tokens": 2339,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/2_specify.md",
+          "reads": 2,
+          "chars": 9052,
+          "tokens": 2336,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/5_validate.md",
+          "reads": 1,
+          "chars": 6441,
+          "tokens": 1722,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/1_frame.md",
+          "reads": 1,
+          "chars": 4704,
+          "tokens": 1136,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/requirement.toml",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1091,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 964,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-69f2cc0e.toml",
+          "reads": 4,
+          "chars": 3248,
+          "tokens": 962,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-46fcfa51.toml",
+          "reads": 4,
+          "chars": 3197,
+          "tokens": 947,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-22222222.toml",
+          "reads": 5,
+          "chars": 2840,
+          "tokens": 802,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/pricing.md",
+          "reads": 4,
+          "chars": 2628,
+          "tokens": 785,
+          "measured": true
+        },
+        {
+          "path": "tests/test_pricing.py",
+          "reads": 5,
+          "chars": 2567,
+          "tokens": 771,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/spec.md",
+          "reads": 1,
+          "chars": 1812,
+          "tokens": 475,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 4,
+          "chars": 956,
+          "tokens": 269,
+          "measured": true
+        },
+        {
+          "path": "src/pricing.py",
+          "reads": 5,
+          "chars": 883,
+          "tokens": 266,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 3,
+          "chars": 636,
+          "tokens": 215,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 334,
+          "tokens": 97,
+          "measured": true
+        },
+        {
+          "path": "verify.py",
+          "reads": 1,
+          "chars": 300,
+          "tokens": 0,
+          "measured": true
+        },
+        {
+          "path": "README.md",
+          "reads": 1,
+          "chars": 243,
+          "tokens": 0,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.279,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "all_sessions_completed",
+          "passed": true,
+          "detail": "frame=completed; specify=completed; design=completed; build=completed; validate=completed"
+        },
+        {
+          "id": "error_requirement_active_and_linked",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "existing_contract_active",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "hidden_acceptance",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "red_anchor_edit_green_evolution",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "final_proof_current",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Each session resumes from the records the previous session left, without restating or losing the accepted scope.",
+        "The final candidate rejects out-of-range percents, keeps the rounding contract and is proved after the last edit."
+      ],
+      "journal_writer_commands": 12
+    },
+    "semantic_checks": [
+      {
+        "id": "error_requirement_written",
+        "passed": true,
+        "detail": "2 new requirement(s)"
+      },
+      {
+        "id": "design_disposition_recorded",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  }
+]

@@ -33,7 +33,7 @@ and implementation history in Git.
   integrations/           five host adapters and shared runtime
     tests/                JavaScript behavior tests
   tests/                  Python product suite and integration wrappers
-  evaluations/            development scenarios and subscription baselines
+  evaluations/            development scenarios and evaluation baselines
   README.md               package overview
 
 02_Tools/
@@ -116,7 +116,8 @@ fixtures; their individual causal contribution is not isolated.
 
 A local runner drives an OpenAI-compatible Chat Completions server, with
 optional reasoning effort; a subscription runner drives a native Codex CLI.
-The evaluation folder keeps the latest `gpt-6-luna` subscription baselines;
+The evaluation folder keeps the latest `gpt-6-luna` and `gpt-6.1-sol`
+subscription baselines and local Qwen baselines with and without reasoning;
 other runs keep their raw evidence outside the repository.
 
 Read strict grades with the semantic assessments. Some predicates are overly

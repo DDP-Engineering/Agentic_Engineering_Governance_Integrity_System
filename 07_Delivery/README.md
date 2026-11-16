@@ -5,6 +5,12 @@ built locally on **2026-11-16** from `835ce72` plus the source changes recorded
 in the build records, committed unchanged as `18f556b`. All download links
 refer to this local build.
 
+It was published on 2026-11-16 under the annotated tag `aegis-0.16.0`, on the
+delivery-record commit `cb7459d`, as a release on the Gitea origin and on the
+GitHub mirror (`DDP-Engineering/Agentic_Engineering_Governance_Integrity_System`).
+Each release carries the 13 archives and a `SHA256SUMS` with bare file names;
+its hashes are those of [dist/SHA256SUMS](dist/SHA256SUMS).
+
 ## Download the latest built packages
 
 | Package | Windows | Linux |

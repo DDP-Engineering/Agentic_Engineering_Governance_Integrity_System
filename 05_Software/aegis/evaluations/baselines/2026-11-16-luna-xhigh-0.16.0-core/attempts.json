@@ -1,0 +1,977 @@
+[
+  {
+    "status": "completed",
+    "seconds": 153.156,
+    "pid": 8132,
+    "thread_id": "01a1e5e1-d74a-71d1-a50e-f632a280bed4",
+    "usage": [
+      {
+        "input_tokens": 253677,
+        "cached_input_tokens": 223232,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 7573,
+        "reasoning_output_tokens": 5294
+      }
+    ],
+    "output_tokens": 7573,
+    "reasoning_tokens": 5294,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "frame_existing_fix",
+    "run_directory": "frame_existing_fix-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "reuses_requirement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Scope restores the existing trim-and-lowercase contract only.",
+        "Frame names REQ-FUNC-11111111 as the covering requirement and adds no new behavior."
+      ],
+      "journal_writer_commands": 2
+    },
+    "passed": true,
+    "coordinator_tool_calls": 26,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 201.703,
+    "pid": 43976,
+    "thread_id": "01a1e5e4-a5de-7bb2-b252-e0ec67cab74b",
+    "usage": [
+      {
+        "input_tokens": 374645,
+        "cached_input_tokens": 334720,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10368,
+        "reasoning_output_tokens": 7907
+      }
+    ],
+    "output_tokens": 10368,
+    "reasoning_tokens": 7907,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "frame_ambiguous_retention",
+    "run_directory": "frame_ambiguous_retention-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Retention duration and reversibility stay unknown, with no invented defaults.",
+        "Questions concern decisions needed for destructive data handling, not incidental implementation preferences."
+      ],
+      "journal_writer_commands": 1
+    },
+    "passed": true,
+    "coordinator_tool_calls": 22,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 192.704,
+    "pid": 60160,
+    "thread_id": "01a1e5e8-3236-7d60-864e-ac7dd5fa2297",
+    "usage": [
+      {
+        "input_tokens": 374659,
+        "cached_input_tokens": 350848,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 9376,
+        "reasoning_output_tokens": 6704
+      }
+    ],
+    "output_tokens": 9376,
+    "reasoning_tokens": 6704,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "frame_new_interface",
+    "run_directory": "frame_new_interface-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The new CLI/output contract selects full path despite the small implementation.",
+        "Frame captures both output modes and leaves unspecified error behavior explicit."
+      ],
+      "journal_writer_commands": 2
+    },
+    "passed": true,
+    "coordinator_tool_calls": 26,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 81.796,
+    "pid": 54612,
+    "thread_id": "01a1e5eb-9b89-7223-98f6-2eea6eb713cd",
+    "usage": [
+      {
+        "input_tokens": 183487,
+        "cached_input_tokens": 153600,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3967,
+        "reasoning_output_tokens": 2643
+      }
+    ],
+    "output_tokens": 3967,
+    "reasoning_tokens": 2643,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "task_stale_handoff",
+    "run_directory": "task_stale_handoff-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "build"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "respects_no_verification",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The build header and durable log take precedence over stale frame snapshots.",
+        "The next action is a focused build action; no implementation success is invented."
+      ],
+      "journal_writer_commands": 2
+    },
+    "passed": true,
+    "coordinator_tool_calls": 19,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 89.39,
+    "pid": 58992,
+    "thread_id": "01a1e5ed-53cd-7d90-9ee7-c38700ba6a30",
+    "usage": [
+      {
+        "input_tokens": 150665,
+        "cached_input_tokens": 127232,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4401,
+        "reasoning_output_tokens": 3581
+      }
+    ],
+    "output_tokens": 4401,
+    "reasoning_tokens": 3581,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "task_superseded_ruling",
+    "run_directory": "task_superseded_ruling-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "frame"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "supersedes_append_only",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "respects_no_verification",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The new user decision says 90 days and supersedes the 30-day proposal.",
+        "Neither the old ruling nor the history is rewritten; no implementation is claimed."
+      ],
+      "journal_writer_commands": 4
+    },
+    "passed": true,
+    "coordinator_tool_calls": 10,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 76.422,
+    "pid": 55504,
+    "thread_id": "01a1e5ef-297b-77e1-841b-1c589f35a68c",
+    "usage": [
+      {
+        "input_tokens": 163045,
+        "cached_input_tokens": 141952,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3618,
+        "reasoning_output_tokens": 2869
+      }
+    ],
+    "output_tokens": 3618,
+    "reasoning_tokens": 2869,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "task_unrecorded_evidence",
+    "run_directory": "task_unrecorded_evidence-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "build"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "respects_no_verification",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "evidence_not_fabricated",
+          "passed": true,
+          "detail": "missing evidence explicitly reported; no verification observed"
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The user-facing summary does not imply tests passed.",
+        "Unknown evidence is left blank or explicitly unrecorded; the next action is concrete."
+      ],
+      "journal_writer_commands": 1
+    },
+    "passed": true,
+    "coordinator_tool_calls": 16,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 184.672,
+    "pid": 51176,
+    "thread_id": "01a1e5f0-ccbe-70f3-b664-cc291a843d70",
+    "usage": [
+      {
+        "input_tokens": 415136,
+        "cached_input_tokens": 382592,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 8814,
+        "reasoning_output_tokens": 6623
+      }
+    ],
+    "output_tokens": 8814,
+    "reasoning_tokens": 6623,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "validate_clean_checkpoint",
+    "run_directory": "validate_clean_checkpoint-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "fresh_successful_proof",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_disabled",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Review reconciles the actual behavior and requirement without widening scope.",
+        "Final reporting distinguishes observed proof from the historical build evidence."
+      ],
+      "journal_writer_commands": 2
+    },
+    "passed": true,
+    "coordinator_tool_calls": 32,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 188.453,
+    "pid": 60728,
+    "thread_id": "01a1e5f4-16d2-7133-98da-b97f765d621e",
+    "usage": [
+      {
+        "input_tokens": 342140,
+        "cached_input_tokens": 306176,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 9504,
+        "reasoning_output_tokens": 7426
+      }
+    ],
+    "output_tokens": 9504,
+    "reasoning_tokens": 7426,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "validate_failed_verification",
+    "run_directory": "validate_failed_verification-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "observed_failed_proof",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "records_limitation",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The failed verification is disclosed with its actual scope and exit status.",
+        "No green result, delivery readiness or successful substitute is invented."
+      ],
+      "journal_writer_commands": 2
+    },
+    "passed": true,
+    "coordinator_tool_calls": 36,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 67.203,
+    "pid": 35188,
+    "thread_id": "01a1e5f7-6fd1-7ff2-8ece-102089fb6267",
+    "usage": [
+      {
+        "input_tokens": 121444,
+        "cached_input_tokens": 97536,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3148,
+        "reasoning_output_tokens": 1786
+      }
+    ],
+    "output_tokens": 3148,
+    "reasoning_tokens": 1786,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "validate_stale_verdicts",
+    "run_directory": "validate_stale_verdicts-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "build"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "old_approvals_invalidated",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The agent identifies the current leading-whitespace regression.",
+        "Earlier approvals and green evidence are not reused as proof of the changed candidate."
+      ],
+      "journal_writer_commands": 2
+    },
+    "passed": true,
+    "coordinator_tool_calls": 22,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  },
+  {
+    "status": "completed",
+    "seconds": 69.547,
+    "pid": 46068,
+    "thread_id": "01a1e5f8-ef1a-7fe0-81d3-9a7934a7a988",
+    "usage": [
+      {
+        "input_tokens": 250758,
+        "cached_input_tokens": 220416,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3188,
+        "reasoning_output_tokens": 2072
+      }
+    ],
+    "output_tokens": 3188,
+    "reasoning_tokens": 2072,
+    "native_violations": 0,
+    "error": "",
+    "scenario": "validate_review_exhausted",
+    "run_directory": "validate_review_exhausted-attempt-1",
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_exhaustion",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The exhausted review budget produces a concrete user decision request.",
+        "The agent neither resets the counter nor grants itself permission to relax the scope."
+      ],
+      "journal_writer_commands": 4
+    },
+    "passed": true,
+    "coordinator_tool_calls": 20,
+    "reviewer_sessions": 0,
+    "reviewer_output_tokens": 0,
+    "reviewer_reasoning_tokens": 0,
+    "wait_before_seconds": 30
+  }
+]

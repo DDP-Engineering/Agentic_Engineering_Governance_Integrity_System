@@ -8,27 +8,70 @@ workflow; the fixture sessions exercise that workflow as their subject.
 
 ## Stored records
 
-This folder keeps only the baselines on the 0.16.0 payload, collected on
-2026-11-16 through the subscription runner with `gpt-6-luna`, 131,072
-configured tokens and Codex CLI 0.169.0. Each manifest pins the payload by
-file hash:
+This folder keeps only baselines on the 0.16.0 payload, all collected on
+2026-11-16. Each manifest pins the payload by file hash.
+
+The subscription baselines ran with 131,072 configured tokens and Codex CLI
+0.169.0. The `gpt-6-luna` medium and high baselines ran on the 0.16.0 payload
+before its final `page_kb` change, whose `aegis.py` and `CLI.md` differ from
+the delivered files; the `gpt-6-luna` xhigh and `gpt-6.1-sol` baselines ran on
+the delivered payload.
+
+| Baseline | Profile | Model, reasoning | Strict passes |
+|---|---|---|---|
+| [`2026-11-16-luna-0.16.0-core`](baselines/2026-11-16-luna-0.16.0-core/) | core | `gpt-6-luna`, medium | 10/10 |
+| [`2026-11-16-luna-0.16.0-capabilities`](baselines/2026-11-16-luna-0.16.0-capabilities/) | capabilities | `gpt-6-luna`, medium | 10/15 |
+| [`2026-11-16-luna-high-0.16.0-rerun`](baselines/2026-11-16-luna-high-0.16.0-rerun/) | capabilities, three cases | `gpt-6-luna`, high | 3/3 |
+| [`2026-11-16-luna-xhigh-0.16.0-core`](baselines/2026-11-16-luna-xhigh-0.16.0-core/) | core | `gpt-6-luna`, xhigh | 10/10 |
+| [`2026-11-16-luna-xhigh-0.16.0-capabilities`](baselines/2026-11-16-luna-xhigh-0.16.0-capabilities/) | capabilities | `gpt-6-luna`, xhigh | 11/15 |
+| [`2026-11-16-sol-0.16.0-core`](baselines/2026-11-16-sol-0.16.0-core/) | core | `gpt-6.1-sol`, medium | 10/10 |
+| [`2026-11-16-sol-0.16.0-capabilities`](baselines/2026-11-16-sol-0.16.0-capabilities/) | capabilities | `gpt-6.1-sol`, medium | 13/15 |
+
+With luna at medium, `review_detects_missing_behavior`,
+`diagrams_enabled_types`, `validate_stale_context` and both autopilot cases
+failed. The high rerun repeats the first three once and passes them; the two
+autopilot cases failed the same checks on the 0.15.0 payload at high.
+
+At xhigh, luna passed those first three but failed four cases. Both autopilot
+cases saved their diagrams without naming the file in the State block. In
+`review_enabled_current` the spec reviewer appended its verdict to the task ID
+in its response, so the runner rejected that review as an identity mismatch
+and every reviewer check failed with it. In `deliver_requires_approval` the
+final answer cited the recorded strict check and its candidate digest, but
+not the literal `verify.py` or `--strict` the check looks for. At xhigh luna
+also questioned the fixtures' own `aegis.toml` changes as outside the task.
+
+With Sol at medium, `diagrams_skipped_design` recorded the skip but advanced
+the journal to build instead of stopping at the design checkpoint, and
+`autopilot_design_transition` saved its diagrams without naming the file in
+the State block.
+
+The local baselines ran `qwen/qwen3.8-27b` (Q4_K_M) on LM Studio with a
+65,536-token loaded window, on the delivered 0.16.0 payload. Without reasoning
+they used sampling 0.7/0.8/20 and 16,384 output tokens per response; with
+`xhigh` reasoning, 0.6/0.95/20 and 32,768:
 
 | Baseline | Profile | Reasoning | Strict passes |
 |---|---|---|---|
-| [`2026-11-16-luna-0.16.0-core`](baselines/2026-11-16-luna-0.16.0-core/) | core | medium | 10/10 |
-| [`2026-11-16-luna-0.16.0-capabilities`](baselines/2026-11-16-luna-0.16.0-capabilities/) | capabilities | medium | 10/15 |
-| [`2026-11-16-luna-high-0.16.0-rerun`](baselines/2026-11-16-luna-high-0.16.0-rerun/) | capabilities, three cases | high | 3/3 |
+| [`2026-11-16-qwen-nothink-0.16.0-core`](baselines/2026-11-16-qwen-nothink-0.16.0-core/) | core | off | 10/10 |
+| [`2026-11-16-qwen-nothink-0.16.0-capabilities`](baselines/2026-11-16-qwen-nothink-0.16.0-capabilities/) | capabilities | off | 13/15 |
+| [`2026-11-16-qwen-nothink-0.16.0-holdout`](baselines/2026-11-16-qwen-nothink-0.16.0-holdout/) | holdout | off | 6/6 |
+| [`2026-11-16-qwen-xhigh-0.16.0-core`](baselines/2026-11-16-qwen-xhigh-0.16.0-core/) | core | xhigh | 10/10 |
+| [`2026-11-16-qwen-xhigh-0.16.0-capabilities`](baselines/2026-11-16-qwen-xhigh-0.16.0-capabilities/) | capabilities | xhigh | 15/15 |
+| [`2026-11-16-qwen-xhigh-0.16.0-holdout`](baselines/2026-11-16-qwen-xhigh-0.16.0-holdout/) | holdout | xhigh | 6/6 |
 
-At medium, `review_detects_missing_behavior`, `diagrams_enabled_types`,
-`validate_stale_context` and both autopilot cases failed. The high rerun
-repeats the first three once and passes them; the two autopilot cases failed
-the same checks on the 0.15.0 payload at high.
+Without reasoning, `autopilot_design_transition` drew no diagrams, and
+`deliver_changed_after_proof` rejected the changed candidate correctly but
+never read `5_validate.md`. With `xhigh`, every case of the three profiles
+passed, both autopilot cases included, at about five times the duration; peak
+prompts stayed below 30,000 tokens, under half the window, in both settings. Local baselines keep the runner's own `report.md` and
+`evidence.sha256.json` in place of `integrity.json`.
 
 The 0.14.0 baselines (core 6/10, capabilities 6/15 at medium) were replaced on
 2026-11-16, and older transcripts and the 0.14.0 paired comparisons were
-removed earlier, all at the owner's request; Git history keeps them. No Sol or
-local-model baseline is stored. Other local and subscription measurements keep
-their raw evidence in the ignored `.tmp-codex-eval/` folder.
+removed earlier, all at the owner's request; Git history keeps them. Other
+local and subscription measurements keep their raw evidence in the ignored
+`.tmp-codex-eval/` folder.
 
 ## Reports
 

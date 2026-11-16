@@ -339,7 +339,7 @@ def main():
     run = sub.add_parser("run")
     run.add_argument("--cli", type=Path, required=True)
     run.add_argument("--model", required=True)
-    run.add_argument("--reasoning", default="medium", choices=["low", "medium", "high"])
+    run.add_argument("--reasoning", default="medium", choices=["low", "medium", "high", "xhigh"])
     run.add_argument("--context", type=int, default=131072)
     run.add_argument("--payload", type=Path, default=core.PAYLOAD)
     run.add_argument("--output", type=Path, required=True)

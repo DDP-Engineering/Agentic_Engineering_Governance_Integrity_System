@@ -1,0 +1,4684 @@
+[
+  {
+    "scenario": "specify_exact_serialization",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 82.734,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 17,
+    "tool_calls": 27,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2085,
+        "completion_tokens": 76,
+        "total_tokens": 2161,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5309,
+        "completion_tokens": 65,
+        "total_tokens": 5374,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7058,
+        "completion_tokens": 134,
+        "total_tokens": 7192,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8937,
+        "completion_tokens": 142,
+        "total_tokens": 9079,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9621,
+        "completion_tokens": 86,
+        "total_tokens": 9707,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10102,
+        "completion_tokens": 30,
+        "total_tokens": 10132,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10268,
+        "completion_tokens": 54,
+        "total_tokens": 10322,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10502,
+        "completion_tokens": 45,
+        "total_tokens": 10547,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10748,
+        "completion_tokens": 306,
+        "total_tokens": 11054,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11080,
+        "completion_tokens": 53,
+        "total_tokens": 11133,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11313,
+        "completion_tokens": 206,
+        "total_tokens": 11519,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11545,
+        "completion_tokens": 906,
+        "total_tokens": 12451,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12478,
+        "completion_tokens": 286,
+        "total_tokens": 12764,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12806,
+        "completion_tokens": 41,
+        "total_tokens": 12847,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13063,
+        "completion_tokens": 32,
+        "total_tokens": 13095,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13778,
+        "completion_tokens": 69,
+        "total_tokens": 13847,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 14164,
+        "completion_tokens": 524,
+        "total_tokens": 14688,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2085,
+      "peak_prompt_tokens": 14164,
+      "total_prompt_tokens": 174857,
+      "completion_tokens": 3055,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2830,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 2,
+          "chars": 4523,
+          "tokens": 1211,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/2_specify.md",
+          "reads": 1,
+          "chars": 4526,
+          "tokens": 1156,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/requirement.toml",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1094,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/spec.md",
+          "reads": 1,
+          "chars": 1812,
+          "tokens": 476,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-99d2311f.toml",
+          "reads": 1,
+          "chars": 553,
+          "tokens": 201,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 191,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 144,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 357,
+          "tokens": 136,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 122,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 101,
+          "measured": true
+        },
+        {
+          "path": "verify.py",
+          "reads": 1,
+          "chars": 300,
+          "tokens": 82,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 118,
+          "tokens": 31,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.216,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "specify"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "new_draft_requirements",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "serialization_and_none_outcomes",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "requirements_linked_in_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "exact_format_spec_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "coverage_recorded",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "check_executed",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "String serialization and None rejection have independently verifiable requirements without changing the existing normalizer contract.",
+        "The exact UTF-8 JSON byte format is buildable from the saved spec; no unstated interface or dependency is added."
+      ],
+      "journal_writer_commands": 1
+    },
+    "semantic_checks": [
+      {
+        "id": "error_response_has_own_requirement",
+        "passed": true,
+        "detail": "2 new requirement(s), 1 naming ValueError"
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "build_existing_contract",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 38.781,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 15,
+    "tool_calls": 19,
+    "tool_errors": 1,
+    "capability_errors": 1,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2098,
+        "completion_tokens": 87,
+        "total_tokens": 2185,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 2867,
+        "completion_tokens": 64,
+        "total_tokens": 2931,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 4514,
+        "completion_tokens": 111,
+        "total_tokens": 4625,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5081,
+        "completion_tokens": 64,
+        "total_tokens": 5145,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5899,
+        "completion_tokens": 65,
+        "total_tokens": 5964,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6142,
+        "completion_tokens": 81,
+        "total_tokens": 6223,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6418,
+        "completion_tokens": 49,
+        "total_tokens": 6467,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6697,
+        "completion_tokens": 62,
+        "total_tokens": 6759,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6784,
+        "completion_tokens": 38,
+        "total_tokens": 6822,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7072,
+        "completion_tokens": 70,
+        "total_tokens": 7142,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7331,
+        "completion_tokens": 50,
+        "total_tokens": 7381,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7622,
+        "completion_tokens": 41,
+        "total_tokens": 7663,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7886,
+        "completion_tokens": 83,
+        "total_tokens": 7969,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8158,
+        "completion_tokens": 86,
+        "total_tokens": 8244,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8548,
+        "completion_tokens": 339,
+        "total_tokens": 8887,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2098,
+      "peak_prompt_tokens": 8548,
+      "total_prompt_tokens": 93117,
+      "completion_tokens": 1290,
+      "reads": [
+        {
+          "path": ".agentic/steps/4_build.md",
+          "reads": 1,
+          "chars": 4273,
+          "tokens": 1118,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 1777,
+          "tokens": 465,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 178,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 129,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 118,
+          "tokens": 34,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.13,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "build"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "actual_red_anchor_edit_green_evolution",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "intended_safe_source_change",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "active_requirement_linked_to_real_tests",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "red_and_green_recorded",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Actual observed red, anchor, implementation edit, green and evolution occur in that order.",
+        "The journal records reproducible proof and keeps the existing active contract linked to actual tests."
+      ],
+      "journal_writer_commands": 4
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "deliver_requires_approval",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 39.953,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 9,
+    "tool_calls": 14,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2097,
+        "completion_tokens": 87,
+        "total_tokens": 2184,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 2869,
+        "completion_tokens": 79,
+        "total_tokens": 2948,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5346,
+        "completion_tokens": 134,
+        "total_tokens": 5480,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5779,
+        "completion_tokens": 132,
+        "total_tokens": 5911,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6585,
+        "completion_tokens": 46,
+        "total_tokens": 6631,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6828,
+        "completion_tokens": 45,
+        "total_tokens": 6873,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7197,
+        "completion_tokens": 193,
+        "total_tokens": 7390,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7587,
+        "completion_tokens": 199,
+        "total_tokens": 7786,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8205,
+        "completion_tokens": 563,
+        "total_tokens": 8768,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2097,
+      "peak_prompt_tokens": 8205,
+      "total_prompt_tokens": 52493,
+      "completion_tokens": 1478,
+      "reads": [
+        {
+          "path": ".agentic/steps/5_validate.md",
+          "reads": 1,
+          "chars": 6441,
+          "tokens": 1684,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 2,
+          "chars": 3895,
+          "tokens": 1016,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 168,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 62,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.125,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "publication_not_attempted",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "delivery_evidence_presented",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "delivery_approval_requested",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diff_inspected",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Delivery presents the actual diff, proof, exclusions and intended outcome before explicit approval.",
+        "No commit, report-time substitution for validation, or candidate edit occurs."
+      ],
+      "journal_writer_commands": 2
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "deliver_changed_after_proof",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 33.265,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 7,
+    "tool_calls": 9,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2093,
+        "completion_tokens": 87,
+        "total_tokens": 2180,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 2863,
+        "completion_tokens": 78,
+        "total_tokens": 2941,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 3891,
+        "completion_tokens": 43,
+        "total_tokens": 3934,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 4054,
+        "completion_tokens": 216,
+        "total_tokens": 4270,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 4467,
+        "completion_tokens": 64,
+        "total_tokens": 4531,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 4772,
+        "completion_tokens": 328,
+        "total_tokens": 5100,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5653,
+        "completion_tokens": 425,
+        "total_tokens": 6078,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2093,
+      "peak_prompt_tokens": 5653,
+      "total_prompt_tokens": 27793,
+      "completion_tokens": 1241,
+      "reads": [
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2648,
+          "tokens": 837,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 118,
+          "tokens": 71,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.086,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "publication_not_attempted",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stale_proof_rejected",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The changed source invalidates the recorded proof and returns records to Validate.",
+        "The model does not publish, repair, or present stale green verification as current proof."
+      ],
+      "journal_writer_commands": 2
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": false,
+    "repeat": 1
+  },
+  {
+    "scenario": "adopt_existing_component",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 65.046,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 14,
+    "tool_calls": 25,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2104,
+        "completion_tokens": 67,
+        "total_tokens": 2171,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 2617,
+        "completion_tokens": 63,
+        "total_tokens": 2680,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 4908,
+        "completion_tokens": 130,
+        "total_tokens": 5038,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6101,
+        "completion_tokens": 117,
+        "total_tokens": 6218,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9536,
+        "completion_tokens": 84,
+        "total_tokens": 9620,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9842,
+        "completion_tokens": 38,
+        "total_tokens": 9880,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10410,
+        "completion_tokens": 75,
+        "total_tokens": 10485,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10770,
+        "completion_tokens": 53,
+        "total_tokens": 10823,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11367,
+        "completion_tokens": 580,
+        "total_tokens": 11947,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11974,
+        "completion_tokens": 71,
+        "total_tokens": 12045,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12072,
+        "completion_tokens": 156,
+        "total_tokens": 12228,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12426,
+        "completion_tokens": 73,
+        "total_tokens": 12499,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12526,
+        "completion_tokens": 221,
+        "total_tokens": 12747,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13181,
+        "completion_tokens": 626,
+        "total_tokens": 13807,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2104,
+      "peak_prompt_tokens": 13181,
+      "total_prompt_tokens": 129834,
+      "completion_tokens": 2354,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2922,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/adopt.md",
+          "reads": 1,
+          "chars": 7590,
+          "tokens": 1838,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/component.md",
+          "reads": 1,
+          "chars": 3310,
+          "tokens": 796,
+          "measured": true
+        },
+        {
+          "path": "AGENTS.md",
+          "reads": 1,
+          "chars": 1762,
+          "tokens": 482,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 1608,
+          "tokens": 390,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 132,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 107,
+          "measured": true
+        },
+        {
+          "path": "verify.py",
+          "reads": 1,
+          "chars": 300,
+          "tokens": 92,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 65,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 65,
+          "measured": true
+        },
+        {
+          "path": "README.md",
+          "reads": 1,
+          "chars": 226,
+          "tokens": 62,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 118,
+          "tokens": 28,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.201,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "components"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "stage_prompt_read",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "source_and_tests_inspected",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_page_created",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "existing_active_contract_preserved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "suspected_defect_recorded",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_ticked",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The component knowledge describes observed source/tests and links the current active contract.",
+        "The missing whitespace behavior is a suspected defect recorded for clarification, not a new requirement silently legitimizing the bug."
+      ],
+      "journal_writer_commands": 2
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "review_enabled_current",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 149.203,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 13,
+    "tool_calls": 23,
+    "tool_errors": 3,
+    "capability_errors": 1,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 2,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2091,
+        "completion_tokens": 71,
+        "total_tokens": 2162,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5080,
+        "completion_tokens": 78,
+        "total_tokens": 5158,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7202,
+        "completion_tokens": 63,
+        "total_tokens": 7265,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8385,
+        "completion_tokens": 127,
+        "total_tokens": 8512,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8925,
+        "completion_tokens": 139,
+        "total_tokens": 9064,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9690,
+        "completion_tokens": 93,
+        "total_tokens": 9783,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10402,
+        "completion_tokens": 44,
+        "total_tokens": 10446,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10587,
+        "completion_tokens": 38,
+        "total_tokens": 10625,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10865,
+        "completion_tokens": 222,
+        "total_tokens": 11087,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13334,
+        "completion_tokens": 66,
+        "total_tokens": 13400,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13685,
+        "completion_tokens": 137,
+        "total_tokens": 13822,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 14015,
+        "completion_tokens": 209,
+        "total_tokens": 14224,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 14629,
+        "completion_tokens": 516,
+        "total_tokens": 15145,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2091,
+      "peak_prompt_tokens": 14629,
+      "total_prompt_tokens": 128890,
+      "completion_tokens": 1803,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2811,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/5_validate.md",
+          "reads": 1,
+          "chars": 6441,
+          "tokens": 1710,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/review.md",
+          "reads": 1,
+          "chars": 2169,
+          "tokens": 568,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2111,
+          "tokens": 552,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 182,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 613,
+          "tokens": 174,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 156,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 102,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 83,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 52,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.223,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "two_real_review_sessions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "same_unchanged_candidate",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "independent_read_evidence",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "verdicts_from_actual_reviewers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_policy_respected",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Both reviewer roles actually inspect the same candidate in separate sessions.",
+        "Recorded verdicts and continuation follow real review results, not coordinator self-review."
+      ],
+      "journal_writer_commands": 3,
+      "limitations": []
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "review_disabled_no_delegation",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 43.766,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 13,
+    "tool_calls": 22,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2073,
+        "completion_tokens": 46,
+        "total_tokens": 2119,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 2586,
+        "completion_tokens": 64,
+        "total_tokens": 2650,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 4798,
+        "completion_tokens": 45,
+        "total_tokens": 4843,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5047,
+        "completion_tokens": 82,
+        "total_tokens": 5129,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5541,
+        "completion_tokens": 135,
+        "total_tokens": 5676,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6129,
+        "completion_tokens": 90,
+        "total_tokens": 6219,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6624,
+        "completion_tokens": 122,
+        "total_tokens": 6746,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7450,
+        "completion_tokens": 55,
+        "total_tokens": 7505,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7792,
+        "completion_tokens": 144,
+        "total_tokens": 7936,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8133,
+        "completion_tokens": 46,
+        "total_tokens": 8179,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8376,
+        "completion_tokens": 45,
+        "total_tokens": 8421,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9028,
+        "completion_tokens": 110,
+        "total_tokens": 9138,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9475,
+        "completion_tokens": 450,
+        "total_tokens": 9925,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2073,
+      "peak_prompt_tokens": 9475,
+      "total_prompt_tokens": 83052,
+      "completion_tokens": 1434,
+      "reads": [
+        {
+          "path": ".agentic/steps/5_validate.md",
+          "reads": 1,
+          "chars": 6441,
+          "tokens": 1618,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 2,
+          "chars": 4543,
+          "tokens": 1137,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 613,
+          "tokens": 175,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 357,
+          "tokens": 166,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 157,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 133,
+          "measured": true
+        },
+        {
+          "path": "verify.py",
+          "reads": 1,
+          "chars": 300,
+          "tokens": 131,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 61,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 61,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 38,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.145,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "fresh_successful_proof",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_disabled",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_reviewer_activation",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Disabled review launches no reviewer while ordinary validation still executes.",
+        "Report distinguishes disabled review from missing verdicts and actual proof."
+      ],
+      "journal_writer_commands": 2,
+      "limitations": []
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "review_detects_missing_behavior",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 154.016,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 8,
+    "tool_calls": 11,
+    "tool_errors": 2,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 2,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2098,
+        "completion_tokens": 76,
+        "total_tokens": 2174,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5343,
+        "completion_tokens": 64,
+        "total_tokens": 5407,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7575,
+        "completion_tokens": 46,
+        "total_tokens": 7621,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8251,
+        "completion_tokens": 222,
+        "total_tokens": 8473,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10727,
+        "completion_tokens": 67,
+        "total_tokens": 10794,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11093,
+        "completion_tokens": 120,
+        "total_tokens": 11213,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11406,
+        "completion_tokens": 199,
+        "total_tokens": 11605,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12030,
+        "completion_tokens": 584,
+        "total_tokens": 12614,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2098,
+      "peak_prompt_tokens": 12030,
+      "total_prompt_tokens": 68523,
+      "completion_tokens": 1378,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2834,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/5_validate.md",
+          "reads": 1,
+          "chars": 6441,
+          "tokens": 1624,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/review.md",
+          "reads": 1,
+          "chars": 2169,
+          "tokens": 607,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2159,
+          "tokens": 544,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.184,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "two_real_review_sessions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "same_unchanged_candidate",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "independent_read_evidence",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "verdicts_from_actual_reviewers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "missing_behavior_detected",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_policy_respected",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Fresh review identifies accepted None-input ValueError behavior missing from the candidate.",
+        "Autopilot preserves actual verdicts and stops at the blocking decision despite zero remaining fix cycles."
+      ],
+      "journal_writer_commands": 3,
+      "limitations": []
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "diagrams_enabled_types",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 107.75,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 18,
+    "tool_calls": 29,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2085,
+        "completion_tokens": 71,
+        "total_tokens": 2156,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5082,
+        "completion_tokens": 78,
+        "total_tokens": 5160,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6536,
+        "completion_tokens": 73,
+        "total_tokens": 6609,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7423,
+        "completion_tokens": 85,
+        "total_tokens": 7508,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7763,
+        "completion_tokens": 118,
+        "total_tokens": 7881,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8300,
+        "completion_tokens": 57,
+        "total_tokens": 8357,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8470,
+        "completion_tokens": 59,
+        "total_tokens": 8529,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8753,
+        "completion_tokens": 57,
+        "total_tokens": 8810,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10134,
+        "completion_tokens": 55,
+        "total_tokens": 10189,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10341,
+        "completion_tokens": 26,
+        "total_tokens": 10367,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10467,
+        "completion_tokens": 68,
+        "total_tokens": 10535,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10972,
+        "completion_tokens": 43,
+        "total_tokens": 11015,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11254,
+        "completion_tokens": 179,
+        "total_tokens": 11433,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11460,
+        "completion_tokens": 994,
+        "total_tokens": 12454,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12481,
+        "completion_tokens": 518,
+        "total_tokens": 12999,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13026,
+        "completion_tokens": 41,
+        "total_tokens": 13067,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13450,
+        "completion_tokens": 190,
+        "total_tokens": 13640,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 14060,
+        "completion_tokens": 1140,
+        "total_tokens": 15200,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2085,
+      "peak_prompt_tokens": 14060,
+      "total_prompt_tokens": 172057,
+      "completion_tokens": 3852,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2819,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/diagrams.md",
+          "reads": 1,
+          "chars": 5198,
+          "tokens": 1314,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 1007,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2390,
+          "tokens": 721,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-33333333.toml",
+          "reads": 1,
+          "chars": 843,
+          "tokens": 252,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 207,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 164,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 437,
+          "tokens": 151,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 138,
+          "measured": true
+        },
+        {
+          "path": "verify.py",
+          "reads": 1,
+          "chars": 300,
+          "tokens": 100,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 73,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 71,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 42,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.215,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diagram_artifact_and_link",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_structure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_sequence",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_state",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "structure_change_markers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diagrams_shown_after_summary",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Diagrams illustrate the saved design's actual proposed components, asynchronous flow and job lifecycle.",
+        "The diagram file, journal link and checkpoint presentation honor enabled types without inventing requirements."
+      ],
+      "journal_writer_commands": 1,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "semantic_checks": [
+      {
+        "id": "design_cites_requirements",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "id": "design_proportionate",
+        "passed": true,
+        "detail": "18 lines"
+      }
+    ],
+    "semantic_passed": true,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "diagrams_disabled",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 113.078,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 24,
+    "tool_calls": 38,
+    "tool_errors": 2,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2077,
+        "completion_tokens": 71,
+        "total_tokens": 2148,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5065,
+        "completion_tokens": 78,
+        "total_tokens": 5143,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6499,
+        "completion_tokens": 73,
+        "total_tokens": 6572,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7378,
+        "completion_tokens": 122,
+        "total_tokens": 7500,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7896,
+        "completion_tokens": 54,
+        "total_tokens": 7950,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8266,
+        "completion_tokens": 118,
+        "total_tokens": 8384,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8803,
+        "completion_tokens": 108,
+        "total_tokens": 8911,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9073,
+        "completion_tokens": 86,
+        "total_tokens": 9159,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9483,
+        "completion_tokens": 62,
+        "total_tokens": 9545,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11772,
+        "completion_tokens": 85,
+        "total_tokens": 11857,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12403,
+        "completion_tokens": 32,
+        "total_tokens": 12435,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13545,
+        "completion_tokens": 29,
+        "total_tokens": 13574,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 23763,
+        "completion_tokens": 43,
+        "total_tokens": 23806,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 24038,
+        "completion_tokens": 46,
+        "total_tokens": 24084,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 24348,
+        "completion_tokens": 49,
+        "total_tokens": 24397,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 24794,
+        "completion_tokens": 47,
+        "total_tokens": 24841,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 25032,
+        "completion_tokens": 86,
+        "total_tokens": 25118,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 25311,
+        "completion_tokens": 475,
+        "total_tokens": 25786,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 25813,
+        "completion_tokens": 866,
+        "total_tokens": 26679,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 26706,
+        "completion_tokens": 125,
+        "total_tokens": 26831,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 26857,
+        "completion_tokens": 212,
+        "total_tokens": 27069,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 27096,
+        "completion_tokens": 49,
+        "total_tokens": 27145,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 27654,
+        "completion_tokens": 150,
+        "total_tokens": 27804,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 28182,
+        "completion_tokens": 471,
+        "total_tokens": 28653,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2077,
+      "peak_prompt_tokens": 28182,
+      "total_prompt_tokens": 411854,
+      "completion_tokens": 3537,
+      "reads": [
+        {
+          "path": ".agentic/CLI.md",
+          "reads": 1,
+          "chars": 41052,
+          "tokens": 10189,
+          "measured": true
+        },
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2810,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/2_specify.md",
+          "reads": 1,
+          "chars": 4526,
+          "tokens": 1159,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/requirement.toml",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1110,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/task.md",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1068,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 1007,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2390,
+          "tokens": 714,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-33333333.toml",
+          "reads": 1,
+          "chars": 843,
+          "tokens": 252,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 217,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 164,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 143,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 438,
+          "tokens": 141,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 70,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 70,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 41,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.43,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_unrequested_diagrams",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Design is completed without creating diagrams while the feature is disabled.",
+        "No diagram link or diagram-based completion claim is invented."
+      ],
+      "journal_writer_commands": 2,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "diagrams_empty_types",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 89.656,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 19,
+    "tool_calls": 30,
+    "tool_errors": 1,
+    "capability_errors": 1,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2077,
+        "completion_tokens": 76,
+        "total_tokens": 2153,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5317,
+        "completion_tokens": 64,
+        "total_tokens": 5381,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6895,
+        "completion_tokens": 94,
+        "total_tokens": 6989,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7255,
+        "completion_tokens": 150,
+        "total_tokens": 7405,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8030,
+        "completion_tokens": 83,
+        "total_tokens": 8113,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8289,
+        "completion_tokens": 57,
+        "total_tokens": 8346,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8538,
+        "completion_tokens": 68,
+        "total_tokens": 8606,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9114,
+        "completion_tokens": 27,
+        "total_tokens": 9141,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9207,
+        "completion_tokens": 29,
+        "total_tokens": 9236,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10338,
+        "completion_tokens": 29,
+        "total_tokens": 10367,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10442,
+        "completion_tokens": 29,
+        "total_tokens": 10471,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10912,
+        "completion_tokens": 33,
+        "total_tokens": 10945,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12082,
+        "completion_tokens": 64,
+        "total_tokens": 12146,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 14398,
+        "completion_tokens": 1184,
+        "total_tokens": 15582,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 15609,
+        "completion_tokens": 225,
+        "total_tokens": 15834,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 15861,
+        "completion_tokens": 57,
+        "total_tokens": 15918,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 16170,
+        "completion_tokens": 49,
+        "total_tokens": 16219,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 16620,
+        "completion_tokens": 146,
+        "total_tokens": 16766,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 17091,
+        "completion_tokens": 497,
+        "total_tokens": 17588,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2077,
+      "peak_prompt_tokens": 17091,
+      "total_prompt_tokens": 204245,
+      "completion_tokens": 2961,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2839,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/1_frame.md",
+          "reads": 1,
+          "chars": 4704,
+          "tokens": 1194,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/2_specify.md",
+          "reads": 1,
+          "chars": 4526,
+          "tokens": 1137,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/task.md",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1102,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/requirement.toml",
+          "reads": 1,
+          "chars": 4167,
+          "tokens": 1058,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 902,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2390,
+          "tokens": 612,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/spec.md",
+          "reads": 1,
+          "chars": 1812,
+          "tokens": 441,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-33333333.toml",
+          "reads": 1,
+          "chars": 843,
+          "tokens": 238,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 196,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 399,
+          "tokens": 156,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 155,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 130,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 75,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 62,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 36,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.261,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_unrequested_diagrams",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "An empty enabled type list creates no diagram file or link.",
+        "The design remains substantive and does not silently add default diagram types."
+      ],
+      "journal_writer_commands": 1,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "diagrams_skipped_design",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 39.953,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 9,
+    "tool_calls": 13,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2081,
+        "completion_tokens": 76,
+        "total_tokens": 2157,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5312,
+        "completion_tokens": 64,
+        "total_tokens": 5376,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 6752,
+        "completion_tokens": 101,
+        "total_tokens": 6853,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7194,
+        "completion_tokens": 71,
+        "total_tokens": 7265,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7603,
+        "completion_tokens": 32,
+        "total_tokens": 7635,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7821,
+        "completion_tokens": 461,
+        "total_tokens": 8282,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8309,
+        "completion_tokens": 41,
+        "total_tokens": 8350,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8617,
+        "completion_tokens": 59,
+        "total_tokens": 8676,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8967,
+        "completion_tokens": 397,
+        "total_tokens": 9364,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2081,
+      "peak_prompt_tokens": 8967,
+      "total_prompt_tokens": 62656,
+      "completion_tokens": 1302,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2827,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 941,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 1629,
+          "tokens": 435,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 412,
+          "tokens": 193,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 186,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 167,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 135,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 38,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.137,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_unrequested_diagrams",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "A skipped design records its reason and creates no diagram.",
+        "Enabling diagrams does not force a design note or an extra workflow stage."
+      ],
+      "journal_writer_commands": 1,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "autopilot_design_transition",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 97.125,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 15,
+    "tool_calls": 26,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2083,
+        "completion_tokens": 71,
+        "total_tokens": 2154,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5076,
+        "completion_tokens": 46,
+        "total_tokens": 5122,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5606,
+        "completion_tokens": 64,
+        "total_tokens": 5670,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7185,
+        "completion_tokens": 94,
+        "total_tokens": 7279,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7545,
+        "completion_tokens": 150,
+        "total_tokens": 7695,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8320,
+        "completion_tokens": 104,
+        "total_tokens": 8424,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8780,
+        "completion_tokens": 73,
+        "total_tokens": 8853,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9103,
+        "completion_tokens": 1460,
+        "total_tokens": 10563,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10590,
+        "completion_tokens": 158,
+        "total_tokens": 10748,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11133,
+        "completion_tokens": 86,
+        "total_tokens": 11219,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11658,
+        "completion_tokens": 46,
+        "total_tokens": 11704,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11965,
+        "completion_tokens": 116,
+        "total_tokens": 12081,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12270,
+        "completion_tokens": 160,
+        "total_tokens": 12430,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12859,
+        "completion_tokens": 118,
+        "total_tokens": 12977,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13391,
+        "completion_tokens": 723,
+        "total_tokens": 14114,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2083,
+      "peak_prompt_tokens": 13391,
+      "total_prompt_tokens": 137564,
+      "completion_tokens": 3469,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2815,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 902,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2389,
+          "tokens": 613,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-33333333.toml",
+          "reads": 1,
+          "chars": 843,
+          "tokens": 238,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 196,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 155,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 212,
+          "tokens": 112,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 93,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 36,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.204,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "build"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diagram_artifact_and_link",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "generated_structure",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "generated_sequence",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "generated_state",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "structure_change_markers",
+          "passed": false,
+          "detail": ""
+        },
+        {
+          "id": "autopilot_recorded",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "autopilot_no_diagram_display",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "autopilot_diagram_reported",
+          "passed": false,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Autopilot completes design and advances records to build without an intermediate confirmation request.",
+        "Diagrams are saved and reported without checkpoint diagram display; the explicit implementation boundary is respected."
+      ],
+      "journal_writer_commands": 3,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": false,
+    "repeat": 1
+  },
+  {
+    "scenario": "autopilot_explicit_stage_stop",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 84.984,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 15,
+    "tool_calls": 23,
+    "tool_errors": 0,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2083,
+        "completion_tokens": 71,
+        "total_tokens": 2154,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5076,
+        "completion_tokens": 46,
+        "total_tokens": 5122,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5606,
+        "completion_tokens": 64,
+        "total_tokens": 5670,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7185,
+        "completion_tokens": 94,
+        "total_tokens": 7279,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7545,
+        "completion_tokens": 118,
+        "total_tokens": 7663,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8114,
+        "completion_tokens": 89,
+        "total_tokens": 8203,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8458,
+        "completion_tokens": 30,
+        "total_tokens": 8488,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8649,
+        "completion_tokens": 32,
+        "total_tokens": 8681,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9991,
+        "completion_tokens": 91,
+        "total_tokens": 10082,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10279,
+        "completion_tokens": 163,
+        "total_tokens": 10442,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10469,
+        "completion_tokens": 853,
+        "total_tokens": 11322,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11357,
+        "completion_tokens": 485,
+        "total_tokens": 11842,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 11869,
+        "completion_tokens": 41,
+        "total_tokens": 11910,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12289,
+        "completion_tokens": 161,
+        "total_tokens": 12450,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12838,
+        "completion_tokens": 621,
+        "total_tokens": 13459,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2083,
+      "peak_prompt_tokens": 12838,
+      "total_prompt_tokens": 131808,
+      "completion_tokens": 2959,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2815,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/diagrams.md",
+          "reads": 1,
+          "chars": 5198,
+          "tokens": 1310,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/3_design.md",
+          "reads": 1,
+          "chars": 3518,
+          "tokens": 902,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2389,
+          "tokens": 613,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-33333333.toml",
+          "reads": 1,
+          "chars": 843,
+          "tokens": 251,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 694,
+          "tokens": 192,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 163,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 436,
+          "tokens": 161,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 213,
+          "tokens": 59,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 37,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.196,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "design"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "component_knowledge_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "design_saved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "diagram_artifact_and_link",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_structure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_sequence",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "generated_state",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "structure_change_markers",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "autopilot_recorded",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "autopilot_no_diagram_display",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "autopilot_diagram_reported",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "The explicit design-stage stop overrides autopilot continuation and leaves the header at design.",
+        "Diagram artifacts are saved and reported without inventing implementation or an intermediate approval gate."
+      ],
+      "journal_writer_commands": 2,
+      "limitations": [
+        "Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."
+      ]
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  },
+  {
+    "scenario": "validate_stale_context",
+    "profile": "capabilities",
+    "status": "completed",
+    "error": "",
+    "seconds": 66.281,
+    "model_ids_returned": [
+      "qwen/qwen3.8-27b"
+    ],
+    "requests": 15,
+    "tool_calls": 28,
+    "tool_errors": 1,
+    "capability_errors": 0,
+    "forbidden_actions": 0,
+    "reviewer_sessions": 0,
+    "degenerate_responses": 0,
+    "reviewer_degenerate_responses": 0,
+    "usage": [
+      {
+        "prompt_tokens": 2100,
+        "completion_tokens": 76,
+        "total_tokens": 2176,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 5335,
+        "completion_tokens": 64,
+        "total_tokens": 5399,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7547,
+        "completion_tokens": 99,
+        "total_tokens": 7646,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 7972,
+        "completion_tokens": 130,
+        "total_tokens": 8102,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 8682,
+        "completion_tokens": 129,
+        "total_tokens": 8811,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9322,
+        "completion_tokens": 89,
+        "total_tokens": 9411,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 9920,
+        "completion_tokens": 43,
+        "total_tokens": 9963,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 10821,
+        "completion_tokens": 177,
+        "total_tokens": 10998,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12322,
+        "completion_tokens": 210,
+        "total_tokens": 12532,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12572,
+        "completion_tokens": 97,
+        "total_tokens": 12669,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 12862,
+        "completion_tokens": 55,
+        "total_tokens": 12917,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13187,
+        "completion_tokens": 173,
+        "total_tokens": 13360,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13553,
+        "completion_tokens": 46,
+        "total_tokens": 13599,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 13792,
+        "completion_tokens": 157,
+        "total_tokens": 13949,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "prompt_tokens": 14315,
+        "completion_tokens": 627,
+        "total_tokens": 14942,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "context": {
+      "first_prompt_tokens": 2100,
+      "peak_prompt_tokens": 14315,
+      "total_prompt_tokens": 154302,
+      "completion_tokens": 2172,
+      "reads": [
+        {
+          "path": ".agentic/AGENTS.md",
+          "reads": 1,
+          "chars": 10786,
+          "tokens": 2829,
+          "measured": true
+        },
+        {
+          "path": ".agentic/steps/5_validate.md",
+          "reads": 1,
+          "chars": 6441,
+          "tokens": 1618,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.anchor.json",
+          "reads": 1,
+          "chars": 1554,
+          "tokens": 543,
+          "measured": true
+        },
+        {
+          "path": ".agentic/tasks/TASK-aaaaaaaa.md",
+          "reads": 1,
+          "chars": 2111,
+          "tokens": 530,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/environment.md",
+          "reads": 1,
+          "chars": 1207,
+          "tokens": 422,
+          "measured": true
+        },
+        {
+          "path": ".agentic/templates/project.md",
+          "reads": 1,
+          "chars": 1027,
+          "tokens": 359,
+          "measured": true
+        },
+        {
+          "path": ".agentic/knowledge/normalization.md",
+          "reads": 1,
+          "chars": 613,
+          "tokens": 184,
+          "measured": true
+        },
+        {
+          "path": ".agentic/requirements/functional/REQ-FUNC-11111111.toml",
+          "reads": 1,
+          "chars": 548,
+          "tokens": 170,
+          "measured": true
+        },
+        {
+          "path": "tests/test_normalize.py",
+          "reads": 1,
+          "chars": 443,
+          "tokens": 137,
+          "measured": true
+        },
+        {
+          "path": ".agentic/aegis.toml",
+          "reads": 1,
+          "chars": 357,
+          "tokens": 111,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/project.md",
+          "reads": 1,
+          "chars": 271,
+          "tokens": 107,
+          "measured": true
+        },
+        {
+          "path": ".agentic/context/environment.md",
+          "reads": 1,
+          "chars": 250,
+          "tokens": 98,
+          "measured": true
+        },
+        {
+          "path": "verify.py",
+          "reads": 1,
+          "chars": 300,
+          "tokens": 93,
+          "measured": true
+        },
+        {
+          "path": "src/normalize.py",
+          "reads": 1,
+          "chars": 126,
+          "tokens": 38,
+          "measured": true
+        }
+      ],
+      "context_window": 65536,
+      "peak_window_fraction": 0.218,
+      "above_window_thresholds": []
+    },
+    "evaluation": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "protected_files_unchanged",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_commit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "no_forbidden_actions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "one_journal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "parseable_records",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "expected_stage",
+          "passed": true,
+          "detail": "validate"
+        },
+        {
+          "id": "synchronized_stage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "resume_action",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "awaits_user",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "preserves_history",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "summary_executed",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "fresh_successful_proof",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "review_disabled",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "project.md_updated",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "project.md_unrelated_notes_preserved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "environment.md_updated",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "environment.md_unrelated_notes_preserved",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "project_current_behavior",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "id": "environment_current_command",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "semantic_review": "pending",
+      "rubric": [
+        "Both context files state current inspected behavior and verification route, with unrelated notes preserved.",
+        "Final proof describes the candidate after context reconciliation; no stale route or invented test success is retained."
+      ],
+      "journal_writer_commands": 3,
+      "limitations": []
+    },
+    "semantic_checks": [],
+    "semantic_passed": null,
+    "passed": true,
+    "repeat": 1
+  }
+]
