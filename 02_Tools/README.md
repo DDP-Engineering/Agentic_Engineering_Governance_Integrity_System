@@ -50,6 +50,21 @@ closing cases present a validated task and never publish it. The evaluation
 folder keeps the latest `gpt-6-luna` subscription baselines; other runs keep
 their raw evidence in the ignored `.tmp-codex-eval/` folder.
 
+`report_aegis_evaluations.py` renders the output folders of either runner as
+one self-contained HTML report, with `report_aegis_evaluations_page.py` holding
+its sections and styles. Pass run folders, or folders whose children are run
+folders, and `--version` to keep one AEGIS payload version:
+
+```text
+python 02_Tools/report_aegis_evaluations.py .tmp-codex-eval --version 0.16.0 --output .tmp-codex-eval/reports/aegis-0.16.0.html
+```
+
+It reads only what the runs saved and calls no model. The version is the
+payload's `VERSION`, read from `evidence.zip`, or, for a run still collecting,
+taken from another run or the template with the same `aegis.py` hash.
+Development variants of one payload share a version; the settings table tells
+them apart by that hash.
+
 ## Package builders
 
 Run the commands below from the repository root. Core release construction and

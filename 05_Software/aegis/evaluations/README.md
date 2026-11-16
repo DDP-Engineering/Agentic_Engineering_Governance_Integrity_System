@@ -30,6 +30,18 @@ removed earlier, all at the owner's request; Git history keeps them. No Sol or
 local-model baseline is stored. Other local and subscription measurements keep
 their raw evidence in the ignored `.tmp-codex-eval/` folder.
 
+## Reports
+
+[`report_aegis_evaluations.py`](../../../02_Tools/report_aegis_evaluations.py)
+turns stored baselines and local run folders into one HTML page, for one run,
+one AEGIS version or every run given. The page explains the test and its
+measures, then gives one results row per run, a case-by-case matrix, each
+failed case with its request, failed checks, tool calls and final answer, the
+run settings grouped where they match, and the limits of the evidence. A run
+still collecting is marked partial. The page is generated, so keep it beside
+the runs, for example under `.tmp-codex-eval/reports/`, rather than in this
+folder.
+
 ## Profiles and coverage
 
 The original ten cases in `scenarios.json`, five tools, core fixture setup and
