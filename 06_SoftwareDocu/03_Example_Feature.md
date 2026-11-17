@@ -47,20 +47,19 @@ Needs user:   yes
 ```
 
 The block continues with the review fields and the journal path. The
-following scope is illustrative: M3U-only, the new module and path rules
-are proposals to confirm, rather than facts implied by the short request:
+following scope is illustrative: M3U-only and the new module are proposals
+to confirm, rather than facts implied by the short request:
 
-> Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
-> path (new user-facing behavior). One requirement proposed:
-> "Export playlist as M3U". Proceed?
+> Scope: M3U export only, no PLS; new module `src/export/m3u.py`. One
+> requirement proposed: "Export playlist as M3U". Proceed?
 
 You answer - trim it, extend it, or just "yes". This accepts scope; it does
 not claim implementation. The settled question becomes a ruling, and the
-continuation records the path:
+continuation moves the task to specify:
 
 ```bash
 python .agentic/aegis.py ruling TASK-8b12 --decision "M3U only, no PLS" --reason "user answer" --source user
-python .agentic/aegis.py advance TASK-8b12 --path full --reason "scope accepted"
+python .agentic/aegis.py advance TASK-8b12 --reason "scope accepted"
 ```
 
 The agent then builds a behavior inventory and Frame-to-requirement coverage

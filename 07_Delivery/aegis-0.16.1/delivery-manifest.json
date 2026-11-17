@@ -1,0 +1,110 @@
+{
+  "artifacts": {
+    "AEGIS-Documentation-0.16.1.zip": {
+      "sha256": "a1754b38f9abf955b87910c92fe62e5a7959fa9ff08d6776bd4b8cf420f5be4f",
+      "size": 1464130
+    },
+    "aegis-0.16.1-linux.tar.gz": {
+      "sha256": "8f88fc6cc44f004c89f7fb18d4c944673ea18d93704d04ac03a0f4f692834c13",
+      "size": 178741
+    },
+    "aegis-0.16.1-windows.zip": {
+      "sha256": "00747466693eacde169215e36e3fa59104ab1037939966446fc7d4514634828d",
+      "size": 206988
+    },
+    "agent-plugins-0.16.1/AEGIS-Claude-Code-0.16.1-linux.tar.gz": {
+      "sha256": "5ffb872b49ee257dbfcb52a223c80d334daf03176e9f845b1dd00fba4aa16bd6",
+      "size": 895732
+    },
+    "agent-plugins-0.16.1/AEGIS-Claude-Code-0.16.1-windows.zip": {
+      "sha256": "cdc7105ee7df426859a290d82b093273b1027d383f17b1f435959f21fd58c6fa",
+      "size": 923979
+    },
+    "agent-plugins-0.16.1/AEGIS-Codex-0.16.1-linux.tar.gz": {
+      "sha256": "03bfa42cb0c35563fb22eea7f9336bc638f075cc2716cadec9fd059316b90f6c",
+      "size": 893881
+    },
+    "agent-plugins-0.16.1/AEGIS-Codex-0.16.1-windows.zip": {
+      "sha256": "afdaff3f281879831f96d6dbc05914bdeb315995ba9a7b6ed69fb4769ce8d25c",
+      "size": 920624
+    },
+    "agent-plugins-0.16.1/AEGIS-OpenCode-0.16.1-linux.tar.gz": {
+      "sha256": "789497ef99981957467495b4ea08b720ae05c20196c890a3747eb663df24fc3c",
+      "size": 892150
+    },
+    "agent-plugins-0.16.1/AEGIS-OpenCode-0.16.1-windows.zip": {
+      "sha256": "60bb1c3b0398a1797a1daa855f778b8db09e21095352e8d12ca7627575be61e1",
+      "size": 917849
+    },
+    "agent-plugins-0.16.1/AEGIS-Pi-0.16.1-linux.tar.gz": {
+      "sha256": "2ff7affa55b36871c3e8eb07e34ac223832ea37afe837b5bceade3b1ba406732",
+      "size": 889327
+    },
+    "agent-plugins-0.16.1/AEGIS-Pi-0.16.1-windows.zip": {
+      "sha256": "1e048bcd1dcf807d865917e35bc59e70a6b8e319db40a18c259fe977f6de5d50",
+      "size": 914438
+    },
+    "agent-plugins-0.16.1/AEGIS-Qwen-Code-0.16.1-linux.tar.gz": {
+      "sha256": "23029a5f9c91c2edfbe815d0b49891cab6c56e3e38f0defee29e4796f13dc43c",
+      "size": 888252
+    },
+    "agent-plugins-0.16.1/AEGIS-Qwen-Code-0.16.1-windows.zip": {
+      "sha256": "22542ae170db0f8c70b4d65844fa04c2e5fed8a5887b7d02a7addff4653e2008",
+      "size": 914256
+    }
+  },
+  "build_date": "2026-11-17",
+  "build_utc": "2026-11-17T07:40:34.010290+00:00",
+  "product": "aegis",
+  "release_date": "2026-11-17",
+  "schema": 1,
+  "source_branch": "master",
+  "source_changes": [
+    "02_Tools/README.md",
+    "02_Tools/build_aegis_release.py",
+    "05_Software/aegis/README.md",
+    "05_Software/aegis/integrations/README.md",
+    "05_Software/aegis/integrations/claude/README.md",
+    "05_Software/aegis/integrations/claude/plugins/aegis/.claude-plugin/plugin.json",
+    "05_Software/aegis/integrations/claude/plugins/aegis/skills/workflow/SKILL.md",
+    "05_Software/aegis/integrations/codex/plugins/aegis/.codex-plugin/plugin.json",
+    "05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml",
+    "05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/operations.md",
+    "05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/review.md",
+    "05_Software/aegis/integrations/opencode/plugin.mjs",
+    "05_Software/aegis/integrations/opencode/prompts/aegis.md",
+    "05_Software/aegis/integrations/pi/package.json",
+    "05_Software/aegis/integrations/pi/skills/aegis/SKILL.md",
+    "05_Software/aegis/integrations/qwen/qwen-extension.json",
+    "05_Software/aegis/integrations/qwen/skills/aegis/SKILL.md",
+    "05_Software/aegis/integrations/shared/adapter.mjs",
+    "05_Software/aegis/integrations/shared/operations.mjs",
+    "05_Software/aegis/integrations/shared/worker.mjs",
+    "05_Software/aegis/integrations/tests/adapter.test.mjs",
+    "05_Software/aegis/integrations/tests/interfaces.test.mjs",
+    "05_Software/aegis/template/.agentic/AGENTS.md",
+    "05_Software/aegis/template/.agentic/CLI.md",
+    "05_Software/aegis/template/.agentic/aegis.py",
+    "05_Software/aegis/template/.agentic/steps/5_validate.md",
+    "05_Software/aegis/template/.agentic/steps/adopt.md",
+    "05_Software/aegis/template/.agentic/templates/task.md",
+    "05_Software/aegis/tests/test_check.py",
+    "05_Software/aegis/tests/test_cli_core.py",
+    "05_Software/aegis/tests/test_journal_state.py",
+    "05_Software/aegis/tests/test_release_builder.py",
+    "05_Software/aegis/tests/test_repo_evolution.py",
+    "05_Software/aegis/tests/test_run_report.py",
+    "06_SoftwareDocu/01_Install_and_Setup.md",
+    "06_SoftwareDocu/02_Folders_and_Files.md",
+    "06_SoftwareDocu/03_Example_Feature.md",
+    "06_SoftwareDocu/07_FAQ.md",
+    "06_SoftwareDocu/08_Prompt_Cheatsheet.md",
+    "06_SoftwareDocu/09_CLI_Reference.md",
+    "AGENTS.md",
+    "CHANGELOG-archive.md",
+    "CHANGELOG.md"
+  ],
+  "source_head": "166a0b98fa5fe3fcf7351bbb636e8317ddc32c81",
+  "source_patch_sha256": "feed3b61ba56e1cb038605c100ec328b03c8c422300da665a70e6a1ec6183b42",
+  "version": "0.16.1"
+}

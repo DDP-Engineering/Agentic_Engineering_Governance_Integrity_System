@@ -36,8 +36,14 @@ try {
   job.state = cancelling ? 'cancelled' : 'completed';
   job.exit_code = cancelling ? null : ended.code;
   job.signal = ended.signal;
-  job.candidate_after = await fingerprint(job.root);
-  job.candidate_unchanged = job.candidate_before.digest === job.candidate_after.digest;
+  // The child has exited: a fingerprint that cannot be taken now must not turn
+  // a finished run into an uncertain one that keeps the checkout locked.
+  try {
+    job.candidate_after = await fingerprint(job.root);
+    job.candidate_unchanged = job.candidate_before.digest === job.candidate_after.digest;
+  } catch (e) {
+    job.candidate_unchanged = null; job.candidate_error = e.message;
+  }
 } catch (e) {
   job.state = 'failed'; job.exit_code = null; job.error = e.message;
 } finally {

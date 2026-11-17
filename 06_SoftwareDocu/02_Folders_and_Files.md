@@ -32,9 +32,9 @@ Newly scaffolded tasks, requirements, and context files omit the payload
 license header and the explicitly marked instruction-only notes; they belong to
 the project. The full guidance remains in the managed templates; durable fields
 and unmarked data are preserved. Existing records are not rewritten or
-compacted, so older ones keep their license header. Markdown templates mark
-notes with `<!-- AEGIS:TEMPLATE` and a standalone `-->`; requirement templates
-use `# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
+compacted, so older ones keep their license header. The task and context
+templates mark notes with `<!-- AEGIS:TEMPLATE` and a standalone `-->`; the
+requirement template uses `# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
 
 ## Project context - `context/`
 
@@ -145,7 +145,6 @@ task's journal; a parallel branch carries its own.
 
 stage: build
 type: feature
-path: full
 interaction: checkpoint
 requirements: REQ-FUNC-3fa2
 parent:
@@ -205,7 +204,7 @@ Rulings and the State:
 | Explicit review returns | `verdict TASK-<id> --spec <verdict> --quality <verdict>` |
 
 The agent edits Frame, Requirement coverage and Design directly, ticks Done
-checklist items as they are met, and edits the header lines `type`, `path`,
+checklist items as they are met, and edits the header lines `type`,
 `interaction`, `requirements` and `parent` in place - one `key: value` per
 line, no blank lines or comments inside the header block, which `status`,
 `brief`, `summary`, `check` and `report` read. Earlier Log lines and Rulings
@@ -329,7 +328,7 @@ requirement under the component whose knowledge page claims it and colouring
 it by how the behavior is verified: a linked test, a declared `Manual:` or
 `Inspection:` method, or nothing yet. Requirements no page claims are grouped
 apart rather than dropped, so an unclaimed behavior is visible instead of
-absent. `--component` and `--task` narrow the picture; `--out` writes the
+absent. `--component` or `--task` narrows the picture (one at a time); `--out` writes the
 file as UTF-8.
 
 `trace` writes the whole register as a flat Markdown table or CSV, with one
@@ -342,8 +341,8 @@ CSV, and shell redirection retains the console encoding.
 `explain <path>` goes the other way still - point it at a file and it reports
 every requirement whose `affected_paths` cover it, grouped by component, with
 status, coverage, spec, and the journals that delivered them. A directory
-covers the files beneath it. A path no requirement covers is said so plainly,
-and called a finding when it sits inside your configured source or test globs.
+covers the files beneath it. A path no requirement covers is said so plainly;
+code that only direct changes touched has none, and that is not a finding.
 
 ## Configuration - `aegis.toml`
 
@@ -369,6 +368,7 @@ Each key's default value and its behavior when absent are in the
 | `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages through validate. AEGIS never commits or publishes in either mode. |
 | `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. With `true`, validate follows `steps/review.md`. |
 | `[diagrams] enabled / types` | `enabled = true` has design draw Mermaid diagrams of the proposed implementation into `tasks/diagram_TASK-<id>.md`; it defaults to `false`. `types` lists any of `structure`, `sequence`, `state` and defaults to `["structure"]`. |
+| `[context] page_kb` | Size budget in KB for `context/project.md`, `context/environment.md` and each knowledge page; `check` reports a larger page as `context-size`. `init` writes 24; absent or 0 means no budget. |
 | `[records] commit_fingerprints` | `false` keeps anchor/evolution sidecars out of git through a managed `.gitignore` block that `init` maintains; `true` removes the block so they are committed with the journal. |
 
 When enabled, each review round needs two independent verdicts, recorded with

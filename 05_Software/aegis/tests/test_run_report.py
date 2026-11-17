@@ -377,7 +377,7 @@ review_round: 3
 
 @pytest.mark.parametrize("field", [
     "spec_compliance: maybe", "implementation_quality: passed",
-    "review_round: 0", "review_round: 7", "review_round: two",
+    "review_round: 0", "review_round: 257", "review_round: two",
 ])
 def test_stage_report_rejects_invalid_verdicts_and_review_rounds(tmp_path, field):
     """REQ-FUNC-9514e017: malformed enabled-review evidence is never approval."""

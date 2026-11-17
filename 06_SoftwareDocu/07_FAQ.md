@@ -40,12 +40,6 @@ Local verification jobs and uncommitted files do not travel with Git.
 
 ## What belongs in the task Log?
 
-Project and component documents hold current positive behavior and actual setup.
-Populate `context/project.md` and `context/environment.md` at frame/adoption,
-update affected facts when implementation or setup changes, and reconcile at
-validate. Draft/task records hold proposals; journals and Git retain history.
-See [project context](Project_Context.md) for examples and ownership.
-
 Only durable progress and evidence: stage transitions, material changes or
 decisions, consolidated test results, blockers, approvals, deviations, and the
 final validation result. `advance` writes the transitions, `test --task` a test
@@ -54,6 +48,12 @@ Rulings and State own their detailed information; the Log does not duplicate
 them. Routine searches, edits, tool mechanics, corrected retries, and repeated
 test attempts stay out. During build, retain one expected red and one final
 green per meaningful behavior increment.
+
+Project and component documents hold current positive behavior and actual setup.
+Populate `context/project.md` and `context/environment.md` at frame/adoption,
+update affected facts when implementation or setup changes, and reconcile at
+validate. Draft/task records hold proposals; journals and Git retain history.
+See [project context](Project_Context.md) for examples and ownership.
 
 ## Does it work without Git?
 
@@ -133,10 +133,9 @@ them, so you can read the reasoning as well as the rule. A directory in
 `affected_paths` covers the files beneath it, and you can paste an absolute
 path straight from your shell.
 
-If nothing covers the path, it says so - and calls that a finding when the
-file sits inside your configured `source` or `tests` globs. Ungoverned code
-in a governed area is worth knowing about, and it is exactly the kind of gap
-that is invisible until you ask.
+If nothing covers the path, it says so plainly. That is not a finding: code
+that only direct changes touched has no requirement. It is still worth
+knowing, and it is exactly the kind of gap that is invisible until you ask.
 
 ## Can I see the proposed change as a diagram before code is written?
 Yes, when you ask for it. Set `[diagrams] enabled = true` in
@@ -241,7 +240,7 @@ one level. Parent integration sees only children visible in its checkout.
 
 ## What is the difference between `brief` and `summary`?
 
-`brief` is the first bounded re-entry view: task identity, stage and path,
+`brief` is the first bounded re-entry view: task identity, stage,
 branch and base, parent, requirements, context presence, checklist, State,
 outcome, interaction mode, review policy, the computed diagram decision, active
 rulings, visible children, and a `Read next` line naming what to read. `summary`
@@ -329,7 +328,7 @@ is not passing evidence, and later candidate changes still require fresh proof.
 ## Can I remove the State and saved metadata to save tokens?
 
 Keep the State and evidence. New records omit the payload license header and
-marked template-only notes, and stage files refer to shared instructions.
+marked template-only notes.
 Record consolidated outcomes instead of tool transcripts; keep the one-line
 State values short - `advance` and `pause` refresh them at boundaries, pauses,
 blockers and session ends. `evolution --compact --json` reduces response

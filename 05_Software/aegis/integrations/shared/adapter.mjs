@@ -106,7 +106,7 @@ export function commandArgs(operation, args = {}) {
         `--source=${pick(args.source, ['user', 'repository', 'requirement', 'technical'], 'ruling source')}`, ...option('--supersedes', args.supersedes, 'supersedes')];
     }
     const verdict = value => value === undefined ? [] : [pick(value, ['approved', 'changes_required'], 'verdict')];
-    if (args.round !== undefined && !/^[1-6]$/.test(String(args.round))) throw new Error('round must be 1 through 6');
+    if (args.round !== undefined && !(/^[1-9]\d{0,2}$/.test(String(args.round)) && Number(args.round) <= 256)) throw new Error('round must be 1 through 256');
     return ['verdict', task, ...verdict(args.spec).map(v => `--spec=${v}`), ...verdict(args.quality).map(v => `--quality=${v}`),
       ...(args.round !== undefined ? [`--round=${args.round}`] : [])];
   }

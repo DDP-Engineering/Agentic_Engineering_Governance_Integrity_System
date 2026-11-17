@@ -11,7 +11,7 @@ Entry and durable state
 1. Call aegis_status. For a named task call aegis_resume; for an unnamed request inspect open journals for overlap. Do not silently pick among several plausible tasks. Create a task with aegis_scaffold only when new work is required.
 2. Read the current step with aegis_read document=step, the journal and the State must_read files. Resume follows the first unticked current-stage checklist item; a slash command never advances a stage by itself. Validate still reads the whole journal.
 3. Follow the installed stage path and resolved interaction mode. Missing or invalid `[interaction].autopilot` means off. In checkpoint mode stop after every stage and present the installed choices; in autopilot flow between stages. Persist explicit user overrides in the journal. Preserve explicit user constraints in both modes; AEGIS never commits or publishes.
-4. Edit Frame, Requirement coverage and Design natively and tick the Done checklist; write everything else with aegis_journal (advance, pause, log, ruling, verdict). Never invent a machine.input command. The coordinator alone owns this journal; reviewers return findings.
+4. Edit Frame, Requirement coverage and Design natively and tick the Done checklist; write everything else with aegis_journal (advance, pause, log, ruling, verdict). The coordinator alone owns this journal; reviewers return findings.
 5. Use aegis_journal advance or pause at transitions, stage-choice boundaries, pauses and session end, and show the summary it prints before details. Preserve missing evidence as not recorded. Emit required DEVIATION notices immediately. Reports and deviations do not add stops beyond the configured stage boundaries.
 
 Build and validation
@@ -50,14 +50,14 @@ relevant facts earlier when another agent needs them for a handoff.
 Use the repository's documented setup/readiness checks before testing in a new
 checkout; do not repeatedly start full suites to diagnose missing tools or services.
 Use focused native commands during build. On a payload whose `test --help` exposes
-these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
-(or bridge `--impacted --no-fallback`). The project runner must actually honor
+these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`.
+The project runner must actually honor
 selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
 An unavailable selection requires a focused project command or deferred full proof,
 not a claim that tests passed. Start full validation after candidate edits and
 review; do not run a separate full suite immediately beforehand. Preserve the
 installed final-proof contract and rerun when the final candidate changes.
-For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
+For evolution, `compact: true` omits hashes from the response
 while preserving complete saved evidence. These options are opt-in; with an older
 payload, use native focused commands and its supported evidence format.
 Reuse unchanged instructions in an intact session, keep State fields short, and

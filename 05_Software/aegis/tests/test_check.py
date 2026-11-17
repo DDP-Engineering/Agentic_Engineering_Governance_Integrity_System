@@ -462,6 +462,19 @@ def test_secret_in_diff_fires_on_builtin_and_extra_patterns(tmp_path, capsys):
 
 
 @needs_git
+@pytest.mark.parametrize(("setting", "value"),
+                         [("color.ui", "always"), ("diff.external", "echo")])
+def test_secret_in_diff_sees_added_lines_under_git_output_settings(
+        tmp_path, capsys, setting, value):
+    """A colored or externally formatted diff must not hide an added secret."""
+    _agentic, aegis = make_git_repo(tmp_path)
+    write(tmp_path / "src" / "app.py", 'AWS_KEY = "AKIAABCDEFGHIJKLMNOP"\n')
+    git(tmp_path, "config", setting, value)
+    hits = lines_for(run_check(aegis, capsys), "secret-in-diff")
+    assert any("possible secret (aws-style access key)" in line for line in hits)
+
+
+@needs_git
 def test_secret_in_diff_silent_on_a_clean_diff(tmp_path, capsys):
     _agentic, aegis = make_git_repo(tmp_path)
     write(tmp_path / "src" / "app.py", "def app():\n    return 2\n")

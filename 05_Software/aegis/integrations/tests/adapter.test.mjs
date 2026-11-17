@@ -54,13 +54,14 @@ test('journal writers become validated argument arrays for the installed CLI', (
     ['ruling', 'TASK-aabb', '--decision=keep 30 days', '--reason=user', '--source=user', '--supersedes=RULING-001']);
   assert.deepEqual(commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', spec: 'approved', quality: 'changes_required', round: 2 }),
     ['verdict', 'TASK-aabb', '--spec=approved', '--quality=changes_required', '--round=2']);
+  assert.deepEqual(commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 256 }), ['verdict', 'TASK-aabb', '--round=256']);
   assert.throws(() => commandArgs('journal', { action: 'commit', task: 'TASK-aabb' }), /action/i);
   assert.throws(() => commandArgs('journal', { action: 'pause', task: 'TASK-aabb' }), /next/);
   assert.throws(() => commandArgs('journal', { action: 'pause', task: 'TASK-aabb', next: 'two\nlines' }), /one nonempty line/);
   assert.throws(() => commandArgs('journal', { action: 'advance', task: 'TASK-aabb', to: 'release' }), /target stage/);
   assert.throws(() => commandArgs('journal', { action: 'advance', task: 'TASK-aabb', read: ['../secret'] }), /inside the repository/);
   assert.throws(() => commandArgs('journal', { action: 'ruling', task: 'TASK-aabb', decision: 'x', reason: 'y', source: 'me' }), /source/);
-  assert.throws(() => commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 9 }), /round/);
+  assert.throws(() => commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 257 }), /round/);
 });
 
 test('journal writes reach the installed CLI and its State through the adapter', async () => {
@@ -146,6 +147,25 @@ test('runner prevents duplicates across instances, preserves output and strict f
   assert.equal(result.result.schema, 1);
   assert.ok(result.result.run.length > 0);
   assert.ok((await fs.readFile(result.job.stderr, 'utf8')).includes('123'));
+});
+
+test('a finished run keeps its exit code and frees the checkout when the closing fingerprint fails', async () => {
+  const { root, task } = await fixture('closing-fingerprint');
+  // The suite itself breaks the repository, so Git cannot answer afterwards.
+  await fs.writeFile(path.join(root, '.agentic/aegis.toml'), `[commands]\ntest = '"${python.replaceAll('\\', '/')}" -c "open(\\".git/HEAD\\", \\"w\\").write(\\"garbage\\")"'\n`);
+  const started = await createAdapter(settings).run({ kind: 'validate', task }, context(root));
+  const file = path.join(cache, `${started.job.id}.json`);
+  let job;
+  for (let i = 0; i < 150; i++) {
+    job = JSON.parse(await fs.readFile(file, 'utf8'));
+    if (job.finished_at) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.equal(job.state, 'completed');
+  assert.ok(Number.isInteger(job.exit_code));
+  assert.equal(job.candidate_unchanged, null);
+  assert.match(job.candidate_error, /\S/);
+  await assert.rejects(fs.access(started.job.lock), { code: 'ENOENT' });
 });
 
 test('cancels a running verification tree and reports cancellation, never a pass', async () => {

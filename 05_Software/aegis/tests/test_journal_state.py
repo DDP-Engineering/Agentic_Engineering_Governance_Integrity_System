@@ -495,6 +495,20 @@ def test_verdict_records_both_verdicts_within_the_round_bound(tmp_path, monkeypa
     assert summary_fields(out)["Specification compliance"] == "approved"
 
 
+def test_verdict_accepts_every_round_the_configured_cycles_allow(tmp_path, monkeypatch, capsys):
+    """A bound above five fix cycles is honored: round 7 of 11 is recorded and read back."""
+    agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
+    enable_review(agentic, cycles=10)
+    assert run(aegis, capsys, "advance", path.stem, "--to", "validate")[0] == 0
+    assert run(aegis, capsys, "verdict", path.stem, "--spec", "changes_required",
+               "--quality", "approved", "--round", "7")[0] == 0
+    _text, _data, state = journal(aegis, path)
+    assert state["review_round"] == "7"
+    capsys.readouterr()
+    assert aegis.main(["verdict", path.stem, "--round", "12"]) == 1
+    assert "1 through 11" in capsys.readouterr().err
+
+
 def test_status_and_brief_show_the_recorded_state(tmp_path, monkeypatch, capsys):
     """The State written by the CLI is what the next session reads first."""
     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)

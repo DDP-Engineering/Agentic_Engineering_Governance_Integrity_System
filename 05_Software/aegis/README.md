@@ -91,8 +91,9 @@ CLI copies into the journal. The agent edits the Frame, Requirement coverage
 and Design sections; the CLI writes the rest. `advance` moves to the next stage
 on the path, or back with `--to`; `pause` stops for the user with one named
 question or action; `log` and `ruling` append events and decisions; `verdict`
-records explicit review results. They record the agent's decision and never
-refuse it, and each prints the summary block that the agent shows first. A
+records explicit review results. They record the agent's decision without
+judging it; `advance`, `pause` and `verdict` print the summary block that the
+agent shows first. A
 journal keeps one `## State` block: status, the reported stage and result, next
 action, must-read paths, changed files, evidence, issues and review fields.
 Journals written before it keep their Handoff and Stage report until the first
@@ -198,9 +199,8 @@ paths still refuse selection. Existing callers keep full-suite fallback unless
 `--no-fallback` is specified. A dry-run success is not a test result. Do not run a
 separate full `test` immediately before final strict verification.
 
-New task and requirement records omit marked template-only explanations; licenses,
-fields and existing records are preserved. Step files refer to shared reporting
-instructions instead of repeating them. Evolution supports `--compact --json` for
+New task and requirement records omit the payload license header and marked
+template-only explanations; fields and existing records are preserved. Evolution supports `--compact --json` for
 paths/statuses/areas, retaining complete hashes in the saved evidence. Host adapters
 expose `no_fallback` for impacted runs and `compact` for evolution on supporting
 payloads. See `06_SoftwareDocu/09_CLI_Reference.md` for the command contracts.
@@ -223,7 +223,7 @@ python .agentic/aegis.py summary TASK-<id>
 
 `brief` is the first re-entry view: deterministic, read-only, and bounded to
 240-character values, eight active rulings, and twenty visible children. It
-includes the path, parent, checklist, State, resolved interaction mode,
+includes the parent, checklist, State, resolved interaction mode,
 configured review state, diagram decision, active rulings and visible
 children, and ends with a `Read next` line naming the current step file and
 the State `must_read` paths. Read those next, then the full journal wherever

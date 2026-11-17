@@ -7,6 +7,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import plugin from '../opencode/plugin.mjs';
 import { discoverRuntime } from '../shared/runtime.mjs';
 import { runBridge } from '../shared/bridge.mjs';
+import { operations } from '../shared/operations.mjs';
 
 test('opencode: register native agents/commands/tools without changing existing profiles', async () => {
   const hooks = await plugin({ directory: process.cwd() });
@@ -19,6 +20,8 @@ test('opencode: register native agents/commands/tools without changing existing 
   assert.deepEqual(config.command.mine, before.command.mine);
   assert.equal(config.model, before.model);
   assert.equal(Object.keys(hooks.tool).length, 12);
+  // The hand-written OpenCode tools must offer every argument the shared operations do.
+  for (const { name, schema } of operations) assert.deepEqual(Object.keys(hooks.tool[name].args).sort(), Object.keys(schema.shape).sort(), name);
   assert.equal(Object.keys(config.command).length, 6);
   await hooks.config(config); // Same-object repeat is idempotent.
   await assert.rejects(hooks.config({ agent: { aegis: {} } }), /conflict/);

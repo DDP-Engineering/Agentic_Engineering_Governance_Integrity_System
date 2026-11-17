@@ -75,6 +75,16 @@ agent plugin assembly are separate operations:
 |---|---|---|
 | `build_aegis_release.py` | Core Windows/Linux archives and release records. | Managed payload inventory, complete product test suite and archive inventories. |
 | `build_agent_plugins.mjs` | Five complete host package directories. | Assembly only; no test suite or host validation. |
+| `build_aegis_delivery.py` | Ten host archives, the documentation ZIP and the delivery records. | Refuses a version that is not the payload's, missing core archives and CRLF text files. |
+
+After the core archives exist, `python 02_Tools/build_aegis_delivery.py
+--version <version>` assembles the host packages, adds the installation
+manuals and an `INSTALLATION_GUIDE.md` to each, and archives them and the
+`06_SoftwareDocu/` tree under `07_Delivery/dist/`. It writes `dist/SHA256SUMS`
+and, under `07_Delivery/aegis-<version>/`, `DELIVERY_SHA256SUMS`,
+`archive-inventories.json`, `delivery-manifest.json` and
+`source-preparation.diff` (the uncommitted changes the archives were built
+from). It does not publish.
 
 ## Core release archives
 
@@ -98,6 +108,11 @@ under `07_Delivery/dist/`. Checksums and release metadata are written under
 `07_Delivery/aegis-<version>/` as `SHA256SUMS`, `release-manifest.json` and
 `RELEASE.md`. Rebuilding the same version replaces those generated outputs;
 it does not publish them remotely.
+
+The archive carries its own short `README.md`, both changelog files and the
+Markdown guides under `docs/`. A link in a guide to something delivered
+separately (slide decks, the plugin installation manual) is reduced to its
+text, so every relative link in the archive resolves.
 
 ## Agent plugin packages
 

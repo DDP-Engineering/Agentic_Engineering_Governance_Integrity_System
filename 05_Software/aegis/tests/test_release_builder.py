@@ -13,6 +13,9 @@ import hashlib
 import importlib.util
 import itertools
 import json
+import posixpath
+import re
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -35,9 +38,8 @@ def load_builder():
 
 def configure_output(builder, tmp_path: Path) -> None:
     """Redirect generated release outputs away from the checked-out records."""
-    (tmp_path / "CHANGELOG.md").write_bytes(
-        (builder.REPO_ROOT / "CHANGELOG.md").read_bytes()
-    )
+    for name in ("CHANGELOG.md", "CHANGELOG-archive.md"):
+        (tmp_path / name).write_bytes((builder.REPO_ROOT / name).read_bytes())
     builder.REPO_ROOT = tmp_path
     builder.DELIVERY = tmp_path / "delivery"
     builder.DIST = builder.DELIVERY / "dist"
@@ -81,6 +83,34 @@ def test_build_writes_deterministic_archives_and_publication_records(
 
     assert builder.build(version) == 0
     assert {path.name: digest(path) for path in artifacts} == first_digests
+
+
+def test_archive_documents_link_only_to_files_the_archive_contains(tmp_path, monkeypatch):
+    """A recipient following a relative link from a shipped document finds the file."""
+    builder = load_builder()
+    configure_output(builder, tmp_path)
+    monkeypatch.setattr(builder, "run_tests", lambda: None)
+    version = builder.payload_version()
+    assert builder.build(version) == 0
+
+    prefix = f"{builder.NAME}-{version}"
+    dangling = []
+    with zipfile.ZipFile(builder.DIST / f"{prefix}-windows.zip") as archive:
+        members = set(archive.namelist())
+        for member in sorted(members):
+            # the payload's own links are relative to an installed repository
+            if not member.endswith(".md") or member.startswith(f"{prefix}/.agentic/"):
+                continue
+            text = archive.read(member).decode("utf-8")
+            for target in re.findall(r"\]\(([^)#\s]+)", text):
+                if re.match(r"[a-z][a-z0-9+.-]*:", target):
+                    continue
+                resolved = posixpath.normpath(
+                    posixpath.join(posixpath.dirname(member), target))
+                if resolved not in members:
+                    dangling.append(f"{member} -> {target}")
+    assert not dangling
+    assert f"{prefix}/CHANGELOG-archive.md" in members
 
 
 def test_build_replaces_obsolete_unqualified_archives(tmp_path, monkeypatch):

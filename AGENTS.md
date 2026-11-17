@@ -14,8 +14,7 @@ A deeper `AGENTS.md` overrides this file for its subtree.
 - Treat everything under `05_Software/aegis/template/` as
   template material copied verbatim into downstream projects. Keep it generic
   and free of this repository's own development history, version records, or
-  project-specific facts. In particular, `template/CHANGELOG.md` is a downstream
-  starter and must stay empty (no release entries).
+  project-specific facts.
 - Keep folder boundaries clear across planning, documentation, tools,
   hardware, hardware documentation, software, software documentation, delivery,
   and support material.
@@ -104,9 +103,6 @@ Versions, the changelog and version assignment follow
   summary, or the runnable package location changes.
 - Update `05_Software/aegis/README.md` when package
   setup, CLI usage, or template behavior changes.
-- Update copied template adapters under `.codex/`, `.claude/`, `.pi/`, and
-  `.opencode/` when workflow contract, skills, hooks, or agent-facing prompts
-  change.
 - Update `06_SoftwareDocu/` when implementation behavior or workflow contracts
   need deeper explanation.
 - Keep README files scoped to their folder.

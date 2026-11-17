@@ -305,9 +305,9 @@ I am about to ask for contradicts any of them. Change nothing yet.
 
 *Why this exists:* the register is written once per behavior and read
 almost never, because nothing led from a file back to it. This is that
-direction. A path no requirement covers is said so plainly - and called a
-finding when it sits inside your configured source globs, which is how
-ungoverned code becomes visible instead of merely absent.
+direction. A path no requirement covers is said so plainly, without calling
+it a finding, which is how ungoverned code becomes visible instead of merely
+absent.
 *Follow-up:* "write the requirement for &lt;path&gt;" when it turns out
 nothing covers it, or proceed with the change now that you know the
 constraints it has to keep.

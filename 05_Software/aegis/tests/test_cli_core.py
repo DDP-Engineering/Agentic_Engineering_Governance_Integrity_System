@@ -566,6 +566,22 @@ def test_init_collapses_legacy_and_current_duplicate_blocks(tmp_path):
     assert "Repository-owned middle." in migrated
 
 
+@pytest.mark.parametrize("name", ["CLAUDE.md", ".gitignore"])
+def test_init_reports_a_non_utf8_file_in_one_line_and_recovers(tmp_path, capsys, name):
+    """A UTF-16 pointer or ignore file is one error line naming it, not a traceback."""
+    _agentic, aegis = make_repo(tmp_path)
+    (tmp_path / name).write_text("our own notes\n", encoding="utf-16")
+
+    assert aegis.main(["init"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith(f"error: {name} is not valid UTF-8")
+    assert err.count("\n") == 1
+
+    (tmp_path / name).write_text("our own notes\n", encoding="utf-8", newline="\n")
+    assert aegis.main(["init"]) == 0
+    assert "our own notes" in (tmp_path / name).read_text(encoding="utf-8")
+
+
 def test_init_leaves_user_data_folders_untouched(tmp_path):
     agentic, aegis = make_repo(tmp_path)
     aegis.main(["init"])
@@ -1057,6 +1073,21 @@ def test_task_records_no_commit_without_history(tmp_path, capsys, monkeypatch):
     path = tmp_path / capsys.readouterr().out.strip()
     data = aegis.parse_journal(path.read_text(encoding="utf-8"))
     assert data["header"]["base"] == ""
+
+
+def test_task_keeps_a_multi_line_title_out_of_the_header(tmp_path, capsys, monkeypatch):
+    """A line break in the title must not become a header field."""
+    _agentic, aegis = make_repo(tmp_path)
+    aegis.main(["init"])
+    monkeypatch.setattr(aegis, "git_branch", lambda: "feature")
+    capsys.readouterr()
+
+    assert aegis.main(["task", "Add export\nstage: done"]) == 0
+    path = tmp_path / capsys.readouterr().out.strip()
+    data = aegis.parse_journal(path.read_text(encoding="utf-8"))
+    assert data["title"] == "Add export stage: done"
+    assert data["header"]["stage"] == "frame"
+    assert data["header"]["type"] == "feature"
 
 
 def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):

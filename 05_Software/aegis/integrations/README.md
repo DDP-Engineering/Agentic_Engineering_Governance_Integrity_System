@@ -8,7 +8,7 @@ Host-specific packages for OpenCode, Codex, Pi, Qwen Code and Claude Code share 
 - `qwen/`: native extension resources, two review agents, local MCP server and auto-discovery installation.
 - `claude/`: native marketplace, commands/skill/review agents, hooks, MCP and owned installation.
 - `shared/`: reusable implementation copied into each standalone build.
-- `tests/`: executable Node behavior checks, included in the repository pytest suite through `test_agent_integrations.py` and `test_additional_integrations.py`.
+- `tests/`: executable Node behavior checks, included in the repository pytest suite through `test_agent_integrations.py`, `test_additional_integrations.py` and `test_claude_integrations.py`.
 
 Reviewer prompts share the same evidence procedure across hosts: read the full
 named current journal and linked checkout files, include untracked scope, and

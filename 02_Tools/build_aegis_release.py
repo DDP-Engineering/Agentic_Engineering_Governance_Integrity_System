@@ -75,6 +75,35 @@ AEGIS installs no runtime, service, hook, or third-party dependency. Start with
 `.agentic/CLI.md` and `docs/09_CLI_Reference.md`.
 """
 
+README_MD = """\
+<!--
+SPDX-FileCopyrightText: 2026 DDP Engineering
+SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+-->
+
+# AEGIS {version}
+
+AEGIS is an advisory governance workflow for agent-driven software
+development. It keeps requirements, specifications, task journals and
+component knowledge as plain files in the target repository.
+
+| In this archive | Purpose |
+|---|---|
+| [INSTALL.md](INSTALL.md) | Install the workflow into a repository. |
+| [docs/00_Index.md](docs/00_Index.md) | User guides, starting with install and setup. |
+| [.agentic/CLI.md](.agentic/CLI.md) | The complete CLI contract. |
+| [CHANGELOG.md](CHANGELOG.md) | What this release changed. |
+| [CHANGELOG-archive.md](CHANGELOG-archive.md) | Older releases. |
+| [LICENSE.txt](LICENSE.txt) | License terms. |
+
+The slide decks, the plugin installation manual and the host packages are
+delivered separately.
+"""
+
+#: `[text](target)` or `![alt](target)` with a relative target, anchor allowed.
+RELATIVE_LINK_RE = re.compile(
+    r"!?\[([^\]\n]*)\]\((?![a-z][a-z0-9+.-]*:)([^)#\s]+)(?:#[^)\s]*)?\)")
+
 
 def collect(root: Path) -> list[Path]:
     """Return a deterministic file inventory without generated caches."""
@@ -143,11 +172,21 @@ def run_tests() -> None:
         raise SystemExit("product suite failed; refusing to package")
 
 
+def without_dangling_links(text: str, folder: Path) -> str:
+    """Keep the text of a relative link whose target the archive does not hold."""
+    def keep_or_unlink(match: re.Match[str]) -> str:
+        return match.group(0) if (folder / match.group(2)).is_file() else match.group(1)
+    return RELATIVE_LINK_RE.sub(keep_or_unlink, text)
+
+
 def stage_tree(stage: Path, version: str) -> tuple[int, int]:
     """Assemble the portable release tree."""
     shutil.copytree(PAYLOAD, stage / ".agentic")
-    shutil.copy2(PRODUCT / "README.md", stage / "README.md")
+    (stage / "README.md").write_text(
+        README_MD.format(version=version), encoding="utf-8", newline="\n"
+    )
     shutil.copy2(REPO_ROOT / "CHANGELOG.md", stage / "CHANGELOG.md")
+    shutil.copy2(REPO_ROOT / "CHANGELOG-archive.md", stage / "CHANGELOG-archive.md")
     shutil.copy2(PAYLOAD / "LICENSE.txt", stage / "LICENSE.txt")
     (stage / "INSTALL.md").write_text(
         INSTALL_MD.format(version=version), encoding="utf-8", newline="\n"
@@ -157,6 +196,12 @@ def stage_tree(stage: Path, version: str) -> tuple[int, int]:
     guide_files = sorted(USER_DOCS.glob("*.md"))
     for path in guide_files:
         shutil.copy2(path, docs / path.name)
+    # The guides are written for the repository, where decks and the plugin
+    # manual sit beside them; here those are delivered separately.
+    for path in sorted(docs.glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        path.write_text(without_dangling_links(text, docs), encoding="utf-8",
+                        newline="\n")
     return len(EXPECTED_PAYLOAD), len(guide_files)
 
 

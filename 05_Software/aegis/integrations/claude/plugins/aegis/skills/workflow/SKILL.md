@@ -42,14 +42,14 @@ relevant facts earlier when another agent needs them for a handoff.
 Use the repository's documented setup/readiness checks before testing in a new
 checkout; do not repeatedly start full suites to diagnose missing tools or services.
 Use focused native commands during build. On a payload whose `test --help` exposes
-these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
-(or bridge `--impacted --no-fallback`). The project runner must actually honor
+these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`.
+The project runner must actually honor
 selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
 An unavailable selection requires a focused project command or deferred full proof,
 not a claim that tests passed. Start full validation after candidate edits and
 review; do not run a separate full suite immediately beforehand. Preserve the
 installed final-proof contract and rerun when the final candidate changes.
-For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
+For evolution, `compact: true` omits hashes from the response
 while preserving complete saved evidence. These options are opt-in; with an older
 payload, use native focused commands and its supported evidence format.
 Reuse unchanged instructions in an intact session, keep State fields short, and

@@ -35,7 +35,7 @@ Restart Claude Code and open a repository in the CLI or Desktop **Code** tab. CL
 - `/aegis:check TASK-<id>` runs static checks, not the full test suite.
 - `/aegis:validate TASK-<id>` starts tracked final verification and follows its result.
 
-The `aegis:workflow` skill guides the coordinator. Independent `aegis:spec-review` and `aegis:quality-review` agents have Read/Grep/Glob tools and no pinned model. The local MCP server exposes status, resume, read, summary, check, scaffold, evidence, candidate, diff, run and job. Claude prefixes their names with `mcp__plugin_aegis_aegis__`. Normal host permissions and MCP consent apply; no permission bypass is installed.
+The `aegis:workflow` skill guides the coordinator. Independent `aegis:spec-review` and `aegis:quality-review` agents have Read/Grep/Glob tools and no pinned model. The local MCP server exposes status, resume, read, summary, check, scaffold, evidence, journal, candidate, diff, run and job. Claude prefixes their names with `mcp__plugin_aegis_aegis__`. Normal host permissions and MCP consent apply; no permission bypass is installed.
 
 SessionStart and selected PreToolUse hooks provide bounded advisory workflow context. They do not edit files, approve actions, or enforce the entire workflow. They are inactive outside a governed checkout and preserve the distinction between software development and packaging/repository-only operations.
 

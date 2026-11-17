@@ -29,7 +29,7 @@ export const operations = [
     text: s.string().max(1000).optional(), decision: s.string().max(1000).optional(),
     source: s.enum(['user', 'repository', 'requirement', 'technical']).optional(), supersedes: s.string().regex(/^RULING-\d{3}$/i).optional(),
     spec: s.enum(['approved', 'changes_required']).optional(), quality: s.enum(['approved', 'changes_required']).optional(),
-    round: s.number().int().min(1).max(6).optional() }, false),
+    round: s.number().int().min(1).max(256).optional() }, false),
   define('candidate', 'Fingerprint Git-visible files for independent reviews and final proof. Task journals are excluded and must be read separately; this is not tamper-proof.', {}),
   define('diff', 'Read Git status, tracked diff against a named base (default HEAD) and untracked paths. Read relevant untracked contents separately.', { base: s.string().optional(), path: s.string().optional() }),
   define('run', 'Coordinator only: start tracked validation or a named configured test command. Returns a job ID immediately. Poll job; do not duplicate an active suite.', { kind: s.enum(['validate', 'test']), task: optionalTask, command: s.string().optional().describe('Configured command name, never shell text.'), impacted: s.boolean().optional(), no_fallback: s.boolean().optional().describe('With impacted testing, refuse a full-suite fallback.'), base: s.string().optional() }, false),

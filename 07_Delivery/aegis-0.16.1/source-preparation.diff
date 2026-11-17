@@ -1,0 +1,1397 @@
+diff --git a/02_Tools/README.md b/02_Tools/README.md
+index f58408c..d9859db 100644
+--- a/02_Tools/README.md
++++ b/02_Tools/README.md
+@@ -75,6 +75,16 @@ agent plugin assembly are separate operations:
+ |---|---|---|
+ | `build_aegis_release.py` | Core Windows/Linux archives and release records. | Managed payload inventory, complete product test suite and archive inventories. |
+ | `build_agent_plugins.mjs` | Five complete host package directories. | Assembly only; no test suite or host validation. |
++| `build_aegis_delivery.py` | Ten host archives, the documentation ZIP and the delivery records. | Refuses a version that is not the payload's, missing core archives and CRLF text files. |
++
++After the core archives exist, `python 02_Tools/build_aegis_delivery.py
++--version <version>` assembles the host packages, adds the installation
++manuals and an `INSTALLATION_GUIDE.md` to each, and archives them and the
++`06_SoftwareDocu/` tree under `07_Delivery/dist/`. It writes `dist/SHA256SUMS`
++and, under `07_Delivery/aegis-<version>/`, `DELIVERY_SHA256SUMS`,
++`archive-inventories.json`, `delivery-manifest.json` and
++`source-preparation.diff` (the uncommitted changes the archives were built
++from). It does not publish.
+ 
+ ## Core release archives
+ 
+@@ -99,6 +109,11 @@ under `07_Delivery/dist/`. Checksums and release metadata are written under
+ `RELEASE.md`. Rebuilding the same version replaces those generated outputs;
+ it does not publish them remotely.
+ 
++The archive carries its own short `README.md`, both changelog files and the
++Markdown guides under `docs/`. A link in a guide to something delivered
++separately (slide decks, the plugin installation manual) is reduced to its
++text, so every relative link in the archive resolves.
++
+ ## Agent plugin packages
+ 
+ With Node.js 22 or later, assemble the packages with:
+diff --git a/02_Tools/build_aegis_release.py b/02_Tools/build_aegis_release.py
+index ae41528..ae47acd 100644
+--- a/02_Tools/build_aegis_release.py
++++ b/02_Tools/build_aegis_release.py
+@@ -75,6 +75,35 @@ AEGIS installs no runtime, service, hook, or third-party dependency. Start with
+ `.agentic/CLI.md` and `docs/09_CLI_Reference.md`.
+ """
+ 
++README_MD = """\
++<!--
++SPDX-FileCopyrightText: 2026 DDP Engineering
++SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
++-->
++
++# AEGIS {version}
++
++AEGIS is an advisory governance workflow for agent-driven software
++development. It keeps requirements, specifications, task journals and
++component knowledge as plain files in the target repository.
++
++| In this archive | Purpose |
++|---|---|
++| [INSTALL.md](INSTALL.md) | Install the workflow into a repository. |
++| [docs/00_Index.md](docs/00_Index.md) | User guides, starting with install and setup. |
++| [.agentic/CLI.md](.agentic/CLI.md) | The complete CLI contract. |
++| [CHANGELOG.md](CHANGELOG.md) | What this release changed. |
++| [CHANGELOG-archive.md](CHANGELOG-archive.md) | Older releases. |
++| [LICENSE.txt](LICENSE.txt) | License terms. |
++
++The slide decks, the plugin installation manual and the host packages are
++delivered separately.
++"""
++
++#: `[text](target)` or `![alt](target)` with a relative target, anchor allowed.
++RELATIVE_LINK_RE = re.compile(
++    r"!?\[([^\]\n]*)\]\((?![a-z][a-z0-9+.-]*:)([^)#\s]+)(?:#[^)\s]*)?\)")
++
+ 
+ def collect(root: Path) -> list[Path]:
+     """Return a deterministic file inventory without generated caches."""
+@@ -143,11 +172,21 @@ def run_tests() -> None:
+         raise SystemExit("product suite failed; refusing to package")
+ 
+ 
++def without_dangling_links(text: str, folder: Path) -> str:
++    """Keep the text of a relative link whose target the archive does not hold."""
++    def keep_or_unlink(match: re.Match[str]) -> str:
++        return match.group(0) if (folder / match.group(2)).is_file() else match.group(1)
++    return RELATIVE_LINK_RE.sub(keep_or_unlink, text)
++
++
+ def stage_tree(stage: Path, version: str) -> tuple[int, int]:
+     """Assemble the portable release tree."""
+     shutil.copytree(PAYLOAD, stage / ".agentic")
+-    shutil.copy2(PRODUCT / "README.md", stage / "README.md")
++    (stage / "README.md").write_text(
++        README_MD.format(version=version), encoding="utf-8", newline="\n"
++    )
+     shutil.copy2(REPO_ROOT / "CHANGELOG.md", stage / "CHANGELOG.md")
++    shutil.copy2(REPO_ROOT / "CHANGELOG-archive.md", stage / "CHANGELOG-archive.md")
+     shutil.copy2(PAYLOAD / "LICENSE.txt", stage / "LICENSE.txt")
+     (stage / "INSTALL.md").write_text(
+         INSTALL_MD.format(version=version), encoding="utf-8", newline="\n"
+@@ -157,6 +196,12 @@ def stage_tree(stage: Path, version: str) -> tuple[int, int]:
+     guide_files = sorted(USER_DOCS.glob("*.md"))
+     for path in guide_files:
+         shutil.copy2(path, docs / path.name)
++    # The guides are written for the repository, where decks and the plugin
++    # manual sit beside them; here those are delivered separately.
++    for path in sorted(docs.glob("*.md")):
++        text = path.read_text(encoding="utf-8")
++        path.write_text(without_dangling_links(text, docs), encoding="utf-8",
++                        newline="\n")
+     return len(EXPECTED_PAYLOAD), len(guide_files)
+ 
+ 
+diff --git a/05_Software/aegis/README.md b/05_Software/aegis/README.md
+index 933b694..b693975 100644
+--- a/05_Software/aegis/README.md
++++ b/05_Software/aegis/README.md
+@@ -91,8 +91,9 @@ CLI copies into the journal. The agent edits the Frame, Requirement coverage
+ and Design sections; the CLI writes the rest. `advance` moves to the next stage
+ on the path, or back with `--to`; `pause` stops for the user with one named
+ question or action; `log` and `ruling` append events and decisions; `verdict`
+-records explicit review results. They record the agent's decision and never
+-refuse it, and each prints the summary block that the agent shows first. A
++records explicit review results. They record the agent's decision without
++judging it; `advance`, `pause` and `verdict` print the summary block that the
++agent shows first. A
+ journal keeps one `## State` block: status, the reported stage and result, next
+ action, must-read paths, changed files, evidence, issues and review fields.
+ Journals written before it keep their Handoff and Stage report until the first
+@@ -198,9 +199,8 @@ paths still refuse selection. Existing callers keep full-suite fallback unless
+ `--no-fallback` is specified. A dry-run success is not a test result. Do not run a
+ separate full `test` immediately before final strict verification.
+ 
+-New task and requirement records omit marked template-only explanations; licenses,
+-fields and existing records are preserved. Step files refer to shared reporting
+-instructions instead of repeating them. Evolution supports `--compact --json` for
++New task and requirement records omit the payload license header and marked
++template-only explanations; fields and existing records are preserved. Evolution supports `--compact --json` for
+ paths/statuses/areas, retaining complete hashes in the saved evidence. Host adapters
+ expose `no_fallback` for impacted runs and `compact` for evolution on supporting
+ payloads. See `06_SoftwareDocu/09_CLI_Reference.md` for the command contracts.
+@@ -223,7 +223,7 @@ python .agentic/aegis.py summary TASK-<id>
+ 
+ `brief` is the first re-entry view: deterministic, read-only, and bounded to
+ 240-character values, eight active rulings, and twenty visible children. It
+-includes the path, parent, checklist, State, resolved interaction mode,
++includes the parent, checklist, State, resolved interaction mode,
+ configured review state, diagram decision, active rulings and visible
+ children, and ends with a `Read next` line naming the current step file and
+ the State `must_read` paths. Read those next, then the full journal wherever
+diff --git a/05_Software/aegis/integrations/README.md b/05_Software/aegis/integrations/README.md
+index aea6d35..1609de1 100644
+--- a/05_Software/aegis/integrations/README.md
++++ b/05_Software/aegis/integrations/README.md
+@@ -8,7 +8,7 @@ Host-specific packages for OpenCode, Codex, Pi, Qwen Code and Claude Code share
+ - `qwen/`: native extension resources, two review agents, local MCP server and auto-discovery installation.
+ - `claude/`: native marketplace, commands/skill/review agents, hooks, MCP and owned installation.
+ - `shared/`: reusable implementation copied into each standalone build.
+-- `tests/`: executable Node behavior checks, included in the repository pytest suite through `test_agent_integrations.py` and `test_additional_integrations.py`.
++- `tests/`: executable Node behavior checks, included in the repository pytest suite through `test_agent_integrations.py`, `test_additional_integrations.py` and `test_claude_integrations.py`.
+ 
+ Reviewer prompts share the same evidence procedure across hosts: read the full
+ named current journal and linked checkout files, include untracked scope, and
+diff --git a/05_Software/aegis/integrations/claude/README.md b/05_Software/aegis/integrations/claude/README.md
+index bc851bc..4f23767 100644
+--- a/05_Software/aegis/integrations/claude/README.md
++++ b/05_Software/aegis/integrations/claude/README.md
+@@ -35,7 +35,7 @@ Restart Claude Code and open a repository in the CLI or Desktop **Code** tab. CL
+ - `/aegis:check TASK-<id>` runs static checks, not the full test suite.
+ - `/aegis:validate TASK-<id>` starts tracked final verification and follows its result.
+ 
+-The `aegis:workflow` skill guides the coordinator. Independent `aegis:spec-review` and `aegis:quality-review` agents have Read/Grep/Glob tools and no pinned model. The local MCP server exposes status, resume, read, summary, check, scaffold, evidence, candidate, diff, run and job. Claude prefixes their names with `mcp__plugin_aegis_aegis__`. Normal host permissions and MCP consent apply; no permission bypass is installed.
++The `aegis:workflow` skill guides the coordinator. Independent `aegis:spec-review` and `aegis:quality-review` agents have Read/Grep/Glob tools and no pinned model. The local MCP server exposes status, resume, read, summary, check, scaffold, evidence, journal, candidate, diff, run and job. Claude prefixes their names with `mcp__plugin_aegis_aegis__`. Normal host permissions and MCP consent apply; no permission bypass is installed.
+ 
+ SessionStart and selected PreToolUse hooks provide bounded advisory workflow context. They do not edit files, approve actions, or enforce the entire workflow. They are inactive outside a governed checkout and preserve the distinction between software development and packaging/repository-only operations.
+ 
+diff --git a/05_Software/aegis/integrations/claude/plugins/aegis/.claude-plugin/plugin.json b/05_Software/aegis/integrations/claude/plugins/aegis/.claude-plugin/plugin.json
+index d7e7695..79c75c8 100644
+--- a/05_Software/aegis/integrations/claude/plugins/aegis/.claude-plugin/plugin.json
++++ b/05_Software/aegis/integrations/claude/plugins/aegis/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "aegis",
+-  "version": "0.16.0",
++  "version": "0.16.1",
+   "description": "AEGIS software workflow, independent reviews and tracked verification.",
+   "author": {
+     "name": "DDP Engineering"
+diff --git a/05_Software/aegis/integrations/claude/plugins/aegis/skills/workflow/SKILL.md b/05_Software/aegis/integrations/claude/plugins/aegis/skills/workflow/SKILL.md
+index ff6c663..0fb7640 100644
+--- a/05_Software/aegis/integrations/claude/plugins/aegis/skills/workflow/SKILL.md
++++ b/05_Software/aegis/integrations/claude/plugins/aegis/skills/workflow/SKILL.md
+@@ -42,14 +42,14 @@ relevant facts earlier when another agent needs them for a handoff.
+ Use the repository's documented setup/readiness checks before testing in a new
+ checkout; do not repeatedly start full suites to diagnose missing tools or services.
+ Use focused native commands during build. On a payload whose `test --help` exposes
+-these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
+-(or bridge `--impacted --no-fallback`). The project runner must actually honor
++these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`.
++The project runner must actually honor
+ selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
+ An unavailable selection requires a focused project command or deferred full proof,
+ not a claim that tests passed. Start full validation after candidate edits and
+ review; do not run a separate full suite immediately beforehand. Preserve the
+ installed final-proof contract and rerun when the final candidate changes.
+-For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
++For evolution, `compact: true` omits hashes from the response
+ while preserving complete saved evidence. These options are opt-in; with an older
+ payload, use native focused commands and its supported evidence format.
+ Reuse unchanged instructions in an intact session, keep State fields short, and
+diff --git a/05_Software/aegis/integrations/codex/plugins/aegis/.codex-plugin/plugin.json b/05_Software/aegis/integrations/codex/plugins/aegis/.codex-plugin/plugin.json
+index 153cd08..6ea860e 100644
+--- a/05_Software/aegis/integrations/codex/plugins/aegis/.codex-plugin/plugin.json
++++ b/05_Software/aegis/integrations/codex/plugins/aegis/.codex-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "aegis",
+-  "version": "0.16.0",
++  "version": "0.16.1",
+   "description": "AEGIS software governance, durable tasks, independent review and tracked verification.",
+   "author": {
+     "name": "DDP Engineering"
+diff --git a/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml b/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml
+index 62397c2..bf442f4 100644
+--- a/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml
++++ b/05_Software/aegis/integrations/codex/plugins/aegis/agents/aegis-quality-review.toml
+@@ -1,4 +1,4 @@
+ name = "aegis-quality-review"
+ description = "Independent read-only AEGIS implementation quality review."
+ sandbox_mode = "read-only"
+-developer_instructions = "You are an independent AEGIS implementation-quality reviewer. Inspect the coordinator's named task and exact candidate. Do not edit files, create tasks, run tests, delegate, or publish.\n\nCandidate binding is a separate action from reading Git. Where this role exposes a candidate operation, call it before inspection and again after the final file/diff read, comparing both responses with the supplied digest. Git-command metadata supplements these two calls; it does not replace either. If the host reserves fingerprints to the coordinator, retain that division and report the supplied binding instead of claiming calls unavailable to this role.\n\nEvidence procedure: read the complete named .agentic/tasks/TASK-<id>.md and its linked current requirements/specs, scope/exclusions, Rulings and Design. The State is a replaceable section of that journal, not evidence that another journal file exists. Follow a real link or discover a path before declaring it absent; do not invent a second filename. If output is truncated, finish reading the same file. Read current checkout files, including untracked records: absence from HEAD or a base commit does not make current scope unavailable. When Git inspection is available, compare the base with the current working tree, including staged/unstaged changes and untracked contents; base-to-HEAD alone omits uncommitted work.\n\nJudge evidence at the current phase. Before independent approvals, inspect actual source, test assertions and available focused execution records. Final full strict proof and completion of Validate's checklist follow both approvals; their pending status is not itself a defect or grounds to withhold approval. A preparation label alone neither validates nor invalidates a run: identify the command, result, tested behavior and relevant subsequent changes. Existing executed assertions can support restored behavior without a new test-file diff. Missing required focused proof or accepted behavior remains a finding. Accepted scope comes from the Frame and subsequent authorized decisions; do not demand invented historical provenance merely to recognize that scope. Distinguish an observed candidate defect from who introduced it. State a specific unavailable fact and its consequence, rather than treating all unrecorded history as missing current behavior.\n\nRead root AGENTS.md, the installed .agentic/AGENTS.md, the complete task journal, relevant requirements, changed source/tests, and actual verification evidence. Compare aegis_candidate with the supplied digest before and after review. Inspect actual files and diff with read-only tools; do not accept the coordinator's implementation summary as proof.\n\nReview correctness, error and cancellation paths, meaningful tests, regressions, security, Windows/Linux portability, maintainability and unrequested work. Distinguish confirmed defects from hypotheses. Focus on issues that affect behavior or maintenance; do not fill a quota with style preferences. Note skipped or timed-out checks, incomplete manual/GUI observations and unsupported pass claims. Candidate fingerprints omit task journals and ignored files; review relevant evidence separately.\n\nReturn: task ID; candidate digest; implementation_quality: approved or changes_required; reviewed files and evidence; actionable findings with file/line evidence, realistic trigger, impact and required correction; unverified areas. If the candidate changed or evidence required at this review phase was unavailable, return changes_required and explain why. Keep this review independent of the specification review. The coordinator records the verdict and owns fixes and final integrated validation.\n\nUse native read-only tools or the AEGIS plugin bridge with --role reviewer. Never start/cancel verification or write records. The coordinator must provide the absolute bridge path when needed. Host runtime overrides determine effective sandbox permissions; do not claim stronger isolation than is provided.\n"
++developer_instructions = "You are an independent AEGIS implementation-quality reviewer. Inspect the coordinator's named task and exact candidate. Do not edit files, create tasks, run tests, delegate, or publish.\n\nCandidate binding is a separate action from reading Git. Where this role exposes a candidate operation, call it before inspection and again after the final file/diff read, comparing both responses with the supplied digest. Git-command metadata supplements these two calls; it does not replace either. If the host reserves fingerprints to the coordinator, retain that division and report the supplied binding instead of claiming calls unavailable to this role.\n\nEvidence procedure: read the complete named .agentic/tasks/TASK-<id>.md and its linked current requirements/specs, scope/exclusions, Rulings and Design. The State is a replaceable section of that journal, not evidence that another journal file exists. Follow a real link or discover a path before declaring it absent; do not invent a second filename. If output is truncated, finish reading the same file. Read current checkout files, including untracked records: absence from HEAD or a base commit does not make current scope unavailable. When Git inspection is available, compare the base with the current working tree, including staged/unstaged changes and untracked contents; base-to-HEAD alone omits uncommitted work.\n\nJudge evidence at the current phase. Before independent approvals, inspect actual source, test assertions and available focused execution records. Final full strict proof and completion of Validate's checklist follow both approvals; their pending status is not itself a defect or grounds to withhold approval. A preparation label alone neither validates nor invalidates a run: identify the command, result, tested behavior and relevant subsequent changes. Existing executed assertions can support restored behavior without a new test-file diff. Missing required focused proof or accepted behavior remains a finding. Accepted scope comes from the Frame and subsequent authorized decisions; do not demand invented historical provenance merely to recognize that scope. Distinguish an observed candidate defect from who introduced it. State a specific unavailable fact and its consequence, rather than treating all unrecorded history as missing current behavior.\n\nRead root AGENTS.md, the installed .agentic/AGENTS.md, the complete task journal, relevant requirements, changed source/tests, and actual verification evidence. Compare the bridge candidate operation's digest with the supplied digest before and after review. Inspect actual files and diff with read-only tools; do not accept the coordinator's implementation summary as proof.\n\nReview correctness, error and cancellation paths, meaningful tests, regressions, security, Windows/Linux portability, maintainability and unrequested work. Distinguish confirmed defects from hypotheses. Focus on issues that affect behavior or maintenance; do not fill a quota with style preferences. Note skipped or timed-out checks, incomplete manual/GUI observations and unsupported pass claims. Candidate fingerprints omit task journals and ignored files; review relevant evidence separately.\n\nReturn: task ID; candidate digest; implementation_quality: approved or changes_required; reviewed files and evidence; actionable findings with file/line evidence, realistic trigger, impact and required correction; unverified areas. If the candidate changed or evidence required at this review phase was unavailable, return changes_required and explain why. Keep this review independent of the specification review. The coordinator records the verdict and owns fixes and final integrated validation.\n\nUse native read-only tools or the AEGIS plugin bridge with --role reviewer. Never start/cancel verification or write records. The coordinator must provide the absolute bridge path when needed. Host runtime overrides determine effective sandbox permissions; do not claim stronger isolation than is provided.\n"
+diff --git a/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/operations.md b/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/operations.md
+index d86bd52..53a4301 100644
+--- a/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/operations.md
++++ b/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/operations.md
+@@ -9,7 +9,7 @@ Invoke `node <absolute-plugin-path>/scripts/aegis.mjs <operation> --root <checko
+ | read | `--document contract\|cli\|config\|step\|journal`, task for step/journal | Installed instructions or task evidence |
+ | summary | `--task ID` | Recorded State summary |
+ | check | optional task and `--strict` | Static checks, no tests |
+-| scaffold | `--kind task --title TEXT --type feature\|fix\|change`, optional `--parent ID` | New task record |
++| scaffold | `--kind task --title TEXT --type feature\|fix\|change\|adopt`, optional `--parent ID` | New task record |
+ | scaffold | `--kind requirement --task ID --category functional\|ux\|nfr\|security\|data\|platform\|reliability\|test --title TEXT` | New requirement record |
+ | evidence | `--action anchor\|evolution\|report --task ID` | Evidence through the installed CLI |
+ | journal | `--action advance --task ID`, optional `--to STAGE`, `--skipped`, `--reason TEXT`, `--next TEXT` | Stage transition, Done checklist, Log line and State |
+@@ -17,14 +17,14 @@ Invoke `node <absolute-plugin-path>/scripts/aegis.mjs <operation> --root <checko
+ | journal | `--action log --task ID --text TEXT` | One dated Log line |
+ | journal | `--action ruling --task ID --decision TEXT --reason TEXT --source user\|repository\|requirement\|technical`, optional `--supersedes RULING-NNN` | One appended Ruling |
+ | journal | `--action verdict --task ID`, optional `--spec V`, `--quality V`, `--round N` | Explicit review verdicts in the State |
+-
+-`advance` and `pause` also accept `--read PATHS` (comma-separated), `--changed TEXT`, `--evidence TEXT` and `--issues TEXT`, and print the summary. The installed CLI records the decision; it never judges whether a stage's work is done.
+ | candidate | none | Git-visible candidate fingerprint |
+ | diff | optional `--base REF`, `--path PATH` | Tracked diff, status and untracked names |
+ | run | `--kind validate --task ID` | Final configured strict validation |
+ | run | `--kind test --task ID`, optional command/impacted/base | Configured test command |
+ | job | optional `--id ID`; `--action cancel` requires ID | Progress or deliberate cancellation |
+ 
++`advance` and `pause` also accept `--read PATHS` (comma-separated), `--changed TEXT`, `--evidence TEXT` and `--issues TEXT`, and print the summary. The installed CLI records the decision; it never judges whether a stage's work is done.
++
+ `--role reviewer` refuses scaffold, evidence, journal, run and cancellation. Role flags do not establish caller identity; the host sandbox and explicit instructions provide the permission boundary.
+ 
+ Candidate fingerprints exclude `.agentic/tasks/` and Python bytecode. Ignored files, external inputs and submodule contents need separate review. Outputs are JSON records describing observations, not unconditional success declarations. Each call requires the real repository root and, where needed, the full task identifier.
+diff --git a/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/review.md b/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/review.md
+index d8c2690..f925197 100644
+--- a/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/review.md
++++ b/05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/references/review.md
+@@ -19,7 +19,7 @@ Use native read-only tools or the AEGIS plugin bridge with --role reviewer. Neve
+ 
+ You are an independent AEGIS implementation-quality reviewer. Inspect the coordinator's named task and exact candidate. Do not edit files, create tasks, run tests, delegate, or publish.
+ 
+-Read root AGENTS.md, the installed .agentic/AGENTS.md, the complete task journal, relevant requirements, changed source/tests, and actual verification evidence. Compare aegis_candidate with the supplied digest before and after review. Inspect actual files and diff with read-only tools; do not accept the coordinator's implementation summary as proof.
++Read root AGENTS.md, the installed .agentic/AGENTS.md, the complete task journal, relevant requirements, changed source/tests, and actual verification evidence. Compare the bridge candidate operation's digest with the supplied digest before and after review. Inspect actual files and diff with read-only tools; do not accept the coordinator's implementation summary as proof.
+ 
+ Review correctness, error and cancellation paths, meaningful tests, regressions, security, Windows/Linux portability, maintainability and unrequested work. Distinguish confirmed defects from hypotheses. Focus on issues that affect behavior or maintenance; do not fill a quota with style preferences. Note skipped or timed-out checks, incomplete manual/GUI observations and unsupported pass claims. Candidate fingerprints omit task journals and ignored files; review relevant evidence separately.
+ 
+diff --git a/05_Software/aegis/integrations/opencode/plugin.mjs b/05_Software/aegis/integrations/opencode/plugin.mjs
+index f643b38..ee18097 100644
+--- a/05_Software/aegis/integrations/opencode/plugin.mjs
++++ b/05_Software/aegis/integrations/opencode/plugin.mjs
+@@ -29,7 +29,7 @@ export default async ({ directory }) => {
+       aegis_summary: define('aegis_summary', 'summary', 'Read the recorded State summary. This is agent-authored state, not fresh verification.', { task }),
+       aegis_check: define('aegis_check', 'check', 'Run advisory or strict static AEGIS checks, without tests. Exit zero in advisory mode does not imply passing verification.', { task: optionalTask, strict: s.boolean().optional() }),
+       aegis_scaffold: define('aegis_scaffold', 'scaffold', 'Coordinator only: create a task or requirement scaffold using the installed CLI. Inspect existing tasks/requirements first. Requirements need a named or resumed task. Fill in the generated record afterwards.', { kind: s.enum(['task', 'requirement']), task: optionalTask, title: s.string().min(1).max(500), type: s.enum(['feature', 'fix', 'change', 'adopt']).optional(), category: s.enum(['functional', 'ux', 'nfr', 'security', 'data', 'platform', 'reliability', 'test']).optional(), parent: optionalTask }),
+-      aegis_evidence: define('aegis_evidence', 'evidence', 'Coordinator only: record anchor after red test, refresh evolution after edits, or append the closing report at the end of validate. Does not fabricate observations or Git authority.', { action: s.enum(['anchor', 'evolution', 'report']), task: optionalTask }),
++      aegis_evidence: define('aegis_evidence', 'evidence', 'Coordinator only: record anchor after red test, refresh evolution after edits, or append the closing report at the end of validate. Does not fabricate observations or Git authority.', { action: s.enum(['anchor', 'evolution', 'report']), task: optionalTask, compact: s.boolean().optional().describe('Evolution only: omit hashes from the response, preserving saved evidence.') }),
+       aegis_journal: define('aegis_journal', 'journal', 'Coordinator only: write task-journal state through the installed CLI. advance finishes a stage (to, skipped, reason, next); pause stops for the user (next, blocked); log appends one durable event (text); ruling appends a decision (decision, reason, source, supersedes); verdict records explicit review results (spec, quality, round). advance and pause also take read, changed, evidence and issues. Records your decision; never judges whether a stage is done.', {
+         action: s.enum(['advance', 'pause', 'log', 'ruling', 'verdict']), task: optionalTask,
+         to: s.enum(['frame', 'specify', 'design', 'build', 'validate', 'done', 'survey', 'components', 'close', 'deliver']).optional(),
+@@ -39,10 +39,10 @@ export default async ({ directory }) => {
+         text: s.string().max(1000).optional(), decision: s.string().max(1000).optional(),
+         source: s.enum(['user', 'repository', 'requirement', 'technical']).optional(), supersedes: s.string().regex(/^RULING-\d{3}$/i).optional(),
+         spec: s.enum(['approved', 'changes_required']).optional(), quality: s.enum(['approved', 'changes_required']).optional(),
+-        round: s.number().int().min(1).max(6).optional() }),
++        round: s.number().int().min(1).max(256).optional() }),
+       aegis_candidate: define('aegis_candidate', 'candidate', 'Fingerprint the Git-visible candidate for both reviewers and final proof. Excludes task journals/evidence; read them separately. This fingerprint is not tamper-proof.', {}),
+       aegis_diff: define('aegis_diff', 'diff', 'Read Git status, tracked diff against a named base (default HEAD), and untracked paths. Use the task journal base for a complete task review. Read relevant untracked contents separately.', { base: s.string().optional(), path: s.string().optional() }),
+-      aegis_run: define('aegis_run', 'run', 'Coordinator only: start tracked validation (check --strict --run --json) or a configured test command. Returns a job ID immediately. One active adapter run per checkout; poll aegis_job. No adapter timeout; installed AEGIS timeouts still apply.', { kind: s.enum(['validate', 'test']), task: optionalTask, command: s.string().optional().describe('For test only: name in [commands], never shell text.'), impacted: s.boolean().optional(), base: s.string().optional() }),
++      aegis_run: define('aegis_run', 'run', 'Coordinator only: start tracked validation (check --strict --run --json) or a configured test command. Returns a job ID immediately. One active adapter run per checkout; poll aegis_job. No adapter timeout; installed AEGIS timeouts still apply.', { kind: s.enum(['validate', 'test']), task: optionalTask, command: s.string().optional().describe('For test only: name in [commands], never shell text.'), impacted: s.boolean().optional(), no_fallback: s.boolean().optional().describe('With impacted testing, refuse a full-suite fallback.'), base: s.string().optional() }),
+       aegis_job: define('aegis_job', 'job', 'Read progress/log tails and complete results of tracked verification. No ID returns the active checkout job. Cancel requires an exact ID and the coordinator. Restarting OpenCode does not stop a run.', { action: s.enum(['status', 'cancel']).default('status'), id: s.string().uuid().optional() }),
+     },
+     'experimental.session.compacting': async ({ sessionID }, output) => {
+diff --git a/05_Software/aegis/integrations/opencode/prompts/aegis.md b/05_Software/aegis/integrations/opencode/prompts/aegis.md
+index 448ae35..8d85654 100644
+--- a/05_Software/aegis/integrations/opencode/prompts/aegis.md
++++ b/05_Software/aegis/integrations/opencode/prompts/aegis.md
+@@ -11,7 +11,7 @@ Entry and durable state
+ 1. Call aegis_status. For a named task call aegis_resume; for an unnamed request inspect open journals for overlap. Do not silently pick among several plausible tasks. Create a task with aegis_scaffold only when new work is required.
+ 2. Read the current step with aegis_read document=step, the journal and the State must_read files. Resume follows the first unticked current-stage checklist item; a slash command never advances a stage by itself. Validate still reads the whole journal.
+ 3. Follow the installed stage path and resolved interaction mode. Missing or invalid `[interaction].autopilot` means off. In checkpoint mode stop after every stage and present the installed choices; in autopilot flow between stages. Persist explicit user overrides in the journal. Preserve explicit user constraints in both modes; AEGIS never commits or publishes.
+-4. Edit Frame, Requirement coverage and Design natively and tick the Done checklist; write everything else with aegis_journal (advance, pause, log, ruling, verdict). Never invent a machine.input command. The coordinator alone owns this journal; reviewers return findings.
++4. Edit Frame, Requirement coverage and Design natively and tick the Done checklist; write everything else with aegis_journal (advance, pause, log, ruling, verdict). The coordinator alone owns this journal; reviewers return findings.
+ 5. Use aegis_journal advance or pause at transitions, stage-choice boundaries, pauses and session end, and show the summary it prints before details. Preserve missing evidence as not recorded. Emit required DEVIATION notices immediately. Reports and deviations do not add stops beyond the configured stage boundaries.
+ 
+ Build and validation
+@@ -50,14 +50,14 @@ relevant facts earlier when another agent needs them for a handoff.
+ Use the repository's documented setup/readiness checks before testing in a new
+ checkout; do not repeatedly start full suites to diagnose missing tools or services.
+ Use focused native commands during build. On a payload whose `test --help` exposes
+-these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
+-(or bridge `--impacted --no-fallback`). The project runner must actually honor
++these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`.
++The project runner must actually honor
+ selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
+ An unavailable selection requires a focused project command or deferred full proof,
+ not a claim that tests passed. Start full validation after candidate edits and
+ review; do not run a separate full suite immediately beforehand. Preserve the
+ installed final-proof contract and rerun when the final candidate changes.
+-For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
++For evolution, `compact: true` omits hashes from the response
+ while preserving complete saved evidence. These options are opt-in; with an older
+ payload, use native focused commands and its supported evidence format.
+ Reuse unchanged instructions in an intact session, keep State fields short, and
+diff --git a/05_Software/aegis/integrations/pi/package.json b/05_Software/aegis/integrations/pi/package.json
+index 864143d..ac7f8cc 100644
+--- a/05_Software/aegis/integrations/pi/package.json
++++ b/05_Software/aegis/integrations/pi/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@aegis/pi-package",
+-  "version": "0.16.0",
++  "version": "0.16.1",
+   "private": true,
+   "type": "module",
+   "keywords": ["pi-package"],
+diff --git a/05_Software/aegis/integrations/pi/skills/aegis/SKILL.md b/05_Software/aegis/integrations/pi/skills/aegis/SKILL.md
+index fd28fae..cb24811 100644
+--- a/05_Software/aegis/integrations/pi/skills/aegis/SKILL.md
++++ b/05_Software/aegis/integrations/pi/skills/aegis/SKILL.md
+@@ -45,14 +45,14 @@ relevant facts earlier when another agent needs them for a handoff.
+ Use the repository's documented setup/readiness checks before testing in a new
+ checkout; do not repeatedly start full suites to diagnose missing tools or services.
+ Use focused native commands during build. On a payload whose `test --help` exposes
+-these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
+-(or bridge `--impacted --no-fallback`). The project runner must actually honor
++these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`.
++The project runner must actually honor
+ selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
+ An unavailable selection requires a focused project command or deferred full proof,
+ not a claim that tests passed. Start full validation after candidate edits and
+ review; do not run a separate full suite immediately beforehand. Preserve the
+ installed final-proof contract and rerun when the final candidate changes.
+-For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
++For evolution, `compact: true` omits hashes from the response
+ while preserving complete saved evidence. These options are opt-in; with an older
+ payload, use native focused commands and its supported evidence format.
+ Reuse unchanged instructions in an intact session, keep State fields short, and
+diff --git a/05_Software/aegis/integrations/qwen/qwen-extension.json b/05_Software/aegis/integrations/qwen/qwen-extension.json
+index 3df1387..777fde4 100644
+--- a/05_Software/aegis/integrations/qwen/qwen-extension.json
++++ b/05_Software/aegis/integrations/qwen/qwen-extension.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "aegis",
+-  "version": "0.16.0",
++  "version": "0.16.1",
+   "contextFileName": "AEGIS.md",
+   "commands": "commands",
+   "skills": "skills",
+diff --git a/05_Software/aegis/integrations/qwen/skills/aegis/SKILL.md b/05_Software/aegis/integrations/qwen/skills/aegis/SKILL.md
+index 1d0796d..6d30128 100644
+--- a/05_Software/aegis/integrations/qwen/skills/aegis/SKILL.md
++++ b/05_Software/aegis/integrations/qwen/skills/aegis/SKILL.md
+@@ -40,14 +40,14 @@ relevant facts earlier when another agent needs them for a handoff.
+ Use the repository's documented setup/readiness checks before testing in a new
+ checkout; do not repeatedly start full suites to diagnose missing tools or services.
+ Use focused native commands during build. On a payload whose `test --help` exposes
+-these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`
+-(or bridge `--impacted --no-fallback`). The project runner must actually honor
++these options, preview with `python .agentic/aegis.py test --impacted --base HEAD --dry-run`, then request impacted testing with `no_fallback: true`.
++The project runner must actually honor
+ selectors; AEGIS does not translate test-framework syntax or guarantee a narrow run.
+ An unavailable selection requires a focused project command or deferred full proof,
+ not a claim that tests passed. Start full validation after candidate edits and
+ review; do not run a separate full suite immediately beforehand. Preserve the
+ installed final-proof contract and rerun when the final candidate changes.
+-For evolution, `compact: true` (bridge `--compact`) omits hashes from the response
++For evolution, `compact: true` omits hashes from the response
+ while preserving complete saved evidence. These options are opt-in; with an older
+ payload, use native focused commands and its supported evidence format.
+ Reuse unchanged instructions in an intact session, keep State fields short, and
+diff --git a/05_Software/aegis/integrations/shared/adapter.mjs b/05_Software/aegis/integrations/shared/adapter.mjs
+index 12d45bd..7b163f1 100644
+--- a/05_Software/aegis/integrations/shared/adapter.mjs
++++ b/05_Software/aegis/integrations/shared/adapter.mjs
+@@ -106,7 +106,7 @@ export function commandArgs(operation, args = {}) {
+         `--source=${pick(args.source, ['user', 'repository', 'requirement', 'technical'], 'ruling source')}`, ...option('--supersedes', args.supersedes, 'supersedes')];
+     }
+     const verdict = value => value === undefined ? [] : [pick(value, ['approved', 'changes_required'], 'verdict')];
+-    if (args.round !== undefined && !/^[1-6]$/.test(String(args.round))) throw new Error('round must be 1 through 6');
++    if (args.round !== undefined && !(/^[1-9]\d{0,2}$/.test(String(args.round)) && Number(args.round) <= 256)) throw new Error('round must be 1 through 256');
+     return ['verdict', task, ...verdict(args.spec).map(v => `--spec=${v}`), ...verdict(args.quality).map(v => `--quality=${v}`),
+       ...(args.round !== undefined ? [`--round=${args.round}`] : [])];
+   }
+diff --git a/05_Software/aegis/integrations/shared/operations.mjs b/05_Software/aegis/integrations/shared/operations.mjs
+index 88c7772..4ffecb3 100644
+--- a/05_Software/aegis/integrations/shared/operations.mjs
++++ b/05_Software/aegis/integrations/shared/operations.mjs
+@@ -29,7 +29,7 @@ export const operations = [
+     text: s.string().max(1000).optional(), decision: s.string().max(1000).optional(),
+     source: s.enum(['user', 'repository', 'requirement', 'technical']).optional(), supersedes: s.string().regex(/^RULING-\d{3}$/i).optional(),
+     spec: s.enum(['approved', 'changes_required']).optional(), quality: s.enum(['approved', 'changes_required']).optional(),
+-    round: s.number().int().min(1).max(6).optional() }, false),
++    round: s.number().int().min(1).max(256).optional() }, false),
+   define('candidate', 'Fingerprint Git-visible files for independent reviews and final proof. Task journals are excluded and must be read separately; this is not tamper-proof.', {}),
+   define('diff', 'Read Git status, tracked diff against a named base (default HEAD) and untracked paths. Read relevant untracked contents separately.', { base: s.string().optional(), path: s.string().optional() }),
+   define('run', 'Coordinator only: start tracked validation or a named configured test command. Returns a job ID immediately. Poll job; do not duplicate an active suite.', { kind: s.enum(['validate', 'test']), task: optionalTask, command: s.string().optional().describe('Configured command name, never shell text.'), impacted: s.boolean().optional(), no_fallback: s.boolean().optional().describe('With impacted testing, refuse a full-suite fallback.'), base: s.string().optional() }, false),
+diff --git a/05_Software/aegis/integrations/shared/worker.mjs b/05_Software/aegis/integrations/shared/worker.mjs
+index 342dc56..89f2998 100644
+--- a/05_Software/aegis/integrations/shared/worker.mjs
++++ b/05_Software/aegis/integrations/shared/worker.mjs
+@@ -36,8 +36,14 @@ try {
+   job.state = cancelling ? 'cancelled' : 'completed';
+   job.exit_code = cancelling ? null : ended.code;
+   job.signal = ended.signal;
+-  job.candidate_after = await fingerprint(job.root);
+-  job.candidate_unchanged = job.candidate_before.digest === job.candidate_after.digest;
++  // The child has exited: a fingerprint that cannot be taken now must not turn
++  // a finished run into an uncertain one that keeps the checkout locked.
++  try {
++    job.candidate_after = await fingerprint(job.root);
++    job.candidate_unchanged = job.candidate_before.digest === job.candidate_after.digest;
++  } catch (e) {
++    job.candidate_unchanged = null; job.candidate_error = e.message;
++  }
+ } catch (e) {
+   job.state = 'failed'; job.exit_code = null; job.error = e.message;
+ } finally {
+diff --git a/05_Software/aegis/integrations/tests/adapter.test.mjs b/05_Software/aegis/integrations/tests/adapter.test.mjs
+index 6a6f1d7..1d6c3f7 100644
+--- a/05_Software/aegis/integrations/tests/adapter.test.mjs
++++ b/05_Software/aegis/integrations/tests/adapter.test.mjs
+@@ -54,13 +54,14 @@ test('journal writers become validated argument arrays for the installed CLI', (
+     ['ruling', 'TASK-aabb', '--decision=keep 30 days', '--reason=user', '--source=user', '--supersedes=RULING-001']);
+   assert.deepEqual(commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', spec: 'approved', quality: 'changes_required', round: 2 }),
+     ['verdict', 'TASK-aabb', '--spec=approved', '--quality=changes_required', '--round=2']);
++  assert.deepEqual(commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 256 }), ['verdict', 'TASK-aabb', '--round=256']);
+   assert.throws(() => commandArgs('journal', { action: 'commit', task: 'TASK-aabb' }), /action/i);
+   assert.throws(() => commandArgs('journal', { action: 'pause', task: 'TASK-aabb' }), /next/);
+   assert.throws(() => commandArgs('journal', { action: 'pause', task: 'TASK-aabb', next: 'two\nlines' }), /one nonempty line/);
+   assert.throws(() => commandArgs('journal', { action: 'advance', task: 'TASK-aabb', to: 'release' }), /target stage/);
+   assert.throws(() => commandArgs('journal', { action: 'advance', task: 'TASK-aabb', read: ['../secret'] }), /inside the repository/);
+   assert.throws(() => commandArgs('journal', { action: 'ruling', task: 'TASK-aabb', decision: 'x', reason: 'y', source: 'me' }), /source/);
+-  assert.throws(() => commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 9 }), /round/);
++  assert.throws(() => commandArgs('journal', { action: 'verdict', task: 'TASK-aabb', round: 257 }), /round/);
+ });
+ 
+ test('journal writes reach the installed CLI and its State through the adapter', async () => {
+@@ -148,6 +149,25 @@ test('runner prevents duplicates across instances, preserves output and strict f
+   assert.ok((await fs.readFile(result.job.stderr, 'utf8')).includes('123'));
+ });
+ 
++test('a finished run keeps its exit code and frees the checkout when the closing fingerprint fails', async () => {
++  const { root, task } = await fixture('closing-fingerprint');
++  // The suite itself breaks the repository, so Git cannot answer afterwards.
++  await fs.writeFile(path.join(root, '.agentic/aegis.toml'), `[commands]\ntest = '"${python.replaceAll('\\', '/')}" -c "open(\\".git/HEAD\\", \\"w\\").write(\\"garbage\\")"'\n`);
++  const started = await createAdapter(settings).run({ kind: 'validate', task }, context(root));
++  const file = path.join(cache, `${started.job.id}.json`);
++  let job;
++  for (let i = 0; i < 150; i++) {
++    job = JSON.parse(await fs.readFile(file, 'utf8'));
++    if (job.finished_at) break;
++    await new Promise(resolve => setTimeout(resolve, 100));
++  }
++  assert.equal(job.state, 'completed');
++  assert.ok(Number.isInteger(job.exit_code));
++  assert.equal(job.candidate_unchanged, null);
++  assert.match(job.candidate_error, /\S/);
++  await assert.rejects(fs.access(started.job.lock), { code: 'ENOENT' });
++});
++
+ test('cancels a running verification tree and reports cancellation, never a pass', async () => {
+   const { root, task } = await fixture('cancel');
+   const pidFile = path.join(root, 'cancel-pids.json');
+diff --git a/05_Software/aegis/integrations/tests/interfaces.test.mjs b/05_Software/aegis/integrations/tests/interfaces.test.mjs
+index 0bb1b0c..a6495bf 100644
+--- a/05_Software/aegis/integrations/tests/interfaces.test.mjs
++++ b/05_Software/aegis/integrations/tests/interfaces.test.mjs
+@@ -7,6 +7,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
+ import plugin from '../opencode/plugin.mjs';
+ import { discoverRuntime } from '../shared/runtime.mjs';
+ import { runBridge } from '../shared/bridge.mjs';
++import { operations } from '../shared/operations.mjs';
+ 
+ test('opencode: register native agents/commands/tools without changing existing profiles', async () => {
+   const hooks = await plugin({ directory: process.cwd() });
+@@ -19,6 +20,8 @@ test('opencode: register native agents/commands/tools without changing existing
+   assert.deepEqual(config.command.mine, before.command.mine);
+   assert.equal(config.model, before.model);
+   assert.equal(Object.keys(hooks.tool).length, 12);
++  // The hand-written OpenCode tools must offer every argument the shared operations do.
++  for (const { name, schema } of operations) assert.deepEqual(Object.keys(hooks.tool[name].args).sort(), Object.keys(schema.shape).sort(), name);
+   assert.equal(Object.keys(config.command).length, 6);
+   await hooks.config(config); // Same-object repeat is idempotent.
+   await assert.rejects(hooks.config({ agent: { aegis: {} } }), /conflict/);
+diff --git a/05_Software/aegis/template/.agentic/AGENTS.md b/05_Software/aegis/template/.agentic/AGENTS.md
+index 777151a..e2621d3 100644
+--- a/05_Software/aegis/template/.agentic/AGENTS.md
++++ b/05_Software/aegis/template/.agentic/AGENTS.md
+@@ -178,8 +178,8 @@ unrelated findings are not deviations.
+ | Configuration | `.agentic/aegis.toml`: commands, layout, interaction, review, diagrams |
+ 
+ Source and tests stay where the repository keeps them. Frame, specify and
+-design write only under `.agentic/`; `check` reports other edits as
+-`stage-zone`. Do not edit the payload — `.agentic/AGENTS.md`, `CLI.md`,
++design write only under `.agentic/`; `check` reports a source or test edit
++made in those stages as `stage-zone`. Do not edit the payload — `.agentic/AGENTS.md`, `CLI.md`,
+ `steps/`, `templates/`, `aegis.py` and `LICENSE.txt` are replaced on upgrade;
+ tell the user what needs to change instead.
+ 
+diff --git a/05_Software/aegis/template/.agentic/CLI.md b/05_Software/aegis/template/.agentic/CLI.md
+index 6c244ce..fc6ac0f 100644
+--- a/05_Software/aegis/template/.agentic/CLI.md
++++ b/05_Software/aegis/template/.agentic/CLI.md
+@@ -19,7 +19,8 @@ repository root.
+ The CLI scaffolds artifacts, writes task-journal state, runs configured
+ project commands, and reports advisory findings. It does not replace the
+ workflow in `.agentic/AGENTS.md`: it never decides whether a stage's work is
+-done, and it does not commit, push, merge, read tickets, or access the network.
++done, and it does not commit, push, merge or read tickets. The CLI itself makes
++no network requests; configured project commands may do so.
+ 
+ ## Command summary
+ 
+@@ -93,8 +94,8 @@ python .agentic/aegis.py init [--git]
+ - adds or refreshes the managed AEGIS digest in root
+   `AGENTS.md`, `CLAUDE.md`, and `QWEN.md`;
+ - adds or removes the managed anchor/evolution block in the root `.gitignore`
+-  according to `[records] commit_fingerprints`, and names sidecars that are
+-  still tracked so a human can untrack them (it never runs `git rm`);
++  according to `[records] commit_fingerprints`, and reports how many sidecars
++  are still tracked so a human can untrack them (it never runs `git rm`);
+ - reports whether Git is installed and whether the directory is a repository;
+ - preserves project-owned data and an existing `.agentic/aegis.toml`.
+ 
+@@ -475,7 +476,8 @@ fields contain the agent's recorded observations and decisions; blank values
+ print `not recorded`.
+ 
+ Output fields, in order: **Stage, Task, Current, Requirements, Changed,
+-Evidence, Issues, Next, Needs user, Spec compliance, Implementation quality,
++Evidence, Issues, Next, Needs user, Specification compliance, Implementation
++quality,
+ Review round, Details**. Stage combines the reported
+ stage and result; Current and Requirements come from the journal header.
+ Details points to the full journal. Each value is at most 240 characters,
+@@ -602,8 +604,9 @@ max_fix_cycles = 2
+ ```
+ 
+ `enabled` must be a TOML Boolean. `max_fix_cycles` must be an integer from 0
+-through 255, not a Boolean. Invalid values warn and fail safe to disabled review
+-with the default bound. When enabled, `verdict` records `spec_compliance` and
++through 255, not a Boolean. Invalid values warn and fail safe: an invalid
++`enabled` disables review, and an invalid `max_fix_cycles` allows no fix cycle.
++When enabled, `verdict` records `spec_compliance` and
+ `implementation_quality` independently as `approved` or `changes_required`,
+ plus `review_round`, in the State. Both verdicts cover the same candidate; any
+ candidate edit invalidates both. The maximum total rounds are
+@@ -1038,7 +1041,8 @@ python .agentic/aegis.py explain C:\repo\src\export\m3u.py
+ | Situation | Exit behavior |
+ |---|---|
+ | `init`, `task`, `advance`, `pause`, `log`, `ruling`, `verdict`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `components`, `report`, `diagram`, `trace`, or `explain` succeeds | Exit 0. |
+-| Usage, missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
++| Missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
++| Unknown command, option or argument value | The usage text on stderr and exit 2. |
+ | Plain `check` finds errors or warnings | Exit 0; it remains advisory. |
+ | `check --strict` finds a strict failure | Exit 1. |
+ | `test` runs a configured command | Return that command's exit code. |
+diff --git a/05_Software/aegis/template/.agentic/aegis.py b/05_Software/aegis/template/.agentic/aegis.py
+index de8585d..c75bd3e 100644
+--- a/05_Software/aegis/template/.agentic/aegis.py
++++ b/05_Software/aegis/template/.agentic/aegis.py
+@@ -38,7 +38,7 @@ from pathlib import Path
+ 
+ import tomllib
+ 
+-VERSION = "0.16.0"
++VERSION = "0.16.1"
+ SCHEMA = 1
+ 
+ AGENTIC = Path(__file__).resolve().parent
+@@ -112,7 +112,7 @@ test = "pytest -q"
+ # Nothing here by default: a command is stopped only when you ask for it,
+ # because a limit short enough to cut off a healthy suite would report a
+ # failure that never happened. A stopped command is reported as proving
+-# nothing - never as a failure.
++# nothing (`command-timeout`) - never as a failed test.
+ # test = 5400
+ # lint = 120
+ 
+@@ -126,7 +126,7 @@ docs = []  # documentation paths; still scanned for secrets, not source
+ # Set this when the branch your work merges into is not the one AEGIS would
+ # find on its own. Without it the base is whatever `origin/HEAD` points at,
+ # then a local `master`, then a local `main`. It decides what `check`,
+-# `impacted`, `anchor` and `evolution` consider changed.
++# `test --impacted` and `report` consider changed.
+ 
+ [interaction]
+ # false stops at every completed stage and presents the next choices.
+@@ -266,6 +266,16 @@ def read_text(path: Path) -> str:
+         raise UserError(f"{rel(path)} is not valid UTF-8: {exc}") from None
+ 
+ 
++def read_raw_text(path: Path) -> str:
++    """Read UTF-8 text with its newlines untouched, for a file `init` edits in place."""
++    try:
++        with path.open("r", encoding="utf-8", newline="") as handle:
++            return handle.read()  # newline="" disables universal-newline translation
++    except UnicodeDecodeError as exc:
++        raise UserError(f"{rel(path)} is not valid UTF-8; save it as UTF-8 and "
++                        f"run init again ({exc})") from None
++
++
+ def write_text(path: Path, text: str) -> None:
+     """Write UTF-8 text (no BOM) with LF endings, creating parents."""
+     path.parent.mkdir(parents=True, exist_ok=True)
+@@ -645,9 +655,17 @@ def fingerprint(path: Path, name: str) -> dict | None:
+                 raise UserError(f"{name} changed while it was being fingerprinted")
+             return {"kind": "file", "sha256": digest.hexdigest()}
+         if path.is_dir():
+-            head = run_git("-C", name, "rev-parse", "HEAD")
+-            if head and head[0] == 0 and head[1].strip():
+-                return {"kind": "submodule", "commit": head[1].strip()}
++            # without its own `.git`, `git -C` would answer for the repository
++            # above; an uninitialised submodule is the commit the index records
++            if (path / ".git").exists():
++                head = run_git("-C", name, "rev-parse", "HEAD")
++                commit = head[1].strip() if head and head[0] == 0 else ""
++            else:
++                entry = run_git("ls-files", "--stage", "--", name)
++                fields = entry[1].split() if entry and entry[0] == 0 else []
++                commit = fields[1] if fields[:1] == ["160000"] else ""
++            if commit:
++                return {"kind": "submodule", "commit": commit}
+             raise UserError(f"cannot fingerprint repository directory entry: {name}")
+         if not path.exists():
+             return None
+@@ -929,8 +947,7 @@ def write_pointer(name: str) -> str:
+         write_text(path, f"# {name}\n\n{block}")
+         return "created"
+ 
+-    with path.open("r", encoding="utf-8", newline="") as handle:
+-        raw = handle.read()  # newline="" disables universal-newline translation
++    raw = read_raw_text(path)
+     crlf = "\r\n" in raw
+     text = raw.replace("\r\n", "\n")
+ 
+@@ -994,8 +1011,7 @@ def write_ignore_block(commit: bool) -> str:
+         write_text(path, block)
+         return "created"
+ 
+-    with path.open("r", encoding="utf-8", newline="") as handle:
+-        raw = handle.read()
++    raw = read_raw_text(path)
+     crlf = "\r\n" in raw
+     text = raw.replace("\r\n", "\n")
+ 
+@@ -1136,7 +1152,7 @@ def scaffold_template(name: str) -> str:
+ 
+ def cmd_task(args: argparse.Namespace) -> int:
+     """Scaffold a task journal from .agentic/templates/task.md."""
+-    title = args.title.strip()
++    title = one_line(args.title)  # a line break would continue into the header
+     if not title:
+         raise UserError("task title must not be empty")
+     if re.fullmatch(r"TASK-[0-9A-Fa-f]{4,12}", title):
+@@ -1274,7 +1290,7 @@ def cmd_status(args: argparse.Namespace) -> int:
+               f"{header.get('type', '?'):<8} {title}")
+     if len(parsed) > STATUS_CAP:
+         print(f"  ... {len(parsed) - STATUS_CAP} more (see .agentic/tasks/)")
+-    print("Resume one with: python .agentic/aegis.py status TASK-<id>")
++    print("Resume one with: python .agentic/aegis.py brief TASK-<id>")
+     return 0
+ 
+ 
+@@ -1357,6 +1373,7 @@ RULING_SOURCES = ("user", "repository", "requirement", "technical")
+ DEFAULT_MAX_FIX_CYCLES = 2
+ #: the largest accepted `[review] max_fix_cycles`; total rounds are one more.
+ MAX_FIX_CYCLES_LIMIT = 255
++MAX_REVIEW_ROUNDS = 1 + MAX_FIX_CYCLES_LIMIT
+ SUMMARY_VALUE_LIMIT = 240
+ BRIEF_VALUE_LIMIT = 240
+ BRIEF_RULING_LIMIT = 8
+@@ -1569,8 +1586,9 @@ def parse_stage_report(text: str) -> dict[str, str]:
+         if value and allowed is not None and value not in allowed:
+             raise UserError(f"invalid Stage report {key}; expected {', '.join(allowed)}")
+         if key == "review_round" and value and (
+-                not value.isdecimal() or not 1 <= int(value) <= 6):
+-            raise UserError("invalid Stage report review_round; expected 1 through 6")
++                not value.isdecimal() or not 1 <= int(value) <= MAX_REVIEW_ROUNDS):
++            raise UserError("invalid Stage report review_round; expected 1 through "
++                            f"{MAX_REVIEW_ROUNDS}")
+         fields[key] = value
+     return fields
+ 
+@@ -1766,8 +1784,8 @@ def parse_state(text: str) -> dict[str, str]:
+                 and value not in REVIEW_VERDICTS:
+             raise UserError(f"invalid State {key}; expected {', '.join(REVIEW_VERDICTS)}")
+         if key == "review_round" and value and (
+-                not value.isdecimal() or not 1 <= int(value) <= 6):
+-            raise UserError("invalid State review_round; expected 1 through 6")
++                not value.isdecimal() or not 1 <= int(value) <= MAX_REVIEW_ROUNDS):
++            raise UserError(f"invalid State review_round; expected 1 through {MAX_REVIEW_ROUNDS}")
+         fields[key] = value
+     return fields
+ 
+@@ -2196,8 +2214,8 @@ def cmd_verdict(args: argparse.Namespace) -> int:
+     if not enabled:
+         raise UserError("explicit review is disabled in .agentic/aegis.toml; "
+                         "verdicts stay disabled")
+-    if args.round is not None and not 1 <= args.round <= min(6, 1 + max_fix_cycles):
+-        raise UserError(f"review round must be 1 through {min(6, 1 + max_fix_cycles)}")
++    if args.round is not None and not 1 <= args.round <= 1 + max_fix_cycles:
++        raise UserError(f"review round must be 1 through {1 + max_fix_cycles}")
+     previous = stored_state(text)
+     state = {key: previous.get(key, "") for key in STATE_FIELDS}
+     if not state["reported"].startswith(f"{stage} - ") or not state["status"]:
+@@ -2553,6 +2571,9 @@ def is_ticket_reference(hit: str) -> bool:
+     return hit.split("-", 1)[0].upper() not in NOT_TICKET_PREFIXES
+ 
+ DIFF_HEADER_RE = re.compile(r"^diff --git a/(.*) b/(.*)$")
++#: `git diff` formats for people: a user's `color.ui` or `diff.external` changes
++#: what it prints, and a patch the parser cannot read looks like a clean one.
++PLAIN_PATCH = ("--no-color", "--no-ext-diff")
+ 
+ CHECK_EPILOG = (
+     f"the {len(CHECKS)} checks (slug - what silent means):\n"
+@@ -2755,7 +2776,7 @@ def collect_diff(cfg: dict,
+     # quotepath=false keeps non-ASCII names unquoted so header attribution
+     # works for them; names with quotes or backslashes stay quoted and are
+     # picked up by the per-file fallback below.
+-    patch = run_git("-c", "core.quotepath=false", "diff", resolved, "--")
++    patch = run_git("-c", "core.quotepath=false", "diff", *PLAIN_PATCH, resolved, "--")
+     if patch and patch[0] == 0:
+         current = ""
+         for line in patch[1].split("\n"):
+@@ -2775,7 +2796,7 @@ def collect_diff(cfg: dict,
+     # diff them one at a time, where the name is known from the file list.
+     unattributed = [f for f in files if f not in seen_in_patch]
+     for name in unattributed[:MAX_REDIFF_FILES]:
+-        one = run_git("diff", resolved, "--", name)
++        one = run_git("diff", *PLAIN_PATCH, resolved, "--", name)
+         if one and one[0] == 0:
+             added.extend((name, line[1:]) for line in one[1].split("\n")
+                          if line.startswith("+") and not line.startswith("+++ "))
+diff --git a/05_Software/aegis/template/.agentic/steps/5_validate.md b/05_Software/aegis/template/.agentic/steps/5_validate.md
+index e8f62d3..6148094 100644
+--- a/05_Software/aegis/template/.agentic/steps/5_validate.md
++++ b/05_Software/aegis/template/.agentic/steps/5_validate.md
+@@ -51,7 +51,7 @@ Correct the candidate first, and run no full proof yet:
+    current template: remove a retired `## Architecture` section and keep any
+    still-true constraint from it in Purpose and boundaries or Invariants. A
+    page made from the template leaves out its license comment and its
+-   `AEGIS:TEMPLATE` notes.
++   guidance comment.
+ 4. Bring the affected sections of `.agentic/context/project.md` and
+    `.agentic/context/environment.md` into line with the candidate. Replace
+    stale claims and leave unrelated sections alone. On knowledge and context
+diff --git a/05_Software/aegis/template/.agentic/steps/adopt.md b/05_Software/aegis/template/.agentic/steps/adopt.md
+index f8425d9..cff0fc0 100644
+--- a/05_Software/aegis/template/.agentic/steps/adopt.md
++++ b/05_Software/aegis/template/.agentic/steps/adopt.md
+@@ -58,7 +58,7 @@ components): one shared journal is a merge hotspot, separate ones are not.
+ 5. Take the first unticked component. Read its source **and its existing
+    tests**; the tests are the primary evidence of intended behavior.
+ 6. Write `.agentic/knowledge/<component>.md` from the template, leaving out
+-   the template's license comment and `AEGIS:TEMPLATE` notes. Derive
++   the template's license comment and guidance comment. Derive
+    `## Routing`, `## Purpose and boundaries`, `## Public interface`,
+    `## Invariants`, `## Key behaviors` and `## Files` from the exact source
+    and tests. Add `## Change map` when several independent edit-and-test
+diff --git a/05_Software/aegis/template/.agentic/templates/task.md b/05_Software/aegis/template/.agentic/templates/task.md
+index c4f81dd..6244071 100644
+--- a/05_Software/aegis/template/.agentic/templates/task.md
++++ b/05_Software/aegis/template/.agentic/templates/task.md
+@@ -13,8 +13,8 @@ Who writes what:
+ - The CLI writes the header stage, the Done checklist, Log lines, Rulings and
+   State. `advance` moves to the next stage (or `--to` a named one),
+   `pause` records a stop or a blocker, `log` adds one durable event, `ruling`
+-  adds one decision and `verdict` records explicit review results. Each prints
+-  the summary and the next step.
++  adds one decision and `verdict` records explicit review results. `advance`,
++  `pause` and `verdict` print the summary.
+ - You edit Frame, Requirement coverage and Design directly, tick Done checklist
+   items as they are met, and edit the header lines type, interaction,
+   requirements and parent in place: one `key: value` per line, no blank lines
+diff --git a/05_Software/aegis/tests/test_check.py b/05_Software/aegis/tests/test_check.py
+index 6ab4421..2aef364 100644
+--- a/05_Software/aegis/tests/test_check.py
++++ b/05_Software/aegis/tests/test_check.py
+@@ -461,6 +461,19 @@ def test_secret_in_diff_fires_on_builtin_and_extra_patterns(tmp_path, capsys):
+     assert any("possible secret (secret_patterns_extra)" in line for line in hits)
+ 
+ 
++@needs_git
++@pytest.mark.parametrize(("setting", "value"),
++                         [("color.ui", "always"), ("diff.external", "echo")])
++def test_secret_in_diff_sees_added_lines_under_git_output_settings(
++        tmp_path, capsys, setting, value):
++    """A colored or externally formatted diff must not hide an added secret."""
++    _agentic, aegis = make_git_repo(tmp_path)
++    write(tmp_path / "src" / "app.py", 'AWS_KEY = "AKIAABCDEFGHIJKLMNOP"\n')
++    git(tmp_path, "config", setting, value)
++    hits = lines_for(run_check(aegis, capsys), "secret-in-diff")
++    assert any("possible secret (aws-style access key)" in line for line in hits)
++
++
+ @needs_git
+ def test_secret_in_diff_silent_on_a_clean_diff(tmp_path, capsys):
+     _agentic, aegis = make_git_repo(tmp_path)
+diff --git a/05_Software/aegis/tests/test_cli_core.py b/05_Software/aegis/tests/test_cli_core.py
+index 7774946..cde28e6 100644
+--- a/05_Software/aegis/tests/test_cli_core.py
++++ b/05_Software/aegis/tests/test_cli_core.py
+@@ -566,6 +566,22 @@ def test_init_collapses_legacy_and_current_duplicate_blocks(tmp_path):
+     assert "Repository-owned middle." in migrated
+ 
+ 
++@pytest.mark.parametrize("name", ["CLAUDE.md", ".gitignore"])
++def test_init_reports_a_non_utf8_file_in_one_line_and_recovers(tmp_path, capsys, name):
++    """A UTF-16 pointer or ignore file is one error line naming it, not a traceback."""
++    _agentic, aegis = make_repo(tmp_path)
++    (tmp_path / name).write_text("our own notes\n", encoding="utf-16")
++
++    assert aegis.main(["init"]) == 1
++    err = capsys.readouterr().err
++    assert err.startswith(f"error: {name} is not valid UTF-8")
++    assert err.count("\n") == 1
++
++    (tmp_path / name).write_text("our own notes\n", encoding="utf-8", newline="\n")
++    assert aegis.main(["init"]) == 0
++    assert "our own notes" in (tmp_path / name).read_text(encoding="utf-8")
++
++
+ def test_init_leaves_user_data_folders_untouched(tmp_path):
+     agentic, aegis = make_repo(tmp_path)
+     aegis.main(["init"])
+@@ -1059,6 +1075,21 @@ def test_task_records_no_commit_without_history(tmp_path, capsys, monkeypatch):
+     assert data["header"]["base"] == ""
+ 
+ 
++def test_task_keeps_a_multi_line_title_out_of_the_header(tmp_path, capsys, monkeypatch):
++    """A line break in the title must not become a header field."""
++    _agentic, aegis = make_repo(tmp_path)
++    aegis.main(["init"])
++    monkeypatch.setattr(aegis, "git_branch", lambda: "feature")
++    capsys.readouterr()
++
++    assert aegis.main(["task", "Add export\nstage: done"]) == 0
++    path = tmp_path / capsys.readouterr().out.strip()
++    data = aegis.parse_journal(path.read_text(encoding="utf-8"))
++    assert data["title"] == "Add export stage: done"
++    assert data["header"]["stage"] == "frame"
++    assert data["header"]["type"] == "feature"
++
++
+ def test_task_keeps_the_template_structure(tmp_path, capsys, monkeypatch):
+     """REQ-DATA-71fcf08e: template structure survives deterministic Git substitutions."""
+     _agentic, aegis = make_repo(tmp_path)
+diff --git a/05_Software/aegis/tests/test_journal_state.py b/05_Software/aegis/tests/test_journal_state.py
+index fce6b71..6f24718 100644
+--- a/05_Software/aegis/tests/test_journal_state.py
++++ b/05_Software/aegis/tests/test_journal_state.py
+@@ -495,6 +495,20 @@ def test_verdict_records_both_verdicts_within_the_round_bound(tmp_path, monkeypa
+     assert summary_fields(out)["Specification compliance"] == "approved"
+ 
+ 
++def test_verdict_accepts_every_round_the_configured_cycles_allow(tmp_path, monkeypatch, capsys):
++    """A bound above five fix cycles is honored: round 7 of 11 is recorded and read back."""
++    agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
++    enable_review(agentic, cycles=10)
++    assert run(aegis, capsys, "advance", path.stem, "--to", "validate")[0] == 0
++    assert run(aegis, capsys, "verdict", path.stem, "--spec", "changes_required",
++               "--quality", "approved", "--round", "7")[0] == 0
++    _text, _data, state = journal(aegis, path)
++    assert state["review_round"] == "7"
++    capsys.readouterr()
++    assert aegis.main(["verdict", path.stem, "--round", "12"]) == 1
++    assert "1 through 11" in capsys.readouterr().err
++
++
+ def test_status_and_brief_show_the_recorded_state(tmp_path, monkeypatch, capsys):
+     """The State written by the CLI is what the next session reads first."""
+     _agentic, aegis, path = new_task(tmp_path, monkeypatch, capsys)
+diff --git a/05_Software/aegis/tests/test_release_builder.py b/05_Software/aegis/tests/test_release_builder.py
+index 320548c..6fac0bd 100644
+--- a/05_Software/aegis/tests/test_release_builder.py
++++ b/05_Software/aegis/tests/test_release_builder.py
+@@ -13,6 +13,9 @@ import hashlib
+ import importlib.util
+ import itertools
+ import json
++import posixpath
++import re
++import zipfile
+ from pathlib import Path
+ 
+ import pytest
+@@ -35,9 +38,8 @@ def load_builder():
+ 
+ def configure_output(builder, tmp_path: Path) -> None:
+     """Redirect generated release outputs away from the checked-out records."""
+-    (tmp_path / "CHANGELOG.md").write_bytes(
+-        (builder.REPO_ROOT / "CHANGELOG.md").read_bytes()
+-    )
++    for name in ("CHANGELOG.md", "CHANGELOG-archive.md"):
++        (tmp_path / name).write_bytes((builder.REPO_ROOT / name).read_bytes())
+     builder.REPO_ROOT = tmp_path
+     builder.DELIVERY = tmp_path / "delivery"
+     builder.DIST = builder.DELIVERY / "dist"
+@@ -83,6 +85,34 @@ def test_build_writes_deterministic_archives_and_publication_records(
+     assert {path.name: digest(path) for path in artifacts} == first_digests
+ 
+ 
++def test_archive_documents_link_only_to_files_the_archive_contains(tmp_path, monkeypatch):
++    """A recipient following a relative link from a shipped document finds the file."""
++    builder = load_builder()
++    configure_output(builder, tmp_path)
++    monkeypatch.setattr(builder, "run_tests", lambda: None)
++    version = builder.payload_version()
++    assert builder.build(version) == 0
++
++    prefix = f"{builder.NAME}-{version}"
++    dangling = []
++    with zipfile.ZipFile(builder.DIST / f"{prefix}-windows.zip") as archive:
++        members = set(archive.namelist())
++        for member in sorted(members):
++            # the payload's own links are relative to an installed repository
++            if not member.endswith(".md") or member.startswith(f"{prefix}/.agentic/"):
++                continue
++            text = archive.read(member).decode("utf-8")
++            for target in re.findall(r"\]\(([^)#\s]+)", text):
++                if re.match(r"[a-z][a-z0-9+.-]*:", target):
++                    continue
++                resolved = posixpath.normpath(
++                    posixpath.join(posixpath.dirname(member), target))
++                if resolved not in members:
++                    dangling.append(f"{member} -> {target}")
++    assert not dangling
++    assert f"{prefix}/CHANGELOG-archive.md" in members
++
++
+ def test_build_replaces_obsolete_unqualified_archives(tmp_path, monkeypatch):
+     """REQ-REL-59983fe5: platform-labelled archives replace old generic names."""
+     builder = load_builder()
+diff --git a/05_Software/aegis/tests/test_repo_evolution.py b/05_Software/aegis/tests/test_repo_evolution.py
+index daa3aec..24abbda 100644
+--- a/05_Software/aegis/tests/test_repo_evolution.py
++++ b/05_Software/aegis/tests/test_repo_evolution.py
+@@ -317,6 +317,7 @@ def test_submodule_fingerprint_uses_checked_out_commit(tmp_path, monkeypatch):
+     _agentic, aegis = make_repo(tmp_path)
+     submodule = tmp_path / "vendor"
+     submodule.mkdir()
++    write(submodule / ".git", "gitdir: ../.git/modules/vendor\n")  # checked out
+     monkeypatch.setattr(
+         aegis, "run_git",
+         lambda *args: (0, "a" * 40) if args == ("-C", "vendor", "rev-parse", "HEAD")
+@@ -325,3 +326,23 @@ def test_submodule_fingerprint_uses_checked_out_commit(tmp_path, monkeypatch):
+     assert aegis.fingerprint(submodule, "vendor") == {
+         "kind": "submodule", "commit": "a" * 40,
+     }
++
++
++@needs_git
++def test_uninitialised_submodule_keeps_its_recorded_commit(tmp_path, capsys):
++    """An empty submodule folder is its gitlink, not the superproject's HEAD."""
++    _agentic, aegis = make_repo(tmp_path)
++    gitlink = "1" * 40
++    (tmp_path / "vendor").mkdir()
++    git(tmp_path, "update-index", "--add", "--cacheinfo", f"160000,{gitlink},vendor")
++    git(tmp_path, "commit", "-m", "add submodule")
++
++    assert aegis.fingerprint(tmp_path / "vendor", "vendor") == {
++        "kind": "submodule", "commit": gitlink,
++    }
++    assert aegis.main(["anchor", "--task", "TASK-abcd"]) == 0
++    write(tmp_path / "README.md", "changed\n")
++    git(tmp_path, "commit", "-am", "unrelated")
++    capsys.readouterr()
++    assert aegis.main(["evolution", "--task", "TASK-abcd"]) == 0
++    assert "vendor" not in capsys.readouterr().out
+diff --git a/05_Software/aegis/tests/test_run_report.py b/05_Software/aegis/tests/test_run_report.py
+index 213f69b..abb68ad 100644
+--- a/05_Software/aegis/tests/test_run_report.py
++++ b/05_Software/aegis/tests/test_run_report.py
+@@ -377,7 +377,7 @@ review_round: 3
+ 
+ @pytest.mark.parametrize("field", [
+     "spec_compliance: maybe", "implementation_quality: passed",
+-    "review_round: 0", "review_round: 7", "review_round: two",
++    "review_round: 0", "review_round: 257", "review_round: two",
+ ])
+ def test_stage_report_rejects_invalid_verdicts_and_review_rounds(tmp_path, field):
+     """REQ-FUNC-9514e017: malformed enabled-review evidence is never approval."""
+diff --git a/06_SoftwareDocu/01_Install_and_Setup.md b/06_SoftwareDocu/01_Install_and_Setup.md
+index 9ea592e..8cae5a5 100644
+--- a/06_SoftwareDocu/01_Install_and_Setup.md
++++ b/06_SoftwareDocu/01_Install_and_Setup.md
+@@ -41,8 +41,8 @@ This finishes the installation, idempotently:
+   `QWEN.md` (a short digest under markers that routes the agent to
+   `.agentic/AGENTS.md`; your existing content in those files is preserved),
+ - adds or removes the managed anchor/evolution block in the root
+-  `.gitignore` to match `[records] commit_fingerprints`, and names any
+-  sidecars that are still tracked instead of running a Git write,
++  `.gitignore` to match `[records] commit_fingerprints`, and reports how many
++  sidecars are still tracked instead of running a Git write,
+ - reports whether Git is installed and whether this directory is already a
+   Git repository.
+ 
+@@ -204,7 +204,7 @@ suite that ran and failed.
+ | `default_branch` | commented `"develop"` | The base is whatever `origin/HEAD` points at, then a local `master`, then a local `main`, and nothing at all when none of those resolve. |
+ 
+ `default_branch` names the ref every diff is measured from, so it decides what
+-`check`, `impacted`, `anchor` and `evolution` consider changed. Set it when the
++`check`, `test --impacted` and `report` consider changed. Set it when the
+ branch your work merges into is not the one AEGIS would find on its own.
+ 
+ ### `[interaction]` - when the agent stops
+@@ -230,6 +230,15 @@ With `enabled = true`, validate follows `.agentic/steps/review.md`: two
+ independent reviewers, verdicts recorded with `verdict`, and at most
+ `1 + max_fix_cycles` rounds.
+ 
++### `[context]` - size of the pages read at every frame
++
++| Setting | `init` writes | When absent |
++|---|---|---|
++| `page_kb` | `24` | No budget. `0` means no budget as well. |
++
++`check` reports a project context or knowledge page above the budget as
++`context-size`.
++
+ ### `[diagrams]` - optional design diagrams
+ 
+ | Setting | `init` writes | When absent |
+diff --git a/06_SoftwareDocu/02_Folders_and_Files.md b/06_SoftwareDocu/02_Folders_and_Files.md
+index 5743fbe..dc6e6ee 100644
+--- a/06_SoftwareDocu/02_Folders_and_Files.md
++++ b/06_SoftwareDocu/02_Folders_and_Files.md
+@@ -32,9 +32,9 @@ Newly scaffolded tasks, requirements, and context files omit the payload
+ license header and the explicitly marked instruction-only notes; they belong to
+ the project. The full guidance remains in the managed templates; durable fields
+ and unmarked data are preserved. Existing records are not rewritten or
+-compacted, so older ones keep their license header. Markdown templates mark
+-notes with `<!-- AEGIS:TEMPLATE` and a standalone `-->`; requirement templates
+-use `# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
++compacted, so older ones keep their license header. The task and context
++templates mark notes with `<!-- AEGIS:TEMPLATE` and a standalone `-->`; the
++requirement template uses `# AEGIS:TEMPLATE-BEGIN` and `# AEGIS:TEMPLATE-END`.
+ 
+ ## Project context - `context/`
+ 
+@@ -145,7 +145,6 @@ task's journal; a parallel branch carries its own.
+ 
+ stage: build
+ type: feature
+-path: full
+ interaction: checkpoint
+ requirements: REQ-FUNC-3fa2
+ parent:
+@@ -205,7 +204,7 @@ Rulings and the State:
+ | Explicit review returns | `verdict TASK-<id> --spec <verdict> --quality <verdict>` |
+ 
+ The agent edits Frame, Requirement coverage and Design directly, ticks Done
+-checklist items as they are met, and edits the header lines `type`, `path`,
++checklist items as they are met, and edits the header lines `type`,
+ `interaction`, `requirements` and `parent` in place - one `key: value` per
+ line, no blank lines or comments inside the header block, which `status`,
+ `brief`, `summary`, `check` and `report` read. Earlier Log lines and Rulings
+@@ -329,7 +328,7 @@ requirement under the component whose knowledge page claims it and colouring
+ it by how the behavior is verified: a linked test, a declared `Manual:` or
+ `Inspection:` method, or nothing yet. Requirements no page claims are grouped
+ apart rather than dropped, so an unclaimed behavior is visible instead of
+-absent. `--component` and `--task` narrow the picture; `--out` writes the
++absent. `--component` or `--task` narrows the picture (one at a time); `--out` writes the
+ file as UTF-8.
+ 
+ `trace` writes the whole register as a flat Markdown table or CSV, with one
+@@ -342,8 +341,8 @@ CSV, and shell redirection retains the console encoding.
+ `explain <path>` goes the other way still - point it at a file and it reports
+ every requirement whose `affected_paths` cover it, grouped by component, with
+ status, coverage, spec, and the journals that delivered them. A directory
+-covers the files beneath it. A path no requirement covers is said so plainly,
+-and called a finding when it sits inside your configured source or test globs.
++covers the files beneath it. A path no requirement covers is said so plainly;
++code that only direct changes touched has none, and that is not a finding.
+ 
+ ## Configuration - `aegis.toml`
+ 
+@@ -369,6 +368,7 @@ Each key's default value and its behavior when absent are in the
+ | `[interaction] autopilot` | `false` stops at every completed stage and presents the next choices; `true` flows between stages through validate. AEGIS never commits or publishes in either mode. |
+ | `[review] enabled / max_fix_cycles` | Optional explicit review policy: `enabled` defaults to `false`; `max_fix_cycles` is 0-255 and defaults to 2. With `true`, validate follows `steps/review.md`. |
+ | `[diagrams] enabled / types` | `enabled = true` has design draw Mermaid diagrams of the proposed implementation into `tasks/diagram_TASK-<id>.md`; it defaults to `false`. `types` lists any of `structure`, `sequence`, `state` and defaults to `["structure"]`. |
++| `[context] page_kb` | Size budget in KB for `context/project.md`, `context/environment.md` and each knowledge page; `check` reports a larger page as `context-size`. `init` writes 24; absent or 0 means no budget. |
+ | `[records] commit_fingerprints` | `false` keeps anchor/evolution sidecars out of git through a managed `.gitignore` block that `init` maintains; `true` removes the block so they are committed with the journal. |
+ 
+ When enabled, each review round needs two independent verdicts, recorded with
+diff --git a/06_SoftwareDocu/03_Example_Feature.md b/06_SoftwareDocu/03_Example_Feature.md
+index 28164e7..031f431 100644
+--- a/06_SoftwareDocu/03_Example_Feature.md
++++ b/06_SoftwareDocu/03_Example_Feature.md
+@@ -47,20 +47,19 @@ Needs user:   yes
+ ```
+ 
+ The block continues with the review fields and the journal path. The
+-following scope is illustrative: M3U-only, the new module and path rules
+-are proposals to confirm, rather than facts implied by the short request:
++following scope is illustrative: M3U-only and the new module are proposals
++to confirm, rather than facts implied by the short request:
+ 
+-> Scope: M3U export only, no PLS; new module `src/export/m3u.py`; full
+-> path (new user-facing behavior). One requirement proposed:
+-> "Export playlist as M3U". Proceed?
++> Scope: M3U export only, no PLS; new module `src/export/m3u.py`. One
++> requirement proposed: "Export playlist as M3U". Proceed?
+ 
+ You answer - trim it, extend it, or just "yes". This accepts scope; it does
+ not claim implementation. The settled question becomes a ruling, and the
+-continuation records the path:
++continuation moves the task to specify:
+ 
+ ```bash
+ python .agentic/aegis.py ruling TASK-8b12 --decision "M3U only, no PLS" --reason "user answer" --source user
+-python .agentic/aegis.py advance TASK-8b12 --path full --reason "scope accepted"
++python .agentic/aegis.py advance TASK-8b12 --reason "scope accepted"
+ ```
+ 
+ The agent then builds a behavior inventory and Frame-to-requirement coverage
+diff --git a/06_SoftwareDocu/07_FAQ.md b/06_SoftwareDocu/07_FAQ.md
+index 414dd19..2d00e8f 100644
+--- a/06_SoftwareDocu/07_FAQ.md
++++ b/06_SoftwareDocu/07_FAQ.md
+@@ -40,12 +40,6 @@ Local verification jobs and uncommitted files do not travel with Git.
+ 
+ ## What belongs in the task Log?
+ 
+-Project and component documents hold current positive behavior and actual setup.
+-Populate `context/project.md` and `context/environment.md` at frame/adoption,
+-update affected facts when implementation or setup changes, and reconcile at
+-validate. Draft/task records hold proposals; journals and Git retain history.
+-See [project context](Project_Context.md) for examples and ownership.
+-
+ Only durable progress and evidence: stage transitions, material changes or
+ decisions, consolidated test results, blockers, approvals, deviations, and the
+ final validation result. `advance` writes the transitions, `test --task` a test
+@@ -55,6 +49,12 @@ them. Routine searches, edits, tool mechanics, corrected retries, and repeated
+ test attempts stay out. During build, retain one expected red and one final
+ green per meaningful behavior increment.
+ 
++Project and component documents hold current positive behavior and actual setup.
++Populate `context/project.md` and `context/environment.md` at frame/adoption,
++update affected facts when implementation or setup changes, and reconcile at
++validate. Draft/task records hold proposals; journals and Git retain history.
++See [project context](Project_Context.md) for examples and ownership.
++
+ ## Does it work without Git?
+ 
+ The core can install and inspect artifacts without Git, with degraded
+@@ -133,10 +133,9 @@ them, so you can read the reasoning as well as the rule. A directory in
+ `affected_paths` covers the files beneath it, and you can paste an absolute
+ path straight from your shell.
+ 
+-If nothing covers the path, it says so - and calls that a finding when the
+-file sits inside your configured `source` or `tests` globs. Ungoverned code
+-in a governed area is worth knowing about, and it is exactly the kind of gap
+-that is invisible until you ask.
++If nothing covers the path, it says so plainly. That is not a finding: code
++that only direct changes touched has no requirement. It is still worth
++knowing, and it is exactly the kind of gap that is invisible until you ask.
+ 
+ ## Can I see the proposed change as a diagram before code is written?
+ Yes, when you ask for it. Set `[diagrams] enabled = true` in
+@@ -241,7 +240,7 @@ one level. Parent integration sees only children visible in its checkout.
+ 
+ ## What is the difference between `brief` and `summary`?
+ 
+-`brief` is the first bounded re-entry view: task identity, stage and path,
++`brief` is the first bounded re-entry view: task identity, stage,
+ branch and base, parent, requirements, context presence, checklist, State,
+ outcome, interaction mode, review policy, the computed diagram decision, active
+ rulings, visible children, and a `Read next` line naming what to read. `summary`
+@@ -329,7 +328,7 @@ is not passing evidence, and later candidate changes still require fresh proof.
+ ## Can I remove the State and saved metadata to save tokens?
+ 
+ Keep the State and evidence. New records omit the payload license header and
+-marked template-only notes, and stage files refer to shared instructions.
++marked template-only notes.
+ Record consolidated outcomes instead of tool transcripts; keep the one-line
+ State values short - `advance` and `pause` refresh them at boundaries, pauses,
+ blockers and session ends. `evolution --compact --json` reduces response
+diff --git a/06_SoftwareDocu/08_Prompt_Cheatsheet.md b/06_SoftwareDocu/08_Prompt_Cheatsheet.md
+index 3cee91e..a309c58 100644
+--- a/06_SoftwareDocu/08_Prompt_Cheatsheet.md
++++ b/06_SoftwareDocu/08_Prompt_Cheatsheet.md
+@@ -305,9 +305,9 @@ I am about to ask for contradicts any of them. Change nothing yet.
+ 
+ *Why this exists:* the register is written once per behavior and read
+ almost never, because nothing led from a file back to it. This is that
+-direction. A path no requirement covers is said so plainly - and called a
+-finding when it sits inside your configured source globs, which is how
+-ungoverned code becomes visible instead of merely absent.
++direction. A path no requirement covers is said so plainly, without calling
++it a finding, which is how ungoverned code becomes visible instead of merely
++absent.
+ *Follow-up:* "write the requirement for &lt;path&gt;" when it turns out
+ nothing covers it, or proceed with the change now that you know the
+ constraints it has to keep.
+diff --git a/06_SoftwareDocu/09_CLI_Reference.md b/06_SoftwareDocu/09_CLI_Reference.md
+index 0977bba..ba6fb18 100644
+--- a/06_SoftwareDocu/09_CLI_Reference.md
++++ b/06_SoftwareDocu/09_CLI_Reference.md
+@@ -89,8 +89,8 @@ python .agentic/aegis.py init [--git]
+   agent to `.agentic/AGENTS.md`, in root `AGENTS.md`, `CLAUDE.md`, and
+   `QWEN.md`;
+ - adds or removes the managed anchor/evolution block in the root `.gitignore`
+-  according to `[records] commit_fingerprints`, and names sidecars that are
+-  still tracked so a human can untrack them (it never runs `git rm`);
++  according to `[records] commit_fingerprints`, and reports how many sidecars
++  are still tracked so a human can untrack them (it never runs `git rm`);
+ - reports whether Git is installed and whether the directory is a repository;
+ - preserves project-owned data and an existing `aegis.toml`.
+ 
+@@ -459,7 +459,8 @@ fields contain the agent's recorded observations and decisions; blank values
+ print `not recorded`.
+ 
+ Output fields, in order: **Stage, Task, Current, Requirements, Changed,
+-Evidence, Issues, Next, Needs user, Spec compliance, Implementation quality,
++Evidence, Issues, Next, Needs user, Specification compliance, Implementation
++quality,
+ Review round, Details**. Stage combines the reported
+ stage and result; Current and Requirements come from the journal header.
+ Details points to the full journal. Each value is at most 240 characters,
+@@ -998,7 +999,8 @@ python .agentic/aegis.py explain C:\repo\src\export\m3u.py
+ | Situation | Exit behavior |
+ |---|---|
+ | `init`, `task`, `advance`, `pause`, `log`, `ruling`, `verdict`, `req`, `anchor`, `evolution`, `status`, `summary`, `brief`, `components`, `report`, `diagram`, `trace`, or `explain` succeeds | Exit 0. `evolution` still exits 0 when it finds changes. |
+-| Usage, missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
++| Missing task, invalid configuration, or another expected CLI error | One error line on stderr and exit 1. |
++| Unknown command, option or argument value | The usage text on stderr and exit 2. |
+ | Plain `check` finds errors or warnings | Exit 0; it remains advisory. |
+ | `check --strict` finds a strict failure | Exit 1. |
+ | `test` runs a configured command | Return that command's exit code. |
+diff --git a/AGENTS.md b/AGENTS.md
+index 6447954..e3a9f2b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -14,8 +14,7 @@ A deeper `AGENTS.md` overrides this file for its subtree.
+ - Treat everything under `05_Software/aegis/template/` as
+   template material copied verbatim into downstream projects. Keep it generic
+   and free of this repository's own development history, version records, or
+-  project-specific facts. In particular, `template/CHANGELOG.md` is a downstream
+-  starter and must stay empty (no release entries).
++  project-specific facts.
+ - Keep folder boundaries clear across planning, documentation, tools,
+   hardware, hardware documentation, software, software documentation, delivery,
+   and support material.
+@@ -104,9 +103,6 @@ Versions, the changelog and version assignment follow
+   summary, or the runnable package location changes.
+ - Update `05_Software/aegis/README.md` when package
+   setup, CLI usage, or template behavior changes.
+-- Update copied template adapters under `.codex/`, `.claude/`, `.pi/`, and
+-  `.opencode/` when workflow contract, skills, hooks, or agent-facing prompts
+-  change.
+ - Update `06_SoftwareDocu/` when implementation behavior or workflow contracts
+   need deeper explanation.
+ - Keep README files scoped to their folder.
+diff --git a/CHANGELOG-archive.md b/CHANGELOG-archive.md
+index 10751ee..e1336da 100644
+--- a/CHANGELOG-archive.md
++++ b/CHANGELOG-archive.md
+@@ -2,6 +2,39 @@
+ 
+ Releases before the latest one, moved from `CHANGELOG.md`.
+ 
++## [0.16.0] - 2026-11-16
++
++### Removed
++
++- Remove the quick path and `advance --path`; every task walks one stage order,
++  and an older journal's `path:` line no longer changes it.
++
++### Added
++
++- Add an admission rule: AEGIS governs durable product rules only; bug fixes,
++  local UI adjustments and refactors are made directly, without a journal.
++- Add the `context-size` (`[context] page_kb`: `init` writes 24, no setting
++  means no budget) and `duplicate-heading` checks for context and knowledge pages.
++- Add the direct-changes guide and slide deck, replacing the quick-fix guide.
++- Add `REUSE.toml`, which declares the repository's licensing in one place.
++- Add `01_Documentation/Releases.md` for versions and the changelog; older
++  releases move to `CHANGELOG-archive.md`.
++
++### Changed
++
++- Run `uncovered-source` only with `check --task`, since direct changes need
++  no requirement; `explain` no longer calls an uncovered path a finding.
++- Make frame record the requirements that already cover the work, so specify
++  can be skipped for them.
++- Shorten the payload license header to a two-line SPDX tag; other files drop
++  their license header.
++- Stop stating the current version in guides, decks and installation PDFs;
++  `aegis.py --version` prints it.
++- Point the root `CLAUDE.md` and `QWEN.md` at `AGENTS.md` instead of repeating
++  a workflow digest.
++- Slim the code style (no banners, section markers or `@` docstring tags; add
++  JavaScript rules) and apply it to the existing Python code.
++
+ ## [0.15.0] - 2026-10-25
+ 
+ ### Removed
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index d98d111..21b1e89 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -4,37 +4,43 @@ All notable changes to AEGIS are documented in this file.
+ 
+ ## [Unreleased]
+ 
+-## [0.16.0] - 2026-11-16
++## [0.16.1] - 2026-11-17
++
++### Fixed
++
++- Read the diff as a plain patch in `check`: with `color.ui=always` or
++  `diff.external` set, `secret-in-diff` saw no added lines and stayed silent.
++- Drop the removed `advance --path` option and `path:` header line from the
++  feature example, the folders guide, the FAQ and the package README.
++- Report a pointer file or `.gitignore` that is not UTF-8 as one `init` error
++  line naming the file, instead of a traceback.
++- Give the OpenCode tools the `no_fallback` and `compact` arguments the other
++  hosts already offer and its prompt asks for.
++- Keep a `task` title on one line, so a line break in it cannot add header
++  fields to the new journal.
++- Accept every review round `max_fix_cycles` allows: `verdict`, the State and
++  the host adapters stopped at round 6 whatever the configured bound.
++- Ship release archives whose documents link only to files in the archive:
++  the builder writes the archive README, adds `CHANGELOG-archive.md` and
++  reduces links to separately delivered material to their text.
++- Fingerprint an uninitialised submodule by the commit the index records;
++  `anchor` stored the superproject's HEAD and `evolution` reported a change
++  after every commit.
++- Keep a finished verification job's exit code and release the checkout lock
++  when its closing fingerprint cannot be taken (`candidate_error` says why).
++- Restore LF line endings in 32 working-tree files that had drifted to CRLF.
++- Correct guide and payload wording that disagreed with the CLI: `explain` on an
++  uncovered path, exit codes, review fail-safes, `default_branch`, the settings
++  reference and the summary field names.
+ 
+ ### Removed
+ 
+-- Remove the quick path and `advance --path`; every task walks one stage order,
+-  and an older journal's `path:` line no longer changes it.
++- Drop two `AGENTS.md` rules that named a template changelog and template
++  adapter folders this repository does not have.
+ 
+ ### Added
+ 
+-- Add an admission rule: AEGIS governs durable product rules only; bug fixes,
+-  local UI adjustments and refactors are made directly, without a journal.
+-- Add the `context-size` (`[context] page_kb`: `init` writes 24, no setting
+-  means no budget) and `duplicate-heading` checks for context and knowledge pages.
+-- Add the direct-changes guide and slide deck, replacing the quick-fix guide.
+-- Add `REUSE.toml`, which declares the repository's licensing in one place.
+-- Add `01_Documentation/Releases.md` for versions and the changelog; older
+-  releases move to `CHANGELOG-archive.md`.
+-
+-### Changed
+-
+-- Run `uncovered-source` only with `check --task`, since direct changes need
+-  no requirement; `explain` no longer calls an uncovered path a finding.
+-- Make frame record the requirements that already cover the work, so specify
+-  can be skipped for them.
+-- Shorten the payload license header to a two-line SPDX tag; other files drop
+-  their license header.
+-- Stop stating the current version in guides, decks and installation PDFs;
+-  `aegis.py --version` prints it.
+-- Point the root `CLAUDE.md` and `QWEN.md` at `AGENTS.md` instead of repeating
+-  a workflow digest.
+-- Slim the code style (no banners, section markers or `@` docstring tags; add
+-  JavaScript rules) and apply it to the existing Python code.
++- Add `02_Tools/build_aegis_delivery.py`, which archives the host packages and
++  the guides and writes the delivery records.
+ 
+ Older releases are in [CHANGELOG-archive.md](CHANGELOG-archive.md).

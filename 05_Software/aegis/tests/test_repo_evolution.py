@@ -317,6 +317,7 @@ def test_submodule_fingerprint_uses_checked_out_commit(tmp_path, monkeypatch):
     _agentic, aegis = make_repo(tmp_path)
     submodule = tmp_path / "vendor"
     submodule.mkdir()
+    write(submodule / ".git", "gitdir: ../.git/modules/vendor\n")  # checked out
     monkeypatch.setattr(
         aegis, "run_git",
         lambda *args: (0, "a" * 40) if args == ("-C", "vendor", "rev-parse", "HEAD")
@@ -325,3 +326,23 @@ def test_submodule_fingerprint_uses_checked_out_commit(tmp_path, monkeypatch):
     assert aegis.fingerprint(submodule, "vendor") == {
         "kind": "submodule", "commit": "a" * 40,
     }
+
+
+@needs_git
+def test_uninitialised_submodule_keeps_its_recorded_commit(tmp_path, capsys):
+    """An empty submodule folder is its gitlink, not the superproject's HEAD."""
+    _agentic, aegis = make_repo(tmp_path)
+    gitlink = "1" * 40
+    (tmp_path / "vendor").mkdir()
+    git(tmp_path, "update-index", "--add", "--cacheinfo", f"160000,{gitlink},vendor")
+    git(tmp_path, "commit", "-m", "add submodule")
+
+    assert aegis.fingerprint(tmp_path / "vendor", "vendor") == {
+        "kind": "submodule", "commit": gitlink,
+    }
+    assert aegis.main(["anchor", "--task", "TASK-abcd"]) == 0
+    write(tmp_path / "README.md", "changed\n")
+    git(tmp_path, "commit", "-am", "unrelated")
+    capsys.readouterr()
+    assert aegis.main(["evolution", "--task", "TASK-abcd"]) == 0
+    assert "vendor" not in capsys.readouterr().out

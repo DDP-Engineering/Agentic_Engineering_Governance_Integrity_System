@@ -41,8 +41,8 @@ This finishes the installation, idempotently:
   `QWEN.md` (a short digest under markers that routes the agent to
   `.agentic/AGENTS.md`; your existing content in those files is preserved),
 - adds or removes the managed anchor/evolution block in the root
-  `.gitignore` to match `[records] commit_fingerprints`, and names any
-  sidecars that are still tracked instead of running a Git write,
+  `.gitignore` to match `[records] commit_fingerprints`, and reports how many
+  sidecars are still tracked instead of running a Git write,
 - reports whether Git is installed and whether this directory is already a
   Git repository.
 
@@ -204,7 +204,7 @@ suite that ran and failed.
 | `default_branch` | commented `"develop"` | The base is whatever `origin/HEAD` points at, then a local `master`, then a local `main`, and nothing at all when none of those resolve. |
 
 `default_branch` names the ref every diff is measured from, so it decides what
-`check`, `impacted`, `anchor` and `evolution` consider changed. Set it when the
+`check`, `test --impacted` and `report` consider changed. Set it when the
 branch your work merges into is not the one AEGIS would find on its own.
 
 ### `[interaction]` - when the agent stops
@@ -229,6 +229,15 @@ journal header, so the choice survives a resume.
 With `enabled = true`, validate follows `.agentic/steps/review.md`: two
 independent reviewers, verdicts recorded with `verdict`, and at most
 `1 + max_fix_cycles` rounds.
+
+### `[context]` - size of the pages read at every frame
+
+| Setting | `init` writes | When absent |
+|---|---|---|
+| `page_kb` | `24` | No budget. `0` means no budget as well. |
+
+`check` reports a project context or knowledge page above the budget as
+`context-size`.
 
 ### `[diagrams]` - optional design diagrams
 
