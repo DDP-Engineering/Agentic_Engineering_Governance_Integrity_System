@@ -60,9 +60,11 @@ PROFILES = {
             "existing fix, an ambiguous retention request, a new interface, a stale handoff, a "
             "superseded ruling, missing evidence, a clean checkpoint, failed verification, stale "
             "verdicts and review exhaustion.",
-    "capabilities": "Fifteen cases on the other stages and options: Specify, Build red-green, "
-                    "closing a validated task, adopting a component, fresh reviewers (enabled, "
-                    "disabled, missing behavior), diagrams, autopilot and context reconciliation.",
+    "capabilities": "Cases on the other stages and options: Specify, Build red-green, closing a "
+                    "validated task, fresh reviewers (enabled, disabled, missing behavior), "
+                    "diagrams, autopilot, context reconciliation and adoption. Fifteen at first; "
+                    "the adoption survey, close and a four-session adoption chain make eighteen. "
+                    "The subscription runner skips the chain, which needs fresh local sessions.",
     "holdout": "Six cases in a second, pricing domain that is never used to write prompt rules, "
                "ending with a chained lifecycle: five fresh sessions take one feature from Frame "
                "to Validate through the journal alone.",

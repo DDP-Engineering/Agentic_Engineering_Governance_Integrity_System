@@ -259,13 +259,18 @@ def execute(args):
         if names - {c["id"] for c in cases}:
             raise ValueError("unknown capability scenario")
         cases = [c for c in cases if c["id"] in names]
+    # one CLI session per case: chained cases need the local runner's fresh-session chain
+    skipped = [c["id"] for c in cases if c.get("chain")]
+    cases = [c for c in cases if not c.get("chain")]
+    for name in skipped:
+        print("SKIP " + name + " (chained case; run it with evaluate_aegis_prompts.py)", flush=True)
     out.mkdir(parents=True)
     work.mkdir(parents=True)
     payload = work / "frozen-payload"
     shutil.copytree(args.payload, payload, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     settings = {"cli": str(args.cli.resolve()), "model": args.model, "reasoning": args.reasoning, "context": args.context}
     version = subprocess.run([settings["cli"], "--version"], capture_output=True, text=True, check=True).stdout.strip()
-    sources = [SELF, Path(cap.__file__), Path(cap.stages.__file__), Path(core.__file__), cap.SUITE, core.SUITE, cap.PROFILE,
+    sources = [SELF, Path(cap.__file__), Path(cap.stages.__file__), Path(cap.adoption.__file__), Path(core.__file__), cap.SUITE, core.SUITE, cap.PROFILE,
         cap.ROLE_DIR / "aegis-spec-review.toml", cap.ROLE_DIR / "aegis-quality-review.toml",
         ROOT / "05_Software/aegis/integrations/codex/plugins/aegis/skills/aegis/SKILL.md"]
     manifest = {**settings, "date_utc": dt.datetime.now(dt.timezone.utc).isoformat(), "cli_version": version,

@@ -93,11 +93,14 @@ automatic scorer remain unchanged. Their runner is
 This profile covers Frame, Validate and task-record resume behavior, including
 stale handoffs, rulings, missing evidence, failed verification and review exhaustion.
 
-The separate `capability-scenarios.json` adds fifteen cases. Its fixture and
-scoring modules are `evaluate_aegis_capabilities.py` and
-`evaluate_aegis_stages.py` under `02_Tools/`. It does not retroactively change
+The separate `capability-scenarios.json` adds eighteen cases. Its fixture and
+scoring modules are `evaluate_aegis_capabilities.py`,
+`evaluate_aegis_stages.py` and, for the adoption survey, close and chain,
+`evaluate_aegis_adoption.py` under `02_Tools/`. It does not retroactively change
 the meaning of the original ten scores. Both profiles run through the
-subscription runner and through the local runner described below. A third,
+subscription runner and through the local runner described below; the chained
+adoption needs fresh sessions on one repository, so only the local runner
+runs it and the subscription runner reports it as skipped. A third,
 local-only `holdout` profile adds a second domain and a chained lifecycle,
 described under "Hold-out domain and chained lifecycle".
 
@@ -110,7 +113,7 @@ described under "Hold-out domain and chained lifecycle".
 | `4_build.md` | Actual red test, anchor, source edit, green test and evolution | One existing pure-function regression; existing tests are immutable |
 | `5_validate.md` | Original four cases, fresh review enabled/disabled (`review.md` where the payload has it), missing behavior, stale context | Synthetic verification command; no external CI |
 | Closing a validated task | Presentation for the user's decision and rejection of a candidate changed after proof, at `deliver` in a payload that still has that stage and at the end of validate otherwise | Stops before commit/publication |
-| `adopt.md` | One agreed component, source/tests, knowledge and suspected contract mismatch | Survey, adoption close and publication are not covered |
+| `adopt.md` | Survey proposing components and waiting for the owner; one agreed component with a suspected contract mismatch; close fixing check errors forward, reconciling context and asking to close; a four-session chain adopting two components one per session | One small two-component library; adoption branches, parallel journals and publication are not covered |
 | `diagrams.md` | Enabled structure/sequence/state, disabled, empty types and skipped design | Artifact/link/display checks; no automatic Mermaid rendering certification |
 | Autopilot | Design-to-Build transition, explicit stage stop and blocking review | Not a complete unattended project lifecycle |
 | Context | Both project/environment files reconciled, unrelated notes retained | Stale known facts in a bounded fixture |
@@ -191,8 +194,9 @@ predicates. One repeat is a measured sample, not a reliability estimate.
 
 `evaluate_aegis_prompts.py run` drives a local Chat Completions server such as
 LM Studio. `--profile core` runs the ten original cases; `--profile
-capabilities` runs the fifteen capability cases with the same fixtures, hosts
-and scorer as the subscription runner. There, each `delegate_review` call starts
+capabilities` runs the eighteen capability cases, the chained adoption
+included, with the same fixtures, hosts and scorer as the subscription runner.
+There, each `delegate_review` call starts
 a fresh local session for its role, with the unchanged Codex role prompt, the
 read-only reviewer tools and one immutable snapshot. Neither role sees the
 coordinator conversation or the other verdict; a changed candidate consumes the
@@ -245,6 +249,9 @@ runs. The evaluated CLI, not the host, decides which `req` categories exist,
 so its aliases work and an unknown one returns the CLI's own error. An existing
 command outside the allowed set, a `req` category with path characters, a
 shell program or a Git write, repeated program name or not, stays forbidden.
+The adoption cases are the one exception for `init`: `adopt.md` starts with
+it and the fixture already ran it when AEGIS was installed, so there it is an
+unavailable capability that tells the model to continue.
 `read_file` reads whole lines: `offset` is the first line, 1-based, `limit` a
 number of lines, and each result gives `total_lines`, `eof` and the
 `next_offset` to continue from, within 40,000 characters. Missing-evidence reports

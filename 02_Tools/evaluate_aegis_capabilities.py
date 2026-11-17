@@ -25,6 +25,9 @@ SPEC.loader.exec_module(core)
 STAGE_SPEC = importlib.util.spec_from_file_location("aegis_eval_stages", ROOT / "02_Tools/evaluate_aegis_stages.py")
 stages = importlib.util.module_from_spec(STAGE_SPEC)
 STAGE_SPEC.loader.exec_module(stages)
+ADOPTION_SPEC = importlib.util.spec_from_file_location("aegis_eval_adoption", ROOT / "02_Tools/evaluate_aegis_adoption.py")
+adoption = importlib.util.module_from_spec(ADOPTION_SPEC)
+ADOPTION_SPEC.loader.exec_module(adoption)
 SUITE = ROOT / "05_Software/aegis/evaluations/capability-scenarios.json"
 ROLES = {"aegis-spec-review": "spec_compliance", "aegis-quality-review": "implementation_quality"}
 ROLE_DIR = ROOT / "05_Software/aegis/integrations/codex/plugins/aegis/agents"
@@ -78,6 +81,12 @@ def replace_field(text: str, name: str, value: str) -> str:
 
 def prepare(root: Path, payload: Path, case: dict) -> dict:
     """Prepare a real, bounded fixture and retain actual preparation proof."""
+    if case["kind"] in adoption.KINDS:
+        initial = adoption.prepare(core, root, payload, case)
+        core.write(root / "AGENTS.md", core.bootstrap_text(payload))
+        initial["files"] = core.files(root)
+        initial["candidate"] = core.candidate(root)
+        return initial
     if case["kind"] in stages.KINDS:
         initial = stages.prepare(core, replace_field, root, payload, case, prepare)
         core.write(root / "AGENTS.md", core.bootstrap_text(payload))
@@ -271,6 +280,8 @@ def describes_trim_and_lower(text: str) -> bool:
 def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
           reviews: list, final: str) -> dict:
     """Check observed sessions and artifacts, separately from semantic grading."""
+    if case["kind"] in adoption.KINDS:
+        return adoption.score(core, root, case, initial, events, payload)
     if case["kind"] in stages.KINDS:
         return stages.score(core, root, payload, case, initial, events, final)
     expected = {"stages": ["validate"] if case["kind"] in {"review", "context"} else
@@ -362,3 +373,9 @@ def score(root: Path, case: dict, initial: dict, events: list, payload: Path,
     result["rubric"] = case["rubric"]
     result["limitations"] = ["Mermaid syntax/rendering is not certified by fence/header checks; manual semantic inspection required."] if case["kind"] == "diagram" else []
     return result
+
+
+def score_chain(root: Path, case: dict, initial: dict, events: list, payload: Path,
+                sessions: list, final: str) -> dict:
+    """Grade the chained adoption; the only chained capability case."""
+    return adoption.score_chain(core, root, case, initial, events, payload, sessions, final)

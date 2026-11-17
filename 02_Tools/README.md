@@ -6,10 +6,11 @@ Delivery-package builders and development prompt-evaluation tools live here.
 
 `evaluate_aegis_prompts.py` runs isolated AEGIS prompt scenarios against an
 explicitly selected local Chat Completions server: `--profile core` for the ten
-original cases, `--profile capabilities` for the fifteen capability cases with
-fresh local reviewer sessions, and `--profile holdout` for a pricing domain that
-never motivates prompt rules, including a chained five-session lifecycle whose
-code writes `evaluate_aegis_holdout.py` restricts to a Python subset. It
+original cases, `--profile capabilities` for the eighteen capability cases with
+fresh local reviewer sessions and a chained four-session adoption, and
+`--profile holdout` for a pricing domain that never motivates prompt rules,
+including a chained five-session lifecycle whose code writes
+`evaluate_aegis_holdout.py` restricts to a Python subset. It
 preserves the payload, records model/tool evidence and context use per run and
 per file read, reports configured semantic checks and per-case pass rates
 beside the strict checks, and checks observable workflow outcomes. See the
@@ -39,13 +40,14 @@ execution statements and still checks actual command events. A changed harness
 requires fresh runs; scores from an earlier harness are not a substitute.
 
 `evaluate_aegis_subscription.py` runs either the unchanged ten-case `core`
-profile or the fifteen-case `capabilities` profile through an explicit native
-Codex executable with existing ChatGPT authentication. It records model,
-reasoning, configured context, output-limit availability, usage and time, with
-30-second session pauses and bounded generic-429 backoff. The additional
-`evaluate_aegis_capabilities.py` and `evaluate_aegis_stages.py` fixtures cover
-all eight step prompts, actual independent reviewer sessions, diagrams,
-autopilot and context reconciliation. Build execution is AST-constrained; the
+profile or the `capabilities` profile, without its chained adoption, through an
+explicit native Codex executable with existing ChatGPT authentication. It
+records model, reasoning, configured context, output-limit availability, usage
+and time, with 30-second session pauses and bounded generic-429 backoff. The
+additional `evaluate_aegis_capabilities.py`, `evaluate_aegis_stages.py` and
+`evaluate_aegis_adoption.py` fixtures cover all eight step prompts, actual
+independent reviewer sessions, diagrams, autopilot, context reconciliation and
+the three adoption phases. Build execution is AST-constrained; the
 closing cases present a validated task and never publish it. The evaluation
 folder keeps the latest `gpt-6-luna` and `gpt-6.1-sol` subscription baselines
 and local Qwen baselines with and without reasoning; other runs keep their raw

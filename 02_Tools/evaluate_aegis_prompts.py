@@ -5,9 +5,10 @@ Evaluate AEGIS prompts against disposable repositories and a local model.
 Uses the standard library and an explicitly selected Chat Completions
 endpoint. Scores observed tool execution and artifacts, never a model's
 self-assessment. The core profile runs ten cases; the capabilities
-profile runs fifteen more, with fresh local reviewer sessions; the
-hold-out profile runs a second domain, including a chained five-session
-lifecycle. Results record prompt growth per read and configured semantic
+profile runs eighteen more, with fresh local reviewer sessions and a
+chained four-session adoption; the hold-out profile runs a second domain,
+including a chained five-session lifecycle. Results record prompt growth per
+read and configured semantic
 checks beside the strict ones. The constrained host is not a
 native-host benchmark.
 """
@@ -926,6 +927,9 @@ class Host:
             # a command this CLI does not have is a wrong guess; a real command
             # outside the allowed set stays forbidden
             raise CapabilityUnavailable(f"aegis has no '{args[0]}' command; see aegis --help")
+        elif program == "aegis" and args[:1] == ["init"] and self.initial.get("initialized"):
+            # adopt.md starts with init, which the fixture ran when AEGIS was installed
+            raise CapabilityUnavailable("AEGIS was initialized when it was installed; continue")
         elif program == "git" and args[:1] == ["git"]:
             # `git git status` repeats the program: a wrong call, unless what
             # follows is a write, which stays forbidden
@@ -1387,7 +1391,7 @@ def core_profile(payload: Path = PAYLOAD) -> dict:
 
 
 def capability_profile(payload: Path = PAYLOAD) -> dict:
-    """The fifteen-case capability profile, with fresh local reviewer sessions."""
+    """The capability profile, with fresh local reviewer sessions and the chained adoption."""
     cap = load_capabilities()
 
     def host(root, initial, payload_files, run_dir, args, _phase=None):
@@ -1400,8 +1404,9 @@ def capability_profile(payload: Path = PAYLOAD) -> dict:
         "system": cap.instructions(bootstrap_text(payload)),
         "contract": cap.instructions(ENTRY_PLACEHOLDER),
         "tools": cap.tools_for(aegis_commands(payload)), "contract_tools": cap.TOOLS,
-        "prepare": cap.prepare, "host": host, "score": cap.score,
+        "prepare": cap.prepare, "host": host, "score": cap.score, "score_chain": cap.score_chain,
         "sources": [Path(__file__).resolve(), CAPABILITIES, Path(cap.stages.__file__),
+                    Path(cap.adoption.__file__),
                     cap.SUITE, PROFILE, SEMANTIC, cap.ROLE_DIR / "aegis-spec-review.toml",
                     cap.ROLE_DIR / "aegis-quality-review.toml", CODEX_SKILL]}
 
@@ -1844,8 +1849,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--base-url", required=True, help="For example http://localhost:1234/v1")
     run.add_argument("--model", required=True)
     run.add_argument("--profile", choices=sorted(PROFILES), default="core",
-                     help="core: ten frame/task/validate cases; capabilities: fifteen "
-                          "specify/design/build/deliver/adopt/review/context cases; holdout: "
+                     help="core: ten frame/task/validate cases; capabilities: eighteen "
+                          "specify/design/build/deliver/adopt/review/context cases, including "
+                          "a chained four-session adoption; holdout: "
                           "the pricing domain, including a chained five-session lifecycle")
     run.add_argument("--payload", type=Path, default=PAYLOAD)
     run.add_argument("--output", type=Path, required=True)

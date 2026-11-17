@@ -20,7 +20,7 @@ and implementation history in Git.
 | Coordination | Presence-only context pointers and a `Read next` line in `brief`, the recorded State through `summary`, one-level child tasks, independent review verdicts and bounded correction rounds. |
 | Integrations | OpenCode, Codex, Pi, Qwen Code and Claude Code entry points backed by twelve shared adapter operations, including `journal`. |
 | Host lifecycle | Complete package assembly, runtime discovery, owned installation/update/removal, verification jobs, duplicate prevention, cancellation and recovery. |
-| Prompt evaluation | Ten core, fifteen capability and six hold-out scenarios in disposable Git repositories, covering all eight step guides, the common contract, task records, actual reviewer sessions, diagrams, autopilot, context updates and one feature carried through five fresh sessions. |
+| Prompt evaluation | Ten core, eighteen capability and six hold-out scenarios in disposable Git repositories, covering all eight step guides, the common contract, task records, actual reviewer sessions, diagrams, autopilot, context updates, the three adoption phases, one adoption carried through four fresh sessions and one feature carried through five. |
 
 ## Source ownership
 

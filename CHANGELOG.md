@@ -4,6 +4,11 @@ All notable changes to AEGIS are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Evaluate the adoption survey and close phases, and a four-session chain that
+  adopts two components one per session (`02_Tools/evaluate_aegis_adoption.py`).
+
 ## [0.16.1] - 2026-11-17
 
 ### Fixed
