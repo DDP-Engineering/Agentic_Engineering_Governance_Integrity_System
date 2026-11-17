@@ -30,6 +30,7 @@ prompt cheatsheet cover focused tests, final proof and resuming with `brief`.
 | [Project context](Project_Context.md) | Maintaining current project/environment facts and positive behavior documentation. | - |
 | [Agent plugins](Agent_Plugins.md) | Building, distributing, installing and operating all five integrations. | - |
 | [Plugin installation manual](Plugin_Installation/README.md) | Step-by-step, illustrated installation for OpenCode, Codex, Pi, Qwen Code and Claude Code. | [Combined PDF](Plugin_Installation/pdf/00_AEGIS_Plugin_Installation_Manual.pdf) |
+| Product overview | Presenting AEGIS: the workflow, its strengths, anonymized usage figures, evaluation and local-model results. | [PPTX](AEGIS_Product_Overview.pptx) |
 
 The decks are condensed companions. The Markdown guides contain the detailed
 commands and limitations; where a deck and its guide differ, follow the guide.
